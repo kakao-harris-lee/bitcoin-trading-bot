@@ -1,0 +1,47 @@
+{
+  "strategy_name": "market_adaptive",
+  "version": "v08",
+  "timeframe": "day",
+
+  "market_detector": {
+    "adx_threshold": 25,
+    "adx_weak": 20,
+    "momentum_window": 30,
+    "bull_momentum": 0.15,
+    "bear_momentum": -0.10,
+    "transition_days": 3
+  },
+
+  "bull_params": {
+    "use_ema_entry": true,
+    "use_macd_entry": true,
+    "ema_fast": 12,
+    "ema_slow": 26,
+    "macd_fast": 13,
+    "macd_slow": 23,
+    "macd_signal": 8,
+    "trailing_stop_pct": 0.12,
+    "stop_loss_pct": 0.08,
+    "position_fraction": 0.95
+  },
+
+  "sideways_params": {
+    "use_ema_entry": true,
+    "use_macd_entry": false,
+    "ema_fast": 12,
+    "ema_slow": 26,
+    "trailing_stop_pct": 0.06,
+    "stop_loss_pct": 0.05,
+    "position_fraction": 0.70
+  },
+
+  "bear_params": {
+    "action": "stay_in_cash"
+  },
+
+  "trading": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  }
+}

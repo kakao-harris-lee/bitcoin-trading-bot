@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(timeout:*)",
+      "Bash(tree:*)",
+      "Bash(sqlite3:*)",
+      "Read(//Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/**)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(tee:*)",
+      "Bash(awk:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

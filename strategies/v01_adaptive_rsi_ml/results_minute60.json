@@ -1,0 +1,80 @@
+{
+  "version": "v01",
+  "strategy_name": "adaptive_rsi_ml",
+  "config": {
+    "strategy_name": "adaptive_rsi_ml",
+    "version": "v01",
+    "timeframe": "minute60",
+    "rolling_window": 30,
+    "rsi_period": 14,
+    "volatility_threshold": {
+      "high": 0.03,
+      "low": 0.01
+    },
+    "adaptive_rsi": {
+      "base_oversold": 30,
+      "base_overbought": 70,
+      "adjustment_range": 20
+    },
+    "macd": {
+      "fast": 12,
+      "slow": 26,
+      "signal": 9
+    },
+    "adx_period": 14,
+    "adx_threshold": 20,
+    "ml_model": {
+      "type": "RandomForest",
+      "n_estimators": 100,
+      "max_depth": 10,
+      "confidence_threshold": 0.7,
+      "training_window": 1000,
+      "retrain_interval": 500
+    },
+    "risk_management": {
+      "take_profit_1": 0.05,
+      "take_profit_2": 0.1,
+      "stop_loss": -0.03
+    },
+    "kelly_fraction": 0.25,
+    "min_trades_for_kelly": 50,
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  },
+  "metrics": {
+    "initial_capital": 10000000,
+    "final_capital": 12261864.59337445,
+    "total_return": 22.618645933744496,
+    "sharpe_ratio": -0.10480124360288484,
+    "max_drawdown": 2.9001779813458635,
+    "total_trades": 10,
+    "winning_trades": 4,
+    "losing_trades": 6,
+    "win_rate": 0.4,
+    "avg_profit": 107151.94107700903,
+    "avg_loss": 91501.75921277048,
+    "profit_factor": 0.7806913003559268,
+    "kelly_criterion": 0.0,
+    "kelly_quarter": 0.0,
+    "kelly_half": 0.0,
+    "equity_curve": "               timestamp          cash  position_value  total_equity\n0    2024-09-01 00:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n1    2024-09-01 01:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n2    2024-09-01 02:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n3    2024-09-01 03:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n4    2024-09-01 04:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n...                  ...           ...             ...           ...\n2899 2024-12-30 19:00:00  7.449647e+06    2.459193e+06  9.908839e+06\n2900 2024-12-30 20:00:00  7.449647e+06    2.462356e+06  9.912003e+06\n2901 2024-12-30 21:00:00  7.449647e+06    2.460659e+06  9.910306e+06\n2902 2024-12-30 22:00:00  7.449647e+06    2.438886e+06  9.888533e+06\n2903 2024-12-30 23:00:00  7.449647e+06    2.406951e+06  9.856598e+06\n\n[2904 rows x 4 columns]",
+    "trades": [
+      "Trade(entry_time=Timestamp('2024-09-04 12:00:00'), entry_price=np.float64(77215440.0), quantity=np.float64(0.03236076391829997), side='buy', exit_time=Timestamp('2024-09-07 09:00:00'), exit_price=np.float64(73507295.60000001), profit_loss=np.float64(-119998.3855033658), profit_loss_pct=np.float64(-4.8023353878447), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-09-16 08:00:00'), entry_price=np.float64(79705938.0), quantity=np.float64(0.030965781212529624), side='buy', exit_time=Timestamp('2024-09-18 00:00:00'), exit_price=np.float64(81864623.8), profit_loss=np.float64(66845.39218939439), profit_loss_pct=np.float64(2.708312397001083), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-09-30 09:00:00'), entry_price=np.float64(85586113.8), quantity=np.float64(0.02902614035624417), side='buy', exit_time=Timestamp('2024-10-02 09:00:00'), exit_price=np.float64(81805635.60000001), profit_loss=np.float64(-109732.69084692097), profit_loss_pct=np.float64(-4.417163056187262), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-10-10 04:00:00'), entry_price=np.float64(82931583.0), quantity=np.float64(0.02961728163553494), side='buy', exit_time=Timestamp('2024-10-12 00:00:00'), exit_price=np.float64(84091178.4), profit_loss=np.float64(34344.06354507097), profit_loss_pct=np.float64(1.398255475239157), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-10-21 22:00:00'), entry_price=np.float64(91765349.39999999), quantity=np.float64(0.026852965256763988), side='buy', exit_time=Timestamp('2024-10-25 22:00:00'), exit_price=np.float64(94780040.2), profit_loss=np.float64(80953.38731228636), profit_loss_pct=np.float64(3.285216936143451), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-11-01 01:00:00'), entry_price=np.float64(98402676.6), quantity=np.float64(0.025240920354610535), side='buy', exit_time=Timestamp('2024-11-03 18:00:00'), exit_price=np.float64(95216952.8), profit_loss=np.float64(-80410.60070758715), profit_loss_pct=np.float64(-3.2374361247811803), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-11-24 20:00:00'), entry_price=np.float64(133276650.0), quantity=np.float64(0.018480888677453986), side='buy', exit_time=Timestamp('2024-11-26 20:00:00'), exit_price=np.float64(128723250.2), profit_loss=np.float64(-84150.87480774119), profit_loss_pct=np.float64(-3.416502290536262), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-12-03 22:00:00'), entry_price=np.float64(116473290.0), quantity=np.float64(0.020961361874934373), side='buy', exit_time=Timestamp('2024-12-03 23:00:00'), exit_price=np.float64(128231348.60000001), profit_loss=np.float64(246464.9212612844), profit_loss_pct=np.float64(10.095068663381973), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-12-20 05:00:00'), entry_price=np.float64(145898173.79999998), quantity=np.float64(0.017151574317129114), side='buy', exit_time=Timestamp('2024-12-24 11:00:00'), exit_price=np.float64(141279738.4), profit_loss=np.float64(-79213.43799195952), profit_loss_pct=np.float64(-3.165519676984454), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-12-30 01:00:00'), entry_price=np.float64(140439082.2), quantity=np.float64(0.01767296170373172), side='buy', exit_time=Timestamp('2024-12-30 23:00:00'), exit_price=np.float64(136166761.20000002), profit_loss=np.float64(-75504.56541904827), profit_loss_pct=np.float64(-3.0421168616836565), reason='Buy 25.0% of cash -> Sell 100.0%')"
+    ]
+  },
+  "data_period": {
+    "start": "2024-09-01 00:00:00",
+    "end": "2024-12-30 23:00:00",
+    "records": 2904
+  }
+}

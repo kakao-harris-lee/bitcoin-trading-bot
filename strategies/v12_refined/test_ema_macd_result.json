@@ -1,0 +1,23 @@
+{
+  "algorithm": "EMA_MACD",
+  "parameters": {
+    "ema_fast": 12,
+    "ema_slow": 26,
+    "macd_fast": 13,
+    "macd_slow": 23,
+    "macd_signal": 8,
+    "require_both": false
+  },
+  "signals": 13,
+  "trades": 13,
+  "win_rate": 46.15384615384615,
+  "avg_profit": 15.34628614421469,
+  "avg_win": 45.98699647517562,
+  "avg_loss": -10.91717985375182,
+  "passed": false,
+  "criteria": {
+    "\uc2dc\uadf8\ub110 \uac1c\uc218 >= 3": true,
+    "\uc2b9\ub960 >= 60%": false,
+    "\ud3c9\uade0 \uc218\uc775 > 15%": "True"
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "version": "v07",
+  "strategy_name": "enhanced_day_macd",
+  "timestamp": "2025-10-18T11:35:49.358136",
+  "timeframe": "day",
+  "backtest_period": {
+    "start": "2024-01-01",
+    "end": "2024-12-30"
+  },
+  "metrics": {
+    "initial_capital": 10000000,
+    "final_capital": 21389885.458129697,
+    "total_return": 113.89885458129696,
+    "sharpe_ratio": 1.6683265914092626,
+    "max_drawdown": 29.502267718272584,
+    "total_trades": 3,
+    "winning_trades": 2,
+    "losing_trades": 1,
+    "win_rate": 0.6666666666666666,
+    "avg_profit": 59.23662605703932,
+    "avg_loss": -11.201857287195653,
+    "profit_factor": 8.91523241308666,
+    "kelly_criterion": 0.7297011890155556,
+    "kelly_quarter": 0.1824252972538889,
+    "kelly_half": 0.3648505945077778,
+    "equity_curve": "              timestamp          cash  ...        cummax  drawdown\n0   2024-01-01 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n1   2024-01-02 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n2   2024-01-03 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n3   2024-01-04 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n4   2024-01-05 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n..                  ...           ...  ...           ...       ...\n360 2024-12-26 09:00:00  6.059843e+05  ...  2.370971e+07 -0.069977\n361 2024-12-27 09:00:00  6.059843e+05  ...  2.370971e+07 -0.082313\n362 2024-12-28 09:00:00  6.059843e+05  ...  2.370971e+07 -0.081114\n363 2024-12-29 09:00:00  6.059843e+05  ...  2.370971e+07 -0.097229\n364 2024-12-29 09:00:00  2.138989e+07  ...  2.370971e+07 -0.097843\n\n[365 rows x 7 columns]",
+    "trades": [
+      "Trade(entry_time=Timestamp('2024-02-03 09:00:00'), entry_price=np.float64(59271852.0), exit_time=Timestamp('2024-07-04 09:00:00'), exit_price=np.float64(81663664.0), quantity=np.float64(0.16019834126008234), profit_loss=np.float64(3587131.140207607), profit_loss_pct=np.float64(37.778154797660115), reason='')",
+      "Trade(entry_time=Timestamp('2024-07-13 09:00:00'), entry_price=np.float64(82917580.2), exit_time=Timestamp('2024-09-06 09:00:00'), exit_price=np.float64(73629271.2), quantity=np.float64(0.1554628689429441), profit_loss=np.float64(-1443987.164768568), profit_loss_pct=np.float64(-11.201857287195653), reason='')",
+      "Trade(entry_time=Timestamp('2024-09-11 09:00:00'), entry_price=np.float64(77316460.2), exit_time=Timestamp('2024-12-29 09:00:00'), exit_price=np.float64(139707053.0), quantity=np.float64(0.14884215101123766), profit_loss=np.float64(9286350.035218237), profit_loss_pct=np.float64(80.69509731641851), reason='')"
+    ]
+  },
+  "buy_hold_return": 137.48704090824114,
+  "config": {
+    "strategy_name": "enhanced_day_macd",
+    "version": "v07",
+    "description": "EMA Golden Cross + MACD Golden Cross dual entry conditions",
+    "timeframe": "day",
+    "indicators": {
+      "ema_fast": 12,
+      "ema_slow": 26,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9
+    },
+    "entry": {
+      "use_ema_golden_cross": true,
+      "use_macd_golden_cross": true,
+      "allow_multiple_positions": false
+    },
+    "exit": {
+      "trailing_stop_pct": 0.21,
+      "stop_loss_pct": 0.1
+    },
+    "position": {
+      "position_fraction": 0.95
+    },
+    "trading": {
+      "initial_capital": 10000000,
+      "fee_rate": 0.0005,
+      "slippage": 0.0002,
+      "min_order_size": 10000
+    },
+    "backtest": {
+      "start_date": "2024-01-01",
+      "end_date": "2024-12-30"
+    },
+    "optimization": {
+      "target_metric": "total_return",
+      "constraints": {
+        "min_sharpe_ratio": 1.0,
+        "max_drawdown": 0.3
+      },
+      "parameter_ranges": {
+        "macd_fast": [
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "macd_slow": [
+          20,
+          24,
+          26,
+          28,
+          32
+        ],
+        "macd_signal": [
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "trailing_stop_pct": [
+          0.15,
+          0.18,
+          0.21,
+          0.24,
+          0.27
+        ],
+        "stop_loss_pct": [
+          0.08,
+          0.1,
+          0.12,
+          0.15
+        ]
+      }
+    },
+    "success_criteria": {
+      "required": {
+        "total_return": 120.0,
+        "sharpe_ratio": 1.0,
+        "max_drawdown": 30.0
+      },
+      "excellent": {
+        "total_return": 130.0,
+        "total_trades": 8,
+        "win_rate": 0.6,
+        "profit_factor": 2.0
+      },
+      "outstanding": {
+        "total_return": 140.0,
+        "sharpe_ratio": 1.5,
+        "max_drawdown": 20.0,
+        "win_rate": 0.7
+      }
+    }
+  }
+}

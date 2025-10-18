@@ -1,0 +1,287 @@
+{
+  "timestamp": "2025-10-17T14:42:42.435092",
+  "period": {
+    "start": "2024-01-01",
+    "end": "2024-12-30"
+  },
+  "timeframes": [
+    "minute5",
+    "minute15",
+    "minute30",
+    "minute60",
+    "minute240",
+    "day"
+  ],
+  "strategies": [
+    {
+      "strategy_name": "v01_adaptive_rsi_ml",
+      "strategy_path": "strategies/v01_adaptive_rsi_ml",
+      "timeframes": {
+        "minute5": {
+          "total_return": 29.793061127520502,
+          "sharpe_ratio": 0.061588048243008585,
+          "max_drawdown": 3.9431794983069564,
+          "win_rate": 0.736,
+          "total_trades": 125,
+          "profit_factor": 1.4856137183669604
+        },
+        "minute15": {
+          "total_return": 19.456531880043766,
+          "sharpe_ratio": -0.10619921381156676,
+          "max_drawdown": 6.788875847163026,
+          "win_rate": 0.5714285714285714,
+          "total_trades": 35,
+          "profit_factor": 0.7262717799513317
+        },
+        "minute30": {
+          "total_return": 30.067637042181605,
+          "sharpe_ratio": 0.20429900563069495,
+          "max_drawdown": 1.6397764205547762,
+          "win_rate": 0.631578947368421,
+          "total_trades": 19,
+          "profit_factor": 1.9583835458356322
+        },
+        "minute60": {
+          "total_return": 22.618645933744496,
+          "sharpe_ratio": -0.10480124360288484,
+          "max_drawdown": 2.9001779813458635,
+          "win_rate": 0.4,
+          "total_trades": 10,
+          "profit_factor": 0.7806913003559268
+        },
+        "minute240": {
+          "total_return": 30.012802960148864,
+          "sharpe_ratio": 0.9558847065239603,
+          "max_drawdown": 1.3765656642889632,
+          "win_rate": 0.75,
+          "total_trades": 4,
+          "profit_factor": 397.37621922240965
+        },
+        "day": {
+          "total_return": 0.0,
+          "sharpe_ratio": 0.0,
+          "max_drawdown": 0.0,
+          "win_rate": 0,
+          "total_trades": 0,
+          "profit_factor": 0
+        }
+      }
+    },
+    {
+      "strategy_name": "v02a_dynamic_kelly",
+      "strategy_path": "strategies/v02a_dynamic_kelly",
+      "timeframes": {
+        "minute5": {
+          "total_return": 8.214518731525969,
+          "sharpe_ratio": 0.028173722518184702,
+          "max_drawdown": 2.207624551262146,
+          "win_rate": 0.736,
+          "total_trades": 125,
+          "profit_factor": 1.3418285291262706
+        },
+        "minute15": {
+          "total_return": 19.456531880043766,
+          "sharpe_ratio": -0.10619921381156676,
+          "max_drawdown": 6.788875847163026,
+          "win_rate": 0.5714285714285714,
+          "total_trades": 35,
+          "profit_factor": 0.7262717799513317
+        },
+        "minute30": {
+          "total_return": 30.067637042181605,
+          "sharpe_ratio": 0.20429900563069495,
+          "max_drawdown": 1.6397764205547762,
+          "win_rate": 0.631578947368421,
+          "total_trades": 19,
+          "profit_factor": 1.9583835458356322
+        },
+        "minute60": {
+          "total_return": 22.618645933744496,
+          "sharpe_ratio": -0.10480124360288484,
+          "max_drawdown": 2.9001779813458635,
+          "win_rate": 0.4,
+          "total_trades": 10,
+          "profit_factor": 0.7806913003559268
+        },
+        "minute240": {
+          "total_return": 30.012802960148864,
+          "sharpe_ratio": 0.9558847065239603,
+          "max_drawdown": 1.3765656642889632,
+          "win_rate": 0.75,
+          "total_trades": 4,
+          "profit_factor": 397.37621922240965
+        },
+        "day": {
+          "total_return": 0.0,
+          "sharpe_ratio": 0.0,
+          "max_drawdown": 0.0,
+          "win_rate": 0,
+          "total_trades": 0,
+          "profit_factor": 0
+        }
+      }
+    },
+    {
+      "strategy_name": "v02b_split_exit",
+      "strategy_path": "strategies/v02b_split_exit",
+      "timeframes": {
+        "minute5": {
+          "total_return": 8.214518731525969,
+          "sharpe_ratio": 0.028173722518184702,
+          "max_drawdown": 2.207624551262146,
+          "win_rate": 0.736,
+          "total_trades": 125,
+          "profit_factor": 1.3418285291262706
+        },
+        "minute15": {
+          "total_return": 19.407270260858944,
+          "sharpe_ratio": -0.1073548203113113,
+          "max_drawdown": 6.827314355543793,
+          "win_rate": 0.5714285714285714,
+          "total_trades": 35,
+          "profit_factor": 0.7237364697789571
+        },
+        "minute30": {
+          "total_return": 32.16526515603574,
+          "sharpe_ratio": 0.24210624506731832,
+          "max_drawdown": 1.7846347472693587,
+          "win_rate": 0.631578947368421,
+          "total_trades": 19,
+          "profit_factor": 2.02350518733943
+        },
+        "minute60": {
+          "total_return": 27.460475314322373,
+          "sharpe_ratio": 0.15765101127457865,
+          "max_drawdown": 3.1318686779506453,
+          "win_rate": 0.45454545454545453,
+          "total_trades": 11,
+          "profit_factor": 1.0137937550676002
+        },
+        "minute240": {
+          "total_return": 88.28260149371009,
+          "sharpe_ratio": 1.4999233955332179,
+          "max_drawdown": 4.099632381435655,
+          "win_rate": 0.75,
+          "total_trades": 4,
+          "profit_factor": 453.62248189040713
+        },
+        "day": {
+          "total_return": 0.0,
+          "sharpe_ratio": 0.0,
+          "max_drawdown": 0.0,
+          "win_rate": 0,
+          "total_trades": 0,
+          "profit_factor": 0
+        }
+      }
+    },
+    {
+      "strategy_name": "v02c_volatility_adjusted",
+      "strategy_path": "strategies/v02c_volatility_adjusted",
+      "timeframes": {
+        "minute5": {
+          "total_return": 19.370765997918863,
+          "sharpe_ratio": 0.05312830594457207,
+          "max_drawdown": 2.6054074667686353,
+          "win_rate": 0.736,
+          "total_trades": 125,
+          "profit_factor": 1.4424473347711182
+        },
+        "minute15": {
+          "total_return": 21.260651366424224,
+          "sharpe_ratio": -0.10703037803118928,
+          "max_drawdown": 7.4923478771710075,
+          "win_rate": 0.5714285714285714,
+          "total_trades": 35,
+          "profit_factor": 0.7237138887383602
+        },
+        "minute30": {
+          "total_return": 33.604024080946374,
+          "sharpe_ratio": 0.2122288293419599,
+          "max_drawdown": 1.95039228575881,
+          "win_rate": 0.631578947368421,
+          "total_trades": 19,
+          "profit_factor": 1.8455513380312194
+        },
+        "minute60": {
+          "total_return": 28.58244112656575,
+          "sharpe_ratio": 0.09510207955147658,
+          "max_drawdown": 2.9194213053463525,
+          "win_rate": 0.45454545454545453,
+          "total_trades": 11,
+          "profit_factor": 0.8746796434240921
+        },
+        "minute240": {
+          "total_return": 88.28260149371009,
+          "sharpe_ratio": 1.4999233955332179,
+          "max_drawdown": 4.099632381435655,
+          "win_rate": 0.75,
+          "total_trades": 4,
+          "profit_factor": 453.62248189040713
+        },
+        "day": {
+          "total_return": 0.0,
+          "sharpe_ratio": 0.0,
+          "max_drawdown": 0.0,
+          "win_rate": 0,
+          "total_trades": 0,
+          "profit_factor": 0
+        }
+      }
+    },
+    {
+      "strategy_name": "v03_bull_trend_hold",
+      "strategy_path": "strategies/v03_bull_trend_hold",
+      "timeframes": {
+        "minute5": {
+          "total_return": 31.470330153031554,
+          "sharpe_ratio": 0.08523783119195613,
+          "max_drawdown": 3.5522933334412166,
+          "win_rate": 0.7348484848484849,
+          "total_trades": 132,
+          "profit_factor": 1.5511464376364599
+        },
+        "minute15": {
+          "total_return": -6.614328734095097,
+          "sharpe_ratio": -0.19332510796179836,
+          "max_drawdown": 7.651255014851169,
+          "win_rate": 0.5897435897435898,
+          "total_trades": 39,
+          "profit_factor": 0.6415428291161347
+        },
+        "minute30": {
+          "total_return": 34.072667835474014,
+          "sharpe_ratio": 0.30553766159366713,
+          "max_drawdown": 2.16177991623576,
+          "win_rate": 0.68,
+          "total_trades": 25,
+          "profit_factor": 2.4158366984008985
+        },
+        "minute60": {
+          "total_return": 25.23724950806875,
+          "sharpe_ratio": 0.04239162016475777,
+          "max_drawdown": 3.3785300286147812,
+          "win_rate": 0.4666666666666667,
+          "total_trades": 15,
+          "profit_factor": 1.1315708529018569
+        },
+        "minute240": {
+          "total_return": 3.267617579712588,
+          "sharpe_ratio": 1.002043131736572,
+          "max_drawdown": 1.0937029282212387,
+          "win_rate": 0.75,
+          "total_trades": 4,
+          "profit_factor": 5.2871805745331795
+        },
+        "day": {
+          "total_return": 0.0,
+          "sharpe_ratio": 0.0,
+          "max_drawdown": 0.0,
+          "win_rate": 0.0,
+          "total_trades": 0,
+          "profit_factor": 0.0
+        }
+      }
+    }
+  ]
+}

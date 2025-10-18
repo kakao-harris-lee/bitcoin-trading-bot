@@ -1,0 +1,98 @@
+{
+  "version": "v16",
+  "strategy_name": "improved_voting_ensemble",
+  "timeframe": "day",
+  "period": "2024-01-01 ~ 2024-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 23399780.247148875,
+  "total_return_pct": 133.99780247148877,
+  "total_trades": 2,
+  "wins": 2,
+  "losses": 0,
+  "win_rate": 100.0,
+  "trades": [
+    {
+      "entry_date": "2024-02-07 09:00:00",
+      "entry_price": 60232000.0,
+      "exit_date": "2024-05-02 09:00:00",
+      "exit_price": 83078000.0,
+      "pnl_pct": 37.93000398459291,
+      "reason": "TRAILING_STOP",
+      "signals": [
+        "VWAP",
+        "BREAKOUT"
+      ],
+      "score": 3.5,
+      "regime": "normal",
+      "trailing_stop": 0.2,
+      "highest_price": 104122000.0
+    },
+    {
+      "entry_date": "2024-07-05 09:00:00",
+      "entry_price": 81118000.0,
+      "exit_date": "2024-12-30 09:00:00",
+      "exit_price": 137892000.0,
+      "pnl_pct": 69.98939816070417,
+      "reason": "END_OF_PERIOD",
+      "signals": [
+        "VWAP",
+        "STOCHASTIC"
+      ],
+      "score": 3.0,
+      "regime": "strong_trend",
+      "trailing_stop": 0.3,
+      "highest_price": 155223000.0
+    }
+  ],
+  "config": {
+    "strategy_name": "improved_voting_ensemble",
+    "version": "v16",
+    "description": "v13 개선: Vote Threshold 완화 + ADX 횡보장 감지 + 동적 Trailing Stop",
+    "timeframe": "day",
+    "algorithms": {
+      "vwap": {
+        "weight": 2.0,
+        "params": {
+          "deviation_threshold": 0.02
+        }
+      },
+      "breakout": {
+        "weight": 1.5,
+        "params": {
+          "period": 20
+        }
+      },
+      "stochastic": {
+        "weight": 1.0,
+        "params": {
+          "k_period": 14,
+          "d_period": 3,
+          "oversold": 20,
+          "overbought": 80
+        }
+      }
+    },
+    "vote_threshold": 2.5,
+    "adx_period": 14,
+    "adx_strong_trend": 25,
+    "adx_sideways": 15,
+    "trailing_stop": {
+      "strong_trend": 0.3,
+      "normal": 0.2,
+      "sideways": 0.15
+    },
+    "stop_loss": 0.1,
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  },
+  "vs_buyhold": {
+    "buyhold_return": 137.49,
+    "target_return": 157.49,
+    "difference": -3.492197528511241
+  },
+  "vs_v13": {
+    "v13_return": 133.78,
+    "improvement": 0.21780247148876697
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "version": "v14",
+  "strategy_name": "high_confidence",
+  "timeframe": "day",
+  "period": "2024-01-01 ~ 2024-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 8825964.915737815,
+  "total_return_pct": -11.740350842621847,
+  "total_trades": 1,
+  "wins": 0,
+  "losses": 1,
+  "win_rate": 0.0,
+  "trades": [
+    {
+      "entry_date": "2024-08-08 09:00:00",
+      "entry_price": 86397000.0,
+      "exit_date": "2024-09-05 09:00:00",
+      "exit_price": 76330000.0,
+      "pnl_pct": -11.652024954570182,
+      "reason": "STOP_LOSS",
+      "signals": [
+        "VWAP",
+        "CCI"
+      ],
+      "highest_price": 86397000.0
+    }
+  ],
+  "config": {
+    "strategy_name": "high_confidence",
+    "version": "v14",
+    "description": "VWAP 필수 + OBV/CCI 동의 + 거래량 증가 필터링",
+    "timeframe": "day",
+    "algorithms": {
+      "vwap": {
+        "required": true,
+        "params": {
+          "deviation_threshold": 0.02
+        }
+      },
+      "obv": {
+        "params": {
+          "ma_period": 20
+        }
+      },
+      "cci": {
+        "params": {
+          "period": 20,
+          "constant": 0.015
+        },
+        "oversold": -100,
+        "overbought": 100
+      }
+    },
+    "volume_threshold": 1.2,
+    "trailing_stop": 0.2,
+    "stop_loss": 0.1,
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  }
+}

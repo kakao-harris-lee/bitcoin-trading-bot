@@ -1,0 +1,52 @@
+{
+  "strategy_name": "adaptive",
+  "version": "v15",
+  "description": "시장 상황별 최적 전략 동적 선택",
+  "timeframe": "day",
+
+  "market_regime": {
+    "adx_strong_trend": 25,
+    "adx_sideways": 15,
+    "volume_high_multiplier": 1.5
+  },
+
+  "strategies": {
+    "strong_trend": {
+      "algorithm": "breakout",
+      "params": {"period": 20},
+      "trailing_stop": 0.30,
+      "description": "ADX >= 25, 강한 추세 추종"
+    },
+    "sideways": {
+      "algorithm": "bollinger_bounce",
+      "params": {"window": 20, "num_std": 2.0},
+      "trailing_stop": 0.15,
+      "description": "ADX < 15, 횡보장 평균 회귀"
+    },
+    "high_volume": {
+      "algorithms": ["vwap", "obv"],
+      "params": {
+        "vwap": {"deviation_threshold": 0.02},
+        "obv": {"ma_period": 20}
+      },
+      "trailing_stop": 0.20,
+      "description": "Volume > 평균 1.5배, 거래량 기반"
+    },
+    "normal": {
+      "algorithm": "voting_ensemble",
+      "params": {
+        "vwap_weight": 2.0,
+        "breakout_weight": 1.5,
+        "stochastic_weight": 1.0,
+        "vote_threshold": 3.0
+      },
+      "trailing_stop": 0.20,
+      "description": "기타 일반 상황"
+    }
+  },
+
+  "stop_loss": 0.10,
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002
+}

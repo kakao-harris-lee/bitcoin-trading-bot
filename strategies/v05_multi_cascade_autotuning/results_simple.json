@@ -1,0 +1,28 @@
+{
+  "config": "config_simple.json",
+  "return": 38.51200857399501,
+  "sharpe": 0.709060472577709,
+  "mdd": 14.789138364486309,
+  "trades": 32,
+  "win_rate": 0.78125,
+  "layer_stats": {
+    "day": {
+      "total_trades": 14,
+      "winning_trades": 11,
+      "losing_trades": 3,
+      "win_rate": 0.7857142857142857,
+      "total_pnl": 3588905.6626648465,
+      "avg_profit": 463870.6574872758,
+      "avg_loss": 504557.18989839545
+    },
+    "minute240": {
+      "total_trades": 18,
+      "winning_trades": 14,
+      "losing_trades": 4,
+      "win_rate": 0.7777777777777778,
+      "total_pnl": 311891.4646359889,
+      "avg_profit": 23989.189470986224,
+      "avg_loss": 5989.29698945456
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "strategy_name": "vwap_breakout",
+  "version": "v17",
+  "description": "VWAP + BREAKOUT simple combination (Stochastic excluded)",
+  "timeframe": "day",
+
+  "algorithms": {
+    "vwap": {
+      "weight": 2.0,
+      "params": {
+        "deviation_threshold": 0.02
+      }
+    },
+    "breakout": {
+      "weight": 1.5,
+      "params": {
+        "period": 20
+      }
+    }
+  },
+
+  "vote_threshold": 2.0,
+  "trailing_stop": 0.20,
+  "stop_loss": 0.10,
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002
+}

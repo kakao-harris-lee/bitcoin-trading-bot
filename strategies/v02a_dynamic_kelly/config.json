@@ -1,0 +1,45 @@
+{
+  "strategy_name": "dynamic_kelly",
+  "version": "v02a",
+  "timeframe": "minute5",
+  "rolling_window": 30,
+  "rsi_period": 14,
+  "volatility_threshold": {
+    "high": 0.03,
+    "low": 0.01
+  },
+  "adaptive_rsi": {
+    "base_oversold": 30,
+    "base_overbought": 70,
+    "adjustment_range": 20
+  },
+  "macd": {
+    "fast": 12,
+    "slow": 26,
+    "signal": 9
+  },
+  "adx_period": 14,
+  "adx_threshold": 20,
+  "ml_model": {
+    "type": "RandomForest",
+    "n_estimators": 100,
+    "max_depth": 10,
+    "confidence_threshold": 0.7,
+    "training_window": 1000,
+    "retrain_interval": 500
+  },
+  "risk_management": {
+    "take_profit_1": 0.05,
+    "take_profit_2": 0.10,
+    "stop_loss": -0.03
+  },
+  "kelly_settings": {
+    "initial_fraction": 0.25,
+    "min_trades_for_dynamic": 50,
+    "kelly_multiplier": 0.25,
+    "max_fraction": 0.5
+  },
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002
+}

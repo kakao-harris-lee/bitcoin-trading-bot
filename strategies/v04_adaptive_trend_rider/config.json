@@ -1,0 +1,50 @@
+{
+  "strategy_name": "adaptive_trend_rider",
+  "version": "v04",
+  "timeframe": "minute240",
+
+  "_comment_regime": "시장 상태 분류 파라미터",
+  "regime": {
+    "strong_bull_adx": 30.0,
+    "moderate_bull_adx": 20.0,
+    "bull_return_threshold": 0.10,
+    "recent_period": 20
+  },
+
+  "_comment_signals": "매수 신호 파라미터 (4개 투표)",
+  "signals": {
+    "rsi_threshold": 40.0,
+    "price_drop_threshold": 0.08,
+    "lookback_period": 20
+  },
+
+  "_comment_position_sizing": "포지션 사이징 파라미터",
+  "position_sizing": {
+    "base_kelly_fraction": 0.25,
+    "min_fraction": 0.1,
+    "max_fraction": 0.5,
+    "risk_per_trade": 0.02
+  },
+
+  "_comment_backtest": "백테스팅 설정",
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002,
+
+  "_comment_optimization": "최적화 대상 파라미터 범위",
+  "optimization_ranges": {
+    "regime": {
+      "strong_bull_adx": [25, 35],
+      "moderate_bull_adx": [15, 25],
+      "bull_return_threshold": [0.05, 0.15]
+    },
+    "signals": {
+      "rsi_threshold": [35, 45],
+      "price_drop_threshold": [0.05, 0.12]
+    },
+    "position_sizing": {
+      "base_kelly_fraction": [0.15, 0.35],
+      "max_fraction": [0.4, 0.6]
+    }
+  }
+}

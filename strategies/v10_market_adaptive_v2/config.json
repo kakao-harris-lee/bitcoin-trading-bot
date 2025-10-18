@@ -1,0 +1,66 @@
+{
+  "strategy_name": "market_adaptive_v2",
+  "version": "v10",
+  "timeframe": "day",
+
+  "market_detector": {
+    "adx_threshold": 25,
+    "adx_weak": 20,
+    "momentum_window": 30,
+    "bull_momentum": 0.15,
+    "bear_momentum": -0.10
+  },
+
+  "indicators": {
+    "ema_fast": 12,
+    "ema_slow": 26,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9
+  },
+
+  "bull_market": {
+    "comment": "강한 상승장: v09의 Golden Cross 유지, 넓은 trailing stop",
+    "position_fraction": 0.95,
+    "trailing_stop_pct": 0.12,
+    "stop_loss_pct": 0.08,
+    "require_golden_cross": true,
+    "require_macd_cross": false
+  },
+
+  "sideways_market": {
+    "comment": "횡보장: v08 실패 보완 - Golden Cross 불필요, 단순 EMA 위치만 확인",
+    "position_fraction": 0.70,
+    "trailing_stop_pct": 0.08,
+    "stop_loss_pct": 0.05,
+    "require_golden_cross": false,
+    "require_macd_cross": false,
+    "min_momentum": 0.03
+  },
+
+  "bear_market": {
+    "comment": "하락장: v09 2022년 -57.81% 방지 - 매우 보수적 진입 + 빠른 손절",
+    "position_fraction": 0.50,
+    "trailing_stop_pct": 0.05,
+    "stop_loss_pct": 0.03,
+    "require_golden_cross": true,
+    "require_macd_cross": true,
+    "min_momentum": 0.10
+  },
+
+  "exit_rules": {
+    "comment": "v08 실패 방지: 시장 전환 시 수익 중이면 청산하지 않음",
+    "regime_change_hold_profit_threshold": 0.05,
+    "max_hold_days": 90
+  },
+
+  "position": {
+    "min_position_value": 10000
+  },
+
+  "backtest": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "strategy_name": "Multi-Entry Ensemble",
+  "version": "v11",
+  "timeframe": "day",
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002,
+
+  "base_params": {
+    "position_fraction": 0.98,
+    "ema_fast": 12,
+    "ema_slow": 26
+  },
+
+  "entry_conditions": {
+    "enable_ema_cross": true,
+    "enable_rsi_bounce": true,
+    "enable_breakout": true,
+    "enable_momentum": true
+  },
+
+  "rsi_params": {
+    "period": 14,
+    "oversold": 35,
+    "min_bounce": 1
+  },
+
+  "breakout_params": {
+    "lookback_period": 15,
+    "volume_multiplier": 1.2
+  },
+
+  "momentum_params": {
+    "period": 20,
+    "min_momentum": 0.10,
+    "min_adx": 20
+  },
+
+  "regime_detection": {
+    "strong_bull": {
+      "min_adx": 30,
+      "min_ema_slope": 0.10,
+      "trailing_stop_pct": 0.21,
+      "stop_loss_pct": 0.10
+    },
+    "bull": {
+      "min_adx": 25,
+      "min_ema_slope": 0.05,
+      "trailing_stop_pct": 0.21,
+      "stop_loss_pct": 0.10
+    },
+    "sideways": {
+      "max_adx": 20,
+      "trailing_stop_pct": 0.21,
+      "stop_loss_pct": 0.10
+    },
+    "bear": {
+      "trailing_stop_pct": 0.21,
+      "stop_loss_pct": 0.10
+    }
+  },
+
+  "risk_management": {
+    "max_positions": 1,
+    "allow_re_entry": false,
+    "min_days_between_trades": 3
+  }
+}

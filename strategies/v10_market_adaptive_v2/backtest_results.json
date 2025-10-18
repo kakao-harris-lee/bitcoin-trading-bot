@@ -1,0 +1,50 @@
+{
+  "train": {
+    "period": "2018-09-04 ~ 2023-12-31",
+    "return": 823.4604945889595,
+    "sharpe": 1.3000300507376892,
+    "mdd": 30.180355394526238,
+    "trades": 31,
+    "win_rate": 0.5483870967741935
+  },
+  "validation_2024": {
+    "period": "2024-01-01 ~ 2024-12-30",
+    "return": 66.25838900082134,
+    "buyhold": 137.48704090824114,
+    "sharpe": 1.5543455708846976,
+    "mdd": 20.2146942143823,
+    "trades": 7,
+    "win_rate": 0.5714285714285714
+  },
+  "test_2025": {
+    "period": "2025-01-01 ~ 2025-10-17",
+    "return": 8.623861818752102,
+    "buyhold": 20.152844607981883,
+    "sharpe": 0.7377810685094093,
+    "mdd": 8.16868693569923,
+    "trades": 4,
+    "win_rate": 0.75
+  },
+  "overfitting": {
+    "val_degradation_pct": 91.95366511979485,
+    "test_degradation_pct": 98.95272913814077,
+    "passed": "False"
+  },
+  "goals": {
+    "2024_return": {
+      "value": 66.25838900082134,
+      "target": "130-150%",
+      "achieved": "False"
+    },
+    "2025_return": {
+      "value": 8.623861818752102,
+      "target": "35-50%",
+      "achieved": "False"
+    },
+    "overfitting": {
+      "value": 91.95366511979485,
+      "target": "<60%",
+      "achieved": "False"
+    }
+  }
+}

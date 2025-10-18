@@ -1,0 +1,128 @@
+{
+  "verification_date": "2025-10-17T14:10:31.890526",
+  "target_period": {
+    "start": "2024-01-01",
+    "end": "2025-12-31"
+  },
+  "timeframes": {
+    "minute5": {
+      "timeframe": "minute5",
+      "period": {
+        "start": "2024-01-01",
+        "end": "2025-12-31"
+      },
+      "data_range": {
+        "start": "2023-12-31T21:00:00",
+        "end": "2025-10-17T13:55:00"
+      },
+      "statistics": {
+        "expected_candles": 210240,
+        "actual_candles": 188808,
+        "missing_candles": 21432,
+        "completeness_percent": 89.81
+      },
+      "gaps": [],
+      "is_complete": false
+    },
+    "minute15": {
+      "timeframe": "minute15",
+      "period": {
+        "start": "2024-01-01",
+        "end": "2025-12-31"
+      },
+      "data_range": {
+        "start": "2023-01-30T14:30:00",
+        "end": "2025-10-16T12:00:00"
+      },
+      "statistics": {
+        "expected_candles": 70080,
+        "actual_candles": 62833,
+        "missing_candles": 7247,
+        "completeness_percent": 89.66
+      },
+      "gaps": [],
+      "is_complete": false
+    },
+    "minute30": {
+      "timeframe": "minute30",
+      "period": {
+        "start": "2024-01-01",
+        "end": "2025-12-31"
+      },
+      "data_range": {
+        "start": "2018-12-28T07:00:00",
+        "end": "2025-10-16T12:00:00"
+      },
+      "statistics": {
+        "expected_candles": 35040,
+        "actual_candles": 31417,
+        "missing_candles": 3623,
+        "completeness_percent": 89.66
+      },
+      "gaps": [],
+      "is_complete": false
+    },
+    "minute60": {
+      "timeframe": "minute60",
+      "period": {
+        "start": "2024-01-01",
+        "end": "2025-12-31"
+      },
+      "data_range": {
+        "start": "2018-12-25T12:00:00",
+        "end": "2025-10-16T12:00:00"
+      },
+      "statistics": {
+        "expected_candles": 17520,
+        "actual_candles": 15709,
+        "missing_candles": 1811,
+        "completeness_percent": 89.66
+      },
+      "gaps": [],
+      "is_complete": false
+    },
+    "minute240": {
+      "timeframe": "minute240",
+      "period": {
+        "start": "2024-01-01",
+        "end": "2025-12-31"
+      },
+      "data_range": {
+        "start": "2018-12-12T09:00:00",
+        "end": "2025-10-16T09:00:00"
+      },
+      "statistics": {
+        "expected_candles": 4380,
+        "actual_candles": 3927,
+        "missing_candles": 453,
+        "completeness_percent": 89.66
+      },
+      "gaps": [],
+      "is_complete": false
+    },
+    "day": {
+      "timeframe": "day",
+      "period": {
+        "start": "2024-01-01",
+        "end": "2025-12-31"
+      },
+      "data_range": {
+        "start": "2018-09-04T09:00:00",
+        "end": "2025-10-16T09:00:00"
+      },
+      "statistics": {
+        "expected_candles": 730,
+        "actual_candles": 655,
+        "missing_candles": 75,
+        "completeness_percent": 89.73
+      },
+      "gaps": [],
+      "is_complete": false
+    }
+  },
+  "summary": {
+    "complete_timeframes": 0,
+    "total_timeframes": 6,
+    "all_complete": false
+  }
+}

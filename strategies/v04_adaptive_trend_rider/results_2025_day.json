@@ -1,0 +1,49 @@
+{
+  "version": "v04_simple_day",
+  "strategy_name": "simple_trend_following",
+  "timeframe": "day",
+  "year": 2025,
+  "period": {
+    "start": "2025-01-01 09:00:00",
+    "end": "2025-10-16 09:00:00"
+  },
+  "buyhold_return": 20.152844607981883,
+  "strategy_return": 120.88381558406837,
+  "metrics": {
+    "initial_capital": 10000000,
+    "final_capital": 22088381.558406837,
+    "total_return": 120.88381558406837,
+    "sharpe_ratio": 0.808131341601024,
+    "max_drawdown": 8.197716991237922,
+    "total_trades": 5,
+    "winning_trades": 3,
+    "losing_trades": 2,
+    "win_rate": 0.6,
+    "avg_profit": 701968.3047396637,
+    "avg_loss": 373819.45463226305,
+    "profit_factor": 2.8167406593252755,
+    "kelly_criterion": 0.386987844261202,
+    "kelly_quarter": 0.0967469610653005,
+    "kelly_half": 0.193493922130601,
+    "equity_curve": "              timestamp          cash  position_value  total_equity\n0   2025-01-01 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n1   2025-01-02 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n2   2025-01-03 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n3   2025-01-04 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n4   2025-01-05 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n..                  ...           ...             ...           ...\n284 2025-10-12 09:00:00  5.386114e+05    1.103467e+07  1.157328e+07\n285 2025-10-13 09:00:00  5.386114e+05    1.089800e+07  1.143661e+07\n286 2025-10-14 09:00:00  5.386114e+05    1.079580e+07  1.133441e+07\n287 2025-10-15 09:00:00  5.386114e+05    1.069861e+07  1.123722e+07\n288 2025-10-16 09:00:00  5.386114e+05    1.077866e+07  1.131727e+07\n\n[289 rows x 4 columns]",
+    "trades": [
+      "Trade(entry_time=Timestamp('2025-01-27 09:00:00'), entry_price=np.float64(154949983.79999998), quantity=np.float64(0.06127946670887677), side='buy', exit_time=Timestamp('2025-02-11 09:00:00'), exit_price=np.float64(145990796.0), profit_loss=np.float64(-549014.2505286738), profit_loss_pct=np.float64(-5.781986922673033), reason='Buy 95.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2025-04-22 09:00:00'), entry_price=np.float64(133881771.0), quantity=np.float64(0.06696351631719283), side='buy', exit_time=Timestamp('2025-06-18 09:00:00'), exit_price=np.float64(145350924.0), profit_loss=np.float64(768014.814059881), profit_loss_pct=np.float64(8.566627789828086), reason='Buy 95.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2025-06-29 09:00:00'), entry_price=np.float64(148025599.2), quantity=np.float64(0.0654316979973515), side='buy', exit_time=Timestamp('2025-07-01 09:00:00'), exit_price=np.float64(144989996.20000002), profit_loss=np.float64(-198624.65873585228), profit_loss_pct=np.float64(-2.05072839860524), reason='Buy 95.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2025-07-02 09:00:00'), entry_price=np.float64(147401474.4), quantity=np.float64(0.06436750259816806), side='buy', exit_time=Timestamp('2025-08-23 09:00:00'), exit_price=np.float64(159673059.0), profit_loss=np.float64(789891.2536241388), profit_loss_pct=np.float64(8.325279411180702), reason='Buy 95.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2025-09-12 09:00:00'), entry_price=np.float64(161133220.2), quantity=np.float64(0.06347854573947792), side='buy', exit_time=Timestamp('2025-10-16 09:00:00'), exit_price=np.float64(169766040.0), profit_loss=np.float64(547998.8465349714), profit_loss_pct=np.float64(5.357566732226216), reason='Buy 95.0% of cash -> Sell 100.0%')"
+    ]
+  },
+  "config": {
+    "strategy_name": "simple_trend_following",
+    "version": "v04_simple_day",
+    "timeframe": "day",
+    "position_fraction": 0.95,
+    "trailing_stop_pct": 0.2,
+    "stop_loss_pct": 0.1,
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  },
+  "timestamp": "2025-10-17T18:09:43.677481"
+}

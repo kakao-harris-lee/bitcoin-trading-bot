@@ -1,0 +1,18 @@
+{
+  "strategy": "v11_multi_entry_ensemble",
+  "manual_verification": {
+    "total_return_pct": 113.7751562568108,
+    "initial_capital": 10000000,
+    "final_capital": 21377515.62568108,
+    "trades": 6,
+    "buy_count": 3,
+    "entry_reasons": {
+      "BREAKOUT": 1,
+      "RSI_OVERSOLD_BOUNCE": 2
+    }
+  },
+  "comparison": {
+    "v11 (Multi-Entry)": 79.76,
+    "\uc218\ub3d9 \uacc4\uc0b0 (\uc815\ub2f5)": 113.7751562568108
+  }
+}

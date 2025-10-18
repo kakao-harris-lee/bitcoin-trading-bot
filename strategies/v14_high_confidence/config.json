@@ -1,0 +1,35 @@
+{
+  "strategy_name": "high_confidence",
+  "version": "v14",
+  "description": "VWAP 필수 + OBV/CCI 동의 + 거래량 증가 필터링",
+  "timeframe": "day",
+
+  "algorithms": {
+    "vwap": {
+      "required": true,
+      "params": {
+        "deviation_threshold": 0.02
+      }
+    },
+    "obv": {
+      "params": {
+        "ma_period": 20
+      }
+    },
+    "cci": {
+      "params": {
+        "period": 20,
+        "constant": 0.015
+      },
+      "oversold": -100,
+      "overbought": 100
+    }
+  },
+
+  "volume_threshold": 1.2,
+  "trailing_stop": 0.20,
+  "stop_loss": 0.10,
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002
+}

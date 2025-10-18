@@ -1,0 +1,19 @@
+{
+  "strategy": "v07_enhanced_day",
+  "manual_verification": {
+    "total_return_pct": 126.39476369153984,
+    "initial_capital": 10000000,
+    "final_capital": 22639476.369153984,
+    "trades": 10,
+    "buy_count": 5,
+    "sell_count": 5,
+    "entry_reasons": {
+      "EMA_GOLDEN": 1,
+      "MACD_GOLDEN": 4
+    }
+  },
+  "comparison": {
+    "v07 (Optuna \ucd5c\uc801\ud654)": 148.63,
+    "\uc218\ub3d9 \uacc4\uc0b0 (\uc815\ub2f5)": 126.39476369153984
+  }
+}

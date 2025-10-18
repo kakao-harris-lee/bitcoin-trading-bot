@@ -1,0 +1,112 @@
+{
+  "version": "v15",
+  "strategy_name": "adaptive",
+  "timeframe": "day",
+  "period": "2024-01-01 ~ 2024-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 21171137.74159028,
+  "total_return_pct": 111.7113774159028,
+  "total_trades": 3,
+  "wins": 2,
+  "losses": 1,
+  "win_rate": 66.66666666666666,
+  "trades": [
+    {
+      "entry_date": "2024-02-07 09:00:00",
+      "entry_price": 60232000.0,
+      "exit_date": "2024-05-02 09:00:00",
+      "exit_price": 83078000.0,
+      "pnl_pct": 37.93000398459291,
+      "reason": "TRAILING_STOP",
+      "regime": "normal",
+      "algorithm": "voting_ensemble",
+      "trailing_stop": 0.2,
+      "highest_price": 104122000.0
+    },
+    {
+      "entry_date": "2024-07-15 09:00:00",
+      "entry_price": 91162000.0,
+      "exit_date": "2024-08-04 09:00:00",
+      "exit_price": 81871000.0,
+      "pnl_pct": -10.191746561067111,
+      "reason": "STOP_LOSS",
+      "regime": "strong_trend",
+      "algorithm": "breakout",
+      "trailing_stop": 0.3,
+      "highest_price": 95363000.0
+    },
+    {
+      "entry_date": "2024-08-30 09:00:00",
+      "entry_price": 80439000.0,
+      "exit_date": "2024-12-30 09:00:00",
+      "exit_price": 137892000.0,
+      "pnl_pct": 71.42430910379294,
+      "reason": "END_OF_PERIOD",
+      "regime": "normal",
+      "algorithm": "voting_ensemble",
+      "trailing_stop": 0.2,
+      "highest_price": 155223000.0
+    }
+  ],
+  "config": {
+    "strategy_name": "adaptive",
+    "version": "v15",
+    "description": "시장 상황별 최적 전략 동적 선택",
+    "timeframe": "day",
+    "market_regime": {
+      "adx_strong_trend": 25,
+      "adx_sideways": 15,
+      "volume_high_multiplier": 1.5
+    },
+    "strategies": {
+      "strong_trend": {
+        "algorithm": "breakout",
+        "params": {
+          "period": 20
+        },
+        "trailing_stop": 0.3,
+        "description": "ADX >= 25, 강한 추세 추종"
+      },
+      "sideways": {
+        "algorithm": "bollinger_bounce",
+        "params": {
+          "window": 20,
+          "num_std": 2.0
+        },
+        "trailing_stop": 0.15,
+        "description": "ADX < 15, 횡보장 평균 회귀"
+      },
+      "high_volume": {
+        "algorithms": [
+          "vwap",
+          "obv"
+        ],
+        "params": {
+          "vwap": {
+            "deviation_threshold": 0.02
+          },
+          "obv": {
+            "ma_period": 20
+          }
+        },
+        "trailing_stop": 0.2,
+        "description": "Volume > 평균 1.5배, 거래량 기반"
+      },
+      "normal": {
+        "algorithm": "voting_ensemble",
+        "params": {
+          "vwap_weight": 2.0,
+          "breakout_weight": 1.5,
+          "stochastic_weight": 1.0,
+          "vote_threshold": 3.0
+        },
+        "trailing_stop": 0.2,
+        "description": "기타 일반 상황"
+      }
+    },
+    "stop_loss": 0.1,
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  }
+}

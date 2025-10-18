@@ -1,0 +1,15 @@
+{
+  "params": {
+    "position_fraction": 0.98,
+    "trailing_stop_pct": 0.21,
+    "stop_loss_pct": 0.1
+  },
+  "2024_return": 293.384913585905,
+  "2025_return": 124.92984505122367,
+  "2025_sharpe": 0.8098808422559655,
+  "2025_mdd": 8.422240372623431,
+  "2025_trades": 5,
+  "2025_win_rate": 0.6,
+  "buyhold_2025": 20.152844607981883,
+  "consistent": false
+}

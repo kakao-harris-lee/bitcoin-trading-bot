@@ -1,0 +1,100 @@
+[
+  {
+    "timeframe": "minute5",
+    "best_params": {
+      "position_fraction": 0.6,
+      "trailing_stop_pct": 0.4,
+      "stop_loss_pct": 0.25
+    },
+    "buyhold_return": 147.52053063802904,
+    "strategy_return": -82.62688297377252,
+    "sharpe_ratio": -0.3954225098829105,
+    "max_drawdown": 83.01242131394845,
+    "total_trades": 2020,
+    "win_rate": 0.25396039603960396,
+    "profit_factor": 0.8366043358956652,
+    "achieved_170": "False"
+  },
+  {
+    "timeframe": "minute15",
+    "best_params": {
+      "position_fraction": 0.6,
+      "trailing_stop_pct": 0.4,
+      "stop_loss_pct": 0.25
+    },
+    "buyhold_return": 147.14323258869908,
+    "strategy_return": -19.343684284751713,
+    "sharpe_ratio": -0.07913903397178403,
+    "max_drawdown": 31.424175714241525,
+    "total_trades": 651,
+    "win_rate": 0.250384024577573,
+    "profit_factor": 1.1265577528261375,
+    "achieved_170": "False"
+  },
+  {
+    "timeframe": "minute30",
+    "best_params": {
+      "position_fraction": 0.6,
+      "trailing_stop_pct": 0.4,
+      "stop_loss_pct": 0.25
+    },
+    "buyhold_return": 147.83800404111395,
+    "strategy_return": 18.030594967957587,
+    "sharpe_ratio": 0.1075228950454401,
+    "max_drawdown": 19.18717566223127,
+    "total_trades": 300,
+    "win_rate": 0.32,
+    "profit_factor": 1.3683435861737472,
+    "achieved_170": "False"
+  },
+  {
+    "timeframe": "minute60",
+    "best_params": {
+      "position_fraction": 0.95,
+      "trailing_stop_pct": 0.1,
+      "stop_loss_pct": 0.15000000000000002
+    },
+    "buyhold_return": 147.7901134806591,
+    "strategy_return": 135.2956593037508,
+    "sharpe_ratio": 0.48910188612839745,
+    "max_drawdown": 13.99715775116215,
+    "total_trades": 126,
+    "win_rate": 0.3412698412698413,
+    "profit_factor": 2.356062224983188,
+    "achieved_170": "False"
+  },
+  {
+    "timeframe": "minute240",
+    "best_params": {
+      "position_fraction": 0.95,
+      "trailing_stop_pct": 0.1,
+      "stop_loss_pct": 0.15000000000000002
+    },
+    "buyhold_return": 147.65354993772038,
+    "strategy_return": 135.20037484134616,
+    "sharpe_ratio": 1.0300885430347084,
+    "max_drawdown": 14.037427282102675,
+    "total_trades": 30,
+    "win_rate": 0.5666666666666667,
+    "profit_factor": 4.050084452574594,
+    "achieved_170": "False"
+  },
+  {
+    "timeframe": "day",
+    "best_params": {
+      "position_fraction": 0.95,
+      "trailing_stop_pct": 0.2,
+      "stop_loss_pct": 0.1
+    },
+    "buyhold_return": 137.48704090824114,
+    "strategy_return": 94.77,
+    "strategy_return_DEPRECATED": 288.6677336811421,
+    "sharpe_ratio": 1.7973454920124818,
+    "max_drawdown": 28.425206431560397,
+    "total_trades": 4,
+    "win_rate": 0.5,
+    "profit_factor": 5.149362292139344,
+    "achieved_170": "False",
+    "note": "2025-10-18: Manual verification revealed core.Backtester bug. Corrected return: 94.77% (was 288.67%)"
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "algorithm": "RSI_BOUNCE",
+  "parameters": {
+    "rsi_period": 14,
+    "rsi_oversold": 35,
+    "min_bounce_days": 1,
+    "min_adx": 15
+  },
+  "signals": 6,
+  "trades": 6,
+  "win_rate": 16.666666666666664,
+  "avg_profit": 3.9805039135761717,
+  "avg_win": 78.44322225816887,
+  "avg_loss": -10.912039755342368,
+  "passed": false,
+  "criteria": {
+    "\uc2dc\uadf8\ub110 \uac1c\uc218 >= 5": true,
+    "\uc2b9\ub960 >= 55%": false,
+    "\ud3c9\uade0 \uc218\uc775 > 10%": "False"
+  }
+}

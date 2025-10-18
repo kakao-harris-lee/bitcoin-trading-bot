@@ -1,0 +1,90 @@
+{
+  "version": "v08",
+  "strategy_name": "market_adaptive",
+  "timeframe": "day",
+  "period": {
+    "start": "2024-01-01",
+    "end": "2024-12-31"
+  },
+  "buyhold_return": 134.35476469688473,
+  "target_return": 157.49,
+  "metrics": {
+    "initial_capital": 10000000,
+    "final_capital": 18927098.189460058,
+    "total_return": 89.27098189460058,
+    "sharpe_ratio": 1.962800457798472,
+    "max_drawdown": 10.784356888955791,
+    "total_trades": 2,
+    "winning_trades": 2,
+    "losing_trades": 0,
+    "win_rate": 1.0,
+    "avg_profit": 24.16955222324168,
+    "avg_loss": 0,
+    "profit_factor": 0,
+    "kelly_criterion": 0.0,
+    "kelly_quarter": 0.0,
+    "kelly_half": 0.0,
+    "equity_curve": "              timestamp          cash  ...        cummax  drawdown\n0   2024-01-01 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n1   2024-01-02 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n2   2024-01-03 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n3   2024-01-04 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n4   2024-01-05 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n..                  ...           ...  ...           ...       ...\n360 2024-12-26 09:00:00  7.236893e+05  ...  2.121500e+07 -0.069363\n361 2024-12-27 09:00:00  7.236893e+05  ...  2.121500e+07 -0.081590\n362 2024-12-28 09:00:00  7.236893e+05  ...  2.121500e+07 -0.080402\n363 2024-12-29 09:00:00  7.236893e+05  ...  2.121500e+07 -0.096375\n364 2024-12-30 09:00:00  7.236893e+05  ...  2.121500e+07 -0.107844\n\n[365 rows x 7 columns]",
+    "trades": [
+      "Trade(entry_time=Timestamp('2024-02-03 09:00:00'), entry_price=np.float64(59271852.0), exit_time=Timestamp('2024-02-14 09:00:00'), exit_price=np.float64(70184960.2), quantity=np.float64(0.11804088303374488), profit_loss=np.float64(1288192.9285708026), profit_loss_pct=np.float64(18.411957500501256), reason='regime_change: bull')",
+      "Trade(entry_time=Timestamp('2024-02-26 09:00:00'), entry_price=np.float64(74756948.39999999), exit_time=Timestamp('2024-04-13 09:00:00'), exit_price=np.float64(97129570.2), quantity=np.float64(0.1432799138879094), profit_loss=np.float64(3205547.3249507663), profit_loss_pct=np.float64(29.927146945982102), reason='regime_change: sideways')",
+      "Trade(entry_time=Timestamp('2024-11-06 09:00:00'), entry_price=np.float64(104105817.0), exit_time=None, exit_price=None, quantity=np.float64(0.13201207396973164), profit_loss=None, profit_loss_pct=None, reason='')"
+    ]
+  },
+  "config": {
+    "strategy_name": "market_adaptive",
+    "version": "v08",
+    "timeframe": "day",
+    "market_detector": {
+      "adx_threshold": 25,
+      "adx_weak": 20,
+      "momentum_window": 30,
+      "bull_momentum": 0.15,
+      "bear_momentum": -0.1,
+      "transition_days": 3
+    },
+    "bull_params": {
+      "use_ema_entry": true,
+      "use_macd_entry": true,
+      "ema_fast": 12,
+      "ema_slow": 26,
+      "macd_fast": 13,
+      "macd_slow": 23,
+      "macd_signal": 8,
+      "trailing_stop_pct": 0.12,
+      "stop_loss_pct": 0.08,
+      "position_fraction": 0.95
+    },
+    "sideways_params": {
+      "use_ema_entry": true,
+      "use_macd_entry": false,
+      "ema_fast": 12,
+      "ema_slow": 26,
+      "trailing_stop_pct": 0.06,
+      "stop_loss_pct": 0.05,
+      "position_fraction": 0.7
+    },
+    "bear_params": {
+      "action": "stay_in_cash"
+    },
+    "trading": {
+      "initial_capital": 10000000,
+      "fee_rate": 0.0005,
+      "slippage": 0.0002
+    }
+  },
+  "market_stats": {
+    "bull_days": 175,
+    "sideways_days": 94,
+    "bear_days": 96,
+    "bull_pct": 0.4794520547945205,
+    "sideways_pct": 0.25753424657534246,
+    "bear_pct": 0.26301369863013696
+  },
+  "regime_trades": {
+    "bull": 1,
+    "sideways": 1,
+    "bear": 0
+  },
+  "timestamp": "2025-10-18T14:59:15.147959"
+}

@@ -1,0 +1,32 @@
+{
+  "timestamp": "2025-10-18T14:45:31.530854",
+  "period": "2025-01-01 ~ 2025-10-17",
+  "metrics": {
+    "initial_capital": 10000000,
+    "final_capital": 10975562.1075692,
+    "total_return": 9.755621075692009,
+    "sharpe_ratio": 0.5132326453722331,
+    "max_drawdown": 17.88449243951991,
+    "total_trades": 4,
+    "winning_trades": 2,
+    "losing_trades": 2,
+    "win_rate": 0.5,
+    "avg_profit": 15.739597207704556,
+    "avg_loss": -9.012234198712257,
+    "profit_factor": 1.617164860728878,
+    "kelly_criterion": 0.7862917671838754,
+    "kelly_quarter": 0.19657294179596885,
+    "kelly_half": 0.3931458835919377,
+    "equity_curve": "              timestamp          cash  ...        cummax  drawdown\n0   2025-01-01 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n1   2025-01-02 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n2   2025-01-03 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n3   2025-01-04 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n4   2025-01-05 09:00:00  1.000000e+07  ...  1.000000e+07  0.000000\n..                  ...           ...  ...           ...       ...\n285 2025-10-13 09:00:00  5.035940e+05  ...  1.148964e+07 -0.034006\n286 2025-10-14 09:00:00  5.035940e+05  ...  1.148964e+07 -0.042654\n287 2025-10-15 09:00:00  5.035940e+05  ...  1.148964e+07 -0.050878\n288 2025-10-16 09:00:00  5.035940e+05  ...  1.148964e+07 -0.044105\n289 2025-10-16 09:00:00  1.097556e+07  ...  1.148964e+07 -0.044743\n\n[290 rows x 7 columns]",
+    "trades": [
+      "Trade(entry_time=Timestamp('2025-03-05 09:00:00'), entry_price=np.float64(135016998.0), exit_time=Timestamp('2025-03-09 09:00:00'), exit_price=np.float64(121086777.8), quantity=np.float64(0.07032634790038136), profit_loss=np.float64(-979661.5121141203), profit_loss_pct=np.float64(-10.31738255652818), reason='')",
+      "Trade(entry_time=Timestamp('2025-03-15 09:00:00'), entry_price=np.float64(124024800.0), exit_time=Timestamp('2025-04-08 09:00:00'), exit_price=np.float64(114466102.2), quantity=np.float64(0.06899013881796451), profit_loss=np.float64(-659455.8881409718), profit_loss_pct=np.float64(-7.707085840896334), reason='')",
+      "Trade(entry_time=Timestamp('2025-04-12 09:00:00'), entry_price=np.float64(123575710.2), exit_time=Timestamp('2025-08-31 09:00:00'), exit_price=np.float64(150669860.0), quantity=np.float64(0.06411054915940426), profit_loss=np.float64(1737020.8226851628), profit_loss_pct=np.float64(21.92514188763286), reason='')",
+      "Trade(entry_time=Timestamp('2025-09-05 09:00:00'), entry_price=np.float64(154960986.0), exit_time=Timestamp('2025-10-16 09:00:00'), exit_price=np.float64(169766040.0), quantity=np.float64(0.06171556278123967), profit_loss=np.float64(913702.2396166435), profit_loss_pct=np.float64(9.55405252777625), reason='')"
+    ]
+  },
+  "buy_hold_return": 20.152844607981883,
+  "train_return": 148.63,
+  "test_return": 9.755621075692009,
+  "degradation_pct": 93.43630419451524
+}

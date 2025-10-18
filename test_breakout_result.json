@@ -1,0 +1,76 @@
+{
+  "algorithm": "breakout",
+  "timestamp": "2025-10-19T08:02:50.798062",
+  "signals": 38,
+  "trades": 38,
+  "passed": true,
+  "metrics": {
+    "total_trades": 38,
+    "wins": 25,
+    "losses": 13,
+    "win_rate": 65.78947368421053,
+    "avg_profit": 16.426671884527867,
+    "avg_win": 30.672315575287595,
+    "avg_loss": -10.968796751548531,
+    "max_win": 64.36847375196682,
+    "max_loss": -13.819999999999999,
+    "avg_holding_days": 54.10526315789474
+  },
+  "criteria": {
+    "\uc2dc\uadf8\ub110 \uac1c\uc218 >= 5": true,
+    "\uc2b9\ub960 >= 55.0%": true,
+    "\ud3c9\uade0 \uc218\uc775 > 8.0%": "True"
+  },
+  "sample_trades": [
+    {
+      "entry_date": "2024-02-07 09:00:00",
+      "entry_price": 60232000.0,
+      "exit_date": "2024-05-02 09:00:00",
+      "exit_price": 83078000.0,
+      "pnl_pct": 37.93000398459291,
+      "reason": "TRAILING_STOP",
+      "holding_days": 85,
+      "highest_price": 104122000.0
+    },
+    {
+      "entry_date": "2024-02-08 09:00:00",
+      "entry_price": 62011000.0,
+      "exit_date": "2024-05-02 09:00:00",
+      "exit_price": 83078000.0,
+      "pnl_pct": 33.97300478947284,
+      "reason": "TRAILING_STOP",
+      "holding_days": 84,
+      "highest_price": 104122000.0
+    },
+    {
+      "entry_date": "2024-02-09 09:00:00",
+      "entry_price": 63682000.0,
+      "exit_date": "2024-05-02 09:00:00",
+      "exit_price": 83078000.0,
+      "pnl_pct": 30.45758613108885,
+      "reason": "TRAILING_STOP",
+      "holding_days": 83,
+      "highest_price": 104122000.0
+    },
+    {
+      "entry_date": "2024-02-11 09:00:00",
+      "entry_price": 65230000.0,
+      "exit_date": "2024-05-02 09:00:00",
+      "exit_price": 83078000.0,
+      "pnl_pct": 27.361643415606316,
+      "reason": "TRAILING_STOP",
+      "holding_days": 81,
+      "highest_price": 104122000.0
+    },
+    {
+      "entry_date": "2024-02-12 09:00:00",
+      "entry_price": 67002000.0,
+      "exit_date": "2024-05-02 09:00:00",
+      "exit_price": 83078000.0,
+      "pnl_pct": 23.993313632428883,
+      "reason": "TRAILING_STOP",
+      "holding_days": 80,
+      "highest_price": 104122000.0
+    }
+  ]
+}

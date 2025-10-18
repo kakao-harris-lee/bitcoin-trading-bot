@@ -1,0 +1,46 @@
+{
+  "strategy_name": "improved_voting_ensemble",
+  "version": "v16",
+  "description": "v13 개선: Vote Threshold 완화 + ADX 횡보장 감지 + 동적 Trailing Stop",
+  "timeframe": "day",
+
+  "algorithms": {
+    "vwap": {
+      "weight": 2.0,
+      "params": {
+        "deviation_threshold": 0.02
+      }
+    },
+    "breakout": {
+      "weight": 1.5,
+      "params": {
+        "period": 20
+      }
+    },
+    "stochastic": {
+      "weight": 1.0,
+      "params": {
+        "k_period": 14,
+        "d_period": 3,
+        "oversold": 20,
+        "overbought": 80
+      }
+    }
+  },
+
+  "vote_threshold": 2.5,
+  "adx_period": 14,
+  "adx_strong_trend": 25,
+  "adx_sideways": 15,
+
+  "trailing_stop": {
+    "strong_trend": 0.30,
+    "normal": 0.20,
+    "sideways": 0.15
+  },
+
+  "stop_loss": 0.10,
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002
+}

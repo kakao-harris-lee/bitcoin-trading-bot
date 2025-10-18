@@ -1,0 +1,37 @@
+{
+  "agent": "PPO (Balanced)",
+  "timestamp": "2025-10-19T04:56:02.005297",
+  "train": {
+    "period": "2018-09-04 ~ 2023-12-31",
+    "return": 0.0,
+    "trades": 0,
+    "win_rate": 0.0,
+    "actions": {
+      "buy": 0,
+      "sell": 1880,
+      "hold": 0
+    }
+  },
+  "validation_2024": {
+    "period": "2024-01-01 ~ 2024-12-30",
+    "return": 0.0,
+    "trades": 0,
+    "win_rate": 0.0,
+    "actions": {
+      "buy": 0,
+      "sell": 300,
+      "hold": 0
+    }
+  },
+  "test_2025": {
+    "period": "2025-01-01 ~ 2025-10-17",
+    "return": 0.0,
+    "trades": 0,
+    "win_rate": 0.0,
+    "actions": {
+      "buy": 0,
+      "sell": 225,
+      "hold": 0
+    }
+  }
+}

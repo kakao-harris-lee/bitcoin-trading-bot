@@ -1,0 +1,32 @@
+{
+  "strategy_name": "adaptive_hybrid",
+  "version": "v04",
+  "timeframe": "minute240",
+
+  "_comment_signals": "혼합 진입 신호 파라미터",
+  "signals": {
+    "_comment_track_a": "Track A: 추세 추종 진입 (완화)",
+    "trend_min_strength": 15.0,
+    "trend_rsi_max": 75.0,
+
+    "_comment_track_b": "Track B: 역추세 반등 진입 (완화)",
+    "reversion_rsi_min": 40.0,
+    "reversion_drop_min": 0.03,
+    "reversion_lookback": 20
+  },
+
+  "_comment_backtest": "백테스팅 설정",
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002,
+
+  "_comment_optimization": "최적화 대상 파라미터 범위",
+  "optimization_ranges": {
+    "signals": {
+      "trend_min_strength": [15, 25],
+      "trend_rsi_max": [65, 75],
+      "reversion_rsi_min": [30, 40],
+      "reversion_drop_min": [0.03, 0.08]
+    }
+  }
+}

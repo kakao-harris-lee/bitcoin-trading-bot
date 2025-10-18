@@ -1,0 +1,43 @@
+{
+  "version": "v02b",
+  "strategy_name": "split_exit",
+  "metrics": {
+    "initial_capital": 10000000,
+    "final_capital": 12746047.531432237,
+    "total_return": 27.460475314322373,
+    "sharpe_ratio": 0.15765101127457865,
+    "max_drawdown": 3.1318686779506453,
+    "total_trades": 11,
+    "winning_trades": 5,
+    "losing_trades": 6,
+    "win_rate": 0.45454545454545453,
+    "avg_profit": 109841.47498289347,
+    "avg_loss": 90289.1362549782,
+    "profit_factor": 1.0137937550676002,
+    "kelly_criterion": 0.006184580084213379,
+    "kelly_quarter": 0.0015461450210533447,
+    "kelly_half": 0.0030922900421066894,
+    "equity_curve": "               timestamp          cash  position_value  total_equity\n0    2024-09-01 00:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n1    2024-09-01 01:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n2    2024-09-01 02:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n3    2024-09-01 03:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n4    2024-09-01 04:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n...                  ...           ...             ...           ...\n2899 2024-12-30 19:00:00  7.743810e+06    2.556298e+06  1.030011e+07\n2900 2024-12-30 20:00:00  7.743810e+06    2.559587e+06  1.030340e+07\n2901 2024-12-30 21:00:00  7.743810e+06    2.557823e+06  1.030163e+07\n2902 2024-12-30 22:00:00  7.743810e+06    2.535190e+06  1.027900e+07\n2903 2024-12-30 23:00:00  7.743810e+06    2.501994e+06  1.024580e+07\n\n[2904 rows x 4 columns]",
+    "trades": [
+      "Trade(entry_time=Timestamp('2024-09-04 12:00:00'), entry_price=np.float64(77215440.0), quantity=np.float64(0.03236076391829997), side='buy', exit_time=Timestamp('2024-09-06 23:00:00'), exit_price=np.float64(74038189.4), profit_loss=np.float64(-102818.25657587675), profit_loss_pct=np.float64(-4.114786628166587), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-09-07 03:00:00'), entry_price=np.float64(72900577.2), quantity=np.float64(0.033915333345173215), side='buy', exit_time=Timestamp('2024-09-10 02:00:00'), exit_price=np.float64(76522692.4), profit_loss=np.float64(122845.24442261885), profit_loss_pct=np.float64(4.968568616491012), reason='Buy 25.0% of cash -> Sell 30.0%')",
+      "Trade(entry_time=Timestamp('2024-09-16 08:00:00'), entry_price=np.float64(79705938.0), quantity=np.float64(0.025704332461586574), side='buy', exit_time=Timestamp('2024-09-18 00:00:00'), exit_price=np.float64(81864623.8), profit_loss=np.float64(55487.577483305904), profit_loss_pct=np.float64(2.708312397001083), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-09-30 09:00:00'), entry_price=np.float64(85586113.8), quantity=np.float64(0.02976569231861869), side='buy', exit_time=Timestamp('2024-10-02 09:00:00'), exit_price=np.float64(81805635.60000001), profit_loss=np.float64(-112528.55091844506), profit_loss_pct=np.float64(-4.417163056187262), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-10-10 04:00:00'), entry_price=np.float64(82931583.0), quantity=np.float64(0.030371895183355358), side='buy', exit_time=Timestamp('2024-10-12 00:00:00'), exit_price=np.float64(84091178.4), profit_loss=np.float64(35219.10994390121), profit_loss_pct=np.float64(1.398255475239157), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-10-21 22:00:00'), entry_price=np.float64(91765349.39999999), quantity=np.float64(0.027537147270200114), side='buy', exit_time=Timestamp('2024-10-25 22:00:00'), exit_price=np.float64(94780040.2), profit_loss=np.float64(83015.98453371772), profit_loss_pct=np.float64(3.285216936143451), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-11-01 01:00:00'), entry_price=np.float64(98402676.6), quantity=np.float64(0.025884029357436524), side='buy', exit_time=Timestamp('2024-11-03 18:00:00'), exit_price=np.float64(95216952.8), profit_loss=np.float64(-82459.36836388416), profit_loss_pct=np.float64(-3.2374361247811803), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-11-24 20:00:00'), entry_price=np.float64(133276650.0), quantity=np.float64(0.01895176001343221), side='buy', exit_time=Timestamp('2024-11-26 19:00:00'), exit_price=np.float64(128503294.2), profit_loss=np.float64(-90463.49358032466), profit_loss_pct=np.float64(-3.581539451959512), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-12-03 22:00:00'), entry_price=np.float64(116473290.0), quantity=np.float64(0.02148649425262462), side='buy', exit_time=Timestamp('2024-12-03 23:00:00'), exit_price=np.float64(128231348.60000001), profit_loss=np.float64(252639.4585309237), profit_loss_pct=np.float64(10.095068663381973), reason='Buy 25.0% of cash -> Sell 50.0%')",
+      "Trade(entry_time=Timestamp('2024-12-20 05:00:00'), entry_price=np.float64(145898173.79999998), quantity=np.float64(0.015223035237293863), side='buy', exit_time=Timestamp('2024-12-24 03:00:00'), exit_price=np.float64(140972799.8), profit_loss=np.float64(-74979.14195885057), profit_loss_pct=np.float64(-3.3758983212166638), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-12-30 01:00:00'), entry_price=np.float64(140439082.2), quantity=np.float64(0.018370812055669157), side='buy', exit_time=Timestamp('2024-12-30 23:00:00'), exit_price=np.float64(136166761.20000002), profit_loss=np.float64(-78486.00613248796), profit_loss_pct=np.float64(-3.0421168616836565), reason='Buy 25.0% of cash -> Sell 100.0%')"
+    ]
+  },
+  "buy_hold": {
+    "start_price": 80212000.0,
+    "end_price": 136194000.0,
+    "return": 69.79254974318057,
+    "target": 89.79254974318057
+  },
+  "kelly_history": [],
+  "final_kelly": 0.25
+}

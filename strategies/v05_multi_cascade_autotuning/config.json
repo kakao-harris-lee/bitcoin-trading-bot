@@ -1,0 +1,150 @@
+{
+  "strategy_name": "multi_cascade_autotuning",
+  "version": "v05",
+  "description": "Multi-timeframe cascade strategy with auto-tuning, split orders, and Kelly Criterion",
+
+  "baseline": {
+    "v04_best": "DAY timeframe",
+    "v04_return_2024": 288.67,
+    "v04_sharpe": 1.80,
+    "v04_mdd": 28.43,
+    "v04_trades": 4,
+    "v05_target": 350.0,
+    "improvement_goal": "+61.33pp"
+  },
+
+  "layers": {
+    "day": {
+      "timeframe": "day",
+      "capital_allocation": 0.70,
+      "enabled": true,
+      "role": "trend_detector",
+      "source": "v04_optimized_day_strategy",
+      "params": {
+        "position_fraction": 0.95,
+        "trailing_stop_pct": 0.20,
+        "stop_loss_pct": 0.10
+      }
+    },
+    "minute240": {
+      "timeframe": "minute240",
+      "capital_allocation": 0.10,
+      "enabled_when_day_active": true,
+      "role": "amplifier",
+      "params": {
+        "position_fraction": 0.90,
+        "trailing_stop_pct": 0.15,
+        "stop_loss_pct": 0.10
+      }
+    },
+    "minute60": {
+      "timeframe": "minute60",
+      "capital_allocation": 0.07,
+      "enabled_when_day_active": true,
+      "role": "amplifier",
+      "params": {
+        "position_fraction": 0.85,
+        "trailing_stop_pct": 0.12,
+        "stop_loss_pct": 0.08
+      }
+    },
+    "minute30": {
+      "timeframe": "minute30",
+      "capital_allocation": 0.05,
+      "enabled_when_day_active": true,
+      "role": "amplifier",
+      "params": {
+        "position_fraction": 0.80,
+        "trailing_stop_pct": 0.10,
+        "stop_loss_pct": 0.07
+      }
+    },
+    "minute15": {
+      "timeframe": "minute15",
+      "capital_allocation": 0.03,
+      "enabled_when_day_active": true,
+      "min_win_rate": 0.40,
+      "role": "aggressive_amplifier",
+      "params": {
+        "position_fraction": 0.70,
+        "trailing_stop_pct": 0.08,
+        "stop_loss_pct": 0.05
+      }
+    },
+    "minute5": {
+      "timeframe": "minute5",
+      "capital_allocation": 0.02,
+      "enabled_when_day_active": true,
+      "min_win_rate": 0.40,
+      "role": "aggressive_amplifier",
+      "params": {
+        "position_fraction": 0.60,
+        "trailing_stop_pct": 0.06,
+        "stop_loss_pct": 0.04
+      }
+    }
+  },
+
+  "split_orders": {
+    "enabled": true,
+    "buy_splits": [
+      {"trigger": "golden_cross", "fraction": 0.50},
+      {"trigger": "price_up_5pct", "fraction": 0.30},
+      {"trigger": "price_up_10pct", "fraction": 0.20}
+    ],
+    "sell_splits": [
+      {"trigger": "profit_10pct", "fraction": 0.30},
+      {"trigger": "profit_20pct", "fraction": 0.30},
+      {"trigger": "trailing_stop_or_profit_30pct", "fraction": 1.00}
+    ]
+  },
+
+  "kelly_criterion": {
+    "enabled": true,
+    "min_trades_before_activation": 10,
+    "conservative_fraction": 0.5,
+    "max_position_fraction": 0.95,
+    "min_position_fraction": 0.20
+  },
+
+  "auto_tuning": {
+    "enabled": true,
+    "walk_forward": {
+      "enabled": true,
+      "train_months": 3,
+      "retrain_frequency": "monthly"
+    },
+    "realtime_adjustment": {
+      "enabled": true,
+      "evaluation_window": 100,
+      "min_trades_for_adjustment": 10,
+      "adjustment_rules": {
+        "low_win_rate": {
+          "threshold": 0.40,
+          "action": "increase_stop_loss_1.2x_decrease_trailing_0.9x"
+        },
+        "low_sharpe": {
+          "threshold": 0.50,
+          "action": "decrease_position_0.9x"
+        },
+        "high_drawdown": {
+          "threshold": 0.20,
+          "action": "decrease_position_0.8x"
+        }
+      }
+    }
+  },
+
+  "risk_management": {
+    "max_total_exposure": 1.00,
+    "max_layer_loss_before_disable": 0.10,
+    "force_close_on_day_exit": true
+  },
+
+  "backtest_settings": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "min_order_amount": 10000
+  }
+}

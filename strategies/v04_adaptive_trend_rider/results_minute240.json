@@ -1,0 +1,97 @@
+{
+  "version": "v04",
+  "strategy_name": "adaptive_trend_rider",
+  "timeframe": "minute240",
+  "period": {
+    "start": "2024-01-01",
+    "end": "2024-12-30"
+  },
+  "buyhold_return": 147.65354993772038,
+  "target_return": 167.65354993772038,
+  "metrics": {
+    "initial_capital": 10000000,
+    "final_capital": 10000000.0,
+    "total_return": 0.0,
+    "sharpe_ratio": 0.0,
+    "max_drawdown": 0.0,
+    "total_trades": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0,
+    "avg_profit": 0,
+    "avg_loss": 0,
+    "profit_factor": 0,
+    "kelly_criterion": 0,
+    "kelly_quarter": 0.0,
+    "kelly_half": 0.0,
+    "equity_curve": "               timestamp      cash  position_value  total_equity\n0    2024-01-01 01:00:00  10000000             0.0    10000000.0\n1    2024-01-01 05:00:00  10000000             0.0    10000000.0\n2    2024-01-01 09:00:00  10000000             0.0    10000000.0\n3    2024-01-01 13:00:00  10000000             0.0    10000000.0\n4    2024-01-01 17:00:00  10000000             0.0    10000000.0\n...                  ...       ...             ...           ...\n2179 2024-12-29 05:00:00  10000000             0.0    10000000.0\n2180 2024-12-29 09:00:00  10000000             0.0    10000000.0\n2181 2024-12-29 13:00:00  10000000             0.0    10000000.0\n2182 2024-12-29 17:00:00  10000000             0.0    10000000.0\n2183 2024-12-29 21:00:00  10000000             0.0    10000000.0\n\n[2184 rows x 4 columns]",
+    "trades": []
+  },
+  "config": {
+    "strategy_name": "adaptive_trend_rider",
+    "version": "v04",
+    "timeframe": "minute240",
+    "_comment_regime": "\uc2dc\uc7a5 \uc0c1\ud0dc \ubd84\ub958 \ud30c\ub77c\ubbf8\ud130",
+    "regime": {
+      "strong_bull_adx": 30.0,
+      "moderate_bull_adx": 20.0,
+      "bull_return_threshold": 0.1,
+      "recent_period": 20
+    },
+    "_comment_signals": "\ub9e4\uc218 \uc2e0\ud638 \ud30c\ub77c\ubbf8\ud130 (4\uac1c \ud22c\ud45c)",
+    "signals": {
+      "rsi_threshold": 40.0,
+      "price_drop_threshold": 0.08,
+      "lookback_period": 20
+    },
+    "_comment_position_sizing": "\ud3ec\uc9c0\uc158 \uc0ac\uc774\uc9d5 \ud30c\ub77c\ubbf8\ud130",
+    "position_sizing": {
+      "base_kelly_fraction": 0.25,
+      "min_fraction": 0.1,
+      "max_fraction": 0.5,
+      "risk_per_trade": 0.02
+    },
+    "_comment_backtest": "\ubc31\ud14c\uc2a4\ud305 \uc124\uc815",
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "_comment_optimization": "\ucd5c\uc801\ud654 \ub300\uc0c1 \ud30c\ub77c\ubbf8\ud130 \ubc94\uc704",
+    "optimization_ranges": {
+      "regime": {
+        "strong_bull_adx": [
+          25,
+          35
+        ],
+        "moderate_bull_adx": [
+          15,
+          25
+        ],
+        "bull_return_threshold": [
+          0.05,
+          0.15
+        ]
+      },
+      "signals": {
+        "rsi_threshold": [
+          35,
+          45
+        ],
+        "price_drop_threshold": [
+          0.05,
+          0.12
+        ]
+      },
+      "position_sizing": {
+        "base_kelly_fraction": [
+          0.15,
+          0.35
+        ],
+        "max_fraction": [
+          0.4,
+          0.6
+        ]
+      }
+    }
+  },
+  "timestamp": "2025-10-17T16:42:44.124851"
+}

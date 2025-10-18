@@ -1,0 +1,12 @@
+{
+  "best_params": {
+    "position_fraction": 0.98,
+    "trailing_stop_pct": 0.21,
+    "stop_loss_pct": 0.1
+  },
+  "return": 293.384913585905,
+  "sharpe": 1.7643731137518261,
+  "mdd": 29.09833989945485,
+  "trades": 4,
+  "win_rate": 0.5
+}

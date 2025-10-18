@@ -1,0 +1,20 @@
+{
+  "algorithm": "BREAKOUT",
+  "parameters": {
+    "lookback_period": 15,
+    "volume_multiplier": 1.5,
+    "min_adx": 20
+  },
+  "signals": 13,
+  "trades": 13,
+  "win_rate": 69.23076923076923,
+  "avg_profit": 10.405829810585697,
+  "avg_win": 19.48092622271674,
+  "avg_loss": -10.013137116709132,
+  "passed": true,
+  "criteria": {
+    "\uc2dc\uadf8\ub110 \uac1c\uc218 >= 10": true,
+    "\uc2b9\ub960 >= 50%": true,
+    "\ud3c9\uade0 \uc218\uc775 > 5%": "True"
+  }
+}

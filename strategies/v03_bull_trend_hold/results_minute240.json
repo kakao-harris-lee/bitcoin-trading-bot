@@ -1,0 +1,81 @@
+{
+  "version": "v03",
+  "strategy_name": "bull_trend_hold",
+  "timeframe": "minute240",
+  "period": {
+    "start": "2024-08-26 01:00:00",
+    "end": "2024-12-29 21:00:00",
+    "candles": 756
+  },
+  "buy_hold": {
+    "start_price": 86032000.0,
+    "end_price": 141165000.0,
+    "return": 64.08429421610563
+  },
+  "metrics": {
+    "initial_capital": 10000000.0,
+    "final_capital": 10326761.757971259,
+    "total_return": 3.267617579712588,
+    "sharpe_ratio": 1.002043131736572,
+    "max_drawdown": 1.0937029282212387,
+    "total_trades": 4,
+    "winning_trades": 3,
+    "losing_trades": 1,
+    "win_rate": 0.75,
+    "avg_profit": 138543.2589957885,
+    "avg_loss": 78610.85338929674,
+    "profit_factor": 5.2871805745331795
+  },
+  "config": {
+    "strategy_name": "bull_trend_hold",
+    "version": "v03",
+    "timeframe": "minute240",
+    "rolling_window": 30,
+    "rsi_period": 14,
+    "volatility_threshold": {
+      "high": 0.03,
+      "low": 0.01
+    },
+    "adaptive_rsi": {
+      "base_oversold": 30,
+      "base_overbought": 70,
+      "adjustment_range": 20
+    },
+    "macd": {
+      "fast": 12,
+      "slow": 26,
+      "signal": 9
+    },
+    "adx_period": 14,
+    "adx_threshold": 20,
+    "trend_detection": {
+      "adx_threshold": 25,
+      "recent_period": 10,
+      "trend_threshold": 0.1
+    },
+    "bull_hold": {
+      "take_profit": 0.15,
+      "stop_loss": -0.05,
+      "extension_profit": 0.05
+    },
+    "risk_management": {
+      "take_profit_1": 0.05,
+      "take_profit_2": 0.1,
+      "take_profit_3": 0.2,
+      "stop_loss": -0.03
+    },
+    "ml_model": {
+      "type": "RandomForest",
+      "n_estimators": 100,
+      "max_depth": 10,
+      "confidence_threshold": 0.7,
+      "training_window": 1000,
+      "retrain_interval": 500
+    },
+    "kelly_fraction": 0.25,
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  },
+  "timestamp": "2025-10-17T14:42:41.470277"
+}

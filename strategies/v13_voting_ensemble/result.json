@@ -1,0 +1,120 @@
+{
+  "version": "v13",
+  "strategy_name": "voting_ensemble",
+  "timeframe": "minute240",
+  "period": "2024-01-01 ~ 2024-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 22884614.076123443,
+  "total_return_pct": 128.8461407612344,
+  "total_trades": 5,
+  "wins": 2,
+  "losses": 3,
+  "win_rate": 40.0,
+  "trades": [
+    {
+      "entry_date": "2024-01-13 13:00:00",
+      "entry_price": 59460000.0,
+      "exit_date": "2024-01-23 17:00:00",
+      "exit_price": 53458000.0,
+      "pnl_pct": -10.094180961991254,
+      "reason": "STOP_LOSS",
+      "signals": [
+        "VWAP",
+        "STOCHASTIC"
+      ],
+      "score": 3.0,
+      "highest_price": 59460000.0
+    },
+    {
+      "entry_date": "2024-01-23 21:00:00",
+      "entry_price": 54066000.0,
+      "exit_date": "2024-05-01 13:00:00",
+      "exit_price": 81223000.0,
+      "pnl_pct": 50.22934931380165,
+      "reason": "TRAILING_STOP",
+      "signals": [
+        "VWAP",
+        "STOCHASTIC"
+      ],
+      "score": 3.0,
+      "highest_price": 104756000.0
+    },
+    {
+      "entry_date": "2024-05-01 17:00:00",
+      "entry_price": 82775000.0,
+      "exit_date": "2024-07-05 09:00:00",
+      "exit_price": 78801000.0,
+      "pnl_pct": -4.8009664753850805,
+      "reason": "TRAILING_STOP",
+      "signals": [
+        "VWAP",
+        "STOCHASTIC"
+      ],
+      "score": 3.0,
+      "highest_price": 99441000.0
+    },
+    {
+      "entry_date": "2024-07-05 13:00:00",
+      "entry_price": 77988000.0,
+      "exit_date": "2024-08-05 09:00:00",
+      "exit_price": 77000000.0,
+      "pnl_pct": -1.2668615684464277,
+      "reason": "TRAILING_STOP",
+      "signals": [
+        "VWAP",
+        "STOCHASTIC"
+      ],
+      "score": 3.0,
+      "highest_price": 96706000.0
+    },
+    {
+      "entry_date": "2024-08-05 13:00:00",
+      "entry_price": 75689000.0,
+      "exit_date": "2024-12-30 21:00:00",
+      "exit_price": 137123000.0,
+      "pnl_pct": 81.16635178163273,
+      "reason": "END_OF_PERIOD",
+      "signals": [
+        "VWAP",
+        "STOCHASTIC"
+      ],
+      "score": 3.0,
+      "highest_price": 155370000.0
+    }
+  ],
+  "config": {
+    "strategy_name": "voting_ensemble",
+    "version": "v13",
+    "description": "VWAP + BREAKOUT + Stochastic 투표 방식 앙상블",
+    "timeframe": "minute240",
+    "algorithms": {
+      "vwap": {
+        "weight": 2.0,
+        "params": {
+          "deviation_threshold": 0.02
+        }
+      },
+      "breakout": {
+        "weight": 1.5,
+        "params": {
+          "period": 20
+        }
+      },
+      "stochastic": {
+        "weight": 1.0,
+        "params": {
+          "k_period": 14,
+          "d_period": 3,
+          "oversold": 20,
+          "overbought": 80
+        }
+      }
+    },
+    "vote_threshold": 3.0,
+    "trailing_stop": 0.2,
+    "stop_loss": 0.1,
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  }
+}

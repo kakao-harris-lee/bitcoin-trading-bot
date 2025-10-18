@@ -1,0 +1,31 @@
+{
+  "version": "v02a",
+  "strategy_name": "dynamic_kelly",
+  "metrics": {
+    "initial_capital": 10000000,
+    "final_capital": 10000000.0,
+    "total_return": 0.0,
+    "sharpe_ratio": 0.0,
+    "max_drawdown": 0.0,
+    "total_trades": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0,
+    "avg_profit": 0,
+    "avg_loss": 0,
+    "profit_factor": 0,
+    "kelly_criterion": 0,
+    "kelly_quarter": 0.0,
+    "kelly_half": 0.0,
+    "equity_curve": "              timestamp      cash  position_value  total_equity\n0   2024-09-01 09:00:00  10000000             0.0    10000000.0\n1   2024-09-02 09:00:00  10000000             0.0    10000000.0\n2   2024-09-03 09:00:00  10000000             0.0    10000000.0\n3   2024-09-04 09:00:00  10000000             0.0    10000000.0\n4   2024-09-05 09:00:00  10000000             0.0    10000000.0\n..                  ...       ...             ...           ...\n116 2024-12-26 09:00:00  10000000             0.0    10000000.0\n117 2024-12-27 09:00:00  10000000             0.0    10000000.0\n118 2024-12-28 09:00:00  10000000             0.0    10000000.0\n119 2024-12-29 09:00:00  10000000             0.0    10000000.0\n120 2024-12-30 09:00:00  10000000             0.0    10000000.0\n\n[121 rows x 4 columns]",
+    "trades": []
+  },
+  "buy_hold": {
+    "start_price": 78301000.0,
+    "end_price": 137892000.0,
+    "return": 76.1050305870934,
+    "target": 96.1050305870934
+  },
+  "kelly_history": [],
+  "final_kelly": 0.25
+}

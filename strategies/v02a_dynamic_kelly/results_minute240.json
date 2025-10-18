@@ -1,0 +1,36 @@
+{
+  "version": "v02a",
+  "strategy_name": "dynamic_kelly",
+  "metrics": {
+    "initial_capital": 10000000,
+    "final_capital": 13001280.296014886,
+    "total_return": 30.012802960148864,
+    "sharpe_ratio": 0.9558847065239603,
+    "max_drawdown": 1.3765656642889632,
+    "total_trades": 4,
+    "winning_trades": 3,
+    "losing_trades": 1,
+    "win_rate": 0.75,
+    "avg_profit": 137732.08024110162,
+    "avg_loss": 1039.811193361928,
+    "profit_factor": 397.37621922240965,
+    "kelly_criterion": 0.7481126198204119,
+    "kelly_quarter": 0.18702815495510297,
+    "kelly_half": 0.37405630991020594,
+    "equity_curve": "              timestamp          cash  position_value  total_equity\n0   2024-09-01 01:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n1   2024-09-01 05:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n2   2024-09-01 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n3   2024-09-01 13:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n4   2024-09-01 17:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n..                  ...           ...             ...           ...\n721 2024-12-30 05:00:00  1.040539e+07    0.000000e+00  1.040539e+07\n722 2024-12-30 09:00:00  1.040539e+07    0.000000e+00  1.040539e+07\n723 2024-12-30 13:00:00  1.040539e+07    0.000000e+00  1.040539e+07\n724 2024-12-30 17:00:00  1.040539e+07    0.000000e+00  1.040539e+07\n725 2024-12-30 21:00:00  7.804044e+06    2.599528e+06  1.040357e+07\n\n[726 rows x 4 columns]",
+    "trades": [
+      "Trade(entry_time=Timestamp('2024-09-06 21:00:00'), entry_price=np.float64(73472691.6), quantity=np.float64(0.034009243029932176), side='buy', exit_time=Timestamp('2024-09-10 01:00:00'), exit_price=np.float64(77287539.4), profit_loss=np.float64(129740.0859524025), profit_loss_pct=np.float64(5.1921982398151485), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-10-02 05:00:00'), entry_price=np.float64(81516300.0), quantity=np.float64(0.03104322512056162), side='buy', exit_time=Timestamp('2024-10-14 09:00:00'), exit_price=np.float64(86522692.0), profit_loss=np.float64(155414.55389777874), profit_loss_pct=np.float64(6.141583953148021), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-12-20 17:00:00'), entry_price=np.float64(141036201.6), quantity=np.float64(0.018213134719684426), side='buy', exit_time=Timestamp('2024-12-26 01:00:00'), exit_price=np.float64(148066380.8), profit_loss=np.float64(128041.6008731236), profit_loss_pct=np.float64(4.984662888141776), reason='Buy 25.0% of cash -> Sell 100.0%')",
+      "Trade(entry_time=Timestamp('2024-12-30 21:00:00'), entry_price=np.float64(137150424.6), quantity=np.float64(0.01895763645344242), side='buy', exit_time=Timestamp('2024-12-30 21:00:00'), exit_price=np.float64(137095575.4), profit_loss=np.float64(-1039.811193361928), profit_loss_pct=np.float64(-0.039992001599671374), reason='Buy 25.0% of cash -> Sell 100.0%')"
+    ]
+  },
+  "buy_hold": {
+    "start_price": 80175000.0,
+    "end_price": 137123000.0,
+    "return": 71.029622700343,
+    "target": 91.029622700343
+  },
+  "kelly_history": [],
+  "final_kelly": 0.25
+}

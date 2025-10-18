@@ -1,0 +1,15 @@
+{
+  "strategy_name": "simple_trend_following",
+  "version": "v04_simple",
+  "timeframe": "minute240",
+
+  "_comment_strategy": "초단순 추세 추종 전략 - 공격적 파라미터",
+  "position_fraction": 0.90,
+  "trailing_stop_pct": 0.25,
+  "stop_loss_pct": 0.18,
+
+  "_comment_backtest": "백테스팅 설정",
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002
+}

@@ -1,0 +1,11 @@
+{
+  "strategy_name": "simple_trend_following",
+  "version": "v04_simple_optimized",
+  "timeframe": "minute240",
+  "position_fraction": 0.95,
+  "trailing_stop_pct": 0.15,
+  "stop_loss_pct": 0.25,
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002
+}

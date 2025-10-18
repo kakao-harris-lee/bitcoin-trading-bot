@@ -1,0 +1,134 @@
+{
+  "strategy_name": "dual_layer_adaptive",
+  "version": "v06",
+  "description": "DAY strategy (293%) + Adaptive scalping on profits (target: 400%)",
+
+  "baseline": {
+    "v05_day_return_2024": 293.38,
+    "v05_day_sharpe": 1.76,
+    "v05_day_mdd": 29.10,
+    "v06_target": 400.0,
+    "improvement_goal": "+106.62pp"
+  },
+
+  "layer1_day": {
+    "enabled": true,
+    "timeframe": "day",
+    "capital_allocation": 1.0,
+    "description": "Primary trend detector, v05 optimized params",
+    "params": {
+      "position_fraction": 0.98,
+      "trailing_stop_pct": 0.21,
+      "stop_loss_pct": 0.10
+    }
+  },
+
+  "layer2_scalping": {
+    "enabled": true,
+    "activation_conditions": {
+      "day_position_active": true,
+      "day_profit_threshold": 0.15,
+      "description": "Activate only when DAY profit > 15%"
+    },
+    "capital_source": "day_unrealized_profit",
+    "capital_fraction": 0.50,
+    "max_exposure": 0.15,
+    "description": "Trade with 50% of DAY's unrealized profit, max 15% of total capital"
+  },
+
+  "strategy_a_scalping": {
+    "name": "minute60_scalping",
+    "timeframe": "minute60",
+    "capital_fraction": 1.0,
+    "description": "Short-term trades, 8-15% targets, 1-24h holding",
+
+    "entry_conditions": {
+      "golden_cross": true,
+      "rsi_min": 50,
+      "rsi_max": 70,
+      "recent_4h_return_min": 0.02,
+      "atr_max_multiplier": 1.5,
+      "volume_min_multiplier": 1.2
+    },
+
+    "exit_conditions": {
+      "partial_exits": [
+        {"profit_pct": 0.08, "fraction": 0.30},
+        {"profit_pct": 0.15, "fraction": 0.30},
+        {"profit_pct": 0.25, "fraction": 0.40}
+      ],
+      "trailing_stop_pct": 0.10,
+      "stop_loss_base": 0.05,
+      "stop_loss_atr_extended": 0.08,
+      "quick_stop_loss": {"time_hours": 1, "loss_pct": 0.03},
+      "max_holding_hours": 48,
+      "force_close_on_day_exit": true
+    },
+
+    "risk_management": {
+      "max_daily_trades": 3,
+      "max_weekly_trades": 10,
+      "consecutive_loss_pause_hours": 24,
+      "max_consecutive_losses": 3
+    }
+  },
+
+  "strategy_b_swing": {
+    "name": "minute240_swing",
+    "timeframe": "minute240",
+    "capital_fraction": 1.0,
+    "description": "Mid-term trades, 15-30% targets, 1-7d holding",
+
+    "entry_conditions": {
+      "golden_cross": true,
+      "rsi_min": 55,
+      "macd_bullish": true,
+      "recent_24h_return_min": 0.05,
+      "adx_min": 25,
+      "volume_min_multiplier": 1.15
+    },
+
+    "exit_conditions": {
+      "partial_exits": [
+        {"profit_pct": 0.15, "fraction": 0.25},
+        {"profit_pct": 0.25, "fraction": 0.35},
+        {"profit_pct": 0.40, "fraction": 0.40}
+      ],
+      "trailing_stop_pct": 0.15,
+      "stop_loss_base": 0.08,
+      "stop_loss_atr_extended": 0.12,
+      "dead_cross_immediate": true,
+      "max_holding_days": 10,
+      "force_close_on_day_exit": true
+    },
+
+    "risk_management": {
+      "max_daily_trades": 2,
+      "max_weekly_trades": 5,
+      "consecutive_loss_pause_hours": 48,
+      "max_consecutive_losses": 2
+    }
+  },
+
+  "hybrid_mode": {
+    "enabled": true,
+    "layer2a_fraction": 0.30,
+    "layer2b_fraction": 0.40,
+    "reserve_fraction": 0.30,
+    "description": "30% minute60 + 40% minute240 + 30% reserve"
+  },
+
+  "global_risk_management": {
+    "max_layer2_loss_pct": 0.20,
+    "layer2_shutdown_on_loss": true,
+    "max_total_drawdown": 0.35,
+    "volatility_pause_multiplier": 2.0
+  },
+
+  "backtest_settings": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "min_order_amount": 10000
+  }
+}

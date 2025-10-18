@@ -1,0 +1,83 @@
+{
+  "strategy_name": "v12_refined",
+  "version": "v12",
+  "description": "v07 신호 + v11 타이밍 + 정교한 청산",
+  "timeframe": "day",
+
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002,
+
+  "entry_algorithms": {
+    "breakout": {
+      "enabled": true,
+      "priority": 1,
+      "lookback_period": 15,
+      "volume_multiplier": 1.5,
+      "min_adx": 20
+    },
+    "ema_macd": {
+      "enabled": true,
+      "priority": 2,
+      "ema_fast": 12,
+      "ema_slow": 26,
+      "macd_fast": 13,
+      "macd_slow": 23,
+      "macd_signal": 8,
+      "require_both": false
+    },
+    "rsi_bounce": {
+      "enabled": true,
+      "priority": 3,
+      "rsi_period": 14,
+      "rsi_oversold": 35,
+      "min_bounce_days": 1,
+      "min_adx": 15
+    }
+  },
+
+  "exit_rules": {
+    "stop_loss_pct": 0.08,
+    "trailing_stops": {
+      "profit_0_10": 0.15,
+      "profit_10_30": 0.15,
+      "profit_30_50": 0.20,
+      "profit_50_plus": 0.25
+    },
+    "profit_targets": {
+      "level_1": {
+        "profit_pct": 0.40,
+        "sell_fraction": 0.30
+      },
+      "level_2": {
+        "profit_pct": 0.60,
+        "sell_fraction": 0.30
+      }
+    },
+    "max_holding_days": {
+      "sideways": 30,
+      "trending": 999
+    }
+  },
+
+  "position_sizing": {
+    "base_fraction": 0.95,
+    "adx_strong": {
+      "threshold": 30,
+      "fraction": 0.98
+    },
+    "adx_weak": {
+      "threshold": 20,
+      "fraction": 0.85
+    },
+    "consecutive_loss_reduction": {
+      "after_losses": 2,
+      "fraction": 0.80
+    }
+  },
+
+  "filters": {
+    "min_adx": 15,
+    "min_volume_ratio": 0.8
+  }
+}

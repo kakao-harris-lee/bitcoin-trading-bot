@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Trading Bot Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Bitcoin Trading Bot Dashboard</h1>
+
+        <section class="summary">
+            <h2>전략 버전 비교</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>버전</th>
+                        <th>전략명</th>
+                        <th>수익률</th>
+                        <th>Sharpe</th>
+                        <th>MDD</th>
+                        <th>승률</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for strategy in strategies %}
+                    <tr>
+                        <td>{{ strategy[0] }}</td>
+                        <td>{{ strategy[1] }}</td>
+                        <td>{{ "%.2f"|format(strategy[2] or 0) }}%</td>
+                        <td>{{ "%.2f"|format(strategy[3] or 0) }}</td>
+                        <td>{{ "%.2f"|format(strategy[4] or 0) }}%</td>
+                        <td>{{ "%.1f"|format((strategy[5] or 0) * 100) }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="charts">
+            <h2>📊 성과 차트</h2>
+            <div id="performance-chart"></div>
+        </section>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

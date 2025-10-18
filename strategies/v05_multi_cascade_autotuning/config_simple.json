@@ -1,0 +1,66 @@
+{
+  "strategy_name": "day_plus_minute240",
+  "version": "v05_simplified",
+  "description": "v04 DAY strategy + selective minute240 amplifier",
+
+  "baseline": {
+    "v04_best": "DAY timeframe",
+    "v04_return_2024": 288.67,
+    "v04_sharpe": 1.80,
+    "v04_mdd": 28.43,
+    "v04_trades": 4,
+    "v05_target": 320.0,
+    "improvement_goal": "+31.33pp (realistic)"
+  },
+
+  "layers": {
+    "day": {
+      "timeframe": "day",
+      "capital_allocation": 0.95,
+      "enabled": true,
+      "role": "primary",
+      "source": "v04_optimized_day_strategy",
+      "params": {
+        "position_fraction": 0.95,
+        "trailing_stop_pct": 0.20,
+        "stop_loss_pct": 0.10
+      }
+    },
+    "minute240": {
+      "timeframe": "minute240",
+      "capital_allocation": 0.05,
+      "enabled_when_day_active": true,
+      "min_win_rate": 0.50,
+      "role": "amplifier",
+      "params": {
+        "position_fraction": 0.90,
+        "trailing_stop_pct": 0.15,
+        "stop_loss_pct": 0.08
+      }
+    }
+  },
+
+  "split_orders": {
+    "enabled": false
+  },
+
+  "kelly_criterion": {
+    "enabled": false
+  },
+
+  "auto_tuning": {
+    "enabled": false
+  },
+
+  "risk_management": {
+    "max_total_exposure": 1.00,
+    "force_close_on_day_exit": true
+  },
+
+  "backtest_settings": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "min_order_amount": 10000
+  }
+}

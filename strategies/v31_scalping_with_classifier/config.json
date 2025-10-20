@@ -1,0 +1,80 @@
+{
+  "strategy_name": "scalping_with_day_classifier",
+  "version": "v31",
+  "description": "High-frequency scalping on minute5, filtered by day-level market state",
+
+  "primary_timeframe": "minute60",
+  "classifier_timeframe": "day",
+
+  "classifier_settings": {
+    "bull_conditions": {
+      "mfi_min": 50,
+      "macd_above_signal": true
+    },
+    "bear_conditions": {
+      "mfi_max": 40,
+      "macd_below_signal": true
+    },
+    "update_frequency": "daily"
+  },
+
+  "scalping_settings": {
+    "only_trade_in_bull": true,
+    "entry_conditions": {
+      "bb_position_max": 0.4,
+      "volume_ratio_min": 1.3,
+      "rsi_oversold": 45,
+      "additional_filters": {
+        "price_near_support": true,
+        "recent_candles_red": 2
+      }
+    },
+    "exit_conditions": {
+      "take_profit_pct": 0.015,
+      "stop_loss_pct": 0.008,
+      "max_hold_candles": 30,
+      "trail_profit_after": 0.01,
+      "trail_stop_pct": 0.003
+    },
+    "position_sizing": {
+      "max_position_pct": 0.30,
+      "scale_by_volatility": true,
+      "min_position_pct": 0.10
+    }
+  },
+
+  "risk_management": {
+    "max_daily_loss_pct": 0.05,
+    "max_concurrent_positions": 1,
+    "daily_profit_target": 0.02,
+    "stop_trading_on_target": false
+  },
+
+  "backtest_settings": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "start_date": "2024-01-01",
+    "end_date": "2024-12-31"
+  },
+
+  "target_metrics": {
+    "total_return_target": 300,
+    "sharpe_ratio_target": 2.0,
+    "max_drawdown_target": 15,
+    "min_win_rate": 0.55,
+    "target_daily_return": 0.005
+  },
+
+  "indicators": {
+    "rsi_period": 14,
+    "bb_period": 20,
+    "bb_std": 2,
+    "volume_sma_period": 20,
+    "atr_period": 14,
+    "mfi_period": 14,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9
+  }
+}

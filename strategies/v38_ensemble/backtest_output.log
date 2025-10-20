@@ -1,0 +1,33 @@
+======================================================================
+  v38 Ensemble Strategy - 연도별 백테스팅
+======================================================================
+
+======================================================================
+  2020년 백테스팅
+======================================================================
+  기간: 0 ~ 364
+  캔들: 365개
+  시작가: 8,300,000원
+  종료가: 31,891,000원
+Traceback (most recent call last):
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/backtest.py", line 204, in <module>
+    main()
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/backtest.py", line 134, in main
+    result = run_yearly_backtest(year, config)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/backtest.py", line 68, in run_yearly_backtest
+    results = backtester.run(df, strategy_wrapper, {})
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/../../core/backtester.py", line 91, in run
+    signal = strategy_func(df, i, strategy_params)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/backtest.py", line 59, in strategy_wrapper
+    return strategy.execute(df, i)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/../../strategies/v38_ensemble/strategy.py", line 97, in execute
+    exit_signal = self._check_exit(df, i, market_state)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/../../strategies/v38_ensemble/strategy.py", line 219, in _check_exit
+    signal = self.v35_exit_manager.check_exit(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: DynamicExitManager.check_exit() got an unexpected keyword argument 'current_time'

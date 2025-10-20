@@ -1,0 +1,121 @@
+{
+  "version": "v35",
+  "optimization_status": "before_optuna",
+  "backtest_date": "2025-10-19T17:32:26.218894",
+  "config": {
+    "strategy_name": "optimized",
+    "version": "v35",
+    "timeframe": "day",
+    "description": "v34 + Optuna \ucd5c\uc801\ud654 + \ub3d9\uc801 \uc775\uc808 + SIDEWAYS \uac15\ud654",
+    "market_classifier": {
+      "mfi_bull_strong": 52,
+      "mfi_bull_moderate": 45,
+      "mfi_sideways_up": 42,
+      "mfi_bear_moderate": 38,
+      "mfi_bear_strong": 35,
+      "adx_strong_trend": 20,
+      "adx_moderate_trend": 15
+    },
+    "entry_conditions": {
+      "momentum_rsi_bull_strong": 52,
+      "momentum_rsi_bull_moderate": 55,
+      "breakout_threshold": 0.005,
+      "breakout_volume_mult": 1.3,
+      "range_support_zone": 0.15,
+      "range_rsi_oversold": 40
+    },
+    "exit_conditions": {
+      "tp_bull_strong_1": 0.05,
+      "tp_bull_strong_2": 0.1,
+      "tp_bull_strong_3": 0.2,
+      "trailing_bull_strong": 0.05,
+      "tp_bull_moderate_1": 0.03,
+      "tp_bull_moderate_2": 0.07,
+      "tp_bull_moderate_3": 0.12,
+      "trailing_bull_moderate": 0.03,
+      "tp_sideways_1": 0.02,
+      "tp_sideways_2": 0.04,
+      "tp_sideways_3": 0.06,
+      "stop_loss": -0.015,
+      "exit_fraction_1": 0.4,
+      "exit_fraction_2": 0.3,
+      "exit_fraction_3": 0.3
+    },
+    "position_sizing": {
+      "position_size": 0.5
+    },
+    "sideways_strategies": {
+      "use_rsi_bb": true,
+      "use_stoch": true,
+      "use_volume_breakout": true,
+      "rsi_bb_oversold": 30,
+      "rsi_bb_overbought": 70,
+      "stoch_oversold": 20,
+      "stoch_overbought": 80,
+      "volume_breakout_mult": 2.0
+    },
+    "backtesting": {
+      "initial_capital": 10000000,
+      "fee_rate": 0.0005,
+      "slippage": 0.0002,
+      "train_period": "2020-01-01 to 2024-12-31",
+      "test_period": "2025-01-01 to 2025-10-17"
+    },
+    "target_performance": {
+      "test_return": 0.15,
+      "sharpe_ratio": 1.5,
+      "max_drawdown": 0.1,
+      "win_rate": 0.55
+    }
+  },
+  "results": {
+    "2023": {
+      "initial_capital": 10000000,
+      "final_capital": 11364425.750848588,
+      "total_return": 13.644257508485877,
+      "buy_hold_return": 94.87682356179467,
+      "excess_return": -81.23256605330879,
+      "total_trades": 17,
+      "wins": 6,
+      "losses": 11,
+      "win_rate": 35.294117647058826,
+      "avg_profit": 8.172086400595651,
+      "avg_loss": -14.689107288565625,
+      "sharpe_ratio": 1.1948086917001217,
+      "max_drawdown": -4.760127283845423,
+      "profit_factor": 0.30345626766045924
+    },
+    "2024": {
+      "initial_capital": 10000000,
+      "final_capital": 12591121.655132972,
+      "total_return": 25.91121655132972,
+      "buy_hold_return": 134.7577377506895,
+      "excess_return": -108.84652119935978,
+      "total_trades": 13,
+      "wins": 6,
+      "losses": 7,
+      "win_rate": 46.15384615384615,
+      "avg_profit": 16.256797503636893,
+      "avg_loss": -17.628560239336206,
+      "sharpe_ratio": 1.9403357173478688,
+      "max_drawdown": -7.00522035193501,
+      "profit_factor": 0.7904444646118691
+    },
+    "2025": {
+      "initial_capital": 10000000,
+      "final_capital": 11420319.57631913,
+      "total_return": 14.203195763191301,
+      "buy_hold_return": 8.442968450632264,
+      "excess_return": 5.760227312559037,
+      "total_trades": 8,
+      "wins": 2,
+      "losses": 6,
+      "win_rate": 25.0,
+      "avg_profit": 4.552722005578705,
+      "avg_loss": -7.5759941858338715,
+      "sharpe_ratio": 2.238676389980349,
+      "max_drawdown": -2.33017094819427,
+      "profit_factor": 0.20031351194767746
+    }
+  }
+}

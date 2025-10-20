@@ -1,0 +1,27 @@
+{
+  "version": "v19",
+  "start_date": "2025-01-01",
+  "end_date": "2025-10-16",
+  "initial_capital": 10000000,
+  "final_capital": 10477691.23896599,
+  "total_return_pct": 4.7769123896599,
+  "total_trades": 1,
+  "wins": 1,
+  "losses": 0,
+  "win_rate": 1.0,
+  "avg_profit_pct": 15.918267410469936,
+  "avg_loss_pct": 0,
+  "max_win_pct": 15.918267410469936,
+  "max_loss_pct": 15.918267410469936,
+  "trades": [
+    {
+      "entry_time": "2025-02-26 09:00:00",
+      "entry_price": 122784000.0,
+      "exit_time": "2025-03-02 09:00:00",
+      "exit_price": 142500000.0,
+      "pnl_pct": 15.918267410469936,
+      "reason": "MARKET_SWITCH_BEAR_TO_SIDEWAYS",
+      "market_type": "BEAR"
+    }
+  ]
+}

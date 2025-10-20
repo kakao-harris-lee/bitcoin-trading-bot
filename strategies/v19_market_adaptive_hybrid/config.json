@@ -1,0 +1,47 @@
+{
+  "strategy_name": "market_adaptive_hybrid",
+  "version": "v19",
+  "description": "Market-adaptive hybrid strategy that switches between bear/bull/sideways strategies based on market conditions",
+  "timeframe": "day",
+
+  "market_classification": {
+    "adx_trend_threshold": 25,
+    "bull_return_threshold": 0.15,
+    "bear_return_threshold": -0.10,
+    "return_lookback_days": 20
+  },
+
+  "bear_strategy": {
+    "rsi_entry": 20,
+    "take_profit_pct": 0.05,
+    "stop_loss_pct": -0.03,
+    "max_position_fraction": 0.30
+  },
+
+  "bull_strategy": {
+    "take_profit_pct": 0.30,
+    "trailing_stop_pct": 0.20,
+    "stop_loss_pct": -0.10,
+    "max_position_fraction": 0.90
+  },
+
+  "sideways_strategy": {
+    "rsi_oversold": 30,
+    "rsi_overbought": 70,
+    "take_profit_pct": 0.10,
+    "stop_loss_pct": -0.05,
+    "max_position_fraction": 0.60
+  },
+
+  "indicators": {
+    "rsi_period": 14,
+    "adx_period": 14,
+    "vwap_enabled": true
+  },
+
+  "backtest_settings": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "version": "v17",
+  "strategy_name": "vwap_breakout",
+  "timeframe": "day",
+  "period": "2024-01-01 ~ 2024-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 20497889.856451966,
+  "total_return_pct": 104.97889856451965,
+  "total_trades": 1,
+  "wins": 1,
+  "losses": 0,
+  "win_rate": 100.0,
+  "trades": [
+    {
+      "entry_date": "2023-03-09 09:00:00",
+      "entry_price": 27604000.0,
+      "exit_date": "2023-12-30 09:00:00",
+      "exit_price": 56639000.0,
+      "pnl_pct": 105.18403129981162,
+      "reason": "END_OF_PERIOD",
+      "signals": [
+        "VWAP"
+      ],
+      "score": 2.0,
+      "highest_price": 60314000.0
+    }
+  ],
+  "config": {
+    "strategy_name": "vwap_breakout",
+    "version": "v17",
+    "description": "VWAP + BREAKOUT simple combination (Stochastic excluded)",
+    "timeframe": "day",
+    "algorithms": {
+      "vwap": {
+        "weight": 2.0,
+        "params": {
+          "deviation_threshold": 0.02
+        }
+      },
+      "breakout": {
+        "weight": 1.5,
+        "params": {
+          "period": 20
+        }
+      }
+    },
+    "vote_threshold": 2.0,
+    "trailing_stop": 0.2,
+    "stop_loss": 0.1,
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  }
+}

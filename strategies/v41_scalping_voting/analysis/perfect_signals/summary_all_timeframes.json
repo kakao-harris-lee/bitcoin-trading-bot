@@ -1,0 +1,14 @@
+{
+  "minute5": {
+    "2024": {
+      "signals": 8716,
+      "max_return_pct": 17.52,
+      "avg_return_pct": 1.71,
+      "avg_hold_days": 24.4
+    }
+  },
+  "total_perfect_signals": 8716,
+  "avg_perfect_return_pct": 1.71,
+  "best_timeframe": "minute5",
+  "best_year": "2024"
+}

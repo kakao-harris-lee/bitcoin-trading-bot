@@ -1,0 +1,167 @@
+{
+  "version": "v37",
+  "strategy_name": "supreme",
+  "backtest_date": "2025-10-19T19:53:27.643034",
+  "config": {
+    "strategy_name": "supreme",
+    "version": "v37",
+    "timeframe": "day",
+    "description": "Optuna Optimized (500 trials, 2020-2024)",
+    "dynamic_thresholds": {
+      "threshold_lookback_period": 60,
+      "rsi_oversold_quantile": 0.3,
+      "rsi_overbought_quantile": 0.7,
+      "volume_high_quantile": 0.8,
+      "volatility_high_quantile": 0.7
+    },
+    "market_classifier": {
+      "ma20_slope_bull_strong": 0.014412202674054925,
+      "ma20_slope_bull_moderate": 0.004528434396587736,
+      "ma20_slope_sideways": 0.001,
+      "ma20_slope_bear_moderate": -0.004528434396587736,
+      "ma20_slope_bear_strong": -0.014412202674054925,
+      "adx_strong_trend": 26,
+      "adx_moderate_trend": 12,
+      "adx_weak_trend": 10,
+      "volatility_high": 0.03,
+      "volatility_low": 0.015,
+      "rsi_overbought_ratio": 0.3,
+      "rsi_oversold_ratio": 0.3
+    },
+    "trend_following": {
+      "adx_threshold": 16,
+      "stop_loss": -0.08000209629861316,
+      "trailing_stop": -0.07051906738945231,
+      "trailing_trigger": 0.24430232865245655,
+      "max_hold_days": 61
+    },
+    "swing_trading": {
+      "rsi_oversold": 33,
+      "take_profit_1": 0.08533910433696475,
+      "take_profit_2": 0.1478042592509173,
+      "stop_loss": -0.03350978820409061,
+      "max_hold_days": 26
+    },
+    "sideways": {
+      "use_rsi_bb": true,
+      "use_stoch": true,
+      "use_volume_breakout": true,
+      "rsi_bb_oversold": 24,
+      "rsi_bb_overbought": 72,
+      "stoch_oversold": 20,
+      "stoch_overbought": 80,
+      "volume_breakout_mult": 1.6834605851235325,
+      "position_size": 0.4,
+      "take_profit_1": 0.011254856376113564,
+      "take_profit_2": 0.033274603915100426,
+      "take_profit_3": 0.05519108455392487,
+      "stop_loss": -0.010789744612422282,
+      "max_hold_days": 20
+    },
+    "defensive": {
+      "rsi_oversold": 17,
+      "position_size": 0.2,
+      "bear_strong_size": 0.1,
+      "take_profit_1": 0.03980518733275564,
+      "take_profit_2": 0.06068317801828657,
+      "stop_loss": -0.05,
+      "tp_bear_strong": 0.03,
+      "max_hold_days": 20
+    },
+    "backtesting": {
+      "initial_capital": 10000000,
+      "fee_rate": 0.0005,
+      "slippage": 0.0002,
+      "train_period": "2020-01-01 to 2024-12-31",
+      "test_period": "2025-01-01 to 2025-10-17"
+    },
+    "target_performance": {
+      "annual_return_train": 0.6,
+      "annual_return_test": 0.7,
+      "sharpe_ratio": 1.5,
+      "max_drawdown": 0.2,
+      "win_rate": 0.5,
+      "buyhold_ratio": 0.75
+    },
+    "optimization_info": {
+      "date": "2025-10-19T19:39:46.400927",
+      "n_trials": 500,
+      "best_score": 0.9138905681739764,
+      "sampler": "TPE"
+    }
+  },
+  "results": {
+    "2020": {
+      "total_return": 3.1439387892646344,
+      "buy_hold_return": 284.2289156626506,
+      "excess_return": -281.084976873386,
+      "sharpe_ratio": 0.23688653868374443,
+      "max_drawdown": 17.855323018677286,
+      "total_trades": 11,
+      "win_rate": 0.5454545454545454,
+      "avg_profit": 317321.9805471089,
+      "avg_loss": 174284.14106975836,
+      "profit_factor": 2.184859588022518
+    },
+    "2021": {
+      "total_return": 17.514202231130508,
+      "buy_hold_return": 77.11171662125341,
+      "excess_return": -59.597514390122896,
+      "sharpe_ratio": -0.12067117745535229,
+      "max_drawdown": 8.038794915944298,
+      "total_trades": 14,
+      "win_rate": 0.2857142857142857,
+      "avg_profit": 312655.5675798581,
+      "avg_loss": 132514.248020534,
+      "profit_factor": 0.9437643793033034
+    },
+    "2022": {
+      "total_return": -10.238773561892641,
+      "buy_hold_return": -63.61909695243029,
+      "excess_return": 53.38032339053765,
+      "sharpe_ratio": -0.6027957040640435,
+      "max_drawdown": 18.078306802531436,
+      "total_trades": 23,
+      "win_rate": 0.4782608695652174,
+      "avg_profit": 106232.91126555255,
+      "avg_loss": 330290.8577497601,
+      "profit_factor": 0.29483155944288486
+    },
+    "2023": {
+      "total_return": 62.96892712656986,
+      "buy_hold_return": 168.13899540784928,
+      "excess_return": -105.17006828127941,
+      "sharpe_ratio": 1.757648634003111,
+      "max_drawdown": 5.591407949303748,
+      "total_trades": 15,
+      "win_rate": 0.5333333333333333,
+      "avg_profit": 283531.51000421896,
+      "avg_loss": 58869.96155437374,
+      "profit_factor": 5.504267420560577
+    },
+    "2024": {
+      "total_return": 83.69486005388707,
+      "buy_hold_return": 134.35476469688473,
+      "excess_return": -50.65990464299766,
+      "sharpe_ratio": 1.7656296021072504,
+      "max_drawdown": 5.182629156301786,
+      "total_trades": 13,
+      "win_rate": 0.6923076923076923,
+      "avg_profit": 342848.7065428795,
+      "avg_loss": 209473.03483288773,
+      "profit_factor": 3.6826200104318434
+    },
+    "2025": {
+      "total_return": -0.30959245209373537,
+      "buy_hold_return": 20.152844607981883,
+      "excess_return": -20.46243706007562,
+      "sharpe_ratio": -0.025990355613977376,
+      "max_drawdown": 4.9131900036495075,
+      "total_trades": 14,
+      "win_rate": 0.35714285714285715,
+      "avg_profit": 140843.19759310805,
+      "avg_loss": 91307.88643507731,
+      "profit_factor": 0.8569492071278585
+    }
+  }
+}

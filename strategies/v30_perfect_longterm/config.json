@@ -1,0 +1,63 @@
+{
+  "strategy_name": "perfect_longterm",
+  "version": "v30",
+  "description": "Perfect long-term strategy based on raw data analysis - MFI + MACD + ADX on day timeframe",
+
+  "timeframe": "day",
+
+  "indicators": {
+    "mfi_period": 14,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+    "adx_period": 14,
+    "volume_sma_period": 20
+  },
+
+  "entry_conditions": {
+    "mfi_min": 45,
+    "macd_golden_cross": true,
+    "adx_min": 20,
+    "volume_ratio_min": 0.8,
+    "additional_filters": {
+      "rsi_max": 85,
+      "bb_position_max": 1.0
+    }
+  },
+
+  "exit_conditions": {
+    "macd_dead_cross": true,
+    "trailing_stop_pct": 0.15,
+    "max_hold_days": 90,
+    "take_profit_pct": 0.50
+  },
+
+  "position_sizing": {
+    "method": "kelly_criterion",
+    "initial_fraction": 0.95,
+    "min_trades_for_kelly": 3,
+    "kelly_multiplier": 0.5,
+    "max_position": 0.95
+  },
+
+  "risk_management": {
+    "stop_loss_pct": 0.10,
+    "max_drawdown_pct": 0.20,
+    "force_exit_on_drawdown": true
+  },
+
+  "backtest_settings": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "start_date": "2024-01-01",
+    "end_date": "2024-12-31"
+  },
+
+  "target_metrics": {
+    "total_return_target": 150,
+    "sharpe_ratio_target": 1.5,
+    "max_drawdown_target": 20,
+    "min_win_rate": 0.60
+  }
+}

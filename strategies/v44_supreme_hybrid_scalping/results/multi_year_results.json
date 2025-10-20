@@ -1,0 +1,251 @@
+{
+  "2020": {
+    "initial_capital": 10000000,
+    "final_capital": 9772229.232273668,
+    "total_return": -0.022777076772633194,
+    "total_return_pct": -2.2777076772633196,
+    "total_trades": 9,
+    "wins": 5,
+    "losses": 4,
+    "win_rate": 0.5555555555555556,
+    "avg_return": 0.0010756363990570878,
+    "avg_win": 0.04292402440805181,
+    "avg_loss": -0.05123484861218632,
+    "sharpe_ratio": 0.05334461244757924,
+    "layer1_trades": 8,
+    "layer2_trades": 1,
+    "layer1_stats": {
+      "total_trades": 8,
+      "wins": 4,
+      "losses": 4,
+      "win_rate": 0.5,
+      "avg_return": -0.0015062937899174272,
+      "avg_win": 0.04822226103235147,
+      "avg_loss": -0.05123484861218632
+    },
+    "layer2_m60_stats": {
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_return": 0.0,
+      "avg_win": 0.0,
+      "avg_loss": 0.0
+    },
+    "layer2_m240_stats": {
+      "total_trades": 1,
+      "wins": 1,
+      "losses": 0,
+      "win_rate": 1.0,
+      "avg_return": 0.021731077910853193,
+      "avg_win": 0.021731077910853193,
+      "avg_loss": 0.0,
+      "avg_peak_profit": 0.0
+    }
+  },
+  "2021": {
+    "initial_capital": 10000000,
+    "final_capital": 9679326.301275477,
+    "total_return": -0.03206736987245232,
+    "total_return_pct": -3.2067369872452316,
+    "total_trades": 4,
+    "wins": 3,
+    "losses": 1,
+    "win_rate": 0.75,
+    "avg_return": -0.00301978403805006,
+    "avg_win": 0.014689449482201453,
+    "avg_loss": -0.056147484598804594,
+    "sharpe_ratio": -0.19579821353971477,
+    "layer1_trades": 3,
+    "layer2_trades": 1,
+    "layer1_stats": {
+      "total_trades": 3,
+      "wins": 2,
+      "losses": 1,
+      "win_rate": 0.6666666666666666,
+      "avg_return": -0.009513928413989325,
+      "avg_win": 0.01380284967841831,
+      "avg_loss": -0.056147484598804594
+    },
+    "layer2_m60_stats": {
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_return": 0.0,
+      "avg_win": 0.0,
+      "avg_loss": 0.0
+    },
+    "layer2_m240_stats": {
+      "total_trades": 1,
+      "wins": 1,
+      "losses": 0,
+      "win_rate": 1.0,
+      "avg_return": 0.016462649089767734,
+      "avg_win": 0.016462649089767734,
+      "avg_loss": 0.0,
+      "avg_peak_profit": 0.0
+    }
+  },
+  "2022": {
+    "initial_capital": 10000000,
+    "final_capital": 9606018.175588867,
+    "total_return": -0.03939818244111333,
+    "total_return_pct": -3.939818244111333,
+    "total_trades": 1,
+    "wins": 0,
+    "losses": 1,
+    "win_rate": 0.0,
+    "avg_return": -0.038829407566024265,
+    "avg_win": 0.0,
+    "avg_loss": -0.038829407566024265,
+    "sharpe_ratio": 0.0,
+    "layer1_trades": 1,
+    "layer2_trades": 0,
+    "layer1_stats": {
+      "total_trades": 1,
+      "wins": 0,
+      "losses": 1,
+      "win_rate": 0.0,
+      "avg_return": -0.038829407566024265,
+      "avg_win": 0.0,
+      "avg_loss": -0.038829407566024265
+    },
+    "layer2_m60_stats": {
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_return": 0.0,
+      "avg_win": 0.0,
+      "avg_loss": 0.0
+    },
+    "layer2_m240_stats": {
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_return": 0.0,
+      "avg_win": 0.0,
+      "avg_loss": 0.0
+    }
+  },
+  "2023": {
+    "initial_capital": 10000000,
+    "final_capital": 9844435.202650227,
+    "total_return": -0.015556479734977334,
+    "total_return_pct": -1.5556479734977333,
+    "total_trades": 6,
+    "wins": 2,
+    "losses": 4,
+    "win_rate": 0.3333333333333333,
+    "avg_return": 0.0002809494531675798,
+    "avg_win": 0.017253287139920814,
+    "avg_loss": -0.008205219390209037,
+    "sharpe_ratio": 0.054463909659612425,
+    "layer1_trades": 4,
+    "layer2_trades": 2,
+    "layer1_stats": {
+      "total_trades": 4,
+      "wins": 1,
+      "losses": 3,
+      "win_rate": 0.25,
+      "avg_return": -0.002570288930562014,
+      "avg_win": 0.01425163034833784,
+      "avg_loss": -0.008177595356861966
+    },
+    "layer2_m60_stats": {
+      "total_trades": 2,
+      "wins": 1,
+      "losses": 1,
+      "win_rate": 0.5,
+      "avg_return": 0.005983426220626768,
+      "avg_win": 0.020254943931503785,
+      "avg_loss": -0.00828809149025025,
+      "avg_peak_profit": 0.0
+    },
+    "layer2_m240_stats": {
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_return": 0.0,
+      "avg_win": 0.0,
+      "avg_loss": 0.0
+    }
+  },
+  "2024": {
+    "initial_capital": 10000000,
+    "final_capital": 13659838.300213236,
+    "total_return": 0.3659838300213236,
+    "total_return_pct": 36.598383002132366,
+    "total_trades": 112,
+    "wins": 83,
+    "losses": 29,
+    "win_rate": 0.7410714285714286,
+    "avg_return": 0.01188958447893317,
+    "avg_win": 0.026891222098691724,
+    "avg_loss": -0.031046136984513723,
+    "sharpe_ratio": 3.356257344837751,
+    "layer1_trades": 87,
+    "layer2_trades": 25,
+    "layer1_stats": {
+      "total_trades": 87,
+      "wins": 65,
+      "losses": 22,
+      "win_rate": 0.7471264367816092,
+      "avg_return": 0.01043597552737741,
+      "avg_win": 0.02396431303086998,
+      "avg_loss": -0.029534112551123374
+    },
+    "layer2_m60_stats": {
+      "total_trades": 4,
+      "wins": 3,
+      "losses": 1,
+      "win_rate": 0.75,
+      "avg_return": 0.009008827753568212,
+      "avg_win": 0.024389368990359983,
+      "avg_loss": -0.037132795956807095,
+      "avg_peak_profit": 0.0
+    },
+    "layer2_m240_stats": {
+      "total_trades": 21,
+      "wins": 15,
+      "losses": 6,
+      "win_rate": 0.7142857142857143,
+      "avg_return": 0.01846039427354323,
+      "avg_win": 0.04007486534758564,
+      "avg_loss": -0.03557578341156278,
+      "avg_peak_profit": 0.0
+    }
+  },
+  "2025": {
+    "initial_capital": 10000000,
+    "final_capital": 9293233.856737427,
+    "total_return": -0.07067661432625726,
+    "total_return_pct": -7.067661432625726,
+    "total_trades": 1,
+    "wins": 0,
+    "losses": 1,
+    "win_rate": 0.0,
+    "avg_return": -0.07076853218299467,
+    "avg_win": 0.0,
+    "avg_loss": -0.07076853218299467,
+    "sharpe_ratio": 0.0,
+    "layer1_trades": 1,
+    "layer2_trades": 0,
+    "layer1_stats": {
+      "total_trades": 1,
+      "wins": 0,
+      "losses": 1,
+      "win_rate": 0.0,
+      "avg_return": -0.07076853218299467,
+      "avg_win": 0.0,
+      "avg_loss": -0.07076853218299467
+    },
+    "layer2_m60_stats": {
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_return": 0.0,
+      "avg_win": 0.0,
+      "avg_loss": 0.0
+    },
+    "layer2_m240_stats": {
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_return": 0.0,
+      "avg_win": 0.0,
+      "avg_loss": 0.0
+    }
+  }
+}

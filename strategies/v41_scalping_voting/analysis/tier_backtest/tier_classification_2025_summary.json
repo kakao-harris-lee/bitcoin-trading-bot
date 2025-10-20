@@ -1,0 +1,41 @@
+{
+  "day": {
+    "total_candles": 289,
+    "tier_distribution": {
+      "S": 140,
+      "C": 58,
+      "A": 50,
+      "B": 41
+    },
+    "sa_signals": 190,
+    "score_mean": 26.422145328719722,
+    "score_std": 19.313072921194127,
+    "score_max": 63.0
+  },
+  "minute60": {
+    "total_candles": 6925,
+    "tier_distribution": {
+      "A": 2897,
+      "C": 2020,
+      "S": 1862,
+      "B": 146
+    },
+    "sa_signals": 4759,
+    "score_mean": 22.03537906137184,
+    "score_std": 18.571758546275316,
+    "score_max": 93.0
+  },
+  "minute15": {
+    "total_candles": 27697,
+    "tier_distribution": {
+      "S": 13848,
+      "C": 6295,
+      "A": 6025,
+      "B": 1529
+    },
+    "sa_signals": 19873,
+    "score_mean": 23.437267574105498,
+    "score_std": 14.820743427561093,
+    "score_max": 86.0
+  }
+}

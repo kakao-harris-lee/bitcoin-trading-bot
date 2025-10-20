@@ -1,0 +1,19 @@
+{
+  "strategy_name": "split_entry_exit",
+  "version": "v28",
+  "description": "분할 진입/청산 전략 - 리스크 분산",
+  "timeframe": "day",
+  "entry_stages": [
+    {"rsi_threshold": 35, "bb_threshold": 0.25, "fraction": 0.3},
+    {"rsi_threshold": 30, "bb_threshold": 0.20, "fraction": 0.3},
+    {"rsi_threshold": 25, "bb_threshold": 0.15, "fraction": 0.4}
+  ],
+  "exit_stages": [
+    {"bb_threshold": 0.70, "rsi_threshold": 60, "fraction": 0.3},
+    {"bb_threshold": 0.80, "rsi_threshold": 70, "fraction": 0.4},
+    {"bb_threshold": 0.90, "rsi_threshold": 75, "fraction": 0.3}
+  ],
+  "risk_management": {"initial_capital": 10000000, "stop_loss": -0.12},
+  "trading_settings": {"fee_rate": 0.0005, "slippage": 0.0002},
+  "backtest_period": {"train_start": "2022-01-01", "train_end": "2024-12-31", "test_start": "2025-01-01", "test_end": "2025-12-31"}
+}

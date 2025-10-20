@@ -1,0 +1,87 @@
+{
+  "timeframe": "minute15",
+  "initial_capital": 2500000.0,
+  "final_capital": 2485990.763381837,
+  "total_return": -0.005603694647265226,
+  "num_trades": 6,
+  "win_rate": 0.16666666666666666,
+  "avg_win": 8.317819414414027e-05,
+  "avg_loss": -0.0018375042592514788,
+  "profit_factor": 0.008819884953765948,
+  "sharpe_ratio": -0.6264565579277829,
+  "max_drawdown": 0.006762654663615255,
+  "trades": [
+    {
+      "entry_time": "2024-01-01 12:30:00",
+      "exit_time": "2024-01-01 14:30:00",
+      "entry_price": 57198000.0,
+      "exit_price": 57161000.0,
+      "size": 0.6,
+      "votes": 4,
+      "candles_held": 8,
+      "pnl_krw": -3069.634427777026,
+      "pnl_pct": -0.002044991457830869,
+      "exit_reason": "time_stop"
+    },
+    {
+      "entry_time": "2024-01-01 15:00:00",
+      "exit_time": "2024-01-01 17:00:00",
+      "entry_price": 57184000.0,
+      "exit_price": 57232000.0,
+      "size": 0.6,
+      "votes": 4,
+      "candles_held": 8,
+      "pnl_krw": -840.7543202396482,
+      "pnl_pct": -0.0005607993822342599,
+      "exit_reason": "time_stop"
+    },
+    {
+      "entry_time": "2024-01-01 17:45:00",
+      "exit_time": "2024-01-01 19:45:00",
+      "entry_price": 57267000.0,
+      "exit_price": 57352000.0,
+      "size": 0.6,
+      "votes": 4,
+      "candles_held": 8,
+      "pnl_krw": 124.65933626657352,
+      "pnl_pct": 8.317819414414027e-05,
+      "exit_reason": "time_stop"
+    },
+    {
+      "entry_time": "2024-01-01 20:00:00",
+      "exit_time": "2024-01-01 22:00:00",
+      "entry_price": 57367000.0,
+      "exit_price": 57320000.0,
+      "size": 0.6,
+      "votes": 4,
+      "candles_held": 8,
+      "pnl_krw": -3323.029605382355,
+      "pnl_pct": -0.002217160836264766,
+      "exit_reason": "time_stop"
+    },
+    {
+      "entry_time": "2024-01-01 22:15:00",
+      "exit_time": "2024-01-02 00:15:00",
+      "entry_price": 57365000.0,
+      "exit_price": 57266000.0,
+      "size": 0.6,
+      "votes": 4,
+      "candles_held": 8,
+      "pnl_krw": -4673.547256503487,
+      "pnl_pct": -0.0031223972557655874,
+      "exit_reason": "time_stop"
+    },
+    {
+      "entry_time": "2024-01-02 00:45:00",
+      "exit_time": "2024-01-02 02:45:00",
+      "entry_price": 57300000.0,
+      "exit_price": 57309000.0,
+      "size": 0.72,
+      "votes": 6,
+      "candles_held": 8,
+      "pnl_krw": -2226.93034452782,
+      "pnl_pct": -0.0012421723641619122,
+      "exit_reason": "time_stop"
+    }
+  ]
+}

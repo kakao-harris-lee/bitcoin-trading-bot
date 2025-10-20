@@ -1,0 +1,80 @@
+{
+  "version": "v17",
+  "strategy_name": "vwap_breakout",
+  "timeframe": "day",
+  "period": "2024-01-01 ~ 2024-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 24074555.884545177,
+  "total_return_pct": 140.74555884545177,
+  "total_trades": 3,
+  "wins": 2,
+  "losses": 1,
+  "win_rate": 66.66666666666666,
+  "trades": [
+    {
+      "entry_date": "2024-01-27 09:00:00",
+      "entry_price": 58086000.0,
+      "exit_date": "2024-05-02 09:00:00",
+      "exit_price": 83078000.0,
+      "pnl_pct": 43.02585821023999,
+      "reason": "TRAILING_STOP",
+      "signals": [
+        "VWAP"
+      ],
+      "score": 2.0,
+      "highest_price": 104122000.0
+    },
+    {
+      "entry_date": "2024-07-04 09:00:00",
+      "entry_price": 81680000.0,
+      "exit_date": "2024-09-06 09:00:00",
+      "exit_price": 73644000.0,
+      "pnl_pct": -9.838393731635652,
+      "reason": "TRAILING_STOP",
+      "signals": [
+        "VWAP"
+      ],
+      "score": 2.0,
+      "highest_price": 95363000.0
+    },
+    {
+      "entry_date": "2024-09-07 09:00:00",
+      "entry_price": 73640000.0,
+      "exit_date": "2024-12-30 09:00:00",
+      "exit_price": 137892000.0,
+      "pnl_pct": 87.2514937533949,
+      "reason": "END_OF_PERIOD",
+      "signals": [
+        "VWAP"
+      ],
+      "score": 2.0,
+      "highest_price": 155223000.0
+    }
+  ],
+  "config": {
+    "strategy_name": "vwap_breakout",
+    "version": "v17",
+    "description": "VWAP + BREAKOUT simple combination (Stochastic excluded)",
+    "timeframe": "day",
+    "algorithms": {
+      "vwap": {
+        "weight": 2.0,
+        "params": {
+          "deviation_threshold": 0.02
+        }
+      },
+      "breakout": {
+        "weight": 1.5,
+        "params": {
+          "period": 20
+        }
+      }
+    },
+    "vote_threshold": 2.0,
+    "trailing_stop": 0.2,
+    "stop_loss": 0.1,
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  }
+}

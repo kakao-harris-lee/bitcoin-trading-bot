@@ -1,0 +1,123 @@
+{
+  "2022": {
+    "market_metrics": {
+      "day": {
+        "annual_return": -63.60355693689027,
+        "volatility": 2.7976721918843097,
+        "avg_adx": 28.74189119705724,
+        "avg_rsi": 43.35497846241998,
+        "max_drawdown": -63.6346369679703,
+        "market_type": "extreme_bear",
+        "trend_strength": "moderate"
+      },
+      "minute240": {
+        "annual_return": -63.520046966191245,
+        "volatility": 1.0948106838321232,
+        "avg_adx": 28.42328074697512,
+        "avg_rsi": 47.42387376763967,
+        "max_drawdown": -63.990330656997315,
+        "market_type": "extreme_bear",
+        "trend_strength": "moderate"
+      }
+    },
+    "selected_strategy": {
+      "primary_strategy": "day",
+      "secondary_strategy": null,
+      "allocation": {
+        "day": 1.0
+      },
+      "reasoning": "extreme_bear + moderate 추세 + 2.80% 변동성"
+    }
+  },
+  "2023": {
+    "market_metrics": {
+      "day": {
+        "annual_return": 170.0705392226483,
+        "volatility": 1.9948219056433265,
+        "avg_adx": 35.252510812919034,
+        "avg_rsi": 58.36385529384937,
+        "max_drawdown": -17.49075092490751,
+        "market_type": "extreme_bull",
+        "trend_strength": "moderate"
+      },
+      "minute240": {
+        "annual_return": 170.17560512577123,
+        "volatility": 0.7873000297881025,
+        "avg_adx": 29.338588538462663,
+        "avg_rsi": 52.693935304926754,
+        "max_drawdown": -18.66600298656048,
+        "market_type": "extreme_bull",
+        "trend_strength": "moderate"
+      }
+    },
+    "selected_strategy": {
+      "primary_strategy": "day",
+      "secondary_strategy": null,
+      "allocation": {
+        "day": 1.0
+      },
+      "reasoning": "extreme_bull + moderate 추세 + 1.99% 변동성"
+    }
+  },
+  "2024": {
+    "market_metrics": {
+      "day": {
+        "annual_return": 136.67465456584918,
+        "volatility": 2.43298286630086,
+        "avg_adx": 30.35637778263443,
+        "avg_rsi": 56.777675269225234,
+        "max_drawdown": -29.275273237164097,
+        "market_type": "extreme_bull",
+        "trend_strength": "moderate"
+      },
+      "minute240": {
+        "annual_return": 148.41669444395714,
+        "volatility": 0.9598328610391846,
+        "avg_adx": 29.394206564939058,
+        "avg_rsi": 53.415903806576324,
+        "max_drawdown": -30.313299476879607,
+        "market_type": "extreme_bull",
+        "trend_strength": "moderate"
+      }
+    },
+    "selected_strategy": {
+      "primary_strategy": "day",
+      "secondary_strategy": null,
+      "allocation": {
+        "day": 1.0
+      },
+      "reasoning": "extreme_bull + moderate 추세 + 2.43% 변동성"
+    }
+  },
+  "2025": {
+    "market_metrics": {
+      "day": {
+        "annual_return": 20.152844607981883,
+        "volatility": 1.872098138687507,
+        "avg_adx": 27.52305550923825,
+        "avg_rsi": 54.230903489336924,
+        "max_drawdown": -27.930428870885503,
+        "market_type": "sideways",
+        "trend_strength": "moderate"
+      },
+      "minute240": {
+        "annual_return": 20.715763431228275,
+        "volatility": 0.7869512172287011,
+        "avg_adx": 25.50686714459781,
+        "avg_rsi": 51.69011498988197,
+        "max_drawdown": -30.049511392577628,
+        "market_type": "sideways",
+        "trend_strength": "moderate"
+      }
+    },
+    "selected_strategy": {
+      "primary_strategy": "day",
+      "secondary_strategy": "minute240",
+      "allocation": {
+        "day": 0.5,
+        "minute240": 0.5
+      },
+      "reasoning": "sideways + moderate 추세 + 1.87% 변동성"
+    }
+  }
+}

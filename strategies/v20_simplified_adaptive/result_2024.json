@@ -1,0 +1,68 @@
+{
+  "version": "v20",
+  "start_date": "2024-01-01",
+  "end_date": "2024-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 11034957.525645617,
+  "total_return_pct": 10.349575256456173,
+  "total_trades": 5,
+  "wins": 2,
+  "losses": 3,
+  "win_rate": 0.4,
+  "avg_profit_pct": 19.979854432571855,
+  "avg_loss_pct": -7.997695003725454,
+  "max_win_pct": 20.052741095251314,
+  "max_loss_pct": -9.001934827974049,
+  "trades": [
+    {
+      "entry_time": "2024-02-07 09:00:00",
+      "entry_price": 60232000.0,
+      "exit_time": "2024-02-21 09:00:00",
+      "exit_price": 72397000.0,
+      "pnl_pct": 20.052741095251314,
+      "reason": "TP_20%_NEUTRAL",
+      "risk_mode": "NEUTRAL",
+      "return_20d_entry": 0.05146288666992538
+    },
+    {
+      "entry_time": "2024-07-14 09:00:00",
+      "entry_price": 85430000.0,
+      "exit_time": "2024-08-05 09:00:00",
+      "exit_price": 77833000.0,
+      "pnl_pct": -9.001934827974049,
+      "reason": "SL_7%_NEUTRAL",
+      "risk_mode": "NEUTRAL",
+      "return_20d_entry": -0.0007719659399270107
+    },
+    {
+      "entry_time": "2024-08-08 09:00:00",
+      "entry_price": 86397000.0,
+      "exit_time": "2024-08-15 09:00:00",
+      "exit_price": 81004000.0,
+      "pnl_pct": -6.354568123764763,
+      "reason": "SL_5%_DEFENSIVE",
+      "risk_mode": "DEFENSIVE",
+      "return_20d_entry": -0.07103995527074103
+    },
+    {
+      "entry_time": "2024-08-23 09:00:00",
+      "entry_price": 85600000.0,
+      "exit_time": "2024-09-01 09:00:00",
+      "exit_price": 78301000.0,
+      "pnl_pct": -8.63658205943755,
+      "reason": "SL_7%_NEUTRAL",
+      "risk_mode": "NEUTRAL",
+      "return_20d_entry": -0.004153239410402909
+    },
+    {
+      "entry_time": "2024-09-20 09:00:00",
+      "entry_price": 84385000.0,
+      "exit_time": "2024-10-29 09:00:00",
+      "exit_price": 101305000.0,
+      "pnl_pct": 19.906967769892393,
+      "reason": "TP_20%_NEUTRAL",
+      "risk_mode": "NEUTRAL",
+      "return_20d_entry": 0.05136926565498001
+    }
+  ]
+}

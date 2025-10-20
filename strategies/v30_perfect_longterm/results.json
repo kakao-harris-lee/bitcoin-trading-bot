@@ -1,0 +1,119 @@
+{
+  "version": "v30",
+  "strategy_name": "perfect_longterm",
+  "timeframe": "day",
+  "backtest_period": {
+    "start": "2024-01-01",
+    "end": "2024-12-31"
+  },
+  "metrics": {
+    "total_return": 11.640759248665988,
+    "sharpe_ratio": -3.338813594796205,
+    "max_drawdown": 33.32821792455472,
+    "total_trades": 4,
+    "winning_trades": 0,
+    "losing_trades": 4,
+    "win_rate": 0.0,
+    "avg_profit": 0,
+    "avg_loss": -9.288640884393672,
+    "profit_factor": 0.0
+  },
+  "buy_hold": 134.3547646968847,
+  "trades": [
+    {
+      "entry_time": "2024-03-28 09:00:00",
+      "entry_price": 100900000.0,
+      "exit_time": "2024-04-30 09:00:00",
+      "exit_price": 87137000.0,
+      "quantity": 0.09408675622470247,
+      "profit_pct": -13.640237859266602,
+      "hold_days": 33,
+      "reason": "SUSTAINED_BEAR: MFI<35 for 3d (profit: -13.64%)"
+    },
+    {
+      "entry_time": "2024-05-15 09:00:00",
+      "entry_price": 92111000.0,
+      "exit_time": "2024-06-20 09:00:00",
+      "exit_price": 91780000.0,
+      "quantity": 0.08959068064435818,
+      "profit_pct": -0.3593490462594051,
+      "hold_days": 36,
+      "reason": "SUSTAINED_BEAR: MFI<35 for 3d (profit: -0.36%)"
+    },
+    {
+      "entry_time": "2024-07-16 09:00:00",
+      "entry_price": 90807000.0,
+      "exit_time": "2024-08-05 09:00:00",
+      "exit_price": 77833000.0,
+      "quantity": 0.09044662795667213,
+      "profit_pct": -14.287444800510974,
+      "hold_days": 20,
+      "reason": "SUSTAINED_BEAR: MFI<35 for 3d (profit: -14.29%)"
+    },
+    {
+      "entry_time": "2024-08-19 09:00:00",
+      "entry_price": 81680000.0,
+      "exit_time": "2024-09-08 09:00:00",
+      "exit_price": 74437000.0,
+      "quantity": 0.08679050964207537,
+      "profit_pct": -8.867531831537711,
+      "hold_days": 20,
+      "reason": "SUSTAINED_BEAR: MFI<35 for 3d (profit: -8.87%)"
+    }
+  ],
+  "config": {
+    "strategy_name": "perfect_longterm",
+    "version": "v30",
+    "description": "Perfect long-term strategy based on raw data analysis - MFI + MACD + ADX on day timeframe",
+    "timeframe": "day",
+    "indicators": {
+      "mfi_period": 14,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9,
+      "adx_period": 14,
+      "volume_sma_period": 20
+    },
+    "entry_conditions": {
+      "mfi_min": 45,
+      "macd_golden_cross": true,
+      "adx_min": 20,
+      "volume_ratio_min": 0.8,
+      "additional_filters": {
+        "rsi_max": 85,
+        "bb_position_max": 1.0
+      }
+    },
+    "exit_conditions": {
+      "macd_dead_cross": true,
+      "trailing_stop_pct": 0.15,
+      "max_hold_days": 90,
+      "take_profit_pct": 0.5
+    },
+    "position_sizing": {
+      "method": "kelly_criterion",
+      "initial_fraction": 0.95,
+      "min_trades_for_kelly": 3,
+      "kelly_multiplier": 0.5,
+      "max_position": 0.95
+    },
+    "risk_management": {
+      "stop_loss_pct": 0.1,
+      "max_drawdown_pct": 0.2,
+      "force_exit_on_drawdown": true
+    },
+    "backtest_settings": {
+      "initial_capital": 10000000,
+      "fee_rate": 0.0005,
+      "slippage": 0.0002,
+      "start_date": "2024-01-01",
+      "end_date": "2024-12-31"
+    },
+    "target_metrics": {
+      "total_return_target": 150,
+      "sharpe_ratio_target": 1.5,
+      "max_drawdown_target": 20,
+      "min_win_rate": 0.6
+    }
+  }
+}

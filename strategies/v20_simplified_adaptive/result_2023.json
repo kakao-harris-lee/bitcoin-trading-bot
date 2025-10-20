@@ -1,0 +1,28 @@
+{
+  "version": "v20",
+  "start_date": "2023-01-01",
+  "end_date": "2023-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 10334224.470204461,
+  "total_return_pct": 3.342244702044614,
+  "total_trades": 1,
+  "wins": 1,
+  "losses": 0,
+  "win_rate": 1.0,
+  "avg_profit_pct": 11.137475544566184,
+  "avg_loss_pct": 0,
+  "max_win_pct": 11.137475544566184,
+  "max_loss_pct": 11.137475544566184,
+  "trades": [
+    {
+      "entry_time": "2023-03-12 09:00:00",
+      "entry_price": 29199000.0,
+      "exit_time": "2023-03-14 09:00:00",
+      "exit_price": 32490000.0,
+      "pnl_pct": 11.137475544566184,
+      "reason": "TP_10%_DEFENSIVE",
+      "risk_mode": "DEFENSIVE",
+      "return_20d_entry": -0.0841827933381426
+    }
+  ]
+}

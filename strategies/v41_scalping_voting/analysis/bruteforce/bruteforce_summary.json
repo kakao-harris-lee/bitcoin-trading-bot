@@ -1,0 +1,402 @@
+{
+  "minute5": {
+    "stats": {
+      "1d": {
+        "total_signals": 105093,
+        "profitable_signals": 87,
+        "win_rate": 0.000827838200451029,
+        "avg_return": 9.95595508576781e-06,
+        "median_return": 0.0,
+        "std_return": 0.0016840853604906546,
+        "sharpe": 0.005911787679733267,
+        "avg_profit": 0.016138366599952655,
+        "avg_loss": -3.406821575598389e-06,
+        "avg_max_dd": -0.0005008417653827131
+      },
+      "3d": {
+        "total_signals": 105093,
+        "profitable_signals": 465,
+        "win_rate": 0.004424652450686534,
+        "avg_return": 2.9442932638291103e-05,
+        "median_return": 1.0679196924391286e-05,
+        "std_return": 0.002778459497530442,
+        "sharpe": 0.010596855079032338,
+        "avg_profit": 0.014566173600829688,
+        "avg_loss": -3.516290672315134e-05,
+        "avg_max_dd": -0.0011421876544881852
+      },
+      "5d": {
+        "total_signals": 105093,
+        "profitable_signals": 1020,
+        "win_rate": 0.009705689246667237,
+        "avg_return": 4.860754322076706e-05,
+        "median_return": 1.968697706467172e-05,
+        "std_return": 0.003466421861618623,
+        "sharpe": 0.014022396915668563,
+        "avg_profit": 0.014637887275423596,
+        "avg_loss": -9.437925764830452e-05,
+        "avg_max_dd": -0.0016120249339577747
+      },
+      "7d": {
+        "total_signals": 105093,
+        "profitable_signals": 1607,
+        "win_rate": 0.015291218254308089,
+        "avg_return": 6.759284134777693e-05,
+        "median_return": 2.2032255221644486e-05,
+        "std_return": 0.004003409417578918,
+        "sharpe": 0.016883819339330534,
+        "avg_profit": 0.014834963223274674,
+        "avg_loss": -0.00016172478812632126,
+        "avg_max_dd": -0.0020001483009640508
+      },
+      "14d": {
+        "total_signals": 105093,
+        "profitable_signals": 3500,
+        "win_rate": 0.03330383565032875,
+        "avg_return": 0.00013414342323350568,
+        "median_return": 7.121492664862555e-05,
+        "std_return": 0.005522139691480639,
+        "sharpe": 0.02429192862333008,
+        "avg_profit": 0.01595874135169344,
+        "avg_loss": -0.000411032846289097,
+        "avg_max_dd": -0.0030505062195653894
+      },
+      "30d": {
+        "total_signals": 105093,
+        "profitable_signals": 7075,
+        "win_rate": 0.06732132492173598,
+        "avg_return": 0.0002835681307663109,
+        "median_return": 0.00018108506168964435,
+        "std_return": 0.007784323330610465,
+        "sharpe": 0.036428102832166506,
+        "avg_profit": 0.017403456004541774,
+        "avg_loss": -0.0009521559883440707,
+        "avg_max_dd": -0.004728576128047687
+      }
+    },
+    "best_hold_period": "30d",
+    "total_candles": 105093,
+    "profitable_count": 7075,
+    "losing_count": 98018
+  },
+  "minute15": {
+    "stats": {
+      "1d": {
+        "total_signals": 67159,
+        "profitable_signals": 235,
+        "win_rate": 0.003499158712905195,
+        "avg_return": 2.6267411170116148e-05,
+        "median_return": 0.0,
+        "std_return": 0.0024421643007450492,
+        "sharpe": 0.010755791967846944,
+        "avg_profit": 0.014528051615942186,
+        "avg_loss": -2.4654818345774064e-05,
+        "avg_max_dd": -0.0007413737169065255
+      },
+      "3d": {
+        "total_signals": 67159,
+        "profitable_signals": 1103,
+        "win_rate": 0.01642371089504013,
+        "avg_return": 7.804364876263453e-05,
+        "median_return": 2.0358306188925082e-05,
+        "std_return": 0.004041820083273048,
+        "sharpe": 0.01930903581918845,
+        "avg_profit": 0.015294894519349213,
+        "avg_loss": -0.00017604661571382475,
+        "avg_max_dd": -0.0016739797500891734
+      },
+      "5d": {
+        "total_signals": 67159,
+        "profitable_signals": 1931,
+        "win_rate": 0.02875266159412737,
+        "avg_return": 0.00012963411045887263,
+        "median_return": 3.952881650723377e-05,
+        "std_return": 0.005115830546833523,
+        "sharpe": 0.02533979756993916,
+        "avg_profit": 0.015993941349838954,
+        "avg_loss": -0.00034001047896963876,
+        "avg_max_dd": -0.0023527952380548688
+      },
+      "7d": {
+        "total_signals": 67159,
+        "profitable_signals": 2655,
+        "win_rate": 0.03953304843729061,
+        "avg_return": 0.00018139306348950894,
+        "median_return": 5.517393583271263e-05,
+        "std_return": 0.0059840142405810145,
+        "sharpe": 0.030312939808762335,
+        "avg_profit": 0.016729500930005862,
+        "avg_loss": -0.0004997309968106419,
+        "avg_max_dd": -0.0029127703123633755
+      },
+      "14d": {
+        "total_signals": 67159,
+        "profitable_signals": 5150,
+        "win_rate": 0.07668369094239044,
+        "avg_return": 0.0003631129542093293,
+        "median_return": 0.00011835953681967924,
+        "std_return": 0.008303497314129217,
+        "sharpe": 0.04373012243786204,
+        "avg_profit": 0.01808225742744143,
+        "avg_loss": -0.001108505585634005,
+        "avg_max_dd": -0.004421409478988254
+      },
+      "30d": {
+        "total_signals": 67159,
+        "profitable_signals": 9250,
+        "win_rate": 0.13773284295477894,
+        "avg_return": 0.0007770502649180393,
+        "median_return": 0.00022249415952831238,
+        "std_return": 0.01202820144324478,
+        "sharpe": 0.06460236541469319,
+        "avg_profit": 0.020862762367145047,
+        "avg_loss": -0.0024313083139833377,
+        "avg_max_dd": -0.006825728112409153
+      }
+    },
+    "best_hold_period": "30d",
+    "total_candles": 67159,
+    "profitable_count": 9250,
+    "losing_count": 57909
+  },
+  "minute60": {
+    "stats": {
+      "1d": {
+        "total_signals": 43761,
+        "profitable_signals": 1706,
+        "win_rate": 0.03898448390119056,
+        "avg_return": 8.375687585919446e-05,
+        "median_return": 2.1571947839030124e-05,
+        "std_return": 0.006140551092701683,
+        "sharpe": 0.013639960745338185,
+        "avg_profit": 0.01660255521700522,
+        "avg_loss": -0.000586343468213927,
+        "avg_max_dd": -0.0018377502072060544
+      },
+      "3d": {
+        "total_signals": 43761,
+        "profitable_signals": 4325,
+        "win_rate": 0.09883229359475332,
+        "avg_return": 0.000247844411532137,
+        "median_return": 9.375878988655187e-05,
+        "std_return": 0.010296364579093968,
+        "sharpe": 0.024071060191027747,
+        "avg_profit": 0.019135199133118248,
+        "avg_loss": -0.0018235575859031998,
+        "avg_max_dd": -0.004156902499150028
+      },
+      "5d": {
+        "total_signals": 43761,
+        "profitable_signals": 6158,
+        "win_rate": 0.14071890496103837,
+        "avg_return": 0.000411331440336546,
+        "median_return": 0.00019121302601968023,
+        "std_return": 0.013138485105462774,
+        "sharpe": 0.031307371971333355,
+        "avg_profit": 0.02078649288167067,
+        "avg_loss": -0.002925376911543239,
+        "avg_max_dd": -0.005869137471646972
+      },
+      "7d": {
+        "total_signals": 43761,
+        "profitable_signals": 7506,
+        "win_rate": 0.17152258860629327,
+        "avg_return": 0.0005739963594350497,
+        "median_return": 0.0002199929602252728,
+        "std_return": 0.015425339775422297,
+        "sharpe": 0.037211261974897755,
+        "avg_profit": 0.022287949167784368,
+        "avg_loss": -0.0039215195633196046,
+        "avg_max_dd": -0.007285029798945568
+      },
+      "14d": {
+        "total_signals": 43761,
+        "profitable_signals": 10640,
+        "win_rate": 0.24313886794177464,
+        "avg_return": 0.0011470978576218257,
+        "median_return": 0.000541823623509985,
+        "std_return": 0.021826780174392275,
+        "sharpe": 0.05255460715949435,
+        "avg_profit": 0.02657932586551317,
+        "avg_loss": -0.007022912287119091,
+        "avg_max_dd": -0.011149258400136022
+      },
+      "30d": {
+        "total_signals": 43761,
+        "profitable_signals": 14348,
+        "win_rate": 0.3278718493635886,
+        "avg_return": 0.0025008961335026792,
+        "median_return": 0.0011036641650278927,
+        "std_return": 0.033226153992362305,
+        "sharpe": 0.07526890214490549,
+        "avg_profit": 0.034794001721044375,
+        "avg_loss": -0.013252052527635193,
+        "avg_max_dd": -0.01755937958150755
+      }
+    },
+    "best_hold_period": "30d",
+    "total_candles": 43761,
+    "profitable_count": 14348,
+    "losing_count": 29413
+  },
+  "minute240": {
+    "stats": {
+      "1d": {
+        "total_signals": 10893,
+        "profitable_signals": 1330,
+        "win_rate": 0.12209675938676214,
+        "avg_return": 0.00033088767683078736,
+        "median_return": 0.0002547146705853539,
+        "std_return": 0.01181903713610951,
+        "sharpe": 0.027996161871753467,
+        "avg_profit": 0.019853258975461762,
+        "avg_loss": -0.0023842387298594983,
+        "avg_max_dd": -0.0035266719585706633
+      },
+      "3d": {
+        "total_signals": 10893,
+        "profitable_signals": 2474,
+        "win_rate": 0.22711833287432295,
+        "avg_return": 0.0009821176477962826,
+        "median_return": 0.00042988565041698906,
+        "std_return": 0.019945534469666508,
+        "sharpe": 0.04923997646139305,
+        "avg_profit": 0.025208715510238025,
+        "avg_loss": -0.006137089278404083,
+        "avg_max_dd": -0.008009154585635718
+      },
+      "5d": {
+        "total_signals": 10893,
+        "profitable_signals": 3121,
+        "win_rate": 0.28651427522262,
+        "avg_return": 0.0016536543225058977,
+        "median_return": 0.0007954605716709975,
+        "std_return": 0.026595904517900844,
+        "sharpe": 0.06217702885017039,
+        "avg_profit": 0.02983309193523394,
+        "avg_loss": -0.009662355043078795,
+        "avg_max_dd": -0.01141499279258105
+      },
+      "7d": {
+        "total_signals": 10893,
+        "profitable_signals": 3474,
+        "win_rate": 0.31892040760121176,
+        "avg_return": 0.0023206545985085905,
+        "median_return": 0.00092552941664019,
+        "std_return": 0.03197411794619289,
+        "sharpe": 0.07257915925667958,
+        "avg_profit": 0.03399728876610527,
+        "avg_loss": -0.012512156710054673,
+        "avg_max_dd": -0.014291410626219853
+      },
+      "14d": {
+        "total_signals": 10893,
+        "profitable_signals": 4292,
+        "win_rate": 0.39401450472780686,
+        "avg_return": 0.004633230609943956,
+        "median_return": 0.0020648050251881335,
+        "std_return": 0.04610521703272551,
+        "sharpe": 0.10049254527216056,
+        "avg_profit": 0.04465388546971319,
+        "avg_loss": -0.02138837985182389,
+        "avg_max_dd": -0.022297007517678043
+      },
+      "30d": {
+        "total_signals": 10893,
+        "profitable_signals": 4973,
+        "win_rate": 0.45653171761681816,
+        "avg_return": 0.010092846857782934,
+        "median_return": 0.00466290212183436,
+        "std_return": 0.07035187273891018,
+        "sharpe": 0.14346237654880206,
+        "avg_profit": 0.06506552766558664,
+        "avg_loss": -0.036086062205934605,
+        "avg_max_dd": -0.035270716805255724
+      }
+    },
+    "best_hold_period": "30d",
+    "total_candles": 10893,
+    "profitable_count": 4973,
+    "losing_count": 5920
+  },
+  "day": {
+    "stats": {
+      "1d": {
+        "total_signals": 1763,
+        "profitable_signals": 541,
+        "win_rate": 0.30686330119115146,
+        "avg_return": 0.0018765115643483076,
+        "median_return": 0.0005142292650581214,
+        "std_return": 0.02961622876398898,
+        "sharpe": 0.06336092212489927,
+        "avg_profit": 0.031342340432427215,
+        "avg_loss": -0.011168507599015593,
+        "avg_max_dd": -0.008626766480554647
+      },
+      "3d": {
+        "total_signals": 1763,
+        "profitable_signals": 729,
+        "win_rate": 0.41349971639251276,
+        "avg_return": 0.005691642805076781,
+        "median_return": 0.0017980587947769011,
+        "std_return": 0.05285597103409919,
+        "sharpe": 0.10768211601684335,
+        "avg_profit": 0.05034836933291541,
+        "avg_loss": -0.025792645046755287,
+        "avg_max_dd": -0.020388135137314557
+      },
+      "5d": {
+        "total_signals": 1763,
+        "profitable_signals": 801,
+        "win_rate": 0.45433919455473626,
+        "avg_return": 0.009627056415871395,
+        "median_return": 0.004470395036949184,
+        "std_return": 0.07044399937406132,
+        "sharpe": 0.1366625475755745,
+        "avg_profit": 0.06491606324507299,
+        "avg_loss": -0.036408800621748644,
+        "avg_max_dd": -0.029062265947323286
+      },
+      "7d": {
+        "total_signals": 1763,
+        "profitable_signals": 824,
+        "win_rate": 0.46738513896766876,
+        "avg_return": 0.013729899653974172,
+        "median_return": 0.004992764109985528,
+        "std_return": 0.08702637342365831,
+        "sharpe": 0.15776711258706397,
+        "avg_profit": 0.07954577244588748,
+        "avg_loss": -0.04402545623584113,
+        "avg_max_dd": -0.03600531494595402
+      },
+      "14d": {
+        "total_signals": 1763,
+        "profitable_signals": 894,
+        "win_rate": 0.5070901871809416,
+        "avg_return": 0.02833012151398497,
+        "median_return": 0.010910798800534702,
+        "std_return": 0.13205677976453328,
+        "sharpe": 0.21452985272319686,
+        "avg_profit": 0.12182863802599096,
+        "avg_loss": -0.067858225737722,
+        "avg_max_dd": -0.05503028996178431
+      },
+      "30d": {
+        "total_signals": 1763,
+        "profitable_signals": 973,
+        "win_rate": 0.5519001701644923,
+        "avg_return": 0.06459602164413511,
+        "median_return": 0.031958762886597936,
+        "std_return": 0.21408849576230002,
+        "sharpe": 0.30172579527979554,
+        "avg_profit": 0.20721050960422263,
+        "avg_loss": -0.11105448061556761,
+        "avg_max_dd": -0.08517042941231168
+      }
+    },
+    "best_hold_period": "30d",
+    "total_candles": 1763,
+    "profitable_count": 973,
+    "losing_count": 790
+  }
+}

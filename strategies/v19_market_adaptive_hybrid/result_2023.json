@@ -1,0 +1,27 @@
+{
+  "version": "v19",
+  "start_date": "2023-01-01",
+  "end_date": "2023-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 9787509.135077074,
+  "total_return_pct": -2.1249086492292584,
+  "total_trades": 1,
+  "wins": 0,
+  "losses": 1,
+  "win_rate": 0.0,
+  "avg_profit_pct": 0,
+  "avg_loss_pct": -3.540452633637254,
+  "max_win_pct": -3.540452633637254,
+  "max_loss_pct": -3.540452633637254,
+  "trades": [
+    {
+      "entry_time": "2023-08-17 09:00:00",
+      "entry_price": 36588000.0,
+      "exit_time": "2023-08-28 09:00:00",
+      "exit_price": 35335000.0,
+      "pnl_pct": -3.540452633637254,
+      "reason": "MARKET_SWITCH_SIDEWAYS_TO_BEAR",
+      "market_type": "SIDEWAYS"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "strategy_name": "v33_minute240_midterm",
+  "version": "v33",
+  "description": "Minute240 (4-hour candle) mid-term trading strategy with day-level BULL filter",
+
+  "primary_timeframe": "minute240",
+  "filter_timeframe": "day",
+
+  "position_sizing": {
+    "method": "kelly_criterion",
+    "win_rate": 0.50,
+    "avg_win": 0.05,
+    "avg_loss": 0.025,
+    "kelly_fraction": 0.3,
+    "min_position": 0.20,
+    "max_position": 0.80
+  },
+
+  "day_filter": {
+    "bull_required": true,
+    "mfi_min": 50,
+    "macd_bullish": true
+  },
+
+  "entry_conditions": {
+    "adx_min": 25,
+    "momentum_24h_min": 2.0,
+    "consecutive_up_min": 2,
+    "volume_ratio_min": 1.0,
+    "rsi_min": 40,
+    "rsi_max": 75
+  },
+
+  "exit_conditions": {
+    "take_profit_1": 0.05,
+    "take_profit_2": 0.08,
+    "take_profit_3": 0.12,
+    "stop_loss_pct": 0.025,
+    "trailing_stop_trigger": 0.04,
+    "trailing_stop_distance": 0.015,
+    "momentum_reverse_threshold": -0.02,
+    "max_hold_hours": 168
+  },
+
+  "risk_management": {
+    "max_consecutive_losses": 3,
+    "reduce_position_after_loss": 0.6,
+    "max_daily_loss_pct": 0.08
+  },
+
+  "backtest_settings": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "start_date": "2024-01-01",
+    "end_date": "2024-12-31"
+  },
+
+  "target_metrics": {
+    "total_return_target": 30,
+    "sharpe_ratio_target": 2.0,
+    "max_drawdown_target": 15,
+    "min_win_rate": 55
+  },
+
+  "indicators": {
+    "rsi_period": 14,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+    "adx_period": 14,
+    "volume_sma_period": 20,
+    "mfi_period": 14
+  }
+}

@@ -1,0 +1,600 @@
+[
+  {
+    "timeframe": "minute60",
+    "year": 2020,
+    "tier": "A",
+    "total_signals": 1617,
+    "total_trades": 1597,
+    "trade_signal_ratio": 0.9876314162028448,
+    "total_pnl_sum": 54.81471047000339,
+    "avg_pnl": 0.03432355070131709,
+    "simple_annual_return": 54.81471047000339,
+    "limited_compound_return": 9,
+    "win_count": 1385,
+    "loss_count": 212,
+    "win_rate": 0.8672510958046337,
+    "avg_win": 0.04276409822913258,
+    "avg_loss": -0.020818705553515227,
+    "total_win": 59.22827604734863,
+    "total_loss": 4.413565577345228,
+    "profit_factor": 13.419598057263851,
+    "pnl_p10": -0.010948705389126227,
+    "pnl_p25": 0.01612869017876674,
+    "pnl_median": 0.04921827427602426,
+    "pnl_p75": 0.053738519684000945,
+    "pnl_p90": 0.05938689684223493,
+    "avg_hold_hours": 46.934877896055106,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 141,
+        "take_profit": 891,
+        "timeout": 564
+      },
+      "('pnl', 'mean')": {
+        "forced_close": 0.0284,
+        "stop_loss": -0.0273,
+        "take_profit": 0.0549,
+        "timeout": 0.0173
+      },
+      "('pnl', 'sum')": {
+        "forced_close": 0.0284,
+        "stop_loss": -3.8475,
+        "take_profit": 48.8947,
+        "timeout": 9.739
+      }
+    }
+  },
+  {
+    "timeframe": "minute60",
+    "year": 2021,
+    "tier": "A",
+    "total_signals": 1731,
+    "total_trades": 1731,
+    "trade_signal_ratio": 1.0,
+    "total_pnl_sum": 50.68368287057105,
+    "avg_pnl": 0.02928000165833105,
+    "simple_annual_return": 50.68368287057105,
+    "limited_compound_return": 1.9269941579660754,
+    "win_count": 1252,
+    "loss_count": 479,
+    "win_rate": 0.7232813402657423,
+    "avg_win": 0.049680392152501196,
+    "avg_loss": -0.02404210460200512,
+    "total_win": 62.1998509749315,
+    "total_loss": 11.516168104360453,
+    "profit_factor": 5.401089182727396,
+    "pnl_p10": -0.02574703594610177,
+    "pnl_p25": -0.01219110377093248,
+    "pnl_median": 0.04973198050485339,
+    "pnl_p75": 0.05424705127654254,
+    "pnl_p90": 0.061336068486428,
+    "avg_hold_hours": 36.759098786828424,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 407,
+        "take_profit": 1041,
+        "timeout": 282
+      },
+      "('pnl', 'mean')": {
+        "forced_close": -0.0424,
+        "stop_loss": -0.0264,
+        "take_profit": 0.0557,
+        "timeout": 0.0126
+      },
+      "('pnl', 'sum')": {
+        "forced_close": -0.0424,
+        "stop_loss": -10.7633,
+        "take_profit": 57.9345,
+        "timeout": 3.5549
+      }
+    }
+  },
+  {
+    "timeframe": "minute60",
+    "year": 2022,
+    "tier": "A",
+    "total_signals": 1020,
+    "total_trades": 1020,
+    "trade_signal_ratio": 1.0,
+    "total_pnl_sum": 24.126518747658437,
+    "avg_pnl": 0.02365344975260631,
+    "simple_annual_return": 24.126518747658437,
+    "limited_compound_return": 8.706053494670448,
+    "win_count": 756,
+    "loss_count": 264,
+    "win_rate": 0.7411764705882353,
+    "avg_win": 0.03873914224119087,
+    "avg_loss": -0.01954648782834038,
+    "total_win": 29.286791534340296,
+    "total_loss": 5.16027278668186,
+    "profit_factor": 5.675434758008633,
+    "pnl_p10": -0.0238008297731769,
+    "pnl_p25": -0.0013155704257839405,
+    "pnl_median": 0.03006767395471011,
+    "pnl_p75": 0.05148955014069478,
+    "pnl_p90": 0.05609416341920547,
+    "avg_hold_hours": 50.02058823529412,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 172,
+        "take_profit": 425,
+        "timeout": 422
+      },
+      "('pnl', 'mean')": {
+        "forced_close": -0.0242,
+        "stop_loss": -0.0255,
+        "take_profit": 0.0543,
+        "timeout": 0.0129
+      },
+      "('pnl', 'sum')": {
+        "forced_close": -0.0242,
+        "stop_loss": -4.379,
+        "take_profit": 23.0971,
+        "timeout": 5.4326
+      }
+    }
+  },
+  {
+    "timeframe": "minute60",
+    "year": 2023,
+    "tier": "A",
+    "total_signals": 1036,
+    "total_trades": 1027,
+    "trade_signal_ratio": 0.9913127413127413,
+    "total_pnl_sum": 32.89492988127459,
+    "avg_pnl": 0.032030116729576036,
+    "simple_annual_return": 32.89492988127459,
+    "limited_compound_return": 9,
+    "win_count": 893,
+    "loss_count": 134,
+    "win_rate": 0.8695228821811101,
+    "avg_win": 0.03856715433138454,
+    "avg_loss": -0.011533872661580648,
+    "total_win": 34.440468817926394,
+    "total_loss": 1.5455389366518069,
+    "profit_factor": 22.2837924048273,
+    "pnl_p10": -0.0022567410732484876,
+    "pnl_p25": 0.010259496660495637,
+    "pnl_median": 0.03586321488910063,
+    "pnl_p75": 0.05319559782852318,
+    "pnl_p90": 0.061270065058336584,
+    "avg_hold_hours": 49.380720545277505,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 43,
+        "take_profit": 478,
+        "timeout": 505
+      },
+      "('pnl', 'mean')": {
+        "forced_close": 0.0078,
+        "stop_loss": -0.024,
+        "take_profit": 0.0568,
+        "timeout": 0.0134
+      },
+      "('pnl', 'sum')": {
+        "forced_close": 0.0078,
+        "stop_loss": -1.0329,
+        "take_profit": 27.1427,
+        "timeout": 6.7773
+      }
+    }
+  },
+  {
+    "timeframe": "minute60",
+    "year": 2024,
+    "tier": "A",
+    "total_signals": 1456,
+    "total_trades": 1456,
+    "trade_signal_ratio": 1.0,
+    "total_pnl_sum": 44.16626763920823,
+    "avg_pnl": 0.03033397502692873,
+    "simple_annual_return": 44.16626763920823,
+    "limited_compound_return": 6.255547043962423,
+    "win_count": 1235,
+    "loss_count": 221,
+    "win_rate": 0.8482142857142857,
+    "avg_win": 0.039953649764755586,
+    "avg_loss": -0.02342303086092723,
+    "total_win": 49.34275745947315,
+    "total_loss": 5.176489820264917,
+    "profit_factor": 9.532088185763675,
+    "pnl_p10": -0.021758964677348884,
+    "pnl_p25": 0.012905082325648439,
+    "pnl_median": 0.04177967326379692,
+    "pnl_p75": 0.05209323030216124,
+    "pnl_p90": 0.05729699490267989,
+    "avg_hold_hours": 50.831043956043956,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 151,
+        "take_profit": 697,
+        "timeout": 607
+      },
+      "('pnl', 'mean')": {
+        "forced_close": -0.0243,
+        "stop_loss": -0.03,
+        "take_profit": 0.0539,
+        "timeout": 0.0184
+      },
+      "('pnl', 'sum')": {
+        "forced_close": -0.0243,
+        "stop_loss": -4.5228,
+        "take_profit": 37.5544,
+        "timeout": 11.159
+      }
+    }
+  },
+  {
+    "timeframe": "minute15",
+    "year": 2023,
+    "tier": "S",
+    "total_signals": 1249,
+    "total_trades": 1249,
+    "trade_signal_ratio": 1.0,
+    "total_pnl_sum": 35.87230593106967,
+    "avg_pnl": 0.028720821401977317,
+    "simple_annual_return": 35.87230593106967,
+    "limited_compound_return": 8.926197497768193,
+    "win_count": 1013,
+    "loss_count": 236,
+    "win_rate": 0.811048839071257,
+    "avg_win": 0.0387683698905122,
+    "avg_loss": -0.014407003254318611,
+    "total_win": 39.27235869908886,
+    "total_loss": 3.4000527680191923,
+    "profit_factor": 11.550514470976346,
+    "pnl_p10": -0.010426947707218973,
+    "pnl_p25": 0.005930039547508074,
+    "pnl_median": 0.039897847973535884,
+    "pnl_p75": 0.051438127783959044,
+    "pnl_p90": 0.05589807606885484,
+    "avg_hold_hours": 43.773618895116094,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 117,
+        "take_profit": 609,
+        "timeout": 522
+      },
+      "('pnl', 'mean')": {
+        "forced_close": -0.0011,
+        "stop_loss": -0.0242,
+        "take_profit": 0.0533,
+        "timeout": 0.0119
+      },
+      "('pnl', 'sum')": {
+        "forced_close": -0.0011,
+        "stop_loss": -2.8325,
+        "take_profit": 32.4728,
+        "timeout": 6.2331
+      }
+    }
+  },
+  {
+    "timeframe": "minute15",
+    "year": 2023,
+    "tier": "A",
+    "total_signals": 691,
+    "total_trades": 690,
+    "trade_signal_ratio": 0.9985528219971056,
+    "total_pnl_sum": 19.45413879639007,
+    "avg_pnl": 0.02819440405273923,
+    "simple_annual_return": 19.45413879639007,
+    "limited_compound_return": 8.039092115505639,
+    "win_count": 604,
+    "loss_count": 86,
+    "win_rate": 0.8753623188405797,
+    "avg_win": 0.03421267712997777,
+    "avg_loss": -0.014073467326936108,
+    "total_win": 20.664456986506572,
+    "total_loss": 1.2103181901165052,
+    "profit_factor": 17.073573838064362,
+    "pnl_p10": -0.00352097984913415,
+    "pnl_p25": 0.00820798591962324,
+    "pnl_median": 0.028832830381494333,
+    "pnl_p75": 0.05066901182801917,
+    "pnl_p90": 0.05553872409847878,
+    "avg_hold_hours": 48.93188405797101,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 43,
+        "take_profit": 292,
+        "timeout": 354
+      },
+      "('pnl', 'mean')": {
+        "forced_close": 0.0086,
+        "stop_loss": -0.0238,
+        "take_profit": 0.0536,
+        "timeout": 0.0136
+      },
+      "('pnl', 'sum')": {
+        "forced_close": 0.0086,
+        "stop_loss": -1.0217,
+        "take_profit": 15.6596,
+        "timeout": 4.8076
+      }
+    }
+  },
+  {
+    "timeframe": "minute15",
+    "year": 2024,
+    "tier": "S",
+    "total_signals": 1872,
+    "total_trades": 1872,
+    "trade_signal_ratio": 1.0,
+    "total_pnl_sum": 48.651467612874924,
+    "avg_pnl": 0.025989031844484468,
+    "simple_annual_return": 48.651467612874924,
+    "limited_compound_return": 7.484404342730812,
+    "win_count": 1435,
+    "loss_count": 437,
+    "win_rate": 0.7665598290598291,
+    "avg_win": 0.04066893666805399,
+    "avg_loss": -0.02221614761048637,
+    "total_win": 58.359924118657474,
+    "total_loss": 9.708456505782543,
+    "profit_factor": 6.011246389567403,
+    "pnl_p10": -0.023376410561156233,
+    "pnl_p25": 0.0021126615634040583,
+    "pnl_median": 0.045865790567094604,
+    "pnl_p75": 0.050711225741724555,
+    "pnl_p90": 0.0540521249453932,
+    "avg_hold_hours": 43.71915064102564,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 359,
+        "take_profit": 928,
+        "timeout": 584
+      },
+      "('pnl', 'mean')": {
+        "forced_close": -0.0276,
+        "stop_loss": -0.0254,
+        "take_profit": 0.0518,
+        "timeout": 0.0166
+      },
+      "('pnl', 'sum')": {
+        "forced_close": -0.0276,
+        "stop_loss": -9.109,
+        "take_profit": 48.1044,
+        "timeout": 9.6837
+      }
+    }
+  },
+  {
+    "timeframe": "minute15",
+    "year": 2024,
+    "tier": "A",
+    "total_signals": 1026,
+    "total_trades": 1026,
+    "trade_signal_ratio": 1.0,
+    "total_pnl_sum": 20.203991943918325,
+    "avg_pnl": 0.0196919999453395,
+    "simple_annual_return": 20.203991943918325,
+    "limited_compound_return": 5.801933636285757,
+    "win_count": 699,
+    "loss_count": 327,
+    "win_rate": 0.6812865497076024,
+    "avg_win": 0.039129705764512246,
+    "avg_loss": -0.02185832533784628,
+    "total_win": 27.35166432939406,
+    "total_loss": 7.147672385475733,
+    "profit_factor": 3.8266533291275904,
+    "pnl_p10": -0.024620265878752053,
+    "pnl_p25": -0.02140623482319435,
+    "pnl_median": 0.025860164317251043,
+    "pnl_p75": 0.05008395404323196,
+    "pnl_p90": 0.053631777489712464,
+    "avg_hold_hours": 45.110623781676416,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 257,
+        "take_profit": 428,
+        "timeout": 340
+      },
+      "('pnl', 'mean')": {
+        "forced_close": -0.0158,
+        "stop_loss": -0.0254,
+        "take_profit": 0.0516,
+        "timeout": 0.0136
+      },
+      "('pnl', 'sum')": {
+        "forced_close": -0.0158,
+        "stop_loss": -6.5206,
+        "take_profit": 22.1027,
+        "timeout": 4.6377
+      }
+    }
+  },
+  {
+    "timeframe": "day",
+    "year": 2020,
+    "tier": "S",
+    "total_signals": 160,
+    "total_trades": 159,
+    "trade_signal_ratio": 0.99375,
+    "total_pnl_sum": 3.8838058315150317,
+    "avg_pnl": 0.02442645177053479,
+    "simple_annual_return": 3.8838058315150317,
+    "limited_compound_return": 9,
+    "win_count": 111,
+    "loss_count": 48,
+    "win_rate": 0.6981132075471698,
+    "avg_win": 0.04899159772479972,
+    "avg_loss": -0.03238044824870288,
+    "total_win": 5.438067347452769,
+    "total_loss": 1.554261515937738,
+    "profit_factor": 3.4988110377112447,
+    "pnl_p10": -0.041358460262812695,
+    "pnl_p25": -0.007959386835419,
+    "pnl_median": 0.023558962543172687,
+    "pnl_p75": 0.05687980005756461,
+    "pnl_p90": 0.09109860716232408,
+    "avg_hold_hours": 57.81132075471698,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 28,
+        "take_profit": 34,
+        "timeout": 96
+      },
+      "('pnl', 'mean')": {
+        "forced_close": 0.0031,
+        "stop_loss": -0.0425,
+        "take_profit": 0.0756,
+        "timeout": 0.026
+      },
+      "('pnl', 'sum')": {
+        "forced_close": 0.0031,
+        "stop_loss": -1.191,
+        "take_profit": 2.5715,
+        "timeout": 2.5002
+      }
+    }
+  },
+  {
+    "timeframe": "day",
+    "year": 2024,
+    "tier": "S",
+    "total_signals": 122,
+    "total_trades": 122,
+    "trade_signal_ratio": 1.0,
+    "total_pnl_sum": 1.9765553296829728,
+    "avg_pnl": 0.016201273194122727,
+    "simple_annual_return": 1.9765553296829728,
+    "limited_compound_return": 5.368036419772299,
+    "win_count": 78,
+    "loss_count": 44,
+    "win_rate": 0.639344262295082,
+    "avg_win": 0.04019361459275107,
+    "avg_loss": -0.02633060473980933,
+    "total_win": 3.1351019382345835,
+    "total_loss": 1.1585466085516105,
+    "profit_factor": 2.7060645770255363,
+    "pnl_p10": -0.03381491686276462,
+    "pnl_p25": -0.015435015793832507,
+    "pnl_median": 0.014111602503035725,
+    "pnl_p75": 0.04275498410038483,
+    "pnl_p90": 0.06854581844731407,
+    "avg_hold_hours": 67.8688524590164,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 19,
+        "take_profit": 14,
+        "timeout": 88
+      },
+      "('pnl', 'mean')": {
+        "forced_close": 0.0399,
+        "stop_loss": -0.0369,
+        "take_profit": 0.0822,
+        "timeout": 0.0169
+      },
+      "('pnl', 'sum')": {
+        "forced_close": 0.0399,
+        "stop_loss": -0.7009,
+        "take_profit": 1.1513,
+        "timeout": 1.4862
+      }
+    }
+  },
+  {
+    "timeframe": "minute60",
+    "year": 2020,
+    "tier": "S",
+    "total_signals": 165,
+    "total_trades": 165,
+    "trade_signal_ratio": 1.0,
+    "total_pnl_sum": 6.827036948589436,
+    "avg_pnl": 0.04137598150660264,
+    "simple_annual_return": 6.827036948589436,
+    "limited_compound_return": 8.740349772521848,
+    "win_count": 148,
+    "loss_count": 17,
+    "win_rate": 0.896969696969697,
+    "avg_win": 0.04889865664900135,
+    "avg_loss": -0.024115543262515634,
+    "total_win": 7.2370011840522,
+    "total_loss": 0.4099642354627658,
+    "profit_factor": 17.65276226079357,
+    "pnl_p10": -0.000910859652917055,
+    "pnl_p25": 0.03743268501520782,
+    "pnl_median": 0.05078208497309731,
+    "pnl_p75": 0.0551462950056586,
+    "pnl_p90": 0.06231217587111408,
+    "avg_hold_hours": 37.339393939393936,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 14,
+        "take_profit": 114,
+        "timeout": 36
+      },
+      "('pnl', 'mean')": {
+        "forced_close": 0.0281,
+        "stop_loss": -0.0276,
+        "take_profit": 0.0555,
+        "timeout": 0.024
+      },
+      "('pnl', 'sum')": {
+        "forced_close": 0.0281,
+        "stop_loss": -0.386,
+        "take_profit": 6.3222,
+        "timeout": 0.8629
+      }
+    }
+  },
+  {
+    "timeframe": "minute60",
+    "year": 2024,
+    "tier": "S",
+    "total_signals": 139,
+    "total_trades": 139,
+    "trade_signal_ratio": 1.0,
+    "total_pnl_sum": 5.081951108841643,
+    "avg_pnl": 0.036560799344184484,
+    "simple_annual_return": 5.081951108841643,
+    "limited_compound_return": 8.471393060453408,
+    "win_count": 125,
+    "loss_count": 14,
+    "win_rate": 0.8992805755395683,
+    "avg_win": 0.04253187014903339,
+    "avg_loss": -0.01675233284196639,
+    "total_win": 5.3164837686291735,
+    "total_loss": 0.23453265978752946,
+    "profit_factor": 22.66841544988039,
+    "pnl_p10": -5.623391401151856e-06,
+    "pnl_p25": 0.02577812483520707,
+    "pnl_median": 0.04899665476381902,
+    "pnl_p75": 0.0516690265790332,
+    "pnl_p90": 0.05598757626374747,
+    "avg_hold_hours": 48.68345323741007,
+    "reason_stats": {
+      "('pnl', 'count')": {
+        "forced_close": 1,
+        "stop_loss": 7,
+        "take_profit": 79,
+        "timeout": 52
+      },
+      "('pnl', 'mean')": {
+        "forced_close": -0.0296,
+        "stop_loss": -0.0254,
+        "take_profit": 0.0533,
+        "timeout": 0.0208
+      },
+      "('pnl', 'sum')": {
+        "forced_close": -0.0296,
+        "stop_loss": -0.1778,
+        "take_profit": 4.2094,
+        "timeout": 1.08
+      }
+    }
+  }
+]

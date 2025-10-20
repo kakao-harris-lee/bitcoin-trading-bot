@@ -1,0 +1,213 @@
+{
+  "version": "v26",
+  "strategy_name": "fine_tuned_v23",
+  "timeframe": "day",
+  "train_period": {
+    "start": "2022-01-01",
+    "end": "2024-12-31",
+    "results": {
+      "initial_capital": 10000000,
+      "final_capital": 14292137.017648796,
+      "total_return": 42.921370176487954,
+      "num_trades": 9,
+      "win_rate": 0.5555555555555556,
+      "avg_profit": 4.828959888135136,
+      "sharpe_ratio": 0.3849306698298963,
+      "max_drawdown": 0.0,
+      "trades": [
+        {
+          "type": "buy",
+          "timestamp": "2022-05-12T09:00:00",
+          "price": 39243000.0,
+          "amount": 0.2546951048594654,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2022-06-12T09:00:00",
+          "price": 34718000.0,
+          "amount": 0.2546951048594654,
+          "capital": 8838083.398185665,
+          "profit_pct": -11.530718854317968,
+          "reason": "stop_loss"
+        },
+        {
+          "type": "buy",
+          "timestamp": "2022-06-13T09:00:00",
+          "price": 29372000.0,
+          "amount": 0.30075120374801073,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2022-06-16T09:00:00",
+          "price": 26898000.0,
+          "amount": 0.30075120374801073,
+          "capital": 8085561.075474786,
+          "profit_pct": -8.422987879613238,
+          "reason": "stop_loss"
+        },
+        {
+          "type": "buy",
+          "timestamp": "2022-06-18T09:00:00",
+          "price": 25093000.0,
+          "amount": 0.32206265870709155,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2022-07-19T09:00:00",
+          "price": 30660000.0,
+          "amount": 0.32206265870709155,
+          "capital": 9869503.895401446,
+          "profit_pct": 22.18547005140876,
+          "reason": "signal"
+        },
+        {
+          "type": "buy",
+          "timestamp": "2022-09-06T09:00:00",
+          "price": 26361000.0,
+          "amount": 0.3742107334112418,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2022-09-12T09:00:00",
+          "price": 30656000.0,
+          "amount": 0.3742107334112418,
+          "capital": 11466068.3413333,
+          "profit_pct": 16.29300861120595,
+          "reason": "signal"
+        },
+        {
+          "type": "buy",
+          "timestamp": "2022-11-10T09:00:00",
+          "price": 24779000.0,
+          "amount": 0.4625019293418876,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2022-11-13T09:00:00",
+          "price": 22510000.0,
+          "amount": 0.4625019293418876,
+          "capital": 10405712.970271146,
+          "profit_pct": -9.156947415149926,
+          "reason": "stop_loss"
+        },
+        {
+          "type": "buy",
+          "timestamp": "2022-11-14T09:00:00",
+          "price": 22701000.0,
+          "amount": 0.45815206879811504,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2023-01-11T09:00:00",
+          "price": 22485000.0,
+          "amount": 0.45815206879811504,
+          "capital": 10296398.492292153,
+          "profit_pct": -0.9514999339236156,
+          "reason": "signal"
+        },
+        {
+          "type": "buy",
+          "timestamp": "2024-05-01T09:00:00",
+          "price": 83499000.0,
+          "amount": 0.12324998255124021,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2024-05-19T09:00:00",
+          "price": 92185000.0,
+          "amount": 0.12324998255124021,
+          "capital": 11356118.741665335,
+          "profit_pct": 10.402519790656175,
+          "reason": "signal"
+        },
+        {
+          "type": "buy",
+          "timestamp": "2024-07-04T09:00:00",
+          "price": 81680000.0,
+          "amount": 0.13896230022397776,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2024-07-18T09:00:00",
+          "price": 89850000.0,
+          "amount": 0.13896230022397776,
+          "capital": 12479519.793786839,
+          "profit_pct": 10.002448579823703,
+          "reason": "signal"
+        },
+        {
+          "type": "buy",
+          "timestamp": "2024-09-06T09:00:00",
+          "price": 73644000.0,
+          "amount": 0.16937265811050384,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2024-09-21T09:00:00",
+          "price": 84425000.0,
+          "amount": 0.16937265811050384,
+          "capital": 14292137.017648796,
+          "profit_pct": 14.639346043126391,
+          "reason": "signal"
+        }
+      ]
+    }
+  },
+  "test_period": {
+    "start": "2025-01-01",
+    "end": "2025-12-31",
+    "results": {
+      "initial_capital": 10000000,
+      "final_capital": 10010053.954558164,
+      "total_return": 0.10053954558163881,
+      "num_trades": 2,
+      "win_rate": 0.5,
+      "avg_profit": 0.5438998199721521,
+      "sharpe_ratio": 0.04327673471187554,
+      "max_drawdown": 0.0,
+      "trades": [
+        {
+          "type": "buy",
+          "timestamp": "2025-02-24T09:00:00",
+          "price": 132135000.0,
+          "amount": 0.07564233549021834,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2025-03-09T09:00:00",
+          "price": 121111000.0,
+          "amount": 0.07564233549021834,
+          "capital": 9156538.334109055,
+          "profit_pct": -8.342982555719528,
+          "reason": "stop_loss"
+        },
+        {
+          "type": "buy",
+          "timestamp": "2025-03-10T09:00:00",
+          "price": 117477000.0,
+          "amount": 0.0779042711759919,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2025-03-26T09:00:00",
+          "price": 128556000.0,
+          "amount": 0.0779042711759919,
+          "capital": 10010053.954558164,
+          "profit_pct": 9.430782195663832,
+          "reason": "signal"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,2204 @@
+{
+  "day": {
+    "2022": {
+      "lowest_points": [
+        {
+          "timestamp": "2022-12-30T09:00:00",
+          "trade_price": 21070000.0,
+          "high_price": 21232000.0,
+          "low_price": 20700000.0,
+          "volume": 2699.07221598
+        },
+        {
+          "timestamp": "2022-12-29T09:00:00",
+          "trade_price": 21201000.0,
+          "high_price": 21295000.0,
+          "low_price": 20908000.0,
+          "volume": 2464.45782163
+        },
+        {
+          "timestamp": "2022-12-28T09:00:00",
+          "trade_price": 21061000.0,
+          "high_price": 21396000.0,
+          "low_price": 21010000.0,
+          "volume": 3151.28076106
+        },
+        {
+          "timestamp": "2022-12-27T09:00:00",
+          "trade_price": 21321000.0,
+          "high_price": 21745000.0,
+          "low_price": 21242000.0,
+          "volume": 2842.5245103
+        },
+        {
+          "timestamp": "2022-11-14T09:00:00",
+          "trade_price": 22701000.0,
+          "high_price": 23438000.0,
+          "low_price": 21509000.0,
+          "volume": 13460.02192864
+        },
+        {
+          "timestamp": "2022-12-19T09:00:00",
+          "trade_price": 21654000.0,
+          "high_price": 22240000.0,
+          "low_price": 21521000.0,
+          "volume": 3169.23383434
+        },
+        {
+          "timestamp": "2022-12-20T09:00:00",
+          "trade_price": 22011000.0,
+          "high_price": 22221000.0,
+          "low_price": 21585000.0,
+          "volume": 3084.65713734
+        },
+        {
+          "timestamp": "2022-12-26T09:00:00",
+          "trade_price": 21702000.0,
+          "high_price": 21861000.0,
+          "low_price": 21596000.0,
+          "volume": 2548.57785278
+        },
+        {
+          "timestamp": "2022-12-22T09:00:00",
+          "trade_price": 21891000.0,
+          "high_price": 21980000.0,
+          "low_price": 21659000.0,
+          "volume": 2511.79402989
+        },
+        {
+          "timestamp": "2022-12-23T09:00:00",
+          "trade_price": 21872000.0,
+          "high_price": 22000000.0,
+          "low_price": 21764000.0,
+          "volume": 2253.90628813
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2022-01-02T09:00:00",
+          "trade_price": 57531000.0,
+          "high_price": 58300000.0,
+          "low_price": 57100000.0,
+          "volume": 3567.5057124
+        },
+        {
+          "timestamp": "2022-01-01T09:00:00",
+          "trade_price": 57915000.0,
+          "high_price": 58271000.0,
+          "low_price": 56762000.0,
+          "volume": 2628.14596492
+        },
+        {
+          "timestamp": "2022-01-03T09:00:00",
+          "trade_price": 56641000.0,
+          "high_price": 57749000.0,
+          "low_price": 56133000.0,
+          "volume": 6304.95856401
+        },
+        {
+          "timestamp": "2022-01-04T09:00:00",
+          "trade_price": 56023000.0,
+          "high_price": 57685000.0,
+          "low_price": 56000000.0,
+          "volume": 6053.44580235
+        },
+        {
+          "timestamp": "2022-03-28T09:00:00",
+          "trade_price": 56914000.0,
+          "high_price": 57678000.0,
+          "low_price": 55827000.0,
+          "volume": 6374.43514602
+        },
+        {
+          "timestamp": "2022-04-05T09:00:00",
+          "trade_price": 56155000.0,
+          "high_price": 57645000.0,
+          "low_price": 56070000.0,
+          "volume": 4627.20865106
+        },
+        {
+          "timestamp": "2022-03-29T09:00:00",
+          "trade_price": 56985000.0,
+          "high_price": 57540000.0,
+          "low_price": 56390000.0,
+          "volume": 6629.17847063
+        },
+        {
+          "timestamp": "2022-04-03T09:00:00",
+          "trade_price": 56639000.0,
+          "high_price": 57500000.0,
+          "low_price": 55830000.0,
+          "volume": 3818.05603689
+        },
+        {
+          "timestamp": "2022-04-02T09:00:00",
+          "trade_price": 56050000.0,
+          "high_price": 57350000.0,
+          "low_price": 55831000.0,
+          "volume": 3882.90202767
+        },
+        {
+          "timestamp": "2022-04-04T09:00:00",
+          "trade_price": 57055000.0,
+          "high_price": 57300000.0,
+          "low_price": 55510000.0,
+          "volume": 5916.74018564
+        }
+      ]
+    },
+    "2023": {
+      "lowest_points": [
+        {
+          "timestamp": "2023-01-01T09:00:00",
+          "trade_price": 21123000.0,
+          "high_price": 21171000.0,
+          "low_price": 21002000.0,
+          "volume": 1486.46755344
+        },
+        {
+          "timestamp": "2023-01-02T09:00:00",
+          "trade_price": 21215000.0,
+          "high_price": 21400000.0,
+          "low_price": 21047000.0,
+          "volume": 2578.84453056
+        },
+        {
+          "timestamp": "2023-01-03T09:00:00",
+          "trade_price": 21351000.0,
+          "high_price": 21451000.0,
+          "low_price": 21178000.0,
+          "volume": 2097.6153058
+        },
+        {
+          "timestamp": "2023-01-06T09:00:00",
+          "trade_price": 21517000.0,
+          "high_price": 21593000.0,
+          "low_price": 21280000.0,
+          "volume": 3285.37671627
+        },
+        {
+          "timestamp": "2023-01-04T09:00:00",
+          "trade_price": 21588000.0,
+          "high_price": 21732000.0,
+          "low_price": 21341000.0,
+          "volume": 2479.24818185
+        },
+        {
+          "timestamp": "2023-01-05T09:00:00",
+          "trade_price": 21575000.0,
+          "high_price": 21641000.0,
+          "low_price": 21404000.0,
+          "volume": 3563.01023528
+        },
+        {
+          "timestamp": "2023-01-07T09:00:00",
+          "trade_price": 21539000.0,
+          "high_price": 21585000.0,
+          "low_price": 21467000.0,
+          "volume": 1254.83333687
+        },
+        {
+          "timestamp": "2023-01-08T09:00:00",
+          "trade_price": 21704000.0,
+          "high_price": 21760000.0,
+          "low_price": 21498000.0,
+          "volume": 1541.66935544
+        },
+        {
+          "timestamp": "2023-01-10T09:00:00",
+          "trade_price": 21916000.0,
+          "high_price": 21960000.0,
+          "low_price": 21558000.0,
+          "volume": 2628.4345643
+        },
+        {
+          "timestamp": "2023-01-09T09:00:00",
+          "trade_price": 21655000.0,
+          "high_price": 21844000.0,
+          "low_price": 21628000.0,
+          "volume": 3454.03347779
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2023-12-06T09:00:00",
+          "trade_price": 60314000.0,
+          "high_price": 61312000.0,
+          "low_price": 59572000.0,
+          "volume": 8840.70990951
+        },
+        {
+          "timestamp": "2023-12-07T09:00:00",
+          "trade_price": 59250000.0,
+          "high_price": 60958000.0,
+          "low_price": 58555000.0,
+          "volume": 8318.92475677
+        },
+        {
+          "timestamp": "2023-12-05T09:00:00",
+          "trade_price": 60227000.0,
+          "high_price": 60769000.0,
+          "low_price": 56000000.0,
+          "volume": 9996.25271209
+        },
+        {
+          "timestamp": "2023-12-08T09:00:00",
+          "trade_price": 60142000.0,
+          "high_price": 60753000.0,
+          "low_price": 58750000.0,
+          "volume": 5252.13320218
+        },
+        {
+          "timestamp": "2023-12-22T09:00:00",
+          "trade_price": 59532000.0,
+          "high_price": 60419000.0,
+          "low_price": 59094000.0,
+          "volume": 4790.38513967
+        },
+        {
+          "timestamp": "2023-12-09T09:00:00",
+          "trade_price": 60082000.0,
+          "high_price": 60395000.0,
+          "low_price": 59680000.0,
+          "volume": 3528.90759303
+        },
+        {
+          "timestamp": "2023-12-10T09:00:00",
+          "trade_price": 59835000.0,
+          "high_price": 60277000.0,
+          "low_price": 59563000.0,
+          "volume": 2575.29471124
+        },
+        {
+          "timestamp": "2023-12-21T09:00:00",
+          "trade_price": 59479000.0,
+          "high_price": 60000000.0,
+          "low_price": 58924000.0,
+          "volume": 4490.29798433
+        },
+        {
+          "timestamp": "2023-12-13T09:00:00",
+          "trade_price": 59056000.0,
+          "high_price": 59924000.0,
+          "low_price": 56500000.0,
+          "volume": 5623.2041578
+        },
+        {
+          "timestamp": "2023-12-11T09:00:00",
+          "trade_price": 56950000.0,
+          "high_price": 59918000.0,
+          "low_price": 55460000.0,
+          "volume": 11981.70048829
+        }
+      ]
+    },
+    "2024": {
+      "lowest_points": [
+        {
+          "timestamp": "2024-01-23T09:00:00",
+          "trade_price": 55389000.0,
+          "high_price": 55576000.0,
+          "low_price": 53125000.0,
+          "volume": 7696.9657732
+        },
+        {
+          "timestamp": "2024-01-03T09:00:00",
+          "trade_price": 58581000.0,
+          "high_price": 60799000.0,
+          "low_price": 54346000.0,
+          "volume": 16310.30692586
+        },
+        {
+          "timestamp": "2024-01-24T09:00:00",
+          "trade_price": 55200000.0,
+          "high_price": 55850000.0,
+          "low_price": 54446000.0,
+          "volume": 3615.04171313
+        },
+        {
+          "timestamp": "2024-01-22T09:00:00",
+          "trade_price": 54689000.0,
+          "high_price": 57543000.0,
+          "low_price": 54659000.0,
+          "volume": 6334.41138362
+        },
+        {
+          "timestamp": "2024-01-25T09:00:00",
+          "trade_price": 55101000.0,
+          "high_price": 55586000.0,
+          "low_price": 54760000.0,
+          "volume": 2868.41775244
+        },
+        {
+          "timestamp": "2024-01-26T09:00:00",
+          "trade_price": 57503000.0,
+          "high_price": 58146000.0,
+          "low_price": 54957000.0,
+          "volume": 5241.71188424
+        },
+        {
+          "timestamp": "2024-01-19T09:00:00",
+          "trade_price": 57739000.0,
+          "high_price": 58180000.0,
+          "low_price": 55935000.0,
+          "volume": 5634.88177074
+        },
+        {
+          "timestamp": "2024-01-18T09:00:00",
+          "trade_price": 57284000.0,
+          "high_price": 58900000.0,
+          "low_price": 56754000.0,
+          "volume": 4268.88383965
+        },
+        {
+          "timestamp": "2024-01-01T09:00:00",
+          "trade_price": 58839000.0,
+          "high_price": 58847000.0,
+          "low_price": 57045000.0,
+          "volume": 3165.32092908
+        },
+        {
+          "timestamp": "2024-01-27T09:00:00",
+          "trade_price": 58086000.0,
+          "high_price": 58189000.0,
+          "low_price": 57046000.0,
+          "volume": 2217.23585074
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2024-12-17T09:00:00",
+          "trade_price": 155223000.0,
+          "high_price": 157198000.0,
+          "low_price": 152885000.0,
+          "volume": 6186.2803434
+        },
+        {
+          "timestamp": "2024-12-18T09:00:00",
+          "trade_price": 147754000.0,
+          "high_price": 155949000.0,
+          "low_price": 147189000.0,
+          "volume": 8610.82270357
+        },
+        {
+          "timestamp": "2024-12-16T09:00:00",
+          "trade_price": 153403000.0,
+          "high_price": 154924000.0,
+          "low_price": 149016000.0,
+          "volume": 7128.61771091
+        },
+        {
+          "timestamp": "2024-12-19T09:00:00",
+          "trade_price": 147474000.0,
+          "high_price": 153299000.0,
+          "low_price": 145000000.0,
+          "volume": 8471.89272515
+        },
+        {
+          "timestamp": "2024-12-15T09:00:00",
+          "trade_price": 149243000.0,
+          "high_price": 150000000.0,
+          "low_price": 145684000.0,
+          "volume": 4680.01328552
+        },
+        {
+          "timestamp": "2024-12-21T09:00:00",
+          "trade_price": 147830000.0,
+          "high_price": 149700000.0,
+          "low_price": 145249000.0,
+          "volume": 3714.24805316
+        },
+        {
+          "timestamp": "2024-12-26T09:00:00",
+          "trade_price": 144076000.0,
+          "high_price": 149000000.0,
+          "low_price": 143175000.0,
+          "volume": 3432.78442974
+        },
+        {
+          "timestamp": "2024-12-25T09:00:00",
+          "trade_price": 148081000.0,
+          "high_price": 148566000.0,
+          "low_price": 145395000.0,
+          "volume": 2911.45446585
+        },
+        {
+          "timestamp": "2024-12-20T09:00:00",
+          "trade_price": 148138000.0,
+          "high_price": 148460000.0,
+          "low_price": 139800000.0,
+          "volume": 11567.34620544
+        },
+        {
+          "timestamp": "2024-12-24T09:00:00",
+          "trade_price": 146831000.0,
+          "high_price": 148148000.0,
+          "low_price": 141000000.0,
+          "volume": 4333.3309919
+        }
+      ]
+    },
+    "2025": {
+      "lowest_points": [
+        {
+          "timestamp": "2025-04-07T09:00:00",
+          "trade_price": 118061000.0,
+          "high_price": 121149000.0,
+          "low_price": 111659000.0,
+          "volume": 6795.16440668
+        },
+        {
+          "timestamp": "2025-04-09T09:00:00",
+          "trade_price": 121339000.0,
+          "high_price": 123168000.0,
+          "low_price": 112549000.0,
+          "volume": 4922.18166707
+        },
+        {
+          "timestamp": "2025-04-08T09:00:00",
+          "trade_price": 114489000.0,
+          "high_price": 120239000.0,
+          "low_price": 114360000.0,
+          "volume": 2452.43172456
+        },
+        {
+          "timestamp": "2025-03-11T09:00:00",
+          "trade_price": 123232000.0,
+          "high_price": 123918000.0,
+          "low_price": 114763000.0,
+          "volume": 5825.71269624
+        },
+        {
+          "timestamp": "2025-04-06T09:00:00",
+          "trade_price": 117517000.0,
+          "high_price": 123500000.0,
+          "low_price": 115542000.0,
+          "volume": 2876.21789292
+        },
+        {
+          "timestamp": "2025-03-10T09:00:00",
+          "trade_price": 117477000.0,
+          "high_price": 124910000.0,
+          "low_price": 116355000.0,
+          "volume": 6052.61966672
+        },
+        {
+          "timestamp": "2025-02-28T09:00:00",
+          "trade_price": 124499000.0,
+          "high_price": 125411000.0,
+          "low_price": 116504000.0,
+          "volume": 8051.74155398
+        },
+        {
+          "timestamp": "2025-04-10T09:00:00",
+          "trade_price": 117936000.0,
+          "high_price": 122300000.0,
+          "low_price": 116687000.0,
+          "volume": 2240.96736559
+        },
+        {
+          "timestamp": "2025-04-11T09:00:00",
+          "trade_price": 121450000.0,
+          "high_price": 122333000.0,
+          "low_price": 116910000.0,
+          "volume": 2056.67944403
+        },
+        {
+          "timestamp": "2025-03-13T09:00:00",
+          "trade_price": 120216000.0,
+          "high_price": 124600000.0,
+          "low_price": 119000000.0,
+          "volume": 2477.67851474
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2025-10-09T09:00:00",
+          "trade_price": 177616000.0,
+          "high_price": 179869000.0,
+          "low_price": 176496000.0,
+          "volume": 2825.3725964
+        },
+        {
+          "timestamp": "2025-10-06T09:00:00",
+          "trade_price": 177536000.0,
+          "high_price": 178790000.0,
+          "low_price": 176500000.0,
+          "volume": 2611.57241052
+        },
+        {
+          "timestamp": "2025-10-05T09:00:00",
+          "trade_price": 177024000.0,
+          "high_price": 178651000.0,
+          "low_price": 174270000.0,
+          "volume": 3767.82109651
+        },
+        {
+          "timestamp": "2025-10-08T09:00:00",
+          "trade_price": 178011000.0,
+          "high_price": 178617000.0,
+          "low_price": 175460000.0,
+          "volume": 2463.9288202
+        },
+        {
+          "timestamp": "2025-10-07T09:00:00",
+          "trade_price": 175460000.0,
+          "high_price": 178400000.0,
+          "low_price": 174385000.0,
+          "volume": 3389.80439054
+        },
+        {
+          "timestamp": "2025-10-10T09:00:00",
+          "trade_price": 172257000.0,
+          "high_price": 178151000.0,
+          "low_price": 165000000.0,
+          "volume": 6799.93776544
+        },
+        {
+          "timestamp": "2025-10-13T09:00:00",
+          "trade_price": 171680000.0,
+          "high_price": 175337000.0,
+          "low_price": 170778000.0,
+          "volume": 2243.15905637
+        },
+        {
+          "timestamp": "2025-10-03T09:00:00",
+          "trade_price": 173460000.0,
+          "high_price": 174995000.0,
+          "low_price": 169100000.0,
+          "volume": 2241.08106806
+        },
+        {
+          "timestamp": "2025-10-04T09:00:00",
+          "trade_price": 174964000.0,
+          "high_price": 174990000.0,
+          "low_price": 172673000.0,
+          "volume": 2463.17052828
+        },
+        {
+          "timestamp": "2025-10-12T09:00:00",
+          "trade_price": 173833000.0,
+          "high_price": 174909000.0,
+          "low_price": 168132000.0,
+          "volume": 3435.1907301
+        }
+      ]
+    }
+  },
+  "minute240": {
+    "2022": {
+      "lowest_points": [
+        {
+          "timestamp": "2022-12-30T21:00:00",
+          "trade_price": 20952000.0,
+          "high_price": 20961000.0,
+          "low_price": 20700000.0,
+          "volume": 659.27248884
+        },
+        {
+          "timestamp": "2022-12-30T13:00:00",
+          "trade_price": 20855000.0,
+          "high_price": 21145000.0,
+          "low_price": 20828000.0,
+          "volume": 884.17782501
+        },
+        {
+          "timestamp": "2022-12-30T17:00:00",
+          "trade_price": 20901000.0,
+          "high_price": 20970000.0,
+          "low_price": 20846000.0,
+          "volume": 392.2527567
+        },
+        {
+          "timestamp": "2022-12-29T09:00:00",
+          "trade_price": 20991000.0,
+          "high_price": 21104000.0,
+          "low_price": 20908000.0,
+          "volume": 788.3724125
+        },
+        {
+          "timestamp": "2022-12-29T13:00:00",
+          "trade_price": 21046000.0,
+          "high_price": 21046000.0,
+          "low_price": 20954000.0,
+          "volume": 432.9349106
+        },
+        {
+          "timestamp": "2022-12-29T17:00:00",
+          "trade_price": 21194000.0,
+          "high_price": 21200000.0,
+          "low_price": 21003000.0,
+          "volume": 432.37029723
+        },
+        {
+          "timestamp": "2022-12-29T05:00:00",
+          "trade_price": 21061000.0,
+          "high_price": 21203000.0,
+          "low_price": 21010000.0,
+          "volume": 415.00237971
+        },
+        {
+          "timestamp": "2022-12-28T09:00:00",
+          "trade_price": 21189000.0,
+          "high_price": 21373000.0,
+          "low_price": 21058000.0,
+          "volume": 968.39311406
+        },
+        {
+          "timestamp": "2022-12-30T09:00:00",
+          "trade_price": 21145000.0,
+          "high_price": 21232000.0,
+          "low_price": 21061000.0,
+          "volume": 444.68668542
+        },
+        {
+          "timestamp": "2022-12-28T13:00:00",
+          "trade_price": 21203000.0,
+          "high_price": 21207000.0,
+          "low_price": 21077000.0,
+          "volume": 720.57404051
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2022-01-01T01:00:00",
+          "trade_price": 57914000.0,
+          "high_price": 58500000.0,
+          "low_price": 57890000.0,
+          "volume": 144.06512083
+        },
+        {
+          "timestamp": "2022-01-03T01:00:00",
+          "trade_price": 57228000.0,
+          "high_price": 58300000.0,
+          "low_price": 57100000.0,
+          "volume": 640.90886353
+        },
+        {
+          "timestamp": "2022-01-02T01:00:00",
+          "trade_price": 57626000.0,
+          "high_price": 58271000.0,
+          "low_price": 57538000.0,
+          "volume": 370.6952158
+        },
+        {
+          "timestamp": "2022-01-02T05:00:00",
+          "trade_price": 57915000.0,
+          "high_price": 58079000.0,
+          "low_price": 57500000.0,
+          "volume": 206.50710952
+        },
+        {
+          "timestamp": "2022-01-02T09:00:00",
+          "trade_price": 57648000.0,
+          "high_price": 58069000.0,
+          "low_price": 57578000.0,
+          "volume": 475.44659629
+        },
+        {
+          "timestamp": "2022-01-01T13:00:00",
+          "trade_price": 57724000.0,
+          "high_price": 57953000.0,
+          "low_price": 57056000.0,
+          "volume": 586.90174375
+        },
+        {
+          "timestamp": "2022-01-01T05:00:00",
+          "trade_price": 56784000.0,
+          "high_price": 57914000.0,
+          "low_price": 56233000.0,
+          "volume": 1112.67256758
+        },
+        {
+          "timestamp": "2022-01-01T21:00:00",
+          "trade_price": 57577000.0,
+          "high_price": 57878000.0,
+          "low_price": 57250000.0,
+          "volume": 428.32610827
+        },
+        {
+          "timestamp": "2022-01-01T17:00:00",
+          "trade_price": 57300000.0,
+          "high_price": 57851000.0,
+          "low_price": 57265000.0,
+          "volume": 410.48938137
+        },
+        {
+          "timestamp": "2022-01-02T13:00:00",
+          "trade_price": 57440000.0,
+          "high_price": 57750000.0,
+          "low_price": 57205000.0,
+          "volume": 519.30486701
+        }
+      ]
+    },
+    "2023": {
+      "lowest_points": [
+        {
+          "timestamp": "2023-01-01T05:00:00",
+          "trade_price": 21079000.0,
+          "high_price": 21096000.0,
+          "low_price": 21000000.0,
+          "volume": 293.214092
+        },
+        {
+          "timestamp": "2023-01-01T09:00:00",
+          "trade_price": 21105000.0,
+          "high_price": 21150000.0,
+          "low_price": 21002000.0,
+          "volume": 498.07559834
+        },
+        {
+          "timestamp": "2023-01-01T13:00:00",
+          "trade_price": 21090000.0,
+          "high_price": 21144000.0,
+          "low_price": 21044000.0,
+          "volume": 329.3665126
+        },
+        {
+          "timestamp": "2023-01-02T09:00:00",
+          "trade_price": 21271000.0,
+          "high_price": 21291000.0,
+          "low_price": 21047000.0,
+          "volume": 572.92223281
+        },
+        {
+          "timestamp": "2023-01-01T17:00:00",
+          "trade_price": 21070000.0,
+          "high_price": 21122000.0,
+          "low_price": 21058000.0,
+          "volume": 177.04369982
+        },
+        {
+          "timestamp": "2023-01-01T21:00:00",
+          "trade_price": 21105000.0,
+          "high_price": 21110000.0,
+          "low_price": 21060000.0,
+          "volume": 200.84596888
+        },
+        {
+          "timestamp": "2023-01-01T01:00:00",
+          "trade_price": 21070000.0,
+          "high_price": 21142000.0,
+          "low_price": 21070000.0,
+          "volume": 114.96723659
+        },
+        {
+          "timestamp": "2023-01-02T01:00:00",
+          "trade_price": 21161000.0,
+          "high_price": 21170000.0,
+          "low_price": 21097000.0,
+          "volume": 143.90913139
+        },
+        {
+          "timestamp": "2023-01-02T05:00:00",
+          "trade_price": 21123000.0,
+          "high_price": 21171000.0,
+          "low_price": 21099000.0,
+          "volume": 137.22664241
+        },
+        {
+          "timestamp": "2023-01-03T09:00:00",
+          "trade_price": 21296000.0,
+          "high_price": 21321000.0,
+          "low_price": 21178000.0,
+          "volume": 533.86490207
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2023-12-06T17:00:00",
+          "trade_price": 60494000.0,
+          "high_price": 61312000.0,
+          "low_price": 59572000.0,
+          "volume": 2921.61518062
+        },
+        {
+          "timestamp": "2023-12-06T21:00:00",
+          "trade_price": 59995000.0,
+          "high_price": 61040000.0,
+          "low_price": 59684000.0,
+          "volume": 1665.56214815
+        },
+        {
+          "timestamp": "2023-12-07T09:00:00",
+          "trade_price": 60824000.0,
+          "high_price": 60958000.0,
+          "low_price": 60280000.0,
+          "volume": 827.74709043
+        },
+        {
+          "timestamp": "2023-12-07T13:00:00",
+          "trade_price": 60487000.0,
+          "high_price": 60888000.0,
+          "low_price": 60486000.0,
+          "volume": 763.76776145
+        },
+        {
+          "timestamp": "2023-12-06T05:00:00",
+          "trade_price": 60227000.0,
+          "high_price": 60769000.0,
+          "low_price": 59250000.0,
+          "volume": 2357.56319417
+        },
+        {
+          "timestamp": "2023-12-09T05:00:00",
+          "trade_price": 60142000.0,
+          "high_price": 60753000.0,
+          "low_price": 59853000.0,
+          "volume": 823.58276589
+        },
+        {
+          "timestamp": "2023-12-07T01:00:00",
+          "trade_price": 60426000.0,
+          "high_price": 60646000.0,
+          "low_price": 59601000.0,
+          "volume": 441.71431814
+        },
+        {
+          "timestamp": "2023-12-06T09:00:00",
+          "trade_price": 59699000.0,
+          "high_price": 60642000.0,
+          "low_price": 59698000.0,
+          "volume": 2236.70077104
+        },
+        {
+          "timestamp": "2023-12-07T05:00:00",
+          "trade_price": 60314000.0,
+          "high_price": 60583000.0,
+          "low_price": 60200000.0,
+          "volume": 479.69916959
+        },
+        {
+          "timestamp": "2023-12-07T17:00:00",
+          "trade_price": 59390000.0,
+          "high_price": 60517000.0,
+          "low_price": 58555000.0,
+          "volume": 3905.2922044
+        }
+      ]
+    },
+    "2024": {
+      "lowest_points": [
+        {
+          "timestamp": "2024-01-23T17:00:00",
+          "trade_price": 53458000.0,
+          "high_price": 54961000.0,
+          "low_price": 53125000.0,
+          "volume": 3222.9792909
+        },
+        {
+          "timestamp": "2024-01-23T21:00:00",
+          "trade_price": 54066000.0,
+          "high_price": 54370000.0,
+          "low_price": 53228000.0,
+          "volume": 1484.50998366
+        },
+        {
+          "timestamp": "2024-01-24T01:00:00",
+          "trade_price": 54175000.0,
+          "high_price": 54671000.0,
+          "low_price": 53630000.0,
+          "volume": 462.58430532
+        },
+        {
+          "timestamp": "2024-01-24T05:00:00",
+          "trade_price": 55389000.0,
+          "high_price": 55414000.0,
+          "low_price": 54010000.0,
+          "volume": 816.84477588
+        },
+        {
+          "timestamp": "2024-01-03T21:00:00",
+          "trade_price": 58596000.0,
+          "high_price": 58634000.0,
+          "low_price": 54346000.0,
+          "volume": 9323.00035623
+        },
+        {
+          "timestamp": "2024-01-24T13:00:00",
+          "trade_price": 55100000.0,
+          "high_price": 55400000.0,
+          "low_price": 54446000.0,
+          "volume": 572.09348132
+        },
+        {
+          "timestamp": "2024-01-24T09:00:00",
+          "trade_price": 54519000.0,
+          "high_price": 55690000.0,
+          "low_price": 54474000.0,
+          "volume": 1111.09092345
+        },
+        {
+          "timestamp": "2024-01-25T05:00:00",
+          "trade_price": 55200000.0,
+          "high_price": 55350000.0,
+          "low_price": 54555000.0,
+          "volume": 323.6966163
+        },
+        {
+          "timestamp": "2024-01-23T05:00:00",
+          "trade_price": 54689000.0,
+          "high_price": 55853000.0,
+          "low_price": 54659000.0,
+          "volume": 1571.72586643
+        },
+        {
+          "timestamp": "2024-01-23T09:00:00",
+          "trade_price": 55297000.0,
+          "high_price": 55576000.0,
+          "low_price": 54685000.0,
+          "volume": 1035.40241325
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2024-12-17T21:00:00",
+          "trade_price": 155208000.0,
+          "high_price": 157198000.0,
+          "low_price": 154345000.0,
+          "volume": 1751.59909766
+        },
+        {
+          "timestamp": "2024-12-18T01:00:00",
+          "trade_price": 155370000.0,
+          "high_price": 156000000.0,
+          "low_price": 154795000.0,
+          "volume": 424.89319413
+        },
+        {
+          "timestamp": "2024-12-17T17:00:00",
+          "trade_price": 154800000.0,
+          "high_price": 155999000.0,
+          "low_price": 154460000.0,
+          "volume": 1120.69843711
+        },
+        {
+          "timestamp": "2024-12-18T09:00:00",
+          "trade_price": 153452000.0,
+          "high_price": 155949000.0,
+          "low_price": 153000000.0,
+          "volume": 1380.65454179
+        },
+        {
+          "timestamp": "2024-12-18T05:00:00",
+          "trade_price": 155223000.0,
+          "high_price": 155714000.0,
+          "low_price": 153050000.0,
+          "volume": 928.51152569
+        },
+        {
+          "timestamp": "2024-12-17T13:00:00",
+          "trade_price": 155075000.0,
+          "high_price": 155223000.0,
+          "low_price": 154380000.0,
+          "volume": 699.16528287
+        },
+        {
+          "timestamp": "2024-12-17T09:00:00",
+          "trade_price": 154937000.0,
+          "high_price": 155000000.0,
+          "low_price": 152885000.0,
+          "volume": 1261.41280594
+        },
+        {
+          "timestamp": "2024-12-18T21:00:00",
+          "trade_price": 154350000.0,
+          "high_price": 154927000.0,
+          "low_price": 152825000.0,
+          "volume": 800.544379
+        },
+        {
+          "timestamp": "2024-12-17T01:00:00",
+          "trade_price": 153654000.0,
+          "high_price": 154924000.0,
+          "low_price": 152640000.0,
+          "volume": 1129.17437118
+        },
+        {
+          "timestamp": "2024-12-19T01:00:00",
+          "trade_price": 153191000.0,
+          "high_price": 154750000.0,
+          "low_price": 152603000.0,
+          "volume": 517.07174581
+        }
+      ]
+    },
+    "2025": {
+      "lowest_points": [
+        {
+          "timestamp": "2025-04-07T13:00:00",
+          "trade_price": 112952000.0,
+          "high_price": 116921000.0,
+          "low_price": 111659000.0,
+          "volume": 2007.0212663
+        },
+        {
+          "timestamp": "2025-04-09T09:00:00",
+          "trade_price": 112884000.0,
+          "high_price": 115447000.0,
+          "low_price": 112549000.0,
+          "volume": 767.75565967
+        },
+        {
+          "timestamp": "2025-04-09T13:00:00",
+          "trade_price": 116800000.0,
+          "high_price": 117235000.0,
+          "low_price": 112820000.0,
+          "volume": 838.65323547
+        },
+        {
+          "timestamp": "2025-04-07T17:00:00",
+          "trade_price": 114723000.0,
+          "high_price": 116162000.0,
+          "low_price": 112890000.0,
+          "volume": 1054.59045178
+        },
+        {
+          "timestamp": "2025-04-07T21:00:00",
+          "trade_price": 117003000.0,
+          "high_price": 121149000.0,
+          "low_price": 113393000.0,
+          "volume": 2046.98570332
+        },
+        {
+          "timestamp": "2025-04-09T17:00:00",
+          "trade_price": 114566000.0,
+          "high_price": 117000000.0,
+          "low_price": 113850000.0,
+          "volume": 713.9626389
+        },
+        {
+          "timestamp": "2025-04-09T21:00:00",
+          "trade_price": 115684000.0,
+          "high_price": 117240000.0,
+          "low_price": 114224000.0,
+          "volume": 510.43886011
+        },
+        {
+          "timestamp": "2025-04-09T05:00:00",
+          "trade_price": 114489000.0,
+          "high_price": 116197000.0,
+          "low_price": 114360000.0,
+          "volume": 393.96646179
+        },
+        {
+          "timestamp": "2025-04-09T01:00:00",
+          "trade_price": 115344000.0,
+          "high_price": 117606000.0,
+          "low_price": 114567000.0,
+          "volume": 486.69084249
+        },
+        {
+          "timestamp": "2025-03-11T09:00:00",
+          "trade_price": 118690000.0,
+          "high_price": 119296000.0,
+          "low_price": 114763000.0,
+          "volume": 2118.38398108
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2025-10-09T21:00:00",
+          "trade_price": 177645000.0,
+          "high_price": 179869000.0,
+          "low_price": 177200000.0,
+          "volume": 910.03915397
+        },
+        {
+          "timestamp": "2025-10-09T17:00:00",
+          "trade_price": 178737000.0,
+          "high_price": 179000000.0,
+          "low_price": 177000000.0,
+          "volume": 695.65390391
+        },
+        {
+          "timestamp": "2025-10-07T01:00:00",
+          "trade_price": 177865000.0,
+          "high_price": 178790000.0,
+          "low_price": 177500000.0,
+          "volume": 285.31494325
+        },
+        {
+          "timestamp": "2025-10-05T13:00:00",
+          "trade_price": 177391000.0,
+          "high_price": 178651000.0,
+          "low_price": 176335000.0,
+          "volume": 1031.19949592
+        },
+        {
+          "timestamp": "2025-10-09T01:00:00",
+          "trade_price": 177852000.0,
+          "high_price": 178617000.0,
+          "low_price": 177341000.0,
+          "volume": 321.57695459
+        },
+        {
+          "timestamp": "2025-10-08T21:00:00",
+          "trade_price": 177417000.0,
+          "high_price": 178498000.0,
+          "low_price": 176868000.0,
+          "volume": 391.63358835
+        },
+        {
+          "timestamp": "2025-10-08T17:00:00",
+          "trade_price": 178232000.0,
+          "high_price": 178425000.0,
+          "low_price": 176539000.0,
+          "volume": 537.46861134
+        },
+        {
+          "timestamp": "2025-10-07T09:00:00",
+          "trade_price": 177333000.0,
+          "high_price": 178400000.0,
+          "low_price": 177230000.0,
+          "volume": 407.47016506
+        },
+        {
+          "timestamp": "2025-10-07T21:00:00",
+          "trade_price": 175320000.0,
+          "high_price": 178400000.0,
+          "low_price": 174388000.0,
+          "volume": 1035.33954052
+        },
+        {
+          "timestamp": "2025-10-06T21:00:00",
+          "trade_price": 177593000.0,
+          "high_price": 178307000.0,
+          "low_price": 177334000.0,
+          "volume": 628.2572911
+        }
+      ]
+    }
+  },
+  "minute60": {
+    "2022": {
+      "lowest_points": [
+        {
+          "timestamp": "2022-12-30T23:00:00",
+          "trade_price": 20786000.0,
+          "high_price": 20894000.0,
+          "low_price": 20700000.0,
+          "volume": 258.42750216
+        },
+        {
+          "timestamp": "2022-12-30T16:00:00",
+          "trade_price": 20855000.0,
+          "high_price": 20966000.0,
+          "low_price": 20828000.0,
+          "volume": 389.95770028
+        },
+        {
+          "timestamp": "2022-12-30T21:00:00",
+          "trade_price": 20855000.0,
+          "high_price": 20901000.0,
+          "low_price": 20828000.0,
+          "volume": 175.56368216
+        },
+        {
+          "timestamp": "2022-12-30T22:00:00",
+          "trade_price": 20840000.0,
+          "high_price": 20883000.0,
+          "low_price": 20828000.0,
+          "volume": 84.10368709
+        },
+        {
+          "timestamp": "2022-12-30T17:00:00",
+          "trade_price": 20900000.0,
+          "high_price": 20901000.0,
+          "low_price": 20846000.0,
+          "volume": 139.82427185
+        },
+        {
+          "timestamp": "2022-12-30T20:00:00",
+          "trade_price": 20901000.0,
+          "high_price": 20920000.0,
+          "low_price": 20878000.0,
+          "volume": 97.17107287
+        },
+        {
+          "timestamp": "2022-12-30T18:00:00",
+          "trade_price": 20968000.0,
+          "high_price": 20970000.0,
+          "low_price": 20897000.0,
+          "volume": 90.52460815
+        },
+        {
+          "timestamp": "2022-12-29T11:00:00",
+          "trade_price": 20983000.0,
+          "high_price": 21039000.0,
+          "low_price": 20908000.0,
+          "volume": 442.72630661
+        },
+        {
+          "timestamp": "2022-12-30T19:00:00",
+          "trade_price": 20912000.0,
+          "high_price": 20970000.0,
+          "low_price": 20912000.0,
+          "volume": 64.73280383
+        },
+        {
+          "timestamp": "2022-12-29T13:00:00",
+          "trade_price": 21000000.0,
+          "high_price": 21007000.0,
+          "low_price": 20954000.0,
+          "volume": 158.40500876
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2022-01-01T00:00:00",
+          "trade_price": 58283000.0,
+          "high_price": 58636000.0,
+          "low_price": 58234000.0,
+          "volume": 126.00718356
+        },
+        {
+          "timestamp": "2022-01-01T01:00:00",
+          "trade_price": 57900000.0,
+          "high_price": 58500000.0,
+          "low_price": 57890000.0,
+          "volume": 143.98615056
+        },
+        {
+          "timestamp": "2022-01-03T02:00:00",
+          "trade_price": 57694000.0,
+          "high_price": 58300000.0,
+          "low_price": 57648000.0,
+          "volume": 171.49267616
+        },
+        {
+          "timestamp": "2022-01-02T02:00:00",
+          "trade_price": 58018000.0,
+          "high_price": 58271000.0,
+          "low_price": 57539000.0,
+          "volume": 138.87452031
+        },
+        {
+          "timestamp": "2022-01-03T01:00:00",
+          "trade_price": 58118000.0,
+          "high_price": 58200000.0,
+          "low_price": 57584000.0,
+          "volume": 228.60538139
+        },
+        {
+          "timestamp": "2022-01-02T03:00:00",
+          "trade_price": 57866000.0,
+          "high_price": 58145000.0,
+          "low_price": 57725000.0,
+          "volume": 83.42891441
+        },
+        {
+          "timestamp": "2022-01-02T08:00:00",
+          "trade_price": 57915000.0,
+          "high_price": 58079000.0,
+          "low_price": 57584000.0,
+          "volume": 94.56265229
+        },
+        {
+          "timestamp": "2022-01-02T09:00:00",
+          "trade_price": 57922000.0,
+          "high_price": 58069000.0,
+          "low_price": 57713000.0,
+          "volume": 147.36968397
+        },
+        {
+          "timestamp": "2022-01-01T02:00:00",
+          "trade_price": 57914000.0,
+          "high_price": 57957000.0,
+          "low_price": 57900000.0,
+          "volume": 0.07897027
+        },
+        {
+          "timestamp": "2022-01-01T14:00:00",
+          "trade_price": 57590000.0,
+          "high_price": 57953000.0,
+          "low_price": 57101000.0,
+          "volume": 257.07453732
+        }
+      ]
+    },
+    "2023": {
+      "lowest_points": [
+        {
+          "timestamp": "2023-01-01T07:00:00",
+          "trade_price": 21018000.0,
+          "high_price": 21052000.0,
+          "low_price": 21000000.0,
+          "volume": 109.58657159
+        },
+        {
+          "timestamp": "2023-01-01T08:00:00",
+          "trade_price": 21079000.0,
+          "high_price": 21085000.0,
+          "low_price": 21001000.0,
+          "volume": 62.49840306
+        },
+        {
+          "timestamp": "2023-01-01T09:00:00",
+          "trade_price": 21085000.0,
+          "high_price": 21113000.0,
+          "low_price": 21002000.0,
+          "volume": 189.42795361
+        },
+        {
+          "timestamp": "2023-01-01T06:00:00",
+          "trade_price": 21025000.0,
+          "high_price": 21091000.0,
+          "low_price": 21018000.0,
+          "volume": 95.6294082
+        },
+        {
+          "timestamp": "2023-01-01T10:00:00",
+          "trade_price": 21079000.0,
+          "high_price": 21116000.0,
+          "low_price": 21036000.0,
+          "volume": 123.36443806
+        },
+        {
+          "timestamp": "2023-01-01T05:00:00",
+          "trade_price": 21084000.0,
+          "high_price": 21096000.0,
+          "low_price": 21040000.0,
+          "volume": 25.49970915
+        },
+        {
+          "timestamp": "2023-01-01T14:00:00",
+          "trade_price": 21083000.0,
+          "high_price": 21111000.0,
+          "low_price": 21044000.0,
+          "volume": 79.3067944
+        },
+        {
+          "timestamp": "2023-01-02T10:00:00",
+          "trade_price": 21143000.0,
+          "high_price": 21148000.0,
+          "low_price": 21047000.0,
+          "volume": 205.91869094
+        },
+        {
+          "timestamp": "2023-01-01T04:00:00",
+          "trade_price": 21079333.333333332,
+          "high_price": 21087333.333333332,
+          "low_price": 21050000.0,
+          "volume": 17.218185863333332
+        },
+        {
+          "timestamp": "2023-01-01T20:00:00",
+          "trade_price": 21070000.0,
+          "high_price": 21091000.0,
+          "low_price": 21058000.0,
+          "volume": 39.65907378
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2023-12-06T19:00:00",
+          "trade_price": 61112000.0,
+          "high_price": 61312000.0,
+          "low_price": 60300000.0,
+          "volume": 1083.42599652
+        },
+        {
+          "timestamp": "2023-12-06T20:00:00",
+          "trade_price": 60494000.0,
+          "high_price": 61121000.0,
+          "low_price": 59572000.0,
+          "volume": 1125.73115794
+        },
+        {
+          "timestamp": "2023-12-06T21:00:00",
+          "trade_price": 60753000.0,
+          "high_price": 61040000.0,
+          "low_price": 60353000.0,
+          "volume": 484.20332558
+        },
+        {
+          "timestamp": "2023-12-06T23:00:00",
+          "trade_price": 60859000.0,
+          "high_price": 61023000.0,
+          "low_price": 60647000.0,
+          "volume": 320.69520299
+        },
+        {
+          "timestamp": "2023-12-07T11:00:00",
+          "trade_price": 60942000.0,
+          "high_price": 60958000.0,
+          "low_price": 60720000.0,
+          "volume": 193.12981685
+        },
+        {
+          "timestamp": "2023-12-07T12:00:00",
+          "trade_price": 60824000.0,
+          "high_price": 60954000.0,
+          "low_price": 60823000.0,
+          "volume": 175.28331982
+        },
+        {
+          "timestamp": "2023-12-06T22:00:00",
+          "trade_price": 60760000.0,
+          "high_price": 60933000.0,
+          "low_price": 60595000.0,
+          "volume": 311.72826188
+        },
+        {
+          "timestamp": "2023-12-07T13:00:00",
+          "trade_price": 60595000.0,
+          "high_price": 60888000.0,
+          "low_price": 60561000.0,
+          "volume": 221.92294534
+        },
+        {
+          "timestamp": "2023-12-07T00:00:00",
+          "trade_price": 59995000.0,
+          "high_price": 60860000.0,
+          "low_price": 59684000.0,
+          "volume": 548.9353577
+        },
+        {
+          "timestamp": "2023-12-07T14:00:00",
+          "trade_price": 60609000.0,
+          "high_price": 60801000.0,
+          "low_price": 60576000.0,
+          "volume": 194.38590788
+        }
+      ]
+    },
+    "2024": {
+      "lowest_points": [
+        {
+          "timestamp": "2024-01-23T20:00:00",
+          "trade_price": 53458000.0,
+          "high_price": 53850000.0,
+          "low_price": 53125000.0,
+          "volume": 635.65709843
+        },
+        {
+          "timestamp": "2024-01-23T23:00:00",
+          "trade_price": 53498000.0,
+          "high_price": 53721000.0,
+          "low_price": 53228000.0,
+          "volume": 439.32791605
+        },
+        {
+          "timestamp": "2024-01-23T21:00:00",
+          "trade_price": 53953000.0,
+          "high_price": 53960000.0,
+          "low_price": 53350000.0,
+          "volume": 418.08390402
+        },
+        {
+          "timestamp": "2024-01-23T18:00:00",
+          "trade_price": 53759000.0,
+          "high_price": 54275000.0,
+          "low_price": 53471000.0,
+          "volume": 1298.36913339
+        },
+        {
+          "timestamp": "2024-01-24T00:00:00",
+          "trade_price": 54066000.0,
+          "high_price": 54370000.0,
+          "low_price": 53477000.0,
+          "volume": 326.37384671
+        },
+        {
+          "timestamp": "2024-01-23T19:00:00",
+          "trade_price": 53751000.0,
+          "high_price": 53988000.0,
+          "low_price": 53581000.0,
+          "volume": 470.33761255
+        },
+        {
+          "timestamp": "2024-01-24T01:00:00",
+          "trade_price": 54204000.0,
+          "high_price": 54307000.0,
+          "low_price": 53630000.0,
+          "volume": 141.79782439
+        },
+        {
+          "timestamp": "2024-01-23T22:00:00",
+          "trade_price": 53703000.0,
+          "high_price": 53980000.0,
+          "low_price": 53700000.0,
+          "volume": 300.72431688
+        },
+        {
+          "timestamp": "2024-01-24T04:00:00",
+          "trade_price": 54175000.0,
+          "high_price": 54328000.0,
+          "low_price": 53920000.0,
+          "volume": 65.58197236
+        },
+        {
+          "timestamp": "2024-01-24T05:00:00",
+          "trade_price": 54183000.0,
+          "high_price": 54481000.0,
+          "low_price": 54010000.0,
+          "volume": 90.54175079
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2024-12-17T23:00:00",
+          "trade_price": 157175000.0,
+          "high_price": 157198000.0,
+          "low_price": 155283000.0,
+          "volume": 544.04034922
+        },
+        {
+          "timestamp": "2024-12-18T00:00:00",
+          "trade_price": 155208000.0,
+          "high_price": 157175000.0,
+          "low_price": 154345000.0,
+          "volume": 755.97089465
+        },
+        {
+          "timestamp": "2024-12-18T02:00:00",
+          "trade_price": 155800000.0,
+          "high_price": 156000000.0,
+          "low_price": 155171000.0,
+          "volume": 102.37089383
+        },
+        {
+          "timestamp": "2024-12-17T17:00:00",
+          "trade_price": 155738000.0,
+          "high_price": 155999000.0,
+          "low_price": 155008000.0,
+          "volume": 291.0467399
+        },
+        {
+          "timestamp": "2024-12-17T18:00:00",
+          "trade_price": 155631000.0,
+          "high_price": 155960000.0,
+          "low_price": 155529000.0,
+          "volume": 228.50169198
+        },
+        {
+          "timestamp": "2024-12-18T09:00:00",
+          "trade_price": 155010000.0,
+          "high_price": 155949000.0,
+          "low_price": 153789000.0,
+          "volume": 503.36027366
+        },
+        {
+          "timestamp": "2024-12-18T03:00:00",
+          "trade_price": 155316000.0,
+          "high_price": 155940000.0,
+          "low_price": 155099000.0,
+          "volume": 73.50684932
+        },
+        {
+          "timestamp": "2024-12-17T22:00:00",
+          "trade_price": 155404000.0,
+          "high_price": 155853000.0,
+          "low_price": 154760000.0,
+          "volume": 249.80289169
+        },
+        {
+          "timestamp": "2024-12-18T04:00:00",
+          "trade_price": 155370000.0,
+          "high_price": 155830000.0,
+          "low_price": 155077000.0,
+          "volume": 57.77538416
+        },
+        {
+          "timestamp": "2024-12-18T05:00:00",
+          "trade_price": 155689000.0,
+          "high_price": 155714000.0,
+          "low_price": 155000000.0,
+          "volume": 77.49559021
+        }
+      ]
+    },
+    "2025": {
+      "lowest_points": [
+        {
+          "timestamp": "2025-04-07T15:00:00",
+          "trade_price": 112081000.0,
+          "high_price": 115504000.0,
+          "low_price": 111659000.0,
+          "volume": 985.33873794
+        },
+        {
+          "timestamp": "2025-04-07T16:00:00",
+          "trade_price": 112952000.0,
+          "high_price": 113452000.0,
+          "low_price": 111749000.0,
+          "volume": 386.03516847
+        },
+        {
+          "timestamp": "2025-04-09T10:00:00",
+          "trade_price": 114513000.0,
+          "high_price": 115101000.0,
+          "low_price": 112549000.0,
+          "volume": 392.65872734
+        },
+        {
+          "timestamp": "2025-04-09T13:00:00",
+          "trade_price": 115103000.0,
+          "high_price": 115480000.0,
+          "low_price": 112820000.0,
+          "volume": 181.31639034
+        },
+        {
+          "timestamp": "2025-04-09T12:00:00",
+          "trade_price": 112884000.0,
+          "high_price": 113941000.0,
+          "low_price": 112850000.0,
+          "volume": 105.06424919
+        },
+        {
+          "timestamp": "2025-04-07T17:00:00",
+          "trade_price": 114185000.0,
+          "high_price": 115639000.0,
+          "low_price": 112890000.0,
+          "volume": 377.55543136
+        },
+        {
+          "timestamp": "2025-04-07T22:00:00",
+          "trade_price": 117038000.0,
+          "high_price": 117157000.0,
+          "low_price": 113393000.0,
+          "volume": 395.29416665
+        },
+        {
+          "timestamp": "2025-04-07T18:00:00",
+          "trade_price": 114200000.0,
+          "high_price": 115206000.0,
+          "low_price": 113397000.0,
+          "volume": 280.8971028
+        },
+        {
+          "timestamp": "2025-04-09T11:00:00",
+          "trade_price": 113601000.0,
+          "high_price": 114900000.0,
+          "low_price": 113500000.0,
+          "volume": 107.86934559
+        },
+        {
+          "timestamp": "2025-04-09T20:00:00",
+          "trade_price": 114566000.0,
+          "high_price": 115741000.0,
+          "low_price": 113850000.0,
+          "volume": 325.00187689
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2025-10-09T22:00:00",
+          "trade_price": 178551000.0,
+          "high_price": 179869000.0,
+          "low_price": 178499000.0,
+          "volume": 244.16067402
+        },
+        {
+          "timestamp": "2025-10-09T21:00:00",
+          "trade_price": 179810000.0,
+          "high_price": 179824000.0,
+          "low_price": 178645000.0,
+          "volume": 293.60610362
+        },
+        {
+          "timestamp": "2025-10-09T20:00:00",
+          "trade_price": 178737000.0,
+          "high_price": 179000000.0,
+          "low_price": 178040000.0,
+          "volume": 344.62590519
+        },
+        {
+          "timestamp": "2025-10-09T23:00:00",
+          "trade_price": 177700000.0,
+          "high_price": 178802000.0,
+          "low_price": 177200000.0,
+          "volume": 269.46931371
+        },
+        {
+          "timestamp": "2025-10-07T03:00:00",
+          "trade_price": 178629000.0,
+          "high_price": 178790000.0,
+          "low_price": 177613000.0,
+          "volume": 89.76871258
+        },
+        {
+          "timestamp": "2025-10-07T04:00:00",
+          "trade_price": 177865000.0,
+          "high_price": 178782000.0,
+          "low_price": 177850000.0,
+          "volume": 56.91308945
+        },
+        {
+          "timestamp": "2025-10-05T14:00:00",
+          "trade_price": 178200000.0,
+          "high_price": 178651000.0,
+          "low_price": 177770000.0,
+          "volume": 331.24955974
+        },
+        {
+          "timestamp": "2025-10-09T03:00:00",
+          "trade_price": 177963000.0,
+          "high_price": 178617000.0,
+          "low_price": 177859000.0,
+          "volume": 51.93191719
+        },
+        {
+          "timestamp": "2025-10-09T02:00:00",
+          "trade_price": 178600000.0,
+          "high_price": 178601000.0,
+          "low_price": 178005000.0,
+          "volume": 162.08384363
+        },
+        {
+          "timestamp": "2025-10-05T13:00:00",
+          "trade_price": 178015000.0,
+          "high_price": 178499000.0,
+          "low_price": 176335000.0,
+          "volume": 320.90283574
+        }
+      ]
+    }
+  },
+  "minute15": {
+    "2022": {
+      "lowest_points": [],
+      "highest_points": []
+    },
+    "2023": {
+      "lowest_points": [
+        {
+          "timestamp": "2023-03-10T10:15:00",
+          "trade_price": 26987000.0,
+          "high_price": 26997000.0,
+          "low_price": 26707000.0,
+          "volume": 573.27304571
+        },
+        {
+          "timestamp": "2023-03-10T20:15:00",
+          "trade_price": 26769000.0,
+          "high_price": 26850000.0,
+          "low_price": 26707000.0,
+          "volume": 129.26313266
+        },
+        {
+          "timestamp": "2023-03-10T20:30:00",
+          "trade_price": 26750000.0,
+          "high_price": 26795000.0,
+          "low_price": 26722000.0,
+          "volume": 91.33943192
+        },
+        {
+          "timestamp": "2023-03-10T20:45:00",
+          "trade_price": 26860000.0,
+          "high_price": 26899000.0,
+          "low_price": 26747000.0,
+          "volume": 101.73156458
+        },
+        {
+          "timestamp": "2023-03-10T20:00:00",
+          "trade_price": 26842000.0,
+          "high_price": 26846000.0,
+          "low_price": 26750000.0,
+          "volume": 120.12776895
+        },
+        {
+          "timestamp": "2023-03-10T23:45:00",
+          "trade_price": 26888000.0,
+          "high_price": 26955000.0,
+          "low_price": 26751000.0,
+          "volume": 140.3701111
+        },
+        {
+          "timestamp": "2023-03-10T19:45:00",
+          "trade_price": 26758000.0,
+          "high_price": 26922000.0,
+          "low_price": 26755000.0,
+          "volume": 182.38721545
+        },
+        {
+          "timestamp": "2023-03-10T13:45:00",
+          "trade_price": 26849000.0,
+          "high_price": 26893000.0,
+          "low_price": 26802000.0,
+          "volume": 110.03861725
+        },
+        {
+          "timestamp": "2023-03-10T23:30:00",
+          "trade_price": 26807000.0,
+          "high_price": 27160000.0,
+          "low_price": 26807000.0,
+          "volume": 148.63291659
+        },
+        {
+          "timestamp": "2023-03-10T13:30:00",
+          "trade_price": 26862000.0,
+          "high_price": 26932000.0,
+          "low_price": 26813000.0,
+          "volume": 129.31399148
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2023-12-06T19:30:00",
+          "trade_price": 61256000.0,
+          "high_price": 61312000.0,
+          "low_price": 60927000.0,
+          "volume": 278.58521433
+        },
+        {
+          "timestamp": "2023-12-06T19:45:00",
+          "trade_price": 61112000.0,
+          "high_price": 61260000.0,
+          "low_price": 60787000.0,
+          "volume": 276.04048093
+        },
+        {
+          "timestamp": "2023-12-06T20:00:00",
+          "trade_price": 60770000.0,
+          "high_price": 61121000.0,
+          "low_price": 60770000.0,
+          "volume": 142.87630173
+        },
+        {
+          "timestamp": "2023-12-06T19:15:00",
+          "trade_price": 61019000.0,
+          "high_price": 61092000.0,
+          "low_price": 60600000.0,
+          "volume": 365.76571831
+        },
+        {
+          "timestamp": "2023-12-06T21:45:00",
+          "trade_price": 60753000.0,
+          "high_price": 61040000.0,
+          "low_price": 60700000.0,
+          "volume": 177.93660393
+        },
+        {
+          "timestamp": "2023-12-06T23:30:00",
+          "trade_price": 61023000.0,
+          "high_price": 61023000.0,
+          "low_price": 60647000.0,
+          "volume": 89.39907777
+        },
+        {
+          "timestamp": "2023-12-06T23:45:00",
+          "trade_price": 60859000.0,
+          "high_price": 61023000.0,
+          "low_price": 60748000.0,
+          "volume": 74.30030049
+        },
+        {
+          "timestamp": "2023-12-06T23:15:00",
+          "trade_price": 60980000.0,
+          "high_price": 61005000.0,
+          "low_price": 60659000.0,
+          "volume": 98.64480347
+        },
+        {
+          "timestamp": "2023-12-07T11:45:00",
+          "trade_price": 60942000.0,
+          "high_price": 60958000.0,
+          "low_price": 60772000.0,
+          "volume": 66.76427703
+        },
+        {
+          "timestamp": "2023-12-07T12:00:00",
+          "trade_price": 60915000.0,
+          "high_price": 60954000.0,
+          "low_price": 60868000.0,
+          "volume": 54.18189851
+        }
+      ]
+    },
+    "2024": {
+      "lowest_points": [
+        {
+          "timestamp": "2024-01-23T20:45:00",
+          "trade_price": 53458000.0,
+          "high_price": 53500000.0,
+          "low_price": 53125000.0,
+          "volume": 314.96520246
+        },
+        {
+          "timestamp": "2024-01-23T23:15:00",
+          "trade_price": 53562000.0,
+          "high_price": 53679000.0,
+          "low_price": 53228000.0,
+          "volume": 153.63681941
+        },
+        {
+          "timestamp": "2024-01-23T23:30:00",
+          "trade_price": 53402000.0,
+          "high_price": 53587000.0,
+          "low_price": 53234000.0,
+          "volume": 73.10436441
+        },
+        {
+          "timestamp": "2024-01-23T23:45:00",
+          "trade_price": 53498000.0,
+          "high_price": 53527000.0,
+          "low_price": 53266000.0,
+          "volume": 67.02983599
+        },
+        {
+          "timestamp": "2024-01-23T21:15:00",
+          "trade_price": 53568000.0,
+          "high_price": 53616000.0,
+          "low_price": 53350000.0,
+          "volume": 103.12861767
+        },
+        {
+          "timestamp": "2024-01-23T20:30:00",
+          "trade_price": 53400000.0,
+          "high_price": 53717000.0,
+          "low_price": 53372000.0,
+          "volume": 153.16646198
+        },
+        {
+          "timestamp": "2024-01-23T23:00:00",
+          "trade_price": 53589000.0,
+          "high_price": 53721000.0,
+          "low_price": 53400000.0,
+          "volume": 145.55689624
+        },
+        {
+          "timestamp": "2024-01-23T21:00:00",
+          "trade_price": 53423000.0,
+          "high_price": 53768000.0,
+          "low_price": 53423000.0,
+          "volume": 141.05764419
+        },
+        {
+          "timestamp": "2024-01-23T21:30:00",
+          "trade_price": 53551000.0,
+          "high_price": 53578000.0,
+          "low_price": 53424000.0,
+          "volume": 77.16145506
+        },
+        {
+          "timestamp": "2024-01-23T18:30:00",
+          "trade_price": 53896000.0,
+          "high_price": 53933000.0,
+          "low_price": 53471000.0,
+          "volume": 416.18641724
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2024-12-17T23:45:00",
+          "trade_price": 157175000.0,
+          "high_price": 157198000.0,
+          "low_price": 156485000.0,
+          "volume": 188.72553844
+        },
+        {
+          "timestamp": "2024-12-18T00:00:00",
+          "trade_price": 155478000.0,
+          "high_price": 157175000.0,
+          "low_price": 155380000.0,
+          "volume": 194.60840885
+        },
+        {
+          "timestamp": "2024-12-17T23:30:00",
+          "trade_price": 156559000.0,
+          "high_price": 156701000.0,
+          "low_price": 155352000.0,
+          "volume": 206.62001784
+        },
+        {
+          "timestamp": "2024-12-17T23:15:00",
+          "trade_price": 155997000.0,
+          "high_price": 156000000.0,
+          "low_price": 155786000.0,
+          "volume": 91.82298297
+        },
+        {
+          "timestamp": "2024-12-18T02:30:00",
+          "trade_price": 155682000.0,
+          "high_price": 156000000.0,
+          "low_price": 155589000.0,
+          "volume": 19.51663553
+        },
+        {
+          "timestamp": "2024-12-17T17:45:00",
+          "trade_price": 155738000.0,
+          "high_price": 155999000.0,
+          "low_price": 155500000.0,
+          "volume": 116.90192316
+        },
+        {
+          "timestamp": "2024-12-18T02:15:00",
+          "trade_price": 155923000.0,
+          "high_price": 155973000.0,
+          "low_price": 155250000.0,
+          "volume": 43.33144394
+        },
+        {
+          "timestamp": "2024-12-17T18:00:00",
+          "trade_price": 155740000.0,
+          "high_price": 155960000.0,
+          "low_price": 155725000.0,
+          "volume": 76.77181371
+        },
+        {
+          "timestamp": "2024-12-18T09:15:00",
+          "trade_price": 154800000.0,
+          "high_price": 155949000.0,
+          "low_price": 154800000.0,
+          "volume": 110.23476189
+        },
+        {
+          "timestamp": "2024-12-18T02:45:00",
+          "trade_price": 155800000.0,
+          "high_price": 155940000.0,
+          "low_price": 155629000.0,
+          "volume": 18.0645125
+        }
+      ]
+    },
+    "2025": {
+      "lowest_points": [
+        {
+          "timestamp": "2025-04-07T15:45:00",
+          "trade_price": 112081000.0,
+          "high_price": 112696000.0,
+          "low_price": 111659000.0,
+          "volume": 326.71066294
+        },
+        {
+          "timestamp": "2025-04-07T16:00:00",
+          "trade_price": 112601000.0,
+          "high_price": 112894000.0,
+          "low_price": 111749000.0,
+          "volume": 159.34940428
+        },
+        {
+          "timestamp": "2025-04-07T15:30:00",
+          "trade_price": 112205000.0,
+          "high_price": 113500000.0,
+          "low_price": 112200000.0,
+          "volume": 289.18015358
+        },
+        {
+          "timestamp": "2025-04-07T16:30:00",
+          "trade_price": 113098000.0,
+          "high_price": 113452000.0,
+          "low_price": 112480000.0,
+          "volume": 75.2925767
+        },
+        {
+          "timestamp": "2025-04-07T16:15:00",
+          "trade_price": 112675000.0,
+          "high_price": 113196000.0,
+          "low_price": 112500000.0,
+          "volume": 99.02518788
+        },
+        {
+          "timestamp": "2025-04-09T10:15:00",
+          "trade_price": 112619000.0,
+          "high_price": 113503000.0,
+          "low_price": 112549000.0,
+          "volume": 155.38603318
+        },
+        {
+          "timestamp": "2025-04-09T10:30:00",
+          "trade_price": 113600000.0,
+          "high_price": 114142000.0,
+          "low_price": 112551000.0,
+          "volume": 102.24978692
+        },
+        {
+          "timestamp": "2025-04-09T13:00:00",
+          "trade_price": 114165000.0,
+          "high_price": 114400000.0,
+          "low_price": 112820000.0,
+          "volume": 59.04983477
+        },
+        {
+          "timestamp": "2025-04-09T12:45:00",
+          "trade_price": 112884000.0,
+          "high_price": 113531000.0,
+          "low_price": 112850000.0,
+          "volume": 37.48891506
+        },
+        {
+          "timestamp": "2025-04-07T16:45:00",
+          "trade_price": 112952000.0,
+          "high_price": 113414000.0,
+          "low_price": 112878000.0,
+          "volume": 52.36799961
+        }
+      ],
+      "highest_points": [
+        {
+          "timestamp": "2025-10-09T22:00:00",
+          "trade_price": 179301000.0,
+          "high_price": 179869000.0,
+          "low_price": 179300000.0,
+          "volume": 69.55211231
+        },
+        {
+          "timestamp": "2025-10-09T21:45:00",
+          "trade_price": 179810000.0,
+          "high_price": 179824000.0,
+          "low_price": 179250000.0,
+          "volume": 73.97535412
+        },
+        {
+          "timestamp": "2025-10-09T22:15:00",
+          "trade_price": 179579000.0,
+          "high_price": 179591000.0,
+          "low_price": 179252000.0,
+          "volume": 52.49887514
+        },
+        {
+          "timestamp": "2025-10-09T22:30:00",
+          "trade_price": 178594000.0,
+          "high_price": 179587000.0,
+          "low_price": 178500000.0,
+          "volume": 70.18179974
+        },
+        {
+          "timestamp": "2025-10-09T21:30:00",
+          "trade_price": 179440000.0,
+          "high_price": 179500000.0,
+          "low_price": 178775000.0,
+          "volume": 116.72827078
+        },
+        {
+          "timestamp": "2025-10-09T22:45:00",
+          "trade_price": 178551000.0,
+          "high_price": 179203000.0,
+          "low_price": 178499000.0,
+          "volume": 51.92788683
+        },
+        {
+          "timestamp": "2025-10-09T20:45:00",
+          "trade_price": 178737000.0,
+          "high_price": 179000000.0,
+          "low_price": 178644000.0,
+          "volume": 76.83347129
+        },
+        {
+          "timestamp": "2025-10-09T21:00:00",
+          "trade_price": 178983000.0,
+          "high_price": 179000000.0,
+          "low_price": 178645000.0,
+          "volume": 75.42043902
+        },
+        {
+          "timestamp": "2025-10-09T20:30:00",
+          "trade_price": 178990000.0,
+          "high_price": 178994000.0,
+          "low_price": 178644000.0,
+          "volume": 92.37096167
+        },
+        {
+          "timestamp": "2025-10-09T21:15:00",
+          "trade_price": 178862000.0,
+          "high_price": 178983000.0,
+          "low_price": 178833000.0,
+          "volume": 27.4820397
+        }
+      ]
+    }
+  }
+}

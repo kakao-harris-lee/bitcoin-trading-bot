@@ -1,0 +1,55 @@
+
+======================================================================
+v41 전수 신호 분석 시작
+======================================================================
+분석 기간: 2020-01-01 ~ 2024-12-31 (1,825일)
+타임프레임: minute240, day
+예상 총 캔들: 756,375개
+예상 총 신호: ~76,300개
+======================================================================
+
+
+======================================================================
+[minute240] 전수 분석 시작
+기간: 2020-01-01 ~ 2024-12-31
+======================================================================
+
+[minute240] 데이터 로드 중...
+[minute240] 로드 완료: 10,956 캔들
+[minute240] 지표 계산 중...
+[minute240] 지표 계산 완료: 10,923 캔들 (NaN 제거 후)
+[minute240] VotingEnsemble 초기화...
+[Layer3] Day 캔들 데이터 로드 중...
+[Layer3] Day 캔들 지표 계산 중... (655 캔들)
+[Layer3] Day 캔들 준비 완료: 622 캔들
+[minute240] 전수 신호 추출 중 (0/10,923 캔들)...
+[minute240] Signal Extraction:   0%|          | 0/10923 [00:00<?, ?it/s][minute240] Signal Extraction:   2%|▏         | 192/10923 [00:00<00:05, 1912.66it/s][minute240] Signal Extraction:   4%|▎         | 385/10923 [00:00<00:05, 1917.57it/s][minute240] Signal Extraction:   5%|▌         | 577/10923 [00:00<00:05, 1906.73it/s][minute240] Signal Extraction:   7%|▋         | 768/10923 [00:00<00:05, 1824.33it/s][minute240] Signal Extraction:   9%|▊         | 951/10923 [00:00<00:05, 1802.25it/s][minute240] Signal Extraction:  10%|█         | 1132/10923 [00:00<00:07, 1282.69it/s][minute240] Signal Extraction:  12%|█▏        | 1279/10923 [00:00<00:07, 1257.80it/s][minute240] Signal Extraction:  13%|█▎        | 1473/10923 [00:00<00:06, 1430.34it/s][minute240] Signal Extraction:  15%|█▌        | 1673/10923 [00:01<00:05, 1579.79it/s][minute240] Signal Extraction:  17%|█▋        | 1843/10923 [00:01<00:05, 1588.85it/s][minute240] Signal Extraction:  19%|█▊        | 2030/10923 [00:01<00:05, 1666.53it/s][minute240] Signal Extraction:  20%|██        | 2218/10923 [00:01<00:05, 1725.02it/s][minute240] Signal Extraction:  22%|██▏       | 2396/10923 [00:01<00:05, 1630.09it/s][minute240] Signal Extraction:  24%|██▎       | 2594/10923 [00:01<00:04, 1726.28it/s][minute240] Signal Extraction:  26%|██▌       | 2797/10923 [00:01<00:04, 1812.20it/s][minute240] Signal Extraction:  27%|██▋       | 2999/10923 [00:01<00:04, 1871.49it/s][minute240] Signal Extraction:  29%|██▉       | 3201/10923 [00:01<00:04, 1912.77it/s][minute240] Signal Extraction:  31%|███       | 3401/10923 [00:01<00:03, 1936.44it/s][minute240] Signal Extraction:  33%|███▎      | 3600/10923 [00:02<00:03, 1951.29it/s][minute240] Signal Extraction:  35%|███▍      | 3800/10923 [00:02<00:03, 1964.88it/s][minute240] Signal Extraction:  37%|███▋      | 4004/10923 [00:02<00:03, 1985.34it/s][minute240] Signal Extraction:  39%|███▊      | 4208/10923 [00:02<00:03, 2001.50it/s][minute240] Signal Extraction:  40%|████      | 4413/10923 [00:02<00:03, 2013.02it/s][minute240] Signal Extraction:  42%|████▏     | 4615/10923 [00:02<00:03, 1991.71it/s][minute240] Signal Extraction:  44%|████▍     | 4815/10923 [00:02<00:03, 1918.75it/s][minute240] Signal Extraction:  46%|████▌     | 5008/10923 [00:02<00:03, 1893.95it/s][minute240] Signal Extraction:  48%|████▊     | 5198/10923 [00:02<00:03, 1894.39it/s][minute240] Signal Extraction:  49%|████▉     | 5392/10923 [00:03<00:02, 1904.99it/s][minute240] Signal Extraction:  51%|█████     | 5586/10923 [00:03<00:02, 1913.13it/s][minute240] Signal Extraction:  53%|█████▎    | 5782/10923 [00:03<00:02, 1926.97it/s][minute240] Signal Extraction:  55%|█████▍    | 5975/10923 [00:03<00:02, 1924.58it/s][minute240] Signal Extraction:  56%|█████▋    | 6168/10923 [00:03<00:02, 1889.06it/s][minute240] Signal Extraction:  58%|█████▊    | 6358/10923 [00:03<00:02, 1842.25it/s][minute240] Signal Extraction:  60%|█████▉    | 6543/10923 [00:03<00:02, 1829.45it/s][minute240] Signal Extraction:  62%|██████▏   | 6734/10923 [00:03<00:02, 1850.97it/s][minute240] Signal Extraction:  63%|██████▎   | 6927/10923 [00:03<00:02, 1873.08it/s][minute240] Signal Extraction:  65%|██████▌   | 7124/10923 [00:03<00:01, 1901.12it/s][minute240] Signal Extraction:  67%|██████▋   | 7321/10923 [00:04<00:01, 1918.78it/s][minute240] Signal Extraction:  69%|██████▉   | 7518/10923 [00:04<00:01, 1932.18it/s][minute240] Signal Extraction:  71%|███████   | 7714/10923 [00:04<00:01, 1938.47it/s][minute240] Signal Extraction:  72%|███████▏  | 7908/10923 [00:04<00:01, 1933.44it/s][minute240] Signal Extraction:  74%|███████▍  | 8102/10923 [00:04<00:01, 1929.76it/s][minute240] Signal Extraction:  76%|███████▌  | 8296/10923 [00:04<00:01, 1928.49it/s][minute240] Signal Extraction:  78%|███████▊  | 8490/10923 [00:04<00:01, 1929.33it/s][minute240] Signal Extraction:  80%|███████▉  | 8685/10923 [00:04<00:01, 1935.40it/s][minute240] Signal Extraction:  81%|████████▏ | 8888/10923 [00:04<00:01, 1963.08it/s][minute240] Signal Extraction:  83%|████████▎ | 9115/10923 [00:04<00:00, 2053.19it/s][minute240] Signal Extraction:  86%|████████▌ | 9351/10923 [00:05<00:00, 2142.40it/s][minute240] Signal Extraction:  88%|████████▊ | 9587/10923 [00:05<00:00, 2205.81it/s][minute240] Signal Extraction:  90%|████████▉ | 9818/10923 [00:05<00:00, 2234.78it/s][minute240] Signal Extraction:  92%|█████████▏| 10046/10923 [00:05<00:00, 2248.18it/s][minute240] Signal Extraction:  94%|█████████▍| 10277/10923 [00:05<00:00, 2264.72it/s][minute240] Signal Extraction:  96%|█████████▌| 10511/10923 [00:05<00:00, 2284.58it/s][minute240] Signal Extraction:  98%|█████████▊| 10746/10923 [00:05<00:00, 2302.29it/s][minute240] Signal Extraction: 100%|██████████| 10923/10923 [00:05<00:00, 1909.00it/s]
+
+[minute240] 신호 추출 완료
+  - 분석 캔들: 10,923 개
+  - 매수 신호: 38 개
+  - 신호 발생률: 0.35%
+  - 저장 완료: analysis/signals/signals_minute240_buy.csv
+
+======================================================================
+[day] 전수 분석 시작
+기간: 2020-01-01 ~ 2024-12-31
+======================================================================
+
+[day] 데이터 로드 중...
+[day] 로드 완료: 1,826 캔들
+[day] 지표 계산 중...
+[day] 지표 계산 완료: 1,793 캔들 (NaN 제거 후)
+[day] VotingEnsemble 초기화...
+Traceback (most recent call last):
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/phase0_full_signal_analysis.py", line 279, in <module>
+    analyzer.run_full_analysis()
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/phase0_full_signal_analysis.py", line 249, in run_full_analysis
+    self.analyze_timeframe(tf)
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/phase0_full_signal_analysis.py", line 134, in analyze_timeframe
+    ensemble = VotingEnsemble(timeframe, self.config, db_path=self.db_path)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/voting_ensemble.py", line 53, in __init__
+    voting_rules = config['voting_system']['voting_rules'][timeframe]
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'day'

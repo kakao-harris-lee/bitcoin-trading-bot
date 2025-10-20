@@ -1,0 +1,32 @@
+{
+  "minute5": {
+    "total_candles": 42,
+    "tier_counts": {
+      "S": 42
+    },
+    "avg_score": 58.5,
+    "max_score": 73.0,
+    "S_tier_count": 42,
+    "A_tier_count": 0
+  },
+  "minute15": {
+    "total_candles": 6,
+    "tier_counts": {
+      "S": 6
+    },
+    "avg_score": 80.66666666666667,
+    "max_score": 90.0,
+    "S_tier_count": 6,
+    "A_tier_count": 0
+  },
+  "minute60": {
+    "total_candles": 3,
+    "tier_counts": {
+      "S": 3
+    },
+    "avg_score": 89.33333333333333,
+    "max_score": 92.0,
+    "S_tier_count": 3,
+    "A_tier_count": 0
+  }
+}

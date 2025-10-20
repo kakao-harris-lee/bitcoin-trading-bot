@@ -1,0 +1,27 @@
+{
+  "strategy_name": "v43_v41_replica",
+  "description": "v41 정확한 재현 - 단타 설정 (TP 5%, SL -2%, 72h)",
+
+  "backtest": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  },
+
+  "exit_conditions": {
+    "take_profit": 0.05,
+    "stop_loss": -0.02,
+    "max_hold_hours": 72,
+    "trailing_stop_enabled": false
+  },
+
+  "entry_conditions": {
+    "min_score": 25,
+    "min_tier": "S"
+  },
+
+  "position_sizing": {
+    "method": "full",
+    "size": 1.0
+  }
+}

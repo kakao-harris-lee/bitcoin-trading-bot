@@ -1,0 +1,47 @@
+{
+  "timeframe": "day",
+  "year": 2020,
+  "tier": "A",
+  "total_trades": 3,
+  "total_return": 4.361785196191974,
+  "final_capital": 53617851.96191974,
+  "win_rate": 0.6666666666666666,
+  "avg_profit": 1.3645592856642919,
+  "avg_win": 2.078181857293367,
+  "avg_loss": -0.06268585759385889,
+  "avg_hold_hours": 2336.0,
+  "sharpe_ratio": 0.7271332967896303,
+  "max_drawdown": -0.06268585759385885,
+  "buy_hold_return": 2.8604819277108433,
+  "outperformance": 1.5013032684811307,
+  "profit_factor": 66.30464787633244,
+  "trades": [
+    {
+      "entry_time": "2020-03-12 09:00:00",
+      "entry_price": 6364272.6,
+      "exit_time": "2020-03-13 09:00:00",
+      "exit_price": 7267000.0,
+      "pnl": 0.14044298139586295,
+      "reason": "take_profit",
+      "hold_hours": 24.0
+    },
+    {
+      "entry_time": "2020-03-13 09:00:00",
+      "entry_price": 7268453.399999999,
+      "exit_time": "2020-03-14 09:00:00",
+      "exit_price": 6823000.0,
+      "pnl": -0.06268585759385889,
+      "reason": "stop_loss",
+      "hold_hours": 24.0
+    },
+    {
+      "entry_time": "2020-03-16 09:00:00",
+      "entry_price": 6386277.0,
+      "exit_time": "2020-12-31 09:00:00",
+      "exit_price": 32042000.0,
+      "pnl": 4.015920733190871,
+      "reason": "forced_close",
+      "hold_hours": 6960.0
+    }
+  ]
+}

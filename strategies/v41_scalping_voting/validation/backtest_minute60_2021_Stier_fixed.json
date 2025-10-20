@@ -1,0 +1,984 @@
+{
+  "timeframe": "minute60",
+  "year": 2021,
+  "tier": "S",
+  "total_trades": 107,
+  "total_return": 32.64843674893607,
+  "final_capital": 336484367.4893607,
+  "win_rate": 0.8130841121495327,
+  "avg_profit": 0.033938725856984486,
+  "avg_win": 0.04741200326322518,
+  "avg_loss": -0.024670030860162454,
+  "avg_hold_hours": 40.86915887850467,
+  "sharpe_ratio": 1.0321511609590175,
+  "max_drawdown": -0.08015157773735504,
+  "buy_hold_return": 0.8248047485160888,
+  "outperformance": 31.82363200041998,
+  "profit_factor": 8.360030652741203,
+  "overflow_warning": false,
+  "trades": [
+    {
+      "entry_time": "2021-01-02 18:00:00",
+      "entry_price": 32753549.4,
+      "exit_time": "2021-01-02 22:00:00",
+      "exit_price": 34652000.0,
+      "pnl": 0.056561675445165695,
+      "reason": "take_profit",
+      "hold_hours": 4.0
+    },
+    {
+      "entry_time": "2021-01-02 21:00:00",
+      "entry_price": 33666732.0,
+      "exit_time": "2021-01-03 01:00:00",
+      "exit_price": 35759000.0,
+      "pnl": 0.060746453656386964,
+      "reason": "take_profit",
+      "hold_hours": 4.0
+    },
+    {
+      "entry_time": "2021-01-02 22:00:00",
+      "entry_price": 34658930.4,
+      "exit_time": "2021-01-03 10:00:00",
+      "exit_price": 36760000.0,
+      "pnl": 0.059221305266823863,
+      "reason": "take_profit",
+      "hold_hours": 12.0
+    },
+    {
+      "entry_time": "2021-01-02 23:00:00",
+      "entry_price": 34372873.199999996,
+      "exit_time": "2021-01-03 02:00:00",
+      "exit_price": 36152000.0,
+      "pnl": 0.05035961839582281,
+      "reason": "take_profit",
+      "hold_hours": 3.0
+    },
+    {
+      "entry_time": "2021-01-03 01:00:00",
+      "entry_price": 35766151.8,
+      "exit_time": "2021-01-03 05:00:00",
+      "exit_price": 34167000.0,
+      "pnl": -0.04611131837001254,
+      "reason": "stop_loss",
+      "hold_hours": 4.0
+    },
+    {
+      "entry_time": "2021-01-06 13:00:00",
+      "entry_price": 39517902.0,
+      "exit_time": "2021-01-06 18:00:00",
+      "exit_price": 38163000.0,
+      "pnl": -0.03568577762048197,
+      "reason": "stop_loss",
+      "hold_hours": 5.0
+    },
+    {
+      "entry_time": "2021-01-07 09:00:00",
+      "entry_price": 41251248.6,
+      "exit_time": "2021-01-08 00:00:00",
+      "exit_price": 43572000.0,
+      "pnl": 0.05485893709311864,
+      "reason": "take_profit",
+      "hold_hours": 15.0
+    },
+    {
+      "entry_time": "2021-01-08 03:00:00",
+      "entry_price": 43688736.0,
+      "exit_time": "2021-01-08 19:00:00",
+      "exit_price": 46650000.0,
+      "pnl": 0.06638094930464457,
+      "reason": "take_profit",
+      "hold_hours": 16.0
+    },
+    {
+      "entry_time": "2021-01-14 07:00:00",
+      "entry_price": 41249248.199999996,
+      "exit_time": "2021-01-14 23:00:00",
+      "exit_price": 43601000.0,
+      "pnl": 0.055613203940041864,
+      "reason": "take_profit",
+      "hold_hours": 16.0
+    },
+    {
+      "entry_time": "2021-01-29 08:00:00",
+      "entry_price": 36631324.8,
+      "exit_time": "2021-01-29 16:00:00",
+      "exit_price": 35745000.0,
+      "pnl": -0.025595816144765724,
+      "reason": "stop_loss",
+      "hold_hours": 8.0
+    },
+    {
+      "entry_time": "2021-01-29 12:00:00",
+      "entry_price": 37259450.4,
+      "exit_time": "2021-01-29 13:00:00",
+      "exit_price": 36298000.0,
+      "pnl": -0.02720420241518105,
+      "reason": "stop_loss",
+      "hold_hours": 1.0
+    },
+    {
+      "entry_time": "2021-02-02 17:00:00",
+      "entry_price": 37349468.4,
+      "exit_time": "2021-02-04 08:00:00",
+      "exit_price": 39357000.0,
+      "pnl": 0.05234993770995685,
+      "reason": "take_profit",
+      "hold_hours": 39.0
+    },
+    {
+      "entry_time": "2021-02-02 18:00:00",
+      "entry_price": 37961590.8,
+      "exit_time": "2021-02-04 09:00:00",
+      "exit_price": 39996000.0,
+      "pnl": 0.05219125255625492,
+      "reason": "take_profit",
+      "hold_hours": 39.0
+    },
+    {
+      "entry_time": "2021-02-05 21:00:00",
+      "entry_price": 40194037.199999996,
+      "exit_time": "2021-02-06 18:00:00",
+      "exit_price": 42645000.0,
+      "pnl": 0.05957826868707791,
+      "reason": "take_profit",
+      "hold_hours": 21.0
+    },
+    {
+      "entry_time": "2021-02-06 09:00:00",
+      "entry_price": 41010200.4,
+      "exit_time": "2021-02-07 00:00:00",
+      "exit_price": 43565000.0,
+      "pnl": 0.060896686558010615,
+      "reason": "take_profit",
+      "hold_hours": 15.0
+    },
+    {
+      "entry_time": "2021-02-06 10:00:00",
+      "entry_price": 41294257.199999996,
+      "exit_time": "2021-02-07 00:00:00",
+      "exit_price": 43565000.0,
+      "pnl": 0.053589312170022635,
+      "reason": "take_profit",
+      "hold_hours": 14.0
+    },
+    {
+      "entry_time": "2021-02-06 11:00:00",
+      "entry_price": 41943387.0,
+      "exit_time": "2021-02-08 00:00:00",
+      "exit_price": 41002000.0,
+      "pnl": -0.023844229408559684,
+      "reason": "stop_loss",
+      "hold_hours": 37.0
+    },
+    {
+      "entry_time": "2021-02-08 20:00:00",
+      "entry_price": 42269452.199999996,
+      "exit_time": "2021-02-08 21:00:00",
+      "exit_price": 45300000.0,
+      "pnl": 0.07029593269533796,
+      "reason": "take_profit",
+      "hold_hours": 1.0
+    },
+    {
+      "entry_time": "2021-02-08 21:00:00",
+      "entry_price": 45309060.0,
+      "exit_time": "2021-02-09 08:00:00",
+      "exit_price": 49070000.0,
+      "pnl": 0.08160635678603793,
+      "reason": "take_profit",
+      "hold_hours": 11.0
+    },
+    {
+      "entry_time": "2021-02-08 22:00:00",
+      "entry_price": 45620122.199999996,
+      "exit_time": "2021-02-09 08:00:00",
+      "exit_price": 49070000.0,
+      "pnl": 0.07422184478322166,
+      "reason": "take_profit",
+      "hold_hours": 10.0
+    },
+    {
+      "entry_time": "2021-02-08 23:00:00",
+      "entry_price": 46064211.0,
+      "exit_time": "2021-02-09 03:00:00",
+      "exit_price": 44897000.0,
+      "pnl": -0.026738781988472567,
+      "reason": "stop_loss",
+      "hold_hours": 4.0
+    },
+    {
+      "entry_time": "2021-02-16 12:00:00",
+      "entry_price": 54003798.6,
+      "exit_time": "2021-02-17 16:00:00",
+      "exit_price": 56815000.0,
+      "pnl": 0.0506556233612796,
+      "reason": "take_profit",
+      "hold_hours": 28.0
+    },
+    {
+      "entry_time": "2021-02-16 13:00:00",
+      "entry_price": 54084814.8,
+      "exit_time": "2021-02-17 16:00:00",
+      "exit_price": 56815000.0,
+      "pnl": 0.049079699525568184,
+      "reason": "take_profit",
+      "hold_hours": 27.0
+    },
+    {
+      "entry_time": "2021-02-16 21:00:00",
+      "entry_price": 54702938.4,
+      "exit_time": "2021-02-18 05:00:00",
+      "exit_price": 57624000.0,
+      "pnl": 0.051998623281267864,
+      "reason": "take_profit",
+      "hold_hours": 32.0
+    },
+    {
+      "entry_time": "2021-02-19 18:00:00",
+      "entry_price": 59162830.199999996,
+      "exit_time": "2021-02-20 05:00:00",
+      "exit_price": 62148500.0,
+      "pnl": 0.04906529704388626,
+      "reason": "take_profit",
+      "hold_hours": 11.0
+    },
+    {
+      "entry_time": "2021-02-20 00:00:00",
+      "entry_price": 61012200.0,
+      "exit_time": "2021-02-20 09:00:00",
+      "exit_price": 64192000.0,
+      "pnl": 0.05071744536338634,
+      "reason": "take_profit",
+      "hold_hours": 9.0
+    },
+    {
+      "entry_time": "2021-02-20 01:00:00",
+      "entry_price": 61440285.6,
+      "exit_time": "2021-02-20 10:00:00",
+      "exit_price": 64997000.0,
+      "pnl": 0.05648896267760836,
+      "reason": "take_profit",
+      "hold_hours": 9.0
+    },
+    {
+      "entry_time": "2021-03-07 17:00:00",
+      "entry_price": 57733544.4,
+      "exit_time": "2021-03-09 10:00:00",
+      "exit_price": 61510000.0,
+      "pnl": 0.06401180936052146,
+      "reason": "take_profit",
+      "hold_hours": 41.0
+    },
+    {
+      "entry_time": "2021-03-09 09:00:00",
+      "entry_price": 59711940.0,
+      "exit_time": "2021-03-10 07:00:00",
+      "exit_price": 62743000.0,
+      "pnl": 0.04936137201370446,
+      "reason": "take_profit",
+      "hold_hours": 22.0
+    },
+    {
+      "entry_time": "2021-03-09 10:00:00",
+      "entry_price": 61522302.0,
+      "exit_time": "2021-03-11 01:00:00",
+      "exit_price": 65120000.0,
+      "pnl": 0.05707794837065752,
+      "reason": "take_profit",
+      "hold_hours": 39.0
+    },
+    {
+      "entry_time": "2021-03-19 21:00:00",
+      "entry_price": 68701737.6,
+      "exit_time": "2021-03-21 13:00:00",
+      "exit_price": 66552000.0,
+      "pnl": -0.032690876695380615,
+      "reason": "stop_loss",
+      "hold_hours": 40.0
+    },
+    {
+      "entry_time": "2021-03-29 18:00:00",
+      "entry_price": 68818761.0,
+      "exit_time": "2021-04-01 18:00:00",
+      "exit_price": 72283000.0,
+      "pnl": 0.04893858427064678,
+      "reason": "take_profit",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-03-29 19:00:00",
+      "entry_price": 68923782.0,
+      "exit_time": "2021-04-01 19:00:00",
+      "exit_price": 72460000.0,
+      "pnl": 0.049906209517057556,
+      "reason": "take_profit",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-03-30 18:00:00",
+      "entry_price": 70544106.0,
+      "exit_time": "2021-04-02 12:00:00",
+      "exit_price": 74101000.0,
+      "pnl": 0.04902085301924444,
+      "reason": "take_profit",
+      "hold_hours": 66.0
+    },
+    {
+      "entry_time": "2021-03-30 19:00:00",
+      "entry_price": 70173031.8,
+      "exit_time": "2021-04-02 11:00:00",
+      "exit_price": 73900000.0,
+      "pnl": 0.05171111839406094,
+      "reason": "take_profit",
+      "hold_hours": 64.0
+    },
+    {
+      "entry_time": "2021-04-01 20:00:00",
+      "entry_price": 72138424.8,
+      "exit_time": "2021-04-04 20:00:00",
+      "exit_price": 72806000.0,
+      "pnl": 0.007854086180157389,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-04-05 09:00:00",
+      "entry_price": 74797956.6,
+      "exit_time": "2021-04-06 08:00:00",
+      "exit_price": 78770000.0,
+      "pnl": 0.051703635186739934,
+      "reason": "take_profit",
+      "hold_hours": 23.0
+    },
+    {
+      "entry_time": "2021-04-05 11:00:00",
+      "entry_price": 75185034.0,
+      "exit_time": "2021-04-07 11:00:00",
+      "exit_price": 79227000.0,
+      "pnl": 0.052360247019373564,
+      "reason": "take_profit",
+      "hold_hours": 48.0
+    },
+    {
+      "entry_time": "2021-04-05 15:00:00",
+      "entry_price": 75328062.6,
+      "exit_time": "2021-04-07 11:00:00",
+      "exit_price": 79227000.0,
+      "pnl": 0.050359427568232806,
+      "reason": "take_profit",
+      "hold_hours": 44.0
+    },
+    {
+      "entry_time": "2021-04-09 09:00:00",
+      "entry_price": 76012199.39999999,
+      "exit_time": "2021-04-09 10:00:00",
+      "exit_price": 74166000.0,
+      "pnl": -0.025688198665121,
+      "reason": "stop_loss",
+      "hold_hours": 1.0
+    },
+    {
+      "entry_time": "2021-04-09 10:00:00",
+      "entry_price": 74180833.2,
+      "exit_time": "2021-04-10 13:00:00",
+      "exit_price": 79337000.0,
+      "pnl": 0.06810807341430612,
+      "reason": "take_profit",
+      "hold_hours": 27.0
+    },
+    {
+      "entry_time": "2021-04-12 16:00:00",
+      "entry_price": 78444685.8,
+      "exit_time": "2021-04-15 16:00:00",
+      "exit_price": 79421000.0,
+      "pnl": 0.011045893434887122,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-04-24 09:00:00",
+      "entry_price": 59191836.0,
+      "exit_time": "2021-04-25 05:00:00",
+      "exit_price": 62459000.0,
+      "pnl": 0.05379619293444454,
+      "reason": "take_profit",
+      "hold_hours": 20.0
+    },
+    {
+      "entry_time": "2021-04-26 09:00:00",
+      "entry_price": 61211239.8,
+      "exit_time": "2021-04-27 10:00:00",
+      "exit_price": 64589000.0,
+      "pnl": 0.05378202557302235,
+      "reason": "take_profit",
+      "hold_hours": 25.0
+    },
+    {
+      "entry_time": "2021-04-26 10:00:00",
+      "entry_price": 62455488.6,
+      "exit_time": "2021-04-29 10:00:00",
+      "exit_price": 64240000.0,
+      "pnl": 0.027172531253882443,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-04-30 09:00:00",
+      "entry_price": 63778753.199999996,
+      "exit_time": "2021-05-01 00:00:00",
+      "exit_price": 67700000.0,
+      "pnl": 0.06008202345228669,
+      "reason": "take_profit",
+      "hold_hours": 15.0
+    },
+    {
+      "entry_time": "2021-04-30 12:00:00",
+      "entry_price": 64190835.6,
+      "exit_time": "2021-05-01 00:00:00",
+      "exit_price": 67700000.0,
+      "pnl": 0.05326768530428662,
+      "reason": "take_profit",
+      "hold_hours": 12.0
+    },
+    {
+      "entry_time": "2021-04-30 13:00:00",
+      "entry_price": 64191835.8,
+      "exit_time": "2021-05-01 00:00:00",
+      "exit_price": 67700000.0,
+      "pnl": 0.05325125208336857,
+      "reason": "take_profit",
+      "hold_hours": 11.0
+    },
+    {
+      "entry_time": "2021-04-30 22:00:00",
+      "entry_price": 66730343.4,
+      "exit_time": "2021-05-03 16:00:00",
+      "exit_price": 70277000.0,
+      "pnl": 0.05174908359965073,
+      "reason": "take_profit",
+      "hold_hours": 66.0
+    },
+    {
+      "entry_time": "2021-04-30 23:00:00",
+      "entry_price": 66404278.199999996,
+      "exit_time": "2021-05-03 10:00:00",
+      "exit_price": 69726000.0,
+      "pnl": 0.048622707723672005,
+      "reason": "take_profit",
+      "hold_hours": 59.0
+    },
+    {
+      "entry_time": "2021-05-01 00:00:00",
+      "entry_price": 67713540.0,
+      "exit_time": "2021-05-04 00:00:00",
+      "exit_price": 69675000.0,
+      "pnl": 0.027567027864737245,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-05-24 21:00:00",
+      "entry_price": 45720142.199999996,
+      "exit_time": "2021-05-25 09:00:00",
+      "exit_price": 48229000.0,
+      "pnl": 0.0534742344025344,
+      "reason": "take_profit",
+      "hold_hours": 12.0
+    },
+    {
+      "entry_time": "2021-06-02 22:00:00",
+      "entry_price": 43810760.4,
+      "exit_time": "2021-06-05 18:00:00",
+      "exit_price": 42597000.0,
+      "pnl": -0.029104618429768192,
+      "reason": "stop_loss",
+      "hold_hours": 68.0
+    },
+    {
+      "entry_time": "2021-06-09 15:00:00",
+      "entry_price": 39439886.4,
+      "exit_time": "2021-06-10 00:00:00",
+      "exit_price": 41828000.0,
+      "pnl": 0.05915072207307376,
+      "reason": "take_profit",
+      "hold_hours": 9.0
+    },
+    {
+      "entry_time": "2021-06-09 16:00:00",
+      "entry_price": 39209840.4,
+      "exit_time": "2021-06-10 00:00:00",
+      "exit_price": 41828000.0,
+      "pnl": 0.06537302364127964,
+      "reason": "take_profit",
+      "hold_hours": 8.0
+    },
+    {
+      "entry_time": "2021-06-09 20:00:00",
+      "entry_price": 40390076.4,
+      "exit_time": "2021-06-10 07:00:00",
+      "exit_price": 42823000.0,
+      "pnl": 0.058835677098149824,
+      "reason": "take_profit",
+      "hold_hours": 11.0
+    },
+    {
+      "entry_time": "2021-06-09 21:00:00",
+      "entry_price": 40054009.199999996,
+      "exit_time": "2021-06-10 06:00:00",
+      "exit_price": 42257000.0,
+      "pnl": 0.053600506665884645,
+      "reason": "take_profit",
+      "hold_hours": 9.0
+    },
+    {
+      "entry_time": "2021-06-10 00:00:00",
+      "entry_price": 41836365.6,
+      "exit_time": "2021-06-13 00:00:00",
+      "exit_price": 41216000.0,
+      "pnl": -0.016228381746429748,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-06-14 01:00:00",
+      "entry_price": 43046607.6,
+      "exit_time": "2021-06-14 10:00:00",
+      "exit_price": 45200000.0,
+      "pnl": 0.048624671398263646,
+      "reason": "take_profit",
+      "hold_hours": 9.0
+    },
+    {
+      "entry_time": "2021-06-14 05:00:00",
+      "entry_price": 45072012.6,
+      "exit_time": "2021-06-17 05:00:00",
+      "exit_price": 45454000.0,
+      "pnl": 0.00707504644156934,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-06-14 09:00:00",
+      "entry_price": 45188035.8,
+      "exit_time": "2021-06-17 09:00:00",
+      "exit_price": 45408000.0,
+      "pnl": 0.0034677530701611725,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-06-14 10:00:00",
+      "entry_price": 45209040.0,
+      "exit_time": "2021-06-17 10:00:00",
+      "exit_price": 45354000.0,
+      "pnl": 0.0018064383583460298,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-06-23 22:00:00",
+      "entry_price": 39291856.8,
+      "exit_time": "2021-06-24 10:00:00",
+      "exit_price": 38130000.0,
+      "pnl": -0.030969913326162713,
+      "reason": "stop_loss",
+      "hold_hours": 12.0
+    },
+    {
+      "entry_time": "2021-06-28 09:00:00",
+      "entry_price": 39832965.0,
+      "exit_time": "2021-06-29 22:00:00",
+      "exit_price": 41972000.0,
+      "pnl": 0.05230011998855722,
+      "reason": "take_profit",
+      "hold_hours": 37.0
+    },
+    {
+      "entry_time": "2021-07-03 16:00:00",
+      "entry_price": 40209040.199999996,
+      "exit_time": "2021-07-05 20:00:00",
+      "exit_price": 39076000.0,
+      "pnl": -0.029578742749497303,
+      "reason": "stop_loss",
+      "hold_hours": 52.0
+    },
+    {
+      "entry_time": "2021-07-03 17:00:00",
+      "entry_price": 40253049.0,
+      "exit_time": "2021-07-05 20:00:00",
+      "exit_price": 39076000.0,
+      "pnl": -0.030641238346938635,
+      "reason": "stop_loss",
+      "hold_hours": 51.0
+    },
+    {
+      "entry_time": "2021-07-21 13:00:00",
+      "entry_price": 36193237.199999996,
+      "exit_time": "2021-07-22 08:00:00",
+      "exit_price": 38013000.0,
+      "pnl": 0.0488790836294689,
+      "reason": "take_profit",
+      "hold_hours": 19.0
+    },
+    {
+      "entry_time": "2021-07-21 19:00:00",
+      "entry_price": 37036405.8,
+      "exit_time": "2021-07-24 08:00:00",
+      "exit_price": 39108000.0,
+      "pnl": 0.05453399670547954,
+      "reason": "take_profit",
+      "hold_hours": 61.0
+    },
+    {
+      "entry_time": "2021-07-23 10:00:00",
+      "entry_price": 38408680.199999996,
+      "exit_time": "2021-07-25 16:00:00",
+      "exit_price": 40436000.0,
+      "pnl": 0.05138285505889382,
+      "reason": "take_profit",
+      "hold_hours": 54.0
+    },
+    {
+      "entry_time": "2021-07-24 08:00:00",
+      "entry_price": 39115821.6,
+      "exit_time": "2021-07-26 09:00:00",
+      "exit_price": 42622000.0,
+      "pnl": 0.0882358112033111,
+      "reason": "take_profit",
+      "hold_hours": 49.0
+    },
+    {
+      "entry_time": "2021-07-24 09:00:00",
+      "entry_price": 39246847.8,
+      "exit_time": "2021-07-26 09:00:00",
+      "exit_price": 42622000.0,
+      "pnl": 0.08459804542774015,
+      "reason": "take_profit",
+      "hold_hours": 48.0
+    },
+    {
+      "entry_time": "2021-08-07 00:00:00",
+      "entry_price": 48746747.4,
+      "exit_time": "2021-08-08 14:00:00",
+      "exit_price": 51214000.0,
+      "pnl": 0.04921368668876565,
+      "reason": "take_profit",
+      "hold_hours": 38.0
+    },
+    {
+      "entry_time": "2021-08-07 01:00:00",
+      "entry_price": 48988795.8,
+      "exit_time": "2021-08-08 21:00:00",
+      "exit_price": 51563000.0,
+      "pnl": 0.0511467947918002,
+      "reason": "take_profit",
+      "hold_hours": 44.0
+    },
+    {
+      "entry_time": "2021-08-13 16:00:00",
+      "entry_price": 53443686.6,
+      "exit_time": "2021-08-16 16:00:00",
+      "exit_price": 54827000.0,
+      "pnl": 0.024483569940700882,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-08-13 23:00:00",
+      "entry_price": 54010800.0,
+      "exit_time": "2021-08-16 23:00:00",
+      "exit_price": 53762000.0,
+      "pnl": -0.0060064861101853705,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-08-19 09:00:00",
+      "entry_price": 53086615.199999996,
+      "exit_time": "2021-08-20 22:00:00",
+      "exit_price": 55999000.0,
+      "pnl": 0.053461000066171195,
+      "reason": "take_profit",
+      "hold_hours": 37.0
+    },
+    {
+      "entry_time": "2021-08-19 16:00:00",
+      "entry_price": 53032604.4,
+      "exit_time": "2021-08-20 22:00:00",
+      "exit_price": 55999000.0,
+      "pnl": 0.054535318160614445,
+      "reason": "take_profit",
+      "hold_hours": 30.0
+    },
+    {
+      "entry_time": "2021-08-20 09:00:00",
+      "entry_price": 55321062.0,
+      "exit_time": "2021-08-22 02:00:00",
+      "exit_price": 58216000.0,
+      "pnl": 0.05092976185453562,
+      "reason": "take_profit",
+      "hold_hours": 41.0
+    },
+    {
+      "entry_time": "2021-08-20 23:00:00",
+      "entry_price": 56861370.0,
+      "exit_time": "2021-08-23 23:00:00",
+      "exit_price": 57998000.0,
+      "pnl": 0.018589493745929796,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-08-27 23:00:00",
+      "entry_price": 56561310.0,
+      "exit_time": "2021-08-30 23:00:00",
+      "exit_price": 56556000.0,
+      "pnl": -0.0014938804281584002,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-09-02 09:00:00",
+      "entry_price": 56430283.8,
+      "exit_time": "2021-09-05 09:00:00",
+      "exit_price": 57921000.0,
+      "pnl": 0.025016953798839538,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-09-06 00:00:00",
+      "entry_price": 57636525.0,
+      "exit_time": "2021-09-07 07:00:00",
+      "exit_price": 60831000.0,
+      "pnl": 0.05402448993932233,
+      "reason": "take_profit",
+      "hold_hours": 31.0
+    },
+    {
+      "entry_time": "2021-09-14 21:00:00",
+      "entry_price": 56011200.0,
+      "exit_time": "2021-09-17 21:00:00",
+      "exit_price": 57379000.0,
+      "pnl": 0.02302011597680464,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-09-14 22:00:00",
+      "entry_price": 55891176.0,
+      "exit_time": "2021-09-17 22:00:00",
+      "exit_price": 57271000.0,
+      "pnl": 0.023287689520077374,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-09-15 00:00:00",
+      "entry_price": 56206239.0,
+      "exit_time": "2021-09-18 00:00:00",
+      "exit_price": 57578000.0,
+      "pnl": 0.023005849322172225,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-09-17 13:00:00",
+      "entry_price": 57665530.8,
+      "exit_time": "2021-09-20 12:00:00",
+      "exit_price": 56460000.0,
+      "pnl": -0.022305570160814282,
+      "reason": "stop_loss",
+      "hold_hours": 71.0
+    },
+    {
+      "entry_time": "2021-09-17 19:00:00",
+      "entry_price": 57591516.0,
+      "exit_time": "2021-09-20 13:00:00",
+      "exit_price": 56432000.0,
+      "pnl": -0.021533451600753137,
+      "reason": "stop_loss",
+      "hold_hours": 66.0
+    },
+    {
+      "entry_time": "2021-09-29 09:00:00",
+      "entry_price": 50848167.6,
+      "exit_time": "2021-10-01 03:00:00",
+      "exit_price": 53551000.0,
+      "pnl": 0.051754961674567765,
+      "reason": "take_profit",
+      "hold_hours": 42.0
+    },
+    {
+      "entry_time": "2021-10-01 16:00:00",
+      "entry_price": 54833964.6,
+      "exit_time": "2021-10-01 20:00:00",
+      "exit_price": 57609000.0,
+      "pnl": 0.049207965705985054,
+      "reason": "take_profit",
+      "hold_hours": 4.0
+    },
+    {
+      "entry_time": "2021-10-01 19:00:00",
+      "entry_price": 57161430.0,
+      "exit_time": "2021-10-04 19:00:00",
+      "exit_price": 57960000.0,
+      "pnl": 0.012570434259604772,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-10-01 20:00:00",
+      "entry_price": 57620521.8,
+      "exit_time": "2021-10-04 20:00:00",
+      "exit_price": 57928000.0,
+      "pnl": 0.003936261984354383,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-10-01 21:00:00",
+      "entry_price": 57207439.199999996,
+      "exit_time": "2021-10-04 21:00:00",
+      "exit_price": 58005000.0,
+      "pnl": 0.012541557446955334,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-10-05 22:00:00",
+      "entry_price": 60871171.8,
+      "exit_time": "2021-10-06 21:00:00",
+      "exit_price": 64470000.0,
+      "pnl": 0.057722045684029416,
+      "reason": "take_profit",
+      "hold_hours": 23.0
+    },
+    {
+      "entry_time": "2021-10-05 23:00:00",
+      "entry_price": 60488095.199999996,
+      "exit_time": "2021-10-06 21:00:00",
+      "exit_price": 64470000.0,
+      "pnl": 0.06442956178127436,
+      "reason": "take_profit",
+      "hold_hours": 22.0
+    },
+    {
+      "entry_time": "2021-10-06 21:00:00",
+      "entry_price": 64482894.0,
+      "exit_time": "2021-10-08 17:00:00",
+      "exit_price": 67934000.0,
+      "pnl": 0.052119713305671424,
+      "reason": "take_profit",
+      "hold_hours": 44.0
+    },
+    {
+      "entry_time": "2021-10-08 16:00:00",
+      "entry_price": 66785354.4,
+      "exit_time": "2021-10-11 16:00:00",
+      "exit_price": 69670000.0,
+      "pnl": 0.04179278718988128,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-10-09 20:00:00",
+      "entry_price": 66945386.4,
+      "exit_time": "2021-10-11 22:00:00",
+      "exit_price": 70312000.0,
+      "pnl": 0.04888895613335353,
+      "reason": "take_profit",
+      "hold_hours": 50.0
+    },
+    {
+      "entry_time": "2021-10-11 09:00:00",
+      "entry_price": 68378673.0,
+      "exit_time": "2021-10-14 09:00:00",
+      "exit_price": 70345000.0,
+      "pnl": 0.027356436966830287,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-10-15 12:00:00",
+      "entry_price": 72294456.0,
+      "exit_time": "2021-10-16 05:00:00",
+      "exit_price": 76589000.0,
+      "pnl": 0.0580035039146017,
+      "reason": "take_profit",
+      "hold_hours": 17.0
+    },
+    {
+      "entry_time": "2021-10-15 13:00:00",
+      "entry_price": 72714540.0,
+      "exit_time": "2021-10-16 05:00:00",
+      "exit_price": 76589000.0,
+      "pnl": 0.051883153548107436,
+      "reason": "take_profit",
+      "hold_hours": 16.0
+    },
+    {
+      "entry_time": "2021-10-15 15:00:00",
+      "entry_price": 72634524.0,
+      "exit_time": "2021-10-16 05:00:00",
+      "exit_price": 76589000.0,
+      "pnl": 0.05304347649335459,
+      "reason": "take_profit",
+      "hold_hours": 14.0
+    },
+    {
+      "entry_time": "2021-11-01 16:00:00",
+      "entry_price": 73623721.8,
+      "exit_time": "2021-11-02 03:00:00",
+      "exit_price": 72146000.0,
+      "pnl": -0.021471272734815708,
+      "reason": "stop_loss",
+      "hold_hours": 11.0
+    },
+    {
+      "entry_time": "2021-11-07 10:00:00",
+      "entry_price": 75193035.6,
+      "exit_time": "2021-11-08 10:00:00",
+      "exit_price": 78978000.0,
+      "pnl": 0.04893663516571748,
+      "reason": "take_profit",
+      "hold_hours": 24.0
+    },
+    {
+      "entry_time": "2021-11-08 09:00:00",
+      "entry_price": 78750747.0,
+      "exit_time": "2021-11-09 12:00:00",
+      "exit_price": 82699000.0,
+      "pnl": 0.048736070455306285,
+      "reason": "take_profit",
+      "hold_hours": 27.0
+    },
+    {
+      "entry_time": "2021-11-08 10:00:00",
+      "entry_price": 78993795.6,
+      "exit_time": "2021-11-11 10:00:00",
+      "exit_price": 79313000.0,
+      "pnl": 0.0026408793826841505,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-11-08 15:00:00",
+      "entry_price": 79979992.8,
+      "exit_time": "2021-11-11 15:00:00",
+      "exit_price": 78810000.0,
+      "pnl": -0.016028568458685794,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2021-12-15 13:00:00",
+      "entry_price": 59791956.0,
+      "exit_time": "2021-12-31 23:00:00",
+      "exit_price": 58412000.0,
+      "pnl": -0.02447929180306461,
+      "reason": "forced_close",
+      "hold_hours": 394.0
+    }
+  ]
+}

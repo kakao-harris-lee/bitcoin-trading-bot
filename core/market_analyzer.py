@@ -66,8 +66,16 @@ class MarketAnalyzer:
         if 'adx' in indicators:
             df['adx'] = talib.ADX(df['high'], df['low'], df['close'], timeperiod=14)
 
+        if 'mfi' in indicators:
+            df['mfi'] = talib.MFI(df['high'], df['low'], df['close'], df['volume'], timeperiod=14)
+
         if 'roc' in indicators:
             df['roc'] = talib.ROC(df['close'], timeperiod=10)
+
+        if 'stoch' in indicators:
+            slowk, slowd = talib.STOCH(df['high'], df['low'], df['close'])
+            df['stoch_k'] = slowk
+            df['stoch_d'] = slowd
 
         return df
 

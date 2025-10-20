@@ -1,0 +1,97 @@
+{
+  "strategy_name": "v32_ensemble_aggressive",
+  "version": "v32_aggressive",
+  "description": "Aggressive ensemble - 2022 validation",
+
+  "primary_timeframe": "day",
+  "scalping_timeframe": "minute60",
+
+  "market_classification": {
+    "method": "day_mfi_macd",
+    "bull_mfi_min": 45,
+    "bull_macd_positive": true,
+    "bear_mfi_max": 35,
+    "bear_macd_negative": true
+  },
+
+  "strategy_selection": {
+    "bull_market": "v30_longterm",
+    "bear_market": "hold_cash",
+    "sideways_market": "v31_scalping"
+  },
+
+  "v30_longterm_settings": {
+    "entry": {
+      "mfi_min": 35,
+      "macd_golden_cross": true,
+      "adx_min": 12,
+      "volume_ratio_min": 0.6
+    },
+    "exit": {
+      "macd_dead_cross": true,
+      "trailing_stop_pct": 0.25,
+      "max_hold_days": 120,
+      "take_profit_pct": 0.80
+    },
+    "position_sizing": {
+      "method": "kelly_criterion",
+      "initial_fraction": 0.95,
+      "kelly_multiplier": 0.5,
+      "max_position": 0.95
+    }
+  },
+
+  "v31_scalping_settings": {
+    "timeframe": "minute60",
+    "entry": {
+      "momentum_5h_min": 0.6,
+      "consecutive_up_min": 2,
+      "volume_ratio_min": 1.2,
+      "rsi_max": 75
+    },
+    "exit": {
+      "take_profit_pct": 0.018,
+      "stop_loss_pct": 0.008,
+      "trailing_stop_trigger": 0.015,
+      "trailing_stop_distance": 0.006,
+      "momentum_reverse_threshold": -0.012,
+      "max_hold_hours": 60
+    },
+    "position_sizing": {
+      "fixed_fraction": 0.6
+    }
+  },
+
+  "risk_management": {
+    "max_total_position": 0.95,
+    "max_drawdown_pct": 0.25,
+    "force_exit_on_drawdown": true,
+    "max_consecutive_losses": 4,
+    "reduce_position_after_loss": 0.6
+  },
+
+  "backtest_settings": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "start_date": "2022-01-01",
+    "end_date": "2022-12-31"
+  },
+
+  "target_metrics": {
+    "total_return_target": 100,
+    "sharpe_ratio_target": 3.0,
+    "max_drawdown_target": 20,
+    "min_win_rate": 45
+  },
+
+  "indicators": {
+    "rsi_period": 14,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+    "adx_period": 14,
+    "volume_sma_period": 20,
+    "mfi_period": 14
+  }
+}

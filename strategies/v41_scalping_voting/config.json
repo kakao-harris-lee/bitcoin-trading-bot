@@ -1,0 +1,384 @@
+{
+  "strategy_name": "scalping_voting_ensemble",
+  "version": "v41",
+  "description": "Multi-Timeframe Scalping with 3-Layer Voting System + Turn-of-Candle Effect",
+
+  "timeframes": {
+    "minute1": {
+      "enabled": true,
+      "target_return": 0.50,
+      "capital_allocation": 0.15,
+      "description": "극단타 (일 20-50회)"
+    },
+    "minute5": {
+      "enabled": true,
+      "target_return": 0.40,
+      "capital_allocation": 0.20,
+      "description": "단타 (일 10-20회)"
+    },
+    "minute15": {
+      "enabled": true,
+      "target_return": 0.30,
+      "capital_allocation": 0.25,
+      "description": "스캘핑 + Turn-of-Candle (핵심)"
+    },
+    "minute60": {
+      "enabled": true,
+      "target_return": 0.20,
+      "capital_allocation": 0.25,
+      "description": "v31 검증 (일 0.3-1회)"
+    },
+    "minute240": {
+      "enabled": true,
+      "target_return": 0.15,
+      "capital_allocation": 0.15,
+      "description": "보수적 단타 (일 0.1-0.3회)"
+    }
+  },
+
+  "voting_system": {
+    "layer1_momentum": {
+      "strategies": ["rsi_extreme", "volume_spike", "macd_cross"],
+      "weight": 0.4,
+      "description": "단기 모멘텀 포착"
+    },
+    "layer2_trend": {
+      "strategies": ["ema_crossover", "bb_reversion", "adx_strength"],
+      "weight": 0.4,
+      "description": "중기 트렌드 확인"
+    },
+    "layer3_classifier": {
+      "strategy": "day_market_state",
+      "weight": 0.2,
+      "description": "Day 캔들 BULL/BEAR 필터"
+    },
+    "voting_rules": {
+      "minute1": {"min_votes": 4, "total_votes": 7},
+      "minute5": {"min_votes": 4, "total_votes": 7},
+      "minute15": {"min_votes": 4, "total_votes": 7},
+      "minute60": {"min_votes": 4, "total_votes": 7},
+      "minute240": {"min_votes": 5, "total_votes": 7},
+      "day": {"min_votes": 5, "total_votes": 7}
+    }
+  },
+
+  "turn_of_candle": {
+    "enabled": true,
+    "timeframe": "minute15",
+    "target_minutes": [0, 15, 30, 45],
+    "vote_boost": 1,
+    "position_boost": 1.2,
+    "description": "15분 캔들 전환 시점 효과 (Shanaev et al. 2023)"
+  },
+
+  "indicators": {
+    "minute1": {
+      "rsi_period": 2,
+      "ema_fast": 5,
+      "ema_slow": 12,
+      "bb_period": 10,
+      "bb_std": 1.5,
+      "volume_sma": 5,
+      "macd_fast": 6,
+      "macd_slow": 13,
+      "macd_signal": 4
+    },
+    "minute5": {
+      "rsi_period": 7,
+      "ema_fast": 9,
+      "ema_slow": 21,
+      "bb_period": 20,
+      "bb_std": 2.0,
+      "volume_sma": 20,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9
+    },
+    "minute15": {
+      "rsi_period": 14,
+      "ema_fast": 9,
+      "ema_mid": 21,
+      "ema_slow": 50,
+      "bb_period": 20,
+      "bb_std": 2.0,
+      "volume_sma": 20,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9,
+      "adx_period": 14,
+      "atr_period": 14
+    },
+    "minute60": {
+      "rsi_period": 14,
+      "ema_fast": 9,
+      "ema_slow": 21,
+      "bb_period": 20,
+      "bb_std": 2.0,
+      "volume_sma": 20,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9,
+      "mfi_period": 14,
+      "atr_period": 14,
+      "adx_period": 14
+    },
+    "minute240": {
+      "rsi_period": 14,
+      "ema_fast": 9,
+      "ema_slow": 21,
+      "bb_period": 20,
+      "bb_std": 2.0,
+      "volume_sma": 20,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9,
+      "adx_period": 14,
+      "mfi_period": 14
+    },
+    "day": {
+      "rsi_period": 14,
+      "ema_fast": 9,
+      "ema_slow": 21,
+      "bb_period": 20,
+      "bb_std": 2.0,
+      "volume_sma": 20,
+      "mfi_period": 14,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9,
+      "ma20_period": 20,
+      "adx_period": 14
+    }
+  },
+
+  "entry_conditions": {
+    "minute1": {
+      "rsi_oversold": 15,
+      "volume_mult": 3.0,
+      "bb_position_max": 0.2,
+      "time_window_seconds": 30
+    },
+    "minute5": {
+      "rsi_oversold": 30,
+      "volume_mult": 2.0,
+      "bb_position_max": 0.3
+    },
+    "minute15": {
+      "rsi_oversold": 50,
+      "volume_mult": 1.2,
+      "bb_position_min": 0.2,
+      "ema_alignment": true
+    },
+    "minute60": {
+      "rsi_oversold": 45,
+      "volume_mult": 1.3,
+      "bb_position_max": 0.4,
+      "adx_min": 15,
+      "mfi_min": 40
+    },
+    "minute240": {
+      "rsi_oversold": 40,
+      "volume_mult": 1.5,
+      "adx_min": 20,
+      "mfi_min": 50,
+      "macd_histogram_positive": true
+    },
+    "day": {
+      "rsi_oversold": 35,
+      "volume_mult": 1.8,
+      "adx_min": 25,
+      "mfi_min": 55,
+      "macd_histogram_positive": true,
+      "bb_position_max": 0.3
+    }
+  },
+
+  "exit_conditions": {
+    "minute1": {
+      "take_profit": 0.010,
+      "stop_loss": 0.005,
+      "time_stop_candles": 5,
+      "trailing_stop": null
+    },
+    "minute5": {
+      "take_profit": 0.015,
+      "stop_loss": 0.008,
+      "time_stop_candles": 6,
+      "trailing_trigger": 0.010,
+      "trailing_stop": 0.003
+    },
+    "minute15": {
+      "take_profit": 0.010,
+      "stop_loss": 0.005,
+      "time_stop_candles": 8,
+      "trailing_trigger": 0.008,
+      "trailing_stop": 0.003
+    },
+    "minute60": {
+      "take_profit": 0.025,
+      "stop_loss": 0.012,
+      "time_stop_candles": 4,
+      "trailing_trigger": 0.020,
+      "trailing_stop": 0.006,
+      "max_hold_candles": 30
+    },
+    "minute240": {
+      "take_profit": 0.035,
+      "stop_loss": 0.015,
+      "time_stop_candles": 3,
+      "trailing_trigger": 0.030,
+      "trailing_stop": 0.008,
+      "max_hold_candles": 20
+    },
+    "day": {
+      "take_profit": 0.050,
+      "stop_loss": 0.020,
+      "time_stop_candles": 2,
+      "trailing_trigger": 0.040,
+      "trailing_stop": 0.010,
+      "max_hold_candles": 10
+    }
+  },
+
+  "position_sizing": {
+    "method": "kelly_half",
+    "minute1": {
+      "base_size": 0.30,
+      "vote_mapping": {
+        "4": 0.30,
+        "5": 0.35,
+        "6": 0.40,
+        "7": 0.50
+      }
+    },
+    "minute5": {
+      "base_size": 0.40,
+      "vote_mapping": {
+        "4": 0.35,
+        "5": 0.40,
+        "6": 0.50,
+        "7": 0.60
+      }
+    },
+    "minute15": {
+      "base_size": 0.50,
+      "vote_mapping": {
+        "5": 0.50,
+        "6": 0.60,
+        "7": 0.80
+      },
+      "turn_of_candle_boost": 1.2
+    },
+    "minute60": {
+      "base_size": 0.60,
+      "vote_mapping": {
+        "5": 0.60,
+        "6": 0.70,
+        "7": 0.90
+      }
+    },
+    "minute240": {
+      "base_size": 0.70,
+      "vote_mapping": {
+        "6": 0.70,
+        "7": 1.00
+      }
+    },
+    "day": {
+      "base_size": 0.80,
+      "vote_mapping": {
+        "6": 0.80,
+        "7": 1.00
+      }
+    }
+  },
+
+  "risk_management": {
+    "global": {
+      "max_daily_loss": 0.05,
+      "max_weekly_loss": 0.10,
+      "consecutive_loss_limit": 3,
+      "cooldown_days": 1
+    },
+    "per_timeframe": {
+      "minute1": {"max_daily_loss": 0.02},
+      "minute5": {"max_daily_loss": 0.02},
+      "minute15": {"max_daily_loss": 0.03},
+      "minute60": {"max_daily_loss": 0.03},
+      "minute240": {"max_daily_loss": 0.04}
+    },
+    "stop_loss_rules": {
+      "voting_stop": {"enabled": true, "min_votes": 6},
+      "fixed_stop": {"enabled": true, "use_exit_conditions": true},
+      "time_stop": {"enabled": true, "use_exit_conditions": true}
+    }
+  },
+
+  "backtesting": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "periods": {
+      "train": {"start": "2024-01-01", "end": "2024-06-30"},
+      "validation": {"start": "2024-07-01", "end": "2024-09-30"},
+      "test": {"start": "2024-10-01", "end": "2025-10-17"}
+    }
+  },
+
+  "optimization": {
+    "method": "optuna",
+    "n_trials": 200,
+    "objectives": {
+      "return": 0.3,
+      "sharpe": 0.3,
+      "mdd": 0.2,
+      "win_rate": 0.2
+    },
+    "parameters": {
+      "rsi_oversold": {"min": 10, "max": 50},
+      "take_profit": {"min": 0.005, "max": 0.050},
+      "stop_loss": {"min": 0.003, "max": 0.025},
+      "volume_mult": {"min": 1.2, "max": 4.0},
+      "position_size": {"min": 0.20, "max": 0.90}
+    }
+  },
+
+  "target_performance": {
+    "global": {
+      "annual_return": 0.40,
+      "sharpe_ratio": 1.8,
+      "max_drawdown": 0.12,
+      "win_rate": 0.50
+    },
+    "minute1": {
+      "annual_return": 0.50,
+      "sharpe_ratio": 1.5,
+      "max_drawdown": 0.15,
+      "win_rate": 0.45
+    },
+    "minute5": {
+      "annual_return": 0.40,
+      "sharpe_ratio": 1.8,
+      "max_drawdown": 0.12,
+      "win_rate": 0.48
+    },
+    "minute15": {
+      "annual_return": 0.30,
+      "sharpe_ratio": 2.0,
+      "max_drawdown": 0.10,
+      "win_rate": 0.50
+    },
+    "minute60": {
+      "annual_return": 0.20,
+      "sharpe_ratio": 1.8,
+      "max_drawdown": 0.10,
+      "win_rate": 0.50
+    },
+    "minute240": {
+      "annual_return": 0.15,
+      "sharpe_ratio": 1.5,
+      "max_drawdown": 0.08,
+      "win_rate": 0.55
+    }
+  }
+}

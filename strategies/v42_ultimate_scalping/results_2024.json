@@ -1,0 +1,24 @@
+{
+  "version": "v42_ultimate_scalping",
+  "timeframe": "multi_tf",
+  "period": "2024-01-01 ~ 2024-12-31",
+  "timeframes": [
+    "minute15",
+    "minute60",
+    "minute240"
+  ],
+  "initial_capital": 10000000,
+  "current_capital": 21920251.768180244,
+  "total_return": 1.1920251768180243,
+  "total_trades": 116,
+  "wins": 65,
+  "losses": 51,
+  "win_rate": 0.5603448275862069,
+  "avg_win": 0.04657861110391933,
+  "avg_loss": -0.027814291117533366,
+  "profit_factor": 1.9379592003305803,
+  "avg_hold_hours": 59.58620689655172,
+  "buy_hold_return": 1.3667,
+  "outperformance": -0.1746748231819757,
+  "backtest_timestamp": "2025-10-20T14:42:47.460872"
+}

@@ -27,8 +27,8 @@ def run_backtest():
     # 데이터 로드
     with DataLoader('../../upbit_bitcoin.db') as loader:
         df = loader.load_timeframe(config['timeframe'],
-                                     start_date='2024-01-01',
-                                     end_date='2024-12-31')
+                                     start_date='2025-01-01',
+                                     end_date='2025-10-16')
 
     print(f"\n데이터 로드 완료: {len(df)}개 캔들")
     print(f"기간: {df.iloc[0]['timestamp']} ~ {df.iloc[-1]['timestamp']}")

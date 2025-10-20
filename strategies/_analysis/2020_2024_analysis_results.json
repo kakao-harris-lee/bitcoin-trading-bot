@@ -1,0 +1,271 @@
+{
+  "yearly_results": [
+    {
+      "year": 2020,
+      "start_price": 8300000.0,
+      "end_price": 32042000.0,
+      "year_return": 286.04819277108436,
+      "volatility": 3.392442602512185,
+      "market_states": {
+        "SIDEWAYS_FLAT": 100,
+        "BULL_STRONG": 100,
+        "SIDEWAYS_UP": 43,
+        "BEAR_MODERATE": 35,
+        "BEAR_STRONG": 33,
+        "BULL_MODERATE": 28,
+        "UNKNOWN": 27
+      },
+      "scalping_strategies": {
+        "rsi_bollinger": {
+          "trades": 1,
+          "avg_return": 42.338519566242326
+        },
+        "breakout": {
+          "trades": 7,
+          "avg_return": 4.234220195405896
+        },
+        "mean_reversion": {
+          "trades": 4,
+          "avg_return": -2.84671625810698
+        },
+        "momentum": {
+          "trades": 8,
+          "avg_return": 10.210653212890328
+        }
+      }
+    },
+    {
+      "year": 2021,
+      "start_price": 32296000.0,
+      "end_price": 56784000.0,
+      "year_return": 75.82363140946246,
+      "volatility": 3.713113990152321,
+      "market_states": {
+        "SIDEWAYS_FLAT": 111,
+        "BULL_STRONG": 83,
+        "BEAR_STRONG": 62,
+        "BULL_MODERATE": 41,
+        "UNKNOWN": 27,
+        "BEAR_MODERATE": 23,
+        "SIDEWAYS_UP": 18
+      },
+      "scalping_strategies": {
+        "rsi_bollinger": {
+          "trades": 1,
+          "avg_return": -28.286247957039457
+        },
+        "breakout": {
+          "trades": 2,
+          "avg_return": 5.719825142336088
+        },
+        "mean_reversion": {
+          "trades": 6,
+          "avg_return": 0.7301933455446905
+        },
+        "momentum": {
+          "trades": 9,
+          "avg_return": 9.743076568089585
+        }
+      }
+    },
+    {
+      "year": 2022,
+      "start_price": 57915000.0,
+      "end_price": 21079000.0,
+      "year_return": -63.60355693689027,
+      "volatility": 2.801523084542432,
+      "market_states": {
+        "SIDEWAYS_FLAT": 113,
+        "BEAR_STRONG": 60,
+        "BULL_MODERATE": 51,
+        "BEAR_MODERATE": 39,
+        "BULL_STRONG": 38,
+        "SIDEWAYS_UP": 37,
+        "UNKNOWN": 27
+      },
+      "scalping_strategies": {
+        "rsi_bollinger": {
+          "trades": 1,
+          "avg_return": -28.486415296814794
+        },
+        "breakout": {
+          "trades": 0,
+          "avg_return": 0
+        },
+        "mean_reversion": {
+          "trades": 5,
+          "avg_return": -9.771649002577302
+        },
+        "momentum": {
+          "trades": 11,
+          "avg_return": -2.59056575318581
+        }
+      }
+    },
+    {
+      "year": 2023,
+      "start_price": 21123000.0,
+      "end_price": 57047000.0,
+      "year_return": 170.0705392226483,
+      "volatility": 1.9975677044731484,
+      "market_states": {
+        "SIDEWAYS_FLAT": 146,
+        "BULL_STRONG": 73,
+        "BEAR_MODERATE": 40,
+        "BEAR_STRONG": 38,
+        "UNKNOWN": 27,
+        "SIDEWAYS_UP": 23,
+        "BULL_MODERATE": 18
+      },
+      "scalping_strategies": {
+        "rsi_bollinger": {
+          "trades": 2,
+          "avg_return": 16.08864372178594
+        },
+        "breakout": {
+          "trades": 6,
+          "avg_return": 2.4430310516995757
+        },
+        "mean_reversion": {
+          "trades": 4,
+          "avg_return": 3.161799307039651
+        },
+        "momentum": {
+          "trades": 12,
+          "avg_return": 2.758238231353451
+        }
+      }
+    },
+    {
+      "year": 2024,
+      "start_price": 58839000.0,
+      "end_price": 139257000.0,
+      "year_return": 136.67465456584918,
+      "volatility": 2.4363225835439746,
+      "market_states": {
+        "SIDEWAYS_FLAT": 102,
+        "BULL_STRONG": 80,
+        "BEAR_STRONG": 64,
+        "BULL_MODERATE": 48,
+        "BEAR_MODERATE": 28,
+        "UNKNOWN": 27,
+        "SIDEWAYS_UP": 17
+      },
+      "scalping_strategies": {
+        "rsi_bollinger": {
+          "trades": 3,
+          "avg_return": 12.33083451970806
+        },
+        "breakout": {
+          "trades": 6,
+          "avg_return": 5.096055486582694
+        },
+        "mean_reversion": {
+          "trades": 4,
+          "avg_return": 0.07709883753854996
+        },
+        "momentum": {
+          "trades": 10,
+          "avg_return": 7.835457064227337
+        }
+      }
+    }
+  ],
+  "summary": {
+    "total_return": 1479.0892461913509,
+    "cagr": 73.65261801451322,
+    "avg_volatility": 2.868193993044812
+  },
+  "strategy_averages": {
+    "rsi_bollinger": {
+      "avg_trades": 1.6,
+      "avg_return": 2.797066910776415
+    },
+    "breakout": {
+      "avg_trades": 4.2,
+      "avg_return": 3.498626375204851
+    },
+    "mean_reversion": {
+      "avg_trades": 4.6,
+      "avg_return": -1.729854754112278
+    },
+    "momentum": {
+      "avg_trades": 10.0,
+      "avg_return": 5.591371864674978
+    }
+  },
+  "scalping_strategies_info": {
+    "rsi_bollinger": {
+      "name": "RSI + Bollinger Bands (인기 #1)",
+      "indicators": [
+        "rsi",
+        "bb_upper",
+        "bb_lower",
+        "bb_middle"
+      ],
+      "entry": "RSI < 30 AND price < BB_lower",
+      "exit": "RSI > 70 OR price > BB_upper"
+    },
+    "breakout": {
+      "name": "Breakout Trading (인기 #2)",
+      "indicators": [
+        "atr",
+        "volume",
+        "resistance",
+        "support"
+      ],
+      "entry": "가격이 저항선 돌파 + 강한 거래량",
+      "exit": "모멘텀 약화 OR 손절"
+    },
+    "momentum": {
+      "name": "Momentum Trading (인기 #3)",
+      "indicators": [
+        "macd",
+        "rsi",
+        "ema"
+      ],
+      "entry": "MACD > Signal AND RSI > 50",
+      "exit": "MACD < Signal OR RSI < 45"
+    },
+    "range_trading": {
+      "name": "Range Trading (박스권, 인기 #4)",
+      "indicators": [
+        "bb",
+        "rsi",
+        "support",
+        "resistance"
+      ],
+      "entry": "지지선 근처 매수, 저항선 근처 매도",
+      "exit": "목표가 도달 OR 박스권 이탈"
+    },
+    "mean_reversion": {
+      "name": "Mean Reversion (평균회귀, 인기 #5)",
+      "indicators": [
+        "sma_20",
+        "z_score",
+        "stddev"
+      ],
+      "entry": "가격이 평균에서 2 표준편차 이상 벗어남",
+      "exit": "평균 회귀 시"
+    },
+    "grid_trading": {
+      "name": "Grid Trading (그리드, 인기 #6)",
+      "indicators": [
+        "price_range",
+        "volatility"
+      ],
+      "entry": "일정 간격으로 매수/매도 주문 배치",
+      "exit": "가격 격자 이동 시 자동 청산"
+    },
+    "stochastic_scalping": {
+      "name": "Stochastic Oscillator Scalping",
+      "indicators": [
+        "stoch_k",
+        "stoch_d",
+        "rsi"
+      ],
+      "entry": "Stoch K > D (골든크로스) AND K < 20",
+      "exit": "Stoch K < D (데드크로스) OR K > 80"
+    }
+  }
+}

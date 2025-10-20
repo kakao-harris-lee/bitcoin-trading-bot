@@ -1,0 +1,48 @@
+{
+  "timeframe": "day",
+  "year": 2022,
+  "tier": "A",
+  "total_trades": 3,
+  "total_return": -0.17173259853365105,
+  "final_capital": 8282674.01466349,
+  "win_rate": 0.3333333333333333,
+  "avg_profit": -0.05739929675592432,
+  "avg_win": 0.033758962443822475,
+  "avg_loss": -0.10297842635579772,
+  "avg_hold_hours": 1600.0,
+  "sharpe_ratio": -0.7152225601786195,
+  "max_drawdown": -0.16153290387791808,
+  "buy_hold_return": -0.6360355693689027,
+  "outperformance": 0.4643029708352516,
+  "profit_factor": 0.1639127904673105,
+  "overflow_warning": false,
+  "trades": [
+    {
+      "entry_time": "2022-01-21 09:00:00",
+      "entry_price": 45325063.199999996,
+      "exit_time": "2022-01-22 09:00:00",
+      "exit_price": 43375000.0,
+      "pnl": -0.044423948833677424,
+      "reason": "stop_loss",
+      "hold_hours": 24.0
+    },
+    {
+      "entry_time": "2022-01-22 09:00:00",
+      "entry_price": 43383675.0,
+      "exit_time": "2022-01-25 09:00:00",
+      "exit_price": 44909000.0,
+      "pnl": 0.033758962443822475,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2022-06-18 09:00:00",
+      "entry_price": 25098018.599999998,
+      "exit_time": "2022-12-31 09:00:00",
+      "exit_price": 21079000.0,
+      "pnl": -0.16153290387791802,
+      "reason": "forced_close",
+      "hold_hours": 4704.0
+    }
+  ]
+}

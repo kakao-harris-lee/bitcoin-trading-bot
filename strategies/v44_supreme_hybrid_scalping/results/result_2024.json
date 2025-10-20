@@ -1,0 +1,45 @@
+{
+  "initial_capital": 10000000,
+  "final_capital": 13659838.300213236,
+  "total_return": 0.3659838300213236,
+  "total_return_pct": 36.598383002132366,
+  "total_trades": 112,
+  "wins": 83,
+  "losses": 29,
+  "win_rate": 0.7410714285714286,
+  "avg_return": 0.01188958447893317,
+  "avg_win": 0.026891222098691724,
+  "avg_loss": -0.031046136984513723,
+  "sharpe_ratio": 3.356257344837751,
+  "layer1_trades": 87,
+  "layer2_trades": 25,
+  "layer1_stats": {
+    "total_trades": 87,
+    "wins": 65,
+    "losses": 22,
+    "win_rate": 0.7471264367816092,
+    "avg_return": 0.01043597552737741,
+    "avg_win": 0.02396431303086998,
+    "avg_loss": -0.029534112551123374
+  },
+  "layer2_m60_stats": {
+    "total_trades": 4,
+    "wins": 3,
+    "losses": 1,
+    "win_rate": 0.75,
+    "avg_return": 0.009008827753568212,
+    "avg_win": 0.024389368990359983,
+    "avg_loss": -0.037132795956807095,
+    "avg_peak_profit": 0.0
+  },
+  "layer2_m240_stats": {
+    "total_trades": 21,
+    "wins": 15,
+    "losses": 6,
+    "win_rate": 0.7142857142857143,
+    "avg_return": 0.01846039427354323,
+    "avg_win": 0.04007486534758564,
+    "avg_loss": -0.03557578341156278,
+    "avg_peak_profit": 0.0
+  }
+}

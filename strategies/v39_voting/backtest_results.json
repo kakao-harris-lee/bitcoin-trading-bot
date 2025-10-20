@@ -1,0 +1,203 @@
+{
+  "version": "v39",
+  "strategy_name": "voting_ensemble",
+  "backtest_date": "2025-10-19T21:09:17.026477",
+  "config": {
+    "strategy_name": "voting_ensemble",
+    "version": "v39",
+    "timeframe": "day",
+    "description": "\uc21c\uc218 \ud22c\ud45c \ubc29\uc2dd \uc559\uc0c1\ube14 - v35 + v37 \ub3c5\ub9bd \uc2e0\ud638 \u2192 \ub2e4\uc218\uacb0",
+    "v37_strategies": {
+      "trend_following": {
+        "trend_adx_threshold": 16,
+        "trend_position_size": 0.8,
+        "stop_loss": -0.08,
+        "trailing_stop": -0.07,
+        "trailing_trigger": 0.24,
+        "max_hold_days": 61
+      },
+      "swing_trading": {
+        "rsi_oversold": 33,
+        "swing_position_size": 0.6,
+        "take_profit_1": 0.085,
+        "take_profit_2": 0.148,
+        "stop_loss": -0.034,
+        "max_hold_days": 26
+      }
+    },
+    "v35_strategies": {
+      "sideways_strategies": {
+        "use_rsi_bb": true,
+        "use_stoch": true,
+        "use_volume_breakout": true,
+        "rsi_bb_oversold": 30,
+        "rsi_bb_overbought": 70,
+        "stoch_oversold": 20,
+        "stoch_overbought": 80,
+        "volume_breakout_mult": 2.0
+      },
+      "position_size": 0.5
+    },
+    "voting_rules": {
+      "entry_min_votes": 2,
+      "exit_min_votes": 2,
+      "position_sizing_method": "proportional",
+      "note": "2/3 votes = 66% position, 3/3 votes = 100% position"
+    },
+    "backtesting": {
+      "initial_capital": 10000000,
+      "fee_rate": 0.0005,
+      "slippage": 0.0002,
+      "train_period": "2020-01-01 to 2024-12-31",
+      "test_period": "2025-01-01 to 2025-10-17"
+    },
+    "target_performance": {
+      "2024_bull": 0.8,
+      "2025_sideways": 0.12,
+      "annual_avg": 0.45,
+      "sharpe_ratio": 1.5,
+      "max_drawdown": 0.15,
+      "win_rate": 0.55
+    }
+  },
+  "results": {
+    "2020": {
+      "initial_capital": 10000000,
+      "final_capital": 60999251.12389898,
+      "total_return": 509.99251123898983,
+      "sharpe_ratio": 2.867080781339384,
+      "max_drawdown": 12.638643241407,
+      "total_trades": 1,
+      "winning_trades": 1,
+      "losing_trades": 0,
+      "win_rate": 1.0,
+      "avg_profit": 22173948.911841344,
+      "avg_loss": 0,
+      "profit_factor": 0,
+      "kelly_criterion": 0.0,
+      "kelly_quarter": 0.0,
+      "kelly_half": 0.0,
+      "equity_curve": "              timestamp          cash  position_value  total_equity\n0   2020-01-01 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n1   2020-01-02 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n2   2020-01-03 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n3   2020-01-04 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n4   2020-01-05 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n..                  ...           ...             ...           ...\n360 2020-12-26 09:00:00  3.333333e+06    2.657023e+07  2.990356e+07\n361 2020-12-27 09:00:00  3.333333e+06    2.651687e+07  2.985020e+07\n362 2020-12-28 09:00:00  3.333333e+06    2.735798e+07  3.069132e+07\n363 2020-12-29 09:00:00  3.333333e+06    2.758319e+07  3.091652e+07\n364 2020-12-30 09:00:00  3.333333e+06    2.884305e+07  3.217639e+07\n\n[365 rows x 4 columns]",
+      "trades": [
+        "Trade(entry_time=Timestamp('2020-03-22 09:00:00'), entry_price=np.float64(7367473.2), quantity=np.float64(0.9044260926754485), side='buy', exit_time=Timestamp('2020-12-30 09:00:00'), exit_price=np.float64(31884621.8), profit_loss=np.float64(22173948.911841344), profit_loss_pct=np.float64(332.77553829445895), reason='Buy 66.7% of cash -> Sell 100.0%')"
+      ],
+      "buy_hold_return": 284.2289156626506,
+      "excess_return": 225.76359557633924
+    },
+    "2021": {
+      "initial_capital": 10000000,
+      "final_capital": 20754589.82304024,
+      "total_return": 107.54589823040239,
+      "sharpe_ratio": 0.6096088973363138,
+      "max_drawdown": 23.540846019892093,
+      "total_trades": 1,
+      "winning_trades": 1,
+      "losing_trades": 0,
+      "win_rate": 1.0,
+      "avg_profit": 2048599.8616419379,
+      "avg_loss": 0,
+      "profit_factor": 0,
+      "kelly_criterion": 0.0,
+      "kelly_quarter": 0.0,
+      "kelly_half": 0.0,
+      "equity_curve": "              timestamp          cash  position_value  total_equity\n0   2021-01-01 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n1   2021-01-02 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n2   2021-01-03 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n3   2021-01-04 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n4   2021-01-05 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n..                  ...           ...             ...           ...\n359 2021-12-26 09:00:00  3.333333e+06    9.363700e+06  1.269703e+07\n360 2021-12-27 09:00:00  3.333333e+06    9.369945e+06  1.270328e+07\n361 2021-12-28 09:00:00  3.333333e+06    8.877288e+06  1.221062e+07\n362 2021-12-29 09:00:00  3.333333e+06    8.696768e+06  1.203010e+07\n363 2021-12-30 09:00:00  3.333333e+06    8.713678e+06  1.204701e+07\n\n[364 rows x 4 columns]",
+      "trades": [
+        "Trade(entry_time=Timestamp('2021-06-02 09:00:00'), entry_price=np.float64(43740746.4), quantity=np.float64(0.15233702091483017), side='buy', exit_time=Timestamp('2021-12-30 09:00:00'), exit_price=np.float64(57188560.0), profit_loss=np.float64(2048599.8616419379), profit_loss_pct=np.float64(30.744362423591387), reason='Buy 66.7% of cash -> Sell 100.0%')"
+      ],
+      "buy_hold_return": 77.11171662125341,
+      "excess_return": 30.43418160914898
+    },
+    "2022": {
+      "initial_capital": 10000000,
+      "final_capital": 7184119.6725261025,
+      "total_return": -28.158803274738975,
+      "sharpe_ratio": -1.0109567784946216,
+      "max_drawdown": 31.17284936707326,
+      "total_trades": 1,
+      "winning_trades": 0,
+      "losing_trades": 1,
+      "win_rate": 0.0,
+      "avg_profit": 0,
+      "avg_loss": 2810622.303626545,
+      "profit_factor": 0.0,
+      "kelly_criterion": 0.0,
+      "kelly_quarter": 0.0,
+      "kelly_half": 0.0,
+      "equity_curve": "              timestamp          cash  position_value  total_equity\n0   2022-01-01 09:00:00  1.000000e+07             0.0  1.000000e+07\n1   2022-01-02 09:00:00  1.000000e+07             0.0  1.000000e+07\n2   2022-01-03 09:00:00  1.000000e+07             0.0  1.000000e+07\n3   2022-01-04 09:00:00  1.000000e+07             0.0  1.000000e+07\n4   2022-01-05 09:00:00  1.000000e+07             0.0  1.000000e+07\n..                  ...           ...             ...           ...\n359 2022-12-26 09:00:00  7.184120e+06             0.0  7.184120e+06\n360 2022-12-27 09:00:00  7.184120e+06             0.0  7.184120e+06\n361 2022-12-28 09:00:00  7.184120e+06             0.0  7.184120e+06\n362 2022-12-29 09:00:00  7.184120e+06             0.0  7.184120e+06\n363 2022-12-30 09:00:00  7.184120e+06             0.0  7.184120e+06\n\n[364 rows x 4 columns]",
+      "trades": [
+        "Trade(entry_time=Timestamp('2022-05-23 09:00:00'), entry_price=np.float64(37443487.199999996), quantity=np.float64(0.17795711610875506), side='buy', exit_time=Timestamp('2022-12-19 09:00:00'), exit_price=np.float64(21649669.2), profit_loss=np.float64(-2810622.303626545), profit_loss_pct=np.float64(-42.18041422167537), reason='Buy 66.7% of cash -> Sell 100.0%')"
+      ],
+      "buy_hold_return": -63.61909695243029,
+      "excess_return": 35.46029367769131
+    },
+    "2023": {
+      "initial_capital": 10000000,
+      "final_capital": 26552608.115939125,
+      "total_return": 165.52608115939125,
+      "sharpe_ratio": 1.560545515103861,
+      "max_drawdown": 12.436817623864954,
+      "total_trades": 1,
+      "winning_trades": 1,
+      "losing_trades": 0,
+      "win_rate": 1.0,
+      "avg_profit": 4948043.866691659,
+      "avg_loss": 0,
+      "profit_factor": 0,
+      "kelly_criterion": 0.0,
+      "kelly_quarter": 0.0,
+      "kelly_half": 0.0,
+      "equity_curve": "              timestamp          cash  position_value  total_equity\n0   2023-01-01 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n1   2023-01-02 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n2   2023-01-03 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n3   2023-01-04 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n4   2023-01-05 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n..                  ...           ...             ...           ...\n359 2023-12-26 09:00:00  3.333333e+06    1.169429e+07  1.502762e+07\n360 2023-12-27 09:00:00  3.333333e+06    1.187637e+07  1.520970e+07\n361 2023-12-28 09:00:00  3.333333e+06    1.166865e+07  1.500199e+07\n362 2023-12-29 09:00:00  3.333333e+06    1.157495e+07  1.490828e+07\n363 2023-12-30 09:00:00  3.333333e+06    1.161370e+07  1.494703e+07\n\n[364 rows x 4 columns]",
+      "trades": [
+        "Trade(entry_time=Timestamp('2023-03-14 09:00:00'), entry_price=np.float64(32496498.0), quantity=np.float64(0.20504778696975542), side='buy', exit_time=Timestamp('2023-12-30 09:00:00'), exit_price=np.float64(56627672.2), profit_loss=np.float64(4948043.866691659), profit_loss_pct=np.float64(74.25776832937507), reason='Buy 66.7% of cash -> Sell 100.0%')"
+      ],
+      "buy_hold_return": 168.13899540784928,
+      "excess_return": -2.6129142484580257
+    },
+    "2024": {
+      "initial_capital": 10000000,
+      "final_capital": 20978822.796036072,
+      "total_return": 109.78822796036071,
+      "sharpe_ratio": 1.2740802210310394,
+      "max_drawdown": 8.360269287319886,
+      "total_trades": 1,
+      "winning_trades": 1,
+      "losing_trades": 0,
+      "win_rate": 1.0,
+      "avg_profit": 2160733.1658923803,
+      "avg_loss": 0,
+      "profit_factor": 0,
+      "kelly_criterion": 0.0,
+      "kelly_quarter": 0.0,
+      "kelly_half": 0.0,
+      "equity_curve": "              timestamp          cash  position_value  total_equity\n0   2024-01-01 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n1   2024-01-02 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n2   2024-01-03 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n3   2024-01-04 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n4   2024-01-05 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n..                  ...           ...             ...           ...\n360 2024-12-26 09:00:00  3.333333e+06    9.221643e+06  1.255498e+07\n361 2024-12-27 09:00:00  3.333333e+06    9.095872e+06  1.242921e+07\n362 2024-12-28 09:00:00  3.333333e+06    9.108097e+06  1.244143e+07\n363 2024-12-29 09:00:00  3.333333e+06    8.943795e+06  1.227713e+07\n364 2024-12-30 09:00:00  3.333333e+06    8.825833e+06  1.215917e+07\n\n[365 rows x 4 columns]",
+      "trades": [
+        "Trade(entry_time=Timestamp('2024-11-06 09:00:00'), entry_price=np.float64(104105817.0), quantity=np.float64(0.06400540518467937), side='buy', exit_time=Timestamp('2024-12-30 09:00:00'), exit_price=np.float64(137864421.6), profit_loss=np.float64(2160733.1658923803), profit_loss_pct=np.float64(32.4272029871299), reason='Buy 66.7% of cash -> Sell 100.0%')"
+      ],
+      "buy_hold_return": 134.35476469688473,
+      "excess_return": -24.566536736524014
+    },
+    "2025": {
+      "initial_capital": 10000000,
+      "final_capital": 18954443.638572805,
+      "total_return": 89.54443638572805,
+      "sharpe_ratio": 1.0024306087648924,
+      "max_drawdown": 7.214802600554263,
+      "total_trades": 1,
+      "winning_trades": 1,
+      "losing_trades": 0,
+      "win_rate": 1.0,
+      "avg_profit": 1148391.7562001678,
+      "avg_loss": 0,
+      "profit_factor": 0,
+      "kelly_criterion": 0.0,
+      "kelly_quarter": 0.0,
+      "kelly_half": 0.0,
+      "equity_curve": "              timestamp          cash  position_value  total_equity\n0   2025-01-01 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n1   2025-01-02 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n2   2025-01-03 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n3   2025-01-04 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n4   2025-01-05 09:00:00  1.000000e+07    0.000000e+00  1.000000e+07\n..                  ...           ...             ...           ...\n284 2025-10-12 09:00:00  3.333333e+06    7.998867e+06  1.133220e+07\n285 2025-10-13 09:00:00  3.333333e+06    7.899797e+06  1.123313e+07\n286 2025-10-14 09:00:00  3.333333e+06    7.825713e+06  1.115905e+07\n287 2025-10-15 09:00:00  3.333333e+06    7.755265e+06  1.108860e+07\n288 2025-10-16 09:00:00  3.333333e+06    7.813289e+06  1.114662e+07\n\n[289 rows x 4 columns]",
+      "trades": [
+        "Trade(entry_time=Timestamp('2025-05-08 09:00:00'), entry_price=np.float64(144808956.0), quantity=np.float64(0.046014660855417555), side='buy', exit_time=Timestamp('2025-10-16 09:00:00'), exit_price=np.float64(169766040.0), profit_loss=np.float64(1148391.7562001678), profit_loss_pct=np.float64(17.234489281174017), reason='Buy 66.7% of cash -> Sell 100.0%')"
+      ],
+      "buy_hold_return": 20.152844607981883,
+      "excess_return": 69.39159177774616
+    }
+  }
+}

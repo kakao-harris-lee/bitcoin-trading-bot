@@ -1,0 +1,197 @@
+{
+  "strategy_name": "v42_ultimate_scalping",
+  "version": "1.0.0",
+  "description": "Multi-Timeframe Scalping with Voting Ensemble + Auto Fine-Tuning",
+
+  "trading": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "max_positions": 3,
+    "max_daily_loss": 0.05
+  },
+
+  "timeframes": {
+    "minute5": {
+      "enabled": true,
+      "weight": 0.20,
+      "take_profit": 0.015,
+      "stop_loss": -0.008,
+      "max_hold_hours": 2,
+      "max_trades_per_day": 10
+    },
+    "minute15": {
+      "enabled": true,
+      "weight": 0.30,
+      "take_profit": 0.03,
+      "stop_loss": -0.015,
+      "max_hold_hours": 6,
+      "max_trades_per_day": 5
+    },
+    "minute60": {
+      "enabled": true,
+      "weight": 0.25,
+      "take_profit": 0.04,
+      "stop_loss": -0.02,
+      "max_hold_hours": 24,
+      "max_trades_per_day": 3
+    },
+    "minute240": {
+      "enabled": true,
+      "weight": 0.15,
+      "take_profit": 0.06,
+      "stop_loss": -0.03,
+      "max_hold_hours": 72,
+      "max_trades_per_day": 2
+    },
+    "day": {
+      "enabled": true,
+      "weight": 0.10,
+      "filter_only": true,
+      "comment": "day는 필터 역할만 수행"
+    }
+  },
+
+  "strategies": {
+    "rsi_oversold": {
+      "weight": 0.15,
+      "params": {
+        "minute5": {"threshold": 25},
+        "minute15": {"threshold": 30},
+        "minute60": {"threshold": 35},
+        "minute240": {"threshold": 40},
+        "day": {"threshold": 45}
+      }
+    },
+    "mfi_bullish": {
+      "weight": 0.25,
+      "params": {
+        "threshold": 50,
+        "bonus_threshold": 60
+      }
+    },
+    "volume_spike": {
+      "weight": 0.10,
+      "params": {
+        "minute5": {"ratio": 3.0},
+        "minute15": {"ratio": 2.5},
+        "minute60": {"ratio": 2.0},
+        "minute240": {"ratio": 2.0},
+        "day": {"ratio": 1.5}
+      }
+    },
+    "low_volatility": {
+      "weight": 0.15,
+      "params": {
+        "atr_threshold": 0.8
+      }
+    },
+    "local_extrema": {
+      "weight": 0.20,
+      "params": {
+        "order": 5
+      }
+    },
+    "trend_following": {
+      "weight": 0.10,
+      "params": {
+        "adx_threshold": 25
+      }
+    },
+    "mean_reversion": {
+      "weight": 0.05,
+      "params": {
+        "bb_std": 2.0
+      }
+    }
+  },
+
+  "tiers": {
+    "S": {
+      "threshold": 70,
+      "position_size": 1.0,
+      "description": "최고 품질 신호"
+    },
+    "A": {
+      "threshold": 50,
+      "position_size": 0.5,
+      "description": "고품질 신호"
+    },
+    "B": {
+      "threshold": 30,
+      "position_size": 0.25,
+      "description": "보통 품질 신호"
+    },
+    "C": {
+      "threshold": 0,
+      "position_size": 0,
+      "description": "거래 대기"
+    }
+  },
+
+  "confluence": {
+    "enabled": true,
+    "bonus": {
+      "2_timeframes": 10,
+      "3_timeframes": 20,
+      "4_timeframes": 30,
+      "5_timeframes": 40
+    }
+  },
+
+  "exit_strategy": {
+    "multi_stage_profit": {
+      "minute5": [
+        {"level": 0.01, "close_ratio": 0.3},
+        {"level": 0.015, "close_ratio": 1.0}
+      ],
+      "minute15": [
+        {"level": 0.02, "close_ratio": 0.5},
+        {"level": 0.03, "close_ratio": 1.0}
+      ],
+      "minute60": [
+        {"level": 0.025, "close_ratio": 0.4},
+        {"level": 0.04, "close_ratio": 1.0}
+      ],
+      "minute240": [
+        {"level": 0.04, "close_ratio": 0.3},
+        {"level": 0.06, "close_ratio": 1.0}
+      ]
+    },
+    "trailing_stop": {
+      "enabled": true,
+      "activation_profit": 0.03,
+      "trail_percentage": 0.97
+    }
+  },
+
+  "kelly_criterion": {
+    "enabled": true,
+    "max_fraction": 0.5,
+    "min_fraction": 0.1,
+    "lookback_trades": 50
+  },
+
+  "optimization": {
+    "enabled": true,
+    "method": "optuna",
+    "n_trials": 200,
+    "reoptimize_every_months": 1,
+    "walk_forward": {
+      "enabled": true,
+      "train_months": 3,
+      "test_months": 1
+    }
+  },
+
+  "backtest": {
+    "train_period": {
+      "start": "2020-01-01",
+      "end": "2024-12-31"
+    },
+    "test_period": {
+      "start": "2025-01-01",
+      "end": "2025-12-31"
+    }
+  }
+}

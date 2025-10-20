@@ -1,0 +1,98 @@
+{
+  "strategy_name": "market_adaptive",
+  "version": "v27",
+  "description": "시장 상황 적응형 전략 - 상승/하락/횡보 자동 분류 및 전략 전환",
+  "timeframe": "day",
+
+  "market_classification": {
+    "window": 60,
+    "bull_threshold": 0.50,
+    "bear_threshold": -0.20,
+    "method": "60d_return"
+  },
+
+  "bull_market_strategy": {
+    "name": "v23_aggressive",
+    "entry": {
+      "rsi_threshold": 40,
+      "bb_threshold": 0.3,
+      "volume_threshold": 1.2
+    },
+    "exit": {
+      "rsi_threshold": 60,
+      "bb_threshold": 0.75
+    },
+    "risk": {
+      "stop_loss": -0.10,
+      "take_profit": 0.30
+    }
+  },
+
+  "bear_market_strategy": {
+    "name": "v21_extreme_bottom",
+    "entry": {
+      "rsi_threshold": 30,
+      "bb_threshold": 0.15,
+      "volume_threshold": 1.8
+    },
+    "exit": {
+      "rsi_threshold": 50,
+      "bb_threshold": 0.6
+    },
+    "risk": {
+      "stop_loss": -0.15,
+      "take_profit": 0.20
+    }
+  },
+
+  "sideways_market_strategy": {
+    "name": "range_trading",
+    "entry": {
+      "rsi_threshold": 45,
+      "bb_threshold": 0.35,
+      "volume_threshold": 1.0
+    },
+    "exit": {
+      "rsi_threshold": 55,
+      "bb_threshold": 0.65
+    },
+    "risk": {
+      "stop_loss": -0.05,
+      "take_profit": 0.10
+    }
+  },
+
+  "indicator_params": {
+    "rsi_period": 14,
+    "bb_period": 20,
+    "bb_std": 2,
+    "volume_sma": 20,
+    "ma_period": 60
+  },
+
+  "risk_management": {
+    "initial_capital": 10000000,
+    "position_size": 1.0,
+    "max_positions": 1
+  },
+
+  "trading_settings": {
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  },
+
+  "backtest_period": {
+    "train_start": "2022-01-01",
+    "train_end": "2024-12-31",
+    "test_start": "2025-01-01",
+    "test_end": "2025-12-31"
+  },
+
+  "notes": [
+    "시장 분류: 60일 수익률 기준",
+    "  상승장: +50% 이상 → v23 공격적 전략",
+    "  하락장: -20% 이하 → v21 극단적 저점",
+    "  횡보장: -20% ~ +50% → 빈번한 단타",
+    "목표: 2025 횡보장에서도 수익, 90-110% 달성"
+  ]
+}

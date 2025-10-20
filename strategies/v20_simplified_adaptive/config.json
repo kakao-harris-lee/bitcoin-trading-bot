@@ -1,0 +1,43 @@
+{
+  "strategy_name": "simplified_adaptive",
+  "version": "v20",
+  "description": "Simplified adaptive strategy using VWAP Breakout with dynamic position sizing based on 20-day trend",
+  "timeframe": "day",
+
+  "position_sizing": {
+    "defensive_threshold": -0.05,
+    "aggressive_threshold": 0.15,
+    "defensive_fraction": 0.30,
+    "neutral_fraction": 0.60,
+    "aggressive_fraction": 0.90
+  },
+
+  "defensive_mode": {
+    "take_profit_pct": 0.10,
+    "stop_loss_pct": -0.05,
+    "trailing_stop_pct": 0.15
+  },
+
+  "neutral_mode": {
+    "take_profit_pct": 0.20,
+    "stop_loss_pct": -0.07,
+    "trailing_stop_pct": 0.18
+  },
+
+  "aggressive_mode": {
+    "take_profit_pct": 0.35,
+    "stop_loss_pct": -0.10,
+    "trailing_stop_pct": 0.20
+  },
+
+  "indicators": {
+    "vwap_enabled": true,
+    "return_lookback_days": 20
+  },
+
+  "backtest_settings": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  }
+}

@@ -1,0 +1,1218 @@
+{
+  "cross_indicator": [
+    {
+      "timeframe": "minute5",
+      "n_indicators": 20,
+      "strong_correlations": [
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "stoch_d",
+          "correlation": 0.9551052259378796
+        },
+        {
+          "indicator_1": "macd",
+          "indicator_2": "macd_signal",
+          "correlation": 0.9492282499602652
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "cci",
+          "correlation": 0.9349407268620022
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "willr",
+          "correlation": 0.9165759364729231
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "willr",
+          "correlation": 0.9074249898964015
+        },
+        {
+          "indicator_1": "cci",
+          "indicator_2": "willr",
+          "correlation": 0.9008522058407069
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "bb_position",
+          "correlation": 0.8948468661712163
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "bb_position",
+          "correlation": 0.8677001545289219
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "cci",
+          "correlation": 0.85938615275762
+        },
+        {
+          "indicator_1": "atr",
+          "indicator_2": "volatility_30",
+          "correlation": 0.845179219622442
+        },
+        {
+          "indicator_1": "volatility_10",
+          "indicator_2": "volatility_30",
+          "correlation": 0.8332072853541376
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "willr",
+          "correlation": 0.8245645568204663
+        },
+        {
+          "indicator_1": "bb_width",
+          "indicator_2": "volatility_10",
+          "correlation": 0.8168211762508937
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_k",
+          "correlation": 0.8149655279865008
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "cci",
+          "correlation": 0.8129167349642231
+        },
+        {
+          "indicator_1": "atr",
+          "indicator_2": "volatility_10",
+          "correlation": 0.7970066467447761
+        },
+        {
+          "indicator_1": "bb_width",
+          "indicator_2": "volatility_30",
+          "correlation": 0.7921390848488289
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "willr",
+          "correlation": 0.7909252098654977
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "bb_position",
+          "correlation": 0.7851833487352844
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_d",
+          "correlation": 0.7705373449963445
+        }
+      ]
+    },
+    {
+      "timeframe": "minute15",
+      "n_indicators": 20,
+      "strong_correlations": [
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "stoch_d",
+          "correlation": 0.952355207551676
+        },
+        {
+          "indicator_1": "macd",
+          "indicator_2": "macd_signal",
+          "correlation": 0.951832741167581
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "cci",
+          "correlation": 0.9317050563035228
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "willr",
+          "correlation": 0.8999178832093784
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "willr",
+          "correlation": 0.8966384368154754
+        },
+        {
+          "indicator_1": "cci",
+          "indicator_2": "willr",
+          "correlation": 0.8849686508326621
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "bb_position",
+          "correlation": 0.8828536170583196
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "bb_position",
+          "correlation": 0.8464288984141972
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "cci",
+          "correlation": 0.8448008090295551
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "cci",
+          "correlation": 0.7960018962510433
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "willr",
+          "correlation": 0.7902655266213124
+        },
+        {
+          "indicator_1": "volatility_10",
+          "indicator_2": "volatility_30",
+          "correlation": 0.7850907126548737
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_k",
+          "correlation": 0.7811043830770543
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "willr",
+          "correlation": 0.7772521164102631
+        },
+        {
+          "indicator_1": "bb_width",
+          "indicator_2": "volatility_10",
+          "correlation": 0.7677730966697173
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "mfi",
+          "correlation": 0.7663602490761104
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "bb_position",
+          "correlation": 0.7635674197462982
+        },
+        {
+          "indicator_1": "bb_width",
+          "indicator_2": "volatility_30",
+          "correlation": 0.7494497300211617
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_d",
+          "correlation": 0.7378025859740928
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "roc",
+          "correlation": 0.73381951132042
+        }
+      ]
+    },
+    {
+      "timeframe": "minute30",
+      "n_indicators": 20,
+      "strong_correlations": [
+        {
+          "indicator_1": "macd",
+          "indicator_2": "macd_signal",
+          "correlation": 0.9540048199529836
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "stoch_d",
+          "correlation": 0.9518426300186245
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "cci",
+          "correlation": 0.9279176587861302
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "willr",
+          "correlation": 0.898360989975487
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "willr",
+          "correlation": 0.8878489471354573
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "bb_position",
+          "correlation": 0.8747558146878932
+        },
+        {
+          "indicator_1": "cci",
+          "indicator_2": "willr",
+          "correlation": 0.873854393649606
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "bb_position",
+          "correlation": 0.8346959465747086
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "cci",
+          "correlation": 0.8285028102164365
+        },
+        {
+          "indicator_1": "price_change_10d",
+          "indicator_2": "roc",
+          "correlation": 0.8087268754182497
+        },
+        {
+          "indicator_1": "volatility_10",
+          "indicator_2": "volatility_30",
+          "correlation": 0.7943679163523629
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "willr",
+          "correlation": 0.785776198922675
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "cci",
+          "correlation": 0.7814441608395295
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_k",
+          "correlation": 0.7791363235546235
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "willr",
+          "correlation": 0.7744980020683272
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "mfi",
+          "correlation": 0.7671966987091254
+        },
+        {
+          "indicator_1": "bb_width",
+          "indicator_2": "volatility_10",
+          "correlation": 0.7557637804044118
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "bb_position",
+          "correlation": 0.7495701832944438
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "roc",
+          "correlation": 0.7480492942578862
+        },
+        {
+          "indicator_1": "bb_width",
+          "indicator_2": "volatility_30",
+          "correlation": 0.7393462936986903
+        }
+      ]
+    },
+    {
+      "timeframe": "minute60",
+      "n_indicators": 20,
+      "strong_correlations": [
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "stoch_d",
+          "correlation": 0.9548128278464931
+        },
+        {
+          "indicator_1": "macd",
+          "indicator_2": "macd_signal",
+          "correlation": 0.9547410457828243
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "cci",
+          "correlation": 0.9300521620880925
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "willr",
+          "correlation": 0.9020591800318869
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "willr",
+          "correlation": 0.8892952861282623
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "bb_position",
+          "correlation": 0.8691448234826822
+        },
+        {
+          "indicator_1": "cci",
+          "indicator_2": "willr",
+          "correlation": 0.8675450433101751
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "bb_position",
+          "correlation": 0.8371627703043393
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "cci",
+          "correlation": 0.8214342316838522
+        },
+        {
+          "indicator_1": "price_change_10d",
+          "indicator_2": "roc",
+          "correlation": 0.8026277939297811
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "willr",
+          "correlation": 0.7946981213480565
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_k",
+          "correlation": 0.792353160896341
+        },
+        {
+          "indicator_1": "volatility_10",
+          "indicator_2": "volatility_30",
+          "correlation": 0.7919095567747793
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "willr",
+          "correlation": 0.7858690790206277
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "cci",
+          "correlation": 0.7771456369373487
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "mfi",
+          "correlation": 0.7711625414422985
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "roc",
+          "correlation": 0.7635954697739545
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_d",
+          "correlation": 0.7565612244849904
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "bb_position",
+          "correlation": 0.7556117816380107
+        },
+        {
+          "indicator_1": "bb_width",
+          "indicator_2": "volatility_10",
+          "correlation": 0.7354804175456302
+        }
+      ]
+    },
+    {
+      "timeframe": "minute240",
+      "n_indicators": 20,
+      "strong_correlations": [
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "stoch_d",
+          "correlation": 0.963072703036217
+        },
+        {
+          "indicator_1": "macd",
+          "indicator_2": "macd_signal",
+          "correlation": 0.9592118055565562
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "cci",
+          "correlation": 0.9251057614819557
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "willr",
+          "correlation": 0.9191387352673662
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "willr",
+          "correlation": 0.8932093221203883
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "bb_position",
+          "correlation": 0.8720442810560688
+        },
+        {
+          "indicator_1": "cci",
+          "indicator_2": "willr",
+          "correlation": 0.8716508002885626
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "bb_position",
+          "correlation": 0.8535326538506911
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "cci",
+          "correlation": 0.8243083931975346
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "willr",
+          "correlation": 0.8229537936952314
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_k",
+          "correlation": 0.8176099417490637
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "willr",
+          "correlation": 0.811031762499391
+        },
+        {
+          "indicator_1": "price_change_10d",
+          "indicator_2": "roc",
+          "correlation": 0.8031992492386161
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "mfi",
+          "correlation": 0.8005092537619519
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_d",
+          "correlation": 0.7931884501861712
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "roc",
+          "correlation": 0.7907650914174115
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "bb_position",
+          "correlation": 0.7843030714942076
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "mfi",
+          "correlation": 0.7785766338179124
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "cci",
+          "correlation": 0.7742643493717409
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "mfi",
+          "correlation": 0.7633926260994546
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "n_indicators": 20,
+      "strong_correlations": [
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "stoch_d",
+          "correlation": 0.9655815576475268
+        },
+        {
+          "indicator_1": "macd",
+          "indicator_2": "macd_signal",
+          "correlation": 0.9651619164190496
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "willr",
+          "correlation": 0.9323260128702672
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "cci",
+          "correlation": 0.9310812913881156
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "willr",
+          "correlation": 0.9086626914727903
+        },
+        {
+          "indicator_1": "cci",
+          "indicator_2": "willr",
+          "correlation": 0.8857649777728089
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "bb_position",
+          "correlation": 0.877044629339749
+        },
+        {
+          "indicator_1": "price_change_10d",
+          "indicator_2": "roc",
+          "correlation": 0.8709281623367507
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "bb_position",
+          "correlation": 0.8631693416505501
+        },
+        {
+          "indicator_1": "stoch_k",
+          "indicator_2": "cci",
+          "correlation": 0.8464787935995338
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "willr",
+          "correlation": 0.8402039828571106
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_k",
+          "correlation": 0.8286482053888808
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "willr",
+          "correlation": 0.8147838965148451
+        },
+        {
+          "indicator_1": "atr",
+          "indicator_2": "obv",
+          "correlation": 0.8129776789499615
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "bb_position",
+          "correlation": 0.8125209000240163
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "mfi",
+          "correlation": 0.81184282034025
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "roc",
+          "correlation": 0.8097280044123821
+        },
+        {
+          "indicator_1": "rsi_14",
+          "indicator_2": "stoch_d",
+          "correlation": 0.8097223455429358
+        },
+        {
+          "indicator_1": "stoch_d",
+          "indicator_2": "mfi",
+          "correlation": 0.8018123876422746
+        },
+        {
+          "indicator_1": "bb_position",
+          "indicator_2": "roc",
+          "correlation": 0.7879457967154524
+        }
+      ]
+    }
+  ],
+  "predictive_power": [
+    {
+      "timeframe": "minute5",
+      "horizon_days": 5,
+      "predictive_indicators": [
+        {
+          "indicator": "bb_position",
+          "correlation_with_future_return": -0.025417567573446497,
+          "q1_avg_return": 0.017192447823893557,
+          "q2_avg_return": 0.0005024123672770951,
+          "q3_avg_return": -0.000535313586814301,
+          "q4_avg_return": -0.003858999735825846,
+          "q4_minus_q1": -0.021051447559719404
+        },
+        {
+          "indicator": "rsi_14",
+          "correlation_with_future_return": -0.02967698463292111,
+          "q1_avg_return": 0.017524634096137866,
+          "q2_avg_return": 0.0018123130341732043,
+          "q3_avg_return": -0.0027622672202378927,
+          "q4_avg_return": -0.0032724336666414746,
+          "q4_minus_q1": -0.020797067762779342
+        },
+        {
+          "indicator": "price_change_5d",
+          "correlation_with_future_return": -0.04428017238799144,
+          "q1_avg_return": 0.017508552411457542,
+          "q2_avg_return": -0.0008839669957955645,
+          "q3_avg_return": -0.00034089514079156755,
+          "q4_avg_return": -0.002983341537921508,
+          "q4_minus_q1": -0.020491893949379048
+        },
+        {
+          "indicator": "stoch_k",
+          "correlation_with_future_return": -0.021084914382698963,
+          "q1_avg_return": 0.015994752277043348,
+          "q2_avg_return": -0.0015550824593291179,
+          "q3_avg_return": 0.002492514686601041,
+          "q4_avg_return": -0.003626280657557156,
+          "q4_minus_q1": -0.019621032934600505
+        },
+        {
+          "indicator": "mfi",
+          "correlation_with_future_return": -0.017663255373459263,
+          "q1_avg_return": 0.01441591320521694,
+          "q2_avg_return": 0.0002747249215237364,
+          "q3_avg_return": 8.683528000336425e-05,
+          "q4_avg_return": -0.0014751613089529125,
+          "q4_minus_q1": -0.01589107451416985
+        },
+        {
+          "indicator": "macd",
+          "correlation_with_future_return": -0.04513869518209314,
+          "q1_avg_return": 0.012402231726748597,
+          "q2_avg_return": 0.0024695471650182698,
+          "q3_avg_return": 0.0011830303058570613,
+          "q4_avg_return": -0.00274881582386951,
+          "q4_minus_q1": -0.015151047550618106
+        },
+        {
+          "indicator": "volume_ratio",
+          "correlation_with_future_return": 0.021431775654096756,
+          "q1_avg_return": -0.0018325491785400176,
+          "q2_avg_return": -0.0003690619086790294,
+          "q3_avg_return": 0.0023176108435317253,
+          "q4_avg_return": 0.013184547112217825,
+          "q4_minus_q1": 0.015017096290757842
+        },
+        {
+          "indicator": "volatility_10",
+          "correlation_with_future_return": 0.04520348977363282,
+          "q1_avg_return": 0.001534394218796827,
+          "q2_avg_return": 0.0022716123006272684,
+          "q3_avg_return": 0.0023598635474128605,
+          "q4_avg_return": 0.007136142639654417,
+          "q4_minus_q1": 0.00560174842085759
+        },
+        {
+          "indicator": "atr",
+          "correlation_with_future_return": 0.02706652367757906,
+          "q1_avg_return": 0.0035715932239028104,
+          "q2_avg_return": 0.0026557129689741966,
+          "q3_avg_return": 0.0005001124546524349,
+          "q4_avg_return": 0.006575123173601543,
+          "q4_minus_q1": 0.0030035299496987324
+        },
+        {
+          "indicator": "adx",
+          "correlation_with_future_return": 0.007727986414824381,
+          "q1_avg_return": 0.005340773782934761,
+          "q2_avg_return": -0.002837691350611679,
+          "q3_avg_return": 0.003935355635351542,
+          "q4_avg_return": 0.0068702877007077185,
+          "q4_minus_q1": 0.0015295139177729572
+        }
+      ]
+    },
+    {
+      "timeframe": "minute15",
+      "horizon_days": 5,
+      "predictive_indicators": [
+        {
+          "indicator": "price_change_5d",
+          "correlation_with_future_return": -0.026070098742162505,
+          "q1_avg_return": 0.03375565972480192,
+          "q2_avg_return": 0.0028684167969251855,
+          "q3_avg_return": 0.01015246310048941,
+          "q4_avg_return": -0.005192410871703744,
+          "q4_minus_q1": -0.038948070596505666
+        },
+        {
+          "indicator": "bb_position",
+          "correlation_with_future_return": -0.02086599052523464,
+          "q1_avg_return": 0.028002628882400953,
+          "q2_avg_return": 0.0067078688757055294,
+          "q3_avg_return": 0.00837554903017108,
+          "q4_avg_return": -0.0011316500264085165,
+          "q4_minus_q1": -0.02913427890880947
+        },
+        {
+          "indicator": "stoch_k",
+          "correlation_with_future_return": -0.015615167732111438,
+          "q1_avg_return": 0.02157426850502943,
+          "q2_avg_return": 0.005896862419454678,
+          "q3_avg_return": 0.01543367623617799,
+          "q4_avg_return": -0.000922699991725888,
+          "q4_minus_q1": -0.022496968496755317
+        },
+        {
+          "indicator": "rsi_14",
+          "correlation_with_future_return": -0.01877099728299929,
+          "q1_avg_return": 0.027715919635932743,
+          "q2_avg_return": 0.008188860600312391,
+          "q3_avg_return": -0.00035379065336642963,
+          "q4_avg_return": 0.006484784908470796,
+          "q4_minus_q1": -0.021231134727461947
+        },
+        {
+          "indicator": "volatility_10",
+          "correlation_with_future_return": 0.04171220072573827,
+          "q1_avg_return": 0.005784720090121863,
+          "q2_avg_return": 0.00034262054599786424,
+          "q3_avg_return": 0.011063724821353444,
+          "q4_avg_return": 0.024603329063065744,
+          "q4_minus_q1": 0.018818608972943882
+        },
+        {
+          "indicator": "mfi",
+          "correlation_with_future_return": -0.012363853533224556,
+          "q1_avg_return": 0.01877064326432551,
+          "q2_avg_return": 0.008607071955412486,
+          "q3_avg_return": 0.013142560724094969,
+          "q4_avg_return": 0.0015154985475165368,
+          "q4_minus_q1": -0.017255144716808973
+        },
+        {
+          "indicator": "adx",
+          "correlation_with_future_return": 0.015509838094818406,
+          "q1_avg_return": 0.0018425786638454455,
+          "q2_avg_return": 0.017391948375962113,
+          "q3_avg_return": 0.007909478766033496,
+          "q4_avg_return": 0.014983878582866778,
+          "q4_minus_q1": 0.013141299919021332
+        },
+        {
+          "indicator": "atr",
+          "correlation_with_future_return": 0.02203808898103003,
+          "q1_avg_return": 0.004522313393961998,
+          "q2_avg_return": 0.01633670444707091,
+          "q3_avg_return": 0.00421702494046626,
+          "q4_avg_return": 0.016959731709850333,
+          "q4_minus_q1": 0.012437418315888337
+        },
+        {
+          "indicator": "volume_ratio",
+          "correlation_with_future_return": 0.003818441718004179,
+          "q1_avg_return": 0.016449785392372206,
+          "q2_avg_return": 0.008010584267171904,
+          "q3_avg_return": 0.005435391070137808,
+          "q4_avg_return": 0.012058512246486554,
+          "q4_minus_q1": -0.004391273145885654
+        },
+        {
+          "indicator": "macd",
+          "correlation_with_future_return": -0.022624617250322315,
+          "q1_avg_return": 0.01575486806020739,
+          "q2_avg_return": 0.003697444859190319,
+          "q3_avg_return": 0.004694367718274399,
+          "q4_avg_return": 0.017911716544709827,
+          "q4_minus_q1": 0.0021568484845024367
+        }
+      ]
+    },
+    {
+      "timeframe": "minute30",
+      "horizon_days": 5,
+      "predictive_indicators": [
+        {
+          "indicator": "volume_ratio",
+          "correlation_with_future_return": -0.008285353160942853,
+          "q1_avg_return": 0.031008867512183964,
+          "q2_avg_return": 0.012751618390121984,
+          "q3_avg_return": 0.008505723319012348,
+          "q4_avg_return": -0.008199884174545705,
+          "q4_minus_q1": -0.039208751686729666
+        },
+        {
+          "indicator": "price_change_5d",
+          "correlation_with_future_return": -0.01821350250712742,
+          "q1_avg_return": 0.03054469425218155,
+          "q2_avg_return": 0.012152357286359357,
+          "q3_avg_return": 0.00559754294970398,
+          "q4_avg_return": -0.0047817906711053485,
+          "q4_minus_q1": -0.0353264849232869
+        },
+        {
+          "indicator": "macd",
+          "correlation_with_future_return": 0.0006018830146907268,
+          "q1_avg_return": -0.004753147887285818,
+          "q2_avg_return": -0.0004401102874912668,
+          "q3_avg_return": 0.020262516172452213,
+          "q4_avg_return": 0.02875857150241492,
+          "q4_minus_q1": 0.03351171938970073
+        },
+        {
+          "indicator": "bb_position",
+          "correlation_with_future_return": -0.014168867150710047,
+          "q1_avg_return": 0.026048022957977954,
+          "q2_avg_return": 0.01590824027437641,
+          "q3_avg_return": 0.0035758997409533234,
+          "q4_avg_return": -0.001465539224430436,
+          "q4_minus_q1": -0.02751356218240839
+        },
+        {
+          "indicator": "stoch_k",
+          "correlation_with_future_return": -0.014118265323723145,
+          "q1_avg_return": 0.022588005168557964,
+          "q2_avg_return": 0.01862600323407332,
+          "q3_avg_return": 0.0053933279425073585,
+          "q4_avg_return": -0.0024459546446626767,
+          "q4_minus_q1": -0.025033959813220638
+        },
+        {
+          "indicator": "volatility_10",
+          "correlation_with_future_return": 0.014664261173018733,
+          "q1_avg_return": 0.008815410543929484,
+          "q2_avg_return": 0.0006926778662012821,
+          "q3_avg_return": 0.0016229018396025354,
+          "q4_avg_return": 0.0330620420750101,
+          "q4_minus_q1": 0.024246631531080615
+        },
+        {
+          "indicator": "atr",
+          "correlation_with_future_return": 0.018948404446009617,
+          "q1_avg_return": 0.010303690603602944,
+          "q2_avg_return": 0.0069061891858209065,
+          "q3_avg_return": 0.0012169769758031397,
+          "q4_avg_return": 0.02578628296328168,
+          "q4_minus_q1": 0.015482592359678736
+        },
+        {
+          "indicator": "rsi_14",
+          "correlation_with_future_return": 0.000588992385061327,
+          "q1_avg_return": 0.012326891722004222,
+          "q2_avg_return": 0.01009975939998184,
+          "q3_avg_return": 0.017399942950978617,
+          "q4_avg_return": 0.004387712214014158,
+          "q4_minus_q1": -0.007939179507990063
+        },
+        {
+          "indicator": "adx",
+          "correlation_with_future_return": 0.008423200181241387,
+          "q1_avg_return": 0.0059728257842611085,
+          "q2_avg_return": 0.012726619499846156,
+          "q3_avg_return": 0.011604691433777077,
+          "q4_avg_return": 0.013584812574824598,
+          "q4_minus_q1": 0.00761198679056349
+        },
+        {
+          "indicator": "mfi",
+          "correlation_with_future_return": 0.0013740264675049239,
+          "q1_avg_return": 0.005793111189753327,
+          "q2_avg_return": 0.017912135812424415,
+          "q3_avg_return": 0.010333550792061554,
+          "q4_avg_return": 0.01017555340449472,
+          "q4_minus_q1": 0.004382442214741392
+        }
+      ]
+    },
+    {
+      "timeframe": "minute60",
+      "horizon_days": 5,
+      "predictive_indicators": [
+        {
+          "indicator": "mfi",
+          "correlation_with_future_return": 0.041253838809442896,
+          "q1_avg_return": -0.02506194813279517,
+          "q2_avg_return": -0.004629107099998645,
+          "q3_avg_return": 0.03311277697521904,
+          "q4_avg_return": 0.08340760556831167,
+          "q4_minus_q1": 0.10846955370110684
+        },
+        {
+          "indicator": "macd",
+          "correlation_with_future_return": 0.013739933450109747,
+          "q1_avg_return": -0.004382925530876978,
+          "q2_avg_return": -0.026911437778132964,
+          "q3_avg_return": 0.03142501625200979,
+          "q4_avg_return": 0.08669803790288653,
+          "q4_minus_q1": 0.09108096343376351
+        },
+        {
+          "indicator": "rsi_14",
+          "correlation_with_future_return": 0.030676423792792264,
+          "q1_avg_return": -0.005871047932186011,
+          "q2_avg_return": 0.013480885902638552,
+          "q3_avg_return": 0.019823621240065495,
+          "q4_avg_return": 0.05939644871412556,
+          "q4_minus_q1": 0.06526749664631157
+        },
+        {
+          "indicator": "volatility_10",
+          "correlation_with_future_return": 0.026509605103855752,
+          "q1_avg_return": 0.005318541372853539,
+          "q2_avg_return": -0.00904676812593871,
+          "q3_avg_return": 0.021069199781677882,
+          "q4_avg_return": 0.06978045244581266,
+          "q4_minus_q1": 0.06446191107295912
+        },
+        {
+          "indicator": "stoch_k",
+          "correlation_with_future_return": 0.0201848193170609,
+          "q1_avg_return": -0.0013693090891736934,
+          "q2_avg_return": 0.01688220400287624,
+          "q3_avg_return": 0.03512117952667013,
+          "q4_avg_return": 0.036319237221919175,
+          "q4_minus_q1": 0.03768854631109287
+        },
+        {
+          "indicator": "bb_position",
+          "correlation_with_future_return": 0.01714297281317897,
+          "q1_avg_return": -0.005072543667319145,
+          "q2_avg_return": 0.009768988248274978,
+          "q3_avg_return": 0.05625389118225661,
+          "q4_avg_return": 0.02609055897104816,
+          "q4_minus_q1": 0.031163102638367305
+        },
+        {
+          "indicator": "adx",
+          "correlation_with_future_return": 0.017260440719736304,
+          "q1_avg_return": 0.016097881456339197,
+          "q2_avg_return": 0.006448279801514703,
+          "q3_avg_return": 0.017264856449910274,
+          "q4_avg_return": 0.04694329744358676,
+          "q4_minus_q1": 0.030845415987247563
+        },
+        {
+          "indicator": "volume_ratio",
+          "correlation_with_future_return": 0.0008073829322308607,
+          "q1_avg_return": 0.03261875730882793,
+          "q2_avg_return": 0.027667556486779675,
+          "q3_avg_return": 0.020672381097415413,
+          "q4_avg_return": 0.006077659267695103,
+          "q4_minus_q1": -0.026541098041132822
+        },
+        {
+          "indicator": "price_change_5d",
+          "correlation_with_future_return": 0.001257459906594418,
+          "q1_avg_return": 0.046063480921360304,
+          "q2_avg_return": 0.0173589143143111,
+          "q3_avg_return": 0.0023991725406203772,
+          "q4_avg_return": 0.020757027728928363,
+          "q4_minus_q1": -0.02530645319243194
+        },
+        {
+          "indicator": "atr",
+          "correlation_with_future_return": 0.0211590358910644,
+          "q1_avg_return": 0.019319980950929773,
+          "q2_avg_return": 0.006906518049133045,
+          "q3_avg_return": 0.016957127363355216,
+          "q4_avg_return": 0.043645144518984186,
+          "q4_minus_q1": 0.024325163568054416
+        }
+      ]
+    },
+    {
+      "timeframe": "minute240",
+      "horizon_days": 5,
+      "predictive_indicators": [
+        {
+          "indicator": "mfi",
+          "correlation_with_future_return": 0.08772635987448088,
+          "q1_avg_return": -0.1322520455566211,
+          "q2_avg_return": 0.02722281591326977,
+          "q3_avg_return": 0.12614395769594303,
+          "q4_avg_return": 0.3299729202184197,
+          "q4_minus_q1": 0.4622249657750408
+        },
+        {
+          "indicator": "stoch_k",
+          "correlation_with_future_return": 0.08131349045543917,
+          "q1_avg_return": -0.17982650852145346,
+          "q2_avg_return": 0.12776859191800716,
+          "q3_avg_return": 0.1255767459182929,
+          "q4_avg_return": 0.2795878453059001,
+          "q4_minus_q1": 0.4594143538273535
+        },
+        {
+          "indicator": "rsi_14",
+          "correlation_with_future_return": 0.0911575992720651,
+          "q1_avg_return": -0.07998913152804193,
+          "q2_avg_return": 0.026170447573880692,
+          "q3_avg_return": 0.0779920176464498,
+          "q4_avg_return": 0.3269143145787229,
+          "q4_minus_q1": 0.4069034461067649
+        },
+        {
+          "indicator": "bb_position",
+          "correlation_with_future_return": 0.0820986839610513,
+          "q1_avg_return": -0.08815296928282215,
+          "q2_avg_return": 0.011547924715891403,
+          "q3_avg_return": 0.12566472661665845,
+          "q4_avg_return": 0.30365921251433414,
+          "q4_minus_q1": 0.3918121817971563
+        },
+        {
+          "indicator": "macd",
+          "correlation_with_future_return": 0.04283571308788003,
+          "q1_avg_return": -0.03024582676465827,
+          "q2_avg_return": 0.014652309215832413,
+          "q3_avg_return": 0.11446497636171128,
+          "q4_avg_return": 0.2696586327157418,
+          "q4_minus_q1": 0.2999044594804001
+        },
+        {
+          "indicator": "price_change_5d",
+          "correlation_with_future_return": 0.02408844688092136,
+          "q1_avg_return": 0.046024567628849246,
+          "q2_avg_return": -0.01349607345784857,
+          "q3_avg_return": 0.013823956896554586,
+          "q4_avg_return": 0.3026973138438934,
+          "q4_minus_q1": 0.2566727462150442
+        },
+        {
+          "indicator": "volume_ratio",
+          "correlation_with_future_return": 0.03174433100759771,
+          "q1_avg_return": -0.0047080493084866865,
+          "q2_avg_return": 0.020688139805280475,
+          "q3_avg_return": 0.15463469434956936,
+          "q4_avg_return": 0.18211809811351368,
+          "q4_minus_q1": 0.18682614742200038
+        },
+        {
+          "indicator": "adx",
+          "correlation_with_future_return": 0.03283430960723132,
+          "q1_avg_return": 0.0625803672751119,
+          "q2_avg_return": -0.014554090572391185,
+          "q3_avg_return": 0.14030991666428216,
+          "q4_avg_return": 0.16901328985961456,
+          "q4_minus_q1": 0.10643292258450267
+        },
+        {
+          "indicator": "volatility_10",
+          "correlation_with_future_return": 0.03267650726289936,
+          "q1_avg_return": 0.0778152445404389,
+          "q2_avg_return": 0.03522385137393134,
+          "q3_avg_return": 0.0586764356424413,
+          "q4_avg_return": 0.1778029683736728,
+          "q4_minus_q1": 0.09998772383323389
+        },
+        {
+          "indicator": "atr",
+          "correlation_with_future_return": 0.012940142773062635,
+          "q1_avg_return": 0.09717268786779366,
+          "q2_avg_return": 0.017683603029512725,
+          "q3_avg_return": 0.1004104768127618,
+          "q4_avg_return": 0.13582088056094324,
+          "q4_minus_q1": 0.03864819269314959
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "horizon_days": 5,
+      "predictive_indicators": [
+        {
+          "indicator": "mfi",
+          "correlation_with_future_return": 0.0730431643610493,
+          "q1_avg_return": 0.09418191707054747,
+          "q2_avg_return": 0.4932213943303907,
+          "q3_avg_return": 0.3743311162346718,
+          "q4_avg_return": 1.4242970219288629,
+          "q4_minus_q1": 1.3301151048583153
+        },
+        {
+          "indicator": "stoch_k",
+          "correlation_with_future_return": 0.06707837721360511,
+          "q1_avg_return": 0.13047382523792128,
+          "q2_avg_return": 0.41657608905400445,
+          "q3_avg_return": 0.5810406527706689,
+          "q4_avg_return": 1.363732696984649,
+          "q4_minus_q1": 1.2332588717467279
+        },
+        {
+          "indicator": "rsi_14",
+          "correlation_with_future_return": 0.0804532739240295,
+          "q1_avg_return": 0.23647124685631654,
+          "q2_avg_return": 0.31747752814269864,
+          "q3_avg_return": 0.42097798412729137,
+          "q4_avg_return": 1.410727213834964,
+          "q4_minus_q1": 1.1742559669786476
+        },
+        {
+          "indicator": "macd",
+          "correlation_with_future_return": 0.061625653019361744,
+          "q1_avg_return": 0.012301582571823346,
+          "q2_avg_return": 0.6381514633997938,
+          "q3_avg_return": 0.8323662460868847,
+          "q4_avg_return": 0.946479279160156,
+          "q4_minus_q1": 0.9341776965883326
+        },
+        {
+          "indicator": "adx",
+          "correlation_with_future_return": 0.07327822944660085,
+          "q1_avg_return": 0.8145461519772133,
+          "q2_avg_return": -0.8276107731041413,
+          "q3_avg_return": 0.8980416640746549,
+          "q4_avg_return": 1.6373097328424544,
+          "q4_minus_q1": 0.8227635808652412
+        },
+        {
+          "indicator": "bb_position",
+          "correlation_with_future_return": 0.06259877861301844,
+          "q1_avg_return": 0.3026200851427933,
+          "q2_avg_return": 0.6038189839425592,
+          "q3_avg_return": 0.6052502483377948,
+          "q4_avg_return": 1.0574013934170892,
+          "q4_minus_q1": 0.7547813082742959
+        },
+        {
+          "indicator": "price_change_5d",
+          "correlation_with_future_return": 0.09912939774690806,
+          "q1_avg_return": 0.3070584548924834,
+          "q2_avg_return": 0.48318044940441324,
+          "q3_avg_return": 0.4173922282066085,
+          "q4_avg_return": 1.0294811806305457,
+          "q4_minus_q1": 0.7224227257380623
+        },
+        {
+          "indicator": "atr",
+          "correlation_with_future_return": -0.020092086142709433,
+          "q1_avg_return": 0.6333800459954825,
+          "q2_avg_return": 0.31594290534773006,
+          "q3_avg_return": 1.160060251451924,
+          "q4_avg_return": 0.2784273422261623,
+          "q4_minus_q1": -0.3549527037693202
+        },
+        {
+          "indicator": "volatility_10",
+          "correlation_with_future_return": -0.035442386198465424,
+          "q1_avg_return": 0.7590205587734336,
+          "q2_avg_return": 0.5350995643886711,
+          "q3_avg_return": 0.5661993957475131,
+          "q4_avg_return": 0.4936352698643082,
+          "q4_minus_q1": -0.26538528890912527
+        },
+        {
+          "indicator": "volume_ratio",
+          "correlation_with_future_return": 0.016041051492439375,
+          "q1_avg_return": 0.554769681797886,
+          "q2_avg_return": 0.7613850804191503,
+          "q3_avg_return": 0.6518964650769595,
+          "q4_avg_return": 0.6002978670854903,
+          "q4_minus_q1": 0.045528185287604245
+        }
+      ]
+    }
+  ]
+}

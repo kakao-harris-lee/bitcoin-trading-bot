@@ -1,0 +1,20 @@
+{
+  "strategy_name": "vwap_only",
+  "version": "v18",
+  "description": "VWAP single algorithm (78.8% win rate)",
+  "timeframe": "day",
+
+  "algorithms": {
+    "vwap": {
+      "params": {
+        "deviation_threshold": 0.02
+      }
+    }
+  },
+
+  "trailing_stop": 0.20,
+  "stop_loss": 0.10,
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002
+}

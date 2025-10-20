@@ -1,0 +1,88 @@
+{
+  "strategy_name": "adaptive_voting",
+  "version": "v40",
+  "timeframe": "day",
+  "description": "v39 + 손절 규칙 + Kelly Criterion - 적응형 투표 앙상블",
+
+  "v37_strategies": {
+    "trend_following": {
+      "trend_adx_threshold": 16,
+      "trend_position_size": 0.8,
+      "stop_loss": -0.08,
+      "trailing_stop": -0.07,
+      "trailing_trigger": 0.24,
+      "max_hold_days": 61
+    },
+    "swing_trading": {
+      "rsi_oversold": 33,
+      "swing_position_size": 0.6,
+      "take_profit_1": 0.085,
+      "take_profit_2": 0.148,
+      "stop_loss": -0.034,
+      "max_hold_days": 26
+    }
+  },
+
+  "v35_strategies": {
+    "sideways_strategies": {
+      "use_rsi_bb": true,
+      "use_stoch": true,
+      "use_volume_breakout": true,
+      "rsi_bb_oversold": 30,
+      "rsi_bb_overbought": 70,
+      "stoch_oversold": 20,
+      "stoch_overbought": 80,
+      "volume_breakout_mult": 2.0
+    },
+    "position_size": 0.5
+  },
+
+  "voting_rules": {
+    "entry_min_votes": 2,
+    "exit_min_votes": 2,
+    "position_sizing_method": "kelly",
+    "note": "Kelly Criterion 기반 포지션 사이즈"
+  },
+
+  "stop_loss_rules": {
+    "enable_voting_stop": true,
+    "voting_stop_min_votes": 2,
+    "enable_fixed_stop": true,
+    "fixed_stop_percent": -0.15,
+    "enable_time_stop": true,
+    "time_stop_days": 90,
+    "note": "3가지 손절 규칙: 다수결, 고정(-15%), 시간(90일)"
+  },
+
+  "kelly_criterion": {
+    "win_rate": 0.833,
+    "avg_win_pct": 1.59,
+    "avg_loss_pct": 0.28,
+    "kelly_full": 0.80,
+    "kelly_half": 0.40,
+    "kelly_quarter": 0.20,
+    "position_mapping": {
+      "1_vote": 0.20,
+      "2_votes": 0.50,
+      "3_votes": 0.80
+    },
+    "note": "Kelly Full = (p*b - q)/b = (0.833*5.68 - 0.167)/5.68 = 0.80"
+  },
+
+  "backtesting": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "train_period": "2020-01-01 to 2024-12-31",
+    "test_period": "2025-01-01 to 2025-10-17"
+  },
+
+  "target_performance": {
+    "2024_bull": 0.80,
+    "2025_sideways": 0.12,
+    "annual_avg": 0.50,
+    "sharpe_ratio": 1.5,
+    "max_drawdown": 0.15,
+    "win_rate": 0.70
+  }
+}

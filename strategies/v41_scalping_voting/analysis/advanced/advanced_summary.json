@@ -1,0 +1,37 @@
+{
+  "minute5": {
+    "total_signals": 104957,
+    "S_tier": 0,
+    "A_tier": 42,
+    "B_tier": 2058,
+    "C_tier": 102857
+  },
+  "minute15": {
+    "total_signals": 67039,
+    "S_tier": 0,
+    "A_tier": 6,
+    "B_tier": 659,
+    "C_tier": 66374
+  },
+  "minute60": {
+    "total_signals": 43625,
+    "S_tier": 0,
+    "A_tier": 3,
+    "B_tier": 360,
+    "C_tier": 43262
+  },
+  "minute240": {
+    "total_signals": 10757,
+    "S_tier": 0,
+    "A_tier": 0,
+    "B_tier": 64,
+    "C_tier": 10693
+  },
+  "day": {
+    "total_signals": 1627,
+    "S_tier": 0,
+    "A_tier": 0,
+    "B_tier": 12,
+    "C_tier": 1615
+  }
+}

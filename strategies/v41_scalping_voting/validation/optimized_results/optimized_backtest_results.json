@@ -1,0 +1,17 @@
+[
+  {
+    "timeframe": "minute60",
+    "year": 2020,
+    "tiers": "S",
+    "total_return": 2.1685260287934733,
+    "final_capital": 31685260.28793473,
+    "total_trades": 67,
+    "win_rate": 0.7164179104477612,
+    "avg_pnl": 0.017722797104141864,
+    "sharpe_ratio": 0.648812338099538,
+    "max_drawdown": -0.055939966415864316,
+    "buy_hold_return": 2.804091456077016,
+    "outperformance": -0.6355654272835425,
+    "avg_hold_hours": 18.26865671641791,
+    "tier_stats": {
+      

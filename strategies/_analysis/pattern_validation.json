@@ -1,0 +1,4325 @@
+{
+  "day": {
+    "entry_validation": [
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 14,
+        "true_positives": 12,
+        "false_positives": 2,
+        "total_opportunities": 208,
+        "precision": 0.8571428571428571,
+        "recall": 0.057692307692307696,
+        "f1_score": 0.1081081081081081,
+        "avg_return": 10.571687867911761,
+        "signals": [
+          {
+            "timestamp": "2022-05-09T09:00:00",
+            "price": 41002000.0,
+            "future_return": 9.840983366665041,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-05-10T09:00:00",
+            "price": 41046000.0,
+            "future_return": 7.14807776640842,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-05-11T09:00:00",
+            "price": 40290000.0,
+            "future_return": 9.158600148920328,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-05-12T09:00:00",
+            "price": 39243000.0,
+            "future_return": 5.302856560405678,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-05-13T09:00:00",
+            "price": 39270000.0,
+            "future_return": 5.230455818691112,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-06-13T09:00:00",
+            "price": 29372000.0,
+            "future_return": 19.331335966226337,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-06-14T09:00:00",
+            "price": 28829000.0,
+            "future_return": 4.772971660480766,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-06-15T09:00:00",
+            "price": 29253000.0,
+            "future_return": 1.2614090862475642,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-06-16T09:00:00",
+            "price": 26898000.0,
+            "future_return": 10.127146999776935,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-06-18T09:00:00",
+            "price": 25093000.0,
+            "future_return": 18.01299167098394,
+            "success": "True"
+          }
+        ],
+        "year": 2022,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 8,
+        "true_positives": 6,
+        "false_positives": 2,
+        "total_opportunities": 208,
+        "precision": 0.75,
+        "recall": 0.028846153846153848,
+        "f1_score": 0.05555555555555555,
+        "avg_return": 9.35365327829226,
+        "signals": [
+          {
+            "timestamp": "2022-05-09T09:00:00",
+            "price": 41002000.0,
+            "future_return": 9.840983366665041,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-05-10T09:00:00",
+            "price": 41046000.0,
+            "future_return": 7.14807776640842,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-05-11T09:00:00",
+            "price": 40290000.0,
+            "future_return": 9.158600148920328,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-05-12T09:00:00",
+            "price": 39243000.0,
+            "future_return": 5.302856560405678,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-06-13T09:00:00",
+            "price": 29372000.0,
+            "future_return": 19.331335966226337,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-06-14T09:00:00",
+            "price": 28829000.0,
+            "future_return": 4.772971660480766,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-06-15T09:00:00",
+            "price": 29253000.0,
+            "future_return": 1.2614090862475642,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-06-18T09:00:00",
+            "price": 25093000.0,
+            "future_return": 18.01299167098394,
+            "success": "True"
+          }
+        ],
+        "year": 2022,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 1,
+        "true_positives": 1,
+        "false_positives": 0,
+        "total_opportunities": 208,
+        "precision": 1.0,
+        "recall": 0.004807692307692308,
+        "f1_score": 0.009569377990430623,
+        "avg_return": 18.01299167098394,
+        "signals": [
+          {
+            "timestamp": "2022-06-18T09:00:00",
+            "price": 25093000.0,
+            "future_return": 18.01299167098394,
+            "success": "True"
+          }
+        ],
+        "year": 2022,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 3,
+        "true_positives": 3,
+        "false_positives": 0,
+        "total_opportunities": 225,
+        "precision": 1.0,
+        "recall": 0.013333333333333334,
+        "f1_score": 0.02631578947368421,
+        "avg_return": 17.68643087190368,
+        "signals": [
+          {
+            "timestamp": "2023-03-10T09:00:00",
+            "price": 27343000.0,
+            "future_return": 40.52591156786015,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-08-17T09:00:00",
+            "price": 36588000.0,
+            "future_return": 6.843773914944791,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-08-18T09:00:00",
+            "price": 35890000.0,
+            "future_return": 5.689607132906102,
+            "success": "True"
+          }
+        ],
+        "year": 2023,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "avg_return": 0.0,
+        "year": 2023,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "avg_return": 0.0,
+        "year": 2023,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 5,
+        "true_positives": 5,
+        "false_positives": 0,
+        "total_opportunities": 223,
+        "precision": 1.0,
+        "recall": 0.02242152466367713,
+        "f1_score": 0.043859649122807015,
+        "avg_return": 16.138622331741892,
+        "signals": [
+          {
+            "timestamp": "2024-05-01T09:00:00",
+            "price": 83499000.0,
+            "future_return": 17.546317919975092,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-06-24T09:00:00",
+            "price": 85496000.0,
+            "future_return": 11.529194348273604,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-07-04T09:00:00",
+            "price": 81680000.0,
+            "future_return": 18.87855044074437,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-07-05T09:00:00",
+            "price": 81118000.0,
+            "future_return": 19.702162282107547,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-08-05T09:00:00",
+            "price": 77833000.0,
+            "future_return": 13.036886667608854,
+            "success": "True"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 3,
+        "true_positives": 3,
+        "false_positives": 0,
+        "total_opportunities": 223,
+        "precision": 1.0,
+        "recall": 0.013452914798206279,
+        "f1_score": 0.02654867256637168,
+        "avg_return": 14.756081099330002,
+        "signals": [
+          {
+            "timestamp": "2024-06-24T09:00:00",
+            "price": 85496000.0,
+            "future_return": 11.529194348273604,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-07-05T09:00:00",
+            "price": 81118000.0,
+            "future_return": 19.702162282107547,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-08-05T09:00:00",
+            "price": 77833000.0,
+            "future_return": 13.036886667608854,
+            "success": "True"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "avg_return": 0.0,
+        "year": 2024,
+        "timeframe": "day"
+      }
+    ],
+    "exit_validation": [
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 0,
+        "avg_profit": 0.0,
+        "win_rate": 0.0,
+        "avg_holding_days": 0,
+        "year": 2022,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 4,
+        "avg_profit": 15.803994918073208,
+        "win_rate": 1.0,
+        "avg_holding_days": 61.0,
+        "max_profit": 29.299007691388034,
+        "min_profit": 10.46234509056244,
+        "exits": [
+          {
+            "entry_timestamp": "2022-06-13T09:00:00",
+            "exit_timestamp": "2022-08-15T09:00:00",
+            "entry_price": 29372000.0,
+            "exit_price": 32445000.0,
+            "profit": 10.46234509056244,
+            "holding_days": 63
+          },
+          {
+            "entry_timestamp": "2022-06-14T09:00:00",
+            "exit_timestamp": "2022-08-15T09:00:00",
+            "entry_price": 28829000.0,
+            "exit_price": 32445000.0,
+            "profit": 12.542925526379687,
+            "holding_days": 62
+          },
+          {
+            "entry_timestamp": "2022-06-15T09:00:00",
+            "exit_timestamp": "2022-08-15T09:00:00",
+            "entry_price": 29253000.0,
+            "exit_price": 32445000.0,
+            "profit": 10.91170136396267,
+            "holding_days": 61
+          },
+          {
+            "entry_timestamp": "2022-06-18T09:00:00",
+            "exit_timestamp": "2022-08-15T09:00:00",
+            "entry_price": 25093000.0,
+            "exit_price": 32445000.0,
+            "profit": 29.299007691388034,
+            "holding_days": 58
+          }
+        ],
+        "year": 2022,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 0,
+        "avg_profit": 0.0,
+        "win_rate": 0.0,
+        "avg_holding_days": 0,
+        "year": 2022,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 0,
+        "avg_profit": 0.0,
+        "win_rate": 0.0,
+        "avg_holding_days": 0,
+        "year": 2023,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 0,
+        "avg_profit": 0.0,
+        "win_rate": 0.0,
+        "avg_holding_days": 0,
+        "year": 2023,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 0,
+        "avg_profit": 0.0,
+        "win_rate": 0.0,
+        "avg_holding_days": 0,
+        "year": 2023,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 1,
+        "avg_profit": 16.403068107358063,
+        "win_rate": 1.0,
+        "avg_holding_days": 71.0,
+        "max_profit": 16.403068107358063,
+        "min_profit": 16.403068107358063,
+        "exits": [
+          {
+            "entry_timestamp": "2024-08-05T09:00:00",
+            "exit_timestamp": "2024-10-15T09:00:00",
+            "entry_price": 77833000.0,
+            "exit_price": 90600000.0,
+            "profit": 16.403068107358063,
+            "holding_days": 71
+          }
+        ],
+        "year": 2024,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 1,
+        "avg_profit": 29.213829609548647,
+        "win_rate": 1.0,
+        "avg_holding_days": 86.0,
+        "max_profit": 29.213829609548647,
+        "min_profit": 29.213829609548647,
+        "exits": [
+          {
+            "entry_timestamp": "2024-08-05T09:00:00",
+            "exit_timestamp": "2024-10-30T09:00:00",
+            "entry_price": 77833000.0,
+            "exit_price": 100571000.0,
+            "profit": 29.213829609548647,
+            "holding_days": 86
+          }
+        ],
+        "year": 2024,
+        "timeframe": "day"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 1,
+        "avg_profit": 17.70071820436062,
+        "win_rate": 1.0,
+        "avg_holding_days": 72.0,
+        "max_profit": 17.70071820436062,
+        "min_profit": 17.70071820436062,
+        "exits": [
+          {
+            "entry_timestamp": "2024-08-05T09:00:00",
+            "exit_timestamp": "2024-10-16T09:00:00",
+            "entry_price": 77833000.0,
+            "exit_price": 91610000.0,
+            "profit": 17.70071820436062,
+            "holding_days": 72
+          }
+        ],
+        "year": 2024,
+        "timeframe": "day"
+      }
+    ]
+  },
+  "minute240": {
+    "entry_validation": [
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 77,
+        "true_positives": 35,
+        "false_positives": 42,
+        "total_opportunities": 625,
+        "precision": 0.45454545454545453,
+        "recall": 0.056,
+        "f1_score": 0.09971509971509972,
+        "avg_return": 5.48884790366831,
+        "signals": [
+          {
+            "timestamp": "2022-01-06T05:00:00",
+            "price": 53854000.0,
+            "future_return": 2.8224458721729118,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-06T09:00:00",
+            "price": 52669000.0,
+            "future_return": 3.0966982475459948,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-07T13:00:00",
+            "price": 51594000.0,
+            "future_return": 2.604954064426096,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-18T21:00:00",
+            "price": 50499000.0,
+            "future_return": 3.6872017267668666,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-21T09:00:00",
+            "price": 47401000.0,
+            "future_return": 5.485116347756377,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-01-22T05:00:00",
+            "price": 45316000.0,
+            "future_return": 4.731220760879159,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-22T09:00:00",
+            "price": 44825000.0,
+            "future_return": 5.878416062465142,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-01-22T13:00:00",
+            "price": 43861000.0,
+            "future_return": 8.205467271608034,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-01-22T17:00:00",
+            "price": 43817000.0,
+            "future_return": 8.314124654814343,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-01-24T17:00:00",
+            "price": 41669000.0,
+            "future_return": 13.897621733182941,
+            "success": "True"
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 36,
+        "true_positives": 16,
+        "false_positives": 20,
+        "total_opportunities": 625,
+        "precision": 0.4444444444444444,
+        "recall": 0.0256,
+        "f1_score": 0.048411497730711045,
+        "avg_return": 5.494263231656649,
+        "signals": [
+          {
+            "timestamp": "2022-01-22T05:00:00",
+            "price": 45316000.0,
+            "future_return": 4.731220760879159,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-22T13:00:00",
+            "price": 43861000.0,
+            "future_return": 8.205467271608034,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-01-22T17:00:00",
+            "price": 43817000.0,
+            "future_return": 8.314124654814343,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-01-24T17:00:00",
+            "price": 41669000.0,
+            "future_return": 13.897621733182941,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-02-22T09:00:00",
+            "price": 45003000.0,
+            "future_return": 8.903850854387485,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-04-12T05:00:00",
+            "price": 50050000.0,
+            "future_return": 3.79020979020979,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-04-12T09:00:00",
+            "price": 50061000.0,
+            "future_return": 3.7674037674037675,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-04-18T13:00:00",
+            "price": 48942000.0,
+            "future_return": 8.444689632626375,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-05-09T09:00:00",
+            "price": 44085000.0,
+            "future_return": 2.159464670522854,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-05-09T17:00:00",
+            "price": 43830000.0,
+            "future_return": 1.0723248916267396,
+            "success": "False"
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 19,
+        "true_positives": 8,
+        "false_positives": 11,
+        "total_opportunities": 625,
+        "precision": 0.42105263157894735,
+        "recall": 0.0128,
+        "f1_score": 0.02484472049689441,
+        "avg_return": 4.728122875565302,
+        "signals": [
+          {
+            "timestamp": "2022-01-22T17:00:00",
+            "price": 43817000.0,
+            "future_return": 8.314124654814343,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-04-12T05:00:00",
+            "price": 50050000.0,
+            "future_return": 3.79020979020979,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-04-12T09:00:00",
+            "price": 50061000.0,
+            "future_return": 3.7674037674037675,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-05-09T09:00:00",
+            "price": 44085000.0,
+            "future_return": 2.159464670522854,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-05-09T17:00:00",
+            "price": 43830000.0,
+            "future_return": 1.0723248916267396,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-05-09T21:00:00",
+            "price": 43059000.0,
+            "future_return": 2.5546343389303052,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-05-10T01:00:00",
+            "price": 41734000.0,
+            "future_return": 5.381703167681027,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-05-10T05:00:00",
+            "price": 41002000.0,
+            "future_return": 7.263060338520072,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-05-10T09:00:00",
+            "price": 41130000.0,
+            "future_return": 6.929248723559446,
+            "success": "True"
+          },
+          {
+            "timestamp": "2022-06-14T05:00:00",
+            "price": 29372000.0,
+            "future_return": 5.4235326160969635,
+            "success": "True"
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 28,
+        "true_positives": 10,
+        "false_positives": 18,
+        "total_opportunities": 572,
+        "precision": 0.35714285714285715,
+        "recall": 0.017482517482517484,
+        "f1_score": 0.03333333333333333,
+        "avg_return": 5.680885786015855,
+        "signals": [
+          {
+            "timestamp": "2023-03-03T09:00:00",
+            "price": 29809000.0,
+            "future_return": 4.448320976886175,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T05:00:00",
+            "price": 27604000.0,
+            "future_return": 24.869584118243733,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-03-10T09:00:00",
+            "price": 27102000.0,
+            "future_return": 27.18249575677072,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-04-17T17:00:00",
+            "price": 38809000.0,
+            "future_return": 2.6746373263933627,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-04-17T21:00:00",
+            "price": 38644000.0,
+            "future_return": 3.1130317772487324,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-04-18T09:00:00",
+            "price": 38613000.0,
+            "future_return": 3.1958148809986273,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-05-12T09:00:00",
+            "price": 35952000.0,
+            "future_return": 3.4712950600801067,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-05-12T13:00:00",
+            "price": 35643000.0,
+            "future_return": 4.368319165053447,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-05-25T09:00:00",
+            "price": 35130000.0,
+            "future_return": 7.836606888699118,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-06-05T17:00:00",
+            "price": 35430000.0,
+            "future_return": 1.5890488286762632,
+            "success": "False"
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 17,
+        "true_positives": 6,
+        "false_positives": 11,
+        "total_opportunities": 572,
+        "precision": 0.35294117647058826,
+        "recall": 0.01048951048951049,
+        "f1_score": 0.02037351443123939,
+        "avg_return": 6.7068985021687135,
+        "signals": [
+          {
+            "timestamp": "2023-03-10T05:00:00",
+            "price": 27604000.0,
+            "future_return": 24.869584118243733,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-03-10T09:00:00",
+            "price": 27102000.0,
+            "future_return": 27.18249575677072,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-04-17T21:00:00",
+            "price": 38644000.0,
+            "future_return": 3.1130317772487324,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-04-18T09:00:00",
+            "price": 38613000.0,
+            "future_return": 3.1958148809986273,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-05-12T13:00:00",
+            "price": 35643000.0,
+            "future_return": 4.368319165053447,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-05-25T09:00:00",
+            "price": 35130000.0,
+            "future_return": 7.836606888699118,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-06-05T21:00:00",
+            "price": 34723000.0,
+            "future_return": 3.6575180715951965,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-06-06T01:00:00",
+            "price": 34108000.0,
+            "future_return": 5.526562683241468,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-06-15T05:00:00",
+            "price": 33007000.0,
+            "future_return": 7.174235768170388,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-07-24T21:00:00",
+            "price": 37903000.0,
+            "future_return": 1.047410495211461,
+            "success": "False"
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 5,
+        "true_positives": 2,
+        "false_positives": 3,
+        "total_opportunities": 572,
+        "precision": 0.4,
+        "recall": 0.0034965034965034965,
+        "f1_score": 0.006932409012131715,
+        "avg_return": 11.976214507440488,
+        "signals": [
+          {
+            "timestamp": "2023-03-10T05:00:00",
+            "price": 27604000.0,
+            "future_return": 24.869584118243733,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-03-10T09:00:00",
+            "price": 27102000.0,
+            "future_return": 27.18249575677072,
+            "success": "True"
+          },
+          {
+            "timestamp": "2023-04-17T21:00:00",
+            "price": 38644000.0,
+            "future_return": 3.1130317772487324,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-08-18T09:00:00",
+            "price": 36110000.0,
+            "future_return": 2.0437551924674606,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-08-18T21:00:00",
+            "price": 35626000.0,
+            "future_return": 2.6722056924717905,
+            "success": "False"
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 38,
+        "true_positives": 17,
+        "false_positives": 21,
+        "total_opportunities": 785,
+        "precision": 0.4473684210526316,
+        "recall": 0.02165605095541401,
+        "f1_score": 0.04131227217496962,
+        "avg_return": 5.725101327524787,
+        "signals": [
+          {
+            "timestamp": "2024-01-19T09:00:00",
+            "price": 56464000.0,
+            "future_return": 3.0391045621989234,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-23T01:00:00",
+            "price": 55346000.0,
+            "future_return": 5.059082860549995,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-01-23T05:00:00",
+            "price": 54689000.0,
+            "future_return": 6.399824461957615,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-01-23T17:00:00",
+            "price": 53458000.0,
+            "future_return": 10.142541808522578,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-01-23T21:00:00",
+            "price": 54066000.0,
+            "future_return": 8.903932230976954,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-04-02T17:00:00",
+            "price": 95815000.0,
+            "future_return": 4.275948442310703,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-04-02T21:00:00",
+            "price": 95625000.0,
+            "future_return": 4.483137254901961,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-04-17T21:00:00",
+            "price": 90942000.0,
+            "future_return": 6.106089595566405,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-04-27T09:00:00",
+            "price": 90903000.0,
+            "future_return": 1.8998272884283247,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-04-29T09:00:00",
+            "price": 89100000.0,
+            "future_return": 3.8608305274971944,
+            "success": "False"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 27,
+        "true_positives": 11,
+        "false_positives": 16,
+        "total_opportunities": 785,
+        "precision": 0.4074074074074074,
+        "recall": 0.014012738853503185,
+        "f1_score": 0.027093596059113302,
+        "avg_return": 5.555242251754476,
+        "signals": [
+          {
+            "timestamp": "2024-01-19T09:00:00",
+            "price": 56464000.0,
+            "future_return": 3.0391045621989234,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-23T05:00:00",
+            "price": 54689000.0,
+            "future_return": 6.399824461957615,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-01-23T17:00:00",
+            "price": 53458000.0,
+            "future_return": 10.142541808522578,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-04-02T17:00:00",
+            "price": 95815000.0,
+            "future_return": 4.275948442310703,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-04-02T21:00:00",
+            "price": 95625000.0,
+            "future_return": 4.483137254901961,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-04-17T21:00:00",
+            "price": 90942000.0,
+            "future_return": 6.106089595566405,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-04-29T09:00:00",
+            "price": 89100000.0,
+            "future_return": 3.8608305274971944,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-05-01T13:00:00",
+            "price": 81223000.0,
+            "future_return": 12.188665772010392,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-06-11T13:00:00",
+            "price": 94988000.0,
+            "future_return": 3.3856908241040977,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-06-11T17:00:00",
+            "price": 94100000.0,
+            "future_return": 4.361317747077577,
+            "success": "False"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 8,
+        "true_positives": 7,
+        "false_positives": 1,
+        "total_opportunities": 785,
+        "precision": 0.875,
+        "recall": 0.008917197452229299,
+        "f1_score": 0.017654476670870115,
+        "avg_return": 8.654341225021376,
+        "signals": [
+          {
+            "timestamp": "2024-01-23T05:00:00",
+            "price": 54689000.0,
+            "future_return": 6.399824461957615,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-01-23T17:00:00",
+            "price": 53458000.0,
+            "future_return": 10.142541808522578,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-06-25T01:00:00",
+            "price": 84000000.0,
+            "future_return": 5.185714285714286,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-07-05T09:00:00",
+            "price": 78801000.0,
+            "future_return": 5.5849545056534815,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-07-05T13:00:00",
+            "price": 77988000.0,
+            "future_return": 7.484484792532184,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-08-05T09:00:00",
+            "price": 77000000.0,
+            "future_return": 14.259740259740258,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-08-05T13:00:00",
+            "price": 75689000.0,
+            "future_return": 16.238819379302143,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-10-02T05:00:00",
+            "price": 81500000.0,
+            "future_return": 3.938650306748466,
+            "success": "False"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute240"
+      }
+    ],
+    "exit_validation": [
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 8,
+        "avg_profit": 12.559440288966744,
+        "win_rate": 1.0,
+        "avg_holding_days": 57.125,
+        "max_profit": 19.23972257553577,
+        "min_profit": 7.44020587344838,
+        "exits": [
+          {
+            "entry_timestamp": "2022-01-22T05:00:00",
+            "exit_timestamp": "2022-02-05T01:00:00",
+            "entry_price": 45316000.0,
+            "exit_price": 49686000.0,
+            "profit": 9.643393062053137,
+            "holding_days": 83
+          },
+          {
+            "entry_timestamp": "2022-01-22T13:00:00",
+            "exit_timestamp": "2022-02-05T01:00:00",
+            "entry_price": 43861000.0,
+            "exit_price": 49686000.0,
+            "profit": 13.280590957798498,
+            "holding_days": 81
+          },
+          {
+            "entry_timestamp": "2022-01-22T17:00:00",
+            "exit_timestamp": "2022-02-05T01:00:00",
+            "entry_price": 43817000.0,
+            "exit_price": 49686000.0,
+            "profit": 13.39434466074811,
+            "holding_days": 80
+          },
+          {
+            "entry_timestamp": "2022-01-24T17:00:00",
+            "exit_timestamp": "2022-02-05T01:00:00",
+            "entry_price": 41669000.0,
+            "exit_price": 49686000.0,
+            "profit": 19.23972257553577,
+            "holding_days": 68
+          },
+          {
+            "entry_timestamp": "2022-02-22T09:00:00",
+            "exit_timestamp": "2022-03-01T05:00:00",
+            "entry_price": 45003000.0,
+            "exit_price": 52332000.0,
+            "profit": 16.28558096126925,
+            "holding_days": 41
+          },
+          {
+            "entry_timestamp": "2022-06-30T17:00:00",
+            "exit_timestamp": "2022-07-08T01:00:00",
+            "entry_price": 25280000.0,
+            "exit_price": 28345000.0,
+            "profit": 12.124208860759493,
+            "holding_days": 44
+          },
+          {
+            "entry_timestamp": "2022-09-07T09:00:00",
+            "exit_timestamp": "2022-09-09T13:00:00",
+            "entry_price": 26424000.0,
+            "exit_price": 28390000.0,
+            "profit": 7.44020587344838,
+            "holding_days": 13
+          },
+          {
+            "entry_timestamp": "2022-09-19T13:00:00",
+            "exit_timestamp": "2022-09-27T09:00:00",
+            "entry_price": 26380000.0,
+            "exit_price": 28772000.0,
+            "profit": 9.067475360121303,
+            "holding_days": 47
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 7,
+        "avg_profit": 14.905597375745389,
+        "win_rate": 1.0,
+        "avg_holding_days": 61.714285714285715,
+        "max_profit": 21.24601022342749,
+        "min_profit": 11.164093248561914,
+        "exits": [
+          {
+            "entry_timestamp": "2022-01-22T05:00:00",
+            "exit_timestamp": "2022-02-05T13:00:00",
+            "entry_price": 45316000.0,
+            "exit_price": 50522000.0,
+            "profit": 11.488216082619825,
+            "holding_days": 86
+          },
+          {
+            "entry_timestamp": "2022-01-22T13:00:00",
+            "exit_timestamp": "2022-02-05T13:00:00",
+            "entry_price": 43861000.0,
+            "exit_price": 50522000.0,
+            "profit": 15.186612252342627,
+            "holding_days": 84
+          },
+          {
+            "entry_timestamp": "2022-01-22T17:00:00",
+            "exit_timestamp": "2022-02-05T13:00:00",
+            "entry_price": 43817000.0,
+            "exit_price": 50522000.0,
+            "profit": 15.302279937010749,
+            "holding_days": 83
+          },
+          {
+            "entry_timestamp": "2022-01-24T17:00:00",
+            "exit_timestamp": "2022-02-05T13:00:00",
+            "entry_price": 41669000.0,
+            "exit_price": 50522000.0,
+            "profit": 21.24601022342749,
+            "holding_days": 71
+          },
+          {
+            "entry_timestamp": "2022-02-22T09:00:00",
+            "exit_timestamp": "2022-03-01T13:00:00",
+            "entry_price": 45003000.0,
+            "exit_price": 52759000.0,
+            "profit": 17.234406595115882,
+            "holding_days": 43
+          },
+          {
+            "entry_timestamp": "2022-06-30T17:00:00",
+            "exit_timestamp": "2022-07-08T13:00:00",
+            "entry_price": 25280000.0,
+            "exit_price": 28495000.0,
+            "profit": 12.717563291139241,
+            "holding_days": 47
+          },
+          {
+            "entry_timestamp": "2022-09-07T09:00:00",
+            "exit_timestamp": "2022-09-10T09:00:00",
+            "entry_price": 26424000.0,
+            "exit_price": 29374000.0,
+            "profit": 11.164093248561914,
+            "holding_days": 18
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 7,
+        "avg_profit": 14.396326120825206,
+        "win_rate": 1.0,
+        "avg_holding_days": 59.42857142857143,
+        "max_profit": 21.51239530586287,
+        "min_profit": 9.033454435361794,
+        "exits": [
+          {
+            "entry_timestamp": "2022-01-22T05:00:00",
+            "exit_timestamp": "2022-02-05T05:00:00",
+            "entry_price": 45316000.0,
+            "exit_price": 50633000.0,
+            "profit": 11.733162679848178,
+            "holding_days": 84
+          },
+          {
+            "entry_timestamp": "2022-01-22T13:00:00",
+            "exit_timestamp": "2022-02-05T05:00:00",
+            "entry_price": 43861000.0,
+            "exit_price": 50633000.0,
+            "profit": 15.439684457718702,
+            "holding_days": 82
+          },
+          {
+            "entry_timestamp": "2022-01-22T17:00:00",
+            "exit_timestamp": "2022-02-05T05:00:00",
+            "entry_price": 43817000.0,
+            "exit_price": 50633000.0,
+            "profit": 15.555606271538444,
+            "holding_days": 81
+          },
+          {
+            "entry_timestamp": "2022-01-24T17:00:00",
+            "exit_timestamp": "2022-02-05T05:00:00",
+            "entry_price": 41669000.0,
+            "exit_price": 50633000.0,
+            "profit": 21.51239530586287,
+            "holding_days": 69
+          },
+          {
+            "entry_timestamp": "2022-02-22T09:00:00",
+            "exit_timestamp": "2022-03-01T05:00:00",
+            "entry_price": 45003000.0,
+            "exit_price": 52332000.0,
+            "profit": 16.28558096126925,
+            "holding_days": 41
+          },
+          {
+            "entry_timestamp": "2022-06-30T17:00:00",
+            "exit_timestamp": "2022-07-08T05:00:00",
+            "entry_price": 25280000.0,
+            "exit_price": 28115000.0,
+            "profit": 11.214398734177216,
+            "holding_days": 45
+          },
+          {
+            "entry_timestamp": "2022-09-07T09:00:00",
+            "exit_timestamp": "2022-09-09T17:00:00",
+            "entry_price": 26424000.0,
+            "exit_price": 28811000.0,
+            "profit": 9.033454435361794,
+            "holding_days": 14
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 15,
+        "avg_profit": 5.077775753531881,
+        "win_rate": 0.8,
+        "avg_holding_days": 49.4,
+        "max_profit": 16.234964209283447,
+        "min_profit": -2.3336486912645853,
+        "exits": [
+          {
+            "entry_timestamp": "2023-03-10T05:00:00",
+            "exit_timestamp": "2023-03-13T21:00:00",
+            "entry_price": 27604000.0,
+            "exit_price": 31502000.0,
+            "profit": 14.121141863498043,
+            "holding_days": 22
+          },
+          {
+            "entry_timestamp": "2023-03-10T09:00:00",
+            "exit_timestamp": "2023-03-13T21:00:00",
+            "entry_price": 27102000.0,
+            "exit_price": 31502000.0,
+            "profit": 16.234964209283447,
+            "holding_days": 21
+          },
+          {
+            "entry_timestamp": "2023-04-17T21:00:00",
+            "exit_timestamp": "2023-04-26T17:00:00",
+            "entry_price": 38644000.0,
+            "exit_price": 38555000.0,
+            "profit": -0.2303074215919677,
+            "holding_days": 53
+          },
+          {
+            "entry_timestamp": "2023-04-18T09:00:00",
+            "exit_timestamp": "2023-04-26T17:00:00",
+            "entry_price": 38613000.0,
+            "exit_price": 38555000.0,
+            "profit": -0.15020847900965995,
+            "holding_days": 50
+          },
+          {
+            "entry_timestamp": "2023-05-25T09:00:00",
+            "exit_timestamp": "2023-05-29T01:00:00",
+            "entry_price": 35130000.0,
+            "exit_price": 36793000.0,
+            "profit": 4.7338457159123255,
+            "holding_days": 22
+          },
+          {
+            "entry_timestamp": "2023-06-06T01:00:00",
+            "exit_timestamp": "2023-06-20T21:00:00",
+            "entry_price": 34108000.0,
+            "exit_price": 35600000.0,
+            "profit": 4.374340330714202,
+            "holding_days": 89
+          },
+          {
+            "entry_timestamp": "2023-06-15T05:00:00",
+            "exit_timestamp": "2023-06-20T21:00:00",
+            "entry_price": 33007000.0,
+            "exit_price": 35600000.0,
+            "profit": 7.855909352561579,
+            "holding_days": 34
+          },
+          {
+            "entry_timestamp": "2023-07-24T21:00:00",
+            "exit_timestamp": "2023-08-02T13:00:00",
+            "entry_price": 37903000.0,
+            "exit_price": 38776000.0,
+            "profit": 2.3032477640292326,
+            "holding_days": 52
+          },
+          {
+            "entry_timestamp": "2023-08-17T21:00:00",
+            "exit_timestamp": "2023-08-29T21:00:00",
+            "entry_price": 38052000.0,
+            "exit_price": 37164000.0,
+            "profit": -2.3336486912645853,
+            "holding_days": 72
+          },
+          {
+            "entry_timestamp": "2023-08-18T05:00:00",
+            "exit_timestamp": "2023-08-29T21:00:00",
+            "entry_price": 36588000.0,
+            "exit_price": 37164000.0,
+            "profit": 1.574286651361102,
+            "holding_days": 70
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 13,
+        "avg_profit": 5.469344075860888,
+        "win_rate": 0.9230769230769231,
+        "avg_holding_days": 50.76923076923077,
+        "max_profit": 17.566969227363295,
+        "min_profit": -2.149689898034269,
+        "exits": [
+          {
+            "entry_timestamp": "2023-03-10T05:00:00",
+            "exit_timestamp": "2023-03-14T13:00:00",
+            "entry_price": 27604000.0,
+            "exit_price": 31863000.0,
+            "profit": 15.428923344442836,
+            "holding_days": 26
+          },
+          {
+            "entry_timestamp": "2023-03-10T09:00:00",
+            "exit_timestamp": "2023-03-14T13:00:00",
+            "entry_price": 27102000.0,
+            "exit_price": 31863000.0,
+            "profit": 17.566969227363295,
+            "holding_days": 25
+          },
+          {
+            "entry_timestamp": "2023-05-25T09:00:00",
+            "exit_timestamp": "2023-05-29T01:00:00",
+            "entry_price": 35130000.0,
+            "exit_price": 36793000.0,
+            "profit": 4.7338457159123255,
+            "holding_days": 22
+          },
+          {
+            "entry_timestamp": "2023-06-05T21:00:00",
+            "exit_timestamp": "2023-06-17T13:00:00",
+            "entry_price": 34723000.0,
+            "exit_price": 34837000.0,
+            "profit": 0.32831264579673414,
+            "holding_days": 70
+          },
+          {
+            "entry_timestamp": "2023-06-06T01:00:00",
+            "exit_timestamp": "2023-06-17T13:00:00",
+            "entry_price": 34108000.0,
+            "exit_price": 34837000.0,
+            "profit": 2.1373284859856923,
+            "holding_days": 69
+          },
+          {
+            "entry_timestamp": "2023-06-15T05:00:00",
+            "exit_timestamp": "2023-06-17T13:00:00",
+            "entry_price": 33007000.0,
+            "exit_price": 34837000.0,
+            "profit": 5.5442784863816765,
+            "holding_days": 14
+          },
+          {
+            "entry_timestamp": "2023-07-24T21:00:00",
+            "exit_timestamp": "2023-08-02T17:00:00",
+            "entry_price": 37903000.0,
+            "exit_price": 38704000.0,
+            "profit": 2.1132891855525946,
+            "holding_days": 53
+          },
+          {
+            "entry_timestamp": "2023-08-17T21:00:00",
+            "exit_timestamp": "2023-08-30T13:00:00",
+            "entry_price": 38052000.0,
+            "exit_price": 37234000.0,
+            "profit": -2.149689898034269,
+            "holding_days": 76
+          },
+          {
+            "entry_timestamp": "2023-08-18T05:00:00",
+            "exit_timestamp": "2023-08-30T13:00:00",
+            "entry_price": 36588000.0,
+            "exit_price": 37234000.0,
+            "profit": 1.765606209686236,
+            "holding_days": 74
+          },
+          {
+            "entry_timestamp": "2023-08-18T09:00:00",
+            "exit_timestamp": "2023-08-30T13:00:00",
+            "entry_price": 36110000.0,
+            "exit_price": 37234000.0,
+            "profit": 3.112711160343395,
+            "holding_days": 73
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 6,
+        "avg_profit": 11.22174788340741,
+        "win_rate": 1.0,
+        "avg_holding_days": 31.166666666666668,
+        "max_profit": 17.670282635967823,
+        "min_profit": 4.7338457159123255,
+        "exits": [
+          {
+            "entry_timestamp": "2023-03-10T05:00:00",
+            "exit_timestamp": "2023-03-14T01:00:00",
+            "entry_price": 27604000.0,
+            "exit_price": 31891000.0,
+            "profit": 15.530357919142155,
+            "holding_days": 23
+          },
+          {
+            "entry_timestamp": "2023-03-10T09:00:00",
+            "exit_timestamp": "2023-03-14T01:00:00",
+            "entry_price": 27102000.0,
+            "exit_price": 31891000.0,
+            "profit": 17.670282635967823,
+            "holding_days": 22
+          },
+          {
+            "entry_timestamp": "2023-05-25T09:00:00",
+            "exit_timestamp": "2023-05-29T01:00:00",
+            "entry_price": 35130000.0,
+            "exit_price": 36793000.0,
+            "profit": 4.7338457159123255,
+            "holding_days": 22
+          },
+          {
+            "entry_timestamp": "2023-06-15T05:00:00",
+            "exit_timestamp": "2023-06-21T05:00:00",
+            "entry_price": 33007000.0,
+            "exit_price": 36946000.0,
+            "profit": 11.933832217408428,
+            "holding_days": 36
+          },
+          {
+            "entry_timestamp": "2023-09-25T09:00:00",
+            "exit_timestamp": "2023-10-02T13:00:00",
+            "entry_price": 35374000.0,
+            "exit_price": 38389000.0,
+            "profit": 8.523209136654039,
+            "holding_days": 43
+          },
+          {
+            "entry_timestamp": "2023-09-25T17:00:00",
+            "exit_timestamp": "2023-10-02T13:00:00",
+            "entry_price": 35239000.0,
+            "exit_price": 38389000.0,
+            "profit": 8.938959675359687,
+            "holding_days": 41
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 8,
+        "avg_profit": 10.045397967947244,
+        "win_rate": 1.0,
+        "avg_holding_days": 61.5,
+        "max_profit": 15.01674426202728,
+        "min_profit": 6.660122699386503,
+        "exits": [
+          {
+            "entry_timestamp": "2024-04-02T17:00:00",
+            "exit_timestamp": "2024-04-08T17:00:00",
+            "entry_price": 95815000.0,
+            "exit_price": 102550000.0,
+            "profit": 7.029170797891771,
+            "holding_days": 36
+          },
+          {
+            "entry_timestamp": "2024-04-02T21:00:00",
+            "exit_timestamp": "2024-04-08T17:00:00",
+            "entry_price": 95625000.0,
+            "exit_price": 102550000.0,
+            "profit": 7.241830065359476,
+            "holding_days": 35
+          },
+          {
+            "entry_timestamp": "2024-05-01T13:00:00",
+            "exit_timestamp": "2024-05-15T21:00:00",
+            "entry_price": 81223000.0,
+            "exit_price": 90738000.0,
+            "profit": 11.714662103098876,
+            "holding_days": 86
+          },
+          {
+            "entry_timestamp": "2024-07-04T17:00:00",
+            "exit_timestamp": "2024-07-15T09:00:00",
+            "entry_price": 82195000.0,
+            "exit_price": 88299000.0,
+            "profit": 7.42624247216984,
+            "holding_days": 64
+          },
+          {
+            "entry_timestamp": "2024-07-05T09:00:00",
+            "exit_timestamp": "2024-07-15T09:00:00",
+            "entry_price": 78801000.0,
+            "exit_price": 88299000.0,
+            "profit": 12.05314653367343,
+            "holding_days": 60
+          },
+          {
+            "entry_timestamp": "2024-07-05T13:00:00",
+            "exit_timestamp": "2024-07-15T09:00:00",
+            "entry_price": 77988000.0,
+            "exit_price": 88299000.0,
+            "profit": 13.221264809970764,
+            "holding_days": 59
+          },
+          {
+            "entry_timestamp": "2024-09-06T21:00:00",
+            "exit_timestamp": "2024-09-19T21:00:00",
+            "entry_price": 73458000.0,
+            "exit_price": 84489000.0,
+            "profit": 15.01674426202728,
+            "holding_days": 78
+          },
+          {
+            "entry_timestamp": "2024-10-02T05:00:00",
+            "exit_timestamp": "2024-10-14T13:00:00",
+            "entry_price": 81500000.0,
+            "exit_price": 86928000.0,
+            "profit": 6.660122699386503,
+            "holding_days": 74
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 17,
+        "avg_profit": 6.553054303069324,
+        "win_rate": 0.9411764705882353,
+        "avg_holding_days": 51.1764705882353,
+        "max_profit": 13.504641739754833,
+        "min_profit": -3.442498095963443,
+        "exits": [
+          {
+            "entry_timestamp": "2024-01-19T09:00:00",
+            "exit_timestamp": "2024-01-30T17:00:00",
+            "entry_price": 56464000.0,
+            "exit_price": 59370000.0,
+            "profit": 5.146642108245962,
+            "holding_days": 68
+          },
+          {
+            "entry_timestamp": "2024-01-23T05:00:00",
+            "exit_timestamp": "2024-01-30T17:00:00",
+            "entry_price": 54689000.0,
+            "exit_price": 59370000.0,
+            "profit": 8.559308087549597,
+            "holding_days": 45
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:00:00",
+            "exit_timestamp": "2024-01-30T17:00:00",
+            "entry_price": 53458000.0,
+            "exit_price": 59370000.0,
+            "profit": 11.059149238654644,
+            "holding_days": 42
+          },
+          {
+            "entry_timestamp": "2024-04-02T17:00:00",
+            "exit_timestamp": "2024-04-09T01:00:00",
+            "entry_price": 95815000.0,
+            "exit_price": 102075000.0,
+            "profit": 6.533423785419819,
+            "holding_days": 38
+          },
+          {
+            "entry_timestamp": "2024-04-02T21:00:00",
+            "exit_timestamp": "2024-04-09T01:00:00",
+            "entry_price": 95625000.0,
+            "exit_price": 102075000.0,
+            "profit": 6.745098039215685,
+            "holding_days": 37
+          },
+          {
+            "entry_timestamp": "2024-05-01T13:00:00",
+            "exit_timestamp": "2024-05-16T09:00:00",
+            "entry_price": 81223000.0,
+            "exit_price": 91380000.0,
+            "profit": 12.505078610738337,
+            "holding_days": 89
+          },
+          {
+            "entry_timestamp": "2024-06-17T21:00:00",
+            "exit_timestamp": "2024-07-01T13:00:00",
+            "entry_price": 91910000.0,
+            "exit_price": 88746000.0,
+            "profit": -3.442498095963443,
+            "holding_days": 82
+          },
+          {
+            "entry_timestamp": "2024-06-24T13:00:00",
+            "exit_timestamp": "2024-07-01T13:00:00",
+            "entry_price": 87999000.0,
+            "exit_price": 88746000.0,
+            "profit": 0.8488732826509393,
+            "holding_days": 42
+          },
+          {
+            "entry_timestamp": "2024-06-24T17:00:00",
+            "exit_timestamp": "2024-07-01T13:00:00",
+            "entry_price": 86600000.0,
+            "exit_price": 88746000.0,
+            "profit": 2.4780600461893765,
+            "holding_days": 41
+          },
+          {
+            "entry_timestamp": "2024-06-24T21:00:00",
+            "exit_timestamp": "2024-07-01T13:00:00",
+            "entry_price": 85796000.0,
+            "exit_price": 88746000.0,
+            "profit": 3.438388736071612,
+            "holding_days": 40
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute240"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 6,
+        "avg_profit": 11.378284555689135,
+        "win_rate": 1.0,
+        "avg_holding_days": 70.66666666666667,
+        "max_profit": 15.01674426202728,
+        "min_profit": 7.147239263803681,
+        "exits": [
+          {
+            "entry_timestamp": "2024-05-01T13:00:00",
+            "exit_timestamp": "2024-05-16T05:00:00",
+            "entry_price": 81223000.0,
+            "exit_price": 92111000.0,
+            "profit": 13.405069992489812,
+            "holding_days": 88
+          },
+          {
+            "entry_timestamp": "2024-07-04T17:00:00",
+            "exit_timestamp": "2024-07-15T09:00:00",
+            "entry_price": 82195000.0,
+            "exit_price": 88299000.0,
+            "profit": 7.42624247216984,
+            "holding_days": 64
+          },
+          {
+            "entry_timestamp": "2024-07-05T09:00:00",
+            "exit_timestamp": "2024-07-15T09:00:00",
+            "entry_price": 78801000.0,
+            "exit_price": 88299000.0,
+            "profit": 12.05314653367343,
+            "holding_days": 60
+          },
+          {
+            "entry_timestamp": "2024-07-05T13:00:00",
+            "exit_timestamp": "2024-07-15T09:00:00",
+            "entry_price": 77988000.0,
+            "exit_price": 88299000.0,
+            "profit": 13.221264809970764,
+            "holding_days": 59
+          },
+          {
+            "entry_timestamp": "2024-09-06T21:00:00",
+            "exit_timestamp": "2024-09-19T21:00:00",
+            "entry_price": 73458000.0,
+            "exit_price": 84489000.0,
+            "profit": 15.01674426202728,
+            "holding_days": 78
+          },
+          {
+            "entry_timestamp": "2024-10-02T05:00:00",
+            "exit_timestamp": "2024-10-14T17:00:00",
+            "entry_price": 81500000.0,
+            "exit_price": 87325000.0,
+            "profit": 7.147239263803681,
+            "holding_days": 75
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute240"
+      }
+    ]
+  },
+  "minute60": {
+    "entry_validation": [
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 228,
+        "true_positives": 40,
+        "false_positives": 188,
+        "total_opportunities": 754,
+        "precision": 0.17543859649122806,
+        "recall": 0.05305039787798409,
+        "f1_score": 0.0814663951120163,
+        "avg_return": 3.037413607182669,
+        "signals": [
+          {
+            "timestamp": "2022-01-06T04:00:00",
+            "price": 55172000.0,
+            "future_return": 2.1840788805916045,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-06T05:00:00",
+            "price": 54118000.0,
+            "future_return": 2.3208544292102444,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-06T06:00:00",
+            "price": 53720000.0,
+            "future_return": 1.358897989575577,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-06T07:00:00",
+            "price": 53679000.0,
+            "future_return": 1.1568769910020678,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-06T10:00:00",
+            "price": 53376000.0,
+            "future_return": 1.58685551558753,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-07T12:00:00",
+            "price": 51787000.0,
+            "future_return": 2.236082414505571,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-07T13:00:00",
+            "price": 51584000.0,
+            "future_return": 2.6248449131513647,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-10T21:00:00",
+            "price": 50171000.0,
+            "future_return": 4.408921488509298,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-10T22:00:00",
+            "price": 50034000.0,
+            "future_return": 4.694807530879002,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-10T23:00:00",
+            "price": 50044000.0,
+            "future_return": 4.675885221005515,
+            "success": "False"
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 120,
+        "true_positives": 21,
+        "false_positives": 99,
+        "total_opportunities": 754,
+        "precision": 0.175,
+        "recall": 0.027851458885941646,
+        "f1_score": 0.04805491990846682,
+        "avg_return": 2.9817883863521333,
+        "signals": [
+          {
+            "timestamp": "2022-01-06T04:00:00",
+            "price": 55172000.0,
+            "future_return": 2.1840788805916045,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-06T05:00:00",
+            "price": 54118000.0,
+            "future_return": 2.3208544292102444,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-06T06:00:00",
+            "price": 53720000.0,
+            "future_return": 1.358897989575577,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-06T07:00:00",
+            "price": 53679000.0,
+            "future_return": 1.1568769910020678,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-07T13:00:00",
+            "price": 51584000.0,
+            "future_return": 2.6248449131513647,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-10T21:00:00",
+            "price": 50171000.0,
+            "future_return": 4.408921488509298,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-10T22:00:00",
+            "price": 50034000.0,
+            "future_return": 4.694807530879002,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-10T23:00:00",
+            "price": 50044000.0,
+            "future_return": 4.675885221005515,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-18T13:00:00",
+            "price": 50843000.0,
+            "future_return": 1.2922132840312335,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-01-21T10:00:00",
+            "price": 48738000.0,
+            "future_return": 2.088719274488079,
+            "success": "False"
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 24,
+        "true_positives": 5,
+        "false_positives": 19,
+        "total_opportunities": 754,
+        "precision": 0.20833333333333334,
+        "recall": 0.006631299734748011,
+        "f1_score": 0.012853470437017995,
+        "avg_return": 3.1953009505082015,
+        "signals": [
+          {
+            "timestamp": "2022-02-18T06:00:00",
+            "price": 49950000.0,
+            "future_return": 0.4984984984984985,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-03-05T05:00:00",
+            "price": 48960000.0,
+            "future_return": 0.6944444444444444,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-03-05T07:00:00",
+            "price": 48481000.0,
+            "future_return": 1.1200264020956663,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-03-05T09:00:00",
+            "price": 47912000.0,
+            "future_return": 2.3209216897645684,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-04-06T23:00:00",
+            "price": 54291000.0,
+            "future_return": 0.62625481203146,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-04-07T09:00:00",
+            "price": 52883000.0,
+            "future_return": 2.7551387024185465,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-05-06T00:00:00",
+            "price": 48037000.0,
+            "future_return": 2.672939609051356,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-05-08T11:00:00",
+            "price": 45391000.0,
+            "future_return": 1.7822916437179175,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-05-10T02:00:00",
+            "price": 41949000.0,
+            "future_return": 2.7676464278051918,
+            "success": "False"
+          },
+          {
+            "timestamp": "2022-06-07T11:00:00",
+            "price": 37640000.0,
+            "future_return": 5.730605738575982,
+            "success": "True"
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 147,
+        "true_positives": 6,
+        "false_positives": 141,
+        "total_opportunities": 652,
+        "precision": 0.04081632653061224,
+        "recall": 0.009202453987730062,
+        "f1_score": 0.015018773466833541,
+        "avg_return": 1.883567971605364,
+        "signals": [
+          {
+            "timestamp": "2023-01-25T10:00:00",
+            "price": 28144000.0,
+            "future_return": 4.903354178510518,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-05T21:00:00",
+            "price": 29058000.0,
+            "future_return": 1.311170761924427,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-06T14:00:00",
+            "price": 28700000.0,
+            "future_return": 2.5749128919860627,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-09T12:00:00",
+            "price": 28842000.0,
+            "future_return": 1.2204424103737606,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-10T09:00:00",
+            "price": 27980000.0,
+            "future_return": 1.3223731236597571,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-03T10:00:00",
+            "price": 29765000.0,
+            "future_return": 4.102133378128674,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-03T11:00:00",
+            "price": 29789000.0,
+            "future_return": 0.7888818020074524,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-03T12:00:00",
+            "price": 29809000.0,
+            "future_return": 0.29856754671407965,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T04:00:00",
+            "price": 28062000.0,
+            "future_return": 0.9015750837431401,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T05:00:00",
+            "price": 27448000.0,
+            "future_return": 2.4045467793646167,
+            "success": "False"
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 85,
+        "true_positives": 2,
+        "false_positives": 83,
+        "total_opportunities": 652,
+        "precision": 0.023529411764705882,
+        "recall": 0.003067484662576687,
+        "f1_score": 0.005427408412483039,
+        "avg_return": 1.917097186027088,
+        "signals": [
+          {
+            "timestamp": "2023-03-10T05:00:00",
+            "price": 27448000.0,
+            "future_return": 2.4045467793646167,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T06:00:00",
+            "price": 27490000.0,
+            "future_return": 1.9388868679519826,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T09:00:00",
+            "price": 27105000.0,
+            "future_return": 3.3868289983397895,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T10:00:00",
+            "price": 27220000.0,
+            "future_return": 2.950036737692873,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-27T23:00:00",
+            "price": 36010000.0,
+            "future_return": 2.293807275756734,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-28T00:00:00",
+            "price": 35909000.0,
+            "future_return": 1.4787379208554958,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-04-17T09:00:00",
+            "price": 39195000.0,
+            "future_return": 1.2195433090955479,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-04-17T10:00:00",
+            "price": 39269000.0,
+            "future_return": 0.5373195141205531,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-04-17T20:00:00",
+            "price": 38809000.0,
+            "future_return": 2.6746373263933627,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-04-17T21:00:00",
+            "price": 38773000.0,
+            "future_return": 2.769968792716581,
+            "success": "False"
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 12,
+        "true_positives": 0,
+        "false_positives": 12,
+        "total_opportunities": 652,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "avg_return": 2.1312648373300513,
+        "signals": [
+          {
+            "timestamp": "2023-03-10T09:00:00",
+            "price": 27105000.0,
+            "future_return": 3.3868289983397895,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T10:00:00",
+            "price": 27220000.0,
+            "future_return": 2.950036737692873,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-04-17T20:00:00",
+            "price": 38809000.0,
+            "future_return": 2.6746373263933627,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-04-22T04:00:00",
+            "price": 36545000.0,
+            "future_return": 2.115200437816391,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-05-02T00:00:00",
+            "price": 37889000.0,
+            "future_return": 2.087677162237061,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-05-08T17:00:00",
+            "price": 37290000.0,
+            "future_return": 0.8769106999195494,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-05-12T14:00:00",
+            "price": 35534000.0,
+            "future_return": 3.0843698992514215,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-05-12T15:00:00",
+            "price": 35531000.0,
+            "future_return": 3.0930736539922883,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-08-18T00:00:00",
+            "price": 38052000.0,
+            "future_return": 1.4243666561547357,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-08-18T01:00:00",
+            "price": 38088000.0,
+            "future_return": 0.3885738290275152,
+            "success": "False"
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 201,
+        "true_positives": 16,
+        "false_positives": 185,
+        "total_opportunities": 737,
+        "precision": 0.07960199004975124,
+        "recall": 0.021709633649932156,
+        "f1_score": 0.03411513859275053,
+        "avg_return": 2.4783068902876377,
+        "signals": [
+          {
+            "timestamp": "2024-01-03T20:00:00",
+            "price": 58300000.0,
+            "future_return": 3.6020583190394513,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-03T21:00:00",
+            "price": 58043000.0,
+            "future_return": 2.604965284358148,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-03T22:00:00",
+            "price": 57670000.0,
+            "future_return": 3.2772672099878624,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-08T11:00:00",
+            "price": 58133000.0,
+            "future_return": 9.077460306538455,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-01-13T00:00:00",
+            "price": 61457000.0,
+            "future_return": 1.4514213189709877,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T01:00:00",
+            "price": 60421000.0,
+            "future_return": 2.004270038562751,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T02:00:00",
+            "price": 60565000.0,
+            "future_return": 0.6356806736564022,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T07:00:00",
+            "price": 59278000.0,
+            "future_return": 1.266911839130875,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T10:00:00",
+            "price": 58724000.0,
+            "future_return": 1.8305973707513115,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-15T07:00:00",
+            "price": 58070000.0,
+            "future_return": 2.1870156707422077,
+            "success": "False"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 130,
+        "true_positives": 12,
+        "false_positives": 118,
+        "total_opportunities": 737,
+        "precision": 0.09230769230769231,
+        "recall": 0.016282225237449117,
+        "f1_score": 0.02768166089965398,
+        "avg_return": 2.5324435578699305,
+        "signals": [
+          {
+            "timestamp": "2024-01-08T11:00:00",
+            "price": 58133000.0,
+            "future_return": 9.077460306538455,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-01-13T00:00:00",
+            "price": 61457000.0,
+            "future_return": 1.4514213189709877,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T01:00:00",
+            "price": 60421000.0,
+            "future_return": 2.004270038562751,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T07:00:00",
+            "price": 59278000.0,
+            "future_return": 1.266911839130875,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-15T08:00:00",
+            "price": 57391000.0,
+            "future_return": 3.3960028575909114,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-19T04:00:00",
+            "price": 57277000.0,
+            "future_return": 1.5765490511025368,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-19T05:00:00",
+            "price": 56959000.0,
+            "future_return": 2.143647184817149,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-19T12:00:00",
+            "price": 56464000.0,
+            "future_return": 3.0391045621989234,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-22T13:00:00",
+            "price": 56340000.0,
+            "future_return": 1.1430599929002485,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-23T04:00:00",
+            "price": 55346000.0,
+            "future_return": 1.3009070212842844,
+            "success": "False"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 27,
+        "true_positives": 4,
+        "false_positives": 23,
+        "total_opportunities": 737,
+        "precision": 0.14814814814814814,
+        "recall": 0.005427408412483039,
+        "f1_score": 0.010471204188481674,
+        "avg_return": 3.3697211920145453,
+        "signals": [
+          {
+            "timestamp": "2024-01-19T12:00:00",
+            "price": 56464000.0,
+            "future_return": 3.0391045621989234,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-23T18:00:00",
+            "price": 53759000.0,
+            "future_return": 3.8895812794136795,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-03-19T20:00:00",
+            "price": 93451000.0,
+            "future_return": 3.3707504467581946,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-05-01T16:00:00",
+            "price": 81223000.0,
+            "future_return": 4.519655762530317,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-05-01T17:00:00",
+            "price": 81269000.0,
+            "future_return": 4.4604953918468295,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-06-11T18:00:00",
+            "price": 94131000.0,
+            "future_return": 4.326948614165365,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-06-24T12:00:00",
+            "price": 88543000.0,
+            "future_return": 0.5488858520718747,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-06-24T13:00:00",
+            "price": 88498000.0,
+            "future_return": 0.3932292255192208,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-06-24T14:00:00",
+            "price": 87764000.0,
+            "future_return": 1.232851738753931,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-06-24T15:00:00",
+            "price": 87876000.0,
+            "future_return": 1.1038281214438526,
+            "success": "False"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute60"
+      }
+    ],
+    "exit_validation": [
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 27,
+        "avg_profit": 4.507881512647974,
+        "win_rate": 1.0,
+        "avg_holding_days": 41.629629629629626,
+        "max_profit": 7.628387641041864,
+        "min_profit": 1.2861150581119978,
+        "exits": [
+          {
+            "entry_timestamp": "2022-01-10T21:00:00",
+            "exit_timestamp": "2022-01-12T22:00:00",
+            "entry_price": 50171000.0,
+            "exit_price": 53687000.0,
+            "profit": 7.008032528751669,
+            "holding_days": 49
+          },
+          {
+            "entry_timestamp": "2022-01-10T22:00:00",
+            "exit_timestamp": "2022-01-12T22:00:00",
+            "entry_price": 50034000.0,
+            "exit_price": 53687000.0,
+            "profit": 7.301035295998721,
+            "holding_days": 48
+          },
+          {
+            "entry_timestamp": "2022-01-10T23:00:00",
+            "exit_timestamp": "2022-01-12T22:00:00",
+            "entry_price": 50044000.0,
+            "exit_price": 53687000.0,
+            "profit": 7.2795939573175605,
+            "holding_days": 47
+          },
+          {
+            "entry_timestamp": "2022-01-18T13:00:00",
+            "exit_timestamp": "2022-01-21T00:00:00",
+            "entry_price": 50843000.0,
+            "exit_price": 52112000.0,
+            "profit": 2.4959188088822453,
+            "holding_days": 59
+          },
+          {
+            "entry_timestamp": "2022-02-03T00:00:00",
+            "exit_timestamp": "2022-02-05T00:00:00",
+            "entry_price": 46238000.0,
+            "exit_price": 48281000.0,
+            "profit": 4.4184437043124705,
+            "holding_days": 48
+          },
+          {
+            "entry_timestamp": "2022-02-03T19:00:00",
+            "exit_timestamp": "2022-02-05T00:00:00",
+            "entry_price": 44979000.0,
+            "exit_price": 48281000.0,
+            "profit": 7.341203672825096,
+            "holding_days": 29
+          },
+          {
+            "entry_timestamp": "2022-03-06T19:00:00",
+            "exit_timestamp": "2022-03-09T12:00:00",
+            "entry_price": 47415000.0,
+            "exit_price": 51032000.0,
+            "profit": 7.628387641041864,
+            "holding_days": 65
+          },
+          {
+            "entry_timestamp": "2022-03-14T09:00:00",
+            "exit_timestamp": "2022-03-16T11:00:00",
+            "entry_price": 47315000.0,
+            "exit_price": 50465000.0,
+            "profit": 6.6575081897918205,
+            "holding_days": 50
+          },
+          {
+            "entry_timestamp": "2022-04-18T13:00:00",
+            "exit_timestamp": "2022-04-19T23:00:00",
+            "entry_price": 48848000.0,
+            "exit_price": 51679000.0,
+            "profit": 5.795528987880773,
+            "holding_days": 34
+          },
+          {
+            "entry_timestamp": "2022-04-18T14:00:00",
+            "exit_timestamp": "2022-04-19T23:00:00",
+            "entry_price": 48980000.0,
+            "exit_price": 51679000.0,
+            "profit": 5.51041241322989,
+            "holding_days": 33
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 25,
+        "avg_profit": 4.823594181432896,
+        "win_rate": 1.0,
+        "avg_holding_days": 44.88,
+        "max_profit": 13.282502064008547,
+        "min_profit": 0.8845538301829664,
+        "exits": [
+          {
+            "entry_timestamp": "2022-01-18T13:00:00",
+            "exit_timestamp": "2022-01-21T02:00:00",
+            "entry_price": 50843000.0,
+            "exit_price": 51923000.0,
+            "profit": 2.1241862203253152,
+            "holding_days": 61
+          },
+          {
+            "entry_timestamp": "2022-01-24T19:00:00",
+            "exit_timestamp": "2022-01-26T23:00:00",
+            "entry_price": 41182000.0,
+            "exit_price": 46652000.0,
+            "profit": 13.282502064008547,
+            "holding_days": 52
+          },
+          {
+            "entry_timestamp": "2022-02-03T00:00:00",
+            "exit_timestamp": "2022-02-04T18:00:00",
+            "entry_price": 46238000.0,
+            "exit_price": 46647000.0,
+            "profit": 0.8845538301829664,
+            "holding_days": 42
+          },
+          {
+            "entry_timestamp": "2022-02-03T19:00:00",
+            "exit_timestamp": "2022-02-04T18:00:00",
+            "entry_price": 44979000.0,
+            "exit_price": 46647000.0,
+            "profit": 3.708397252050957,
+            "holding_days": 23
+          },
+          {
+            "entry_timestamp": "2022-02-24T12:00:00",
+            "exit_timestamp": "2022-02-25T06:00:00",
+            "entry_price": 43117000.0,
+            "exit_price": 46902000.0,
+            "profit": 8.778440058445625,
+            "holding_days": 18
+          },
+          {
+            "entry_timestamp": "2022-02-24T13:00:00",
+            "exit_timestamp": "2022-02-25T06:00:00",
+            "entry_price": 43258000.0,
+            "exit_price": 46902000.0,
+            "profit": 8.423875352535948,
+            "holding_days": 17
+          },
+          {
+            "entry_timestamp": "2022-02-24T14:00:00",
+            "exit_timestamp": "2022-02-25T06:00:00",
+            "entry_price": 42960000.0,
+            "exit_price": 46902000.0,
+            "profit": 9.175977653631284,
+            "holding_days": 16
+          },
+          {
+            "entry_timestamp": "2022-03-06T19:00:00",
+            "exit_timestamp": "2022-03-09T14:00:00",
+            "entry_price": 47415000.0,
+            "exit_price": 51260000.0,
+            "profit": 8.109248128229464,
+            "holding_days": 67
+          },
+          {
+            "entry_timestamp": "2022-04-18T13:00:00",
+            "exit_timestamp": "2022-04-21T23:00:00",
+            "entry_price": 48848000.0,
+            "exit_price": 52748000.0,
+            "profit": 7.983950212905339,
+            "holding_days": 82
+          },
+          {
+            "entry_timestamp": "2022-04-18T14:00:00",
+            "exit_timestamp": "2022-04-21T23:00:00",
+            "entry_price": 48980000.0,
+            "exit_price": 52748000.0,
+            "profit": 7.692935892200898,
+            "holding_days": 81
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 17,
+        "avg_profit": 5.232412253002673,
+        "win_rate": 1.0,
+        "avg_holding_days": 44.05882352941177,
+        "max_profit": 9.857933702394451,
+        "min_profit": 2.216781660360561,
+        "exits": [
+          {
+            "entry_timestamp": "2022-01-18T13:00:00",
+            "exit_timestamp": "2022-01-21T00:00:00",
+            "entry_price": 50843000.0,
+            "exit_price": 52112000.0,
+            "profit": 2.4959188088822453,
+            "holding_days": 59
+          },
+          {
+            "entry_timestamp": "2022-02-03T00:00:00",
+            "exit_timestamp": "2022-02-05T02:00:00",
+            "entry_price": 46238000.0,
+            "exit_price": 49413000.0,
+            "profit": 6.866646481249189,
+            "holding_days": 50
+          },
+          {
+            "entry_timestamp": "2022-02-03T19:00:00",
+            "exit_timestamp": "2022-02-05T02:00:00",
+            "entry_price": 44979000.0,
+            "exit_price": 49413000.0,
+            "profit": 9.857933702394451,
+            "holding_days": 31
+          },
+          {
+            "entry_timestamp": "2022-03-06T19:00:00",
+            "exit_timestamp": "2022-03-09T12:00:00",
+            "entry_price": 47415000.0,
+            "exit_price": 51032000.0,
+            "profit": 7.628387641041864,
+            "holding_days": 65
+          },
+          {
+            "entry_timestamp": "2022-04-18T13:00:00",
+            "exit_timestamp": "2022-04-20T21:00:00",
+            "entry_price": 48848000.0,
+            "exit_price": 52280000.0,
+            "profit": 7.025876187356698,
+            "holding_days": 56
+          },
+          {
+            "entry_timestamp": "2022-04-18T14:00:00",
+            "exit_timestamp": "2022-04-20T21:00:00",
+            "entry_price": 48980000.0,
+            "exit_price": 52280000.0,
+            "profit": 6.737443854634545,
+            "holding_days": 55
+          },
+          {
+            "entry_timestamp": "2022-06-07T10:00:00",
+            "exit_timestamp": "2022-06-08T07:00:00",
+            "entry_price": 37805000.0,
+            "exit_price": 39533000.0,
+            "profit": 4.570823965083984,
+            "holding_days": 21
+          },
+          {
+            "entry_timestamp": "2022-06-07T11:00:00",
+            "exit_timestamp": "2022-06-08T07:00:00",
+            "entry_price": 37640000.0,
+            "exit_price": 39533000.0,
+            "profit": 5.02922422954304,
+            "holding_days": 20
+          },
+          {
+            "entry_timestamp": "2022-06-07T12:00:00",
+            "exit_timestamp": "2022-06-08T07:00:00",
+            "entry_price": 37659000.0,
+            "exit_price": 39533000.0,
+            "profit": 4.9762341007461695,
+            "holding_days": 19
+          },
+          {
+            "entry_timestamp": "2022-08-09T23:00:00",
+            "exit_timestamp": "2022-08-11T13:00:00",
+            "entry_price": 30839000.0,
+            "exit_price": 32393000.0,
+            "profit": 5.039073899931904,
+            "holding_days": 38
+          }
+        ],
+        "year": 2022,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 43,
+        "avg_profit": 2.863230530813702,
+        "win_rate": 1.0,
+        "avg_holding_days": 43.46511627906977,
+        "max_profit": 6.785650224215247,
+        "min_profit": 0.5008300272924229,
+        "exits": [
+          {
+            "entry_timestamp": "2023-03-10T05:00:00",
+            "exit_timestamp": "2023-03-13T03:00:00",
+            "entry_price": 27448000.0,
+            "exit_price": 28154000.0,
+            "profit": 2.5721364033809384,
+            "holding_days": 70
+          },
+          {
+            "entry_timestamp": "2023-03-10T06:00:00",
+            "exit_timestamp": "2023-03-13T03:00:00",
+            "entry_price": 27490000.0,
+            "exit_price": 28154000.0,
+            "profit": 2.4154237904692613,
+            "holding_days": 69
+          },
+          {
+            "entry_timestamp": "2023-03-10T09:00:00",
+            "exit_timestamp": "2023-03-13T03:00:00",
+            "entry_price": 27105000.0,
+            "exit_price": 28154000.0,
+            "profit": 3.8701346615015684,
+            "holding_days": 66
+          },
+          {
+            "entry_timestamp": "2023-03-10T10:00:00",
+            "exit_timestamp": "2023-03-13T03:00:00",
+            "entry_price": 27220000.0,
+            "exit_price": 28154000.0,
+            "profit": 3.4313005143277002,
+            "holding_days": 65
+          },
+          {
+            "entry_timestamp": "2023-03-27T23:00:00",
+            "exit_timestamp": "2023-03-29T15:00:00",
+            "entry_price": 36010000.0,
+            "exit_price": 37072000.0,
+            "profit": 2.9491807831158012,
+            "holding_days": 40
+          },
+          {
+            "entry_timestamp": "2023-03-28T00:00:00",
+            "exit_timestamp": "2023-03-29T15:00:00",
+            "entry_price": 35909000.0,
+            "exit_price": 37072000.0,
+            "profit": 3.238742376562979,
+            "holding_days": 39
+          },
+          {
+            "entry_timestamp": "2023-04-17T09:00:00",
+            "exit_timestamp": "2023-04-18T20:00:00",
+            "entry_price": 39195000.0,
+            "exit_price": 39738000.0,
+            "profit": 1.385380788365863,
+            "holding_days": 35
+          },
+          {
+            "entry_timestamp": "2023-04-17T10:00:00",
+            "exit_timestamp": "2023-04-18T20:00:00",
+            "entry_price": 39269000.0,
+            "exit_price": 39738000.0,
+            "profit": 1.194326313376964,
+            "holding_days": 34
+          },
+          {
+            "entry_timestamp": "2023-04-17T20:00:00",
+            "exit_timestamp": "2023-04-18T20:00:00",
+            "entry_price": 38809000.0,
+            "exit_price": 39738000.0,
+            "profit": 2.393774639903115,
+            "holding_days": 24
+          },
+          {
+            "entry_timestamp": "2023-04-17T21:00:00",
+            "exit_timestamp": "2023-04-18T20:00:00",
+            "entry_price": 38773000.0,
+            "exit_price": 39738000.0,
+            "profit": 2.4888453305135014,
+            "holding_days": 23
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 42,
+        "avg_profit": 3.0618193040989787,
+        "win_rate": 0.9047619047619048,
+        "avg_holding_days": 49.54761904761905,
+        "max_profit": 17.015310828260468,
+        "min_profit": -0.9569252549615919,
+        "exits": [
+          {
+            "entry_timestamp": "2023-03-10T09:00:00",
+            "exit_timestamp": "2023-03-14T02:00:00",
+            "entry_price": 27105000.0,
+            "exit_price": 31717000.0,
+            "profit": 17.015310828260468,
+            "holding_days": 89
+          },
+          {
+            "entry_timestamp": "2023-03-10T10:00:00",
+            "exit_timestamp": "2023-03-14T02:00:00",
+            "entry_price": 27220000.0,
+            "exit_price": 31717000.0,
+            "profit": 16.520940484937547,
+            "holding_days": 88
+          },
+          {
+            "entry_timestamp": "2023-03-27T23:00:00",
+            "exit_timestamp": "2023-03-29T18:00:00",
+            "entry_price": 36010000.0,
+            "exit_price": 37307000.0,
+            "profit": 3.601777284087753,
+            "holding_days": 43
+          },
+          {
+            "entry_timestamp": "2023-03-28T00:00:00",
+            "exit_timestamp": "2023-03-29T18:00:00",
+            "entry_price": 35909000.0,
+            "exit_price": 37307000.0,
+            "profit": 3.89317441309978,
+            "holding_days": 42
+          },
+          {
+            "entry_timestamp": "2023-04-17T09:00:00",
+            "exit_timestamp": "2023-04-18T22:00:00",
+            "entry_price": 39195000.0,
+            "exit_price": 39711000.0,
+            "profit": 1.3164944508228091,
+            "holding_days": 37
+          },
+          {
+            "entry_timestamp": "2023-04-17T10:00:00",
+            "exit_timestamp": "2023-04-18T22:00:00",
+            "entry_price": 39269000.0,
+            "exit_price": 39711000.0,
+            "profit": 1.1255697878733861,
+            "holding_days": 36
+          },
+          {
+            "entry_timestamp": "2023-04-17T20:00:00",
+            "exit_timestamp": "2023-04-18T22:00:00",
+            "entry_price": 38809000.0,
+            "exit_price": 39711000.0,
+            "profit": 2.324203148754155,
+            "holding_days": 26
+          },
+          {
+            "entry_timestamp": "2023-04-17T21:00:00",
+            "exit_timestamp": "2023-04-18T22:00:00",
+            "entry_price": 38773000.0,
+            "exit_price": 39711000.0,
+            "profit": 2.4192092435457666,
+            "holding_days": 25
+          },
+          {
+            "entry_timestamp": "2023-05-08T08:00:00",
+            "exit_timestamp": "2023-05-11T00:00:00",
+            "entry_price": 38143000.0,
+            "exit_price": 37778000.0,
+            "profit": -0.9569252549615919,
+            "holding_days": 64
+          },
+          {
+            "entry_timestamp": "2023-05-08T10:00:00",
+            "exit_timestamp": "2023-05-11T00:00:00",
+            "entry_price": 37935000.0,
+            "exit_price": 37778000.0,
+            "profit": -0.4138658231184922,
+            "holding_days": 62
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 34,
+        "avg_profit": 3.5580360724925324,
+        "win_rate": 1.0,
+        "avg_holding_days": 45.205882352941174,
+        "max_profit": 7.39168826729712,
+        "min_profit": 0.5008300272924229,
+        "exits": [
+          {
+            "entry_timestamp": "2023-03-10T05:00:00",
+            "exit_timestamp": "2023-03-13T07:00:00",
+            "entry_price": 27448000.0,
+            "exit_price": 28852000.0,
+            "profit": 5.115126785193821,
+            "holding_days": 74
+          },
+          {
+            "entry_timestamp": "2023-03-10T06:00:00",
+            "exit_timestamp": "2023-03-13T07:00:00",
+            "entry_price": 27490000.0,
+            "exit_price": 28852000.0,
+            "profit": 4.95452891960713,
+            "holding_days": 73
+          },
+          {
+            "entry_timestamp": "2023-03-10T09:00:00",
+            "exit_timestamp": "2023-03-13T07:00:00",
+            "entry_price": 27105000.0,
+            "exit_price": 28852000.0,
+            "profit": 6.4453052942261575,
+            "holding_days": 70
+          },
+          {
+            "entry_timestamp": "2023-03-10T10:00:00",
+            "exit_timestamp": "2023-03-13T07:00:00",
+            "entry_price": 27220000.0,
+            "exit_price": 28852000.0,
+            "profit": 5.995591476855253,
+            "holding_days": 69
+          },
+          {
+            "entry_timestamp": "2023-03-27T23:00:00",
+            "exit_timestamp": "2023-03-29T15:00:00",
+            "entry_price": 36010000.0,
+            "exit_price": 37072000.0,
+            "profit": 2.9491807831158012,
+            "holding_days": 40
+          },
+          {
+            "entry_timestamp": "2023-03-28T00:00:00",
+            "exit_timestamp": "2023-03-29T15:00:00",
+            "entry_price": 35909000.0,
+            "exit_price": 37072000.0,
+            "profit": 3.238742376562979,
+            "holding_days": 39
+          },
+          {
+            "entry_timestamp": "2023-04-17T09:00:00",
+            "exit_timestamp": "2023-04-18T20:00:00",
+            "entry_price": 39195000.0,
+            "exit_price": 39738000.0,
+            "profit": 1.385380788365863,
+            "holding_days": 35
+          },
+          {
+            "entry_timestamp": "2023-04-17T10:00:00",
+            "exit_timestamp": "2023-04-18T20:00:00",
+            "entry_price": 39269000.0,
+            "exit_price": 39738000.0,
+            "profit": 1.194326313376964,
+            "holding_days": 34
+          },
+          {
+            "entry_timestamp": "2023-04-17T20:00:00",
+            "exit_timestamp": "2023-04-18T20:00:00",
+            "entry_price": 38809000.0,
+            "exit_price": 39738000.0,
+            "profit": 2.393774639903115,
+            "holding_days": 24
+          },
+          {
+            "entry_timestamp": "2023-04-17T21:00:00",
+            "exit_timestamp": "2023-04-18T20:00:00",
+            "entry_price": 38773000.0,
+            "exit_price": 39738000.0,
+            "profit": 2.4888453305135014,
+            "holding_days": 23
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 59,
+        "avg_profit": 3.739492699592749,
+        "win_rate": 0.9830508474576272,
+        "avg_holding_days": 54.13559322033898,
+        "max_profit": 11.541027351567712,
+        "min_profit": -1.1844910107388489,
+        "exits": [
+          {
+            "entry_timestamp": "2024-01-08T11:00:00",
+            "exit_timestamp": "2024-01-08T21:00:00",
+            "entry_price": 58133000.0,
+            "exit_price": 60740000.0,
+            "profit": 4.484544062752653,
+            "holding_days": 10
+          },
+          {
+            "entry_timestamp": "2024-01-23T04:00:00",
+            "exit_timestamp": "2024-01-26T19:00:00",
+            "entry_price": 55346000.0,
+            "exit_price": 56130000.0,
+            "profit": 1.4165432009539987,
+            "holding_days": 87
+          },
+          {
+            "entry_timestamp": "2024-01-23T08:00:00",
+            "exit_timestamp": "2024-01-26T19:00:00",
+            "entry_price": 54689000.0,
+            "exit_price": 56130000.0,
+            "profit": 2.6348991570516924,
+            "holding_days": 83
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:00:00",
+            "exit_timestamp": "2024-01-26T19:00:00",
+            "entry_price": 54256000.0,
+            "exit_price": 56130000.0,
+            "profit": 3.4539958714243584,
+            "holding_days": 74
+          },
+          {
+            "entry_timestamp": "2024-01-23T18:00:00",
+            "exit_timestamp": "2024-01-26T19:00:00",
+            "entry_price": 53759000.0,
+            "exit_price": 56130000.0,
+            "profit": 4.410424301047266,
+            "holding_days": 73
+          },
+          {
+            "entry_timestamp": "2024-02-17T23:00:00",
+            "exit_timestamp": "2024-02-20T22:00:00",
+            "entry_price": 70149000.0,
+            "exit_price": 72866000.0,
+            "profit": 3.873184222155697,
+            "holding_days": 71
+          },
+          {
+            "entry_timestamp": "2024-02-24T08:00:00",
+            "exit_timestamp": "2024-02-27T00:00:00",
+            "entry_price": 70805000.0,
+            "exit_price": 72488000.0,
+            "profit": 2.376950780312125,
+            "holding_days": 64
+          },
+          {
+            "entry_timestamp": "2024-02-26T18:00:00",
+            "exit_timestamp": "2024-02-27T00:00:00",
+            "entry_price": 70060000.0,
+            "exit_price": 72488000.0,
+            "profit": 3.4656009135027124,
+            "holding_days": 6
+          },
+          {
+            "entry_timestamp": "2024-03-22T22:00:00",
+            "exit_timestamp": "2024-03-25T08:00:00",
+            "entry_price": 92601000.0,
+            "exit_price": 96624000.0,
+            "profit": 4.34444552434639,
+            "holding_days": 58
+          },
+          {
+            "entry_timestamp": "2024-04-01T14:00:00",
+            "exit_timestamp": "2024-04-04T23:00:00",
+            "entry_price": 99452000.0,
+            "exit_price": 98274000.0,
+            "profit": -1.1844910107388489,
+            "holding_days": 81
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 54,
+        "avg_profit": 3.9284357927604847,
+        "win_rate": 0.9814814814814815,
+        "avg_holding_days": 53.870370370370374,
+        "max_profit": 17.223808164430487,
+        "min_profit": -1.1714193781924949,
+        "exits": [
+          {
+            "entry_timestamp": "2024-01-08T11:00:00",
+            "exit_timestamp": "2024-01-09T06:00:00",
+            "entry_price": 58133000.0,
+            "exit_price": 63350000.0,
+            "profit": 8.974248705554503,
+            "holding_days": 19
+          },
+          {
+            "entry_timestamp": "2024-01-23T08:00:00",
+            "exit_timestamp": "2024-01-26T22:00:00",
+            "entry_price": 54689000.0,
+            "exit_price": 56557000.0,
+            "profit": 3.4156777414105215,
+            "holding_days": 86
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:00:00",
+            "exit_timestamp": "2024-01-26T22:00:00",
+            "entry_price": 54256000.0,
+            "exit_price": 56557000.0,
+            "profit": 4.241005603066942,
+            "holding_days": 77
+          },
+          {
+            "entry_timestamp": "2024-01-23T18:00:00",
+            "exit_timestamp": "2024-01-26T22:00:00",
+            "entry_price": 53759000.0,
+            "exit_price": 56557000.0,
+            "profit": 5.2047099090384865,
+            "holding_days": 76
+          },
+          {
+            "entry_timestamp": "2024-02-26T18:00:00",
+            "exit_timestamp": "2024-02-28T19:00:00",
+            "entry_price": 70060000.0,
+            "exit_price": 82127000.0,
+            "profit": 17.223808164430487,
+            "holding_days": 49
+          },
+          {
+            "entry_timestamp": "2024-03-19T16:00:00",
+            "exit_timestamp": "2024-03-21T07:00:00",
+            "entry_price": 96037000.0,
+            "exit_price": 98980000.0,
+            "profit": 3.0644439122421567,
+            "holding_days": 39
+          },
+          {
+            "entry_timestamp": "2024-03-19T17:00:00",
+            "exit_timestamp": "2024-03-21T07:00:00",
+            "entry_price": 94691000.0,
+            "exit_price": 98980000.0,
+            "profit": 4.5294695377596605,
+            "holding_days": 38
+          },
+          {
+            "entry_timestamp": "2024-03-19T20:00:00",
+            "exit_timestamp": "2024-03-21T07:00:00",
+            "entry_price": 93451000.0,
+            "exit_price": 98980000.0,
+            "profit": 5.916469593690811,
+            "holding_days": 35
+          },
+          {
+            "entry_timestamp": "2024-04-01T14:00:00",
+            "exit_timestamp": "2024-04-05T01:00:00",
+            "entry_price": 99452000.0,
+            "exit_price": 98287000.0,
+            "profit": -1.1714193781924949,
+            "holding_days": 83
+          },
+          {
+            "entry_timestamp": "2024-05-01T11:00:00",
+            "exit_timestamp": "2024-05-04T00:00:00",
+            "entry_price": 84485000.0,
+            "exit_price": 87098000.0,
+            "profit": 3.0928567201278336,
+            "holding_days": 61
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute60"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 41,
+        "avg_profit": 5.048822094900547,
+        "win_rate": 0.975609756097561,
+        "avg_holding_days": 61.80487804878049,
+        "max_profit": 11.717144763175451,
+        "min_profit": -1.1844910107388489,
+        "exits": [
+          {
+            "entry_timestamp": "2024-01-08T11:00:00",
+            "exit_timestamp": "2024-01-09T03:00:00",
+            "entry_price": 58133000.0,
+            "exit_price": 62713000.0,
+            "profit": 7.8784855417748965,
+            "holding_days": 16
+          },
+          {
+            "entry_timestamp": "2024-01-23T08:00:00",
+            "exit_timestamp": "2024-01-27T01:00:00",
+            "entry_price": 54689000.0,
+            "exit_price": 57759000.0,
+            "profit": 5.613560313774251,
+            "holding_days": 89
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:00:00",
+            "exit_timestamp": "2024-01-27T01:00:00",
+            "entry_price": 54256000.0,
+            "exit_price": 57759000.0,
+            "profit": 6.456428782070185,
+            "holding_days": 80
+          },
+          {
+            "entry_timestamp": "2024-01-23T18:00:00",
+            "exit_timestamp": "2024-01-27T01:00:00",
+            "entry_price": 53759000.0,
+            "exit_price": 57759000.0,
+            "profit": 7.4406145947655284,
+            "holding_days": 79
+          },
+          {
+            "entry_timestamp": "2024-02-24T08:00:00",
+            "exit_timestamp": "2024-02-27T01:00:00",
+            "entry_price": 70805000.0,
+            "exit_price": 73152000.0,
+            "profit": 3.3147376597697904,
+            "holding_days": 65
+          },
+          {
+            "entry_timestamp": "2024-02-26T18:00:00",
+            "exit_timestamp": "2024-02-27T01:00:00",
+            "entry_price": 70060000.0,
+            "exit_price": 73152000.0,
+            "profit": 4.413359977162433,
+            "holding_days": 7
+          },
+          {
+            "entry_timestamp": "2024-03-22T22:00:00",
+            "exit_timestamp": "2024-03-25T08:00:00",
+            "entry_price": 92601000.0,
+            "exit_price": 96624000.0,
+            "profit": 4.34444552434639,
+            "holding_days": 58
+          },
+          {
+            "entry_timestamp": "2024-04-01T14:00:00",
+            "exit_timestamp": "2024-04-04T23:00:00",
+            "entry_price": 99452000.0,
+            "exit_price": 98274000.0,
+            "profit": -1.1844910107388489,
+            "holding_days": 81
+          },
+          {
+            "entry_timestamp": "2024-05-01T11:00:00",
+            "exit_timestamp": "2024-05-04T06:00:00",
+            "entry_price": 84485000.0,
+            "exit_price": 89077000.0,
+            "profit": 5.43528437000651,
+            "holding_days": 67
+          },
+          {
+            "entry_timestamp": "2024-05-01T16:00:00",
+            "exit_timestamp": "2024-05-04T06:00:00",
+            "entry_price": 81223000.0,
+            "exit_price": 89077000.0,
+            "profit": 9.66967484579491,
+            "holding_days": 62
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute60"
+      }
+    ]
+  },
+  "minute15": {
+    "entry_validation": [
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 516,
+        "true_positives": 5,
+        "false_positives": 511,
+        "total_opportunities": 277,
+        "precision": 0.009689922480620155,
+        "recall": 0.018050541516245487,
+        "f1_score": 0.012610340479192938,
+        "avg_return": 0.9994303129354664,
+        "signals": [
+          {
+            "timestamp": "2023-01-31T04:30:00",
+            "price": 28514000.0,
+            "future_return": 1.0345795048046573,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-01-31T05:15:00",
+            "price": 28484000.0,
+            "future_return": 1.1409914337873894,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-01T17:15:00",
+            "price": 28708000.0,
+            "future_return": 1.121638567646649,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-01T18:00:00",
+            "price": 28707000.0,
+            "future_return": 1.1251611105305326,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-03T17:00:00",
+            "price": 29406000.0,
+            "future_return": 1.1154186220499218,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-03T17:15:00",
+            "price": 29386000.0,
+            "future_return": 1.1842373919553528,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-05T21:45:00",
+            "price": 29058000.0,
+            "future_return": 1.1356597150526533,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-05T22:00:00",
+            "price": 29039000.0,
+            "future_return": 0.836805675126554,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-06T14:15:00",
+            "price": 28707000.0,
+            "future_return": 2.5499007210784828,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-06T14:30:00",
+            "price": 28702000.0,
+            "future_return": 2.5677653125217756,
+            "success": "False"
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute15"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 308,
+        "true_positives": 3,
+        "false_positives": 305,
+        "total_opportunities": 277,
+        "precision": 0.00974025974025974,
+        "recall": 0.010830324909747292,
+        "f1_score": 0.010256410256410256,
+        "avg_return": 1.0058484845804323,
+        "signals": [
+          {
+            "timestamp": "2023-01-31T05:15:00",
+            "price": 28484000.0,
+            "future_return": 1.1409914337873894,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-03T17:00:00",
+            "price": 29406000.0,
+            "future_return": 1.1154186220499218,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-03T17:15:00",
+            "price": 29386000.0,
+            "future_return": 1.1842373919553528,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-05T21:45:00",
+            "price": 29058000.0,
+            "future_return": 1.1356597150526533,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-05T22:00:00",
+            "price": 29039000.0,
+            "future_return": 0.836805675126554,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-06T14:15:00",
+            "price": 28707000.0,
+            "future_return": 2.5499007210784828,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-06T14:30:00",
+            "price": 28702000.0,
+            "future_return": 2.5677653125217756,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-09T01:15:00",
+            "price": 29084000.0,
+            "future_return": 0.8355109338467887,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-09T12:00:00",
+            "price": 28887000.0,
+            "future_return": 1.0627617959635822,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-09T12:45:00",
+            "price": 28842000.0,
+            "future_return": 1.2204424103737606,
+            "success": "False"
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute15"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 68,
+        "true_positives": 1,
+        "false_positives": 67,
+        "total_opportunities": 277,
+        "precision": 0.014705882352941176,
+        "recall": 0.0036101083032490976,
+        "f1_score": 0.005797101449275362,
+        "avg_return": 1.2315641790403078,
+        "signals": [
+          {
+            "timestamp": "2023-02-17T08:15:00",
+            "price": 30803000.0,
+            "future_return": 1.0258741031717689,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-17T08:30:00",
+            "price": 30675000.0,
+            "future_return": 1.3528932355338223,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-17T08:45:00",
+            "price": 30451000.0,
+            "future_return": 2.09845325276674,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-02-17T09:00:00",
+            "price": 30529000.0,
+            "future_return": 1.8375970388810638,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-03T10:45:00",
+            "price": 29765000.0,
+            "future_return": 1.0112548294977324,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-03T11:00:00",
+            "price": 29916000.0,
+            "future_return": 0.36101083032490977,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T04:30:00",
+            "price": 28149000.0,
+            "future_return": 0.2131514441010338,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T05:15:00",
+            "price": 27913000.0,
+            "future_return": 0.3833339304266829,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T05:45:00",
+            "price": 27448000.0,
+            "future_return": 1.5410958904109588,
+            "success": "False"
+          },
+          {
+            "timestamp": "2023-03-10T06:00:00",
+            "price": 27616000.0,
+            "future_return": 0.6192062572421785,
+            "success": "False"
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute15"
+      },
+      {
+        "pattern_name": "Entry V1: RSI<30 + BB<0.2 + Vol>1.5",
+        "total_signals": 600,
+        "true_positives": 13,
+        "false_positives": 587,
+        "total_opportunities": 342,
+        "precision": 0.021666666666666667,
+        "recall": 0.038011695906432746,
+        "f1_score": 0.02760084925690021,
+        "avg_return": 1.3728441736193497,
+        "signals": [
+          {
+            "timestamp": "2024-01-03T20:00:00",
+            "price": 59400000.0,
+            "future_return": 1.6835016835016834,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-03T20:15:00",
+            "price": 58601000.0,
+            "future_return": 1.5955359123564445,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-03T20:45:00",
+            "price": 58300000.0,
+            "future_return": 1.758147512864494,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-03T21:00:00",
+            "price": 56490000.0,
+            "future_return": 5.018587360594796,
+            "success": "True"
+          },
+          {
+            "timestamp": "2024-01-03T21:15:00",
+            "price": 57160000.0,
+            "future_return": 3.7876137158852345,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-03T21:30:00",
+            "price": 57253000.0,
+            "future_return": 3.619024330602763,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-08T07:45:00",
+            "price": 59059000.0,
+            "future_return": 0.8516906821991568,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-08T08:15:00",
+            "price": 58840000.0,
+            "future_return": 1.2270564242012236,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-08T08:30:00",
+            "price": 58651000.0,
+            "future_return": 1.5532556989650645,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-08T11:45:00",
+            "price": 58133000.0,
+            "future_return": 2.458156296767757,
+            "success": "False"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute15"
+      },
+      {
+        "pattern_name": "Entry V2: RSI<30 + BB<0.2 + Vol>2.0 + Stoch<20",
+        "total_signals": 430,
+        "true_positives": 10,
+        "false_positives": 420,
+        "total_opportunities": 342,
+        "precision": 0.023255813953488372,
+        "recall": 0.029239766081871343,
+        "f1_score": 0.02590673575129534,
+        "avg_return": 1.3887461338634228,
+        "signals": [
+          {
+            "timestamp": "2024-01-03T20:15:00",
+            "price": 58601000.0,
+            "future_return": 1.5955359123564445,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-03T20:45:00",
+            "price": 58300000.0,
+            "future_return": 1.758147512864494,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-08T08:15:00",
+            "price": 58840000.0,
+            "future_return": 1.2270564242012236,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-08T08:30:00",
+            "price": 58651000.0,
+            "future_return": 1.5532556989650645,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-08T11:45:00",
+            "price": 58133000.0,
+            "future_return": 2.458156296767757,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-10T17:45:00",
+            "price": 61134000.0,
+            "future_return": 1.002715346615631,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T00:00:00",
+            "price": 61980000.0,
+            "future_return": 0.5953533397870281,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T00:15:00",
+            "price": 61924000.0,
+            "future_return": 0.12596085524190945,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T00:30:00",
+            "price": 61476000.0,
+            "future_return": 0.730366321816644,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T01:15:00",
+            "price": 61009000.0,
+            "future_return": 0.22127882771394383,
+            "success": "False"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute15"
+      },
+      {
+        "pattern_name": "Entry V3: RSI<25 + BB<0.2 + Vol>2.0 + Stoch<15 + ADX>35",
+        "total_signals": 82,
+        "true_positives": 1,
+        "false_positives": 81,
+        "total_opportunities": 342,
+        "precision": 0.012195121951219513,
+        "recall": 0.0029239766081871343,
+        "f1_score": 0.0047169811320754715,
+        "avg_return": 1.5284619242671391,
+        "signals": [
+          {
+            "timestamp": "2024-01-13T01:15:00",
+            "price": 61009000.0,
+            "future_return": 0.22127882771394383,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T01:30:00",
+            "price": 60400000.0,
+            "future_return": 1.1903973509933774,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-13T07:15:00",
+            "price": 58479000.0,
+            "future_return": 2.5992236529352417,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-15T08:00:00",
+            "price": 57691000.0,
+            "future_return": 1.9743114177254686,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-15T08:15:00",
+            "price": 57716000.0,
+            "future_return": 1.9301406888904291,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-15T08:30:00",
+            "price": 57499000.0,
+            "future_return": 2.3148228664846346,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-23T18:15:00",
+            "price": 53595000.0,
+            "future_return": 1.4460304132848214,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-01-29T05:00:00",
+            "price": 57500000.0,
+            "future_return": 1.7356521739130433,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-02-05T10:00:00",
+            "price": 58314000.0,
+            "future_return": 1.6736975683369344,
+            "success": "False"
+          },
+          {
+            "timestamp": "2024-02-17T22:30:00",
+            "price": 70707000.0,
+            "future_return": 1.169615455329741,
+            "success": "False"
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute15"
+      }
+    ],
+    "exit_validation": [
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 121,
+        "avg_profit": 1.1682405040731516,
+        "win_rate": 0.9090909090909091,
+        "avg_holding_days": 57.256198347107436,
+        "max_profit": 3.576209600305986,
+        "min_profit": -4.104895104895105,
+        "exits": [
+          {
+            "entry_timestamp": "2023-01-31T05:15:00",
+            "exit_timestamp": "2023-01-31T22:45:00",
+            "entry_price": 28484000.0,
+            "exit_price": 29085000.0,
+            "profit": 2.1099564667883723,
+            "holding_days": 70
+          },
+          {
+            "entry_timestamp": "2023-02-06T14:15:00",
+            "exit_timestamp": "2023-02-06T21:15:00",
+            "entry_price": 28707000.0,
+            "exit_price": 29191000.0,
+            "profit": 1.6859999303305815,
+            "holding_days": 28
+          },
+          {
+            "entry_timestamp": "2023-02-06T14:30:00",
+            "exit_timestamp": "2023-02-06T21:15:00",
+            "entry_price": 28702000.0,
+            "exit_price": 29191000.0,
+            "profit": 1.7037140268970803,
+            "holding_days": 27
+          },
+          {
+            "entry_timestamp": "2023-02-13T17:30:00",
+            "exit_timestamp": "2023-02-14T08:15:00",
+            "entry_price": 28061000.0,
+            "exit_price": 28319000.0,
+            "profit": 0.9194255372224797,
+            "holding_days": 59
+          },
+          {
+            "entry_timestamp": "2023-02-13T18:00:00",
+            "exit_timestamp": "2023-02-14T08:15:00",
+            "entry_price": 28042000.0,
+            "exit_price": 28319000.0,
+            "profit": 0.9878040082733044,
+            "holding_days": 57
+          },
+          {
+            "entry_timestamp": "2023-02-13T18:15:00",
+            "exit_timestamp": "2023-02-14T08:15:00",
+            "entry_price": 28033000.0,
+            "exit_price": 28319000.0,
+            "profit": 1.0202261620233295,
+            "holding_days": 56
+          },
+          {
+            "entry_timestamp": "2023-02-17T07:30:00",
+            "exit_timestamp": "2023-02-17T23:30:00",
+            "entry_price": 31188000.0,
+            "exit_price": 31365000.0,
+            "profit": 0.5675259715275106,
+            "holding_days": 64
+          },
+          {
+            "entry_timestamp": "2023-02-17T07:45:00",
+            "exit_timestamp": "2023-02-17T23:30:00",
+            "entry_price": 30970000.0,
+            "exit_price": 31365000.0,
+            "profit": 1.275427833387149,
+            "holding_days": 63
+          },
+          {
+            "entry_timestamp": "2023-02-17T08:00:00",
+            "exit_timestamp": "2023-02-17T23:30:00",
+            "entry_price": 31112000.0,
+            "exit_price": 31365000.0,
+            "profit": 0.8131910516842376,
+            "holding_days": 62
+          },
+          {
+            "entry_timestamp": "2023-02-17T08:15:00",
+            "exit_timestamp": "2023-02-17T23:30:00",
+            "entry_price": 30803000.0,
+            "exit_price": 31365000.0,
+            "profit": 1.824497613868779,
+            "holding_days": 61
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute15"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 90,
+        "avg_profit": 1.341343501873345,
+        "win_rate": 0.9444444444444444,
+        "avg_holding_days": 56.28888888888889,
+        "max_profit": 4.7891753953888605,
+        "min_profit": -0.18660295425611692,
+        "exits": [
+          {
+            "entry_timestamp": "2023-02-13T17:30:00",
+            "exit_timestamp": "2023-02-14T08:45:00",
+            "entry_price": 28061000.0,
+            "exit_price": 28309000.0,
+            "profit": 0.883788888492926,
+            "holding_days": 61
+          },
+          {
+            "entry_timestamp": "2023-02-13T18:00:00",
+            "exit_timestamp": "2023-02-14T08:45:00",
+            "entry_price": 28042000.0,
+            "exit_price": 28309000.0,
+            "profit": 0.9521432137508024,
+            "holding_days": 59
+          },
+          {
+            "entry_timestamp": "2023-02-13T18:15:00",
+            "exit_timestamp": "2023-02-14T08:45:00",
+            "entry_price": 28033000.0,
+            "exit_price": 28309000.0,
+            "profit": 0.9845539185959404,
+            "holding_days": 58
+          },
+          {
+            "entry_timestamp": "2023-02-20T10:00:00",
+            "exit_timestamp": "2023-02-20T19:30:00",
+            "entry_price": 31010000.0,
+            "exit_price": 31977000.0,
+            "profit": 3.1183489197033216,
+            "holding_days": 38
+          },
+          {
+            "entry_timestamp": "2023-02-25T19:45:00",
+            "exit_timestamp": "2023-02-26T07:45:00",
+            "entry_price": 30445000.0,
+            "exit_price": 30860000.0,
+            "profit": 1.3631138117917556,
+            "holding_days": 48
+          },
+          {
+            "entry_timestamp": "2023-02-25T20:00:00",
+            "exit_timestamp": "2023-02-26T07:45:00",
+            "entry_price": 30437000.0,
+            "exit_price": 30860000.0,
+            "profit": 1.389755889213786,
+            "holding_days": 47
+          },
+          {
+            "entry_timestamp": "2023-03-03T19:00:00",
+            "exit_timestamp": "2023-03-04T10:00:00",
+            "entry_price": 29674000.0,
+            "exit_price": 29832000.0,
+            "profit": 0.5324526521534003,
+            "holding_days": 60
+          },
+          {
+            "entry_timestamp": "2023-03-19T07:45:00",
+            "exit_timestamp": "2023-03-20T00:00:00",
+            "entry_price": 35775000.0,
+            "exit_price": 36331000.0,
+            "profit": 1.554157931516422,
+            "holding_days": 65
+          },
+          {
+            "entry_timestamp": "2023-03-20T11:30:00",
+            "exit_timestamp": "2023-03-20T16:45:00",
+            "entry_price": 36365000.0,
+            "exit_price": 37462000.0,
+            "profit": 3.0166368761171456,
+            "holding_days": 21
+          },
+          {
+            "entry_timestamp": "2023-03-23T04:45:00",
+            "exit_timestamp": "2023-03-24T00:30:00",
+            "entry_price": 35683000.0,
+            "exit_price": 37298000.0,
+            "profit": 4.525964745116722,
+            "holding_days": 79
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute15"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 89,
+        "avg_profit": 1.7232611902281818,
+        "win_rate": 0.9662921348314607,
+        "avg_holding_days": 59.2247191011236,
+        "max_profit": 5.2707628649305445,
+        "min_profit": -0.3404788494538719,
+        "exits": [
+          {
+            "entry_timestamp": "2023-01-31T05:15:00",
+            "exit_timestamp": "2023-01-31T22:45:00",
+            "entry_price": 28484000.0,
+            "exit_price": 29085000.0,
+            "profit": 2.1099564667883723,
+            "holding_days": 70
+          },
+          {
+            "entry_timestamp": "2023-02-06T14:15:00",
+            "exit_timestamp": "2023-02-06T21:30:00",
+            "entry_price": 28707000.0,
+            "exit_price": 29261000.0,
+            "profit": 1.9298428954610374,
+            "holding_days": 29
+          },
+          {
+            "entry_timestamp": "2023-02-06T14:30:00",
+            "exit_timestamp": "2023-02-06T21:30:00",
+            "entry_price": 28702000.0,
+            "exit_price": 29261000.0,
+            "profit": 1.9475994704201798,
+            "holding_days": 28
+          },
+          {
+            "entry_timestamp": "2023-02-13T17:30:00",
+            "exit_timestamp": "2023-02-14T08:15:00",
+            "entry_price": 28061000.0,
+            "exit_price": 28319000.0,
+            "profit": 0.9194255372224797,
+            "holding_days": 59
+          },
+          {
+            "entry_timestamp": "2023-02-13T18:00:00",
+            "exit_timestamp": "2023-02-14T08:15:00",
+            "entry_price": 28042000.0,
+            "exit_price": 28319000.0,
+            "profit": 0.9878040082733044,
+            "holding_days": 57
+          },
+          {
+            "entry_timestamp": "2023-02-13T18:15:00",
+            "exit_timestamp": "2023-02-14T08:15:00",
+            "entry_price": 28033000.0,
+            "exit_price": 28319000.0,
+            "profit": 1.0202261620233295,
+            "holding_days": 56
+          },
+          {
+            "entry_timestamp": "2023-02-17T07:30:00",
+            "exit_timestamp": "2023-02-18T05:00:00",
+            "entry_price": 31188000.0,
+            "exit_price": 32056000.0,
+            "profit": 2.7831217134795434,
+            "holding_days": 86
+          },
+          {
+            "entry_timestamp": "2023-02-17T07:45:00",
+            "exit_timestamp": "2023-02-18T05:00:00",
+            "entry_price": 30970000.0,
+            "exit_price": 32056000.0,
+            "profit": 3.5066193090087183,
+            "holding_days": 85
+          },
+          {
+            "entry_timestamp": "2023-02-17T08:00:00",
+            "exit_timestamp": "2023-02-18T05:00:00",
+            "entry_price": 31112000.0,
+            "exit_price": 32056000.0,
+            "profit": 3.0341990228850606,
+            "holding_days": 84
+          },
+          {
+            "entry_timestamp": "2023-02-17T08:15:00",
+            "exit_timestamp": "2023-02-18T05:00:00",
+            "entry_price": 30803000.0,
+            "exit_price": 32056000.0,
+            "profit": 4.067785605298186,
+            "holding_days": 83
+          }
+        ],
+        "year": 2023,
+        "timeframe": "minute15"
+      },
+      {
+        "pattern_name": "Exit V1: RSI>70 + BB>0.8",
+        "total_exits": 167,
+        "avg_profit": 2.129130722166709,
+        "win_rate": 0.9401197604790419,
+        "avg_holding_days": 53.76047904191617,
+        "max_profit": 10.558390997510008,
+        "min_profit": -1.1462360700477598,
+        "exits": [
+          {
+            "entry_timestamp": "2024-01-08T08:15:00",
+            "exit_timestamp": "2024-01-08T20:45:00",
+            "entry_price": 58840000.0,
+            "exit_price": 60115000.0,
+            "profit": 2.1668932698844325,
+            "holding_days": 50
+          },
+          {
+            "entry_timestamp": "2024-01-08T08:30:00",
+            "exit_timestamp": "2024-01-08T20:45:00",
+            "entry_price": 58651000.0,
+            "exit_price": 60115000.0,
+            "profit": 2.4961211232545053,
+            "holding_days": 49
+          },
+          {
+            "entry_timestamp": "2024-01-08T11:45:00",
+            "exit_timestamp": "2024-01-08T20:45:00",
+            "entry_price": 58133000.0,
+            "exit_price": 60115000.0,
+            "profit": 3.4094232191698346,
+            "holding_days": 36
+          },
+          {
+            "entry_timestamp": "2024-01-10T17:45:00",
+            "exit_timestamp": "2024-01-11T08:00:00",
+            "entry_price": 61134000.0,
+            "exit_price": 64715000.0,
+            "profit": 5.85762423528642,
+            "holding_days": 57
+          },
+          {
+            "entry_timestamp": "2024-01-19T12:15:00",
+            "exit_timestamp": "2024-01-20T03:45:00",
+            "entry_price": 56193000.0,
+            "exit_price": 57600000.0,
+            "profit": 2.5038705888633817,
+            "holding_days": 62
+          },
+          {
+            "entry_timestamp": "2024-01-20T01:30:00",
+            "exit_timestamp": "2024-01-20T03:45:00",
+            "entry_price": 56037000.0,
+            "exit_price": 57600000.0,
+            "profit": 2.789228545425344,
+            "holding_days": 9
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:00:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54600000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.0622710622710623,
+            "holding_days": 61
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:15:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54581000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.0974514941096718,
+            "holding_days": 60
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:30:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54350000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.5271389144434222,
+            "holding_days": 59
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:45:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54256000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.7030374520790328,
+            "holding_days": 58
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute15"
+      },
+      {
+        "pattern_name": "Exit V2: BB>0.9 + Stoch Dead Cross + RSI>65",
+        "total_exits": 137,
+        "avg_profit": 2.496982715430875,
+        "win_rate": 0.9708029197080292,
+        "avg_holding_days": 54.956204379562045,
+        "max_profit": 12.462340592370445,
+        "min_profit": -1.257177966301959,
+        "exits": [
+          {
+            "entry_timestamp": "2024-01-08T08:15:00",
+            "exit_timestamp": "2024-01-09T04:15:00",
+            "entry_price": 58840000.0,
+            "exit_price": 62483000.0,
+            "profit": 6.191366417403127,
+            "holding_days": 80
+          },
+          {
+            "entry_timestamp": "2024-01-08T08:30:00",
+            "exit_timestamp": "2024-01-09T04:15:00",
+            "entry_price": 58651000.0,
+            "exit_price": 62483000.0,
+            "profit": 6.533562940103323,
+            "holding_days": 79
+          },
+          {
+            "entry_timestamp": "2024-01-08T11:45:00",
+            "exit_timestamp": "2024-01-09T04:15:00",
+            "entry_price": 58133000.0,
+            "exit_price": 62483000.0,
+            "profit": 7.482841071336418,
+            "holding_days": 66
+          },
+          {
+            "entry_timestamp": "2024-01-10T17:45:00",
+            "exit_timestamp": "2024-01-11T07:45:00",
+            "entry_price": 61134000.0,
+            "exit_price": 64059000.0,
+            "profit": 4.784571596820101,
+            "holding_days": 56
+          },
+          {
+            "entry_timestamp": "2024-01-19T12:15:00",
+            "exit_timestamp": "2024-01-20T03:45:00",
+            "entry_price": 56193000.0,
+            "exit_price": 57600000.0,
+            "profit": 2.5038705888633817,
+            "holding_days": 62
+          },
+          {
+            "entry_timestamp": "2024-01-20T01:30:00",
+            "exit_timestamp": "2024-01-20T03:45:00",
+            "entry_price": 56037000.0,
+            "exit_price": 57600000.0,
+            "profit": 2.789228545425344,
+            "holding_days": 9
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:00:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54600000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.0622710622710623,
+            "holding_days": 61
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:15:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54581000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.0974514941096718,
+            "holding_days": 60
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:30:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54350000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.5271389144434222,
+            "holding_days": 59
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:45:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54256000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.7030374520790328,
+            "holding_days": 58
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute15"
+      },
+      {
+        "pattern_name": "Exit V3: BB>0.9 + Stoch>90 + RSI>70",
+        "total_exits": 138,
+        "avg_profit": 2.253256392555544,
+        "win_rate": 0.9420289855072463,
+        "avg_holding_days": 54.891304347826086,
+        "max_profit": 10.558390997510008,
+        "min_profit": -1.1462360700477598,
+        "exits": [
+          {
+            "entry_timestamp": "2024-01-08T08:15:00",
+            "exit_timestamp": "2024-01-08T20:45:00",
+            "entry_price": 58840000.0,
+            "exit_price": 60115000.0,
+            "profit": 2.1668932698844325,
+            "holding_days": 50
+          },
+          {
+            "entry_timestamp": "2024-01-08T08:30:00",
+            "exit_timestamp": "2024-01-08T20:45:00",
+            "entry_price": 58651000.0,
+            "exit_price": 60115000.0,
+            "profit": 2.4961211232545053,
+            "holding_days": 49
+          },
+          {
+            "entry_timestamp": "2024-01-08T11:45:00",
+            "exit_timestamp": "2024-01-08T20:45:00",
+            "entry_price": 58133000.0,
+            "exit_price": 60115000.0,
+            "profit": 3.4094232191698346,
+            "holding_days": 36
+          },
+          {
+            "entry_timestamp": "2024-01-19T12:15:00",
+            "exit_timestamp": "2024-01-20T03:45:00",
+            "entry_price": 56193000.0,
+            "exit_price": 57600000.0,
+            "profit": 2.5038705888633817,
+            "holding_days": 62
+          },
+          {
+            "entry_timestamp": "2024-01-20T01:30:00",
+            "exit_timestamp": "2024-01-20T03:45:00",
+            "entry_price": 56037000.0,
+            "exit_price": 57600000.0,
+            "profit": 2.789228545425344,
+            "holding_days": 9
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:00:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54600000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.0622710622710623,
+            "holding_days": 61
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:15:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54581000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.0974514941096718,
+            "holding_days": 60
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:30:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54350000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.5271389144434222,
+            "holding_days": 59
+          },
+          {
+            "entry_timestamp": "2024-01-23T17:45:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 54256000.0,
+            "exit_price": 55180000.0,
+            "profit": 1.7030374520790328,
+            "holding_days": 58
+          },
+          {
+            "entry_timestamp": "2024-01-23T18:00:00",
+            "exit_timestamp": "2024-01-24T08:15:00",
+            "entry_price": 53817000.0,
+            "exit_price": 55180000.0,
+            "profit": 2.5326569671293457,
+            "holding_days": 57
+          }
+        ],
+        "year": 2024,
+        "timeframe": "minute15"
+      }
+    ]
+  }
+}

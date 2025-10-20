@@ -1,4 +1,5 @@
 {
+  "enableAllProjectMcpServers": true,
   "permissions": {
     "allow": [
       "Bash(python3:*)",
@@ -12,7 +13,19 @@
       "Bash(find:*)",
       "Bash(cat:*)",
       "Bash(tee:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(chmod:*)",
+      "Bash(for dir in /Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v{01..18}*/)",
+      "Bash(do if [ -d \"$dir\" ])",
+      "Bash([ -f \"$dir/config.json\" ])",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(for table in minute1 minute3 minute5 minute10 minute15 minute30 minute60 minute240)",
+      "Bash(do echo \"=== bitcoin_$table ===\")",
+      "Bash(grep:*)",
+      "mcp__*",
+      "Read(//private/tmp/**)",
+      "Read(//Users/bongbong/SynologyDrive/teamFolder/.claude/**)"
     ],
     "deny": [],
     "ask": []

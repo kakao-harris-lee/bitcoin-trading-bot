@@ -1,0 +1,28 @@
+{
+  "version": "v20",
+  "start_date": "2025-01-01",
+  "end_date": "2025-10-16",
+  "initial_capital": 10000000,
+  "final_capital": 11238120.581047397,
+  "total_return_pct": 12.38120581047397,
+  "total_trades": 1,
+  "wins": 1,
+  "losses": 0,
+  "win_rate": 1.0,
+  "avg_profit_pct": 20.62915633347223,
+  "avg_loss_pct": 0,
+  "max_win_pct": 20.62915633347223,
+  "max_loss_pct": 20.62915633347223,
+  "trades": [
+    {
+      "entry_time": "2025-05-01 09:00:00",
+      "entry_price": 139145000.0,
+      "exit_time": "2025-08-13 09:00:00",
+      "exit_price": 168051000.0,
+      "pnl_pct": 20.62915633347223,
+      "reason": "TP_20%_NEUTRAL",
+      "risk_mode": "NEUTRAL",
+      "return_20d_entry": 0.14569781803211201
+    }
+  ]
+}

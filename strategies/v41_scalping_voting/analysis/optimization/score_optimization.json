@@ -1,0 +1,150 @@
+{
+  "minute15": {
+    "score_stats": {
+      "count": 9250.0,
+      "mean": 16.628216216216217,
+      "std": 7.600143652633176,
+      "min": 0.0,
+      "25%": 10.0,
+      "50%": 15.0,
+      "75%": 17.0,
+      "max": 45.0
+    },
+    "percentiles": {
+      "10": 10.0,
+      "20": 10.0,
+      "30": 10.0,
+      "40": 15.0,
+      "50": 15.0,
+      "60": 15.0,
+      "70": 15.0,
+      "80": 25.0,
+      "90": 30.0,
+      "95": 30.0,
+      "99": 40.0
+    },
+    "correlation": 0.0653427467775405,
+    "thresholds": {
+      "S_tier": 25.0,
+      "A_tier": 15.0,
+      "B_tier": 15.0
+    },
+    "tier_returns": {
+      "S_tier": 0.022694437319797693,
+      "A_tier": 0.021605716582550928,
+      "B_tier": 0.021605716582550928
+    },
+    "dimension_correlations": {
+      "is_local_min": {
+        "weight": 20,
+        "corr": 0.08470900936001508
+      },
+      "swing_end": {
+        "weight": 15,
+        "corr": 0.02448076452681732
+      },
+      "low_vol": {
+        "weight": 10,
+        "corr": -0.05252411128123597
+      },
+      "breakout_20d": {
+        "weight": 5,
+        "corr": 0.03617292232743148
+      },
+      "rsi_oversold": {
+        "weight": 8,
+        "corr": 0.010031497636291032
+      },
+      "volume_spike": {
+        "weight": 7,
+        "corr": 0.03853350198978105
+      },
+      "mfi_bullish": {
+        "weight": 5,
+        "corr": 0.0653427467775405
+      }
+    },
+    "new_weights": {
+      "is_local_min": 27,
+      "mfi_bullish": 20,
+      "low_vol": 16,
+      "volume_spike": 12,
+      "breakout_20d": 11,
+      "swing_end": 7
+    }
+  },
+  "minute60": {
+    "score_stats": {
+      "count": 14348.0,
+      "mean": 16.292444940061333,
+      "std": 7.661346893257504,
+      "min": 0.0,
+      "25%": 10.0,
+      "50%": 15.0,
+      "75%": 17.0,
+      "max": 50.0
+    },
+    "percentiles": {
+      "10": 10.0,
+      "20": 10.0,
+      "30": 10.0,
+      "40": 15.0,
+      "50": 15.0,
+      "60": 15.0,
+      "70": 15.0,
+      "80": 25.0,
+      "90": 30.0,
+      "95": 30.0,
+      "99": 38.0
+    },
+    "correlation": 0.053894725765512144,
+    "thresholds": {
+      "S_tier": 25.0,
+      "A_tier": 15.0,
+      "B_tier": 15.0
+    },
+    "tier_returns": {
+      "S_tier": 0.03761022583215558,
+      "A_tier": 0.035831293498360825,
+      "B_tier": 0.035831293498360825
+    },
+    "dimension_correlations": {
+      "is_local_min": {
+        "weight": 20,
+        "corr": 0.08775409264425364
+      },
+      "swing_end": {
+        "weight": 15,
+        "corr": 0.00889944511309198
+      },
+      "low_vol": {
+        "weight": 10,
+        "corr": -0.12323278297837907
+      },
+      "breakout_20d": {
+        "weight": 5,
+        "corr": 0.028727182373264624
+      },
+      "rsi_oversold": {
+        "weight": 8,
+        "corr": -0.0040819772693658374
+      },
+      "volume_spike": {
+        "weight": 7,
+        "corr": 0.02023635533206921
+      },
+      "mfi_bullish": {
+        "weight": 5,
+        "corr": 0.053894725765512144
+      }
+    },
+    "new_weights": {
+      "low_vol": 37,
+      "is_local_min": 26,
+      "mfi_bullish": 16,
+      "breakout_20d": 8,
+      "volume_spike": 6,
+      "swing_end": 2
+    }
+  }
+}

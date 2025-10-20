@@ -1,0 +1,254 @@
+{
+  "version": "v36",
+  "strategy_name": "multi_timeframe",
+  "backtest_date": "2025-10-19T18:27:05.214790",
+  "config": {
+    "strategy_name": "multi_timeframe",
+    "version": "v36",
+    "description": "Day + Minute240 + Minute60 Multi-Timeframe Ensemble",
+    "capital_allocation": {
+      "day_capital": 0.4,
+      "m240_capital": 0.3,
+      "m60_capital": 0.3
+    },
+    "day_strategy": {
+      "use_v35": true,
+      "position_size": 0.5
+    },
+    "minute240_strategy": {
+      "m240_rsi_threshold": 50,
+      "m240_position_size": 0.3,
+      "m240_take_profit": 0.05,
+      "m240_stop_loss": -0.02,
+      "m240_trailing_stop": 0.02
+    },
+    "minute60_strategy": {
+      "m60_rsi_oversold": 30,
+      "m60_rsi_overbought": 70,
+      "m60_position_size": 0.3,
+      "m60_take_profit": 0.025,
+      "m60_stop_loss": -0.015
+    },
+    "backtesting": {
+      "initial_capital": 10000000,
+      "fee_rate": 0.0005,
+      "slippage": 0.0002
+    },
+    "target_performance_2025": {
+      "total_return": 0.25,
+      "sharpe_ratio": 1.7,
+      "max_drawdown": 0.15
+    },
+    "market_classifier": {
+      "mfi_bull_strong": 52,
+      "mfi_bull_moderate": 45,
+      "mfi_sideways_up": 42,
+      "mfi_bear_moderate": 38,
+      "mfi_bear_strong": 35,
+      "adx_strong_trend": 20,
+      "adx_moderate_trend": 15
+    },
+    "entry_conditions": {
+      "momentum_rsi_bull_strong": 52,
+      "momentum_rsi_bull_moderate": 55,
+      "breakout_threshold": 0.005,
+      "breakout_volume_mult": 1.3,
+      "range_support_zone": 0.15,
+      "range_rsi_oversold": 40
+    },
+    "exit_conditions": {
+      "tp_bull_strong_1": 0.05,
+      "tp_bull_strong_2": 0.1,
+      "tp_bull_strong_3": 0.2,
+      "trailing_bull_strong": 0.05,
+      "tp_bull_moderate_1": 0.03,
+      "tp_bull_moderate_2": 0.07,
+      "tp_bull_moderate_3": 0.12,
+      "trailing_bull_moderate": 0.03,
+      "tp_sideways_1": 0.02,
+      "tp_sideways_2": 0.04,
+      "tp_sideways_3": 0.06,
+      "stop_loss": -0.015,
+      "exit_fraction_1": 0.4,
+      "exit_fraction_2": 0.3,
+      "exit_fraction_3": 0.3
+    },
+    "position_sizing": {
+      "position_size": 0.5
+    },
+    "sideways_strategies": {
+      "use_rsi_bb": true,
+      "use_stoch": true,
+      "use_volume_breakout": true,
+      "rsi_bb_oversold": 30,
+      "rsi_bb_overbought": 70,
+      "stoch_oversold": 20,
+      "stoch_overbought": 80,
+      "volume_breakout_mult": 2.0
+    }
+  },
+  "results": {
+    "2020": {
+      "initial_capital": 10000000,
+      "final_capital": 11227320.22603378,
+      "total_return": 12.273202260337806,
+      "buy_hold_return": 195.80743901307855,
+      "excess_return": -183.53423675274075,
+      "total_trades": 12,
+      "sharpe_ratio": 2.200930570130431,
+      "max_drawdown": -2.524969801211655,
+      "timeframe_metrics": {
+        "day": {
+          "return": 30.68300565084452,
+          "trades": 12,
+          "capital_contribution": 1227320.2260337807
+        },
+        "minute240": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        },
+        "minute60": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        }
+      }
+    },
+    "2021": {
+      "initial_capital": 10000000,
+      "final_capital": 11430478.736534271,
+      "total_return": 14.304787365342714,
+      "buy_hold_return": 57.10832784003516,
+      "excess_return": -42.80354047469245,
+      "total_trades": 18,
+      "sharpe_ratio": 1.8984007100127303,
+      "max_drawdown": -4.81427907533269,
+      "timeframe_metrics": {
+        "day": {
+          "return": 35.76196841335676,
+          "trades": 18,
+          "capital_contribution": 1430478.7365342705
+        },
+        "minute240": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        },
+        "minute60": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        }
+      }
+    },
+    "2022": {
+      "initial_capital": 10000000,
+      "final_capital": 9551265.680666253,
+      "total_return": -4.487343193337471,
+      "buy_hold_return": -55.422502433038545,
+      "excess_return": 50.93515923970107,
+      "total_trades": 19,
+      "sharpe_ratio": -0.8166778173684474,
+      "max_drawdown": -5.92129625232696,
+      "timeframe_metrics": {
+        "day": {
+          "return": -11.218357983343651,
+          "trades": 19,
+          "capital_contribution": -448734.3193337461
+        },
+        "minute240": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        },
+        "minute60": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        }
+      }
+    },
+    "2023": {
+      "initial_capital": 10000000,
+      "final_capital": 10545770.300339434,
+      "total_return": 5.457703003394343,
+      "buy_hold_return": 94.87682356179467,
+      "excess_return": -89.41912055840032,
+      "total_trades": 17,
+      "sharpe_ratio": 1.174400230793869,
+      "max_drawdown": -1.9675863716797997,
+      "timeframe_metrics": {
+        "day": {
+          "return": 13.644257508485879,
+          "trades": 17,
+          "capital_contribution": 545770.3003394352
+        },
+        "minute240": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        },
+        "minute60": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        }
+      }
+    },
+    "2024": {
+      "initial_capital": 10000000,
+      "final_capital": 11036448.662053188,
+      "total_return": 10.364486620531883,
+      "buy_hold_return": 134.7577377506895,
+      "excess_return": -124.39325113015762,
+      "total_trades": 13,
+      "sharpe_ratio": 1.8741281472474198,
+      "max_drawdown": -3.1202900303143744,
+      "timeframe_metrics": {
+        "day": {
+          "return": 25.91121655132971,
+          "trades": 13,
+          "capital_contribution": 1036448.6620531883
+        },
+        "minute240": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        },
+        "minute60": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        }
+      }
+    },
+    "2025": {
+      "initial_capital": 10000000,
+      "final_capital": 10568127.830527648,
+      "total_return": 5.681278305276483,
+      "buy_hold_return": 8.442968450632264,
+      "excess_return": -2.7616901453557814,
+      "total_trades": 8,
+      "sharpe_ratio": 2.2262037943844026,
+      "max_drawdown": -0.9976214520228451,
+      "timeframe_metrics": {
+        "day": {
+          "return": 14.203195763191209,
+          "trades": 8,
+          "capital_contribution": 568127.8305276483
+        },
+        "minute240": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        },
+        "minute60": {
+          "return": 0.0,
+          "trades": 0,
+          "capital_contribution": 0.0
+        }
+      }
+    }
+  }
+}

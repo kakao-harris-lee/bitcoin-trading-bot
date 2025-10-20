@@ -1,0 +1,44 @@
+{
+  "strategy_name": "multi_timeframe",
+  "version": "v36",
+  "description": "Day + Minute240 + Minute60 Multi-Timeframe Ensemble",
+
+  "capital_allocation": {
+    "day_capital": 0.4,
+    "m240_capital": 0.3,
+    "m60_capital": 0.3
+  },
+
+  "day_strategy": {
+    "use_v35": true,
+    "position_size": 0.5
+  },
+
+  "minute240_strategy": {
+    "m240_rsi_threshold": 50,
+    "m240_position_size": 0.3,
+    "m240_take_profit": 0.05,
+    "m240_stop_loss": -0.02,
+    "m240_trailing_stop": 0.02
+  },
+
+  "minute60_strategy": {
+    "m60_rsi_oversold": 30,
+    "m60_rsi_overbought": 70,
+    "m60_position_size": 0.3,
+    "m60_take_profit": 0.025,
+    "m60_stop_loss": -0.015
+  },
+
+  "backtesting": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002
+  },
+
+  "target_performance_2025": {
+    "total_return": 0.25,
+    "sharpe_ratio": 1.7,
+    "max_drawdown": 0.15
+  }
+}

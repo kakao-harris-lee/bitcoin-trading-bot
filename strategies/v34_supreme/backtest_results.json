@@ -1,0 +1,117 @@
+{
+  "version": "v34",
+  "strategy_name": "supreme",
+  "backtest_date": "2025-10-19T15:11:25.569073",
+  "config": {
+    "strategy_name": "supreme",
+    "version": "v34",
+    "timeframe": "day",
+    "description": "2020-2024 \ub370\uc774\ud130 \uae30\ubc18 Multi-Strategy \ud1b5\ud569",
+    "market_classifier": {
+      "mfi_bull_strong": 52,
+      "mfi_bull_moderate": 45,
+      "mfi_sideways_up": 42,
+      "mfi_sideways_flat": 38,
+      "mfi_sideways_down": 35,
+      "mfi_bear_moderate": 38,
+      "mfi_bear_strong": 35,
+      "adx_strong_trend": 20,
+      "adx_moderate_trend": 15,
+      "adx_weak_trend": 12
+    },
+    "momentum_trading": {
+      "rsi_bull_strong": 52,
+      "rsi_bull_moderate": 55
+    },
+    "breakout_trading": {
+      "lookback_period": 20,
+      "breakout_threshold": 0.005,
+      "volume_multiplier": 1.3
+    },
+    "range_trading": {
+      "lookback_period": 20,
+      "support_zone": 0.15,
+      "rsi_oversold": 40
+    },
+    "risk_management": {
+      "take_profit_1": 0.02,
+      "take_profit_2": 0.05,
+      "take_profit_3": 0.1,
+      "stop_loss": -0.015
+    },
+    "position_sizing": {
+      "position_size": 0.5,
+      "kelly_enabled": false,
+      "kelly_multiplier": 0.25
+    },
+    "backtesting": {
+      "initial_capital": 10000000,
+      "fee_rate": 0.0005,
+      "slippage": 0.0002,
+      "train_period": "2020-01-01 to 2024-12-31",
+      "test_period": "2025-01-01 to 2025-10-17"
+    },
+    "target_performance": {
+      "annual_return": 0.2,
+      "sharpe_ratio": 1.5,
+      "max_drawdown": 0.2,
+      "win_rate": 0.5
+    }
+  },
+  "results": {
+    "2020": {
+      "total_return": 31.67171433090048,
+      "buy_hold_return": 195.80743901307855,
+      "excess_return": -164.13572468217808,
+      "sharpe_ratio": 1.7702297968693215,
+      "max_drawdown": -6.308625606867313,
+      "total_trades": 39,
+      "win_rate": 64.1025641025641
+    },
+    "2021": {
+      "total_return": 44.724744904639365,
+      "buy_hold_return": 57.10832784003516,
+      "excess_return": -12.383582935395793,
+      "sharpe_ratio": 1.8790482987085877,
+      "max_drawdown": -12.407481724716705,
+      "total_trades": 43,
+      "win_rate": 67.44186046511628
+    },
+    "2022": {
+      "total_return": -16.026124070899357,
+      "buy_hold_return": -55.422502433038545,
+      "excess_return": 39.39637836213919,
+      "sharpe_ratio": -1.2720063313209062,
+      "max_drawdown": -18.43756121719148,
+      "total_trades": 32,
+      "win_rate": 40.625
+    },
+    "2023": {
+      "total_return": 2.477933156986628,
+      "buy_hold_return": 94.87682356179467,
+      "excess_return": -92.39889040480804,
+      "sharpe_ratio": 0.2612598649873942,
+      "max_drawdown": -8.098156900990167,
+      "total_trades": 29,
+      "win_rate": 44.827586206896555
+    },
+    "2024": {
+      "total_return": 25.86459922097713,
+      "buy_hold_return": 134.7577377506895,
+      "excess_return": -108.89313852971237,
+      "sharpe_ratio": 1.8022208146608412,
+      "max_drawdown": -4.745610541580387,
+      "total_trades": 41,
+      "win_rate": 68.29268292682927
+    },
+    "2025": {
+      "total_return": 8.426800155579262,
+      "buy_hold_return": 8.442968450632264,
+      "excess_return": -0.01616829505300288,
+      "sharpe_ratio": 1.3381691191505287,
+      "max_drawdown": -2.8294587189081786,
+      "total_trades": 20,
+      "win_rate": 60.0
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "version": "v21",
+  "strategy_name": "perfect_timing_day",
+  "timeframe": "day",
+  "train_period": {
+    "start": "2022-01-01",
+    "end": "2024-12-31",
+    "results": {
+      "initial_capital": 10000000,
+      "final_capital": 12108792.334017456,
+      "total_return": 21.087923340174555,
+      "num_trades": 1,
+      "win_rate": 1.0,
+      "avg_profit": 21.209102140039054,
+      "sharpe_ratio": 0.0,
+      "trades": [
+        {
+          "type": "buy",
+          "timestamp": "2022-06-18T09:00:00",
+          "price": 25093000.0,
+          "amount": 0.39831825608735505,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2022-07-21T09:00:00",
+          "price": 30415000.0,
+          "amount": 0.39831825608735505,
+          "capital": 12108792.334017456,
+          "profit_pct": 21.209102140039054
+        }
+      ]
+    }
+  },
+  "test_period": {
+    "start": "2025-01-01",
+    "end": "2025-12-31",
+    "results": {
+      "initial_capital": 10000000,
+      "final_capital": 10120042.264634654,
+      "total_return": 1.2004226463465393,
+      "num_trades": 1,
+      "win_rate": 1.0,
+      "avg_profit": 1.3016990199417262,
+      "sharpe_ratio": 0.0,
+      "trades": [
+        {
+          "type": "buy",
+          "timestamp": "2025-02-24T09:00:00",
+          "price": 132135000.0,
+          "amount": 0.07564233549021834,
+          "capital": 0
+        },
+        {
+          "type": "sell",
+          "timestamp": "2025-04-22T09:00:00",
+          "price": 133855000.0,
+          "amount": 0.07564233549021834,
+          "capital": 10120042.264634654,
+          "profit_pct": 1.3016990199417262
+        }
+      ]
+    }
+  }
+}

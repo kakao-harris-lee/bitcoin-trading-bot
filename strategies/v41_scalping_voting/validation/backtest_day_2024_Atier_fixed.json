@@ -1,0 +1,57 @@
+{
+  "timeframe": "day",
+  "year": 2024,
+  "tier": "A",
+  "total_trades": 4,
+  "total_return": 0.8792331294396926,
+  "final_capital": 18792331.294396926,
+  "win_rate": 0.75,
+  "avg_profit": 0.2100644737204425,
+  "avg_win": 0.2899342681957967,
+  "avg_loss": -0.029544909705620088,
+  "avg_hold_hours": 936.0,
+  "sharpe_ratio": 0.6268502383956017,
+  "max_drawdown": -0.029544909705620136,
+  "buy_hold_return": 1.3667465456584917,
+  "outperformance": -0.4875134162187992,
+  "profit_factor": 29.44002243546998,
+  "overflow_warning": false,
+  "trades": [
+    {
+      "entry_time": "2024-05-01 09:00:00",
+      "entry_price": 83515699.8,
+      "exit_time": "2024-05-03 09:00:00",
+      "exit_price": 89291000.0,
+      "pnl": 0.06775226973886894,
+      "reason": "take_profit",
+      "hold_hours": 48.0
+    },
+    {
+      "entry_time": "2024-06-24 09:00:00",
+      "entry_price": 85513099.2,
+      "exit_time": "2024-06-27 09:00:00",
+      "exit_price": 86884000.0,
+      "pnl": 0.014631471351467482,
+      "reason": "timeout",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2024-07-04 09:00:00",
+      "entry_price": 81696336.0,
+      "exit_time": "2024-07-07 09:00:00",
+      "exit_price": 79397000.0,
+      "pnl": -0.029544909705620088,
+      "reason": "stop_loss",
+      "hold_hours": 72.0
+    },
+    {
+      "entry_time": "2024-08-05 09:00:00",
+      "entry_price": 77848566.6,
+      "exit_time": "2024-12-31 09:00:00",
+      "exit_price": 139257000.0,
+      "pnl": 0.7874190634970537,
+      "reason": "forced_close",
+      "hold_hours": 3552.0
+    }
+  ]
+}

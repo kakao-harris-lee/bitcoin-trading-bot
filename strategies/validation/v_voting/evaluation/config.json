@@ -1,0 +1,36 @@
+{
+  "strategy": "v_voting",
+  "timeframe": "day",
+  "years": [2024],
+  "training_years": [2024],
+  "validation_year": null,
+  "holding_periods": {
+    "3d": 72,
+    "5d": 120,
+    "7d": 168
+  },
+  "exit_strategy": {
+    "type": "dynamic",
+    "dynamic": {
+      "enabled": true,
+      "bull_tp": 0.07,
+      "bull_sl": 0.02,
+      "bear_tp": 0.03,
+      "bear_sl": 0.015,
+      "sideways_tp": 0.05,
+      "sideways_sl": 0.02
+    }
+  },
+  "position_sizing": {
+    "type": "score_based",
+    "score_based": {
+      "min_fraction": 0.3,
+      "max_fraction": 1.0,
+      "score_threshold_low": 15,
+      "score_threshold_high": 30
+    }
+  },
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage_rate": 0.0004
+}

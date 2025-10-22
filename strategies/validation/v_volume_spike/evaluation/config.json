@@ -1,0 +1,28 @@
+{
+  "strategy": "v_volume_spike",
+  "timeframe": "minute240",
+  "years": [2024],
+  "training_years": [2024],
+  "validation_year": null,
+  "holding_periods": {
+    "1d": 24,
+    "2d": 48,
+    "3d": 72
+  },
+  "exit_strategy": {
+    "type": "timeout",
+    "timeout": {
+      "enabled": true,
+      "max_holding_hours": 72
+    }
+  },
+  "position_sizing": {
+    "type": "fixed",
+    "fixed": {
+      "fraction": 0.5
+    }
+  },
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage_rate": 0.0004
+}

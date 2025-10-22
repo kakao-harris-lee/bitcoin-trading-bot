@@ -1,0 +1,281 @@
+{
+  "metadata": {
+    "strategy": "v_momentum",
+    "version": "1.0",
+    "timeframe": "day",
+    "generated_at": "2025-10-21T16:38:30.296670",
+    "description": "Momentum breakout (5d return > 5% AND volume ratio > 1.5)",
+    "statistics": {
+      "total_signals": 22,
+      "period_start": "2024-01-01",
+      "period_end": "2024-12-31",
+      "avg_score": 34.61
+    }
+  },
+  "signals": [
+    {
+      "timestamp": "2024-02-09 09:00:00",
+      "action": "BUY",
+      "price": 63682000,
+      "score": 30.52,
+      "confidence": 0.83,
+      "metadata": {
+        "return_5d": 8.28,
+        "volume_ratio": 2.22,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-02-12 09:00:00",
+      "action": "BUY",
+      "price": 67002000,
+      "score": 30.22,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 11.24,
+        "volume_ratio": 1.9,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-02-13 09:00:00",
+      "action": "BUY",
+      "price": 67309000,
+      "score": 26.94,
+      "confidence": 0.85,
+      "metadata": {
+        "return_5d": 8.54,
+        "volume_ratio": 1.84,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-02-14 09:00:00",
+      "action": "BUY",
+      "price": 70199000,
+      "score": 30.68,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 10.23,
+        "volume_ratio": 2.04,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-02-15 09:00:00",
+      "action": "BUY",
+      "price": 71253000,
+      "score": 30.84,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 10.39,
+        "volume_ratio": 2.05,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-02-27 09:00:00",
+      "action": "BUY",
+      "price": 78619000,
+      "score": 29.42,
+      "confidence": 0.98,
+      "metadata": {
+        "return_5d": 9.8,
+        "volume_ratio": 1.96,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-02-28 09:00:00",
+      "action": "BUY",
+      "price": 87634000,
+      "score": 56.25,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 23.77,
+        "volume_ratio": 3.25,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-02-29 09:00:00",
+      "action": "BUY",
+      "price": 85910000,
+      "score": 43.69,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 20.82,
+        "volume_ratio": 2.29,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-03-04 09:00:00",
+      "action": "BUY",
+      "price": 95500000,
+      "score": 28.59,
+      "confidence": 0.9,
+      "metadata": {
+        "return_5d": 8.98,
+        "volume_ratio": 1.96,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-03-05 09:00:00",
+      "action": "BUY",
+      "price": 91275000,
+      "score": 35.91,
+      "confidence": 0.62,
+      "metadata": {
+        "return_5d": 6.24,
+        "volume_ratio": 2.97,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-03-06 09:00:00",
+      "action": "BUY",
+      "price": 93325000,
+      "score": 22.83,
+      "confidence": 0.68,
+      "metadata": {
+        "return_5d": 6.78,
+        "volume_ratio": 1.6,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-03-11 09:00:00",
+      "action": "BUY",
+      "price": 100404000,
+      "score": 24.27,
+      "confidence": 0.76,
+      "metadata": {
+        "return_5d": 7.59,
+        "volume_ratio": 1.67,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-07-15 09:00:00",
+      "action": "BUY",
+      "price": 91162000,
+      "score": 27.97,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 11.31,
+        "volume_ratio": 1.67,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-07-16 09:00:00",
+      "action": "BUY",
+      "price": 90807000,
+      "score": 31.07,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 12.01,
+        "volume_ratio": 1.91,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-10-14 09:00:00",
+      "action": "BUY",
+      "price": 88640000,
+      "score": 28.63,
+      "confidence": 0.76,
+      "metadata": {
+        "return_5d": 7.59,
+        "volume_ratio": 2.1,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-10-15 09:00:00",
+      "action": "BUY",
+      "price": 90600000,
+      "score": 33.28,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 10.31,
+        "volume_ratio": 2.3,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-10-29 09:00:00",
+      "action": "BUY",
+      "price": 101305000,
+      "score": 28.99,
+      "confidence": 0.77,
+      "metadata": {
+        "return_5d": 7.68,
+        "volume_ratio": 2.13,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-11-06 09:00:00",
+      "action": "BUY",
+      "price": 104085000,
+      "score": 53.01,
+      "confidence": 0.7,
+      "metadata": {
+        "return_5d": 6.99,
+        "volume_ratio": 4.6,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-11-10 09:00:00",
+      "action": "BUY",
+      "price": 111440000,
+      "score": 34.54,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 15.88,
+        "volume_ratio": 1.87,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-11-11 09:00:00",
+      "action": "BUY",
+      "price": 124503000,
+      "score": 44.59,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 19.62,
+        "volume_ratio": 2.5,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-11-12 09:00:00",
+      "action": "BUY",
+      "price": 124967000,
+      "score": 50.61,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 20.03,
+        "volume_ratio": 3.06,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    },
+    {
+      "timestamp": "2024-11-13 09:00:00",
+      "action": "BUY",
+      "price": 128111000,
+      "score": 38.57,
+      "confidence": 1.0,
+      "metadata": {
+        "return_5d": 19.91,
+        "volume_ratio": 1.87,
+        "indicator": "MOMENTUM_BREAKOUT"
+      }
+    }
+  ]
+}

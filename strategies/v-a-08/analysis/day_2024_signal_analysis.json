@@ -1,0 +1,18 @@
+{
+  "strategy": "v-a-04",
+  "timeframe": "day",
+  "year": 2024,
+  "total_candles": 332,
+  "total_signals": 6,
+  "signal_rate": 0.018072289156626505,
+  "market_distribution": {
+    "SIDEWAYS": 151,
+    "BULL_MODERATE": 68,
+    "BEAR_MODERATE": 45,
+    "BULL_STRONG": 38,
+    "UNKNOWN": 30
+  },
+  "signals_by_market": {
+    "SIDEWAYS": 6
+  }
+}

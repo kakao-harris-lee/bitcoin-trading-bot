@@ -1,0 +1,28 @@
+{
+  "version": "v38",
+  "year": 2024,
+  "timeframe": "day",
+  "buy_signals": [
+    {
+      "timestamp": "2024-06-24 09:00:00",
+      "price": 85513099.2,
+      "position_size": 0.2,
+      "buy_index": 0
+    }
+  ],
+  "sell_signals": [
+    {
+      "timestamp": "2024-07-05 09:00:00",
+      "price": 81101776.4,
+      "reason": "Buy 20.0% of cash -> Sell 100.0%",
+      "buy_index": 0,
+      "original_profit_pct": -5.158651529729608
+    }
+  ],
+  "signal_count": 1,
+  "original_total_return": -1.0506890962448157,
+  "original_sharpe": -0.6483152419001713,
+  "original_max_drawdown": 1.6706546756050107,
+  "original_win_rate": 0.0,
+  "original_total_trades": 1
+}

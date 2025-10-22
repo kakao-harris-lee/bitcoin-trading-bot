@@ -1,0 +1,94 @@
+{
+  "strategy": "v_momentum",
+  "evaluation_date": "2025-10-21T16:39:01.505598",
+  "evaluated_combinations": 4,
+  "full_matrix": {
+    "2024_5d": {
+      "year": 2024,
+      "period": "5d",
+      "total_return_pct": 81.47,
+      "total_trades": 22,
+      "winning_trades": 0,
+      "losing_trades": 22,
+      "win_rate": 0.0,
+      "avg_return": -47.21,
+      "avg_winning_return": 0,
+      "avg_losing_return": -47.21,
+      "sharpe_ratio": -16.27,
+      "max_drawdown": -2.74,
+      "final_capital": 18147215,
+      "total_profit": 8147215,
+      "avg_holding_hours": 141.8
+    },
+    "2024_7d": {
+      "year": 2024,
+      "period": "7d",
+      "total_return_pct": 105.3,
+      "total_trades": 22,
+      "winning_trades": 0,
+      "losing_trades": 22,
+      "win_rate": 0.0,
+      "avg_return": -46.63,
+      "avg_winning_return": 0,
+      "avg_losing_return": -46.63,
+      "sharpe_ratio": -14.57,
+      "max_drawdown": -2.6,
+      "final_capital": 20530322,
+      "total_profit": 10530322,
+      "avg_holding_hours": 189.8
+    },
+    "2024_10d": {
+      "year": 2024,
+      "period": "10d",
+      "total_return_pct": 161.05,
+      "total_trades": 22,
+      "winning_trades": 0,
+      "losing_trades": 22,
+      "win_rate": 0.0,
+      "avg_return": -45.48,
+      "avg_winning_return": 0,
+      "avg_losing_return": -45.48,
+      "sharpe_ratio": -12.38,
+      "max_drawdown": -2.48,
+      "final_capital": 26104648,
+      "total_profit": 16104648,
+      "avg_holding_hours": 261.8
+    },
+    "2024_14d": {
+      "year": 2024,
+      "period": "14d",
+      "total_return_pct": 277.51,
+      "total_trades": 22,
+      "winning_trades": 0,
+      "losing_trades": 22,
+      "win_rate": 0.0,
+      "avg_return": -43.66,
+      "avg_winning_return": 0,
+      "avg_losing_return": -43.66,
+      "sharpe_ratio": -8.77,
+      "max_drawdown": -0.67,
+      "final_capital": 37751083,
+      "total_profit": 27751083,
+      "avg_holding_hours": 357.8
+    }
+  },
+  "optimization": {
+    "best_period": "14d",
+    "training_years": [
+      2024
+    ],
+    "training_avg": {
+      "avg_sharpe": -8.77,
+      "avg_return_pct": 277.51,
+      "avg_trades": 22
+    },
+    "selection_metric": "sharpe_ratio"
+  },
+  "validation": {
+    "year": null,
+    "period": "14d",
+    "result": null,
+    "degradation_pct": 0.0
+  },
+  "recommendation": "Use 14d holding period. Validation degradation: +0.0% (✅ Good)"
+}

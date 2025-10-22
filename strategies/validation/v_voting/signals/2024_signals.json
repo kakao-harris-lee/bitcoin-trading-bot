@@ -1,0 +1,16 @@
+{
+  "metadata": {
+    "strategy": "v_voting",
+    "version": "1.0",
+    "timeframe": "day",
+    "generated_at": "2025-10-21T16:38:30.608922",
+    "description": "v41 S-Tier signals reused for validation",
+    "statistics": {
+      "total_signals": 0,
+      "period_start": "2024-01-01",
+      "period_end": "2024-12-31",
+      "avg_score": 0
+    }
+  },
+  "signals": []
+}

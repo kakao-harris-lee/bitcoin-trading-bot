@@ -1,0 +1,43 @@
+{
+  "strategy": "v46_test",
+  "evaluation_date": "2025-10-21T16:19:46.871510",
+  "evaluated_combinations": 1,
+  "full_matrix": {
+    "2024_3d": {
+      "year": 2024,
+      "period": "3d",
+      "total_return_pct": 28.25,
+      "total_trades": 3,
+      "winning_trades": 0,
+      "losing_trades": 3,
+      "win_rate": 0.0,
+      "avg_return": -40.85,
+      "avg_winning_return": 0,
+      "avg_losing_return": -40.85,
+      "sharpe_ratio": -3.84,
+      "max_drawdown": -0.69,
+      "final_capital": 12825016,
+      "total_profit": 2825016,
+      "avg_holding_hours": 72.0
+    }
+  },
+  "optimization": {
+    "best_period": "3d",
+    "training_years": [
+      2024
+    ],
+    "training_avg": {
+      "avg_sharpe": -3.84,
+      "avg_return_pct": 28.25,
+      "avg_trades": 3
+    },
+    "selection_metric": "sharpe_ratio"
+  },
+  "validation": {
+    "year": null,
+    "period": "3d",
+    "result": null,
+    "degradation_pct": 0.0
+  },
+  "recommendation": "Use 3d holding period. Validation degradation: +0.0% (✅ Good)"
+}

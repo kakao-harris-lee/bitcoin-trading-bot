@@ -1,0 +1,30 @@
+{
+  "strategy": "v-a-01",
+  "timeframe": "day",
+  "year": 2024,
+  "holding_period": "30d",
+  "backtest": {
+    "total_trades": 27,
+    "total_return": 0.11369489049787675,
+    "avg_return": 0.004210921870291731,
+    "win_rate": 0.5555555555555556,
+    "winning_trades": 15,
+    "losing_trades": 12,
+    "sharpe_ratio": 0.05478635282147588,
+    "avg_holding_hours": 720.0
+  },
+  "reproduction": {
+    "signal_reproduction_rate": 0.14661654135338345,
+    "return_reproduction_rate": 0.002780683776202502,
+    "total_reproduction_rate": 0.06031502680707489,
+    "tier": "C",
+    "matched_signals": 39,
+    "total_strategy_signals": 27,
+    "total_perfect_signals": 266
+  },
+  "perfect_signals": {
+    "total": 266,
+    "avg_return": 0.15371197689788324,
+    "avg_hold_days": 19.714285714285715
+  }
+}

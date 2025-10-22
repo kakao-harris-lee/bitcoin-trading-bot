@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "strategy": "v46_test",
+    "version": "1.0",
+    "timeframe": "day",
+    "generated_at": "2025-10-21T16:17:00"
+  },
+  "signals": [
+    {
+      "timestamp": "2024-01-15T09:00:00",
+      "action": "BUY",
+      "price": 58000000,
+      "score": 42.5
+    },
+    {
+      "timestamp": "2024-02-10T09:00:00",
+      "action": "BUY",
+      "price": 62000000,
+      "score": 38.0
+    },
+    {
+      "timestamp": "2024-03-05T09:00:00",
+      "action": "BUY",
+      "price": 65000000,
+      "score": 45.0
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "description": "v-a-13 Optimized: Higher TP, Stricter Entry, Reduced Trading",
+  "version": "v-a-13-optimized",
+  "base_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002,
+
+  "timeframes": {
+    "day": "bitcoin_day",
+    "4h": "bitcoin_minute240",
+    "1h": "bitcoin_minute60"
+  },
+
+  "day_config": {
+    "comment": "Day level - Macro trend setting",
+    "stop_loss": -0.10,
+    "max_position_per_signal": 0.50
+  },
+
+  "4h_config": {
+    "comment": "4H level - Medium-term (OPTIMIZED: Higher TP, Less trades)",
+    "max_entries_per_day_signal": 2,
+    "position_size": 0.15,
+    "signal_strength_min": 40,
+
+    "entry": {
+      "rsi_threshold": 32,
+      "macd_bullish": true,
+      "bb_position_max": 0.25,
+      "volume_ratio_min": 1.3
+    },
+
+    "exit": {
+      "tp1": 0.05,
+      "tp1_ratio": 0.5,
+      "tp2": 0.10,
+      "tp2_ratio": 0.5,
+      "stop_loss": -0.02,
+      "trailing_from_peak": -0.015,
+      "max_hold_hours": 240
+    }
+  },
+
+  "1h_config": {
+    "comment": "1H level - Short-term (OPTIMIZED: Higher TP, Stricter entry)",
+    "max_entries_per_day_signal": 3,
+    "position_size": 0.12,
+    "signal_strength_min": 50,
+
+    "entry": {
+      "rsi_threshold": 25,
+      "stoch_k_threshold": 15,
+      "bb_position_max": 0.15,
+      "volume_ratio_min": 1.8
+    },
+
+    "exit": {
+      "tp1": 0.04,
+      "tp1_ratio": 0.6,
+      "tp2": 0.08,
+      "tp2_ratio": 0.4,
+      "stop_loss": -0.015,
+      "trailing_from_peak": -0.01,
+      "max_hold_hours": 72
+    }
+  },
+
+  "risk_management": {
+    "max_concurrent_positions": 6,
+    "reentry_cooldown_hours": 96,
+    "max_capital_per_day_signal": 0.50
+  }
+}

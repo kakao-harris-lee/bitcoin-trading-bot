@@ -1,0 +1,35 @@
+{
+  "strategy": "v-a-01",
+  "timeframe": "day",
+  "year": 2024,
+  "perfect_signals": {
+    "total": 266,
+    "avg_return": 0.15371197689788324,
+    "avg_hold_days": 19.714285714285715
+  },
+  "strategy_signals": {
+    "total": 27,
+    "signal_reproduction_rate": 0.14661654135338345,
+    "matched_count": 39
+  },
+  "pattern_analysis": {
+    "rsi": {
+      "perfect_avg": 57.55248169698532,
+      "perfect_median": 56.405958059933994,
+      "strategy_avg": 37.55327733107987,
+      "strategy_median": 36.697899177383256
+    },
+    "mfi": {
+      "perfect_avg": 53.95692356182866,
+      "perfect_median": 52.35144130181886,
+      "strategy_avg": 30.378516765714455,
+      "strategy_median": 29.63826669498564
+    },
+    "volume_ratio": {
+      "perfect_avg": 1.0464764395596735,
+      "perfect_median": 0.9016541544242145,
+      "strategy_avg": 1.854160069158266,
+      "strategy_median": 1.51421211655715
+    }
+  }
+}

@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local settings
+.claude/settings.local.json
+
+# Analysis data (too large)
+strategies/_raw_analysis/indicators/*.csv
+strategies/v41_scalping_voting/analysis/bruteforce/*.csv
+strategies/v41_scalping_voting/analysis/tier_backtest/*.csv
+strategies/v41_scalping_voting/analysis/advanced/*.csv
+strategies/v41_scalping_voting/analysis/signals/*.csv
+
+# Large ML libraries
+venv/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp

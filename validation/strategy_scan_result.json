@@ -1,0 +1,1222 @@
+{
+  "scan_date": "2025-10-21",
+  "total_strategies": 51,
+  "classification": {
+    "priority_1": [
+      {
+        "version": "v31_scalping_with_classifier",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_scalping_with_classifier",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_scalping_with_classifier/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": true,
+        "status": "PRIORITY_1 (신뢰 가능)"
+      },
+      {
+        "version": "v34_supreme",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v34_supreme",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v34_supreme/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_1 (신뢰 가능)"
+      },
+      {
+        "version": "v35_optimized",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v35_optimized",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v35_optimized/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_1 (신뢰 가능)"
+      },
+      {
+        "version": "v36_multi_timeframe",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v36_multi_timeframe",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v36_multi_timeframe/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": true,
+        "status": "PRIORITY_1 (신뢰 가능)"
+      },
+      {
+        "version": "v37_supreme",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v37_supreme",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v37_supreme/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_1 (신뢰 가능)"
+      },
+      {
+        "version": "v38_ensemble",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_1 (신뢰 가능)"
+      }
+    ],
+    "priority_2": [
+      {
+        "version": "v30_perfect_longterm",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v30_perfect_longterm",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v30_perfect_longterm/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_2 (검증 필요)"
+      },
+      {
+        "version": "v32_aggressive",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_aggressive",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_aggressive/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": true,
+        "status": "PRIORITY_2 (검증 필요)"
+      },
+      {
+        "version": "v32_ensemble",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_ensemble",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_ensemble/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": true,
+        "status": "PRIORITY_2 (검증 필요)"
+      },
+      {
+        "version": "v32_optimized",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_optimized",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_optimized/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": true,
+        "status": "PRIORITY_2 (검증 필요)"
+      },
+      {
+        "version": "v33_minute240",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v33_minute240",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v33_minute240/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": true,
+        "status": "PRIORITY_2 (검증 필요)"
+      },
+      {
+        "version": "v39_voting",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v39_voting",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v39_voting/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_2 (검증 필요)"
+      },
+      {
+        "version": "v40_adaptive_voting",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v40_adaptive_voting",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v40_adaptive_voting/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_2 (검증 필요)"
+      },
+      {
+        "version": "v41_scalping_voting",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": false,
+        "status": "PRIORITY_2 (검증 필요)"
+      }
+    ],
+    "priority_3": [
+      {
+        "version": "v01_adaptive_rsi_ml",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v01_adaptive_rsi_ml",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v01_adaptive_rsi_ml/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "minute5",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v02a_dynamic_kelly",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02a_dynamic_kelly",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02a_dynamic_kelly/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "minute5",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v02b_split_exit",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02b_split_exit",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02b_split_exit/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "minute5",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v02c_volatility_adjusted",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02c_volatility_adjusted",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02c_volatility_adjusted/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "minute5",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v03_bull_trend_hold",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v03_bull_trend_hold",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v03_bull_trend_hold/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "minute5",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v04_adaptive_trend_rider",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v04_adaptive_trend_rider",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v04_adaptive_trend_rider/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "minute240",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v05_multi_cascade_autotuning",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v05_multi_cascade_autotuning",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v05_multi_cascade_autotuning/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v07_enhanced_day",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v07_enhanced_day",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v07_enhanced_day/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v08_market_adaptive",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v08_market_adaptive",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v08_market_adaptive/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v11_multi_entry_ensemble",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v11_multi_entry_ensemble",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v11_multi_entry_ensemble/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v13_voting_ensemble",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v13_voting_ensemble",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v13_voting_ensemble/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v14_high_confidence",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v14_high_confidence",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v14_high_confidence/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v15_adaptive",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v15_adaptive",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v15_adaptive/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v16_improved_voting",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v16_improved_voting",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v16_improved_voting/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v17_vwap_breakout",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v17_vwap_breakout",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v17_vwap_breakout/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v18_vwap_only",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v18_vwap_only",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v18_vwap_only/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v19_market_adaptive_hybrid",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v19_market_adaptive_hybrid",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v19_market_adaptive_hybrid/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v20_simplified_adaptive",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v20_simplified_adaptive",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v20_simplified_adaptive/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v21_perfect_timing_day",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v21_perfect_timing_day",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v21_perfect_timing_day/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v22_perfect_timing_minute240",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v22_perfect_timing_minute240",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v22_perfect_timing_minute240/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "minute240",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v23_relaxed_day",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v23_relaxed_day",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v23_relaxed_day/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v24_pattern_v1_day",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v24_pattern_v1_day",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v24_pattern_v1_day/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v25_hybrid_day_minute240",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v25_hybrid_day_minute240",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v25_hybrid_day_minute240/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": false,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v26_fine_tuned_v23",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v26_fine_tuned_v23",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v26_fine_tuned_v23/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v27_market_adaptive",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v27_market_adaptive",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v27_market_adaptive/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v29_ensemble_v23_v24",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v29_ensemble_v23_v24",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v29_ensemble_v23_v24/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      },
+      {
+        "version": "v31_improved",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_improved",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_improved/backtest.py"
+        ],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": true,
+        "status": "PRIORITY_3 (초기 전략)"
+      }
+    ],
+    "discard": [
+      {
+        "version": "v43_supreme_scalping",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v43_supreme_scalping",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v43_supreme_scalping/backtest/v41_replica_backtest.py",
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v43_supreme_scalping/backtest/run_comprehensive_backtest.py"
+        ],
+        "has_config": false,
+        "timeframe": null,
+        "has_results": false,
+        "status": "DISCARD (복리 버그)"
+      },
+      {
+        "version": "v45_ultimate_dynamic_scalping",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/run_all_years.py",
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/correct_compound_backtest.py",
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/test_all_timeframes.py",
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/v43_replica_backtest.py",
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/base_backtest.py",
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/run_correct_all_years.py"
+        ],
+        "has_config": false,
+        "timeframe": null,
+        "has_results": false,
+        "status": "DISCARD (복리 버그)"
+      }
+    ],
+    "incomplete": [
+      {
+        "version": "v42_ultimate_scalping",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v42_ultimate_scalping",
+        "has_backtest": true,
+        "backtest_scripts": [
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v42_ultimate_scalping/backtest/backtest_engine.py",
+          "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v42_ultimate_scalping/backtest/run_full_backtest.py"
+        ],
+        "has_config": false,
+        "timeframe": null,
+        "has_results": false,
+        "status": "INCOMPLETE (개발 중)"
+      }
+    ],
+    "no_backtest": [
+      {
+        "version": "v06_dual_layer_adaptive",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v06_dual_layer_adaptive",
+        "has_backtest": false,
+        "backtest_scripts": [],
+        "has_config": true,
+        "timeframe": null,
+        "has_results": false,
+        "status": "NO_BACKTEST"
+      },
+      {
+        "version": "v09_longterm_optimized",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v09_longterm_optimized",
+        "has_backtest": false,
+        "backtest_scripts": [],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "NO_BACKTEST"
+      },
+      {
+        "version": "v10_market_adaptive_v2",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v10_market_adaptive_v2",
+        "has_backtest": false,
+        "backtest_scripts": [],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": true,
+        "status": "NO_BACKTEST"
+      },
+      {
+        "version": "v10_rl_hybrid",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v10_rl_hybrid",
+        "has_backtest": false,
+        "backtest_scripts": [],
+        "has_config": false,
+        "timeframe": null,
+        "has_results": false,
+        "status": "NO_BACKTEST"
+      },
+      {
+        "version": "v12_refined",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v12_refined",
+        "has_backtest": false,
+        "backtest_scripts": [],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "NO_BACKTEST"
+      },
+      {
+        "version": "v28_split_entry_exit",
+        "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v28_split_entry_exit",
+        "has_backtest": false,
+        "backtest_scripts": [],
+        "has_config": true,
+        "timeframe": "day",
+        "has_results": false,
+        "status": "NO_BACKTEST"
+      }
+    ]
+  },
+  "all_strategies": [
+    {
+      "version": "v01_adaptive_rsi_ml",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v01_adaptive_rsi_ml",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v01_adaptive_rsi_ml/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "minute5",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v02a_dynamic_kelly",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02a_dynamic_kelly",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02a_dynamic_kelly/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "minute5",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v02b_split_exit",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02b_split_exit",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02b_split_exit/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "minute5",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v02c_volatility_adjusted",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02c_volatility_adjusted",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v02c_volatility_adjusted/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "minute5",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v03_bull_trend_hold",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v03_bull_trend_hold",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v03_bull_trend_hold/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "minute5",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v04_adaptive_trend_rider",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v04_adaptive_trend_rider",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v04_adaptive_trend_rider/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "minute240",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v05_multi_cascade_autotuning",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v05_multi_cascade_autotuning",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v05_multi_cascade_autotuning/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v06_dual_layer_adaptive",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v06_dual_layer_adaptive",
+      "has_backtest": false,
+      "backtest_scripts": [],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": false,
+      "status": "NO_BACKTEST"
+    },
+    {
+      "version": "v07_enhanced_day",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v07_enhanced_day",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v07_enhanced_day/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v08_market_adaptive",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v08_market_adaptive",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v08_market_adaptive/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v09_longterm_optimized",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v09_longterm_optimized",
+      "has_backtest": false,
+      "backtest_scripts": [],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "NO_BACKTEST"
+    },
+    {
+      "version": "v10_market_adaptive_v2",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v10_market_adaptive_v2",
+      "has_backtest": false,
+      "backtest_scripts": [],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "NO_BACKTEST"
+    },
+    {
+      "version": "v10_rl_hybrid",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v10_rl_hybrid",
+      "has_backtest": false,
+      "backtest_scripts": [],
+      "has_config": false,
+      "timeframe": null,
+      "has_results": false,
+      "status": "NO_BACKTEST"
+    },
+    {
+      "version": "v11_multi_entry_ensemble",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v11_multi_entry_ensemble",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v11_multi_entry_ensemble/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v12_refined",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v12_refined",
+      "has_backtest": false,
+      "backtest_scripts": [],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "NO_BACKTEST"
+    },
+    {
+      "version": "v13_voting_ensemble",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v13_voting_ensemble",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v13_voting_ensemble/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v14_high_confidence",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v14_high_confidence",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v14_high_confidence/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v15_adaptive",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v15_adaptive",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v15_adaptive/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v16_improved_voting",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v16_improved_voting",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v16_improved_voting/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v17_vwap_breakout",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v17_vwap_breakout",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v17_vwap_breakout/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v18_vwap_only",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v18_vwap_only",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v18_vwap_only/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v19_market_adaptive_hybrid",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v19_market_adaptive_hybrid",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v19_market_adaptive_hybrid/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v20_simplified_adaptive",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v20_simplified_adaptive",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v20_simplified_adaptive/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v21_perfect_timing_day",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v21_perfect_timing_day",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v21_perfect_timing_day/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v22_perfect_timing_minute240",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v22_perfect_timing_minute240",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v22_perfect_timing_minute240/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "minute240",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v23_relaxed_day",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v23_relaxed_day",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v23_relaxed_day/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v24_pattern_v1_day",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v24_pattern_v1_day",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v24_pattern_v1_day/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v25_hybrid_day_minute240",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v25_hybrid_day_minute240",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v25_hybrid_day_minute240/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": false,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v26_fine_tuned_v23",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v26_fine_tuned_v23",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v26_fine_tuned_v23/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v27_market_adaptive",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v27_market_adaptive",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v27_market_adaptive/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v28_split_entry_exit",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v28_split_entry_exit",
+      "has_backtest": false,
+      "backtest_scripts": [],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "NO_BACKTEST"
+    },
+    {
+      "version": "v29_ensemble_v23_v24",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v29_ensemble_v23_v24",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v29_ensemble_v23_v24/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v30_perfect_longterm",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v30_perfect_longterm",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v30_perfect_longterm/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_2 (검증 필요)"
+    },
+    {
+      "version": "v31_improved",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_improved",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_improved/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": true,
+      "status": "PRIORITY_3 (초기 전략)"
+    },
+    {
+      "version": "v31_scalping_with_classifier",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_scalping_with_classifier",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_scalping_with_classifier/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": true,
+      "status": "PRIORITY_1 (신뢰 가능)"
+    },
+    {
+      "version": "v32_aggressive",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_aggressive",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_aggressive/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": true,
+      "status": "PRIORITY_2 (검증 필요)"
+    },
+    {
+      "version": "v32_ensemble",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_ensemble",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_ensemble/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": true,
+      "status": "PRIORITY_2 (검증 필요)"
+    },
+    {
+      "version": "v32_optimized",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_optimized",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_optimized/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": true,
+      "status": "PRIORITY_2 (검증 필요)"
+    },
+    {
+      "version": "v33_minute240",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v33_minute240",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v33_minute240/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": true,
+      "status": "PRIORITY_2 (검증 필요)"
+    },
+    {
+      "version": "v34_supreme",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v34_supreme",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v34_supreme/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_1 (신뢰 가능)"
+    },
+    {
+      "version": "v35_optimized",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v35_optimized",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v35_optimized/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": false,
+      "status": "PRIORITY_1 (신뢰 가능)"
+    },
+    {
+      "version": "v36_multi_timeframe",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v36_multi_timeframe",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v36_multi_timeframe/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": true,
+      "status": "PRIORITY_1 (신뢰 가능)"
+    },
+    {
+      "version": "v37_supreme",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v37_supreme",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v37_supreme/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_1 (신뢰 가능)"
+    },
+    {
+      "version": "v38_ensemble",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_1 (신뢰 가능)"
+    },
+    {
+      "version": "v39_voting",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v39_voting",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v39_voting/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_2 (검증 필요)"
+    },
+    {
+      "version": "v40_adaptive_voting",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v40_adaptive_voting",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v40_adaptive_voting/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": "day",
+      "has_results": true,
+      "status": "PRIORITY_2 (검증 필요)"
+    },
+    {
+      "version": "v41_scalping_voting",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/backtest.py"
+      ],
+      "has_config": true,
+      "timeframe": null,
+      "has_results": false,
+      "status": "PRIORITY_2 (검증 필요)"
+    },
+    {
+      "version": "v42_ultimate_scalping",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v42_ultimate_scalping",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v42_ultimate_scalping/backtest/backtest_engine.py",
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v42_ultimate_scalping/backtest/run_full_backtest.py"
+      ],
+      "has_config": false,
+      "timeframe": null,
+      "has_results": false,
+      "status": "INCOMPLETE (개발 중)"
+    },
+    {
+      "version": "v43_supreme_scalping",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v43_supreme_scalping",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v43_supreme_scalping/backtest/v41_replica_backtest.py",
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v43_supreme_scalping/backtest/run_comprehensive_backtest.py"
+      ],
+      "has_config": false,
+      "timeframe": null,
+      "has_results": false,
+      "status": "DISCARD (복리 버그)"
+    },
+    {
+      "version": "v44_supreme_hybrid_scalping",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v44_supreme_hybrid_scalping",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v44_supreme_hybrid_scalping/backtest/run_v44_backtest.py"
+      ],
+      "has_config": false,
+      "timeframe": null,
+      "has_results": false,
+      "status": "NO_CONFIG"
+    },
+    {
+      "version": "v45_ultimate_dynamic_scalping",
+      "path": "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping",
+      "has_backtest": true,
+      "backtest_scripts": [
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/run_all_years.py",
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/correct_compound_backtest.py",
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/test_all_timeframes.py",
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/v43_replica_backtest.py",
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/base_backtest.py",
+        "/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v45_ultimate_dynamic_scalping/backtest/run_correct_all_years.py"
+      ],
+      "has_config": false,
+      "timeframe": null,
+      "has_results": false,
+      "status": "DISCARD (복리 버그)"
+    }
+  ]
+}

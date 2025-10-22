@@ -1,0 +1,72 @@
+{
+  "description": "v-a-13 FINAL: Aggressive TP, Quality Signals, BULL Only",
+  "version": "v-a-13-final",
+  "base_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage": 0.0002,
+
+  "timeframes": {
+    "day": "bitcoin_day",
+    "4h": "bitcoin_minute240",
+    "1h": "bitcoin_minute60"
+  },
+
+  "day_config": {
+    "comment": "BULL trends only - highest win rate",
+    "market_states": ["BULL_STRONG", "BULL_MODERATE"],
+    "stop_loss": -0.10,
+    "max_position_per_signal": 0.50
+  },
+
+  "4h_config": {
+    "comment": "4H - Aggressive TP for fee coverage",
+    "max_entries_per_day_signal": 3,
+    "position_size": 0.20,
+
+    "entry": {
+      "rsi_threshold": 38,
+      "macd_bullish": false,
+      "bb_position_max": 0.35,
+      "volume_ratio_min": 1.2
+    },
+
+    "exit": {
+      "tp1": 0.08,
+      "tp1_ratio": 0.5,
+      "tp2": 0.15,
+      "tp2_ratio": 0.5,
+      "stop_loss": -0.03,
+      "trailing_from_peak": -0.02,
+      "max_hold_hours": 360
+    }
+  },
+
+  "1h_config": {
+    "comment": "1H - High TP, selective entries",
+    "max_entries_per_day_signal": 4,
+    "position_size": 0.15,
+
+    "entry": {
+      "rsi_threshold": 32,
+      "stoch_k_threshold": 20,
+      "bb_position_max": 0.25,
+      "volume_ratio_min": 1.5
+    },
+
+    "exit": {
+      "tp1": 0.06,
+      "tp1_ratio": 0.6,
+      "tp2": 0.12,
+      "tp2_ratio": 0.4,
+      "stop_loss": -0.025,
+      "trailing_from_peak": -0.015,
+      "max_hold_hours": 120
+    }
+  },
+
+  "risk_management": {
+    "max_concurrent_positions": 8,
+    "reentry_cooldown_hours": 36,
+    "max_capital_per_day_signal": 0.60
+  }
+}

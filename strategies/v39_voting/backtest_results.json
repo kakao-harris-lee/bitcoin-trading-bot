@@ -1,7 +1,7 @@
 {
   "version": "v39",
   "strategy_name": "voting_ensemble",
-  "backtest_date": "2025-10-19T21:09:17.026477",
+  "backtest_date": "2025-10-20T20:35:55.607075",
   "config": {
     "strategy_name": "voting_ensemble",
     "version": "v39",

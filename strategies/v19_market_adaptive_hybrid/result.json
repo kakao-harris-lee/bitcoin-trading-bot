@@ -1,0 +1,54 @@
+{
+  "version": "v19",
+  "start_date": "2022-01-01",
+  "end_date": "2022-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 9751336.251488507,
+  "total_return_pct": -2.486637485114932,
+  "total_trades": 4,
+  "wins": 1,
+  "losses": 3,
+  "win_rate": 0.25,
+  "avg_profit_pct": 2.4342826925959407,
+  "avg_loss_pct": -3.3241855257738195,
+  "max_win_pct": 2.4342826925959407,
+  "max_loss_pct": -6.822427510313532,
+  "trades": [
+    {
+      "entry_time": "2022-05-09 09:00:00",
+      "entry_price": 41002000.0,
+      "exit_time": "2022-05-11 09:00:00",
+      "exit_price": 40290000.0,
+      "pnl_pct": -1.8543579290789376,
+      "reason": "MARKET_SWITCH_SIDEWAYS_TO_BEAR",
+      "market_type": "SIDEWAYS"
+    },
+    {
+      "entry_time": "2022-06-16 09:00:00",
+      "entry_price": 26898000.0,
+      "exit_time": "2022-06-18 09:00:00",
+      "exit_price": 25093000.0,
+      "pnl_pct": -6.822427510313532,
+      "reason": "BEAR_SL_3%",
+      "market_type": "BEAR"
+    },
+    {
+      "entry_time": "2022-08-28 09:00:00",
+      "entry_price": 27099000.0,
+      "exit_time": "2022-08-29 09:00:00",
+      "exit_price": 27792000.0,
+      "pnl_pct": 2.4342826925959407,
+      "reason": "MARKET_SWITCH_SIDEWAYS_TO_BEAR",
+      "market_type": "SIDEWAYS"
+    },
+    {
+      "entry_time": "2022-12-27 09:00:00",
+      "entry_price": 21321000.0,
+      "exit_time": "2022-12-30 09:00:00",
+      "exit_price": 21070000.0,
+      "pnl_pct": -1.2957711379289887,
+      "reason": "END_OF_PERIOD",
+      "market_type": "SIDEWAYS"
+    }
+  ]
+}

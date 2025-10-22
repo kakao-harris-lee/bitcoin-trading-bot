@@ -1,0 +1,56 @@
+{
+  "2020": {
+    "total_return_pct": 245.43388070687934,
+    "final_capital": 34543388.070687935,
+    "total_trades": 76,
+    "win_rate": 53.94736842105263,
+    "sharpe_ratio": 4.090988538355856,
+    "max_drawdown": -46.77057069609928,
+    "profit_factor": 1.8526852764714492
+  },
+  "2021": {
+    "total_return_pct": 48.252728401717285,
+    "final_capital": 14825272.840171728,
+    "total_trades": 127,
+    "win_rate": 44.09448818897638,
+    "sharpe_ratio": 1.2714943141515014,
+    "max_drawdown": -57.383354303465936,
+    "profit_factor": 1.194746682163693
+  },
+  "2022": {
+    "total_return_pct": -66.97020048386518,
+    "final_capital": 3302979.951613482,
+    "total_trades": 69,
+    "win_rate": 28.985507246376812,
+    "sharpe_ratio": -3.786779024426274,
+    "max_drawdown": -66.97020048386518,
+    "profit_factor": 0.5818518218464396
+  },
+  "2023": {
+    "total_return_pct": 149.3057347684397,
+    "final_capital": 24930573.476843968,
+    "total_trades": 52,
+    "win_rate": 50.0,
+    "sharpe_ratio": 5.624405225762299,
+    "max_drawdown": -16.74308658346871,
+    "profit_factor": 2.1947060864322503
+  },
+  "2024": {
+    "total_return_pct": 110.69230485107333,
+    "final_capital": 21069230.485107332,
+    "total_trades": 76,
+    "win_rate": 46.05263157894737,
+    "sharpe_ratio": 3.290940901762616,
+    "max_drawdown": -31.097326256931378,
+    "profit_factor": 1.5620462524339225
+  },
+  "2025": {
+    "total_return_pct": 12.97234647554161,
+    "final_capital": 11297234.647554161,
+    "total_trades": 44,
+    "win_rate": 43.18181818181818,
+    "sharpe_ratio": 1.2416751707201463,
+    "max_drawdown": -28.144185202053368,
+    "profit_factor": 1.192743153799337
+  }
+}

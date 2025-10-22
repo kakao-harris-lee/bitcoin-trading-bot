@@ -1,0 +1,80 @@
+{
+  "results": {
+    "2020": {
+      "year": 2020,
+      "total_return": 1.5,
+      "total_trades": 99,
+      "trades_4h": 3,
+      "trades_1h": 96,
+      "win_rate": 76.77,
+      "avg_profit": 1.47,
+      "avg_win": 2.21,
+      "avg_loss": -0.94,
+      "final_capital": 10149840.0
+    },
+    "2021": {
+      "year": 2021,
+      "total_return": 0.19,
+      "total_trades": 117,
+      "trades_4h": 17,
+      "trades_1h": 100,
+      "win_rate": 67.52,
+      "avg_profit": 1.32,
+      "avg_win": 2.6,
+      "avg_loss": -1.34,
+      "final_capital": 10019115.0
+    },
+    "2022": {
+      "year": 2022,
+      "total_return": -22.92,
+      "total_trades": 133,
+      "trades_4h": 34,
+      "trades_1h": 99,
+      "win_rate": 66.92,
+      "avg_profit": 1.55,
+      "avg_win": 2.87,
+      "avg_loss": -1.13,
+      "final_capital": 7708468.0
+    },
+    "2023": {
+      "year": 2023,
+      "total_return": -14.82,
+      "total_trades": 268,
+      "trades_4h": 56,
+      "trades_1h": 212,
+      "win_rate": 57.46,
+      "avg_profit": 0.84,
+      "avg_win": 2.19,
+      "avg_loss": -0.98,
+      "final_capital": 8518201.0
+    },
+    "2024": {
+      "year": 2024,
+      "total_return": -1.72,
+      "total_trades": 233,
+      "trades_4h": 26,
+      "trades_1h": 207,
+      "win_rate": 71.24,
+      "avg_profit": 1.65,
+      "avg_win": 2.69,
+      "avg_loss": -0.92,
+      "final_capital": 9828042.0
+    },
+    "2025": {
+      "year": 2025,
+      "total_return": -1.56,
+      "total_trades": 205,
+      "trades_4h": 8,
+      "trades_1h": 197,
+      "win_rate": 65.85,
+      "avg_profit": 1.37,
+      "avg_win": 2.42,
+      "avg_loss": -0.67,
+      "final_capital": 9843800.0
+    }
+  },
+  "summary": {
+    "avg_return": -6.56,
+    "total_trades": 1055
+  }
+}

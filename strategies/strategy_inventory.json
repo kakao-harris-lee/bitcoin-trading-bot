@@ -1,0 +1,631 @@
+{
+  "total": 51,
+  "by_structure": {
+    "standard": 38,
+    "incomplete": 9,
+    "modular": 4
+  },
+  "by_timeframe": {
+    "minute5": 5,
+    "minute240": 2,
+    "N/A": 16,
+    "day": 28
+  },
+  "complete_count": 37,
+  "incomplete_count": 14,
+  "with_results_count": 46,
+  "strategies": [
+    {
+      "version": "v01_adaptive_rsi_ml",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "minute5",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 7
+    },
+    {
+      "version": "v02a_dynamic_kelly",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "minute5",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 7
+    },
+    {
+      "version": "v02b_split_exit",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "minute5",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 7
+    },
+    {
+      "version": "v02c_volatility_adjusted",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "minute5",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 7
+    },
+    {
+      "version": "v03_bull_trend_hold",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "minute5",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 7
+    },
+    {
+      "version": "v04_adaptive_trend_rider",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "minute240",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 5
+    },
+    {
+      "version": "v05_multi_cascade_autotuning",
+      "files": {
+        "config": true,
+        "strategy": false,
+        "backtest": true
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "incomplete",
+      "result_files": 2
+    },
+    {
+      "version": "v06_dual_layer_adaptive",
+      "files": {
+        "config": true,
+        "strategy": false,
+        "backtest": false
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "incomplete",
+      "result_files": 2
+    },
+    {
+      "version": "v07_enhanced_day",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 4
+    },
+    {
+      "version": "v08_market_adaptive",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 2
+    },
+    {
+      "version": "v09_longterm_optimized",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": false
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 2
+    },
+    {
+      "version": "v10_market_adaptive_v2",
+      "files": {
+        "config": true,
+        "strategy": false,
+        "backtest": false
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "incomplete",
+      "result_files": 1
+    },
+    {
+      "version": "v10_rl_hybrid",
+      "files": {
+        "config": false,
+        "strategy": false,
+        "backtest": false
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "incomplete",
+      "result_files": 1
+    },
+    {
+      "version": "v11_multi_entry_ensemble",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 2
+    },
+    {
+      "version": "v12_refined",
+      "files": {
+        "config": true,
+        "strategy": false,
+        "backtest": false
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "incomplete",
+      "result_files": 3
+    },
+    {
+      "version": "v13_voting_ensemble",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v14_high_confidence",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v15_adaptive",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v16_improved_voting",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v17_vwap_breakout",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 5
+    },
+    {
+      "version": "v18_vwap_only",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v19_market_adaptive_hybrid",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 5
+    },
+    {
+      "version": "v20_simplified_adaptive",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 5
+    },
+    {
+      "version": "v21_perfect_timing_day",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v22_perfect_timing_minute240",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "minute240",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v23_relaxed_day",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v24_pattern_v1_day",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v25_hybrid_day_minute240",
+      "files": {
+        "config": true,
+        "strategy": false,
+        "backtest": true
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "incomplete",
+      "result_files": 0
+    },
+    {
+      "version": "v26_fine_tuned_v23",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v27_market_adaptive",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v28_split_entry_exit",
+      "files": {
+        "config": true,
+        "strategy": false,
+        "backtest": false
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "incomplete",
+      "result_files": 0
+    },
+    {
+      "version": "v29_ensemble_v23_v24",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v30_perfect_longterm",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v31_improved",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v31_scalping_with_classifier",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v32_aggressive",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v32_ensemble",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v32_optimized",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v33_minute240",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v34_supreme",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v35_optimized",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v36_multi_timeframe",
+      "files": {
+        "config": true,
+        "strategy": false,
+        "backtest": true
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "incomplete",
+      "result_files": 1
+    },
+    {
+      "version": "v37_supreme",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v38_ensemble",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v39_voting",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v40_adaptive_voting",
+      "files": {
+        "config": true,
+        "strategy": true,
+        "backtest": true
+      },
+      "timeframe": "day",
+      "concept": "N/A",
+      "structure": "standard",
+      "result_files": 1
+    },
+    {
+      "version": "v41_scalping_voting",
+      "files": {
+        "config": true,
+        "strategy": false,
+        "backtest": true
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "incomplete",
+      "result_files": 1
+    },
+    {
+      "version": "v42_ultimate_scalping",
+      "files": {
+        "config": false,
+        "strategy": false,
+        "backtest": false
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "modular",
+      "result_files": 1
+    },
+    {
+      "version": "v43_supreme_scalping",
+      "files": {
+        "config": false,
+        "strategy": false,
+        "backtest": false
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "modular",
+      "result_files": 0
+    },
+    {
+      "version": "v44_supreme_hybrid_scalping",
+      "files": {
+        "config": false,
+        "strategy": false,
+        "backtest": false
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "modular",
+      "result_files": 0
+    },
+    {
+      "version": "v45_ultimate_dynamic_scalping",
+      "files": {
+        "config": false,
+        "strategy": false,
+        "backtest": false
+      },
+      "timeframe": "N/A",
+      "concept": "N/A",
+      "structure": "modular",
+      "result_files": 0
+    }
+  ]
+}

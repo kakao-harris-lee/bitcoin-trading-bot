@@ -1,0 +1,77 @@
+{
+  "strategy": "v_composite",
+  "evaluation_date": "2025-10-21T16:39:43.857564",
+  "evaluated_combinations": 3,
+  "full_matrix": {
+    "2024_5d": {
+      "year": 2024,
+      "period": "5d",
+      "total_return_pct": 2.43,
+      "total_trades": 1,
+      "winning_trades": 0,
+      "losing_trades": 1,
+      "win_rate": 0.0,
+      "avg_return": -57.57,
+      "avg_winning_return": 0,
+      "avg_losing_return": -57.57,
+      "sharpe_ratio": 0,
+      "max_drawdown": 0.0,
+      "final_capital": 10242513,
+      "total_profit": 242513,
+      "avg_holding_hours": 120.0
+    },
+    "2024_7d": {
+      "year": 2024,
+      "period": "7d",
+      "total_return_pct": 3.17,
+      "total_trades": 1,
+      "winning_trades": 0,
+      "losing_trades": 1,
+      "win_rate": 0.0,
+      "avg_return": -56.83,
+      "avg_winning_return": 0,
+      "avg_losing_return": -56.83,
+      "sharpe_ratio": 0,
+      "max_drawdown": 0.0,
+      "final_capital": 10316647,
+      "total_profit": 316647,
+      "avg_holding_hours": 168.0
+    },
+    "2024_10d": {
+      "year": 2024,
+      "period": "10d",
+      "total_return_pct": 3.2,
+      "total_trades": 1,
+      "winning_trades": 0,
+      "losing_trades": 1,
+      "win_rate": 0.0,
+      "avg_return": -56.8,
+      "avg_winning_return": 0,
+      "avg_losing_return": -56.8,
+      "sharpe_ratio": 0,
+      "max_drawdown": 0.0,
+      "final_capital": 10320226,
+      "total_profit": 320226,
+      "avg_holding_hours": 240.0
+    }
+  },
+  "optimization": {
+    "best_period": "5d",
+    "training_years": [
+      2024
+    ],
+    "training_avg": {
+      "avg_sharpe": 0.0,
+      "avg_return_pct": 2.43,
+      "avg_trades": 1
+    },
+    "selection_metric": "sharpe_ratio"
+  },
+  "validation": {
+    "year": null,
+    "period": "5d",
+    "result": null,
+    "degradation_pct": 0.0
+  },
+  "recommendation": "Use 5d holding period. Validation degradation: +0.0% (✅ Good)"
+}

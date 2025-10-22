@@ -1,0 +1,53 @@
+{
+  "version": "v38",
+  "year": 2023,
+  "timeframe": "day",
+  "buy_signals": [
+    {
+      "timestamp": "2023-03-13 09:00:00",
+      "price": 31682335.2,
+      "position_size": 0.5,
+      "buy_index": 0,
+      "original_position_size": 0.5,
+      "cumulative_after": 0.5
+    },
+    {
+      "timestamp": "2023-03-17 09:00:00",
+      "price": 36214241.4,
+      "position_size": 0.5,
+      "buy_index": 1,
+      "original_position_size": 0.5,
+      "cumulative_after": 1.0
+    }
+  ],
+  "sell_signals": [
+    {
+      "timestamp": "2023-03-14 09:00:00",
+      "price": 32483502.0,
+      "reason": "Buy 50.0% of cash -> Sell 40.0%",
+      "buy_index": 0,
+      "original_profit_pct": 2.528749206592577,
+      "hold_hours": 24.0
+    },
+    {
+      "timestamp": "2023-03-19 09:00:00",
+      "price": 37225553.4,
+      "reason": "Buy 50.0% of cash -> Sell 40.0%",
+      "buy_index": 1,
+      "original_profit_pct": 2.792580931986608,
+      "hold_hours": 48.0
+    }
+  ],
+  "signal_count": 2,
+  "original_total_return": 2.952103093374483,
+  "original_sharpe": 0.32641580104131807,
+  "original_max_drawdown": 6.595870373825541,
+  "original_win_rate": 0.5,
+  "original_total_trades": 8,
+  "position_normalization": {
+    "original_total": 8.0,
+    "normalized_total": 1.0,
+    "was_normalized": true,
+    "reduction_pct": 87.5
+  }
+}

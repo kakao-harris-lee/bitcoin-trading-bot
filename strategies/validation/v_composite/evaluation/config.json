@@ -1,0 +1,41 @@
+{
+  "strategy": "v_composite",
+  "timeframe": "day",
+  "years": [2024],
+  "training_years": [2024],
+  "validation_year": null,
+  "holding_periods": {
+    "5d": 120,
+    "7d": 168,
+    "10d": 240
+  },
+  "exit_strategy": {
+    "type": "composite",
+    "composite": {
+      "enabled": true,
+      "strategies": ["fixed", "trailing", "timeout"],
+      "fixed": {
+        "take_profit": 0.06,
+        "stop_loss": 0.025
+      },
+      "trailing": {
+        "trailing_stop_pct": 0.03
+      },
+      "timeout": {
+        "max_holding_hours": 240
+      }
+    }
+  },
+  "position_sizing": {
+    "type": "tier_based",
+    "tier_based": {
+      "S_tier_fraction": 1.0,
+      "A_tier_fraction": 0.7,
+      "B_tier_fraction": 0.5,
+      "default_fraction": 0.3
+    }
+  },
+  "initial_capital": 10000000,
+  "fee_rate": 0.0005,
+  "slippage_rate": 0.0004
+}

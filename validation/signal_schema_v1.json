@@ -1,0 +1,198 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://trading-bot.local/schemas/signal-v1.json",
+  "title": "Trading Signal Schema v1.0",
+  "description": "Standard schema for trading strategy signals",
+  "type": "object",
+  "required": ["metadata", "signals"],
+
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["strategy", "version", "timeframe", "generated_at"],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "description": "Strategy name (e.g., v46_scalping)",
+          "pattern": "^v\\d+[a-z_]*$",
+          "examples": ["v46_scalping", "v35_optimized", "v41_voting"]
+        },
+        "version": {
+          "type": "string",
+          "description": "Strategy version",
+          "pattern": "^\\d+\\.\\d+(\\.\\d+)?$",
+          "examples": ["1.0", "1.2.3"]
+        },
+        "timeframe": {
+          "type": "string",
+          "description": "Data timeframe",
+          "enum": ["minute5", "minute15", "minute60", "minute240", "day"],
+          "examples": ["minute60", "day"]
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Signal generation timestamp (ISO 8601)"
+        },
+        "source_strategy": {
+          "type": "string",
+          "description": "Original strategy if derived"
+        },
+        "description": {
+          "type": "string",
+          "description": "Strategy description"
+        },
+        "author": {
+          "type": "string",
+          "description": "Strategy author"
+        },
+        "statistics": {
+          "type": "object",
+          "properties": {
+            "total_signals": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "period_start": {
+              "type": "string",
+              "format": "date"
+            },
+            "period_end": {
+              "type": "string",
+              "format": "date"
+            },
+            "avg_score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        }
+      }
+    },
+
+    "signals": {
+      "type": "array",
+      "description": "Array of trading signals",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "required": ["timestamp", "action", "price"],
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Signal timestamp (ISO 8601)",
+            "examples": ["2024-01-15T09:00:00", "2024-01-15 09:00:00"]
+          },
+          "action": {
+            "type": "string",
+            "description": "Trading action",
+            "enum": ["BUY", "SELL", "CLOSE_LONG", "CLOSE_SHORT", "SCALE_IN", "SCALE_OUT"],
+            "examples": ["BUY", "SELL"]
+          },
+          "price": {
+            "type": "number",
+            "description": "Entry price in KRW",
+            "minimum": 0,
+            "exclusiveMinimum": true,
+            "examples": [58839000, 67200000]
+          },
+
+          "score": {
+            "type": "number",
+            "description": "Signal score (0-100)",
+            "minimum": 0,
+            "maximum": 100,
+            "examples": [42.5, 78.0]
+          },
+          "confidence": {
+            "type": "number",
+            "description": "Signal confidence (0.0-1.0)",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "examples": [0.85, 0.92]
+          },
+          "market_state": {
+            "type": "string",
+            "description": "Market classification",
+            "enum": [
+              "BULL_STRONG",
+              "BULL_MODERATE",
+              "SIDEWAYS_UP",
+              "SIDEWAYS_FLAT",
+              "SIDEWAYS_DOWN",
+              "BEAR_MODERATE",
+              "BEAR_STRONG",
+              "BULL",
+              "BEAR",
+              "SIDEWAYS",
+              "TRENDING",
+              "RANGING"
+            ],
+            "examples": ["BULL_MODERATE", "SIDEWAYS_FLAT"]
+          },
+          "reason": {
+            "type": "string",
+            "description": "Entry reason",
+            "examples": ["MOMENTUM_BREAKOUT", "MEAN_REVERSION", "VOLUME_SPIKE"]
+          },
+
+          "metadata": {
+            "type": "object",
+            "description": "Strategy-specific metadata (flexible)",
+            "additionalProperties": true,
+            "properties": {
+              "mfi": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "rsi": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "volume_ratio": {
+                "type": "number",
+                "minimum": 0
+              },
+              "bb_position": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "atr_pct": {
+                "type": "number",
+                "minimum": 0
+              },
+              "entry_strategy": {
+                "type": "string",
+                "examples": ["Momentum Trading", "Breakout", "Mean Reversion"]
+              },
+              "tier": {
+                "type": "string",
+                "enum": ["S", "A", "B", "C", "D"],
+                "description": "Signal tier classification"
+              },
+              "perfect_signal_match": {
+                "type": "boolean",
+                "description": "Matches oracle perfect signal"
+              },
+              "voting_details": {
+                "type": "object",
+                "description": "Voting system breakdown",
+                "additionalProperties": true
+              },
+              "indicators": {
+                "type": "object",
+                "description": "Additional indicator values",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

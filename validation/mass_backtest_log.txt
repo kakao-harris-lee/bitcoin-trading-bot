@@ -1,0 +1,523 @@
+[2025-10-20 20:12:39] ================================================================================
+[2025-10-20 20:12:39] MASS BACKTEST RUNNER STARTED
+[2025-10-20 20:12:39] ================================================================================
+[2025-10-20 20:12:39] 📋 Total: 15 strategies × 6 years = 90 backtests
+[2025-10-20 20:12:39] 
+[2025-10-20 20:12:39] 
+================================================================================
+[2025-10-20 20:12:39] [1/15] Processing: v30_perfect_longterm
+[2025-10-20 20:12:39] ================================================================================
+[2025-10-20 20:12:39] 🚀 Running: v30_perfect_longterm_2020
+[2025-10-20 20:12:39] ❌ v30_perfect_longterm_2020: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 1 failed, 0 skipped (1.1%)
+[2025-10-20 20:12:39] 🚀 Running: v30_perfect_longterm_2021
+[2025-10-20 20:12:39] ❌ v30_perfect_longterm_2021: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 2 failed, 0 skipped (2.2%)
+[2025-10-20 20:12:39] 🚀 Running: v30_perfect_longterm_2022
+[2025-10-20 20:12:39] ❌ v30_perfect_longterm_2022: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 3 failed, 0 skipped (3.3%)
+[2025-10-20 20:12:39] 🚀 Running: v30_perfect_longterm_2023
+[2025-10-20 20:12:39] ❌ v30_perfect_longterm_2023: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 4 failed, 0 skipped (4.4%)
+[2025-10-20 20:12:39] 🚀 Running: v30_perfect_longterm_2024
+[2025-10-20 20:12:39] ❌ v30_perfect_longterm_2024: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 5 failed, 0 skipped (5.6%)
+[2025-10-20 20:12:39] 🚀 Running: v30_perfect_longterm_2025
+[2025-10-20 20:12:39] ❌ v30_perfect_longterm_2025: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 6 failed, 0 skipped (6.7%)
+[2025-10-20 20:12:39] 
+================================================================================
+[2025-10-20 20:12:39] [2/15] Processing: v31_improved
+[2025-10-20 20:12:39] ================================================================================
+[2025-10-20 20:12:39] 🚀 Running: v31_improved_2020
+[2025-10-20 20:12:39] ❌ v31_improved_2020: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_improved/strategies/v31_improved/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 7 failed, 0 skipped (7.8%)
+[2025-10-20 20:12:39] 🚀 Running: v31_improved_2021
+[2025-10-20 20:12:39] ❌ v31_improved_2021: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_improved/strategies/v31_improved/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 8 failed, 0 skipped (8.9%)
+[2025-10-20 20:12:39] 🚀 Running: v31_improved_2022
+[2025-10-20 20:12:39] ❌ v31_improved_2022: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_improved/strategies/v31_improved/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 9 failed, 0 skipped (10.0%)
+[2025-10-20 20:12:39] 🚀 Running: v31_improved_2023
+[2025-10-20 20:12:39] ❌ v31_improved_2023: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_improved/strategies/v31_improved/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 10 failed, 0 skipped (11.1%)
+[2025-10-20 20:12:39] 🚀 Running: v31_improved_2024
+[2025-10-20 20:12:39] ❌ v31_improved_2024: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_improved/strategies/v31_improved/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 11 failed, 0 skipped (12.2%)
+[2025-10-20 20:12:39] 🚀 Running: v31_improved_2025
+[2025-10-20 20:12:39] ❌ v31_improved_2025: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_improved/strategies/v31_improved/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 12 failed, 0 skipped (13.3%)
+[2025-10-20 20:12:39] 
+================================================================================
+[2025-10-20 20:12:39] [3/15] Processing: v31_scalping_with_classifier
+[2025-10-20 20:12:39] ================================================================================
+[2025-10-20 20:12:39] 🚀 Running: v31_scalping_with_classifier_2020
+[2025-10-20 20:12:39] ❌ v31_scalping_with_classifier_2020: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 13 failed, 0 skipped (14.4%)
+[2025-10-20 20:12:39] 🚀 Running: v31_scalping_with_classifier_2021
+[2025-10-20 20:12:39] ❌ v31_scalping_with_classifier_2021: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 14 failed, 0 skipped (15.6%)
+[2025-10-20 20:12:39] 🚀 Running: v31_scalping_with_classifier_2022
+[2025-10-20 20:12:39] ❌ v31_scalping_with_classifier_2022: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 15 failed, 0 skipped (16.7%)
+[2025-10-20 20:12:39] 🚀 Running: v31_scalping_with_classifier_2023
+[2025-10-20 20:12:39] ❌ v31_scalping_with_classifier_2023: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 16 failed, 0 skipped (17.8%)
+[2025-10-20 20:12:39] 🚀 Running: v31_scalping_with_classifier_2024
+[2025-10-20 20:12:39] ❌ v31_scalping_with_classifier_2024: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 17 failed, 0 skipped (18.9%)
+[2025-10-20 20:12:39] 🚀 Running: v31_scalping_with_classifier_2025
+[2025-10-20 20:12:39] ❌ v31_scalping_with_classifier_2025: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 18 failed, 0 skipped (20.0%)
+[2025-10-20 20:12:39] 
+================================================================================
+[2025-10-20 20:12:39] [4/15] Processing: v32_aggressive
+[2025-10-20 20:12:39] ================================================================================
+[2025-10-20 20:12:39] 🚀 Running: v32_aggressive_2020
+[2025-10-20 20:12:39] ❌ v32_aggressive_2020: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 19 failed, 0 skipped (21.1%)
+[2025-10-20 20:12:39] 🚀 Running: v32_aggressive_2021
+[2025-10-20 20:12:39] ❌ v32_aggressive_2021: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 20 failed, 0 skipped (22.2%)
+[2025-10-20 20:12:39] 🚀 Running: v32_aggressive_2022
+[2025-10-20 20:12:39] ❌ v32_aggressive_2022: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 21 failed, 0 skipped (23.3%)
+[2025-10-20 20:12:39] 🚀 Running: v32_aggressive_2023
+[2025-10-20 20:12:39] ❌ v32_aggressive_2023: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 22 failed, 0 skipped (24.4%)
+[2025-10-20 20:12:39] 🚀 Running: v32_aggressive_2024
+[2025-10-20 20:12:39] ❌ v32_aggressive_2024: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 23 failed, 0 skipped (25.6%)
+[2025-10-20 20:12:39] 🚀 Running: v32_aggressive_2025
+[2025-10-20 20:12:39] ❌ v32_aggressive_2025: Failed with code 2
+[2025-10-20 20:12:39]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:39] 📊 Progress: 0 completed, 24 failed, 0 skipped (26.7%)
+[2025-10-20 20:12:39] 
+================================================================================
+[2025-10-20 20:12:39] [5/15] Processing: v32_ensemble
+[2025-10-20 20:12:39] ================================================================================
+[2025-10-20 20:12:39] 🚀 Running: v32_ensemble_2020
+[2025-10-20 20:12:40] ❌ v32_ensemble_2020: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 25 failed, 0 skipped (27.8%)
+[2025-10-20 20:12:40] 🚀 Running: v32_ensemble_2021
+[2025-10-20 20:12:40] ❌ v32_ensemble_2021: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 26 failed, 0 skipped (28.9%)
+[2025-10-20 20:12:40] 🚀 Running: v32_ensemble_2022
+[2025-10-20 20:12:40] ❌ v32_ensemble_2022: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 27 failed, 0 skipped (30.0%)
+[2025-10-20 20:12:40] 🚀 Running: v32_ensemble_2023
+[2025-10-20 20:12:40] ❌ v32_ensemble_2023: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 28 failed, 0 skipped (31.1%)
+[2025-10-20 20:12:40] 🚀 Running: v32_ensemble_2024
+[2025-10-20 20:12:40] ❌ v32_ensemble_2024: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 29 failed, 0 skipped (32.2%)
+[2025-10-20 20:12:40] 🚀 Running: v32_ensemble_2025
+[2025-10-20 20:12:40] ❌ v32_ensemble_2025: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 30 failed, 0 skipped (33.3%)
+[2025-10-20 20:12:40] 
+================================================================================
+[2025-10-20 20:12:40] [6/15] Processing: v32_optimized
+[2025-10-20 20:12:40] ================================================================================
+[2025-10-20 20:12:40] 🚀 Running: v32_optimized_2020
+[2025-10-20 20:12:40] ❌ v32_optimized_2020: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 31 failed, 0 skipped (34.4%)
+[2025-10-20 20:12:40] 🚀 Running: v32_optimized_2021
+[2025-10-20 20:12:40] ❌ v32_optimized_2021: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 32 failed, 0 skipped (35.6%)
+[2025-10-20 20:12:40] 🚀 Running: v32_optimized_2022
+[2025-10-20 20:12:40] ❌ v32_optimized_2022: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 33 failed, 0 skipped (36.7%)
+[2025-10-20 20:12:40] 🚀 Running: v32_optimized_2023
+[2025-10-20 20:12:40] ❌ v32_optimized_2023: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 34 failed, 0 skipped (37.8%)
+[2025-10-20 20:12:40] 🚀 Running: v32_optimized_2024
+[2025-10-20 20:12:40] ❌ v32_optimized_2024: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 35 failed, 0 skipped (38.9%)
+[2025-10-20 20:12:40] 🚀 Running: v32_optimized_2025
+[2025-10-20 20:12:40] ❌ v32_optimized_2025: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 36 failed, 0 skipped (40.0%)
+[2025-10-20 20:12:40] 
+================================================================================
+[2025-10-20 20:12:40] [7/15] Processing: v33_minute240
+[2025-10-20 20:12:40] ================================================================================
+[2025-10-20 20:12:40] 🚀 Running: v33_minute240_2020
+[2025-10-20 20:12:40] ❌ v33_minute240_2020: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 37 failed, 0 skipped (41.1%)
+[2025-10-20 20:12:40] 🚀 Running: v33_minute240_2021
+[2025-10-20 20:12:40] ❌ v33_minute240_2021: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 38 failed, 0 skipped (42.2%)
+[2025-10-20 20:12:40] 🚀 Running: v33_minute240_2022
+[2025-10-20 20:12:40] ❌ v33_minute240_2022: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 39 failed, 0 skipped (43.3%)
+[2025-10-20 20:12:40] 🚀 Running: v33_minute240_2023
+[2025-10-20 20:12:40] ❌ v33_minute240_2023: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 40 failed, 0 skipped (44.4%)
+[2025-10-20 20:12:40] 🚀 Running: v33_minute240_2024
+[2025-10-20 20:12:40] ❌ v33_minute240_2024: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 41 failed, 0 skipped (45.6%)
+[2025-10-20 20:12:40] 🚀 Running: v33_minute240_2025
+[2025-10-20 20:12:40] ❌ v33_minute240_2025: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 42 failed, 0 skipped (46.7%)
+[2025-10-20 20:12:40] 
+================================================================================
+[2025-10-20 20:12:40] [8/15] Processing: v34_supreme
+[2025-10-20 20:12:40] ================================================================================
+[2025-10-20 20:12:40] 🚀 Running: v34_supreme_2020
+[2025-10-20 20:12:40] ❌ v34_supreme_2020: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 43 failed, 0 skipped (47.8%)
+[2025-10-20 20:12:40] 🚀 Running: v34_supreme_2021
+[2025-10-20 20:12:40] ❌ v34_supreme_2021: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 44 failed, 0 skipped (48.9%)
+[2025-10-20 20:12:40] 🚀 Running: v34_supreme_2022
+[2025-10-20 20:12:40] ❌ v34_supreme_2022: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 45 failed, 0 skipped (50.0%)
+[2025-10-20 20:12:40] 🚀 Running: v34_supreme_2023
+[2025-10-20 20:12:40] ❌ v34_supreme_2023: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 46 failed, 0 skipped (51.1%)
+[2025-10-20 20:12:40] 🚀 Running: v34_supreme_2024
+[2025-10-20 20:12:40] ❌ v34_supreme_2024: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 47 failed, 0 skipped (52.2%)
+[2025-10-20 20:12:40] 🚀 Running: v34_supreme_2025
+[2025-10-20 20:12:40] ❌ v34_supreme_2025: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 48 failed, 0 skipped (53.3%)
+[2025-10-20 20:12:40] 
+================================================================================
+[2025-10-20 20:12:40] [9/15] Processing: v35_optimized
+[2025-10-20 20:12:40] ================================================================================
+[2025-10-20 20:12:40] 🚀 Running: v35_optimized_2020
+[2025-10-20 20:12:40] ❌ v35_optimized_2020: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 49 failed, 0 skipped (54.4%)
+[2025-10-20 20:12:40] 🚀 Running: v35_optimized_2021
+[2025-10-20 20:12:40] ❌ v35_optimized_2021: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 50 failed, 0 skipped (55.6%)
+[2025-10-20 20:12:40] 🚀 Running: v35_optimized_2022
+[2025-10-20 20:12:40] ❌ v35_optimized_2022: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 51 failed, 0 skipped (56.7%)
+[2025-10-20 20:12:40] 🚀 Running: v35_optimized_2023
+[2025-10-20 20:12:40] ❌ v35_optimized_2023: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 52 failed, 0 skipped (57.8%)
+[2025-10-20 20:12:40] 🚀 Running: v35_optimized_2024
+[2025-10-20 20:12:40] ❌ v35_optimized_2024: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 53 failed, 0 skipped (58.9%)
+[2025-10-20 20:12:40] 🚀 Running: v35_optimized_2025
+[2025-10-20 20:12:40] ❌ v35_optimized_2025: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 54 failed, 0 skipped (60.0%)
+[2025-10-20 20:12:40] 
+================================================================================
+[2025-10-20 20:12:40] [10/15] Processing: v36_multi_timeframe
+[2025-10-20 20:12:40] ================================================================================
+[2025-10-20 20:12:40] 🚀 Running: v36_multi_timeframe_2020
+[2025-10-20 20:12:40] ❌ v36_multi_timeframe_2020: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 55 failed, 0 skipped (61.1%)
+[2025-10-20 20:12:40] 🚀 Running: v36_multi_timeframe_2021
+[2025-10-20 20:12:40] ❌ v36_multi_timeframe_2021: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 56 failed, 0 skipped (62.2%)
+[2025-10-20 20:12:40] 🚀 Running: v36_multi_timeframe_2022
+[2025-10-20 20:12:40] ❌ v36_multi_timeframe_2022: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 57 failed, 0 skipped (63.3%)
+[2025-10-20 20:12:40] 🚀 Running: v36_multi_timeframe_2023
+[2025-10-20 20:12:40] ❌ v36_multi_timeframe_2023: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 58 failed, 0 skipped (64.4%)
+[2025-10-20 20:12:40] 🚀 Running: v36_multi_timeframe_2024
+[2025-10-20 20:12:40] ❌ v36_multi_timeframe_2024: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 59 failed, 0 skipped (65.6%)
+[2025-10-20 20:12:40] 🚀 Running: v36_multi_timeframe_2025
+[2025-10-20 20:12:40] ❌ v36_multi_timeframe_2025: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 60 failed, 0 skipped (66.7%)
+[2025-10-20 20:12:40] 
+================================================================================
+[2025-10-20 20:12:40] [11/15] Processing: v37_supreme
+[2025-10-20 20:12:40] ================================================================================
+[2025-10-20 20:12:40] 🚀 Running: v37_supreme_2020
+[2025-10-20 20:12:40] ❌ v37_supreme_2020: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 61 failed, 0 skipped (67.8%)
+[2025-10-20 20:12:40] 🚀 Running: v37_supreme_2021
+[2025-10-20 20:12:40] ❌ v37_supreme_2021: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 62 failed, 0 skipped (68.9%)
+[2025-10-20 20:12:40] 🚀 Running: v37_supreme_2022
+[2025-10-20 20:12:40] ❌ v37_supreme_2022: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 63 failed, 0 skipped (70.0%)
+[2025-10-20 20:12:40] 🚀 Running: v37_supreme_2023
+[2025-10-20 20:12:40] ❌ v37_supreme_2023: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 64 failed, 0 skipped (71.1%)
+[2025-10-20 20:12:40] 🚀 Running: v37_supreme_2024
+[2025-10-20 20:12:40] ❌ v37_supreme_2024: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 65 failed, 0 skipped (72.2%)
+[2025-10-20 20:12:40] 🚀 Running: v37_supreme_2025
+[2025-10-20 20:12:40] ❌ v37_supreme_2025: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 66 failed, 0 skipped (73.3%)
+[2025-10-20 20:12:40] 
+================================================================================
+[2025-10-20 20:12:40] [12/15] Processing: v38_ensemble
+[2025-10-20 20:12:40] ================================================================================
+[2025-10-20 20:12:40] 🚀 Running: v38_ensemble_2020
+[2025-10-20 20:12:40] ❌ v38_ensemble_2020: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 67 failed, 0 skipped (74.4%)
+[2025-10-20 20:12:40] 🚀 Running: v38_ensemble_2021
+[2025-10-20 20:12:40] ❌ v38_ensemble_2021: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 68 failed, 0 skipped (75.6%)
+[2025-10-20 20:12:40] 🚀 Running: v38_ensemble_2022
+[2025-10-20 20:12:40] ❌ v38_ensemble_2022: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 69 failed, 0 skipped (76.7%)
+[2025-10-20 20:12:40] 🚀 Running: v38_ensemble_2023
+[2025-10-20 20:12:40] ❌ v38_ensemble_2023: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 70 failed, 0 skipped (77.8%)
+[2025-10-20 20:12:40] 🚀 Running: v38_ensemble_2024
+[2025-10-20 20:12:40] ❌ v38_ensemble_2024: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 71 failed, 0 skipped (78.9%)
+[2025-10-20 20:12:40] 🚀 Running: v38_ensemble_2025
+[2025-10-20 20:12:40] ❌ v38_ensemble_2025: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 72 failed, 0 skipped (80.0%)
+[2025-10-20 20:12:40] 
+================================================================================
+[2025-10-20 20:12:40] [13/15] Processing: v39_voting
+[2025-10-20 20:12:40] ================================================================================
+[2025-10-20 20:12:40] 🚀 Running: v39_voting_2020
+[2025-10-20 20:12:40] ❌ v39_voting_2020: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v39_voting/strategies/v39_voting/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 73 failed, 0 skipped (81.1%)
+[2025-10-20 20:12:40] 🚀 Running: v39_voting_2021
+[2025-10-20 20:12:40] ❌ v39_voting_2021: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v39_voting/strategies/v39_voting/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 74 failed, 0 skipped (82.2%)
+[2025-10-20 20:12:40] 🚀 Running: v39_voting_2022
+[2025-10-20 20:12:40] ❌ v39_voting_2022: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v39_voting/strategies/v39_voting/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 75 failed, 0 skipped (83.3%)
+[2025-10-20 20:12:40] 🚀 Running: v39_voting_2023
+[2025-10-20 20:12:40] ❌ v39_voting_2023: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v39_voting/strategies/v39_voting/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 76 failed, 0 skipped (84.4%)
+[2025-10-20 20:12:40] 🚀 Running: v39_voting_2024
+[2025-10-20 20:12:40] ❌ v39_voting_2024: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v39_voting/strategies/v39_voting/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 77 failed, 0 skipped (85.6%)
+[2025-10-20 20:12:40] 🚀 Running: v39_voting_2025
+[2025-10-20 20:12:40] ❌ v39_voting_2025: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v39_voting/strategies/v39_voting/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 78 failed, 0 skipped (86.7%)
+[2025-10-20 20:12:40] 
+================================================================================
+[2025-10-20 20:12:40] [14/15] Processing: v40_adaptive_voting
+[2025-10-20 20:12:40] ================================================================================
+[2025-10-20 20:12:40] 🚀 Running: v40_adaptive_voting_2020
+[2025-10-20 20:12:40] ❌ v40_adaptive_voting_2020: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 79 failed, 0 skipped (87.8%)
+[2025-10-20 20:12:40] 🚀 Running: v40_adaptive_voting_2021
+[2025-10-20 20:12:40] ❌ v40_adaptive_voting_2021: Failed with code 2
+[2025-10-20 20:12:40]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:40] 📊 Progress: 0 completed, 80 failed, 0 skipped (88.9%)
+[2025-10-20 20:12:40] 🚀 Running: v40_adaptive_voting_2022
+[2025-10-20 20:12:41] ❌ v40_adaptive_voting_2022: Failed with code 2
+[2025-10-20 20:12:41]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:41] 📊 Progress: 0 completed, 81 failed, 0 skipped (90.0%)
+[2025-10-20 20:12:41] 🚀 Running: v40_adaptive_voting_2023
+[2025-10-20 20:12:41] ❌ v40_adaptive_voting_2023: Failed with code 2
+[2025-10-20 20:12:41]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:41] 📊 Progress: 0 completed, 82 failed, 0 skipped (91.1%)
+[2025-10-20 20:12:41] 🚀 Running: v40_adaptive_voting_2024
+[2025-10-20 20:12:41] ❌ v40_adaptive_voting_2024: Failed with code 2
+[2025-10-20 20:12:41]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:41] 📊 Progress: 0 completed, 83 failed, 0 skipped (92.2%)
+[2025-10-20 20:12:41] 🚀 Running: v40_adaptive_voting_2025
+[2025-10-20 20:12:41] ❌ v40_adaptive_voting_2025: Failed with code 2
+[2025-10-20 20:12:41]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:41] 📊 Progress: 0 completed, 84 failed, 0 skipped (93.3%)
+[2025-10-20 20:12:41] 
+================================================================================
+[2025-10-20 20:12:41] [15/15] Processing: v41_scalping_voting
+[2025-10-20 20:12:41] ================================================================================
+[2025-10-20 20:12:41] 🚀 Running: v41_scalping_voting_2020
+[2025-10-20 20:12:41] ❌ v41_scalping_voting_2020: Failed with code 2
+[2025-10-20 20:12:41]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2020.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:41] 📊 Progress: 0 completed, 85 failed, 0 skipped (94.4%)
+[2025-10-20 20:12:41] 🚀 Running: v41_scalping_voting_2021
+[2025-10-20 20:12:41] ❌ v41_scalping_voting_2021: Failed with code 2
+[2025-10-20 20:12:41]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2021.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:41] 📊 Progress: 0 completed, 86 failed, 0 skipped (95.6%)
+[2025-10-20 20:12:41] 🚀 Running: v41_scalping_voting_2022
+[2025-10-20 20:12:41] ❌ v41_scalping_voting_2022: Failed with code 2
+[2025-10-20 20:12:41]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2022.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:41] 📊 Progress: 0 completed, 87 failed, 0 skipped (96.7%)
+[2025-10-20 20:12:41] 🚀 Running: v41_scalping_voting_2023
+[2025-10-20 20:12:41] ❌ v41_scalping_voting_2023: Failed with code 2
+[2025-10-20 20:12:41]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2023.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:41] 📊 Progress: 0 completed, 88 failed, 0 skipped (97.8%)
+[2025-10-20 20:12:41] 🚀 Running: v41_scalping_voting_2024
+[2025-10-20 20:12:41] ❌ v41_scalping_voting_2024: Failed with code 2
+[2025-10-20 20:12:41]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2024.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:41] 📊 Progress: 0 completed, 89 failed, 0 skipped (98.9%)
+[2025-10-20 20:12:41] 🚀 Running: v41_scalping_voting_2025
+[2025-10-20 20:12:41] ❌ v41_scalping_voting_2025: Failed with code 2
+[2025-10-20 20:12:41]    Error: /Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_봉봇/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2025.py': [Errno 2] No such file or directory
+
+[2025-10-20 20:12:41] 📊 Progress: 0 completed, 90 failed, 0 skipped (100.0%)
+[2025-10-20 20:12:41] 
+================================================================================
+[2025-10-20 20:12:41] MASS BACKTEST RUNNER COMPLETED
+[2025-10-20 20:12:41] ================================================================================
+[2025-10-20 20:12:41] ✅ Completed: 0
+[2025-10-20 20:12:41] ❌ Failed: 90
+[2025-10-20 20:12:41] ⏭️  Skipped: 0
+[2025-10-20 20:12:41] 📊 Total: 90

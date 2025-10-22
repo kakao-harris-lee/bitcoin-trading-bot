@@ -1,0 +1,11 @@
+{
+  "strategy": "v37",
+  "path": "strategies/v37_supreme",
+  "validation_results": {},
+  "comparison": {},
+  "summary": {
+    "total_years": 0,
+    "matching_years": 0,
+    "mismatching_years": 0
+  }
+}

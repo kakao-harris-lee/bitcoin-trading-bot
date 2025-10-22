@@ -1,0 +1,90 @@
+{
+  "strategy": "v-a-05",
+  "version": "1.0",
+  "description": "Ultimate Quality Signal Generator",
+  "timeframe": "day",
+  "year": 2024,
+  "total_signals": 5,
+  "market_distribution": {
+    "BEAR_MODERATE": 2,
+    "SIDEWAYS": 2,
+    "BULL_MODERATE": 1
+  },
+  "signals": [
+    {
+      "timestamp": "2024-05-13T09:00:00",
+      "entry_price": 87928000.0,
+      "market_state": "BEAR_MODERATE",
+      "strategy": "trend_following",
+      "reason": "TREND_GC_v05 (ADX=25.4, MACD_STR=126k)",
+      "fraction": 0.7,
+      "rsi": 45.3257221040874,
+      "macd": -2025740.0190865397,
+      "macd_signal": -2151363.8696776447,
+      "adx": 25.425858149418307,
+      "bb_position": 0.5,
+      "stoch_k": 46.9671211967436,
+      "volume_ratio": 0.5657630444900029
+    },
+    {
+      "timestamp": "2024-06-24T09:00:00",
+      "entry_price": 85496000.0,
+      "market_state": "SIDEWAYS",
+      "strategy": "defensive",
+      "reason": "DEFENSIVE_v05 (RSI=23.8, SIDEWAYS)",
+      "fraction": 0.2,
+      "rsi": 23.762384029392628,
+      "macd": -1627414.073820725,
+      "macd_signal": -664522.81951971,
+      "adx": 25.344196620394563,
+      "bb_position": 0.5,
+      "stoch_k": 18.614981288330654,
+      "volume_ratio": 2.412923560198532
+    },
+    {
+      "timestamp": "2024-07-13T09:00:00",
+      "entry_price": 82901000.0,
+      "market_state": "BEAR_MODERATE",
+      "strategy": "trend_following",
+      "reason": "TREND_GC_v05 (ADX=41.9, MACD_STR=140k)",
+      "fraction": 0.7,
+      "rsi": 42.12982764790896,
+      "macd": -2576288.9874007553,
+      "macd_signal": -2716300.7396474676,
+      "adx": 41.87145258447445,
+      "bb_position": 0.5,
+      "stoch_k": 63.68867120719884,
+      "volume_ratio": 0.6316643793204749
+    },
+    {
+      "timestamp": "2024-10-14T09:00:00",
+      "entry_price": 88640000.0,
+      "market_state": "SIDEWAYS",
+      "strategy": "trend_following",
+      "reason": "TREND_GC_v05 (ADX=14.6, MACD_STR=244k)",
+      "fraction": 0.7,
+      "rsi": 66.37083333027483,
+      "macd": 824347.86222516,
+      "macd_signal": 580309.4172899096,
+      "adx": 14.647900787209172,
+      "bb_position": 0.5,
+      "stoch_k": 90.53744055215786,
+      "volume_ratio": 1.8063143079750044
+    },
+    {
+      "timestamp": "2024-12-15T09:00:00",
+      "entry_price": 149243000.0,
+      "market_state": "BULL_MODERATE",
+      "strategy": "trend_following",
+      "reason": "TREND_GC_v05 (ADX=33.1, MACD_STR=120k)",
+      "fraction": 0.7,
+      "rsi": 77.00374563516016,
+      "macd": 5851104.084434301,
+      "macd_signal": 5731594.615365497,
+      "adx": 33.08223971046089,
+      "bb_position": 0.5,
+      "stoch_k": 95.64344786141749,
+      "volume_ratio": 0.8736772259755633
+    }
+  ]
+}

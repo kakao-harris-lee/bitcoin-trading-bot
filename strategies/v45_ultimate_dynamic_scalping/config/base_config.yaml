@@ -1,0 +1,214 @@
+# v45 Ultimate Dynamic Scalping - Base Configuration
+# 모든 파라미터는 동적으로 조정됨
+
+strategy_name: "v45_ultimate_dynamic_scalping"
+version: "1.0.0"
+created: "2025-10-20"
+
+# 백테스트 설정
+backtest:
+  initial_capital: 10000000  # 1천만원
+  fee_rate: 0.0005          # 0.05% (업비트)
+  slippage: 0.0002          # 0.02% (슬리피지)
+
+  train_period:
+    start: "2020-01-01"
+    end: "2024-12-31"
+
+  validation_period:
+    start: "2025-01-01"
+    end: "2025-10-20"
+
+# 복리 재투자 설정 (핵심!)
+compound_returns:
+  enabled: true
+  method: "current_capital"  # ⭐ v43 방식
+  kelly_base: "dynamic"      # 동적 Kelly Criterion
+
+# 동적 Kelly Criterion
+dynamic_kelly:
+  enabled: false  # ⚠️ v43 복제 테스트: 고정 98%
+  lookback_trades: 50        # 최근 50거래 기반
+  min_trades_required: 20    # 최소 20거래 필요
+  method: "half_kelly"       # Half-Kelly (안전)
+
+  range:
+    min: 0.98  # v43 방식: 고정 98%
+    max: 0.98  # v43 방식: 고정 98%
+
+  initial_kelly: 0.98  # v43 방식: 고정 98%
+
+  # 시장 상태별 조정 (모두 1.0으로 무효화)
+  regime_adjustments:
+    BULL_STRONG: 1.0
+    BULL_MODERATE: 1.0
+    SIDEWAYS_UP: 1.0
+    SIDEWAYS_FLAT: 1.0
+    SIDEWAYS_DOWN: 1.0
+    BEAR_MODERATE: 1.0
+    BEAR_STRONG: 1.0
+
+# 동적 Exit 관리
+dynamic_exit:
+  enabled: true
+  method: "volatility_based"
+
+  # 베이스 값 (v43 기준)
+  base:
+    take_profit: 0.05   # 5%
+    stop_loss: 0.02     # 2%
+    timeout_hours: 72   # 3일
+
+  # 변동성 기준 (ATR 14)
+  volatility:
+    reference_pct: 0.02  # 2% 기준
+    multiplier_range:
+      min: 0.5
+      max: 2.0
+
+  # 시장 상태별 조정
+  regime_multipliers:
+    BULL_STRONG:
+      tp: 1.5   # TP 50% 증가
+      sl: 0.8   # SL 20% 감소
+      timeout: 1.2
+    BULL_MODERATE:
+      tp: 1.2
+      sl: 0.9
+      timeout: 1.0
+    SIDEWAYS_UP:
+      tp: 1.0
+      sl: 1.0
+      timeout: 0.9
+    SIDEWAYS_FLAT:
+      tp: 0.8
+      sl: 1.0
+      timeout: 0.8
+    SIDEWAYS_DOWN:
+      tp: 0.7
+      sl: 1.1
+      timeout: 0.7
+    BEAR_MODERATE:
+      tp: 1.0
+      sl: 1.2
+      timeout: 0.6
+    BEAR_STRONG:
+      tp: 0.6
+      sl: 1.5
+      timeout: 0.5
+
+  # 최종 범위 제한
+  limits:
+    tp_min: 0.02   # 2%
+    tp_max: 0.20   # 20%
+    sl_min: 0.01   # 1%
+    sl_max: 0.05   # 5%
+    timeout_min: 12    # 12시간
+    timeout_max: 168   # 7일
+
+# 시장 상태 감지
+market_regime:
+  enabled: true
+  method: "mfi_macd_trend"
+
+  lookback:
+    trend: 20     # 20일 추세
+    volatility: 14  # 14일 ATR
+
+  thresholds:
+    mfi:
+      bull_strong: 60
+      bull_moderate: 50
+      bear_moderate: 40
+      bear_strong: 30
+    trend:
+      strong: 0.02   # 2% 기울기
+      moderate: 0.01
+
+# 멀티 타임프레임 설정
+multi_timeframe:
+  enabled: true
+  timeframes:
+    - day
+    - minute240
+    - minute60
+
+  # 자본 배분 (동적 조정)
+  capital_allocation:
+    method: "score_weighted"  # Score 기반 가중치
+    max_concurrent_positions: 3
+
+    # 타임프레임별 가중치 (Score 동일 시)
+    tf_weights:
+      day: 1.5
+      minute240: 1.2
+      minute60: 1.0
+
+  # Score 임계값
+  min_scores:
+    day: 40
+    minute240: 35
+    minute60: 30
+
+# Score Engine (v42 사용)
+score_engine:
+  use_v42: true
+  config_path: "../v42_ultimate_scalping/config/base_config.json"
+
+  # 7-Dimension 가중치 (v42 기본값 사용)
+  dimensions:
+    mfi_bullish: 28      # 최고 가중치
+    is_local_min: 20
+    low_vol: 16
+    rsi_oversold: 8
+    rsi_overbought: 8
+    volume_spike: 12
+    swing_end: 7
+
+# 리스크 관리
+risk_management:
+  enabled: true
+
+  # 일일 손실 제한 (제거 - v44 문제점)
+  max_daily_loss: -0.10   # -10% (완화)
+
+  # 연속 손실 (제거 - v44 문제점)
+  max_consecutive_losses: 5  # 5회로 증가
+
+  # 강제 청산
+  force_exit_loss: -0.15   # -15%
+
+  # 레버리지
+  max_leverage: 1.0  # 레버리지 없음
+
+# Optuna 최적화 설정
+optimization:
+  enabled: true
+  n_trials: 500
+  timeout: 3600  # 1시간
+
+  # 최적화 대상 파라미터
+  parameters:
+    kelly_min: [0.20, 0.50]
+    kelly_max: [0.70, 0.98]
+    base_tp: [0.03, 0.10]
+    base_sl: [0.01, 0.03]
+    timeout_min: [12, 48]
+    timeout_max: [48, 168]
+    bull_tp_mult: [1.0, 2.0]
+    bear_sl_mult: [1.0, 2.0]
+    min_score_day: [25, 45]
+    min_score_m240: [20, 40]
+    min_score_m60: [20, 35]
+
+  # 목적 함수
+  objective:
+    metric: "sharpe_plus_return"  # Sharpe + Return/100
+    train_period: "2020-2023"
+    validation_period: "2024"
+
+# 로깅
+logging:
+  level: "INFO"
+  save_trades: true
+  save_equity_curve: true

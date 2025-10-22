@@ -1,0 +1,47 @@
+{
+  "generated_at": "2025-10-20T21:11:43.223729",
+  "period": "2020-2025",
+  "strategies_analyzed": 2,
+  "summary": [
+    {
+      "strategy_id": "v45_ultimate_dynamic_scalping",
+      "name": "Correct Compound Return Implementation",
+      "priority": 6,
+      "avg_return": 83.28113245329767,
+      "avg_sharpe": 1.955454187721024,
+      "avg_mdd": -4118.478725431398,
+      "avg_trades": 74.0,
+      "avg_winrate": 4437.696893619523,
+      "oos_2025": 12.97234647554161,
+      "years_tested": 6,
+      "yearly_returns": {
+        "2020": 245.43388070687934,
+        "2021": 48.252728401717285,
+        "2022": -66.97020048386518,
+        "2023": 149.3057347684397,
+        "2024": 110.69230485107333,
+        "2025": 12.97234647554161
+      }
+    },
+    {
+      "strategy_id": "v44_supreme_hybrid_scalping",
+      "name": "Hybrid Scalping (Layer 1 + 2)",
+      "priority": 7,
+      "avg_return": 3.0918017812315033,
+      "avg_sharpe": 0.544711275567538,
+      "avg_mdd": 0,
+      "avg_trades": 22.166666666666668,
+      "avg_winrate": 39.66600529100529,
+      "oos_2025": -7.067661432625726,
+      "years_tested": 6,
+      "yearly_returns": {
+        "2020": -2.2777076772633196,
+        "2021": -3.2067369872452316,
+        "2022": -3.939818244111333,
+        "2023": -1.5556479734977333,
+        "2024": 36.598383002132366,
+        "2025": -7.067661432625726
+      }
+    }
+  ]
+}

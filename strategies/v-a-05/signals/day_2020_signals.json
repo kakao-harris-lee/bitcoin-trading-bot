@@ -1,0 +1,75 @@
+{
+  "strategy": "v-a-05",
+  "version": "1.0",
+  "description": "Ultimate Quality Signal Generator",
+  "timeframe": "day",
+  "year": 2020,
+  "total_signals": 4,
+  "market_distribution": {
+    "BEAR_MODERATE": 2,
+    "BEAR_STRONG": 1,
+    "SIDEWAYS": 1
+  },
+  "signals": [
+    {
+      "timestamp": "2020-03-12T09:00:00",
+      "entry_price": 6363000.0,
+      "market_state": "BEAR_MODERATE",
+      "strategy": "defensive",
+      "reason": "DEFENSIVE_v05 (RSI=13.2, BEAR_MODERATE)",
+      "fraction": 0.2,
+      "rsi": 13.167926198946404,
+      "macd": -624862.2682526652,
+      "macd_signal": -274043.7796081665,
+      "adx": 32.48150880038752,
+      "bb_position": 0.5,
+      "stoch_k": 13.54572831226622,
+      "volume_ratio": 5.950463329711378
+    },
+    {
+      "timestamp": "2020-03-14T09:00:00",
+      "entry_price": 6823000.0,
+      "market_state": "BEAR_MODERATE",
+      "strategy": "defensive",
+      "reason": "DEFENSIVE_v05 (RSI=24.0, BEAR_MODERATE)",
+      "fraction": 0.2,
+      "rsi": 23.955604239523804,
+      "macd": -905773.2534547839,
+      "macd_signal": -479328.91677384573,
+      "adx": 38.870645972366034,
+      "bb_position": 0.5,
+      "stoch_k": 25.85861485043864,
+      "volume_ratio": 2.1400248764238015
+    },
+    {
+      "timestamp": "2020-03-22T09:00:00",
+      "entry_price": 7366000.0,
+      "market_state": "BEAR_STRONG",
+      "strategy": "swing_trading",
+      "reason": "SWING_RSI_OVERSOLD_v05 (RSI=36.9, MACD_GC)",
+      "fraction": 0.5,
+      "rsi": 36.90936963496491,
+      "macd": -896588.3177607255,
+      "macd_signal": -915755.817168998,
+      "adx": 44.62315531233164,
+      "bb_position": 0.5,
+      "stoch_k": 57.60790190549667,
+      "volume_ratio": 1.2193482616518947
+    },
+    {
+      "timestamp": "2020-09-03T09:00:00",
+      "entry_price": 12303000.0,
+      "market_state": "SIDEWAYS",
+      "strategy": "swing_trading",
+      "reason": "SWING_EXTREME_v05 (RSI=32.4, MACD+)",
+      "fraction": 0.5,
+      "rsi": 32.37629514943095,
+      "macd": 169.5614039450884,
+      "macd_signal": 145703.14417860087,
+      "adx": 33.46110822802836,
+      "bb_position": 0.5,
+      "stoch_k": 40.48530904489922,
+      "volume_ratio": 1.7910394978059783
+    }
+  ]
+}

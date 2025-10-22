@@ -1,0 +1,613 @@
+{
+  "strategy": "v39",
+  "path": "strategies/v39_voting",
+  "validation_results": {
+    "2020": {
+      "version": "v39",
+      "year": "2020",
+      "initial_capital": 10000000,
+      "final_capital": 32155736.89109158,
+      "final_btc": 0.0,
+      "total_return_pct": 221.5573689109158,
+      "total_trades": 1,
+      "trade_records": [
+        {
+          "timestamp": "2020-03-22 09:00:00",
+          "action": "BUY",
+          "price": 7367473.2,
+          "quantity": 0.9046971400741949,
+          "fraction": 0.667,
+          "capital_before": 10000000,
+          "btc_before": 0.0,
+          "capital_after": 3330000.0,
+          "btc_after": 0.9046971400741949,
+          "total_value_before": 10000000.0,
+          "total_value_after": 9995331.933613278,
+          "profit_loss": null,
+          "profit_loss_pct": null,
+          "reason": "Buy 66.7%",
+          "trade_id": 0
+        },
+        {
+          "timestamp": "2020-12-30 09:00:00",
+          "action": "SELL",
+          "price": 31884621.8,
+          "quantity": 0.9046971400741949,
+          "fraction": 1.0,
+          "capital_before": 3330000.0,
+          "btc_before": 0.9046971400741949,
+          "capital_after": 32155736.89109158,
+          "btc_after": 0.0,
+          "total_value_before": 32175926.15480733,
+          "total_value_after": 32155736.89109158,
+          "profit_loss": 28825736.89109158,
+          "profit_loss_pct": 332.77553829445895,
+          "reason": "Buy 66.7% of cash -> Sell 100.0%",
+          "trade_id": 0
+        }
+      ],
+      "asset_snapshots": [
+        {
+          "timestamp": "2020-01-01 09:00:00",
+          "capital": 10000000,
+          "btc_amount": 0.0,
+          "btc_value": 0,
+          "total_value": 10000000,
+          "total_return_pct": 0,
+          "trade_id": null,
+          "event": null
+        },
+        {
+          "timestamp": "2020-03-22 09:00:00",
+          "capital": 3330000.0,
+          "btc_amount": 0.9046971400741949,
+          "btc_value": 6665331.933613277,
+          "total_value": 9995331.933613278,
+          "total_return_pct": -0.0466806638672157,
+          "trade_id": 0,
+          "event": "BUY"
+        },
+        {
+          "timestamp": "2020-12-30 09:00:00",
+          "capital": 32155736.89109158,
+          "btc_amount": 0.0,
+          "btc_value": 0.0,
+          "total_value": 32155736.89109158,
+          "total_return_pct": 221.5573689109158,
+          "trade_id": 0,
+          "event": "SELL"
+        }
+      ],
+      "statistics": {
+        "initial_capital": 10000000,
+        "final_capital": 32155736.89109158,
+        "total_return_pct": 221.5573689109158,
+        "total_trades": 1,
+        "buy_trades": 1,
+        "sell_trades": 1,
+        "wins": 1,
+        "losses": 0,
+        "win_rate": 100.0,
+        "avg_profit_pct": 332.38616146291406,
+        "avg_loss_pct": 0.0,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "profit_factor": 999.99
+      }
+    },
+    "2021": {
+      "version": "v39",
+      "year": "2021",
+      "initial_capital": 10000000,
+      "final_capital": 12038446.429455277,
+      "final_btc": 0.0,
+      "total_return_pct": 20.384464294552764,
+      "total_trades": 1,
+      "trade_records": [
+        {
+          "timestamp": "2021-06-02 09:00:00",
+          "action": "BUY",
+          "price": 43740746.4,
+          "quantity": 0.15238267478703285,
+          "fraction": 0.667,
+          "capital_before": 10000000,
+          "btc_before": 0.0,
+          "capital_after": 3330000.0,
+          "btc_after": 0.15238267478703285,
+          "total_value_before": 10000000.0,
+          "total_value_after": 9995331.933613278,
+          "profit_loss": null,
+          "profit_loss_pct": null,
+          "reason": "Buy 66.7%",
+          "trade_id": 0
+        },
+        {
+          "timestamp": "2021-12-30 09:00:00",
+          "action": "SELL",
+          "price": 57188560.0,
+          "quantity": 0.15238267478703285,
+          "fraction": 1.0,
+          "capital_before": 3330000.0,
+          "btc_before": 0.15238267478703285,
+          "capital_after": 12038446.429455277,
+          "btc_after": 0.0,
+          "total_value_before": 12044545.740018716,
+          "total_value_after": 12038446.429455277,
+          "profit_loss": 8708446.429455277,
+          "profit_loss_pct": 30.744362423591376,
+          "reason": "Buy 66.7% of cash -> Sell 100.0%",
+          "trade_id": 0
+        }
+      ],
+      "asset_snapshots": [
+        {
+          "timestamp": "2021-01-01 09:00:00",
+          "capital": 10000000,
+          "btc_amount": 0.0,
+          "btc_value": 0,
+          "total_value": 10000000,
+          "total_return_pct": 0,
+          "trade_id": null,
+          "event": null
+        },
+        {
+          "timestamp": "2021-06-02 09:00:00",
+          "capital": 3330000.0,
+          "btc_amount": 0.15238267478703285,
+          "btc_value": 6665331.933613278,
+          "total_value": 9995331.933613278,
+          "total_return_pct": -0.0466806638672157,
+          "trade_id": 0,
+          "event": "BUY"
+        },
+        {
+          "timestamp": "2021-12-30 09:00:00",
+          "capital": 12038446.429455277,
+          "btc_amount": 0.0,
+          "btc_value": 0.0,
+          "total_value": 12038446.429455277,
+          "total_return_pct": 20.384464294552764,
+          "trade_id": 0,
+          "event": "SELL"
+        }
+      ],
+      "statistics": {
+        "initial_capital": 10000000,
+        "final_capital": 12038446.429455277,
+        "total_return_pct": 20.384464294552764,
+        "total_trades": 1,
+        "buy_trades": 1,
+        "sell_trades": 1,
+        "wins": 1,
+        "losses": 0,
+        "win_rate": 100.0,
+        "avg_profit_pct": 30.626729098511422,
+        "avg_loss_pct": 0.0,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "profit_factor": 999.99
+      }
+    },
+    "2022": {
+      "version": "v39",
+      "year": "2022",
+      "initial_capital": 10000000,
+      "final_capital": 7181169.993031988,
+      "final_btc": 0.0,
+      "total_return_pct": -28.18830006968012,
+      "total_trades": 1,
+      "trade_records": [
+        {
+          "timestamp": "2022-05-23 09:00:00",
+          "action": "BUY",
+          "price": 37443487.199999996,
+          "quantity": 0.17801044806567265,
+          "fraction": 0.667,
+          "capital_before": 10000000,
+          "btc_before": 0.0,
+          "capital_after": 3330000.0,
+          "btc_after": 0.17801044806567265,
+          "total_value_before": 10000000.0,
+          "total_value_after": 9995331.933613278,
+          "profit_loss": null,
+          "profit_loss_pct": null,
+          "reason": "Buy 66.7%",
+          "trade_id": 0
+        },
+        {
+          "timestamp": "2022-12-19 09:00:00",
+          "action": "SELL",
+          "price": 21649669.2,
+          "quantity": 0.17801044806567265,
+          "fraction": 1.0,
+          "capital_before": 3330000.0,
+          "btc_before": 0.17801044806567265,
+          "capital_after": 7181169.993031988,
+          "btc_after": 0.0,
+          "total_value_before": 7183867.314765593,
+          "total_value_after": 7181169.993031988,
+          "profit_loss": 3851169.993031988,
+          "profit_loss_pct": -42.18041422167538,
+          "reason": "Buy 66.7% of cash -> Sell 100.0%",
+          "trade_id": 0
+        }
+      ],
+      "asset_snapshots": [
+        {
+          "timestamp": "2022-01-01 09:00:00",
+          "capital": 10000000,
+          "btc_amount": 0.0,
+          "btc_value": 0,
+          "total_value": 10000000,
+          "total_return_pct": 0,
+          "trade_id": null,
+          "event": null
+        },
+        {
+          "timestamp": "2022-05-23 09:00:00",
+          "capital": 3330000.0,
+          "btc_amount": 0.17801044806567265,
+          "btc_value": 6665331.933613278,
+          "total_value": 9995331.933613278,
+          "total_return_pct": -0.0466806638672157,
+          "trade_id": 0,
+          "event": "BUY"
+        },
+        {
+          "timestamp": "2022-12-19 09:00:00",
+          "capital": 7181169.993031988,
+          "btc_amount": 0.0,
+          "btc_value": 0.0,
+          "total_value": 7181169.993031988,
+          "total_return_pct": -28.188300069680118,
+          "trade_id": 0,
+          "event": "SELL"
+        }
+      ],
+      "statistics": {
+        "initial_capital": 10000000,
+        "final_capital": 7181169.993031988,
+        "total_return_pct": -28.18830006968012,
+        "total_trades": 1,
+        "buy_trades": 1,
+        "sell_trades": 1,
+        "wins": 0,
+        "losses": 1,
+        "win_rate": 0.0,
+        "avg_profit_pct": 0.0,
+        "avg_loss_pct": -42.23243566262909,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "profit_factor": 0.0
+      }
+    },
+    "2023": {
+      "version": "v39",
+      "year": "2023",
+      "initial_capital": 10000000,
+      "final_capital": 14936729.43967007,
+      "final_btc": 0.0,
+      "total_return_pct": 49.367294396700686,
+      "total_trades": 1,
+      "trade_records": [
+        {
+          "timestamp": "2023-03-14 09:00:00",
+          "action": "BUY",
+          "price": 32496498.0,
+          "quantity": 0.20510923772811698,
+          "fraction": 0.667,
+          "capital_before": 10000000,
+          "btc_before": 0.0,
+          "capital_after": 3330000.0,
+          "btc_after": 0.20510923772811698,
+          "total_value_before": 10000000.0,
+          "total_value_after": 9995331.933613278,
+          "profit_loss": null,
+          "profit_loss_pct": null,
+          "reason": "Buy 66.7%",
+          "trade_id": 0
+        },
+        {
+          "timestamp": "2023-12-30 09:00:00",
+          "action": "SELL",
+          "price": 56627672.2,
+          "quantity": 0.20510923772811698,
+          "fraction": 1.0,
+          "capital_before": 3330000.0,
+          "btc_before": 0.20510923772811698,
+          "capital_after": 14936729.43967007,
+          "btc_after": 0.0,
+          "total_value_before": 14944858.679259682,
+          "total_value_after": 14936729.43967007,
+          "profit_loss": 11606729.43967007,
+          "profit_loss_pct": 74.25776832937507,
+          "reason": "Buy 66.7% of cash -> Sell 100.0%",
+          "trade_id": 0
+        }
+      ],
+      "asset_snapshots": [
+        {
+          "timestamp": "2023-01-01 09:00:00",
+          "capital": 10000000,
+          "btc_amount": 0.0,
+          "btc_value": 0,
+          "total_value": 10000000,
+          "total_return_pct": 0,
+          "trade_id": null,
+          "event": null
+        },
+        {
+          "timestamp": "2023-03-14 09:00:00",
+          "capital": 3330000.0,
+          "btc_amount": 0.20510923772811698,
+          "btc_value": 6665331.933613278,
+          "total_value": 9995331.933613278,
+          "total_return_pct": -0.0466806638672157,
+          "trade_id": 0,
+          "event": "BUY"
+        },
+        {
+          "timestamp": "2023-12-30 09:00:00",
+          "capital": 14936729.43967007,
+          "btc_amount": 0.0,
+          "btc_value": 0.0,
+          "total_value": 14936729.43967007,
+          "total_return_pct": 49.367294396700686,
+          "trade_id": 0,
+          "event": "SELL"
+        }
+      ],
+      "statistics": {
+        "initial_capital": 10000000,
+        "final_capital": 14936729.43967007,
+        "total_return_pct": 49.367294396700686,
+        "total_trades": 1,
+        "buy_trades": 1,
+        "sell_trades": 1,
+        "wins": 1,
+        "losses": 0,
+        "win_rate": 100.0,
+        "avg_profit_pct": 74.10098512029731,
+        "avg_loss_pct": 0.0,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "profit_factor": 999.99
+      }
+    },
+    "2024": {
+      "version": "v39",
+      "year": "2024",
+      "initial_capital": 10000000,
+      "final_capital": 12150534.833308669,
+      "final_btc": 0.0,
+      "total_return_pct": 21.505348333086687,
+      "total_trades": 1,
+      "trade_records": [
+        {
+          "timestamp": "2024-11-06 09:00:00",
+          "action": "BUY",
+          "price": 104105817.0,
+          "quantity": 0.06402458696052765,
+          "fraction": 0.667,
+          "capital_before": 10000000,
+          "btc_before": 0.0,
+          "capital_after": 3330000.0,
+          "btc_after": 0.06402458696052765,
+          "total_value_before": 10000000.0,
+          "total_value_after": 9995331.933613278,
+          "profit_loss": null,
+          "profit_loss_pct": null,
+          "reason": "Buy 66.7%",
+          "trade_id": 0
+        },
+        {
+          "timestamp": "2024-12-30 09:00:00",
+          "action": "SELL",
+          "price": 137864421.6,
+          "quantity": 0.06402458696052765,
+          "fraction": 1.0,
+          "capital_before": 3330000.0,
+          "btc_before": 0.06402458696052765,
+          "capital_after": 12150534.833308669,
+          "btc_after": 0.0,
+          "total_value_before": 12156712.649492046,
+          "total_value_after": 12150534.833308669,
+          "profit_loss": 8820534.833308669,
+          "profit_loss_pct": 32.42720298712991,
+          "reason": "Buy 66.7% of cash -> Sell 100.0%",
+          "trade_id": 0
+        }
+      ],
+      "asset_snapshots": [
+        {
+          "timestamp": "2024-01-01 09:00:00",
+          "capital": 10000000,
+          "btc_amount": 0.0,
+          "btc_value": 0,
+          "total_value": 10000000,
+          "total_return_pct": 0,
+          "trade_id": null,
+          "event": null
+        },
+        {
+          "timestamp": "2024-11-06 09:00:00",
+          "capital": 3330000.0,
+          "btc_amount": 0.06402458696052765,
+          "btc_value": 6665331.933613278,
+          "total_value": 9995331.933613278,
+          "total_return_pct": -0.0466806638672157,
+          "trade_id": 0,
+          "event": "BUY"
+        },
+        {
+          "timestamp": "2024-12-30 09:00:00",
+          "capital": 12150534.833308669,
+          "btc_amount": 0.0,
+          "btc_value": 0.0,
+          "total_value": 12150534.833308669,
+          "total_return_pct": 21.505348333086683,
+          "trade_id": 0,
+          "event": "SELL"
+        }
+      ],
+      "statistics": {
+        "initial_capital": 10000000,
+        "final_capital": 12150534.833308669,
+        "total_return_pct": 21.505348333086687,
+        "total_trades": 1,
+        "buy_trades": 1,
+        "sell_trades": 1,
+        "wins": 1,
+        "losses": 0,
+        "win_rate": 100.0,
+        "avg_profit_pct": 32.30805557664392,
+        "avg_loss_pct": 0.0,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "profit_factor": 999.99
+      }
+    },
+    "2025": {
+      "version": "v39",
+      "year": "2025",
+      "initial_capital": 10000000,
+      "final_capital": 11138598.785177426,
+      "final_btc": 0.0,
+      "total_return_pct": 11.385987851774264,
+      "total_trades": 1,
+      "trade_records": [
+        {
+          "timestamp": "2025-05-08 09:00:00",
+          "action": "BUY",
+          "price": 144808956.0,
+          "quantity": 0.04602845098623098,
+          "fraction": 0.667,
+          "capital_before": 10000000,
+          "btc_before": 0.0,
+          "capital_after": 3330000.0,
+          "btc_after": 0.04602845098623098,
+          "total_value_before": 10000000.0,
+          "total_value_after": 9995331.933613278,
+          "profit_loss": null,
+          "profit_loss_pct": null,
+          "reason": "Buy 66.7%",
+          "trade_id": 0
+        },
+        {
+          "timestamp": "2025-10-16 09:00:00",
+          "action": "SELL",
+          "price": 169766040.0,
+          "quantity": 0.04602845098623098,
+          "fraction": 1.0,
+          "capital_before": 3330000.0,
+          "btc_before": 0.04602845098623098,
+          "capital_after": 11138598.785177426,
+          "btc_after": 0.0,
+          "total_value_before": 11144067.851266528,
+          "total_value_after": 11138598.785177426,
+          "profit_loss": 7808598.785177426,
+          "profit_loss_pct": 17.234489281174014,
+          "reason": "Buy 66.7% of cash -> Sell 100.0%",
+          "trade_id": 0
+        }
+      ],
+      "asset_snapshots": [
+        {
+          "timestamp": "2025-01-01 09:00:00",
+          "capital": 10000000,
+          "btc_amount": 0.0,
+          "btc_value": 0,
+          "total_value": 10000000,
+          "total_return_pct": 0,
+          "trade_id": null,
+          "event": null
+        },
+        {
+          "timestamp": "2025-05-08 09:00:00",
+          "capital": 3330000.0,
+          "btc_amount": 0.04602845098623098,
+          "btc_value": 6665331.933613278,
+          "total_value": 9995331.933613278,
+          "total_return_pct": -0.0466806638672157,
+          "trade_id": 0,
+          "event": "BUY"
+        },
+        {
+          "timestamp": "2025-10-16 09:00:00",
+          "capital": 11138598.785177426,
+          "btc_amount": 0.0,
+          "btc_value": 0.0,
+          "total_value": 11138598.785177426,
+          "total_return_pct": 11.38598785177427,
+          "trade_id": 0,
+          "event": "SELL"
+        }
+      ],
+      "statistics": {
+        "initial_capital": 10000000,
+        "final_capital": 11138598.785177426,
+        "total_return_pct": 11.385987851774264,
+        "total_trades": 1,
+        "buy_trades": 1,
+        "sell_trades": 1,
+        "wins": 1,
+        "losses": 0,
+        "win_rate": 100.0,
+        "avg_profit_pct": 17.129011059914163,
+        "avg_loss_pct": 0.0,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "profit_factor": 999.99
+      }
+    }
+  },
+  "comparison": {
+    "2020": {
+      "original_return_pct": 509.99251123898983,
+      "validated_return_pct": 221.5573689109158,
+      "difference_pct": -288.435142328074,
+      "difference_relative": -56.55674073082794,
+      "match": false
+    },
+    "2021": {
+      "original_return_pct": 107.54589823040239,
+      "validated_return_pct": 20.384464294552764,
+      "difference_pct": -87.16143393584963,
+      "difference_relative": -81.04580032342858,
+      "match": false
+    },
+    "2022": {
+      "original_return_pct": -28.158803274738975,
+      "validated_return_pct": -28.18830006968012,
+      "difference_pct": -0.029496794941145765,
+      "difference_relative": 0.10475159279090206,
+      "match": true
+    },
+    "2023": {
+      "original_return_pct": 165.52608115939125,
+      "validated_return_pct": 49.367294396700686,
+      "difference_pct": -116.15878676269057,
+      "difference_relative": -70.17551913818157,
+      "match": false
+    },
+    "2024": {
+      "original_return_pct": 109.78822796036071,
+      "validated_return_pct": 21.505348333086687,
+      "difference_pct": -88.28287962727403,
+      "difference_relative": -80.41197245587092,
+      "match": false
+    },
+    "2025": {
+      "original_return_pct": 89.54443638572805,
+      "validated_return_pct": 11.385987851774264,
+      "difference_pct": -78.15844853395379,
+      "difference_relative": -87.28453903855382,
+      "match": false
+    }
+  },
+  "summary": {
+    "total_years": 6,
+    "matching_years": 1,
+    "mismatching_years": 5
+  }
+}

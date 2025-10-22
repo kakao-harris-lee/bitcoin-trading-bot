@@ -1,0 +1,458 @@
+{
+  "completed": [],
+  "failed": [
+    {
+      "task": "v30_perfect_longterm_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.550632"
+    },
+    {
+      "task": "v30_perfect_longterm_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.571739"
+    },
+    {
+      "task": "v30_perfect_longterm_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.592028"
+    },
+    {
+      "task": "v30_perfect_longterm_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.611154"
+    },
+    {
+      "task": "v30_perfect_longterm_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.629824"
+    },
+    {
+      "task": "v30_perfect_longterm_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v30_perfect_longterm/strategies/v30_perfect_longterm/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.652393"
+    },
+    {
+      "task": "v31_improved_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_improved/strategies/v31_improved/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.671787"
+    },
+    {
+      "task": "v31_improved_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_improved/strategies/v31_improved/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.690709"
+    },
+    {
+      "task": "v31_improved_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_improved/strategies/v31_improved/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.722116"
+    },
+    {
+      "task": "v31_improved_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_improved/strategies/v31_improved/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.741865"
+    },
+    {
+      "task": "v31_improved_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_improved/strategies/v31_improved/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.760227"
+    },
+    {
+      "task": "v31_improved_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_improved/strategies/v31_improved/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.776448"
+    },
+    {
+      "task": "v31_scalping_with_classifier_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.794203"
+    },
+    {
+      "task": "v31_scalping_with_classifier_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.810932"
+    },
+    {
+      "task": "v31_scalping_with_classifier_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.829589"
+    },
+    {
+      "task": "v31_scalping_with_classifier_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.846197"
+    },
+    {
+      "task": "v31_scalping_with_classifier_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.862838"
+    },
+    {
+      "task": "v31_scalping_with_classifier_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v31_scalping_with_classifier/strategies/v31_scalping_with_classifier/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.879736"
+    },
+    {
+      "task": "v32_aggressive_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.896936"
+    },
+    {
+      "task": "v32_aggressive_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.913597"
+    },
+    {
+      "task": "v32_aggressive_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.931699"
+    },
+    {
+      "task": "v32_aggressive_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.948827"
+    },
+    {
+      "task": "v32_aggressive_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.965940"
+    },
+    {
+      "task": "v32_aggressive_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_aggressive/strategies/v32_aggressive/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:39.983663"
+    },
+    {
+      "task": "v32_ensemble_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.001051"
+    },
+    {
+      "task": "v32_ensemble_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.018453"
+    },
+    {
+      "task": "v32_ensemble_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.035052"
+    },
+    {
+      "task": "v32_ensemble_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.051346"
+    },
+    {
+      "task": "v32_ensemble_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.067539"
+    },
+    {
+      "task": "v32_ensemble_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_ensemble/strategies/v32_ensemble/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.084750"
+    },
+    {
+      "task": "v32_optimized_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.102346"
+    },
+    {
+      "task": "v32_optimized_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.119454"
+    },
+    {
+      "task": "v32_optimized_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.136285"
+    },
+    {
+      "task": "v32_optimized_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.153438"
+    },
+    {
+      "task": "v32_optimized_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.169802"
+    },
+    {
+      "task": "v32_optimized_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v32_optimized/strategies/v32_optimized/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.186547"
+    },
+    {
+      "task": "v33_minute240_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.202576"
+    },
+    {
+      "task": "v33_minute240_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.219477"
+    },
+    {
+      "task": "v33_minute240_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.236440"
+    },
+    {
+      "task": "v33_minute240_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.252421"
+    },
+    {
+      "task": "v33_minute240_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.268463"
+    },
+    {
+      "task": "v33_minute240_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v33_minute240/strategies/v33_minute240/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.284846"
+    },
+    {
+      "task": "v34_supreme_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.301099"
+    },
+    {
+      "task": "v34_supreme_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.317185"
+    },
+    {
+      "task": "v34_supreme_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.333970"
+    },
+    {
+      "task": "v34_supreme_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.350294"
+    },
+    {
+      "task": "v34_supreme_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.366369"
+    },
+    {
+      "task": "v34_supreme_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v34_supreme/strategies/v34_supreme/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.382124"
+    },
+    {
+      "task": "v35_optimized_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.398984"
+    },
+    {
+      "task": "v35_optimized_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.414777"
+    },
+    {
+      "task": "v35_optimized_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.430622"
+    },
+    {
+      "task": "v35_optimized_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.446570"
+    },
+    {
+      "task": "v35_optimized_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.516794"
+    },
+    {
+      "task": "v35_optimized_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v35_optimized/strategies/v35_optimized/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.540618"
+    },
+    {
+      "task": "v36_multi_timeframe_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.557860"
+    },
+    {
+      "task": "v36_multi_timeframe_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.576259"
+    },
+    {
+      "task": "v36_multi_timeframe_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.593772"
+    },
+    {
+      "task": "v36_multi_timeframe_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.611136"
+    },
+    {
+      "task": "v36_multi_timeframe_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.628125"
+    },
+    {
+      "task": "v36_multi_timeframe_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v36_multi_timeframe/strategies/v36_multi_timeframe/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.644013"
+    },
+    {
+      "task": "v37_supreme_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.661787"
+    },
+    {
+      "task": "v37_supreme_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.683697"
+    },
+    {
+      "task": "v37_supreme_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.710948"
+    },
+    {
+      "task": "v37_supreme_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.727520"
+    },
+    {
+      "task": "v37_supreme_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.743313"
+    },
+    {
+      "task": "v37_supreme_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v37_supreme/strategies/v37_supreme/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.758781"
+    },
+    {
+      "task": "v38_ensemble_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.774978"
+    },
+    {
+      "task": "v38_ensemble_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.791162"
+    },
+    {
+      "task": "v38_ensemble_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.807200"
+    },
+    {
+      "task": "v38_ensemble_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.823561"
+    },
+    {
+      "task": "v38_ensemble_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.839742"
+    },
+    {
+      "task": "v38_ensemble_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v38_ensemble/strategies/v38_ensemble/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.855478"
+    },
+    {
+      "task": "v39_voting_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v39_voting/strategies/v39_voting/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.871798"
+    },
+    {
+      "task": "v39_voting_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v39_voting/strategies/v39_voting/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.887400"
+    },
+    {
+      "task": "v39_voting_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v39_voting/strategies/v39_voting/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.902785"
+    },
+    {
+      "task": "v39_voting_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v39_voting/strategies/v39_voting/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.918606"
+    },
+    {
+      "task": "v39_voting_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v39_voting/strategies/v39_voting/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.934989"
+    },
+    {
+      "task": "v39_voting_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v39_voting/strategies/v39_voting/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.951502"
+    },
+    {
+      "task": "v40_adaptive_voting_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.968101"
+    },
+    {
+      "task": "v40_adaptive_voting_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:40.983955"
+    },
+    {
+      "task": "v40_adaptive_voting_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:41.001219"
+    },
+    {
+      "task": "v40_adaptive_voting_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:41.017593"
+    },
+    {
+      "task": "v40_adaptive_voting_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:41.033483"
+    },
+    {
+      "task": "v40_adaptive_voting_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v40_adaptive_voting/strategies/v40_adaptive_voting/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:41.050211"
+    },
+    {
+      "task": "v41_scalping_voting_2020",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2020.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:41.067233"
+    },
+    {
+      "task": "v41_scalping_voting_2021",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2021.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:41.084069"
+    },
+    {
+      "task": "v41_scalping_voting_2022",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2022.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:41.099990"
+    },
+    {
+      "task": "v41_scalping_voting_2023",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2023.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:41.116479"
+    },
+    {
+      "task": "v41_scalping_voting_2024",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2024.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:41.132501"
+    },
+    {
+      "task": "v41_scalping_voting_2025",
+      "error": "/Users/bongbong/.pyenv/versions/3.12.10/bin/python: can't open file '/Users/bongbong/SynologyDrive/vendor/sandbox/251015_\u1107\u1169\u11bc\u1107\u1169\u11ba/strategies/v41_scalping_voting/strategies/v41_scalping_voting/backtest_temp_2025.py': [Errno 2] No such file or directory\n",
+      "timestamp": "2025-10-20T20:12:41.148657"
+    }
+  ],
+  "skipped": [],
+  "started_at": "2025-10-20T20:12:39.528079",
+  "last_updated": "2025-10-20T20:12:41.148662"
+}

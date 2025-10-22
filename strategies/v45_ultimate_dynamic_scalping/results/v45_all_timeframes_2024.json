@@ -1,0 +1,35 @@
+{
+  "day": {
+    "min_score": 40,
+    "total_return_pct": 1276.9908623963229,
+    "final_capital": 137699086.23963228,
+    "total_trades": 76,
+    "win_rate": 46.05263157894737,
+    "sharpe_ratio": 3.6979693791410435,
+    "max_drawdown": -27.871421435637266,
+    "profit_factor": 1.6561681705515765,
+    "avg_hold_hours": 114.94736842105263
+  },
+  "minute240": {
+    "min_score": 35,
+    "total_return_pct": 1269.3116208653942,
+    "final_capital": 136931162.08653942,
+    "total_trades": 120,
+    "win_rate": 42.5,
+    "sharpe_ratio": 3.016231898080838,
+    "max_drawdown": -28.804590125802015,
+    "profit_factor": 1.5146998530801719,
+    "avg_hold_hours": 72.96666666666667
+  },
+  "minute60": {
+    "min_score": 30,
+    "total_return_pct": 1260.0346177675628,
+    "final_capital": 136003461.7767563,
+    "total_trades": 215,
+    "win_rate": 46.51162790697674,
+    "sharpe_ratio": 2.123160382892614,
+    "max_drawdown": -30.242300506558294,
+    "profit_factor": 1.3695251821917345,
+    "avg_hold_hours": 40.73953488372093
+  }
+}

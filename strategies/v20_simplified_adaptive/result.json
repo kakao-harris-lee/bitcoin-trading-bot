@@ -1,0 +1,58 @@
+{
+  "version": "v20",
+  "start_date": "2022-01-01",
+  "end_date": "2022-12-31",
+  "initial_capital": 10000000,
+  "final_capital": 8126352.977341867,
+  "total_return_pct": -18.73647022658133,
+  "total_trades": 4,
+  "wins": 0,
+  "losses": 4,
+  "win_rate": 0.0,
+  "avg_profit_pct": 0,
+  "avg_loss_pct": -8.417797408602294,
+  "max_win_pct": -7.529066239638707,
+  "max_loss_pct": -10.34406956654392,
+  "trades": [
+    {
+      "entry_time": "2022-02-04 09:00:00",
+      "entry_price": 50633000.0,
+      "exit_time": "2022-02-21 09:00:00",
+      "exit_price": 45450000.0,
+      "pnl_pct": -10.34406956654392,
+      "reason": "SL_7%_NEUTRAL",
+      "risk_mode": "NEUTRAL",
+      "return_20d_entry": -0.03292778425043452
+    },
+    {
+      "entry_time": "2022-02-28 09:00:00",
+      "entry_price": 52332000.0,
+      "exit_time": "2022-03-04 09:00:00",
+      "exit_price": 48450000.0,
+      "pnl_pct": -7.529066239638707,
+      "reason": "SL_7%_NEUTRAL",
+      "risk_mode": "NEUTRAL",
+      "return_20d_entry": -0.024584816685616295
+    },
+    {
+      "entry_time": "2022-03-09 09:00:00",
+      "entry_price": 51570000.0,
+      "exit_time": "2022-03-13 09:00:00",
+      "exit_price": 47510000.0,
+      "pnl_pct": -7.983291658417429,
+      "reason": "SL_7%_NEUTRAL",
+      "risk_mode": "NEUTRAL",
+      "return_20d_entry": 0.04443454309786121
+    },
+    {
+      "entry_time": "2022-03-16 09:00:00",
+      "entry_price": 50389000.0,
+      "exit_time": "2022-05-07 09:00:00",
+      "exit_price": 46507000.0,
+      "pnl_pct": -7.814762169809115,
+      "reason": "SL_7%_NEUTRAL",
+      "risk_mode": "NEUTRAL",
+      "return_20d_entry": 0.07377415986532276
+    }
+  ]
+}

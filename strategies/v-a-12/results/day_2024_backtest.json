@@ -1,0 +1,17 @@
+{
+  "total_return_pct": 13.431696223510933,
+  "final_capital": 11343169.622351093,
+  "total_trades": 6,
+  "win_rate": 50.0,
+  "avg_win_pct": 7.782523372104713,
+  "avg_loss_pct": -3.20952573963163,
+  "max_drawdown": -4.886837934327621,
+  "avg_hold_days": 5.0,
+  "exit_reasons": {
+    "SL": 3,
+    "TP": 3
+  },
+  "market_states": {
+    "SIDEWAYS": 6
+  }
+}

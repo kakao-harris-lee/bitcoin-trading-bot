@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "strategy": "v_composite",
+    "version": "1.0",
+    "timeframe": "day",
+    "generated_at": "2025-10-21T16:38:31.839832",
+    "description": "Composite strategy (RSI < 35 AND MFI > 50 divergence)",
+    "statistics": {
+      "total_signals": 1,
+      "period_start": "2024-01-01",
+      "period_end": "2024-12-31",
+      "avg_score": 19.14
+    }
+  },
+  "signals": [
+    {
+      "timestamp": "2024-01-22 09:00:00",
+      "action": "BUY",
+      "price": 54689000,
+      "score": 19.14,
+      "confidence": 0.48,
+      "metadata": {
+        "rsi": 24.09,
+        "mfi": 58.23,
+        "tier": "B",
+        "indicator": "RSI_MFI_DIVERGENCE"
+      }
+    }
+  ]
+}

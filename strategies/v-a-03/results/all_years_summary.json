@@ -1,0 +1,42 @@
+{
+  "2020": {
+    "return": 0,
+    "trades": 0,
+    "win_rate": 0,
+    "signal_repro": 0,
+    "signals": 0,
+    "avg_hold": 0
+  },
+  "2021": {
+    "return": 0,
+    "trades": 0,
+    "win_rate": 0,
+    "signal_repro": 0,
+    "signals": 0,
+    "avg_hold": 0
+  },
+  "2022": {
+    "return": 0,
+    "trades": 0,
+    "win_rate": 0,
+    "signal_repro": 0,
+    "signals": 0,
+    "avg_hold": 0
+  },
+  "2023": {
+    "return": 0,
+    "trades": 0,
+    "win_rate": 0,
+    "signal_repro": 0,
+    "signals": 0,
+    "avg_hold": 0
+  },
+  "2024": {
+    "return": 0,
+    "trades": 0,
+    "win_rate": 0,
+    "signal_repro": 0,
+    "signals": 0,
+    "avg_hold": 0
+  }
+}

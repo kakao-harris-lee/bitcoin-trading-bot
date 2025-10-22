@@ -1,0 +1,88 @@
+{
+  "strategy_name": "supreme",
+  "version": "v37",
+  "timeframe": "day",
+  "description": "Optuna Optimized (500 trials, 2020-2024)",
+  "dynamic_thresholds": {
+    "threshold_lookback_period": 60,
+    "rsi_oversold_quantile": 0.3,
+    "rsi_overbought_quantile": 0.7,
+    "volume_high_quantile": 0.8,
+    "volatility_high_quantile": 0.7
+  },
+  "market_classifier": {
+    "ma20_slope_bull_strong": 0.014412202674054925,
+    "ma20_slope_bull_moderate": 0.004528434396587736,
+    "ma20_slope_sideways": 0.001,
+    "ma20_slope_bear_moderate": -0.004528434396587736,
+    "ma20_slope_bear_strong": -0.014412202674054925,
+    "adx_strong_trend": 26,
+    "adx_moderate_trend": 12,
+    "adx_weak_trend": 10,
+    "volatility_high": 0.03,
+    "volatility_low": 0.015,
+    "rsi_overbought_ratio": 0.3,
+    "rsi_oversold_ratio": 0.3
+  },
+  "trend_following": {
+    "adx_threshold": 16,
+    "stop_loss": -0.08000209629861316,
+    "trailing_stop": -0.07051906738945231,
+    "trailing_trigger": 0.24430232865245655,
+    "max_hold_days": 61
+  },
+  "swing_trading": {
+    "rsi_oversold": 33,
+    "take_profit_1": 0.08533910433696475,
+    "take_profit_2": 0.1478042592509173,
+    "stop_loss": -0.03350978820409061,
+    "max_hold_days": 26
+  },
+  "sideways": {
+    "use_rsi_bb": true,
+    "use_stoch": true,
+    "use_volume_breakout": true,
+    "rsi_bb_oversold": 24,
+    "rsi_bb_overbought": 72,
+    "stoch_oversold": 20,
+    "stoch_overbought": 80,
+    "volume_breakout_mult": 1.6834605851235325,
+    "position_size": 0.4,
+    "take_profit_1": 0.011254856376113564,
+    "take_profit_2": 0.033274603915100426,
+    "take_profit_3": 0.05519108455392487,
+    "stop_loss": -0.010789744612422282,
+    "max_hold_days": 20
+  },
+  "defensive": {
+    "rsi_oversold": 17,
+    "position_size": 0.2,
+    "bear_strong_size": 0.1,
+    "take_profit_1": 0.03980518733275564,
+    "take_profit_2": 0.06068317801828657,
+    "stop_loss": -0.05,
+    "tp_bear_strong": 0.03,
+    "max_hold_days": 20
+  },
+  "backtesting": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "train_period": "2020-01-01 to 2024-12-31",
+    "test_period": "2025-01-01 to 2025-10-17"
+  },
+  "target_performance": {
+    "annual_return_train": 0.6,
+    "annual_return_test": 0.7,
+    "sharpe_ratio": 1.5,
+    "max_drawdown": 0.2,
+    "win_rate": 0.5,
+    "buyhold_ratio": 0.75
+  },
+  "optimization_info": {
+    "date": "2025-10-19T19:39:46.400927",
+    "n_trials": 500,
+    "best_score": 0.9138905681739764,
+    "sampler": "TPE"
+  }
+}

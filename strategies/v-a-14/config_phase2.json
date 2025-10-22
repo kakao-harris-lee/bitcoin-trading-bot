@@ -1,0 +1,72 @@
+{
+  "comment": "v-a-14 Phase 2: Entry 강화 + TP 밸런스",
+  "optimization_date": "2025-10-22",
+  "changes": [
+    "Phase 1 결과: 승률 34.8% → 52.6%, SL 61.5% → 35.6%",
+    "Phase 2 목표: SL을 30% 이하로, TP2 도달 시작",
+    "Entry 강화: ADX≥25 (20→25), RSI<65 (70→65), Volume>1.0x",
+    "TP 조정: TP1 7% (6→7%), TP2 13% (12→13%), TP3 22% (20→22%)",
+    "Trailing 활성화: Trigger 5% (6→5%)"
+  ],
+
+  "bull_trend": {
+    "comment": "Phase 2: Entry 강화 + TP 밸런스",
+    "adx_threshold": 25,
+    "macd_bullish": true,
+    "rsi_max": 65,
+    "volume_min": 1.0,
+    "position_size": 0.6,
+    "take_profit_1": 0.07,
+    "take_profit_2": 0.13,
+    "take_profit_3": 0.22,
+    "stop_loss": -0.08,
+    "trailing_stop": -0.04,
+    "trailing_trigger": 0.05,
+    "max_hold_days": 40
+  },
+
+  "trend_following": {
+    "adx_threshold": 18.464545071903955,
+    "position_size": 0.8,
+    "take_profit_1": 0.05915798556395888,
+    "take_profit_2": 0.11899764056034908,
+    "take_profit_3": 0.2009913963078877,
+    "stop_loss": -0.05,
+    "trailing_stop": -0.03,
+    "trailing_trigger": 0.10,
+    "max_hold_days": 30
+  },
+
+  "swing_trading": {
+    "volume_threshold": 1.5,
+    "rsi_overbought": 70,
+    "position_size": 0.5,
+    "take_profit_1": 0.04,
+    "take_profit_2": 0.08,
+    "take_profit_3": 0.15,
+    "stop_loss": -0.03,
+    "trailing_stop": -0.02,
+    "max_hold_days": 14
+  },
+
+  "sideways": {
+    "stoch_oversold": 20,
+    "volume_spike_threshold": 2.0,
+    "position_size": 0.4,
+    "take_profit_1": 0.03,
+    "take_profit_2": 0.06,
+    "stop_loss": -0.03,
+    "trailing_stop_atr_mult": 0.5,
+    "max_hold_days": 20
+  },
+
+  "defensive": {
+    "rsi_oversold": 17,
+    "position_size": 0.2,
+    "bear_strong_size": 0.1,
+    "take_profit_1": 0.03980518733275564,
+    "take_profit_2": 0.06068317801828657,
+    "stop_loss": -0.04988127309095346,
+    "max_hold_days": 20
+  }
+}

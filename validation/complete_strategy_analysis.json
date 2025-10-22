@@ -1,0 +1,1107 @@
+{
+  "total_strategies": 51,
+  "categories": {
+    "ready": 34,
+    "adaptable": 8,
+    "complex": 0,
+    "incomplete": 9
+  },
+  "total_backtests": 306,
+  "strategies": [
+    {
+      "name": "v01_adaptive_rsi_ml",
+      "path": "strategies/v01_adaptive_rsi_ml",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results_minute30.json",
+        "results_minute60.json",
+        "results.json",
+        "results_day.json",
+        "results_minute15.json"
+      ],
+      "timeframe": "minute5",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [
+        "ML_model",
+        "adaptive_threshold",
+        "market_classifier"
+      ],
+      "notes": []
+    },
+    {
+      "name": "v02a_dynamic_kelly",
+      "path": "strategies/v02a_dynamic_kelly",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results_minute30.json",
+        "results_minute60.json",
+        "results.json",
+        "results_day.json",
+        "results_minute15.json"
+      ],
+      "timeframe": "minute5",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [
+        "ML_model",
+        "adaptive_threshold",
+        "market_classifier"
+      ],
+      "notes": []
+    },
+    {
+      "name": "v02b_split_exit",
+      "path": "strategies/v02b_split_exit",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results_minute30.json",
+        "results_minute60.json",
+        "results.json",
+        "results_day.json",
+        "results_minute15.json"
+      ],
+      "timeframe": "minute5",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [
+        "ML_model",
+        "adaptive_threshold",
+        "market_classifier"
+      ],
+      "notes": []
+    },
+    {
+      "name": "v02c_volatility_adjusted",
+      "path": "strategies/v02c_volatility_adjusted",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results_minute30.json",
+        "results_minute60.json",
+        "results.json",
+        "results_day.json",
+        "results_minute15.json"
+      ],
+      "timeframe": "minute5",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [
+        "ML_model",
+        "adaptive_threshold",
+        "market_classifier"
+      ],
+      "notes": []
+    },
+    {
+      "name": "v03_bull_trend_hold",
+      "path": "strategies/v03_bull_trend_hold",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results_minute30.json",
+        "results_minute60.json",
+        "results.json",
+        "results_day.json",
+        "results_minute15.json"
+      ],
+      "timeframe": "minute5",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [
+        "ML_model",
+        "adaptive_threshold",
+        "market_classifier",
+        "holding_manager"
+      ],
+      "notes": []
+    },
+    {
+      "name": "v04_adaptive_trend_rider",
+      "path": "strategies/v04_adaptive_trend_rider",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest_simple.py",
+        "backtest_v2.py",
+        "backtest_2025.py",
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results_simple_minute240.json",
+        "results_2025_day.json",
+        "results_v2_minute240.json",
+        "results_minute240.json"
+      ],
+      "timeframe": "minute240",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v05_multi_cascade_autotuning",
+      "path": "strategies/v05_multi_cascade_autotuning",
+      "has_config": true,
+      "has_strategy": false,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest_simple.py",
+        "backtest_2025.py",
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results_simple.json",
+        "results_2025_validation.json",
+        "results_full.json",
+        "results_kelly.json",
+        "results_split.json"
+      ],
+      "timeframe": "unknown",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v06_dual_layer_adaptive",
+      "path": "strategies/v06_dual_layer_adaptive",
+      "has_config": true,
+      "has_strategy": false,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest_simple.py",
+        "backtest_full.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results_strategy_a.json",
+        "results_strategy_b.json"
+      ],
+      "timeframe": "unknown",
+      "executable": false,
+      "execution_method": null,
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v07_enhanced_day",
+      "path": "strategies/v07_enhanced_day",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest_v07b.py",
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results.json",
+        "results_v07b.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v08_market_adaptive",
+      "path": "strategies/v08_market_adaptive",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results_day_2024.json",
+        "results_day_2025.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "with_args",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v09_longterm_optimized",
+      "path": "strategies/v09_longterm_optimized",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest_simple.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "needs_adaptation",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v10_market_adaptive_v2",
+      "path": "strategies/v10_market_adaptive_v2",
+      "has_config": true,
+      "has_strategy": false,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest_simple.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": false,
+      "execution_method": null,
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v10_rl_hybrid",
+      "path": "strategies/v10_rl_hybrid",
+      "has_config": false,
+      "has_strategy": false,
+      "has_backtest": false,
+      "backtest_files": [],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "unknown",
+      "executable": false,
+      "execution_method": null,
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v11_multi_entry_ensemble",
+      "path": "strategies/v11_multi_entry_ensemble",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v12_refined",
+      "path": "strategies/v12_refined",
+      "has_config": true,
+      "has_strategy": false,
+      "has_backtest": false,
+      "backtest_files": [],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": false,
+      "execution_method": null,
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v13_voting_ensemble",
+      "path": "strategies/v13_voting_ensemble",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "result.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v14_high_confidence",
+      "path": "strategies/v14_high_confidence",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "result.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v15_adaptive",
+      "path": "strategies/v15_adaptive",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "result.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v16_improved_voting",
+      "path": "strategies/v16_improved_voting",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "result.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v17_vwap_breakout",
+      "path": "strategies/v17_vwap_breakout",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "result_2022.json",
+        "result_2023.json",
+        "result_2024.json",
+        "result_2025.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v18_vwap_only",
+      "path": "strategies/v18_vwap_only",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "result.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v19_market_adaptive_hybrid",
+      "path": "strategies/v19_market_adaptive_hybrid",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "result_2022.json",
+        "result_2023.json",
+        "result_2024.json",
+        "result_2025.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v20_simplified_adaptive",
+      "path": "strategies/v20_simplified_adaptive",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "result_2022.json",
+        "result_2023.json",
+        "result_2024.json",
+        "result_2025.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v21_perfect_timing_day",
+      "path": "strategies/v21_perfect_timing_day",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v22_perfect_timing_minute240",
+      "path": "strategies/v22_perfect_timing_minute240",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "minute240",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v23_relaxed_day",
+      "path": "strategies/v23_relaxed_day",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v24_pattern_v1_day",
+      "path": "strategies/v24_pattern_v1_day",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v25_hybrid_day_minute240",
+      "path": "strategies/v25_hybrid_day_minute240",
+      "has_config": true,
+      "has_strategy": false,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "unknown",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v26_fine_tuned_v23",
+      "path": "strategies/v26_fine_tuned_v23",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v27_market_adaptive",
+      "path": "strategies/v27_market_adaptive",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v28_split_entry_exit",
+      "path": "strategies/v28_split_entry_exit",
+      "has_config": true,
+      "has_strategy": false,
+      "has_backtest": false,
+      "backtest_files": [],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": false,
+      "execution_method": null,
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v29_ensemble_v23_v24",
+      "path": "strategies/v29_ensemble_v23_v24",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v30_perfect_longterm",
+      "path": "strategies/v30_perfect_longterm",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results.json"
+      ],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v31_improved",
+      "path": "strategies/v31_improved",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results.json"
+      ],
+      "timeframe": "unknown",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v31_scalping_with_classifier",
+      "path": "strategies/v31_scalping_with_classifier",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results.json"
+      ],
+      "timeframe": "unknown",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v32_aggressive",
+      "path": "strategies/v32_aggressive",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results.json",
+        "results_2022.json",
+        "results_2023.json",
+        "results_2025.json"
+      ],
+      "timeframe": "unknown",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v32_ensemble",
+      "path": "strategies/v32_ensemble",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results.json"
+      ],
+      "timeframe": "unknown",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v32_optimized",
+      "path": "strategies/v32_optimized",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results.json"
+      ],
+      "timeframe": "unknown",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v33_minute240",
+      "path": "strategies/v33_minute240",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results.json"
+      ],
+      "timeframe": "unknown",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v34_supreme",
+      "path": "strategies/v34_supreme",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [
+        "market_classifier"
+      ],
+      "notes": []
+    },
+    {
+      "name": "v35_optimized",
+      "path": "strategies/v35_optimized",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [
+        "market_classifier"
+      ],
+      "notes": []
+    },
+    {
+      "name": "v36_multi_timeframe",
+      "path": "strategies/v36_multi_timeframe",
+      "has_config": true,
+      "has_strategy": false,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "unknown",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v37_supreme",
+      "path": "strategies/v37_supreme",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [
+        "market_classifier"
+      ],
+      "notes": []
+    },
+    {
+      "name": "v38_ensemble",
+      "path": "strategies/v38_ensemble",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v39_voting",
+      "path": "strategies/v39_voting",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v40_adaptive_voting",
+      "path": "strategies/v40_adaptive_voting",
+      "has_config": true,
+      "has_strategy": true,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py",
+        "backtest_v39_template.py"
+      ],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "day",
+      "executable": true,
+      "execution_method": "direct",
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v41_scalping_voting",
+      "path": "strategies/v41_scalping_voting",
+      "has_config": true,
+      "has_strategy": false,
+      "has_backtest": true,
+      "backtest_files": [
+        "backtest.py"
+      ],
+      "has_results": true,
+      "result_files": [
+        "results_minute15.json"
+      ],
+      "timeframe": "unknown",
+      "executable": true,
+      "execution_method": "with_args",
+      "dependencies": [],
+      "notes": [
+        "hardcoded_dates"
+      ]
+    },
+    {
+      "name": "v42_ultimate_scalping",
+      "path": "strategies/v42_ultimate_scalping",
+      "has_config": false,
+      "has_strategy": false,
+      "has_backtest": false,
+      "backtest_files": [],
+      "has_results": true,
+      "result_files": [
+        "results_2024.json"
+      ],
+      "timeframe": "unknown",
+      "executable": false,
+      "execution_method": null,
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v43_supreme_scalping",
+      "path": "strategies/v43_supreme_scalping",
+      "has_config": false,
+      "has_strategy": false,
+      "has_backtest": false,
+      "backtest_files": [],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "unknown",
+      "executable": false,
+      "execution_method": null,
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v44_supreme_hybrid_scalping",
+      "path": "strategies/v44_supreme_hybrid_scalping",
+      "has_config": false,
+      "has_strategy": false,
+      "has_backtest": false,
+      "backtest_files": [],
+      "has_results": true,
+      "result_files": [
+        "result_2024.json"
+      ],
+      "timeframe": "unknown",
+      "executable": false,
+      "execution_method": null,
+      "dependencies": [],
+      "notes": []
+    },
+    {
+      "name": "v45_ultimate_dynamic_scalping",
+      "path": "strategies/v45_ultimate_dynamic_scalping",
+      "has_config": false,
+      "has_strategy": false,
+      "has_backtest": false,
+      "backtest_files": [],
+      "has_results": false,
+      "result_files": [],
+      "timeframe": "unknown",
+      "executable": false,
+      "execution_method": null,
+      "dependencies": [],
+      "notes": []
+    }
+  ],
+  "execution_plan": [
+    {
+      "phase": 1,
+      "name": "Ready Strategies (\uc989\uc2dc \uc2e4\ud589)",
+      "strategies": [
+        "v04_adaptive_trend_rider",
+        "v05_multi_cascade_autotuning",
+        "v07_enhanced_day",
+        "v11_multi_entry_ensemble",
+        "v13_voting_ensemble",
+        "v14_high_confidence",
+        "v15_adaptive",
+        "v16_improved_voting",
+        "v17_vwap_breakout",
+        "v18_vwap_only",
+        "v19_market_adaptive_hybrid",
+        "v20_simplified_adaptive",
+        "v21_perfect_timing_day",
+        "v22_perfect_timing_minute240",
+        "v23_relaxed_day",
+        "v24_pattern_v1_day",
+        "v25_hybrid_day_minute240",
+        "v26_fine_tuned_v23",
+        "v27_market_adaptive",
+        "v29_ensemble_v23_v24",
+        "v30_perfect_longterm",
+        "v31_improved",
+        "v31_scalping_with_classifier",
+        "v32_aggressive",
+        "v32_ensemble",
+        "v32_optimized",
+        "v33_minute240",
+        "v34_supreme",
+        "v35_optimized",
+        "v36_multi_timeframe",
+        "v37_supreme",
+        "v38_ensemble",
+        "v39_voting",
+        "v40_adaptive_voting"
+      ],
+      "count": 34,
+      "total_backtests": 204,
+      "method": "direct_execution",
+      "priority": "high"
+    },
+    {
+      "phase": 2,
+      "name": "Adaptable Strategies (\uc57d\uac04 \uc218\uc815)",
+      "strategies": [
+        "v01_adaptive_rsi_ml",
+        "v02a_dynamic_kelly",
+        "v02b_split_exit",
+        "v02c_volatility_adjusted",
+        "v03_bull_trend_hold",
+        "v08_market_adaptive",
+        "v09_longterm_optimized",
+        "v41_scalping_voting"
+      ],
+      "count": 8,
+      "total_backtests": 48,
+      "method": "modify_and_run",
+      "priority": "high"
+    },
+    {
+      "phase": 4,
+      "name": "Incomplete Strategies (\uc7ac\uad6c\ud604)",
+      "strategies": [
+        "v06_dual_layer_adaptive",
+        "v10_market_adaptive_v2",
+        "v10_rl_hybrid",
+        "v12_refined",
+        "v28_split_entry_exit",
+        "v42_ultimate_scalping",
+        "v43_supreme_scalping",
+        "v44_supreme_hybrid_scalping",
+        "v45_ultimate_dynamic_scalping"
+      ],
+      "count": 9,
+      "total_backtests": 54,
+      "method": "full_implementation",
+      "priority": "low"
+    }
+  ]
+}

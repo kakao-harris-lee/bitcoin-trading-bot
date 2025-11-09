@@ -1,0 +1,29 @@
+{
+  "strategy": "v-a-01",
+  "timeframe": "day",
+  "year": 2024,
+  "perfect_signals": {
+    "total": 266,
+    "avg_return": 0.15371197689788324,
+    "avg_hold_days": 19.714285714285715
+  },
+  "strategy_signals": {
+    "total": 27,
+    "matched": 39,
+    "signal_reproduction_rate": 0.14661654135338345
+  },
+  "strategy_performance": {
+    "best_period": "21d",
+    "return_pct": 0.0048,
+    "win_rate": 33.33,
+    "sharpe_ratio": 0.04,
+    "total_trades": 27
+  },
+  "reproduction_metrics": {
+    "signal_reproduction_rate": 0.14661654135338345,
+    "return_reproduction_rate": 0.03122723483797768,
+    "total_reproduction_rate": 0.07738295744413999,
+    "tier": "C",
+    "tier_description": "❌ 폐기 (<30%)"
+  }
+}

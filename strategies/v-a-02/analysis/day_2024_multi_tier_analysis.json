@@ -1,0 +1,51 @@
+{
+  "strategy": "v-a-02",
+  "timeframe": "day",
+  "year": 2024,
+  "perfect_signals": {
+    "total": 266,
+    "avg_return": 0.15371197689788324,
+    "avg_hold_days": 19.714285714285715
+  },
+  "tier_results": {
+    "S": {
+      "tier_name": "S",
+      "tier_threshold": 28,
+      "tier_desc": "보수적 (S-Tier only)",
+      "signal_file": "/Users/harris/Development/private/bitcoin-trading-bot/strategies/v-a-02/signals/day_2024_Stier_signals.json",
+      "total_signals": 192,
+      "reproduction": {
+        "matched_count": 200,
+        "total_perfect": 266,
+        "total_strategy": 192,
+        "signal_reproduction_rate": 0.7518796992481203
+      }
+    },
+    "A": {
+      "tier_name": "A",
+      "tier_threshold": 18,
+      "tier_desc": "균형 (S+A-Tier)",
+      "signal_file": "/Users/harris/Development/private/bitcoin-trading-bot/strategies/v-a-02/signals/day_2024_Atier_signals.json",
+      "total_signals": 216,
+      "reproduction": {
+        "matched_count": 220,
+        "total_perfect": 266,
+        "total_strategy": 216,
+        "signal_reproduction_rate": 0.8270676691729323
+      }
+    },
+    "B": {
+      "tier_name": "B",
+      "tier_threshold": 12,
+      "tier_desc": "공격적 (S+A+B-Tier)",
+      "signal_file": "/Users/harris/Development/private/bitcoin-trading-bot/strategies/v-a-02/signals/day_2024_Btier_signals.json",
+      "total_signals": 271,
+      "reproduction": {
+        "matched_count": 250,
+        "total_perfect": 266,
+        "total_strategy": 271,
+        "signal_reproduction_rate": 0.9398496240601504
+      }
+    }
+  }
+}

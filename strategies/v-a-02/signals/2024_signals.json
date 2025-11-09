@@ -1,0 +1,3824 @@
+{
+  "strategy": "v-a-02-Stier",
+  "timeframe": "day",
+  "year": 2024,
+  "total_signals": 192,
+  "tier_threshold": "S",
+  "signals": [
+    {
+      "timestamp": "2024-02-03T09:00:00",
+      "action": "BUY",
+      "price": 59260000.0,
+      "score": 43.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 55.55049748106676,
+        "mfi": 54.537069210362674,
+        "adx": 14.038369477269702,
+        "volume_ratio": 0.3225145297687613,
+        "atr_ratio": 0.7523253526082184,
+        "bb_position": 0.7529730760196144,
+        "signals": [
+          "MFI_BULLISH",
+          "LOW_VOL"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-04T09:00:00",
+      "action": "BUY",
+      "price": 58811000.0,
+      "score": 43.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 53.1104551305058,
+        "mfi": 51.206686425653515,
+        "adx": 13.672557007507832,
+        "volume_ratio": 0.36481496518086703,
+        "atr_ratio": 0.7401301671923237,
+        "bb_position": 0.6734564985151453,
+        "signals": [
+          "MFI_BULLISH",
+          "LOW_VOL"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-05T09:00:00",
+      "action": "BUY",
+      "price": 58882000.0,
+      "score": 68.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 53.45858849962421,
+        "mfi": 61.19046587080761,
+        "adx": 12.965819395913021,
+        "volume_ratio": 0.8141428973912149,
+        "atr_ratio": 0.7521101432669521,
+        "bb_position": 0.6894098369460795,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "LOW_VOL",
+          "LOCAL_MIN"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-06T09:00:00",
+      "action": "BUY",
+      "price": 59039000.0,
+      "score": 48.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 54.26716981493085,
+        "mfi": 74.35847229324483,
+        "adx": 12.30956304228927,
+        "volume_ratio": 0.6078736530642699,
+        "atr_ratio": 0.741282150103925,
+        "bb_position": 0.7117100229408644,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "LOW_VOL"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-07T09:00:00",
+      "action": "BUY",
+      "price": 60232000.0,
+      "score": 48.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 59.959718433746986,
+        "mfi": 74.80148185200372,
+        "adx": 11.906145175308987,
+        "volume_ratio": 1.1850882155412068,
+        "atr_ratio": 0.7592602599946655,
+        "bb_position": 0.8614626137471294,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "LOW_VOL"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-08T09:00:00",
+      "action": "BUY",
+      "price": 62011000.0,
+      "score": 48.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 66.63013949311222,
+        "mfi": 82.35596006270492,
+        "adx": 12.658520719639082,
+        "volume_ratio": 1.3231962909776445,
+        "atr_ratio": 0.7883490930370659,
+        "bb_position": 1.0250196753833798,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "LOW_VOL"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-09T09:00:00",
+      "action": "BUY",
+      "price": 63682000.0,
+      "score": 41.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 71.44253169836465,
+        "mfi": 83.75863041931771,
+        "adx": 14.550381030995108,
+        "volume_ratio": 2.223451535579653,
+        "atr_ratio": 0.8555704348464054,
+        "bb_position": 1.090538502820252,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-10T09:00:00",
+      "action": "BUY",
+      "price": 64549000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 73.5721228504018,
+        "mfi": 84.32995682352214,
+        "adx": 16.30710846296856,
+        "volume_ratio": 0.9514127276463535,
+        "atr_ratio": 0.8706728482495544,
+        "bb_position": 1.0553641146670731,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-11T09:00:00",
+      "action": "BUY",
+      "price": 65230000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 75.14026600108556,
+        "mfi": 84.74762915386545,
+        "adx": 18.166168781844426,
+        "volume_ratio": 1.0303322744753372,
+        "atr_ratio": 0.8674494110441267,
+        "bb_position": 1.0314556658443443,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-12T09:00:00",
+      "action": "BUY",
+      "price": 67002000.0,
+      "score": 41.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 78.68448497128443,
+        "mfi": 85.94848068448646,
+        "adx": 20.520377431225295,
+        "volume_ratio": 1.8981391504572034,
+        "atr_ratio": 0.9105419856919333,
+        "bb_position": 1.0704878760952117,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-13T09:00:00",
+      "action": "BUY",
+      "price": 67309000.0,
+      "score": 41.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 79.23678864813837,
+        "mfi": 86.83648198192729,
+        "adx": 22.779742403839823,
+        "volume_ratio": 1.8395980145574018,
+        "atr_ratio": 0.9275000650408605,
+        "bb_position": 1.0119482730840899,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-14T09:00:00",
+      "action": "BUY",
+      "price": 70199000.0,
+      "score": 53.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 83.55623052387614,
+        "mfi": 93.53742120782162,
+        "adx": 25.520604892978586,
+        "volume_ratio": 2.0447855422336816,
+        "atr_ratio": 0.9972792088028446,
+        "bb_position": 1.099967917631178,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-15T09:00:00",
+      "action": "BUY",
+      "price": 71253000.0,
+      "score": 53.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 84.79831805721639,
+        "mfi": 98.17137383081432,
+        "adx": 28.42587489567735,
+        "volume_ratio": 2.045152820642388,
+        "atr_ratio": 1.011571190318306,
+        "bb_position": 1.049864143988755,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-16T09:00:00",
+      "action": "BUY",
+      "price": 72128000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 85.75996157765245,
+        "mfi": 98.26319616984705,
+        "adx": 31.172642163865785,
+        "volume_ratio": 1.1595465997171672,
+        "atr_ratio": 1.0126401758153232,
+        "bb_position": 1.004502066331455,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-17T09:00:00",
+      "action": "BUY",
+      "price": 71530000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 81.9447265846521,
+        "mfi": 88.941252025517,
+        "adx": 32.72526990135121,
+        "volume_ratio": 1.4201914421310373,
+        "atr_ratio": 1.0470318802503706,
+        "bb_position": 0.913898821620617,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-18T09:00:00",
+      "action": "BUY",
+      "price": 71964000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 82.55142101446296,
+        "mfi": 90.89712423416493,
+        "adx": 34.16699565758768,
+        "volume_ratio": 0.8223711681826518,
+        "atr_ratio": 1.0352405442094175,
+        "bb_position": 0.8838603388419338,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-19T09:00:00",
+      "action": "BUY",
+      "price": 71755000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 81.1374883169619,
+        "mfi": 91.06773342181873,
+        "adx": 35.57420383184495,
+        "volume_ratio": 0.8199869479545516,
+        "atr_ratio": 0.9947404422837799,
+        "bb_position": 0.8343383975022466,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-20T09:00:00",
+      "action": "BUY",
+      "price": 72191000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 81.83641348207034,
+        "mfi": 91.50151693066499,
+        "adx": 36.23963521552095,
+        "volume_ratio": 1.1655732336791647,
+        "atr_ratio": 1.0093698512043543,
+        "bb_position": 0.8191433074797988,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-21T09:00:00",
+      "action": "BUY",
+      "price": 72397000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 82.17252728740777,
+        "mfi": 86.36982321009971,
+        "adx": 36.85753578607723,
+        "volume_ratio": 0.8368194968333765,
+        "atr_ratio": 0.9955459733427844,
+        "bb_position": 0.796902606859094,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-22T09:00:00",
+      "action": "BUY",
+      "price": 71601000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 76.2973028662413,
+        "mfi": 82.13067782580326,
+        "adx": 37.431300601593776,
+        "volume_ratio": 0.6489170765818143,
+        "atr_ratio": 0.9662506528539329,
+        "bb_position": 0.7361942547694896,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-23T09:00:00",
+      "action": "BUY",
+      "price": 70805000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 70.84253127439527,
+        "mfi": 76.75824964598044,
+        "adx": 37.18596784966242,
+        "volume_ratio": 0.6325636094473994,
+        "atr_ratio": 0.9464463341877173,
+        "bb_position": 0.6789805943783498,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-24T09:00:00",
+      "action": "BUY",
+      "price": 71107000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 71.67007577281117,
+        "mfi": 72.57544336062111,
+        "adx": 36.84817504972501,
+        "volume_ratio": 0.5867297865982607,
+        "atr_ratio": 0.917651827577483,
+        "bb_position": 0.6747165381895202,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-25T09:00:00",
+      "action": "BUY",
+      "price": 71256000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 72.09094834640143,
+        "mfi": 71.9655111602225,
+        "adx": 36.600060160890855,
+        "volume_ratio": 0.39965841537261015,
+        "atr_ratio": 0.8828801264244464,
+        "bb_position": 0.6647748562531034,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-26T09:00:00",
+      "action": "BUY",
+      "price": 74742000.0,
+      "score": 65.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 79.69231178255933,
+        "mfi": 72.0076983232333,
+        "adx": 37.703026815757305,
+        "volume_ratio": 1.261595670101899,
+        "atr_ratio": 1.011102930972109,
+        "bb_position": 0.8475316168697068,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "LOCAL_MIN",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-27T09:00:00",
+      "action": "BUY",
+      "price": 78619000.0,
+      "score": 53.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 84.68744592065313,
+        "mfi": 73.84725432678249,
+        "adx": 39.65359937269909,
+        "volume_ratio": 1.9614083541588883,
+        "atr_ratio": 1.1084055457283493,
+        "bb_position": 1.03710025701395,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-28T09:00:00",
+      "action": "BUY",
+      "price": 87634000.0,
+      "score": 59.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 90.52408166702351,
+        "mfi": 78.40083093507997,
+        "adx": 42.44328843123559,
+        "volume_ratio": 3.2485965196959463,
+        "atr_ratio": 1.393139885930605,
+        "bb_position": 1.284343829890386,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-02-29T09:00:00",
+      "action": "BUY",
+      "price": 85910000.0,
+      "score": 59.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 83.93514948982491,
+        "mfi": 80.44786720011308,
+        "adx": 45.13572840260124,
+        "volume_ratio": 2.2876715863167867,
+        "atr_ratio": 1.4359268688188593,
+        "bb_position": 1.0791332346106959,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-01T09:00:00",
+      "action": "BUY",
+      "price": 87397000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 84.95250668049432,
+        "mfi": 80.98979635352954,
+        "adx": 47.63585123315506,
+        "volume_ratio": 0.9816059506471702,
+        "atr_ratio": 1.394240592042928,
+        "bb_position": 1.0399911474511951,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-02T09:00:00",
+      "action": "BUY",
+      "price": 86383000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 81.1772808141539,
+        "mfi": 80.62692190334973,
+        "adx": 49.95739386152646,
+        "volume_ratio": 0.8479614249254511,
+        "atr_ratio": 1.3228891224759862,
+        "bb_position": 0.9392471090793074,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-03T09:00:00",
+      "action": "BUY",
+      "price": 87982000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 82.49811064245809,
+        "mfi": 81.32653842766382,
+        "adx": 51.408361528093906,
+        "volume_ratio": 0.935615537719744,
+        "atr_ratio": 1.3050565191633863,
+        "bb_position": 0.9355924301677263,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-04T09:00:00",
+      "action": "BUY",
+      "price": 95500000.0,
+      "score": 59.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 87.08639670509056,
+        "mfi": 83.51615446782854,
+        "adx": 53.37411699468384,
+        "volume_ratio": 1.961686742083345,
+        "atr_ratio": 1.4513902554853546,
+        "bb_position": 1.0725030458454377,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-05T09:00:00",
+      "action": "BUY",
+      "price": 91275000.0,
+      "score": 59.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 75.1611340733719,
+        "mfi": 65.77967384733496,
+        "adx": 55.2825158396899,
+        "volume_ratio": 2.9666220716540064,
+        "atr_ratio": 1.5880428520222714,
+        "bb_position": 0.8879674298602459,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-06T09:00:00",
+      "action": "BUY",
+      "price": 93325000.0,
+      "score": 59.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 76.81975622358478,
+        "mfi": 71.02353989158193,
+        "adx": 57.05460048148125,
+        "volume_ratio": 1.6049500519354485,
+        "atr_ratio": 1.623643214877044,
+        "bb_position": 0.8937406967388597,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-07T09:00:00",
+      "action": "BUY",
+      "price": 94060000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 77.4023909288626,
+        "mfi": 73.79522133004376,
+        "adx": 58.74745640628719,
+        "volume_ratio": 0.7520242434285912,
+        "atr_ratio": 1.5419458496616145,
+        "bb_position": 0.8666090209839638,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-08T09:00:00",
+      "action": "BUY",
+      "price": 96237000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 79.0796604450974,
+        "mfi": 76.97349569247343,
+        "adx": 60.48289915929684,
+        "volume_ratio": 1.1143913318501817,
+        "atr_ratio": 1.5112958584391925,
+        "bb_position": 0.8759276035120477,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-09T09:00:00",
+      "action": "BUY",
+      "price": 95946000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 78.24365570600148,
+        "mfi": 75.80473226260003,
+        "adx": 62.09438171566295,
+        "volume_ratio": 0.5032204515339165,
+        "atr_ratio": 1.3951107531134785,
+        "bb_position": 0.8300316553302224,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-10T09:00:00",
+      "action": "BUY",
+      "price": 97495000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 79.48679710967181,
+        "mfi": 76.68333787539713,
+        "adx": 63.698355766932785,
+        "volume_ratio": 0.7532110525233469,
+        "atr_ratio": 1.3237510603867653,
+        "bb_position": 0.8313290291477732,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-11T09:00:00",
+      "action": "BUY",
+      "price": 100404000.0,
+      "score": 59.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 81.6117617916988,
+        "mfi": 78.32470634996108,
+        "adx": 65.34415888515878,
+        "volume_ratio": 1.6680528912524784,
+        "atr_ratio": 1.364463603277489,
+        "bb_position": 0.8606058866511005,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-12T09:00:00",
+      "action": "BUY",
+      "price": 101200000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 82.1564567658058,
+        "mfi": 78.40915018422399,
+        "adx": 66.88906468082435,
+        "volume_ratio": 0.96480496326871,
+        "atr_ratio": 1.309493050372868,
+        "bb_position": 0.8422339021405111,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-13T09:00:00",
+      "action": "BUY",
+      "price": 104122000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 84.02693759943936,
+        "mfi": 76.97413588352187,
+        "adx": 68.42048532967074,
+        "volume_ratio": 0.8691791486593345,
+        "atr_ratio": 1.2716932610172014,
+        "bb_position": 0.8727299906060433,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-14T09:00:00",
+      "action": "BUY",
+      "price": 102506000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 79.08912328300754,
+        "mfi": 67.96814755669266,
+        "adx": 69.3186819235444,
+        "volume_ratio": 1.1382429189783647,
+        "atr_ratio": 1.2577129467718313,
+        "bb_position": 0.8091207591412886,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-15T09:00:00",
+      "action": "BUY",
+      "price": 101000000.0,
+      "score": 54.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 74.68444037967508,
+        "mfi": 57.76467640795412,
+        "adx": 67.97121473133483,
+        "volume_ratio": 1.7858705371302588,
+        "atr_ratio": 1.314482912861604,
+        "bb_position": 0.7542674798302215,
+        "signals": [
+          "MFI_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-16T09:00:00",
+      "action": "BUY",
+      "price": 96767000.0,
+      "score": 46.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 63.91042538766234,
+        "mfi": 56.55509353504725,
+        "adx": 66.71999519571165,
+        "volume_ratio": 0.7578672431592252,
+        "atr_ratio": 1.3150734002668893,
+        "bb_position": 0.6216880699658756,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-17T09:00:00",
+      "action": "BUY",
+      "price": 99922000.0,
+      "score": 46.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 67.65567923036011,
+        "mfi": 50.93913762843682,
+        "adx": 64.92820096080565,
+        "volume_ratio": 0.9995176638162965,
+        "atr_ratio": 1.2994938763146326,
+        "bb_position": 0.7119556566097359,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-19T09:00:00",
+      "action": "BUY",
+      "price": 92572000.0,
+      "score": 46.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 52.939419539213716,
+        "mfi": 51.33235984477077,
+        "adx": 59.55774124424084,
+        "volume_ratio": 1.396906432027495,
+        "atr_ratio": 1.2536974518284063,
+        "bb_position": 0.3695738080333235,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-20T09:00:00",
+      "action": "BUY",
+      "price": 99726000.0,
+      "score": 66.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 61.738545088963804,
+        "mfi": 52.18922588717886,
+        "adx": 55.460852565068365,
+        "volume_ratio": 1.4092687625983427,
+        "atr_ratio": 1.3274884509038816,
+        "bb_position": 0.6751877309023732,
+        "signals": [
+          "MFI_BULLISH",
+          "LOCAL_MIN",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-21T09:00:00",
+      "action": "BUY",
+      "price": 95552000.0,
+      "score": 46.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 55.24792220535512,
+        "mfi": 52.80813803481589,
+        "adx": 51.65659879155106,
+        "volume_ratio": 0.7364324369664678,
+        "atr_ratio": 1.2864705844583137,
+        "bb_position": 0.44672292846954903,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-29T09:00:00",
+      "action": "BUY",
+      "price": 99801000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 59.091401872224104,
+        "mfi": 54.99275057990963,
+        "adx": 34.11035571279738,
+        "volume_ratio": 0.5182525724170862,
+        "atr_ratio": 0.951644130451771,
+        "bb_position": 0.5897186469747102,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-30T09:00:00",
+      "action": "BUY",
+      "price": 99985000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 59.35621470594419,
+        "mfi": 58.29671761457719,
+        "adx": 32.86561242687966,
+        "volume_ratio": 0.23944986660642165,
+        "atr_ratio": 0.8937810960196381,
+        "bb_position": 0.5945686514122777,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-03-31T09:00:00",
+      "action": "BUY",
+      "price": 100970000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 60.81842362003634,
+        "mfi": 66.24294592986641,
+        "adx": 31.978217067445822,
+        "volume_ratio": 0.277936842986508,
+        "atr_ratio": 0.8499353674044248,
+        "bb_position": 0.671212232516898,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-04-01T09:00:00",
+      "action": "BUY",
+      "price": 100100000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 58.806066230217525,
+        "mfi": 60.212078204971775,
+        "adx": 30.54862297531624,
+        "volume_ratio": 0.6388101351367854,
+        "atr_ratio": 0.8300269775876775,
+        "bb_position": 0.6066390447996217,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-04-02T09:00:00",
+      "action": "BUY",
+      "price": 96053000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 50.444586270719874,
+        "mfi": 64.3278237194649,
+        "adx": 28.94343268429227,
+        "volume_ratio": 1.084522658381941,
+        "atr_ratio": 0.8542590130282195,
+        "bb_position": 0.2949919028025382,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-04-03T09:00:00",
+      "action": "BUY",
+      "price": 96502000.0,
+      "score": 60.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 51.27240232600174,
+        "mfi": 53.66855115656583,
+        "adx": 27.561109200037603,
+        "volume_ratio": 0.5999044512355725,
+        "atr_ratio": 0.8377875815617418,
+        "bb_position": 0.35332080545219013,
+        "signals": [
+          "MFI_BULLISH",
+          "LOCAL_MIN",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-04-04T09:00:00",
+      "action": "BUY",
+      "price": 99361000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 56.28047550625913,
+        "mfi": 51.683025020968756,
+        "adx": 25.903358025087535,
+        "volume_ratio": 0.6785567068079467,
+        "atr_ratio": 0.8532437909783271,
+        "bb_position": 0.6283551748598035,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-04-05T09:00:00",
+      "action": "BUY",
+      "price": 98394000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 54.24957337680917,
+        "mfi": 53.903883325433895,
+        "adx": 24.364017648348188,
+        "volume_ratio": 0.5664872628748597,
+        "atr_ratio": 0.8465003956863848,
+        "bb_position": 0.5291171971051987,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-04-06T09:00:00",
+      "action": "BUY",
+      "price": 99023000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 55.37753329101827,
+        "mfi": 58.19596497850483,
+        "adx": 23.01812171409594,
+        "volume_ratio": 0.3247782866033572,
+        "atr_ratio": 0.8306627823621544,
+        "bb_position": 0.5943111811797249,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-04-07T09:00:00",
+      "action": "BUY",
+      "price": 99369000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 56.01987352891954,
+        "mfi": 57.11502942322271,
+        "adx": 21.988833496885594,
+        "volume_ratio": 0.38014134955340384,
+        "atr_ratio": 0.8050631929778848,
+        "bb_position": 0.6256783305270661,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-04-08T09:00:00",
+      "action": "BUY",
+      "price": 102101000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 60.816186698731464,
+        "mfi": 55.90643340982645,
+        "adx": 21.957136666432376,
+        "volume_ratio": 1.0835351031143239,
+        "atr_ratio": 0.8264819147703039,
+        "bb_position": 0.8695834820255668,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-04-19T09:00:00",
+      "action": "BUY",
+      "price": 93390000.0,
+      "score": 33.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 42.791934282606206,
+        "mfi": 36.959118777659775,
+        "adx": 22.151086271580606,
+        "volume_ratio": 1.7213544616570755,
+        "atr_ratio": 1.1220001966422684,
+        "bb_position": 0.10275465862691434,
+        "signals": [
+          "VOLUME_SPIKE",
+          "LOCAL_MIN",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-04-30T09:00:00",
+      "action": "BUY",
+      "price": 87137000.0,
+      "score": 35.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 32.993605828323744,
+        "mfi": 29.607659109288555,
+        "adx": 26.810621783836176,
+        "volume_ratio": 1.5421799525811015,
+        "atr_ratio": 0.9968667556421882,
+        "bb_position": -0.03872759168939881,
+        "signals": [
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "BB_LOWER",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-01T09:00:00",
+      "action": "BUY",
+      "price": 83499000.0,
+      "score": 63.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 28.095487358131972,
+        "mfi": 26.662812825862463,
+        "adx": 29.297690956102137,
+        "volume_ratio": 2.815783481910848,
+        "atr_ratio": 1.0709537853672266,
+        "bb_position": -0.15080747439791883,
+        "signals": [
+          "RSI_OVERSOLD",
+          "VOLUME_SPIKE",
+          "LOCAL_MIN",
+          "TREND_STRONG",
+          "BB_LOWER",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-02T09:00:00",
+      "action": "BUY",
+      "price": 83078000.0,
+      "score": 35.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 27.585125105169507,
+        "mfi": 26.98767731405518,
+        "adx": 31.6071123303491,
+        "volume_ratio": 1.041706821162689,
+        "atr_ratio": 1.0544690060231956,
+        "bb_position": -0.0691187446708776,
+        "signals": [
+          "RSI_OVERSOLD",
+          "TREND_STRONG",
+          "BB_LOWER",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-09T09:00:00",
+      "action": "BUY",
+      "price": 88116000.0,
+      "score": 32.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 43.711075723577125,
+        "mfi": 22.882503141157358,
+        "adx": 26.959847418725477,
+        "volume_ratio": 0.7167523516564922,
+        "atr_ratio": 1.0035864314080383,
+        "bb_position": 0.3519556892922447,
+        "signals": [
+          "LOCAL_MIN",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-16T09:00:00",
+      "action": "BUY",
+      "price": 90800000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 51.97063198310049,
+        "mfi": 58.20214604917475,
+        "adx": 22.978797913394082,
+        "volume_ratio": 0.8505582026565154,
+        "atr_ratio": 0.9488496449685165,
+        "bb_position": 0.7544557778979919,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-17T09:00:00",
+      "action": "BUY",
+      "price": 92646000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 55.440652103218746,
+        "mfi": 53.3295412621802,
+        "adx": 22.483253398314854,
+        "volume_ratio": 0.6292623921909516,
+        "atr_ratio": 0.9290362636162588,
+        "bb_position": 0.9112544631475566,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-18T09:00:00",
+      "action": "BUY",
+      "price": 93066000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 56.215730278956414,
+        "mfi": 50.67680979216574,
+        "adx": 22.16101811481057,
+        "volume_ratio": 0.4225134338275956,
+        "atr_ratio": 0.8868272451961202,
+        "bb_position": 0.9125243812274031,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-19T09:00:00",
+      "action": "BUY",
+      "price": 92185000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 54.09034468667582,
+        "mfi": 50.848377316945935,
+        "adx": 21.596938166521404,
+        "volume_ratio": 0.5568210257659686,
+        "atr_ratio": 0.8682521713531168,
+        "bb_position": 0.8269792029682564,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-20T09:00:00",
+      "action": "BUY",
+      "price": 97260000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 62.81246525587469,
+        "mfi": 61.303382628733125,
+        "adx": 22.195267599110142,
+        "volume_ratio": 1.0898948687545884,
+        "atr_ratio": 0.915903005443122,
+        "bb_position": 1.0963988975811283,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-21T09:00:00",
+      "action": "BUY",
+      "price": 96700000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 61.425694130842125,
+        "mfi": 69.76834951385865,
+        "adx": 23.0044206737418,
+        "volume_ratio": 1.3074500283049897,
+        "atr_ratio": 0.9098863740479387,
+        "bb_position": 0.9856585863058036,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-22T09:00:00",
+      "action": "BUY",
+      "price": 95421000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 58.261882175102556,
+        "mfi": 70.90320292959579,
+        "adx": 23.238344116932,
+        "volume_ratio": 0.8270550927585402,
+        "atr_ratio": 0.9006874089011173,
+        "bb_position": 0.8676814112078638,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-23T09:00:00",
+      "action": "BUY",
+      "price": 94900000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 56.97454208095366,
+        "mfi": 61.523549961287586,
+        "adx": 22.613846761125526,
+        "volume_ratio": 1.3724794997329963,
+        "atr_ratio": 0.9261794412604879,
+        "bb_position": 0.7996696547576987,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-24T09:00:00",
+      "action": "BUY",
+      "price": 95214000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 57.58285470589577,
+        "mfi": 62.25957346314711,
+        "adx": 22.033956359305225,
+        "volume_ratio": 0.7987872317099711,
+        "atr_ratio": 0.9295016666624482,
+        "bb_position": 0.7924935713615817,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-25T09:00:00",
+      "action": "BUY",
+      "price": 96240000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 59.59314499168844,
+        "mfi": 65.33284799494194,
+        "adx": 21.667058339228024,
+        "volume_ratio": 0.4744522311828848,
+        "atr_ratio": 0.9030377283803768,
+        "bb_position": 0.8228142390668763,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-26T09:00:00",
+      "action": "BUY",
+      "price": 95610000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 57.78226459281633,
+        "mfi": 62.100368455153664,
+        "adx": 21.32636732058491,
+        "volume_ratio": 0.5383388741736359,
+        "atr_ratio": 0.8751464311137201,
+        "bb_position": 0.7574919843592276,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-27T09:00:00",
+      "action": "BUY",
+      "price": 96050000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 58.725610417891694,
+        "mfi": 61.97944313579789,
+        "adx": 21.331576079870324,
+        "volume_ratio": 0.9105033515511392,
+        "atr_ratio": 0.8731023242332743,
+        "bb_position": 0.7565942586656859,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-28T09:00:00",
+      "action": "BUY",
+      "price": 94600000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 54.41080552406626,
+        "mfi": 61.0424117264594,
+        "adx": 20.50697362646964,
+        "volume_ratio": 1.0964301703536392,
+        "atr_ratio": 0.8754981575694614,
+        "bb_position": 0.6512589142353163,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-29T09:00:00",
+      "action": "BUY",
+      "price": 93910000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 52.436417940817705,
+        "mfi": 52.51066726499337,
+        "adx": 19.61936437542861,
+        "volume_ratio": 0.8634966589700931,
+        "atr_ratio": 0.8644721669138354,
+        "bb_position": 0.5924724665488084,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-05-30T09:00:00",
+      "action": "BUY",
+      "price": 94943000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 55.06526519514555,
+        "mfi": 51.53477689276469,
+        "adx": 19.221637873121317,
+        "volume_ratio": 0.9527864877140652,
+        "atr_ratio": 0.8707344265760906,
+        "bb_position": 0.6399429990529488,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-06-06T09:00:00",
+      "action": "BUY",
+      "price": 98334000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 63.80877793472837,
+        "mfi": 59.838133738546276,
+        "adx": 23.279371891461853,
+        "volume_ratio": 0.8684217688467236,
+        "atr_ratio": 0.8188527074195916,
+        "bb_position": 0.9377065884564166,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-06-07T09:00:00",
+      "action": "BUY",
+      "price": 97919000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 61.929764428627784,
+        "mfi": 58.07634036754364,
+        "adx": 23.92193504965257,
+        "volume_ratio": 1.2578270314708329,
+        "atr_ratio": 0.8335873767274717,
+        "bb_position": 0.8404698226398498,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-06-08T09:00:00",
+      "action": "BUY",
+      "price": 98125000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 62.519769219349996,
+        "mfi": 54.09561225949218,
+        "adx": 24.518600839401095,
+        "volume_ratio": 0.4206375264933969,
+        "atr_ratio": 0.8003160159208267,
+        "bb_position": 0.8626223042837994,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-06-09T09:00:00",
+      "action": "BUY",
+      "price": 97983000.0,
+      "score": 55.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 61.808678129378315,
+        "mfi": 55.2543086769489,
+        "adx": 25.12938246286981,
+        "volume_ratio": 0.3761649117010663,
+        "atr_ratio": 0.7774109321108748,
+        "bb_position": 0.8220208271783579,
+        "signals": [
+          "MFI_BULLISH",
+          "LOW_VOL",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-06-12T09:00:00",
+      "action": "BUY",
+      "price": 95934000.0,
+      "score": 36.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 52.10567461657584,
+        "mfi": 56.62093222343601,
+        "adx": 22.05729846983576,
+        "volume_ratio": 1.5096687007592045,
+        "atr_ratio": 0.8823722498755607,
+        "bb_position": 0.45792182609572546,
+        "signals": [
+          "MFI_BULLISH",
+          "VOLUME_SPIKE"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-06-24T09:00:00",
+      "action": "BUY",
+      "price": 85496000.0,
+      "score": 63.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 23.762384029392628,
+        "mfi": 19.94131003013175,
+        "adx": 25.344196620394566,
+        "volume_ratio": 3.1553734829384448,
+        "atr_ratio": 1.0951560725673866,
+        "bb_position": -0.09951519771645387,
+        "signals": [
+          "RSI_OVERSOLD",
+          "VOLUME_SPIKE",
+          "LOCAL_MIN",
+          "TREND_STRONG",
+          "BB_LOWER",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-04T09:00:00",
+      "action": "BUY",
+      "price": 81680000.0,
+      "score": 43.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 28.70750555729619,
+        "mfi": 21.272650480499312,
+        "adx": 34.87363635270219,
+        "volume_ratio": 2.573633828168249,
+        "atr_ratio": 1.1115313467571162,
+        "bb_position": -0.013665089978024727,
+        "signals": [
+          "RSI_OVERSOLD",
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "BB_LOWER",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-05T09:00:00",
+      "action": "BUY",
+      "price": 81118000.0,
+      "score": 53.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 27.831974861037935,
+        "mfi": 18.14854754040074,
+        "adx": 36.53406574537867,
+        "volume_ratio": 3.4334272139984168,
+        "atr_ratio": 1.1792293512888177,
+        "bb_position": 0.01576422064883512,
+        "signals": [
+          "RSI_OVERSOLD",
+          "VOLUME_SPIKE",
+          "LOCAL_MIN",
+          "TREND_STRONG",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-07T09:00:00",
+      "action": "BUY",
+      "price": 79397000.0,
+      "score": 35.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 28.741983968159744,
+        "mfi": 20.99564676341287,
+        "adx": 38.900658242339354,
+        "volume_ratio": 0.8766319638909259,
+        "atr_ratio": 1.1863629851655513,
+        "bb_position": -0.013339319009777216,
+        "signals": [
+          "RSI_OVERSOLD",
+          "TREND_STRONG",
+          "BB_LOWER",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-08T09:00:00",
+      "action": "BUY",
+      "price": 80534000.0,
+      "score": 31.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 32.68502801429937,
+        "mfi": 22.308515804331325,
+        "adx": 40.25291677082383,
+        "volume_ratio": 1.7076929823599472,
+        "atr_ratio": 1.2253854446822041,
+        "bb_position": 0.11150502403709667,
+        "signals": [
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-17T09:00:00",
+      "action": "BUY",
+      "price": 89467000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 57.27978534488678,
+        "mfi": 51.23033678917217,
+        "adx": 34.61023780125712,
+        "volume_ratio": 1.0988751037970208,
+        "atr_ratio": 1.1407435947329314,
+        "bb_position": 0.8400759776933691,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-18T09:00:00",
+      "action": "BUY",
+      "price": 89850000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 58.067006862908634,
+        "mfi": 54.430080768823885,
+        "adx": 33.02022691910407,
+        "volume_ratio": 0.7603145226823121,
+        "atr_ratio": 1.1033832553930276,
+        "bb_position": 0.8329742374095173,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-19T09:00:00",
+      "action": "BUY",
+      "price": 93004000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 63.9572013456913,
+        "mfi": 69.2557838561804,
+        "adx": 32.43601222080084,
+        "volume_ratio": 1.1861371435811268,
+        "atr_ratio": 1.1456067430863242,
+        "bb_position": 0.9658841765356954,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-20T09:00:00",
+      "action": "BUY",
+      "price": 94065000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 65.70251858817876,
+        "mfi": 68.99635967856156,
+        "adx": 32.04702566842155,
+        "volume_ratio": 0.5489357411508311,
+        "atr_ratio": 1.0976331701345512,
+        "bb_position": 0.9647708051426199,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-21T09:00:00",
+      "action": "BUY",
+      "price": 95000000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 67.20942345859822,
+        "mfi": 74.55497175734001,
+        "adx": 31.875390405314196,
+        "volume_ratio": 0.826953432023402,
+        "atr_ratio": 1.0777129970815702,
+        "bb_position": 0.9539853841572967,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-22T09:00:00",
+      "action": "BUY",
+      "price": 94357000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 65.09139764214046,
+        "mfi": 83.99051955819594,
+        "adx": 31.731703886430797,
+        "volume_ratio": 0.7753563257269205,
+        "atr_ratio": 1.044852586200065,
+        "bb_position": 0.8788432085048566,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-23T09:00:00",
+      "action": "BUY",
+      "price": 92230000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 58.521511891203595,
+        "mfi": 77.0083005220398,
+        "adx": 31.029082693314177,
+        "volume_ratio": 0.861441155677532,
+        "atr_ratio": 1.026242549286096,
+        "bb_position": 0.7567352578791413,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-24T09:00:00",
+      "action": "BUY",
+      "price": 91501000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 56.41962595232376,
+        "mfi": 70.26428637205609,
+        "adx": 29.885933919566927,
+        "volume_ratio": 0.8762307060463892,
+        "atr_ratio": 1.0043515741665467,
+        "bb_position": 0.7024791825142825,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-25T09:00:00",
+      "action": "BUY",
+      "price": 92465000.0,
+      "score": 65.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 58.54020723265791,
+        "mfi": 67.80898842950792,
+        "adx": 27.95557970699271,
+        "volume_ratio": 1.2905676038494605,
+        "atr_ratio": 1.021409417215271,
+        "bb_position": 0.7225427766459193,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "LOCAL_MIN",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-26T09:00:00",
+      "action": "BUY",
+      "price": 94727000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 63.07990583140616,
+        "mfi": 72.5671271666617,
+        "adx": 26.876988324908147,
+        "volume_ratio": 0.9813556929093501,
+        "atr_ratio": 1.0087508918490586,
+        "bb_position": 0.7930015634946219,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-27T09:00:00",
+      "action": "BUY",
+      "price": 94292000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 61.6811758720514,
+        "mfi": 74.45868524347287,
+        "adx": 26.48158996754948,
+        "volume_ratio": 1.430087881216094,
+        "atr_ratio": 1.0195298336611136,
+        "bb_position": 0.7512084813522732,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-28T09:00:00",
+      "action": "BUY",
+      "price": 95363000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 63.80896572132354,
+        "mfi": 74.05639422377824,
+        "adx": 26.114434350002146,
+        "volume_ratio": 0.6262525339290841,
+        "atr_ratio": 0.9886449613995625,
+        "bb_position": 0.7769187448498188,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-29T09:00:00",
+      "action": "BUY",
+      "price": 93618000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 58.143823819634534,
+        "mfi": 64.30266075383437,
+        "adx": 26.317232202649034,
+        "volume_ratio": 1.4072861937171868,
+        "atr_ratio": 1.0081122756233367,
+        "bb_position": 0.6727305677611436,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-07-30T09:00:00",
+      "action": "BUY",
+      "price": 92788000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 55.61461121542139,
+        "mfi": 55.81787951693299,
+        "adx": 25.795726562527765,
+        "volume_ratio": 0.833369020161582,
+        "atr_ratio": 0.9834775942440932,
+        "bb_position": 0.6112860472832616,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-08-05T09:00:00",
+      "action": "BUY",
+      "price": 77833000.0,
+      "score": 51.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 28.600547727152335,
+        "mfi": 15.052831317512602,
+        "adx": 24.925149358577965,
+        "volume_ratio": 5.168174313646778,
+        "atr_ratio": 1.2183240072471626,
+        "bb_position": -0.20678801508584663,
+        "signals": [
+          "RSI_OVERSOLD",
+          "VOLUME_SPIKE",
+          "LOCAL_MIN",
+          "BB_LOWER",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-08-15T09:00:00",
+      "action": "BUY",
+      "price": 81004000.0,
+      "score": 32.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 40.76895672916868,
+        "mfi": 29.15326904741041,
+        "adx": 28.70423236747473,
+        "volume_ratio": 0.764588795209487,
+        "atr_ratio": 1.1072641821926348,
+        "bb_position": 0.2651046558570807,
+        "signals": [
+          "LOCAL_MIN",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-08-19T09:00:00",
+      "action": "BUY",
+      "price": 81680000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 42.856311784504044,
+        "mfi": 52.12816624604467,
+        "adx": 30.302245899960663,
+        "volume_ratio": 0.5419248645049739,
+        "atr_ratio": 0.930889132723037,
+        "bb_position": 0.36096331298322515,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-08-21T09:00:00",
+      "action": "BUY",
+      "price": 82900000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 46.52000708795786,
+        "mfi": 56.47804106722558,
+        "adx": 29.629957894843745,
+        "volume_ratio": 0.6026760488225129,
+        "atr_ratio": 0.9024899801618389,
+        "bb_position": 0.5172786383622363,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-08-25T09:00:00",
+      "action": "BUY",
+      "price": 86254000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 54.14339261618295,
+        "mfi": 52.8137663836185,
+        "adx": 23.86757329013549,
+        "volume_ratio": 0.4950485742835687,
+        "atr_ratio": 0.830162414474601,
+        "bb_position": 0.851049437808411,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-08-26T09:00:00",
+      "action": "BUY",
+      "price": 84408000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 49.633614903607175,
+        "mfi": 56.69660638780193,
+        "adx": 22.55114201823766,
+        "volume_ratio": 0.7173533019099273,
+        "atr_ratio": 0.8202562138914988,
+        "bb_position": 0.6279772718080375,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-08-29T09:00:00",
+      "action": "BUY",
+      "price": 80790000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 42.38429904127424,
+        "mfi": 55.69203307427363,
+        "adx": 23.04220874328067,
+        "volume_ratio": 0.8886740589541218,
+        "atr_ratio": 0.8614504188591666,
+        "bb_position": 0.2181322584783855,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-02T09:00:00",
+      "action": "BUY",
+      "price": 80205000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 43.09155107814365,
+        "mfi": 53.73617834033563,
+        "adx": 24.680783530929553,
+        "volume_ratio": 0.8272465352260169,
+        "atr_ratio": 0.8291095896994797,
+        "bb_position": 0.2794842901742876,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-06T09:00:00",
+      "action": "BUY",
+      "price": 73644000.0,
+      "score": 55.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 31.319513241782975,
+        "mfi": 24.24816593323869,
+        "adx": 28.152145702792147,
+        "volume_ratio": 2.105032838527304,
+        "atr_ratio": 0.9479350534975401,
+        "bb_position": -0.08529179372385881,
+        "signals": [
+          "VOLUME_SPIKE",
+          "LOCAL_MIN",
+          "TREND_STRONG",
+          "BB_LOWER",
+          "BB_OVERSOLD"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-18T09:00:00",
+      "action": "BUY",
+      "price": 82604000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 57.10612714200448,
+        "mfi": 54.02944502094946,
+        "adx": 20.028595404428387,
+        "volume_ratio": 1.2805107393382635,
+        "atr_ratio": 0.9763156275620007,
+        "bb_position": 0.9217427163069867,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-19T09:00:00",
+      "action": "BUY",
+      "price": 83892000.0,
+      "score": 41.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 59.872946189784514,
+        "mfi": 63.74305374406819,
+        "adx": 19.645581618464195,
+        "volume_ratio": 1.6785010316741176,
+        "atr_ratio": 0.9813127904562147,
+        "bb_position": 0.9844713669392909,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-20T09:00:00",
+      "action": "BUY",
+      "price": 84385000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 60.9122485752488,
+        "mfi": 77.1260093142525,
+        "adx": 19.460083748533695,
+        "volume_ratio": 1.150547655881429,
+        "atr_ratio": 0.9684450456251343,
+        "bb_position": 0.9641671205997715,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-21T09:00:00",
+      "action": "BUY",
+      "price": 84425000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 61.000508053265904,
+        "mfi": 78.28568323695386,
+        "adx": 19.287835726455373,
+        "volume_ratio": 0.3868366788339519,
+        "atr_ratio": 0.9228592682376991,
+        "bb_position": 0.908364275353016,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-22T09:00:00",
+      "action": "BUY",
+      "price": 84829000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 61.935371794990914,
+        "mfi": 78.58687552679044,
+        "adx": 19.414334101131306,
+        "volume_ratio": 0.682151551457537,
+        "atr_ratio": 0.9158010883118559,
+        "bb_position": 0.8929582918766613,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-23T09:00:00",
+      "action": "BUY",
+      "price": 84631000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 61.16155809250338,
+        "mfi": 78.49646858939816,
+        "adx": 19.81083348872478,
+        "volume_ratio": 0.9673789621367008,
+        "atr_ratio": 0.9180999783085526,
+        "bb_position": 0.8383396269569122,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-24T09:00:00",
+      "action": "BUY",
+      "price": 85248000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 62.72444116401835,
+        "mfi": 78.49536528344997,
+        "adx": 20.179011491490147,
+        "volume_ratio": 0.7542907105404576,
+        "atr_ratio": 0.9039287657172118,
+        "bb_position": 0.839940161662735,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-25T09:00:00",
+      "action": "BUY",
+      "price": 84362000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 59.049788651616375,
+        "mfi": 80.75517614256025,
+        "adx": 20.60168174459982,
+        "volume_ratio": 0.7023867261903537,
+        "atr_ratio": 0.8919815001161259,
+        "bb_position": 0.7556077761657497,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-26T09:00:00",
+      "action": "BUY",
+      "price": 86000000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 63.3272651638262,
+        "mfi": 81.08464146788634,
+        "adx": 21.259482065458524,
+        "volume_ratio": 1.1779073288867488,
+        "atr_ratio": 0.9118023130668501,
+        "bb_position": 0.8340542483374929,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-27T09:00:00",
+      "action": "BUY",
+      "price": 86958000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 65.59106983059732,
+        "mfi": 80.99213436463883,
+        "adx": 22.185454105654276,
+        "volume_ratio": 0.9989345254250479,
+        "atr_ratio": 0.8960230616769906,
+        "bb_position": 0.8736217887012219,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-28T09:00:00",
+      "action": "BUY",
+      "price": 86732000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 64.57830202379944,
+        "mfi": 76.63765616665337,
+        "adx": 23.045285285836048,
+        "volume_ratio": 0.6028409032747098,
+        "atr_ratio": 0.8740403310351263,
+        "bb_position": 0.8396514120214269,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-29T09:00:00",
+      "action": "BUY",
+      "price": 85958000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 61.09881542278697,
+        "mfi": 76.66193374131274,
+        "adx": 23.67125266378458,
+        "volume_ratio": 0.5026292067712661,
+        "atr_ratio": 0.8528512156215416,
+        "bb_position": 0.757278093061491,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-09-30T09:00:00",
+      "action": "BUY",
+      "price": 83730000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 52.354229864923404,
+        "mfi": 74.75212222835177,
+        "adx": 22.3016956106427,
+        "volume_ratio": 1.2985048056044795,
+        "atr_ratio": 0.8824616128562087,
+        "bb_position": 0.5615179465851894,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-01T09:00:00",
+      "action": "BUY",
+      "price": 81500000.0,
+      "score": 61.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 45.3570142151397,
+        "mfi": 64.40353964286066,
+        "adx": 21.529365802236526,
+        "volume_ratio": 1.6482943613233243,
+        "atr_ratio": 0.941427287796951,
+        "bb_position": 0.33930084110575787,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "LOCAL_MIN"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-02T09:00:00",
+      "action": "BUY",
+      "price": 81707000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 46.07744802636709,
+        "mfi": 55.99449622912503,
+        "adx": 20.812202408716505,
+        "volume_ratio": 1.1653517626069037,
+        "atr_ratio": 0.9479395278405169,
+        "bb_position": 0.3273518733220801,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-03T09:00:00",
+      "action": "BUY",
+      "price": 82424000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 48.605077295693796,
+        "mfi": 52.29044443471557,
+        "adx": 20.146264971876487,
+        "volume_ratio": 0.749819182726883,
+        "atr_ratio": 0.9290672765525326,
+        "bb_position": 0.3908900152618388,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-04T09:00:00",
+      "action": "BUY",
+      "price": 83805000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 53.159407586255355,
+        "mfi": 50.611082029098895,
+        "adx": 18.851665745340277,
+        "volume_ratio": 0.8807122730527729,
+        "atr_ratio": 0.9348361174116776,
+        "bb_position": 0.5200211432063334,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-05T09:00:00",
+      "action": "BUY",
+      "price": 83956000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 53.643119144430386,
+        "mfi": 53.5679648395014,
+        "adx": 17.649537892128084,
+        "volume_ratio": 0.3175442273625847,
+        "atr_ratio": 0.8955597439025308,
+        "bb_position": 0.5144106615781671,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-06T09:00:00",
+      "action": "BUY",
+      "price": 84533000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 55.532795640420474,
+        "mfi": 52.212419328558255,
+        "adx": 16.83898625690451,
+        "volume_ratio": 0.4173570460343495,
+        "atr_ratio": 0.8725136377051496,
+        "bb_position": 0.5597577045804881,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-07T09:00:00",
+      "action": "BUY",
+      "price": 83942000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 53.14323743563509,
+        "mfi": 52.41243816892215,
+        "adx": 16.928429097451144,
+        "volume_ratio": 1.1811095055466396,
+        "atr_ratio": 0.892656654074696,
+        "bb_position": 0.4429368851373944,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-14T09:00:00",
+      "action": "BUY",
+      "price": 88640000.0,
+      "score": 36.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 66.37083333027483,
+        "mfi": 56.14999592694227,
+        "adx": 14.647900787209178,
+        "volume_ratio": 2.103296410736535,
+        "atr_ratio": 1.0153577241292728,
+        "bb_position": 1.0770525681595664,
+        "signals": [
+          "MFI_BULLISH",
+          "VOLUME_SPIKE"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-15T09:00:00",
+      "action": "BUY",
+      "price": 90600000.0,
+      "score": 41.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 70.29717545202195,
+        "mfi": 71.15643525247944,
+        "adx": 16.298928809963034,
+        "volume_ratio": 2.297271011149739,
+        "atr_ratio": 1.0714416863294944,
+        "bb_position": 1.1385260067737675,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-16T09:00:00",
+      "action": "BUY",
+      "price": 91610000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 72.10457825365084,
+        "mfi": 80.57276286474377,
+        "adx": 18.04707328079937,
+        "volume_ratio": 1.4081264146957206,
+        "atr_ratio": 1.0649341600317797,
+        "bb_position": 1.0980509796578666,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-17T09:00:00",
+      "action": "BUY",
+      "price": 91725000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 72.31117471670167,
+        "mfi": 80.916936087736,
+        "adx": 19.67035028943311,
+        "volume_ratio": 0.9330769264080389,
+        "atr_ratio": 1.0181228780086578,
+        "bb_position": 1.0195194653327915,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-18T09:00:00",
+      "action": "BUY",
+      "price": 93330000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 75.08461852362399,
+        "mfi": 81.38529680573129,
+        "adx": 21.618241539306773,
+        "volume_ratio": 1.134292780922134,
+        "atr_ratio": 1.015944810577455,
+        "bb_position": 1.0386765973012375,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-19T09:00:00",
+      "action": "BUY",
+      "price": 93322000.0,
+      "score": 33.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 75.04426959488701,
+        "mfi": 81.68998096145702,
+        "adx": 23.426997699903744,
+        "volume_ratio": 0.5050673774945771,
+        "atr_ratio": 0.970560600581934,
+        "bb_position": 0.9619058122403294,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-20T09:00:00",
+      "action": "BUY",
+      "price": 93901000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 76.04750987325029,
+        "mfi": 82.19721693847744,
+        "adx": 25.287878320281443,
+        "volume_ratio": 0.7625810289391753,
+        "atr_ratio": 0.9474120388483832,
+        "bb_position": 0.9298201660387572,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-21T09:00:00",
+      "action": "BUY",
+      "price": 92161000.0,
+      "score": 53.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 67.29249882979855,
+        "mfi": 72.08431395515885,
+        "adx": 25.964259144965045,
+        "volume_ratio": 1.526768283382557,
+        "atr_ratio": 0.9809124589374645,
+        "bb_position": 0.798194239925983,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-22T09:00:00",
+      "action": "BUY",
+      "price": 92877000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 68.8801589212648,
+        "mfi": 69.80349883076663,
+        "adx": 26.34708560598617,
+        "volume_ratio": 1.0566933384548578,
+        "atr_ratio": 0.9894182180234306,
+        "bb_position": 0.8063578006999111,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-23T09:00:00",
+      "action": "BUY",
+      "price": 92375000.0,
+      "score": 65.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 66.44488891158487,
+        "mfi": 68.39044254858784,
+        "adx": 26.544840011940114,
+        "volume_ratio": 0.9516382961040687,
+        "atr_ratio": 0.9912836546671333,
+        "bb_position": 0.7518549343811926,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "LOCAL_MIN",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-24T09:00:00",
+      "action": "BUY",
+      "price": 94077000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 70.28128570110532,
+        "mfi": 74.52490856492865,
+        "adx": 27.325835809312423,
+        "volume_ratio": 1.0758011955538087,
+        "atr_ratio": 1.0081081176586857,
+        "bb_position": 0.8137890629805238,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-25T09:00:00",
+      "action": "BUY",
+      "price": 93762000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 68.71541924810485,
+        "mfi": 75.51372401239227,
+        "adx": 28.194564130528068,
+        "volume_ratio": 1.4220148517021929,
+        "atr_ratio": 1.0234038871451951,
+        "bb_position": 0.7676894202307185,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-26T09:00:00",
+      "action": "BUY",
+      "price": 93993000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 69.256368222242,
+        "mfi": 75.55744247272298,
+        "adx": 29.00124042879974,
+        "volume_ratio": 0.4848099733741409,
+        "atr_ratio": 0.9819744559739401,
+        "bb_position": 0.7538689235017592,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-27T09:00:00",
+      "action": "BUY",
+      "price": 94819000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 71.17564790996248,
+        "mfi": 78.37731915256913,
+        "adx": 30.029293974751933,
+        "volume_ratio": 0.5963056405861479,
+        "atr_ratio": 0.9525759541645279,
+        "bb_position": 0.772424367238705,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-28T09:00:00",
+      "action": "BUY",
+      "price": 97401000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 76.18131299377846,
+        "mfi": 77.99184950973857,
+        "adx": 31.71130888190954,
+        "volume_ratio": 1.3957979475170172,
+        "atr_ratio": 0.9868839539106173,
+        "bb_position": 0.8751765375557738,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-29T09:00:00",
+      "action": "BUY",
+      "price": 101305000.0,
+      "score": 53.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 81.43190090484444,
+        "mfi": 78.57785285388714,
+        "adx": 34.099500390730654,
+        "volume_ratio": 2.130262157785507,
+        "atr_ratio": 1.071393570520526,
+        "bb_position": 1.02204325398815,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-30T09:00:00",
+      "action": "BUY",
+      "price": 100571000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 77.9526025606774,
+        "mfi": 78.8465375993427,
+        "adx": 36.31710679177883,
+        "volume_ratio": 1.2581831777400203,
+        "atr_ratio": 1.059703372899806,
+        "bb_position": 0.9476592620760367,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-10-31T09:00:00",
+      "action": "BUY",
+      "price": 98112000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 67.54112141756245,
+        "mfi": 69.94760137672364,
+        "adx": 37.118667543957145,
+        "volume_ratio": 1.3103896718561996,
+        "atr_ratio": 1.0948251002154008,
+        "bb_position": 0.7896216663127681,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-01T09:00:00",
+      "action": "BUY",
+      "price": 97285000.0,
+      "score": 48.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 64.4246330149839,
+        "mfi": 59.54458843266773,
+        "adx": 36.80687429844194,
+        "volume_ratio": 1.626937217524345,
+        "atr_ratio": 1.141709017578199,
+        "bb_position": 0.7248089284621468,
+        "signals": [
+          "MFI_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-02T09:00:00",
+      "action": "BUY",
+      "price": 97205000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 64.11643080604608,
+        "mfi": 56.297279575428924,
+        "adx": 36.517351999034965,
+        "volume_ratio": 0.47272631501930135,
+        "atr_ratio": 1.0881416961400954,
+        "bb_position": 0.7109204159838866,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-04T09:00:00",
+      "action": "BUY",
+      "price": 94289000.0,
+      "score": 32.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 53.62324598965007,
+        "mfi": 48.80294051075267,
+        "adx": 32.70179627368758,
+        "volume_ratio": 1.2236519383438202,
+        "atr_ratio": 1.1406038722894098,
+        "bb_position": 0.4366247610577792,
+        "signals": [
+          "LOCAL_MIN",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-05T09:00:00",
+      "action": "BUY",
+      "price": 96170000.0,
+      "score": 48.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 58.49937362913483,
+        "mfi": 56.54246109727781,
+        "adx": 31.29724092696866,
+        "volume_ratio": 1.605156470339908,
+        "atr_ratio": 1.178541426218591,
+        "bb_position": 0.5872550284493222,
+        "signals": [
+          "MFI_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-06T09:00:00",
+      "action": "BUY",
+      "price": 104085000.0,
+      "score": 53.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 71.89170166310792,
+        "mfi": 71.10518558451858,
+        "adx": 31.714320666697542,
+        "volume_ratio": 4.601902132139564,
+        "atr_ratio": 1.3263821045011355,
+        "bb_position": 1.1398320849135377,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-07T09:00:00",
+      "action": "BUY",
+      "price": 104115000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 71.92867761113575,
+        "mfi": 72.66679362957754,
+        "adx": 32.22610453626977,
+        "volume_ratio": 1.424689665830978,
+        "atr_ratio": 1.2911676117651487,
+        "bb_position": 1.0294303039285355,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-08T09:00:00",
+      "action": "BUY",
+      "price": 106843000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 75.1322141164148,
+        "mfi": 73.57889252691139,
+        "adx": 33.19719870645425,
+        "volume_ratio": 1.2550071178658604,
+        "atr_ratio": 1.2772672418088655,
+        "bb_position": 1.0747402998620892,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-09T09:00:00",
+      "action": "BUY",
+      "price": 106294000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 73.31880886938549,
+        "mfi": 74.27356584889189,
+        "adx": 34.098929007339834,
+        "volume_ratio": 0.656826001831625,
+        "atr_ratio": 1.197257847211827,
+        "bb_position": 0.9626635037251371,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-10T09:00:00",
+      "action": "BUY",
+      "price": 111440000.0,
+      "score": 53.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 78.54590996923199,
+        "mfi": 76.88430645920099,
+        "adx": 35.7792339952673,
+        "volume_ratio": 1.8666098113085048,
+        "atr_ratio": 1.2693086641525075,
+        "bb_position": 1.0935694469120698,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-11T09:00:00",
+      "action": "BUY",
+      "price": 124503000.0,
+      "score": 53.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 86.02855159726492,
+        "mfi": 79.89091591498531,
+        "adx": 38.4002745151504,
+        "volume_ratio": 2.496948213237806,
+        "atr_ratio": 1.5133355845198408,
+        "bb_position": 1.284511849323752,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-12T09:00:00",
+      "action": "BUY",
+      "price": 124967000.0,
+      "score": 59.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 86.21249752906543,
+        "mfi": 82.94941469003334,
+        "adx": 40.9930404458516,
+        "volume_ratio": 3.0577313361361496,
+        "atr_ratio": 1.5881291192795788,
+        "bb_position": 1.1229407815604515,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-13T09:00:00",
+      "action": "BUY",
+      "price": 128111000.0,
+      "score": 59.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 87.42099129374064,
+        "mfi": 84.59556371135479,
+        "adx": 43.54959092596335,
+        "volume_ratio": 1.8661199287174912,
+        "atr_ratio": 1.6188770363720892,
+        "bb_position": 1.0697520755518757,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "VOLUME_SPIKE",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-14T09:00:00",
+      "action": "BUY",
+      "price": 123572000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 76.9363682412345,
+        "mfi": 79.05227124790262,
+        "adx": 45.530422931257945,
+        "volume_ratio": 1.4571329355754545,
+        "atr_ratio": 1.6464469563979987,
+        "bb_position": 0.9065272523943181,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-15T09:00:00",
+      "action": "BUY",
+      "price": 128236000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 79.63862844682002,
+        "mfi": 83.38292131718734,
+        "adx": 47.36976693617435,
+        "volume_ratio": 0.909715506089389,
+        "atr_ratio": 1.587196704547757,
+        "bb_position": 0.940509239343505,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-16T09:00:00",
+      "action": "BUY",
+      "price": 127071000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 77.20531130378231,
+        "mfi": 84.94957499043859,
+        "adx": 49.08800714621869,
+        "volume_ratio": 0.5878400953710406,
+        "atr_ratio": 1.4776917127278855,
+        "bb_position": 0.8695343127829914,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-17T09:00:00",
+      "action": "BUY",
+      "price": 126472000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 75.92084836848376,
+        "mfi": 84.9260672036526,
+        "adx": 50.33203440547997,
+        "volume_ratio": 0.4993594155561513,
+        "atr_ratio": 1.3790165521219993,
+        "bb_position": 0.8203933852338217,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-18T09:00:00",
+      "action": "BUY",
+      "price": 127142000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 76.39392430451083,
+        "mfi": 87.89959120200254,
+        "adx": 51.56366933726819,
+        "volume_ratio": 0.7820627113095329,
+        "atr_ratio": 1.2969080898672771,
+        "bb_position": 0.7995008951884157,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-19T09:00:00",
+      "action": "BUY",
+      "price": 129720000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 78.17103928830757,
+        "mfi": 88.07522513174312,
+        "adx": 52.88062744534526,
+        "volume_ratio": 0.7507470896019669,
+        "atr_ratio": 1.2464073088535736,
+        "bb_position": 0.811748375524344,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-20T09:00:00",
+      "action": "BUY",
+      "price": 133180000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 80.3131674455339,
+        "mfi": 87.13404617759343,
+        "adx": 54.27913909199486,
+        "volume_ratio": 0.869764164127515,
+        "atr_ratio": 1.2185565921109711,
+        "bb_position": 0.8356667165751309,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-21T09:00:00",
+      "action": "BUY",
+      "price": 137050000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 82.39423783939955,
+        "mfi": 87.9619359991561,
+        "adx": 55.91074519182081,
+        "volume_ratio": 1.4601886367705073,
+        "atr_ratio": 1.2078678308742925,
+        "bb_position": 0.8621508112672808,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-22T09:00:00",
+      "action": "BUY",
+      "price": 136879000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 81.98185697611697,
+        "mfi": 79.78286562176915,
+        "adx": 56.08392562279898,
+        "volume_ratio": 1.1889734098572304,
+        "atr_ratio": 1.2541975006250028,
+        "bb_position": 0.8254008745781244,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-23T09:00:00",
+      "action": "BUY",
+      "price": 136000000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 79.7716760449978,
+        "mfi": 80.30211798983898,
+        "adx": 56.244736022992996,
+        "volume_ratio": 0.6376973292120052,
+        "atr_ratio": 1.1844219503312707,
+        "bb_position": 0.7849823798639401,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-24T09:00:00",
+      "action": "BUY",
+      "price": 136096000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 79.83561449580354,
+        "mfi": 74.13132770418478,
+        "adx": 55.41610709527746,
+        "volume_ratio": 0.8344938613348181,
+        "atr_ratio": 1.164429780659593,
+        "bb_position": 0.7687241388561438,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-25T09:00:00",
+      "action": "BUY",
+      "price": 129791000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 65.24844809830002,
+        "mfi": 67.36757131540558,
+        "adx": 54.03737134496162,
+        "volume_ratio": 0.6983748901514304,
+        "atr_ratio": 1.1609200512860032,
+        "bb_position": 0.6271735624824207,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-26T09:00:00",
+      "action": "BUY",
+      "price": 128783000.0,
+      "score": 66.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 63.25844878212327,
+        "mfi": 56.558179543529185,
+        "adx": 52.040369117551165,
+        "volume_ratio": 0.9876113097355907,
+        "atr_ratio": 1.1392664652544249,
+        "bb_position": 0.5848009309077248,
+        "signals": [
+          "MFI_BULLISH",
+          "LOCAL_MIN",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-27T09:00:00",
+      "action": "BUY",
+      "price": 132999000.0,
+      "score": 46.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 67.69618342366441,
+        "mfi": 53.258047458453525,
+        "adx": 50.485529135149704,
+        "volume_ratio": 0.6150127005079887,
+        "atr_ratio": 1.1364114030848003,
+        "bb_position": 0.6724240600519642,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-28T09:00:00",
+      "action": "BUY",
+      "price": 133138000.0,
+      "score": 51.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 67.83412591976628,
+        "mfi": 60.8496154151409,
+        "adx": 49.090244095454544,
+        "volume_ratio": 0.4210012950573423,
+        "atr_ratio": 1.0831828344866141,
+        "bb_position": 0.661692434331248,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-29T09:00:00",
+      "action": "BUY",
+      "price": 134542000.0,
+      "score": 46.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 69.26189610836182,
+        "mfi": 59.738434968933916,
+        "adx": 48.09233273280331,
+        "volume_ratio": 0.49202438126153714,
+        "atr_ratio": 1.0381680553339088,
+        "bb_position": 0.7093109782208491,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-11-30T09:00:00",
+      "action": "BUY",
+      "price": 133701000.0,
+      "score": 46.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 67.33388213081271,
+        "mfi": 55.82889696283987,
+        "adx": 47.165700753198585,
+        "volume_ratio": 0.35251900590396956,
+        "atr_ratio": 0.9684226461888858,
+        "bb_position": 0.6780717956278436,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-01T09:00:00",
+      "action": "BUY",
+      "price": 133802000.0,
+      "score": 46.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 67.45106460169691,
+        "mfi": 59.871843817915845,
+        "adx": 46.37863629730823,
+        "volume_ratio": 0.4517611861295944,
+        "atr_ratio": 0.9239525673601818,
+        "bb_position": 0.6644627154763454,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-02T09:00:00",
+      "action": "BUY",
+      "price": 133535000.0,
+      "score": 46.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 66.76917245158403,
+        "mfi": 52.940950769917315,
+        "adx": 45.22598833076472,
+        "volume_ratio": 0.9411531035091649,
+        "atr_ratio": 0.9113641634017163,
+        "bb_position": 0.6297388239433892,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-03T09:00:00",
+      "action": "BUY",
+      "price": 133700000.0,
+      "score": 46.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 66.99125440507389,
+        "mfi": 40.39269566665939,
+        "adx": 46.018353555010314,
+        "volume_ratio": 2.998258742049856,
+        "atr_ratio": 1.5015950641823281,
+        "bb_position": 0.6241941060166312,
+        "signals": [
+          "VOLUME_SPIKE",
+          "LOCAL_MIN",
+          "TREND_STRONG",
+          "TREND_VERY_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-12T09:00:00",
+      "action": "BUY",
+      "price": 142757000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 70.30528313999376,
+        "mfi": 50.56315323925544,
+        "adx": 37.86550601952145,
+        "volume_ratio": 0.7038399684078191,
+        "atr_ratio": 1.0852156300292326,
+        "bb_position": 0.9144798203510917,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-13T09:00:00",
+      "action": "BUY",
+      "price": 144402000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 72.17445946041319,
+        "mfi": 50.12131095555116,
+        "adx": 36.583296110683726,
+        "volume_ratio": 0.44081965193677736,
+        "atr_ratio": 1.030814401590633,
+        "bb_position": 0.9466573507380921,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-14T09:00:00",
+      "action": "BUY",
+      "price": 145927000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 73.81971754829044,
+        "mfi": 53.50179671235969,
+        "adx": 35.156509324525764,
+        "volume_ratio": 0.5739717619301431,
+        "atr_ratio": 0.9740195912882024,
+        "bb_position": 0.9571253364126896,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-15T09:00:00",
+      "action": "BUY",
+      "price": 149243000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 77.00374563516016,
+        "mfi": 54.72980230979161,
+        "adx": 33.08223971046091,
+        "volume_ratio": 0.8456213006983985,
+        "atr_ratio": 0.9497587519645482,
+        "bb_position": 1.0358880757247029,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-16T09:00:00",
+      "action": "BUY",
+      "price": 153403000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 80.24904107995508,
+        "mfi": 61.94650656940207,
+        "adx": 31.099360060297208,
+        "volume_ratio": 1.2872944022555937,
+        "atr_ratio": 0.9458054801844252,
+        "bb_position": 1.1110448371883233,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-17T09:00:00",
+      "action": "BUY",
+      "price": 155223000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 81.48041812756738,
+        "mfi": 77.29309753777552,
+        "adx": 29.602218669787703,
+        "volume_ratio": 1.0990332201495958,
+        "atr_ratio": 0.9246721708992317,
+        "bb_position": 1.0634301563131234,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-18T09:00:00",
+      "action": "BUY",
+      "price": 147754000.0,
+      "score": 45.6,
+      "tier": "S",
+      "metadata": {
+        "rsi": 63.87934721103662,
+        "mfi": 66.61096815398918,
+        "adx": 27.713019412504615,
+        "volume_ratio": 1.4564192924787878,
+        "atr_ratio": 0.9538943590728671,
+        "bb_position": 0.7522728755563588,
+        "signals": [
+          "MFI_BULLISH",
+          "MFI_VERY_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-19T09:00:00",
+      "action": "BUY",
+      "price": 147474000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 63.32707205400352,
+        "mfi": 52.96324979106236,
+        "adx": 26.287858696447937,
+        "volume_ratio": 1.3746092222681325,
+        "atr_ratio": 0.9725919936046851,
+        "bb_position": 0.7184482254402764,
+        "signals": [
+          "MFI_BULLISH",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-20T09:00:00",
+      "action": "BUY",
+      "price": 148138000.0,
+      "score": 40.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 64.11930092594457,
+        "mfi": 49.19864277456305,
+        "adx": 25.67934909288844,
+        "volume_ratio": 1.7466071652423145,
+        "atr_ratio": 0.9895454048512077,
+        "bb_position": 0.7214157305915112,
+        "signals": [
+          "VOLUME_SPIKE",
+          "LOCAL_MIN",
+          "TREND_STRONG"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-24T09:00:00",
+      "action": "BUY",
+      "price": 146831000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 59.17147717714501,
+        "mfi": 53.6333378621072,
+        "adx": 23.841808450526326,
+        "volume_ratio": 0.7551849675499301,
+        "atr_ratio": 0.9521430394413347,
+        "bb_position": 0.6085458387012272,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    },
+    {
+      "timestamp": "2024-12-25T09:00:00",
+      "action": "BUY",
+      "price": 148081000.0,
+      "score": 28.0,
+      "tier": "S",
+      "metadata": {
+        "rsi": 60.84965331788453,
+        "mfi": 52.00734502255029,
+        "adx": 23.336565678502016,
+        "volume_ratio": 0.5593880153320184,
+        "atr_ratio": 0.933099625546679,
+        "bb_position": 0.6526773116681979,
+        "signals": [
+          "MFI_BULLISH"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "strategy_name": "optimized",
+  "version": "v35",
+  "timeframe": "day",
+  "description": "v35 Optuna \ucd5c\uc801\ud654 \uc644\ub8cc (500 trials)",
+  "market_classifier": {
+    "mfi_bull_strong": 54,
+    "mfi_bull_moderate": 46,
+    "mfi_sideways_up": 46,
+    "mfi_bear_moderate": 40,
+    "mfi_bear_strong": 32,
+    "adx_strong_trend": 23,
+    "adx_moderate_trend": 18
+  },
+  "entry_conditions": {
+    "momentum_rsi_bull_strong": 57,
+    "momentum_rsi_bull_moderate": 55,
+    "breakout_threshold": 0.005519511074951627,
+    "breakout_volume_mult": 1.2674849688495913,
+    "range_support_zone": 0.16248550583207724,
+    "range_rsi_oversold": 41
+  },
+  "exit_conditions": {
+    "tp_bull_strong_1": 0.059059080932155776,
+    "tp_bull_strong_2": 0.11003980130968967,
+    "tp_bull_strong_3": 0.17858402870397502,
+    "trailing_bull_strong": 0.04265481186126246,
+    "tp_bull_moderate_1": 0.029086208407194888,
+    "tp_bull_moderate_2": 0.09029460152621796,
+    "tp_bull_moderate_3": 0.12053838837026624,
+    "trailing_bull_moderate": 0.021979193691166365,
+    "tp_sideways_1": 0.020241661846591975,
+    "tp_sideways_2": 0.04527816550275907,
+    "tp_sideways_3": 0.07043199106136,
+    "stop_loss": -0.0211396744490217,
+    "exit_fraction_1": 0.30032566292891705,
+    "exit_fraction_2": 0.39283066831927765,
+    "exit_fraction_3": 0.3068436687518053
+  },
+  "position_sizing": {
+    "position_size": 0.6998779096285253
+  },
+  "sideways_strategies": {
+    "use_rsi_bb": false,
+    "use_stoch": true,
+    "use_volume_breakout": true,
+    "rsi_bb_oversold": 26,
+    "rsi_bb_overbought": 72,
+    "stoch_oversold": 21,
+    "stoch_overbought": 84,
+    "volume_breakout_mult": 2.0885190655821484
+  },
+  "backtesting": {
+    "initial_capital": 10000000,
+    "fee_rate": 0.0005,
+    "slippage": 0.0002,
+    "train_period": "2020-01-01 to 2024-12-31",
+    "test_period": "2025-01-01 to 2025-10-17"
+  }
+}

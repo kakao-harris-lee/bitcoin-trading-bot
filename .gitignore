@@ -27,9 +27,15 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
 
 # Local settings
 .claude/settings.local.json
+
+# API Keys and Secrets
+.env
+.env.local
+*.env
 
 # Analysis data (too large)
 strategies/_raw_analysis/indicators/*.csv

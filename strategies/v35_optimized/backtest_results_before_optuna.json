@@ -1,7 +1,7 @@
 {
   "version": "v35",
   "optimization_status": "before_optuna",
-  "backtest_date": "2025-10-20T20:17:09.810896",
+  "backtest_date": "2025-11-06T19:34:21.432816",
   "config": {
     "strategy_name": "optimized",
     "version": "v35",
@@ -103,18 +103,18 @@
     },
     "2025": {
       "initial_capital": 10000000,
-      "final_capital": 11420319.57631913,
-      "total_return": 14.203195763191301,
-      "buy_hold_return": 8.442968450632264,
-      "excess_return": 5.760227312559037,
+      "final_capital": 11269023.75027665,
+      "total_return": 12.690237502766493,
+      "buy_hold_return": 5.562651679652573,
+      "excess_return": 7.12758582311392,
       "total_trades": 8,
       "wins": 2,
       "losses": 6,
       "win_rate": 25.0,
       "avg_profit": 4.552722005578705,
       "avg_loss": -7.5759941858338715,
-      "sharpe_ratio": 2.238676389980349,
-      "max_drawdown": -2.33017094819427,
+      "sharpe_ratio": 1.9849568152467483,
+      "max_drawdown": -2.514557650798706,
       "profit_factor": 0.20031351194767746
     }
   }

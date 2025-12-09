@@ -1,7 +1,7 @@
 {
   "version": "v35",
   "optimization_status": "after_optuna",
-  "optimization_date": "2025-11-06T19:40:04.520430",
+  "optimization_date": "2025-12-06T11:21:41.140908",
   "n_trials": 500,
   "best_trial": 499,
   "best_params": {

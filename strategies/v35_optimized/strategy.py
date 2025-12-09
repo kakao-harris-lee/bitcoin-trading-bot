@@ -20,6 +20,8 @@ sys.path.append('../..')
 from strategies.v34_supreme.market_classifier_v34 import MarketClassifierV34
 from strategies.v35_optimized.dynamic_exit_manager import DynamicExitManager
 from strategies.v35_optimized.sideways_enhanced import SidewaysEnhancedStrategies
+# AI 모드 제거: MarketAnalyzerV2 import 비활성화
+# from core.market_analyzer_v2 import MarketAnalyzerV2
 
 
 class V35OptimizedStrategy:
@@ -36,6 +38,14 @@ class V35OptimizedStrategy:
         self.classifier = MarketClassifierV34()
         self.exit_manager = DynamicExitManager(config)
         self.sideways_strategies = SidewaysEnhancedStrategies(config)
+
+        # AI 모드 완전 비활성화 (v35 순수 버전)
+        self.ai_enabled = False
+        self.ai_test_mode = False
+        self.ai_filter_mode = False
+        self.ai_filter_strict = False
+        self.ai_analysis_history = []
+        self.ai_filter_stats = {}
 
         # 포지션 상태
         self.in_position = False
@@ -58,10 +68,25 @@ class V35OptimizedStrategy:
         if i < 30:
             return {'action': 'hold', 'reason': 'INSUFFICIENT_DATA'}
 
-        # 현재 시장 상태 분류
+        # 현재 시장 상태 분류 (v34 classifier)
         prev_row = df.iloc[i-1] if i > 0 else None
         current_row = df.iloc[i]
         market_state = self.classifier.classify_market_state(current_row, prev_row)
+
+        # 🆕 BEAR 감지 시 즉시 청산 (하락장 보호)
+        if self.in_position and market_state in ['BEAR_MODERATE', 'BEAR_STRONG']:
+            self.in_position = False
+            self.entry_price = 0
+            self.entry_time = None
+            self.entry_market_state = 'UNKNOWN'
+            self.entry_strategy = 'unknown'
+            self.exit_manager.reset()
+
+            return {
+                'action': 'sell',
+                'fraction': 1.0,
+                'reason': f'BEAR_PROTECTION_{market_state}'
+            }
 
         # 포지션 있을 때: Exit 전략
         if self.in_position:
@@ -73,6 +98,7 @@ class V35OptimizedStrategy:
                 self.entry_market_state = 'UNKNOWN'
                 self.entry_strategy = 'unknown'
                 self.exit_manager.reset()
+
                 return exit_signal
 
         # 포지션 없을 때: Entry 전략
@@ -91,6 +117,13 @@ class V35OptimizedStrategy:
                 return entry_signal
 
         return {'action': 'hold', 'reason': f'NO_SIGNAL_{market_state}'}
+
+    # AI 모드 제거: _ai_filter_check() 메서드 비활성화
+    # def _ai_filter_check(self, v35_signal: str, market_state: str,
+    #                     df: pd.DataFrame, i: int) -> Dict:
+    #     """Phase 2-B AI 필터 (사용 안함)"""
+    #     return {'approved': True, 'ai_state': 'N/A', 'ai_confidence': 0.0,
+    #             'match_type': 'DISABLED', 'reason': 'AI disabled'}
 
     def _check_entry_conditions(self, df: pd.DataFrame, i: int,
                                 market_state: str, prev_row: pd.Series) -> Optional[Dict]:
@@ -235,6 +268,18 @@ class V35OptimizedStrategy:
                 return exit_signal
 
         return None
+
+    def get_ai_analysis_summary(self) -> Dict:
+        """
+        AI 분석 통계 (AI 비활성화 상태)
+
+        Returns:
+            AI 비활성화 메시지
+        """
+        return {
+            'ai_enabled': False,
+            'message': 'AI 모드 완전 비활성화 - v35 순수 버전 사용 중'
+        }
 
 
 if __name__ == '__main__':

@@ -1,0 +1,99 @@
+{
+  "final_value": 9589356.167024054,
+  "total_return": -4.106438329759464,
+  "total_trades": 9,
+  "winning_trades": 3,
+  "win_rate": 33.33333333333333,
+  "trades": [
+    {
+      "entry_time": "2024-05-23T09:00:00",
+      "exit_time": "2024-06-18T09:00:00",
+      "entry_price": 94900000.0,
+      "exit_price": 91649000.0,
+      "profit": -239679.8893572176,
+      "profit_pct": -3.425711275026343,
+      "strategy": "trend_enhanced",
+      "exit_reason": "SL"
+    },
+    {
+      "entry_time": "2024-07-25T09:00:00",
+      "exit_time": "2024-08-02T09:00:00",
+      "entry_price": 92465000.0,
+      "exit_price": 86691000.0,
+      "profit": -426126.1010663677,
+      "profit_pct": -6.244524955388525,
+      "strategy": "trend_enhanced",
+      "exit_reason": "SL"
+    },
+    {
+      "entry_time": "2024-08-03T09:00:00",
+      "exit_time": "2024-08-04T09:00:00",
+      "entry_price": 85957000.0,
+      "exit_price": 81871000.0,
+      "profit": -177136.70835122885,
+      "profit_pct": -4.753539560477913,
+      "strategy": "stoch",
+      "exit_reason": "SL"
+    },
+    {
+      "entry_time": "2024-08-05T09:00:00",
+      "exit_time": "2024-08-08T09:00:00",
+      "entry_price": 77833000.0,
+      "exit_price": 86397000.0,
+      "profit": 402066.99828228727,
+      "profit_pct": 11.00304498092069,
+      "strategy": "stoch",
+      "exit_reason": "TP"
+    },
+    {
+      "entry_time": "2024-08-31T09:00:00",
+      "exit_time": "2024-09-05T09:00:00",
+      "entry_price": 80262000.0,
+      "exit_price": 76330000.0,
+      "profit": -186814.22404535953,
+      "profit_pct": -4.898955919364083,
+      "strategy": "stoch",
+      "exit_reason": "SL"
+    },
+    {
+      "entry_time": "2024-09-30T09:00:00",
+      "exit_time": "2024-10-14T09:00:00",
+      "entry_price": 83730000.0,
+      "exit_price": 88640000.0,
+      "profit": 383514.25474651717,
+      "profit_pct": 5.864086946136391,
+      "strategy": "trend_enhanced",
+      "exit_reason": "TP"
+    },
+    {
+      "entry_time": "2024-10-21T09:00:00",
+      "exit_time": "2024-10-28T09:00:00",
+      "entry_price": 92161000.0,
+      "exit_price": 97401000.0,
+      "profit": 386836.1482000537,
+      "profit_pct": 5.685702195071668,
+      "strategy": "trend_enhanced",
+      "exit_reason": "TP"
+    },
+    {
+      "entry_time": "2024-10-31T09:00:00",
+      "exit_time": "2024-11-04T09:00:00",
+      "entry_price": 98112000.0,
+      "exit_price": 94289000.0,
+      "profit": -275464.6427325392,
+      "profit_pct": -3.8965671885192434,
+      "strategy": "trend_enhanced",
+      "exit_reason": "SL"
+    },
+    {
+      "entry_time": "2024-12-18T09:00:00",
+      "exit_time": "2024-12-23T09:00:00",
+      "entry_price": 147754000.0,
+      "exit_price": 142901000.0,
+      "profit": -225706.46616469976,
+      "profit_pct": -3.2845134480284797,
+      "strategy": "trend_enhanced",
+      "exit_reason": "SL"
+    }
+  ]
+}

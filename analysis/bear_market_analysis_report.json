@@ -1,0 +1,537 @@
+{
+  "analysis_date": "2025-12-06 11:08:21",
+  "period": "2020-2024",
+  "bear_periods": [
+    {
+      "start_date": 55,
+      "end_date": 78,
+      "duration_days": 24,
+      "start_price": 11330000.0,
+      "end_price": 7679000.0,
+      "return_pct": -32.224183583406884,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 153,
+      "end_date": 153,
+      "duration_days": 1,
+      "start_price": 11520000.0,
+      "end_price": 11520000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 166,
+      "end_date": 166,
+      "duration_days": 1,
+      "start_price": 11346000.0,
+      "end_price": 11346000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 175,
+      "end_date": 175,
+      "duration_days": 1,
+      "start_price": 11233000.0,
+      "end_price": 11233000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 178,
+      "end_date": 178,
+      "duration_days": 1,
+      "start_price": 10913000.0,
+      "end_price": 10913000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 181,
+      "end_date": 188,
+      "duration_days": 8,
+      "start_price": 10903000.0,
+      "end_price": 10988000.0,
+      "return_pct": 0.7796019444189728,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 240,
+      "end_date": 241,
+      "duration_days": 2,
+      "start_price": 13549000.0,
+      "end_price": 13470000.0,
+      "return_pct": -0.5830688611705659,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 243,
+      "end_date": 243,
+      "duration_days": 1,
+      "start_price": 13739000.0,
+      "end_price": 13739000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 246,
+      "end_date": 258,
+      "duration_days": 13,
+      "start_price": 12303000.0,
+      "end_price": 12814000.0,
+      "return_pct": 4.153458506055441,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 386,
+      "end_date": 389,
+      "duration_days": 4,
+      "start_price": 34519000.0,
+      "end_price": 35539000.0,
+      "return_pct": 2.9548944059793136,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 392,
+      "end_date": 393,
+      "duration_days": 2,
+      "start_price": 34300000.0,
+      "end_price": 36624000.0,
+      "return_pct": 6.775510204081625,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 428,
+      "end_date": 432,
+      "duration_days": 5,
+      "start_price": 56426000.0,
+      "end_price": 59821000.0,
+      "return_pct": 6.016729876298155,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 477,
+      "end_date": 487,
+      "duration_days": 11,
+      "start_price": 59962000.0,
+      "end_price": 68452000.0,
+      "return_pct": 14.158967345985785,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 500,
+      "end_date": 517,
+      "duration_days": 18,
+      "start_price": 58807000.0,
+      "end_price": 43200000.0,
+      "return_pct": -26.539357559474208,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 541,
+      "end_date": 547,
+      "duration_days": 7,
+      "start_price": 37152000.0,
+      "end_price": 39320000.0,
+      "return_pct": 5.835486649440136,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 566,
+      "end_date": 567,
+      "duration_days": 2,
+      "start_price": 35305000.0,
+      "end_price": 38013000.0,
+      "return_pct": 7.670301656989098,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 628,
+      "end_date": 628,
+      "duration_days": 1,
+      "start_price": 53801000.0,
+      "end_price": 53801000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 672,
+      "end_date": 672,
+      "duration_days": 1,
+      "start_price": 74600000.0,
+      "end_price": 74600000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 686,
+      "end_date": 699,
+      "duration_days": 14,
+      "start_price": 73935000.0,
+      "end_price": 70702000.0,
+      "return_pct": -4.372759856630825,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 703,
+      "end_date": 720,
+      "duration_days": 18,
+      "start_price": 62206000.0,
+      "end_price": 60023000.0,
+      "return_pct": -3.5093077838150633,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 734,
+      "end_date": 763,
+      "duration_days": 30,
+      "start_price": 56023000.0,
+      "end_price": 45517000.0,
+      "return_pct": -18.75301215572176,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 783,
+      "end_date": 788,
+      "duration_days": 6,
+      "start_price": 46474000.0,
+      "end_price": 46358000.0,
+      "return_pct": -0.24960192795971947,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 804,
+      "end_date": 804,
+      "duration_days": 1,
+      "start_price": 48640000.0,
+      "end_price": 48640000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 830,
+      "end_date": 844,
+      "duration_days": 15,
+      "start_price": 52819000.0,
+      "end_price": 49620000.0,
+      "return_pct": -6.056532687101235,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 853,
+      "end_date": 853,
+      "duration_days": 1,
+      "start_price": 48777000.0,
+      "end_price": 48777000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 855,
+      "end_date": 875,
+      "duration_days": 21,
+      "start_price": 47647000.0,
+      "end_price": 37935000.0,
+      "return_pct": -20.38323504103091,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 877,
+      "end_date": 880,
+      "duration_days": 4,
+      "start_price": 36837000.0,
+      "end_price": 39550000.0,
+      "return_pct": 7.364877704481909,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 889,
+      "end_date": 889,
+      "duration_days": 1,
+      "start_price": 38581000.0,
+      "end_price": 38581000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 891,
+      "end_date": 905,
+      "duration_days": 15,
+      "start_price": 37611000.0,
+      "end_price": 27597000.0,
+      "return_pct": -26.62518943925979,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 968,
+      "end_date": 974,
+      "duration_days": 7,
+      "start_price": 27969000.0,
+      "end_price": 27636000.0,
+      "return_pct": -1.1906038828703225,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 977,
+      "end_date": 981,
+      "duration_days": 5,
+      "start_price": 27528000.0,
+      "end_price": 26887000.0,
+      "return_pct": -2.32853821563499,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 992,
+      "end_date": 999,
+      "duration_days": 8,
+      "start_price": 27566000.0,
+      "end_price": 27597000.0,
+      "return_pct": 0.11245737502720843,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1014,
+      "end_date": 1014,
+      "duration_days": 1,
+      "start_price": 27339000.0,
+      "end_price": 27339000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1043,
+      "end_date": 1043,
+      "duration_days": 1,
+      "start_price": 22919000.0,
+      "end_price": 22919000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 1045,
+      "end_date": 1056,
+      "duration_days": 12,
+      "start_price": 23656000.0,
+      "end_price": 22584000.0,
+      "return_pct": -4.531619885018601,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1058,
+      "end_date": 1061,
+      "duration_days": 4,
+      "start_price": 22738000.0,
+      "end_price": 22646000.0,
+      "return_pct": -0.40460902454041436,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 1063,
+      "end_date": 1063,
+      "duration_days": 1,
+      "start_price": 22417000.0,
+      "end_price": 22417000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 1071,
+      "end_date": 1071,
+      "duration_days": 1,
+      "start_price": 22544000.0,
+      "end_price": 22544000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 1092,
+      "end_date": 1094,
+      "duration_days": 3,
+      "start_price": 21061000.0,
+      "end_price": 21070000.0,
+      "return_pct": 0.04273301362709425,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 1096,
+      "end_date": 1096,
+      "duration_days": 1,
+      "start_price": 21123000.0,
+      "end_price": 21123000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1136,
+      "end_date": 1139,
+      "duration_days": 4,
+      "start_price": 28120000.0,
+      "end_price": 28309000.0,
+      "return_pct": 0.6721194879089509,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1157,
+      "end_date": 1166,
+      "duration_days": 10,
+      "start_price": 29709000.0,
+      "end_price": 29199000.0,
+      "return_pct": -1.7166515197414967,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 1210,
+      "end_date": 1211,
+      "duration_days": 2,
+      "start_price": 37877000.0,
+      "end_price": 38017000.0,
+      "return_pct": 0.3696174459434376,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1233,
+      "end_date": 1242,
+      "duration_days": 10,
+      "start_price": 36240000.0,
+      "end_price": 35824000.0,
+      "return_pct": -1.147902869757178,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1257,
+      "end_date": 1264,
+      "duration_days": 8,
+      "start_price": 34345000.0,
+      "end_price": 34466000.0,
+      "return_pct": 0.35230746833601057,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1289,
+      "end_date": 1302,
+      "duration_days": 14,
+      "start_price": 40112000.0,
+      "end_price": 37918000.0,
+      "return_pct": -5.469684882329473,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 1325,
+      "end_date": 1337,
+      "duration_days": 13,
+      "start_price": 35890000.0,
+      "end_price": 37109000.0,
+      "return_pct": 3.396489272777936,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1341,
+      "end_date": 1344,
+      "duration_days": 4,
+      "start_price": 35308000.0,
+      "end_price": 35029000.0,
+      "return_pct": -0.7901891922510451,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1350,
+      "end_date": 1350,
+      "duration_days": 1,
+      "start_price": 35077000.0,
+      "end_price": 35077000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 1465,
+      "end_date": 1465,
+      "duration_days": 1,
+      "start_price": 59351000.0,
+      "end_price": 59351000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1485,
+      "end_date": 1486,
+      "duration_days": 2,
+      "start_price": 55101000.0,
+      "end_price": 57503000.0,
+      "return_pct": 4.359267526905142,
+      "start_state": "BEAR_STRONG"
+    },
+    {
+      "start_date": 1561,
+      "end_date": 1595,
+      "duration_days": 35,
+      "start_price": 100600000.0,
+      "end_price": 86500000.0,
+      "return_pct": -14.015904572564608,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1630,
+      "end_date": 1656,
+      "duration_days": 27,
+      "start_price": 91649000.0,
+      "end_price": 85430000.0,
+      "return_pct": -6.785671420310091,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1675,
+      "end_date": 1691,
+      "duration_days": 17,
+      "start_price": 86691000.0,
+      "end_price": 81500000.0,
+      "return_pct": -5.9879341569482385,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1708,
+      "end_date": 1716,
+      "duration_days": 9,
+      "start_price": 78739000.0,
+      "end_price": 78269000.0,
+      "return_pct": -0.5969087745589907,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1745,
+      "end_date": 1745,
+      "duration_days": 1,
+      "start_price": 84451000.0,
+      "end_price": 84451000.0,
+      "return_pct": 0.0,
+      "start_state": "BEAR_MODERATE"
+    },
+    {
+      "start_date": 1824,
+      "end_date": 1825,
+      "duration_days": 2,
+      "start_price": 139735000.0,
+      "end_price": 137892000.0,
+      "return_pct": -1.3189251082405984,
+      "start_state": "BEAR_MODERATE"
+    }
+  ],
+  "strategies": {
+    "buy_hold": {
+      "return_pct": 1561.3493975903616,
+      "description": "포지션 유지"
+    },
+    "cash_conversion": {
+      "return_pct": 2518.831162302163,
+      "trades": 113,
+      "description": "BEAR 시 현금 전환"
+    },
+    "hedge_short": {
+      "return_pct": 1688.2329301204823,
+      "short_pnl": 11644566.265060239,
+      "trades": 113,
+      "description": "업비트 롱 + 바이낸스 숏 헷지"
+    }
+  },
+  "recommendation": "바이낸스 선물 연동으로 하락장 대응 권장"
+}

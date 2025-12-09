@@ -6,8 +6,9 @@
 import os
 from datetime import datetime
 from typing import Optional, Dict, Any
-import telegram
+import requests
 from dotenv import load_dotenv
+import pytz
 
 
 class TelegramNotifier:
@@ -23,16 +24,26 @@ class TelegramNotifier:
         if not self.bot_token or not self.chat_id:
             raise ValueError("텔레그램 설정이 .env 파일에 없습니다")
 
-        self.bot = telegram.Bot(token=self.bot_token)
+        self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        self.kst = pytz.timezone('Asia/Seoul')
+
+    def _get_kst_time(self) -> str:
+        """한국 시간 반환 (KST)"""
+        return datetime.now(self.kst).strftime('%Y-%m-%d %H:%M:%S')
 
     def send_message(self, message: str) -> bool:
         """텔레그램 메시지 전송"""
         try:
-            self.bot.send_message(
-                chat_id=self.chat_id,
-                text=message,
-                parse_mode='Markdown'
+            response = requests.post(
+                self.api_url,
+                json={
+                    'chat_id': self.chat_id,
+                    'text': message,
+                    'parse_mode': 'Markdown'
+                },
+                timeout=10
             )
+            response.raise_for_status()
             return True
         except Exception as e:
             print(f"❌ 텔레그램 전송 실패: {e}")
@@ -45,7 +56,7 @@ class TelegramNotifier:
 
 📊 전략: `{strategy}`
 💰 초기 자본: `{capital:,.0f}` KRW
-🕐 시작 시간: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`
+🕐 시작 시간: `{self._get_kst_time()}` (KST)
 
 _알림을 받을 준비가 완료되었습니다._
 """
@@ -104,10 +115,14 @@ _알림을 받을 준비가 완료되었습니다._
             emoji = "✅"
             action = "매도 완료"
 
-        message = f"""
-{emoji} *{action}*
+        # Paper Trading 표시
+        paper_mode = result.get('paper_trading', False)
+        mode_text = " [Paper Trading]" if paper_mode else ""
 
-📅 시간: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`
+        message = f"""
+{emoji} *{action}{mode_text}*
+
+📅 시간: `{self._get_kst_time()}` (KST)
 💵 체결가: `{result.get('executed_price', 0):,.0f}` KRW
 📊 수량: `{result.get('executed_volume', 0):.8f}` BTC
 💰 총액: `{result.get('executed_amount', 0):,.0f}` KRW
@@ -134,8 +149,12 @@ _시스템을 확인해주세요._
 
     def notify_daily_report(self, report: Dict[str, Any]):
         """일일 리포트"""
+        # Paper Trading 표시
+        paper_mode = report.get('paper_trading', False)
+        mode_text = " [Paper Trading]" if paper_mode else ""
+
         message = f"""
-📊 *일일 리포트*
+📊 *일일 리포트{mode_text}*
 
 📅 날짜: `{report.get('date', 'N/A')}`
 

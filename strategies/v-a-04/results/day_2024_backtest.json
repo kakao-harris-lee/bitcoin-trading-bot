@@ -1,17 +1,20 @@
 {
-  "total_return_pct": 13.431696223510933,
-  "final_capital": 11343169.622351093,
-  "total_trades": 6,
-  "win_rate": 50.0,
-  "avg_win_pct": 7.782523372104713,
-  "avg_loss_pct": -3.20952573963163,
-  "max_drawdown": -4.886837934327621,
-  "avg_hold_days": 5.0,
+  "total_return_pct": 96.69882874792376,
+  "final_capital": 19669882.874792375,
+  "total_trades": 46,
+  "win_rate": 47.82608695652174,
+  "avg_win_pct": 7.244964324297539,
+  "avg_loss_pct": -3.5077276106362585,
+  "max_drawdown": -23.75507448804253,
+  "avg_hold_days": 3.9347826086956523,
   "exit_reasons": {
-    "SL": 3,
-    "TP": 3
+    "SL": 24,
+    "TP": 22
   },
   "market_states": {
-    "SIDEWAYS": 6
+    "SIDEWAYS": 16,
+    "BULL_STRONG": 14,
+    "BULL_MODERATE": 9,
+    "BEAR_MODERATE": 7
   }
 }

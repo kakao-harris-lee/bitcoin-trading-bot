@@ -1,0 +1,67 @@
+# Git
+.git/
+.gitignore
+.github/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+.claude/
+.history/
+
+# 로그 및 데이터
+logs/
+*.log
+*.db
+
+# 환경 변수 (보안)
+.env
+.env.local
+.env.*.local
+
+# 백테스팅 결과 (용량 큼)
+strategies/*/results/
+strategies/*/signals/
+strategies/*/analysis/
+
+# 임시 파일
+*.tmp
+*.bak
+*.backup
+tmp/
+temp/
+
+# 문서
+*.md
+!README.md
+!DOCKER_DEPLOYMENT.md
+
+# 설정 백업
+*.json.bak
+config.json.old
+
+# 테스트
+test_*.py
+*_test.py
+pytest_cache/
+.pytest_cache/
+
+# 최적화 결과 (필요시 제외)
+optimization_*.json
+optuna_*.db
+
+# 웹 대시보드 (별도 이미지)
+web/

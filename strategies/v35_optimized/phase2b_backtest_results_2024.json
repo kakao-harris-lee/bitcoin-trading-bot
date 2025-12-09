@@ -1,0 +1,990 @@
+{
+  "timestamp": "2025-11-18T07:56:02.467178",
+  "year": 2024,
+  "baseline": {
+    "mode": "Baseline (AI OFF)",
+    "total_return": 25.91121655132972,
+    "final_capital": 12591121.655132972,
+    "sharpe_ratio": 2.3351943973034848,
+    "max_drawdown": -7.00522035193501,
+    "num_trades": 13,
+    "win_rate": 46.15384615384615,
+    "wins": 6,
+    "losses": 7,
+    "buy_trades": [
+      {
+        "type": "buy",
+        "time": 33,
+        "price": 59271852.0,
+        "shares": 0.08431489537394579,
+        "reason": "MOMENTUM_MODERATE",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 54,
+        "price": 71121221.39999999,
+        "shares": 0.07446858798264985,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 74,
+        "price": 101020200.0,
+        "shares": 0.05795251549853565,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 137,
+        "price": 92664529.2,
+        "shares": 0.061811887063479835,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 197,
+        "price": 90825161.39999999,
+        "shares": 0.06422658304452389,
+        "reason": "MOMENTUM_MODERATE",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 205,
+        "price": 91519300.2,
+        "shares": 0.06445081849415527,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 237,
+        "price": 86271250.8,
+        "shares": 0.06652910067058007,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 243,
+        "price": 80278052.39999999,
+        "shares": 0.07068183980750803,
+        "reason": "STOCH_GOLDEN_CROSS",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 246,
+        "price": 78287654.39999999,
+        "shares": 0.0715439771708527,
+        "reason": "RANGE_SUPPORT",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 261,
+        "price": 82620520.8,
+        "shares": 0.06794652128875658,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 287,
+        "price": 88657728.0,
+        "shares": 0.064200506451078,
+        "reason": "MOMENTUM_MODERATE",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 310,
+        "price": 104105817.0,
+        "shares": 0.05626126362768491,
+        "reason": "MOMENTUM_STRONG_AI_CONF_0.94",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 349,
+        "price": 149272848.6,
+        "shares": 0.04282021888668749,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": false,
+          "ai_match_type": "N/A",
+          "ai_confidence": 0.0,
+          "ai_state": "N/A"
+        }
+      }
+    ],
+    "sell_trades": [
+      {
+        "type": "sell",
+        "time": 38,
+        "price": 61998597.800000004,
+        "shares": 0.033725958149578315,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_3%"
+      },
+      {
+        "type": "sell",
+        "time": 42,
+        "price": 66988599.6,
+        "shares": 0.02023557488974699,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_3%"
+      },
+      {
+        "type": "sell",
+        "time": 45,
+        "price": 71238749.4,
+        "shares": 0.012141344933848195,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 53,
+        "price": 70790839.0,
+        "shares": 0.01821201740077229,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 56,
+        "price": 74727051.60000001,
+        "shares": 0.029787435193059944,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 58,
+        "price": 87616473.2,
+        "shares": 0.017872461115835965,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 63,
+        "price": 95480900.0,
+        "shares": 0.010723476669501578,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 67,
+        "price": 96217752.60000001,
+        "shares": 0.006434086001700947,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 71,
+        "price": 101179760.0,
+        "shares": 0.0038604516010205675,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 73,
+        "price": 102485498.8,
+        "shares": 0.005790677401530851,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 75,
+        "price": 96747646.60000001,
+        "shares": 0.05795251549853565,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 155,
+        "price": 97480500.0,
+        "shares": 0.024724754825391937,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 162,
+        "price": 95309934.2,
+        "shares": 0.0370871322380879,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 201,
+        "price": 94046187.0,
+        "shares": 0.025690633217809556,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_3%"
+      },
+      {
+        "type": "sell",
+        "time": 204,
+        "price": 92211554.0,
+        "shares": 0.038535949826714336,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 214,
+        "price": 86673661.8,
+        "shares": 0.06445081849415527,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 238,
+        "price": 84391118.4,
+        "shares": 0.06652910067058007,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 244,
+        "price": 78285339.8,
+        "shares": 0.07068183980750803,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 247,
+        "price": 78723252.2,
+        "shares": 0.0715439771708527,
+        "fraction": 1.0,
+        "reason": "MARKET_SWITCH_BEAR_MODERATE"
+      },
+      {
+        "type": "sell",
+        "time": 270,
+        "price": 86940608.4,
+        "shares": 0.027178608515502634,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 273,
+        "price": 83713254.0,
+        "shares": 0.04076791277325395,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 289,
+        "price": 91591678.0,
+        "shares": 0.025680202580431202,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_3%"
+      },
+      {
+        "type": "sell",
+        "time": 300,
+        "price": 94800036.2,
+        "shares": 0.01540812154825872,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_3%_AI_CONF_0.94"
+      },
+      {
+        "type": "sell",
+        "time": 307,
+        "price": 95863823.4,
+        "shares": 0.023112182322388077,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 314,
+        "price": 111417712.0,
+        "shares": 0.022504505451073964,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 324,
+        "price": 133153364.0,
+        "shares": 0.01350270327064438,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 329,
+        "price": 129765041.8,
+        "shares": 0.020254054905966566,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 356,
+        "price": 144771040.0,
+        "shares": 0.04282021888668749,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      }
+    ]
+  },
+  "filter_relaxed": {
+    "mode": "AI Filter - 완화",
+    "total_return": 20.50315944923956,
+    "final_capital": 12050315.944923956,
+    "sharpe_ratio": 2.026600179557029,
+    "max_drawdown": -3.9708989366040095,
+    "num_trades": 8,
+    "win_rate": 37.5,
+    "wins": 3,
+    "losses": 5,
+    "buy_trades": [
+      {
+        "type": "buy",
+        "time": 49,
+        "price": 71769351.0,
+        "shares": 0.06963278795707656,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 60,
+        "price": 87414479.39999999,
+        "shares": 0.06160102727780389,
+        "reason": "MOMENTUM_STRONG_AI_CONF_0.94",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 74,
+        "price": 101020200.0,
+        "shares": 0.05649937418721687,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 156,
+        "price": 98404677.0,
+        "shares": 0.05674676800327231,
+        "reason": "MOMENTUM_MODERATE",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "DIRECTIONAL",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 287,
+        "price": 88657728.0,
+        "shares": 0.061964541444253576,
+        "reason": "MOMENTUM_MODERATE",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "DIRECTIONAL",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 305,
+        "price": 97304457.0,
+        "shares": 0.058549645468629105,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 310,
+        "price": 104105817.0,
+        "shares": 0.0538447662363645,
+        "reason": "MOMENTUM_STRONG_AI_CONF_0.94",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 349,
+        "price": 149272848.6,
+        "shares": 0.040981032552014914,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      }
+    ],
+    "sell_trades": [
+      {
+        "type": "sell",
+        "time": 57,
+        "price": 78603276.2,
+        "shares": 0.027853115182830623,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 59,
+        "price": 85892818.0,
+        "shares": 0.041779672774245935,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 63,
+        "price": 95480900.0,
+        "shares": 0.024640410911121555,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 67,
+        "price": 96217752.60000001,
+        "shares": 0.014784246546672934,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 71,
+        "price": 101179760.0,
+        "shares": 0.00887054792800376,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 73,
+        "price": 102485498.8,
+        "shares": 0.013305821892005638,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 75,
+        "price": 96747646.60000001,
+        "shares": 0.05649937418721687,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 162,
+        "price": 95309934.2,
+        "shares": 0.05674676800327231,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 289,
+        "price": 91591678.0,
+        "shares": 0.02478581657770143,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_3%"
+      },
+      {
+        "type": "sell",
+        "time": 301,
+        "price": 97381519.8,
+        "shares": 0.01487148994662086,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 304,
+        "price": 98092377.60000001,
+        "shares": 0.022307234919931286,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 308,
+        "price": 94270142.2,
+        "shares": 0.058549645468629105,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 314,
+        "price": 111417712.0,
+        "shares": 0.021537906494545803,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 324,
+        "price": 133153364.0,
+        "shares": 0.01292274389672748,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 329,
+        "price": 129765041.8,
+        "shares": 0.01938411584509122,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 356,
+        "price": 144771040.0,
+        "shares": 0.040981032552014914,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      }
+    ]
+  },
+  "filter_strict": {
+    "mode": "AI Filter - 엄격",
+    "total_return": 20.008029978300538,
+    "final_capital": 12000802.997830054,
+    "sharpe_ratio": 1.9548605945762223,
+    "max_drawdown": -3.9464069282684777,
+    "num_trades": 8,
+    "win_rate": 37.5,
+    "wins": 3,
+    "losses": 5,
+    "buy_trades": [
+      {
+        "type": "buy",
+        "time": 49,
+        "price": 71769351.0,
+        "shares": 0.06963278795707656,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 60,
+        "price": 87414479.39999999,
+        "shares": 0.06160102727780389,
+        "reason": "MOMENTUM_STRONG_AI_CONF_0.94",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 74,
+        "price": 101020200.0,
+        "shares": 0.05649937418721687,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 157,
+        "price": 98353666.8,
+        "shares": 0.05677619917833045,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 290,
+        "price": 91743345.0,
+        "shares": 0.059895751571925226,
+        "reason": "MOMENTUM_STRONG_AI_OVER_0.94",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 305,
+        "price": 97304457.0,
+        "shares": 0.058309073726634575,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 310,
+        "price": 104105817.0,
+        "shares": 0.05362352613991145,
+        "reason": "MOMENTUM_STRONG_AI_CONF_0.94",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      },
+      {
+        "type": "buy",
+        "time": 349,
+        "price": 149272848.6,
+        "shares": 0.040812647614568015,
+        "reason": "MOMENTUM_STRONG",
+        "ai_info": {
+          "ai_filter_approved": true,
+          "ai_match_type": "EXACT",
+          "ai_confidence": 0.9397771074506667,
+          "ai_state": "BULL_STRONG"
+        }
+      }
+    ],
+    "sell_trades": [
+      {
+        "type": "sell",
+        "time": 57,
+        "price": 78603276.2,
+        "shares": 0.027853115182830623,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 59,
+        "price": 85892818.0,
+        "shares": 0.041779672774245935,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 63,
+        "price": 95480900.0,
+        "shares": 0.024640410911121555,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 67,
+        "price": 96217752.60000001,
+        "shares": 0.014784246546672934,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 71,
+        "price": 101179760.0,
+        "shares": 0.00887054792800376,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 73,
+        "price": 102485498.8,
+        "shares": 0.013305821892005638,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 75,
+        "price": 96747646.60000001,
+        "shares": 0.05649937418721687,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 162,
+        "price": 95309934.2,
+        "shares": 0.05677619917833045,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 301,
+        "price": 97381519.8,
+        "shares": 0.023958300628770093,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 304,
+        "price": 98092377.60000001,
+        "shares": 0.03593745094315513,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 308,
+        "price": 94270142.2,
+        "shares": 0.058309073726634575,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 314,
+        "price": 111417712.0,
+        "shares": 0.02144941045596458,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 324,
+        "price": 133153364.0,
+        "shares": 0.012869646273578748,
+        "fraction": 0.4,
+        "reason": "TAKE_PROFIT_1_5%"
+      },
+      {
+        "type": "sell",
+        "time": 329,
+        "price": 129765041.8,
+        "shares": 0.01930446941036812,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      },
+      {
+        "type": "sell",
+        "time": 356,
+        "price": 144771040.0,
+        "shares": 0.040812647614568015,
+        "fraction": 1.0,
+        "reason": "STOP_LOSS_1%"
+      }
+    ]
+  },
+  "ai_summary_baseline": {
+    "ai_enabled": true,
+    "ai_test_mode": true,
+    "ai_filter_mode": false,
+    "ai_filter_strict": false,
+    "total_analyses": 34,
+    "v34_ai_match_rate": 0.3235294117647059,
+    "high_confidence_rate": 0.5,
+    "avg_confidence": 0.7774116616239823,
+    "confidence_threshold": 0.8,
+    "state_distribution": {
+      "BULL_STRONG": 13,
+      "SIDEWAYS_NEUTRAL": 12,
+      "BEAR_STRONG": 4,
+      "BEAR_WEAK": 3,
+      "BULL_WEAK": 2
+    },
+    "agents_enabled": [
+      "trend"
+    ]
+  },
+  "ai_summary_filter": {
+    "ai_enabled": true,
+    "ai_test_mode": false,
+    "ai_filter_mode": true,
+    "ai_filter_strict": false,
+    "total_analyses": 34,
+    "v34_ai_match_rate": 0.3235294117647059,
+    "high_confidence_rate": 0.5,
+    "avg_confidence": 0.7774116616239823,
+    "confidence_threshold": 0.8,
+    "state_distribution": {
+      "BULL_STRONG": 13,
+      "SIDEWAYS_NEUTRAL": 12,
+      "BEAR_STRONG": 4,
+      "BEAR_WEAK": 3,
+      "BULL_WEAK": 2
+    },
+    "agents_enabled": [
+      "trend"
+    ],
+    "ai_filter_stats": {
+      "total_v35_signals": 73,
+      "ai_approved": 16,
+      "ai_rejected": 57,
+      "approval_rate": 0.2191780821917808,
+      "rejection_rate": 0.7808219178082192,
+      "rejection_reasons": {
+        "LOW_CONFIDENCE": 54,
+        "DIRECTION_MISMATCH": 3
+      },
+      "match_types": {
+        "EXACT": 14,
+        "DIRECTIONAL": 2
+      }
+    }
+  },
+  "ai_summary_strict": {
+    "ai_enabled": true,
+    "ai_test_mode": false,
+    "ai_filter_mode": true,
+    "ai_filter_strict": true,
+    "total_analyses": 34,
+    "v34_ai_match_rate": 0.3235294117647059,
+    "high_confidence_rate": 0.5,
+    "avg_confidence": 0.7774116616239823,
+    "confidence_threshold": 0.8,
+    "state_distribution": {
+      "BULL_STRONG": 13,
+      "SIDEWAYS_NEUTRAL": 12,
+      "BEAR_STRONG": 4,
+      "BEAR_WEAK": 3,
+      "BULL_WEAK": 2
+    },
+    "agents_enabled": [
+      "trend"
+    ],
+    "ai_filter_stats": {
+      "total_v35_signals": 76,
+      "ai_approved": 15,
+      "ai_rejected": 61,
+      "approval_rate": 0.19736842105263158,
+      "rejection_rate": 0.8026315789473685,
+      "rejection_reasons": {
+        "LOW_CONFIDENCE": 54,
+        "NONE": 7
+      },
+      "match_types": {
+        "EXACT": 15
+      }
+    }
+  }
+}

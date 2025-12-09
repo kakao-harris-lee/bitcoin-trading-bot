@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # 메인 트레이딩 봇 (v35 Optimized)
+  trading-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bitcoin-trading-bot-v35-optimized
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      # 로그 파일 호스트에 저장
+      - ./logs:/app/logs
+      # DB 파일 호스트에 저장 (백업 용이)
+      - ./upbit_bitcoin.db:/app/upbit_bitcoin.db:ro
+      # 설정 파일 (읽기 전용)
+      - ./strategies/v35_optimized/config_optimized.json:/app/strategies/v35_optimized/config_optimized.json:ro
+    environment:
+      - TZ=Asia/Seoul
+      - PYTHONUNBUFFERED=1
+    networks:
+      - trading-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 1G
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 선택: 웹 대시보드 (향후 추가 가능)
+  # dashboard:
+  #   build:
+  #     context: ./web
+  #     dockerfile: Dockerfile
+  #   container_name: trading-dashboard
+  #   restart: always
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./upbit_bitcoin.db:/app/upbit_bitcoin.db:ro
+  #   networks:
+  #     - trading-network
+  #   depends_on:
+  #     - trading-bot
+
+networks:
+  trading-network:
+    driver: bridge
+
+volumes:
+  logs:
+    driver: local

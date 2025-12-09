@@ -19,6 +19,19 @@ def main():
     )
 
     parser.add_argument(
+        '--paper',
+        action='store_true',
+        help='Paper Trading 모드 (모의 거래, 기본: OFF)'
+    )
+
+    parser.add_argument(
+        '--capital',
+        type=float,
+        default=1_000_000,
+        help='Paper Trading 초기 자본 (기본: 1,000,000 KRW)'
+    )
+
+    parser.add_argument(
         '--once',
         action='store_true',
         help='한 번만 실행 (기본: 무한 루프)'
@@ -27,7 +40,11 @@ def main():
     args = parser.parse_args()
 
     # 트레이딩 엔진 시작
-    engine = LiveTradingEngine(auto_trade=args.auto)
+    engine = LiveTradingEngine(
+        auto_trade=args.auto,
+        paper_trading=args.paper,
+        initial_capital=args.capital
+    )
 
     if args.once:
         # 한 번만 실행

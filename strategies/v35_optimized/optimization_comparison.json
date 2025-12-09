@@ -1,0 +1,113 @@
+{
+  "comparison_date": "2025-12-06T11:52:03.051439",
+  "before": {
+    "2020": {
+      "total_return": 30.68300672406737,
+      "buy_hold_return": 195.80743901307855,
+      "excess_return": -165.12443228901117,
+      "final_capital": 13068300.672406737,
+      "total_trades": 12,
+      "win_rate": 8.333333333333332
+    },
+    "2021": {
+      "total_return": 35.761975201453865,
+      "buy_hold_return": 57.10832784003516,
+      "excess_return": -21.346352638581294,
+      "final_capital": 13576197.520145386,
+      "total_trades": 18,
+      "win_rate": 44.44444444444444
+    },
+    "2022": {
+      "total_return": -18.011999162361306,
+      "buy_hold_return": -55.422502433038545,
+      "excess_return": 37.41050327067724,
+      "final_capital": 8198800.0837638695,
+      "total_trades": 16,
+      "win_rate": 81.25
+    },
+    "2023": {
+      "total_return": 13.644257508485838,
+      "buy_hold_return": 94.87682356179467,
+      "excess_return": -81.23256605330883,
+      "final_capital": 11364425.750848584,
+      "total_trades": 17,
+      "win_rate": 35.294117647058826
+    },
+    "2024": {
+      "total_return": 25.911216551329698,
+      "buy_hold_return": 134.7577377506895,
+      "excess_return": -108.8465211993598,
+      "final_capital": 12591121.65513297,
+      "total_trades": 13,
+      "win_rate": 46.15384615384615
+    },
+    "2025": {
+      "total_return": 12.690237502766418,
+      "buy_hold_return": -1.6062076893600716,
+      "excess_return": 14.296445192126491,
+      "final_capital": 11269023.750276642,
+      "total_trades": 8,
+      "win_rate": 25.0
+    }
+  },
+  "after": {
+    "2020": {
+      "total_return": 62.76513175974002,
+      "buy_hold_return": 195.80743901307855,
+      "excess_return": -133.04230725333852,
+      "final_capital": 16276513.175974002,
+      "total_trades": 9,
+      "win_rate": 22.22222222222222
+    },
+    "2021": {
+      "total_return": 47.59091772711059,
+      "buy_hold_return": 57.10832784003516,
+      "excess_return": -9.517410112924566,
+      "final_capital": 14759091.77271106,
+      "total_trades": 16,
+      "win_rate": 43.75
+    },
+    "2022": {
+      "total_return": -19.679713622270032,
+      "buy_hold_return": -55.422502433038545,
+      "excess_return": 35.742788810768516,
+      "final_capital": 8032028.637772997,
+      "total_trades": 15,
+      "win_rate": 53.333333333333336
+    },
+    "2023": {
+      "total_return": 8.636918600254953,
+      "buy_hold_return": 94.87682356179467,
+      "excess_return": -86.23990496153971,
+      "final_capital": 10863691.860025495,
+      "total_trades": 9,
+      "win_rate": 44.44444444444444
+    },
+    "2024": {
+      "total_return": 40.17022268691884,
+      "buy_hold_return": 134.7577377506895,
+      "excess_return": -94.58751506377067,
+      "final_capital": 14017022.268691884,
+      "total_trades": 9,
+      "win_rate": 44.44444444444444
+    },
+    "2025": {
+      "total_return": 23.161986399389207,
+      "buy_hold_return": -1.6062076893600716,
+      "excess_return": 24.76819408874928,
+      "final_capital": 12316198.63993892,
+      "total_trades": 5,
+      "win_rate": 40.0
+    }
+  },
+  "cumulative": {
+    "before": 134.5555819174859,
+    "after": 261.8729679130814,
+    "improvement": 127.31738599559552
+  },
+  "cagr": {
+    "before": 15.26770033199416,
+    "after": 23.90610080039879,
+    "improvement": 8.63840046840463
+  }
+}

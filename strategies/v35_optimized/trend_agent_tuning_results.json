@@ -1,0 +1,18 @@
+{
+  "best_params": {
+    "sma_short_period": 22,
+    "sma_long_period": 50,
+    "strong_threshold": 0.028456707088086338,
+    "confidence_strong": 0.9397771074506667,
+    "confidence_weak": 0.7431264066149119,
+    "confidence_sideways": 0.5616794696232922
+  },
+  "best_score": 1.0,
+  "final_evaluation": {
+    "total_return": 28.725215518989618,
+    "avg_confidence": 0.7774116616239823,
+    "high_confidence_rate": 0.5,
+    "total_analyses": 34
+  },
+  "goals_achieved": {
+    "avg_confidence": 

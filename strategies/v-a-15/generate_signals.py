@@ -1,106 +1,66 @@
 #!/usr/bin/env python3
-"""
-v-a-04: v37 Strategy Signal Generator
-======================================
-v37의 4종 전략을 v-a 아키텍처로 완전 재구현
-
-v37 방식:
-1. 시장 분류 (MarketClassifierV37)
-2. 시장별 전략 선택 (trend/swing/sideways/defensive)
-3. 각 전략의 execute() 실행 → 시그널 생성
-"""
+"""v-a-15 Signal Generator - Simplified"""
 
 import sys
 from pathlib import Path
-
-# 프로젝트 루트를 sys.path 최상단에 추가
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 import pandas as pd
 import json
-from datetime import datetime
 import importlib.util
-
-# Core 모듈
 from core.data_loader import DataLoader
 from core.market_analyzer import MarketAnalyzer
 
-# v-a-04 로컬 모듈
-va04_dir = Path(__file__).parent
+va15_dir = Path(__file__).parent
 
-# MarketClassifier
-spec = importlib.util.spec_from_file_location(
-    "market_classifier_v37",
-    va04_dir / "core" / "market_classifier.py"
-)
+# Market Classifier
+spec = importlib.util.spec_from_file_location("mc", va15_dir / "core" / "market_classifier.py")
 mc_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mc_module)
 MarketClassifierV37 = mc_module.MarketClassifierV37
 
-# DynamicThresholds
-spec = importlib.util.spec_from_file_location(
-    "dynamic_thresholds",
-    va04_dir / "core" / "dynamic_thresholds.py"
-)
-dt_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(dt_module)
-DynamicThresholds = dt_module.DynamicThresholds
+# Trend Following
+spec = importlib.util.spec_from_file_location("trend", va15_dir / "strategies" / "trend_following_enhanced.py")
+trend_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(trend_module)
+EnhancedTrendFollowingStrategy = trend_module.EnhancedTrendFollowingStrategy
 
-# Stateless Signal Extractors (v37 Entry 로직만 추출)
-spec = importlib.util.spec_from_file_location(
-    "signal_extractors",
-    va04_dir / "signal_extractors.py"
-)
-se_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(se_module)
-TrendFollowingEntryChecker = se_module.TrendFollowingEntryChecker
-SwingTradingEntryChecker = se_module.SwingTradingEntryChecker
-SidewaysEntryChecker = se_module.SidewaysEntryChecker
-DefensiveEntryChecker = se_module.DefensiveEntryChecker
+# SIDEWAYS Hybrid
+spec = importlib.util.spec_from_file_location("sideways", va15_dir / "strategies" / "sideways_hybrid.py")
+sideways_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(sideways_module)
+SidewaysHybridStrategy = sideways_module.SidewaysHybridStrategy
 
 
-class V37SignalGenerator:
-    """v37 전략 시그널 생성기 (v-a 아키텍처, Stateless)"""
-
+class V_A_15_SignalGenerator:
     def __init__(self, config: dict):
-        """
-        Args:
-            config: v37 config.json
-        """
         self.config = config
-
-        # 시장 분류기
         self.classifier = MarketClassifierV37()
-        self.dynamic_thresholds = DynamicThresholds(config)
+        self.trend_config = config.get('trend_following_enhanced', {})
+        self.sideways_config = config.get('sideways_hybrid', {})
 
-        # 4종 무상태 Entry Checker
-        self.trend_checker = TrendFollowingEntryChecker(config)
-        self.swing_checker = SwingTradingEntryChecker(config)
-        self.sideways_checker = SidewaysEntryChecker(config)
-        self.defensive_checker = DefensiveEntryChecker(config)
+    def _add_histogram_zscore(self, df: pd.DataFrame, lookback: int = 60):
+        """MACD Histogram z-score 계산"""
+        df = df.copy()
 
-        # 전략 매핑
-        self.strategy_map = {
-            'BULL_STRONG': ('trend_following', self.trend_checker.check_entry),
-            'BULL_MODERATE': ('swing_trading', self.swing_checker.check_entry),
-            'SIDEWAYS': ('sideways', self.sideways_checker.check_entry),
-            'BEAR_MODERATE': ('defensive', self.defensive_checker.check_entry),
-            'BEAR_STRONG': ('defensive', self.defensive_checker.check_entry),
-            'UNKNOWN': ('sideways', self.sideways_checker.check_entry)
-        }
+        # MACD Histogram (MACD - Signal)
+        df['macd_histogram'] = df['macd'] - df['macd_signal']
 
-    def generate_signals(self, df: pd.DataFrame, year: int) -> pd.DataFrame:
-        """
-        v37 방식 시그널 생성
+        # Rolling 평균 및 표준편차
+        df['histogram_mean'] = df['macd_histogram'].rolling(window=lookback).mean()
+        df['histogram_std'] = df['macd_histogram'].rolling(window=lookback).std()
 
-        Args:
-            df: 지표 포함 시장 데이터
-            year: 연도 (통계용)
+        # z-score 계산
+        df['histogram_zscore'] = (df['macd_histogram'] - df['histogram_mean']) / df['histogram_std']
+        df['histogram_zscore'] = df['histogram_zscore'].fillna(0)
 
-        Returns:
-            시그널 DataFrame
-        """
+        return df
+
+    def generate_signals(self, df: pd.DataFrame, year: int):
+        # MACD Histogram z-score 계산 (60일 rolling)
+        df = self._add_histogram_zscore(df, lookback=60)
+
         signals = []
         market_states = []
 
@@ -109,52 +69,19 @@ class V37SignalGenerator:
             prev_row = df.iloc[i-1] if i > 0 else None
             df_recent = df.iloc[max(0, i-60):i+1]
 
-            # 1. 시장 분류
-            market_state = self.classifier.classify_market_state(
-                current_row=row,
-                prev_row=prev_row,
-                df_recent=df_recent
-            )
-
-            market_states.append({
-                'timestamp': row['timestamp'],
-                'market_state': market_state
-            })
-
-            # 2. 모든 전략 Entry 조건 체크 (우선순위 순서)
-            # 핵심: MACD 골든크로스는 BULL_STRONG 전환 전에 발생하므로,
-            #       시장 분류와 무관하게 모든 Entry 조건을 체크해야 함
+            market_state = self.classifier.classify_market_state(row, prev_row, df_recent)
+            market_states.append({'timestamp': row['timestamp'], 'market_state': market_state})
 
             signal = None
 
-            # Trend Following (MACD GC + ADX >= 16) - 최우선
-            trend_signal = self.trend_checker.check_entry(row, prev_row)
-            if trend_signal:
-                signal = trend_signal
-                signal['market_state'] = market_state
+            # Trend Following (BULL 시장) - Stateless Entry Check
+            if market_state in ['BULL_STRONG', 'BULL_MODERATE']:
+                signal = self._check_trend_entry(row, prev_row, df_recent, market_state)
 
-            # Swing Trading (RSI < 33 + MACD GC)
-            if signal is None:
-                swing_signal = self.swing_checker.check_entry(row, prev_row)
-                if swing_signal:
-                    signal = swing_signal
-                    signal['market_state'] = market_state
+            # SIDEWAYS Hybrid
+            if signal is None and market_state.startswith('SIDEWAYS'):
+                signal = self._check_sideways_entry(row, prev_row, df_recent, market_state)
 
-            # Sideways (RSI+BB, Stoch, Volume)
-            if signal is None:
-                sideways_signal = self.sideways_checker.check_entry(row, prev_row, df_recent)
-                if sideways_signal:
-                    signal = sideways_signal
-                    signal['market_state'] = market_state
-
-            # Defensive (극단 RSI) - 최후
-            if signal is None:
-                defensive_signal = self.defensive_checker.check_entry(row, market_state)
-                if defensive_signal:
-                    signal = defensive_signal
-                    signal['market_state'] = market_state
-
-            # 3. BUY 시그널 저장
             if signal is not None:
                 signals.append({
                     'timestamp': row['timestamp'],
@@ -163,165 +90,209 @@ class V37SignalGenerator:
                     'strategy': signal.get('strategy', 'unknown'),
                     'reason': signal.get('reason', ''),
                     'fraction': signal.get('fraction', 0.5),
+                    'confidence': signal.get('confidence', 0),
+                    'level': signal.get('level'),
                     'rsi': row.get('rsi', 50),
                     'macd': row.get('macd', 0),
-                    'macd_signal': row.get('macd_signal', 0),
                     'adx': row.get('adx', 0),
-                    'bb_position': row.get('bb_position', 0.5),
-                    'stoch_k': row.get('stoch_k', 50),
-                    'volume_ratio': row.get('volume') / df_recent['volume'].mean() if len(df_recent) > 0 else 1.0
+                    'atr': row.get('atr', 0),
+                    'histogram_zscore': row.get('histogram_zscore', 0)
                 })
 
         return pd.DataFrame(signals), pd.DataFrame(market_states)
 
+    def _check_trend_entry(self, row, prev_row, df_recent, market_state):
+        """Stateless Trend Entry Check"""
+        if prev_row is None or len(df_recent) < 20:
+            return None
+
+        macd = row.get('macd', 0)
+        macd_signal = row.get('macd_signal', 0)
+        prev_macd = prev_row.get('macd', 0)
+        prev_signal = prev_row.get('macd_signal', 0)
+        adx = row.get('adx', 20)
+        rsi = row.get('rsi', 50)
+        volume = row.get('volume', 0)
+        avg_volume = df_recent['volume'].iloc[-20:].mean() if len(df_recent) >= 20 else volume
+
+        # MACD 3일 연속 유지 조건 (False Signal 제거)
+        if len(df_recent) < 3:
+            return None
+
+        # 최근 3일 모두 MACD > Signal 확인
+        recent_3days = df_recent.iloc[-3:]
+        macd_above_signal_3days = (recent_3days['macd'] > recent_3days['macd_signal']).all()
+
+        if not macd_above_signal_3days:
+            return None
+
+        # Histogram z-score > 0.5 (통계적 유의성)
+        histogram_zscore = row.get('histogram_zscore', 0)
+        if histogram_zscore <= 0.5:
+            return None
+
+        # ADX >= threshold
+        if adx < self.trend_config.get('adx_threshold', 15):
+            return None
+
+        # RSI < max
+        if rsi >= self.trend_config.get('rsi_max', 70):
+            return None
+
+        # Volume > mult
+        volume_mult = self.trend_config.get('volume_mult', 1.2)
+        if volume < avg_volume * volume_mult:
+            return None
+
+        # Confidence Score
+        confidence = self._calc_confidence(adx, rsi, volume / avg_volume if avg_volume > 0 else 1.0, market_state, macd, macd_signal)
+
+        if confidence < self.trend_config.get('min_confidence', 50):
+            return None
+
+        return {
+            'action': 'buy',
+            'strategy': 'trend_enhanced',
+            'fraction': self.trend_config.get('position_size', 0.7),
+            'reason': f'TREND_ENHANCED (ADX={adx:.1f}, RSI={rsi:.1f}, Conf={confidence:.0f})',
+            'confidence': confidence,
+            'market_state': market_state
+        }
+
+    def _calc_confidence(self, adx, rsi, volume_ratio, market_state, macd, macd_signal):
+        score = 0.0
+        if adx >= 30: score += 30
+        elif adx >= 25: score += 25
+        elif adx >= 20: score += 20
+        elif adx >= 15: score += 15
+        
+        if 40 <= rsi <= 55: score += 20
+        elif 30 <= rsi < 40: score += 18
+        elif 55 < rsi <= 60: score += 15
+        elif 60 < rsi < 70: score += 10
+        
+        if volume_ratio >= 3.0: score += 20
+        elif volume_ratio >= 2.5: score += 18
+        elif volume_ratio >= 2.0: score += 15
+        elif volume_ratio >= 1.2: score += 10
+        
+        if market_state == 'BULL_STRONG': score += 15
+        elif market_state == 'BULL_MODERATE': score += 12
+        
+        macd_diff = abs(macd - macd_signal)
+        macd_signal_abs = abs(macd_signal)
+        if macd_signal_abs > 0:
+            macd_strength = macd_diff / macd_signal_abs
+            if macd_strength >= 0.10: score += 15
+            elif macd_strength >= 0.05: score += 12
+            elif macd_strength >= 0.02: score += 8
+        
+        return min(100, score)
+
+    def _check_sideways_entry(self, row, prev_row, df_recent, market_state):
+        """Stateless SIDEWAYS Entry Check"""
+        # RSI + BB
+        rsi = row.get('rsi', 50)
+        bb_lower = row.get('bb_lower', 0)
+        close = row['close']
+        
+        if self.sideways_config.get('use_rsi_bb', True):
+            rsi_threshold = self.sideways_config.get('rsi_bb_oversold', 30)
+            if rsi < rsi_threshold and close < bb_lower:
+                return {
+                    'action': 'buy',
+                    'strategy': 'rsi_bb',
+                    'fraction': self.sideways_config.get('position_size', 0.4),
+                    'reason': f'SIDEWAYS_RSI_BB (RSI={rsi:.1f})',
+                    'confidence': 0,
+                    'market_state': market_state
+                }
+        
+        # Stochastic
+        if prev_row is not None and self.sideways_config.get('use_stoch', True):
+            stoch_k = row.get('stoch_k', 50)
+            stoch_d = row.get('stoch_d', 50)
+            prev_k = prev_row.get('stoch_k', 50)
+            prev_d = prev_row.get('stoch_d', 50)
+            oversold = self.sideways_config.get('stoch_oversold', 20)
+            
+            golden_cross = (prev_k <= prev_d) and (stoch_k > stoch_d)
+            if golden_cross and stoch_k < oversold:
+                return {
+                    'action': 'buy',
+                    'strategy': 'stoch',
+                    'fraction': self.sideways_config.get('position_size', 0.4),
+                    'reason': f'SIDEWAYS_STOCH (K={stoch_k:.1f})',
+                    'confidence': 0,
+                    'market_state': market_state
+                }
+        
+        return None
+
 
 def main():
-    """메인 실행"""
-
-    # v-a-04 config 로드 (v37 복사본)
     config_path = Path(__file__).parent / 'config.json'
-    with open(config_path, 'r', encoding='utf-8') as f:
+    with open(config_path, 'r') as f:
         config = json.load(f)
 
-    # 타임프레임/연도 설정
-    TIMEFRAME = config.get('timeframe', 'day')
-    YEARS = [2020, 2021, 2022, 2023, 2024, 2025]
+    TIMEFRAME = 'day'
+    YEARS = [2024]
 
     print("="*70)
-    print("  v-a-04: v37 Strategy Signal Generator")
+    print("  v-a-15 Signal Generator (Optimized)")
     print("="*70)
-    print(f"  Timeframe: {TIMEFRAME}")
-    print(f"  Years: {YEARS}")
-    print()
 
-    # 데이터 로드
     db_path = Path(__file__).parent.parent.parent / 'upbit_bitcoin.db'
 
-    # 연도별 시그널 생성
-    all_results = {}
-
     for year in YEARS:
-        print(f"\n{'='*70}")
-        print(f"  {year}년 시그널 생성")
-        print(f"{'='*70}")
+        print(f"\n{year}년 시그널 생성...")
 
-        start_date = f"{year}-01-01"
-        end_date = f"{year}-12-31"
-
-        # 데이터 로드
         with DataLoader(str(db_path)) as loader:
-            df = loader.load_timeframe(
-                timeframe=TIMEFRAME,
-                start_date=start_date,
-                end_date=end_date
-            )
+            df = loader.load_timeframe(TIMEFRAME, f"{year}-01-01", f"{year}-12-31")
 
-        if df is None or len(df) == 0:
-            print(f"  ❌ {year}년 데이터 없음")
+        if df is None:
             continue
 
-        # 지표 추가
-        df = MarketAnalyzer.add_indicators(
-            df,
-            indicators=['rsi', 'macd', 'adx', 'atr', 'bb', 'stoch', 'mfi']
-        )
+        df = MarketAnalyzer.add_indicators(df, ['rsi', 'macd', 'adx', 'atr', 'bb', 'stoch'])
 
-        print(f"  기간: {df.iloc[0]['timestamp']} ~ {df.iloc[-1]['timestamp']}")
-        print(f"  캔들: {len(df)}개")
-
-        # 시그널 생성
-        generator = V37SignalGenerator(config)
+        generator = V_A_15_SignalGenerator(config)
         signals_df, market_states_df = generator.generate_signals(df, year)
 
-        print(f"\n  생성된 시그널: {len(signals_df)}개")
+        print(f"  생성된 시그널: {len(signals_df)}개")
 
         if len(signals_df) > 0:
-            # 전략별 분포
-            strategy_dist = signals_df['strategy'].value_counts().to_dict()
-            print(f"\n  전략별 분포:")
-            for strategy, count in strategy_dist.items():
-                print(f"    {strategy}: {count}개")
-
-            # 시장 상태별 분포
+            dist = signals_df['strategy'].value_counts().to_dict()
+            print(f"  전략별: {dist}")
+            
             market_dist = signals_df['market_state'].value_counts().to_dict()
-            print(f"\n  시장 상태별 분포:")
-            for state, count in market_dist.items():
-                print(f"    {state}: {count}개")
+            print(f"  시장별: {market_dist}")
+            
+            if 'confidence' in signals_df.columns:
+                avg_conf = signals_df['confidence'].mean()
+                print(f"  평균 신뢰도: {avg_conf:.1f}/100")
 
-        # 시그널 저장 (JSON)
         output_dir = Path(__file__).parent / 'signals'
         output_dir.mkdir(exist_ok=True)
+        output_file = output_dir / f'day_{year}_signals.json'
 
-        output_file = output_dir / f'{TIMEFRAME}_{year}_signals.json'
-
-        # JSON 형식
         signals_json = {
-            'strategy': 'v-a-04',
-            'version': '1.0',
-            'description': 'Market-Adaptive Perfect Signal Reproducer (v37 based)',
-            'timeframe': TIMEFRAME,
+            'strategy': 'v-a-15',
             'year': year,
             'total_signals': len(signals_df),
-            'market_distribution': market_dist if len(signals_df) > 0 else {},
-            'signals': []
+            'signals': signals_df.to_dict('records') if len(signals_df) > 0 else []
         }
 
-        for _, row in signals_df.iterrows():
-            signals_json['signals'].append({
-                'timestamp': row['timestamp'].isoformat(),
-                'entry_price': float(row['entry_price']),
-                'market_state': row['market_state'],
-                'strategy': row['strategy'],
-                'reason': row['reason'],
-                'fraction': float(row['fraction']),
-                'rsi': float(row['rsi']),
-                'macd': float(row['macd']),
-                'macd_signal': float(row['macd_signal']),
-                'adx': float(row['adx']),
-                'bb_position': float(row['bb_position']),
-                'stoch_k': float(row['stoch_k']),
-                'volume_ratio': float(row['volume_ratio'])
-            })
+        for s in signals_json['signals']:
+            if 'timestamp' in s:
+                s['timestamp'] = s['timestamp'].isoformat()
 
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(signals_json, f, indent=2, ensure_ascii=False)
+        with open(output_file, 'w') as f:
+            json.dump(signals_json, f, indent=2)
 
-        print(f"\n  ✅ 저장: {output_file}")
-
-        # 시장 상태 저장 (분석용)
-        market_csv = output_dir / f'{TIMEFRAME}_{year}_market_states.csv'
-        market_states_df.to_csv(market_csv, index=False, encoding='utf-8')
-        print(f"  ✅ 시장 상태: {market_csv}")
-
-        all_results[year] = {
-            'signals': len(signals_df),
-            'strategy_dist': strategy_dist if len(signals_df) > 0 else {},
-            'market_dist': market_dist if len(signals_df) > 0 else {}
-        }
-
-    # 종합 요약
-    print(f"\n{'='*70}")
-    print(f"  시그널 생성 완료!")
-    print(f"{'='*70}\n")
-
-    print("[연도별 요약]")
-    print(f"{'연도':>6s} | {'시그널':>8s} | {'Trend':>7s} | {'Swing':>7s} | {'Sideways':>9s} | {'Defensive':>10s}")
-    print("-"*70)
-
-    for year, result in all_results.items():
-        dist = result['strategy_dist']
-        print(f"{year:>6d} | {result['signals']:>7d}개 | "
-              f"{dist.get('trend_following', 0):>6d}개 | "
-              f"{dist.get('swing_trading', 0):>6d}개 | "
-              f"{dist.get('sideways', 0):>8d}개 | "
-              f"{dist.get('defensive', 0):>9d}개")
-
-    print(f"\n다음 단계:")
-    print(f"  1. python strategies/v-a-04/backtest.py (백테스팅)")
-    print(f"  2. v37 결과와 비교")
-    print(f"  3. 개선 방향 도출")
-    print()
-
+        print(f"  ✅ 저장: {output_file}")
+        
+        market_csv = output_dir / f'day_{year}_market_states.csv'
+        market_states_df.to_csv(market_csv, index=False)
 
 if __name__ == '__main__':
     main()

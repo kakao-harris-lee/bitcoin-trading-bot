@@ -33,6 +33,7 @@ class UpbitTrader:
         """API 연결 테스트"""
         try:
             balance = self.upbit.get_balance("KRW")
+            balance = balance if balance is not None else 0.0
             print(f"✅ 업비트 연결 성공 (KRW 잔고: {balance:,.0f} KRW)")
         except Exception as e:
             raise ConnectionError(f"업비트 연결 실패: {e}")
@@ -56,6 +57,11 @@ class UpbitTrader:
         try:
             krw_balance = self.upbit.get_balance("KRW")
             btc_balance = self.upbit.get_balance("BTC")
+
+            # None 처리 (API 권한 부족 시)
+            krw_balance = krw_balance if krw_balance is not None else 0.0
+            btc_balance = btc_balance if btc_balance is not None else 0.0
+
             return krw_balance, btc_balance
         except Exception as e:
             print(f"❌ 잔고 조회 실패: {e}")

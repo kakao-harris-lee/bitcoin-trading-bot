@@ -21,6 +21,6 @@
   },
   "position_sizing": {
     "type": "fixed",
-    "fraction": 1.0
+    "fraction": 0.7
   }
 }

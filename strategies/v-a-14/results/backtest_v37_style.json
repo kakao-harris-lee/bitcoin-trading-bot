@@ -1,17 +1,17 @@
 {
   "strategy": "v-a-04",
   "description": "v37 Entry + v37 Exit",
-  "backtest_date": "2025-10-22T15:31:50.666188",
+  "backtest_date": "2025-11-18T09:07:54.740860",
   "results": {
     "2020": {
       "year": 2020,
-      "total_return": 338.6493685615924,
+      "total_return": 307.7492694714306,
       "buy_hold": 284.2289156626506,
-      "excess_return": 54.42045289894179,
+      "excess_return": 23.520353808779987,
       "total_trades": 51,
-      "win_rate": 56.86274509803921,
-      "avg_profit": 12.015089870856393,
-      "avg_loss": -4.100573474946152,
+      "win_rate": 54.90196078431373,
+      "avg_profit": 12.294023910517554,
+      "avg_loss": -4.260610299583782,
       "trades": [
         {
           "entry_time": "2020-02-07 09:00:00",
@@ -172,14 +172,14 @@
         {
           "entry_time": "2020-04-03 09:00:00",
           "entry_price": 8156000.0,
-          "exit_time": "2020-04-06 09:00:00",
-          "exit_price": 8786000.0,
+          "exit_time": "2020-04-08 09:00:00",
+          "exit_price": 8821000.0,
           "strategy": "bull_trend",
-          "hold_days": 3,
-          "profit": 691112.7831937168,
-          "profit_pct": 7.648967631191772,
+          "hold_days": 5,
+          "profit": 729859.313446017,
+          "profit_pct": 8.077799166257975,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 15750068.372952519
+          "capital_after": 15788814.90320482
         },
         {
           "entry_time": "2020-04-04 09:00:00",
@@ -188,34 +188,34 @@
           "exit_price": 9057000.0,
           "strategy": "bull_trend",
           "hold_days": 19,
-          "profit": 918380.5106219873,
+          "profit": 920639.8060990181,
           "profit_pct": 9.718270093344648,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 16668448.883574506
+          "capital_after": 16709454.709303837
         },
         {
           "entry_time": "2020-04-05 09:00:00",
           "entry_price": 8198000.0,
-          "exit_time": "2020-04-06 09:00:00",
-          "exit_price": 8786000.0,
+          "exit_time": "2020-04-23 09:00:00",
+          "exit_price": 9057000.0,
           "strategy": "bull_trend",
-          "hold_days": 1,
-          "profit": 709821.9309015404,
-          "profit_pct": 7.097460356184433,
+          "hold_days": 18,
+          "profit": 1042753.2561634891,
+          "profit_pct": 10.400830690412292,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 17378270.814476047
+          "capital_after": 17752207.965467326
         },
         {
           "entry_time": "2020-04-06 09:00:00",
           "entry_price": 8786000.0,
-          "exit_time": "2020-04-27 09:00:00",
-          "exit_price": 9490000.0,
+          "exit_time": "2020-04-15 09:00:00",
+          "exit_price": 8108000.0,
           "strategy": "bull_trend",
-          "hold_days": 21,
-          "profit": 827602.4675873369,
-          "profit_pct": 7.937138629638059,
-          "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 18205873.282063384
+          "hold_days": 9,
+          "profit": -828824.3636773732,
+          "profit_pct": -7.7814204416116635,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 16923383.60178995
         },
         {
           "entry_time": "2020-04-30 09:00:00",
@@ -224,10 +224,10 @@
           "exit_price": 11269000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": 545020.0725086676,
-          "profit_pct": 7.484124272215316,
+          "profit": 506626.82392866723,
+          "profit_pct": 7.484124272215315,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 18750893.35457205
+          "capital_after": 17430010.42571862
         },
         {
           "entry_time": "2020-05-10 09:00:00",
@@ -236,10 +236,10 @@
           "exit_price": 11776000.0,
           "strategy": "bull_trend",
           "hold_days": 4,
-          "profit": 1156321.04541477,
+          "profit": 1074865.4741904847,
           "profit_pct": 10.277919595164455,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 19907214.39998682
+          "capital_after": 18504875.899909105
         },
         {
           "entry_time": "2020-06-01 09:00:00",
@@ -248,10 +248,10 @@
           "exit_price": 11597000.0,
           "strategy": "trend_following",
           "hold_days": 4,
-          "profit": -687834.8871711269,
-          "profit_pct": -4.319005118890355,
+          "profit": -639381.229889106,
+          "profit_pct": -4.319005118890358,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 19219379.51281569
+          "capital_after": 17865494.67002
         },
         {
           "entry_time": "2020-06-04 09:00:00",
@@ -260,10 +260,10 @@
           "exit_price": 10837000.0,
           "strategy": "trend_following",
           "hold_days": 29,
-          "profit": -1245522.6537462827,
-          "profit_pct": -8.100695010183307,
+          "profit": -1157783.3882230986,
+          "profit_pct": -8.100695010183298,
           "exit_reason": "TREND_STOP_LOSS",
-          "capital_after": 17973856.859069407
+          "capital_after": 16707711.2817969
         },
         {
           "entry_time": "2020-06-29 09:00:00",
@@ -272,10 +272,10 @@
           "exit_price": 10888000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -60036.22032806836,
-          "profit_pct": -0.8350492161866576,
+          "profit": -55807.04484055005,
+          "profit_pct": -0.8350492161866596,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 17913820.638741337
+          "capital_after": 16651904.23695635
         },
         {
           "entry_time": "2020-07-08 09:00:00",
@@ -284,10 +284,10 @@
           "exit_price": 13709000.0,
           "strategy": "trend_following",
           "hold_days": 35,
-          "profit": 3295710.2866014317,
+          "profit": 3063548.150446089,
           "profit_pct": 22.996980606931228,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 21209530.92534277
+          "capital_after": 19715452.387402438
         },
         {
           "entry_time": "2020-07-27 09:00:00",
@@ -296,10 +296,10 @@
           "exit_price": 12772000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -100458.16486634593,
-          "profit_pct": -1.1841158253329265,
+          "profit": -93381.51670208387,
+          "profit_pct": -1.184115825332922,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 21109072.76047642
+          "capital_after": 19622070.870700352
         },
         {
           "entry_time": "2020-07-28 09:00:00",
@@ -308,10 +308,10 @@
           "exit_price": 13922000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": 753827.6641674899,
-          "profit_pct": 8.927768556216728,
+          "profit": 700725.2293091789,
+          "profit_pct": 8.927768556216725,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 21862900.42464391
+          "capital_after": 20322796.10000953
         },
         {
           "entry_time": "2020-07-29 09:00:00",
@@ -320,10 +320,10 @@
           "exit_price": 13922000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 525252.4178319871,
-          "profit_pct": 6.006206949100877,
+          "profit": 488251.67664415017,
+          "profit_pct": 6.006206949100882,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 22388152.8424759
+          "capital_after": 20811047.77665368
         },
         {
           "entry_time": "2020-08-02 09:00:00",
@@ -332,10 +332,10 @@
           "exit_price": 13843000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 552098.996809639,
-          "profit_pct": 6.165079815809657,
+          "profit": 513207.0823747944,
+          "profit_pct": 6.165079815809683,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 22940251.839285538
+          "capital_after": 21324254.859028473
         },
         {
           "entry_time": "2020-08-05 09:00:00",
@@ -344,10 +344,10 @@
           "exit_price": 13619000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": -154802.07223461382,
-          "profit_pct": -1.6870136531098676,
+          "profit": -143897.23635830265,
+          "profit_pct": -1.6870136531098767,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 22785449.767050922
+          "capital_after": 21180357.62267017
         },
         {
           "entry_time": "2020-08-11 09:00:00",
@@ -356,10 +356,10 @@
           "exit_price": 12303000.0,
           "strategy": "bull_trend",
           "hold_days": 23,
-          "profit": -1329695.9746843912,
-          "profit_pct": -9.726206769953755,
+          "profit": -1236027.2261979356,
+          "profit_pct": -9.726206769953743,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 21455753.79236653
+          "capital_after": 19944330.396472234
         },
         {
           "entry_time": "2020-08-13 09:00:00",
@@ -368,10 +368,10 @@
           "exit_price": 14000000.0,
           "strategy": "sideways",
           "hold_days": 5,
-          "profit": 111986.29495682754,
-          "profit_pct": 1.304851556842875,
+          "profit": 104097.56227210164,
+          "profit_pct": 1.304851556842872,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 21567740.08732336
+          "capital_after": 20048427.958744336
         },
         {
           "entry_time": "2020-08-17 09:00:00",
@@ -380,10 +380,10 @@
           "exit_price": 14000000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -129855.89497802779,
-          "profit_pct": -1.5052098000563328,
+          "profit": -120708.36095690075,
+          "profit_pct": -1.5052098000563245,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 21437884.192345332
+          "capital_after": 19927719.597787436
         },
         {
           "entry_time": "2020-09-07 09:00:00",
@@ -392,10 +392,10 @@
           "exit_price": 12131000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -183777.21403386816,
-          "profit_pct": -2.1431360994510844,
+          "profit": -170831.26099902857,
+          "profit_pct": -2.1431360994510866,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 21254106.978311464
+          "capital_after": 19756888.33678841
         },
         {
           "entry_time": "2020-09-15 09:00:00",
@@ -404,10 +404,10 @@
           "exit_price": 11943000.0,
           "strategy": "trend_following",
           "hold_days": 8,
-          "profit": -1166849.6106045693,
-          "profit_pct": -6.862494927423139,
+          "profit": -1084652.3679430056,
+          "profit_pct": -6.862494927423132,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 20087257.367706895
+          "capital_after": 18672235.968845405
         },
         {
           "entry_time": "2020-09-24 09:00:00",
@@ -416,10 +416,10 @@
           "exit_price": 12440000.0,
           "strategy": "sideways",
           "hold_days": 7,
-          "profit": -44164.968935053796,
-          "profit_pct": -0.5496640000000103,
+          "profit": -41053.82364631817,
+          "profit_pct": -0.5496640000000055,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 20043092.39877184
+          "capital_after": 18631182.145199087
         },
         {
           "entry_time": "2020-09-25 09:00:00",
@@ -428,10 +428,10 @@
           "exit_price": 20840000.0,
           "strategy": "trend_following",
           "hold_days": 61,
-          "profit": 10776005.853507096,
-          "profit_pct": 67.2052348454436,
+          "profit": 10016903.77213072,
+          "profit_pct": 67.20523484544358,
           "exit_reason": "TREND_TIMEOUT",
-          "capital_after": 30819098.25227894
+          "capital_after": 28648085.917329807
         },
         {
           "entry_time": "2020-10-21 09:00:00",
@@ -440,10 +440,10 @@
           "exit_price": 15312000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": 750685.6250036377,
-          "profit_pct": 6.089451570408357,
+          "profit": 697804.5271139108,
+          "profit_pct": 6.089451570408363,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 31569783.877282575
+          "capital_after": 29345890.444443718
         },
         {
           "entry_time": "2020-10-28 09:00:00",
@@ -452,10 +452,10 @@
           "exit_price": 15397000.0,
           "strategy": "sideways",
           "hold_days": 5,
-          "profit": 273539.4739174824,
-          "profit_pct": 2.1661494023904275,
+          "profit": 254270.33219538815,
+          "profit_pct": 2.166149402390438,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 31843323.35120006
+          "capital_after": 29600160.776639104
         },
         {
           "entry_time": "2020-11-05 09:00:00",
@@ -464,10 +464,10 @@
           "exit_price": 16647000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -526062.9328094814,
-          "profit_pct": -4.13008817427387,
+          "profit": -489005.0959208105,
+          "profit_pct": -4.130088174273876,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 31317260.41839058
+          "capital_after": 29111155.680718295
         },
         {
           "entry_time": "2020-11-06 09:00:00",
@@ -476,10 +476,10 @@
           "exit_price": 16647000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -548436.6779955737,
-          "profit_pct": -4.378070356958113,
+          "profit": -509802.7509701811,
+          "profit_pct": -4.378070356958103,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 30768823.740395006
+          "capital_after": 28601352.929748114
         },
         {
           "entry_time": "2020-11-18 09:00:00",
@@ -488,10 +488,10 @@
           "exit_price": 20351000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 388788.0144115463,
-          "profit_pct": 3.158944404991374,
+          "profit": 361400.3352504466,
+          "profit_pct": 3.158944404991381,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 31157611.754806552
+          "capital_after": 28962753.264998563
         },
         {
           "entry_time": "2020-11-22 09:00:00",
@@ -500,10 +500,10 @@
           "exit_price": 20100000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -135677.61324932612,
-          "profit_pct": -1.088639385433607,
+          "profit": -126119.97565949336,
+          "profit_pct": -1.0886393854336107,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 31021934.141557224
+          "capital_after": 28836633.28933907
         },
         {
           "entry_time": "2020-11-24 09:00:00",
@@ -512,10 +512,10 @@
           "exit_price": 19225000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -1033496.5426709373,
-          "profit_pct": -8.328756501407637,
+          "profit": -960693.1879491638,
+          "profit_pct": -8.328756501407646,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 29988437.59888629
+          "capital_after": 27875940.101389907
         },
         {
           "entry_time": "2020-11-25 09:00:00",
@@ -524,10 +524,10 @@
           "exit_price": 19225000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -937330.0599076468,
-          "profit_pct": -7.814095489443383,
+          "profit": -871301.0312410593,
+          "profit_pct": -7.8140954894433845,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 29051107.538978644
+          "capital_after": 27004639.070148848
         },
         {
           "entry_time": "2020-11-26 09:00:00",
@@ -536,10 +536,10 @@
           "exit_price": 21315000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": 1254270.121330144,
-          "profit_pct": 10.793651495448636,
+          "profit": 1165914.65153425,
+          "profit_pct": 10.793651495448625,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 30305377.660308786
+          "capital_after": 28170553.7216831
         },
         {
           "entry_time": "2020-11-30 09:00:00",
@@ -548,10 +548,10 @@
           "exit_price": 20867000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -263091.2843117919,
-          "profit_pct": -2.170334975369444,
+          "profit": -244558.1520707719,
+          "profit_pct": -2.170334975369454,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 30042286.375996992
+          "capital_after": 27925995.569612328
         },
         {
           "entry_time": "2020-12-01 09:00:00",
@@ -560,10 +560,10 @@
           "exit_price": 20569000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -179904.33108687773,
-          "profit_pct": -1.4970925384578637,
+          "profit": -167231.19838509522,
+          "profit_pct": -1.4970925384578577,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 29862382.044910114
+          "capital_after": 27758764.371227235
         },
         {
           "entry_time": "2020-12-16 09:00:00",
@@ -572,10 +572,10 @@
           "exit_price": 31891000.0,
           "strategy": "trend_following",
           "hold_days": 14,
-          "profit": 9373798.90570674,
+          "profit": 8713473.516461547,
           "profit_pct": 39.23748820342538,
           "exit_reason": "FORCED_EXIT",
-          "capital_after": 39236180.95061685
+          "capital_after": 36472237.887688786
         },
         {
           "entry_time": "2020-12-17 09:00:00",
@@ -584,10 +584,10 @@
           "exit_price": 25880000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 709707.5550539531,
-          "profit_pct": 4.522022390170949,
+          "profit": 659713.1053910814,
+          "profit_pct": 4.522022390170962,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 39945888.5056708
+          "capital_after": 37131950.99307987
         },
         {
           "entry_time": "2020-12-21 09:00:00",
@@ -596,10 +596,10 @@
           "exit_price": 26380000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": 613363.1623899676,
-          "profit_pct": 3.838712726986241,
+          "profit": 570155.5714198612,
+          "profit_pct": 3.838712726986246,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 40559251.668060765
+          "capital_after": 37702106.564499736
         },
         {
           "entry_time": "2020-12-23 09:00:00",
@@ -608,10 +608,10 @@
           "exit_price": 29378000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 1831122.8463077024,
-          "profit_pct": 11.286714935557221,
+          "profit": 1702131.7170540392,
+          "profit_pct": 11.286714935557239,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 42390374.51436847
+          "capital_after": 39404238.281553775
         },
         {
           "entry_time": "2020-12-27 09:00:00",
@@ -620,46 +620,46 @@
           "exit_price": 31891000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 1474562.3417907692,
-          "profit_pct": 8.696327637368228,
+          "profit": 1370688.6655892804,
+          "profit_pct": 8.696327637368249,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 43864936.85615924
+          "capital_after": 40774926.947143055
         }
       ]
     },
     "2021": {
       "year": 2021,
-      "total_return": 67.67005841420534,
+      "total_return": 29.323345098598246,
       "buy_hold": 77.11171662125341,
-      "excess_return": -9.441658207048064,
+      "excess_return": -47.78837152265516,
       "total_trades": 43,
-      "win_rate": 46.51162790697674,
-      "avg_profit": 9.778627869503499,
-      "avg_loss": -5.2118384173956676,
+      "win_rate": 37.2093023255814,
+      "avg_profit": 10.599853920365586,
+      "avg_loss": -5.091915742310648,
       "trades": [
         {
           "entry_time": "2021-02-23 09:00:00",
           "entry_price": 55105000.0,
-          "exit_time": "2021-03-08 09:00:00",
-          "exit_price": 59821000.0,
+          "exit_time": "2021-02-28 09:00:00",
+          "exit_price": 51798000.0,
           "strategy": "bull_trend",
-          "hold_days": 13,
-          "profit": 508932.9788585426,
-          "profit_pct": 8.482216314309044,
-          "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 10508932.978858542
+          "hold_days": 5,
+          "profit": -364024.16477633547,
+          "profit_pct": -6.067069412938925,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 9635975.835223664
         },
         {
           "entry_time": "2021-02-24 09:00:00",
           "entry_price": 56500000.0,
-          "exit_time": "2021-02-28 09:00:00",
-          "exit_price": 51798000.0,
+          "exit_time": "2021-02-27 09:00:00",
+          "exit_price": 53494000.0,
           "strategy": "bull_trend",
-          "hold_days": 4,
-          "profit": -528786.2874042494,
-          "profit_pct": -8.386298407079655,
+          "hold_days": 3,
+          "profit": -311432.6037304029,
+          "profit_pct": -5.3866297345132725,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 9980146.691454291
+          "capital_after": 9324543.23149326
         },
         {
           "entry_time": "2021-03-10 09:00:00",
@@ -668,10 +668,10 @@
           "exit_price": 67120000.0,
           "strategy": "trend_following",
           "hold_days": 11,
-          "profit": 337853.60215293895,
-          "profit_pct": 4.231571095571084,
+          "profit": 315659.74094231986,
+          "profit_pct": 4.231571095571096,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 10318000.293607231
+          "capital_after": 9640202.97243558
         },
         {
           "entry_time": "2021-03-15 09:00:00",
@@ -680,58 +680,58 @@
           "exit_price": 70800000.0,
           "strategy": "bull_trend",
           "hold_days": 15,
-          "profit": 601294.9192146435,
-          "profit_pct": 9.712717291857262,
+          "profit": 561795.3966443334,
+          "profit_pct": 9.712717291857269,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 10919295.212821875
+          "capital_after": 10201998.369079914
         },
         {
           "entry_time": "2021-03-16 09:00:00",
           "entry_price": 66020000.0,
-          "exit_time": "2021-03-30 09:00:00",
-          "exit_price": 70800000.0,
+          "exit_time": "2021-03-31 09:00:00",
+          "exit_price": 71513000.0,
           "strategy": "bull_trend",
-          "hold_days": 14,
-          "profit": 469431.11947780475,
-          "profit_pct": 7.165162072099364,
+          "hold_days": 15,
+          "profit": 504655.02137047984,
+          "profit_pct": 8.244381853983656,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 11388726.33229968
+          "capital_after": 10706653.390450394
         },
         {
           "entry_time": "2021-03-18 09:00:00",
           "entry_price": 67139000.0,
-          "exit_time": "2021-04-01 09:00:00",
-          "exit_price": 72749000.0,
+          "exit_time": "2021-03-25 09:00:00",
+          "exit_price": 63328000.0,
           "strategy": "bull_trend",
-          "hold_days": 14,
-          "profit": 565788.514644281,
-          "profit_pct": 8.279950103516589,
-          "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 11954514.84694396
+          "hold_days": 7,
+          "profit": -368885.545508367,
+          "profit_pct": -5.7423101327097505,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 10337767.844942026
         },
         {
           "entry_time": "2021-03-19 09:00:00",
           "entry_price": 67974000.0,
-          "exit_time": "2021-04-01 09:00:00",
-          "exit_price": 72749000.0,
+          "exit_time": "2021-03-25 09:00:00",
+          "exit_price": 63328000.0,
           "strategy": "bull_trend",
-          "hold_days": 13,
-          "profit": 498490.8914620634,
-          "profit_pct": 6.9498274340188875,
-          "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 12453005.738406023
+          "hold_days": 6,
+          "profit": -427994.86734098196,
+          "profit_pct": -6.900181834230742,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 9909772.977601044
         },
         {
           "entry_time": "2021-03-20 09:00:00",
           "entry_price": 67849000.0,
-          "exit_time": "2021-04-01 09:00:00",
-          "exit_price": 72749000.0,
+          "exit_time": "2021-03-25 09:00:00",
+          "exit_price": 63328000.0,
           "strategy": "bull_trend",
-          "hold_days": 12,
-          "profit": 533999.6243251795,
-          "profit_pct": 7.146863918407047,
-          "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 12987005.362731203
+          "hold_days": 5,
+          "profit": -400077.0526073091,
+          "profit_pct": -6.728661586758834,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 9509695.924993735
         },
         {
           "entry_time": "2021-03-31 09:00:00",
@@ -740,22 +740,22 @@
           "exit_price": 77905000.0,
           "strategy": "trend_following",
           "hold_days": 17,
-          "profit": 920724.4715968221,
+          "profit": 674197.7469812129,
           "profit_pct": 8.861978241718296,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 13907729.834328026
+          "capital_after": 10183893.671974948
         },
         {
           "entry_time": "2021-04-07 09:00:00",
           "entry_price": 72850000.0,
-          "exit_time": "2021-04-10 09:00:00",
-          "exit_price": 78530000.0,
+          "exit_time": "2021-04-11 09:00:00",
+          "exit_price": 78743000.0,
           "strategy": "bull_trend",
-          "hold_days": 3,
-          "profit": 644321.622310997,
-          "profit_pct": 7.721385037748788,
+          "hold_days": 4,
+          "profit": 489655.5786247887,
+          "profit_pct": 8.01356197666438,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 14552051.456639022
+          "capital_after": 10673549.250599736
         },
         {
           "entry_time": "2021-04-16 09:00:00",
@@ -764,10 +764,10 @@
           "exit_price": 71456000.0,
           "strategy": "bull_trend",
           "hold_days": 3,
-          "profit": -874214.5270183245,
-          "profit_pct": -10.012500409572668,
+          "profit": -641213.4974593436,
+          "profit_pct": -10.012500409572672,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 13677836.929620698
+          "capital_after": 10032335.753140394
         },
         {
           "entry_time": "2021-04-20 09:00:00",
@@ -776,10 +776,10 @@
           "exit_price": 68198000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -174988.85474237986,
-          "profit_pct": -3.198401465867463,
+          "profit": -128349.74951567454,
+          "profit_pct": -3.1984014658674473,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 13502848.074878318
+          "capital_after": 9903986.003624719
         },
         {
           "entry_time": "2021-04-24 09:00:00",
@@ -788,10 +788,10 @@
           "exit_price": 59859000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -91943.65355508495,
-          "profit_pct": -1.7023011190902684,
+          "profit": -67438.26582969911,
+          "profit_pct": -1.702301119090275,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 13410904.421323232
+          "capital_after": 9836547.73779502
         },
         {
           "entry_time": "2021-05-02 09:00:00",
@@ -800,10 +800,10 @@
           "exit_price": 62257000.0,
           "strategy": "trend_following",
           "hold_days": 10,
-          "profit": -977794.6445823442,
-          "profit_pct": -9.113802226377612,
+          "profit": -717186.8053806871,
+          "profit_pct": -9.11380222637761,
           "exit_reason": "TREND_STOP_LOSS",
-          "capital_after": 12433109.776740888
+          "capital_after": 9119360.932414332
         },
         {
           "entry_time": "2021-05-12 09:00:00",
@@ -812,10 +812,10 @@
           "exit_price": 61797000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -40201.491987806745,
-          "profit_pct": -0.8083555262862165,
+          "profit": -29486.743223662488,
+          "profit_pct": -0.8083555262862024,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 12392908.28475308
+          "capital_after": 9089874.18919067
         },
         {
           "entry_time": "2021-05-13 09:00:00",
@@ -824,10 +824,10 @@
           "exit_price": 61797000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -103378.01788832434,
-          "profit_pct": -2.0854269133805676,
+          "profit": -75825.073093527,
+          "profit_pct": -2.085426913380585,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 12289530.266864756
+          "capital_after": 9014049.116097145
         },
         {
           "entry_time": "2021-05-17 09:00:00",
@@ -836,10 +836,10 @@
           "exit_price": 53419000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -61418.624062657356,
-          "profit_pct": -1.2494095121815867,
+          "profit": -45048.954835695215,
+          "profit_pct": -1.2494095121815876,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 12228111.642802099
+          "capital_after": 8969000.16126145
         },
         {
           "entry_time": "2021-05-19 09:00:00",
@@ -848,10 +848,10 @@
           "exit_price": 49112000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -126349.47390564438,
+          "profit": -92674.03544700891,
           "profit_pct": -2.583176323468108,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 12101762.168896455
+          "capital_after": 8876326.125814442
         },
         {
           "entry_time": "2021-05-21 09:00:00",
@@ -860,10 +860,10 @@
           "exit_price": 42585000.0,
           "strategy": "defensive",
           "hold_days": 2,
-          "profit": -323134.66833263123,
-          "profit_pct": -13.350727928001307,
+          "profit": -237010.83021191694,
+          "profit_pct": -13.350727928001302,
           "exit_reason": "DEFENSIVE_STOP_LOSS",
-          "capital_after": 11778627.500563825
+          "capital_after": 8639315.295602525
         },
         {
           "entry_time": "2021-05-22 09:00:00",
@@ -872,10 +872,10 @@
           "exit_price": 42585000.0,
           "strategy": "defensive",
           "hold_days": 1,
-          "profit": -243455.22149905888,
-          "profit_pct": -10.334617572692787,
+          "profit": -178568.03933993494,
+          "profit_pct": -10.33461757269279,
           "exit_reason": "DEFENSIVE_STOP_LOSS",
-          "capital_after": 11535172.279064765
+          "capital_after": 8460747.25626259
         },
         {
           "entry_time": "2021-05-23 09:00:00",
@@ -884,10 +884,10 @@
           "exit_price": 46963000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": 470792.77520935796,
-          "profit_pct": 10.203418809439931,
+          "profit": 345314.1907858681,
+          "profit_pct": 10.203418809439933,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 12005965.054274123
+          "capital_after": 8806061.447048457
         },
         {
           "entry_time": "2021-06-02 09:00:00",
@@ -896,10 +896,10 @@
           "exit_price": 39064000.0,
           "strategy": "trend_following",
           "hold_days": 5,
-          "profit": -1031229.2250355389,
-          "profit_pct": -10.736634043720846,
+          "profit": -756379.6729878243,
+          "profit_pct": -10.736634043720835,
           "exit_reason": "TREND_STOP_LOSS",
-          "capital_after": 10974735.829238584
+          "capital_after": 8049681.774060633
         },
         {
           "entry_time": "2021-06-22 09:00:00",
@@ -908,10 +908,10 @@
           "exit_price": 40098000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": 265588.5373572046,
-          "profit_pct": 6.0499984120262615,
+          "profit": 194802.2478015339,
+          "profit_pct": 6.04999841202625,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 11240324.36659579
+          "capital_after": 8244484.021862167
         },
         {
           "entry_time": "2021-06-24 09:00:00",
@@ -920,10 +920,10 @@
           "exit_price": 37199000.0,
           "strategy": "trend_following",
           "hold_days": 22,
-          "profit": -655960.7066096133,
-          "profit_pct": -7.2947261708813524,
+          "profit": -481130.02687752806,
+          "profit_pct": -7.294726170881341,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 10584363.659986176
+          "capital_after": 7763353.994984639
         },
         {
           "entry_time": "2021-06-27 09:00:00",
@@ -932,22 +932,22 @@
           "exit_price": 37199000.0,
           "strategy": "trend_following",
           "hold_days": 19,
-          "profit": -595496.2426384483,
-          "profit_pct": -7.032735525822178,
+          "profit": -436780.92352049705,
+          "profit_pct": -7.0327355258221935,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 9988867.417347727
+          "capital_after": 7326573.071464142
         },
         {
           "entry_time": "2021-07-12 09:00:00",
           "entry_price": 39193000.0,
-          "exit_time": "2021-07-20 09:00:00",
-          "exit_price": 35305000.0,
+          "exit_time": "2021-07-16 09:00:00",
+          "exit_price": 37199000.0,
           "strategy": "bull_trend",
-          "hold_days": 8,
-          "profit": -598324.8497471474,
-          "profit_pct": -9.983194703135762,
+          "hold_days": 4,
+          "profit": -226570.54380138218,
+          "profit_pct": -5.154081851351011,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 9390542.56760058
+          "capital_after": 7100002.52766276
         },
         {
           "entry_time": "2021-07-18 09:00:00",
@@ -956,10 +956,10 @@
           "exit_price": 36799000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -88737.72754765674,
-          "profit_pct": -2.362422802219684,
+          "profit": -67092.83146867203,
+          "profit_pct": -2.3624228022196996,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 9301804.840052923
+          "capital_after": 7032909.696194088
         },
         {
           "entry_time": "2021-07-22 09:00:00",
@@ -968,10 +968,10 @@
           "exit_price": 45718000.0,
           "strategy": "trend_following",
           "hold_days": 13,
-          "profit": 1522822.0578290466,
-          "profit_pct": 20.464066974291388,
+          "profit": 1151375.4803764718,
+          "profit_pct": 20.464066974291367,
           "exit_reason": "TREND_TRAILING_STOP",
-          "capital_after": 10824626.89788197
+          "capital_after": 8184285.17657056
         },
         {
           "entry_time": "2021-08-01 09:00:00",
@@ -980,10 +980,10 @@
           "exit_price": 50956000.0,
           "strategy": "bull_trend",
           "hold_days": 6,
-          "profit": 652134.6417530896,
-          "profit_pct": 10.040910230366944,
+          "profit": 493066.0365460068,
+          "profit_pct": 10.040910230366935,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 11476761.539635058
+          "capital_after": 8677351.213116568
         },
         {
           "entry_time": "2021-08-02 09:00:00",
@@ -992,10 +992,10 @@
           "exit_price": 49349000.0,
           "strategy": "bull_trend",
           "hold_days": 4,
-          "profit": 585333.1251833029,
-          "profit_pct": 8.500265560713736,
+          "profit": 442558.7380504329,
+          "profit_pct": 8.500265560713718,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 12062094.664818361
+          "capital_after": 9119909.951167
         },
         {
           "entry_time": "2021-08-03 09:00:00",
@@ -1004,22 +1004,22 @@
           "exit_price": 49349000.0,
           "strategy": "bull_trend",
           "hold_days": 3,
-          "profit": 699352.4163113404,
-          "profit_pct": 9.663225110631753,
+          "profit": 528766.4570809044,
+          "profit_pct": 9.663225110631759,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 12761447.081129702
+          "capital_after": 9648676.408247905
         },
         {
           "entry_time": "2021-08-04 09:00:00",
           "entry_price": 45718000.0,
-          "exit_time": "2021-08-06 09:00:00",
-          "exit_price": 49349000.0,
+          "exit_time": "2021-08-07 09:00:00",
+          "exit_price": 50956000.0,
           "strategy": "bull_trend",
-          "hold_days": 2,
-          "profit": 602335.7858416019,
-          "profit_pct": 7.866607681875845,
+          "hold_days": 3,
+          "profit": 658763.8101998521,
+          "profit_pct": 11.379174067107037,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 13363782.866971303
+          "capital_after": 10307440.218447756
         },
         {
           "entry_time": "2021-08-05 09:00:00",
@@ -1028,10 +1028,10 @@
           "exit_price": 50956000.0,
           "strategy": "bull_trend",
           "hold_days": 2,
-          "profit": 643198.4186264994,
-          "profit_pct": 8.021661044994596,
+          "profit": 496096.7500435971,
+          "profit_pct": 8.021661044994586,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 14006981.285597801
+          "capital_after": 10803536.968491353
         },
         {
           "entry_time": "2021-08-17 09:00:00",
@@ -1040,10 +1040,10 @@
           "exit_price": 57683000.0,
           "strategy": "bull_trend",
           "hold_days": 3,
-          "profit": 795193.6009097211,
-          "profit_pct": 9.461872199012547,
+          "profit": 613330.1165590342,
+          "profit_pct": 9.461872199012523,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 14802174.886507522
+          "capital_after": 11416867.085050387
         },
         {
           "entry_time": "2021-08-20 09:00:00",
@@ -1052,10 +1052,10 @@
           "exit_price": 56134000.0,
           "strategy": "trend_following",
           "hold_days": 4,
-          "profit": -326060.7471699547,
-          "profit_pct": -2.753486815872963,
+          "profit": -251489.54397808202,
+          "profit_pct": -2.753486815872965,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 14476114.139337568
+          "capital_after": 11165377.541072305
         },
         {
           "entry_time": "2021-09-07 09:00:00",
@@ -1064,10 +1064,10 @@
           "exit_price": 55580000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -115550.00237762369,
-          "profit_pct": -1.9955286561264864,
+          "profit": -89123.32335872296,
+          "profit_pct": -1.9955286561264747,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 14360564.136959944
+          "capital_after": 11076254.217713583
         },
         {
           "entry_time": "2021-10-01 09:00:00",
@@ -1076,10 +1076,10 @@
           "exit_price": 74364000.0,
           "strategy": "trend_following",
           "hold_days": 21,
-          "profit": 3143226.968170479,
-          "profit_pct": 27.35988414341537,
+          "profit": 2424360.257117277,
+          "profit_pct": 27.359884143415382,
           "exit_reason": "TREND_TRAILING_STOP",
-          "capital_after": 17503791.105130423
+          "capital_after": 13500614.47483086
         },
         {
           "entry_time": "2021-10-22 09:00:00",
@@ -1088,10 +1088,10 @@
           "exit_price": 81403000.0,
           "strategy": "bull_trend",
           "hold_days": 17,
-          "profit": 986056.0175397899,
-          "profit_pct": 9.388975714055201,
+          "profit": 760541.6485740524,
+          "profit_pct": 9.388975714055176,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 18489847.12267021
+          "capital_after": 14261156.123404913
         },
         {
           "entry_time": "2021-10-25 09:00:00",
@@ -1100,10 +1100,10 @@
           "exit_price": 73293000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -287131.8059906326,
-          "profit_pct": -3.882290157480308,
+          "profit": -221463.78420874104,
+          "profit_pct": -3.882290157480332,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 18202715.31667958
+          "capital_after": 14039692.339196172
         },
         {
           "entry_time": "2021-11-08 09:00:00",
@@ -1112,10 +1112,10 @@
           "exit_price": 77867000.0,
           "strategy": "trend_following",
           "hold_days": 5,
-          "profit": -642305.3198852502,
-          "profit_pct": -4.4107795781482295,
+          "profit": -495407.90602568537,
+          "profit_pct": -4.410779578148233,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 17560409.996794328
+          "capital_after": 13544284.433170486
         },
         {
           "entry_time": "2021-11-19 09:00:00",
@@ -1124,10 +1124,10 @@
           "exit_price": 70589000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -124554.84150758665,
-          "profit_pct": -1.7732336763538588,
+          "profit": -96068.7251160536,
+          "profit_pct": -1.7732336763538703,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 17435855.15528674
+          "capital_after": 13448215.708054433
         },
         {
           "entry_time": "2021-12-04 09:00:00",
@@ -1136,10 +1136,10 @@
           "exit_price": 62217000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": -3649.617165092379,
-          "profit_pct": -0.052329196540523204,
+          "profit": -2814.937291624956,
+          "profit_pct": -0.05232919654053116,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 17432205.538121648
+          "capital_after": 13445400.770762809
         },
         {
           "entry_time": "2021-12-21 09:00:00",
@@ -1148,70 +1148,70 @@
           "exit_price": 57200000.0,
           "strategy": "trend_following",
           "hold_days": 9,
-          "profit": -665199.696701115,
-          "profit_pct": -4.769904869799908,
+          "profit": -513066.26090298407,
+          "profit_pct": -4.769904869799912,
           "exit_reason": "FORCED_EXIT",
-          "capital_after": 16767005.841420533
+          "capital_after": 12932334.509859825
         }
       ]
     },
     "2022": {
       "year": 2022,
-      "total_return": -62.05047213984031,
+      "total_return": -69.2832454402456,
       "buy_hold": -63.61909695243029,
-      "excess_return": 1.5686248125899809,
+      "excess_return": -5.664148487815304,
       "total_trades": 54,
-      "win_rate": 25.925925925925924,
-      "avg_profit": 5.210463361316977,
-      "avg_loss": -5.655425832694658,
+      "win_rate": 20.37037037037037,
+      "avg_profit": 4.506185894756168,
+      "avg_loss": -5.549826874433986,
       "trades": [
         {
           "entry_time": "2022-02-08 09:00:00",
           "entry_price": 53651000.0,
-          "exit_time": "2022-02-18 09:00:00",
-          "exit_price": 49015000.0,
+          "exit_time": "2022-02-17 09:00:00",
+          "exit_price": 49376000.0,
           "strategy": "bull_trend",
-          "hold_days": 10,
-          "profit": -522298.9879033016,
-          "profit_pct": -8.704983131721693,
+          "hold_days": 9,
+          "profit": -481955.2142550936,
+          "profit_pct": -8.03258690425156,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 9477701.0120967
+          "capital_after": 9518044.785744905
         },
         {
           "entry_time": "2022-02-09 09:00:00",
           "entry_price": 53660000.0,
-          "exit_time": "2022-02-18 09:00:00",
-          "exit_price": 49015000.0,
+          "exit_time": "2022-02-17 09:00:00",
+          "exit_price": 49376000.0,
           "strategy": "bull_trend",
-          "hold_days": 9,
-          "profit": -495890.113996624,
-          "profit_pct": -8.72029537830787,
+          "hold_days": 8,
+          "profit": -459608.0277413698,
+          "profit_pct": -8.04801192694745,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 8981810.898100074
+          "capital_after": 9058436.758003537
         },
         {
           "entry_time": "2022-02-11 09:00:00",
           "entry_price": 51882000.0,
-          "exit_time": "2022-02-20 09:00:00",
-          "exit_price": 47131000.0,
+          "exit_time": "2022-02-18 09:00:00",
+          "exit_price": 49015000.0,
           "strategy": "bull_trend",
-          "hold_days": 9,
-          "profit": -496922.7337513622,
-          "profit_pct": -9.220908407540184,
+          "hold_days": 7,
+          "profit": -303935.9047019966,
+          "profit_pct": -5.592133109749052,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 8484888.164348712
+          "capital_after": 8754500.85330154
         },
         {
           "entry_time": "2022-02-12 09:00:00",
           "entry_price": 51597000.0,
-          "exit_time": "2022-02-20 09:00:00",
-          "exit_price": 47131000.0,
+          "exit_time": "2022-02-18 09:00:00",
+          "exit_price": 49015000.0,
           "strategy": "bull_trend",
-          "hold_days": 8,
-          "profit": -443903.0342093501,
-          "profit_pct": -8.719483109483104,
+          "hold_days": 6,
+          "profit": -266346.79347347934,
+          "profit_pct": -5.07066399209258,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 8040985.130139362
+          "capital_after": 8488154.059828062
         },
         {
           "entry_time": "2022-02-13 09:00:00",
@@ -1220,10 +1220,10 @@
           "exit_price": 47131000.0,
           "strategy": "bull_trend",
           "hold_days": 7,
-          "profit": -416664.1985552339,
-          "profit_pct": -8.636259359844809,
+          "profit": -439835.3996819686,
+          "profit_pct": -8.636259359844804,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 7624320.931584128
+          "capital_after": 8048318.660146093
         },
         {
           "entry_time": "2022-02-14 09:00:00",
@@ -1232,10 +1232,10 @@
           "exit_price": 47131000.0,
           "strategy": "bull_trend",
           "hold_days": 6,
-          "profit": -397990.4128145529,
-          "profit_pct": -8.700018803551362,
+          "profit": -420123.14208146464,
+          "profit_pct": -8.700018803551336,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 7226330.518769575
+          "capital_after": 7628195.518064628
         },
         {
           "entry_time": "2022-02-15 09:00:00",
@@ -1244,34 +1244,34 @@
           "exit_price": 49376000.0,
           "strategy": "bull_trend",
           "hold_days": 2,
-          "profit": -361684.0603948231,
-          "profit_pct": -8.34181007579134,
+          "profit": -381797.74939618725,
+          "profit_pct": -8.341810075791344,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 6864646.458374752
+          "capital_after": 7246397.768668441
         },
         {
           "entry_time": "2022-02-16 09:00:00",
           "entry_price": 53298000.0,
-          "exit_time": "2022-02-18 09:00:00",
-          "exit_price": 49015000.0,
+          "exit_time": "2022-02-17 09:00:00",
+          "exit_price": 49376000.0,
           "strategy": "bull_trend",
-          "hold_days": 2,
-          "profit": -333635.1484130267,
-          "profit_pct": -8.100323651919405,
+          "hold_days": 1,
+          "profit": -322760.67481791833,
+          "profit_pct": -7.423474051559163,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 6531011.309961725
+          "capital_after": 6923637.093850523
         },
         {
           "entry_time": "2022-02-17 09:00:00",
           "entry_price": 49376000.0,
-          "exit_time": "2022-03-01 09:00:00",
-          "exit_price": 53790000.0,
+          "exit_time": "2022-02-21 09:00:00",
+          "exit_price": 45450000.0,
           "strategy": "bull_trend",
-          "hold_days": 12,
-          "profit": 347318.19207692426,
-          "profit_pct": 8.863308084899533,
-          "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 6878329.502038649
+          "hold_days": 4,
+          "profit": -332985.35415503103,
+          "profit_pct": -8.015665505508753,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 6590651.739695492
         },
         {
           "entry_time": "2022-02-22 09:00:00",
@@ -1280,10 +1280,10 @@
           "exit_price": 45543000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -57003.97296342859,
-          "profit_pct": -2.071868356500417,
+          "profit": -54619.85115275765,
+          "profit_pct": -2.0718683565004015,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 6821325.52907522
+          "capital_after": 6536031.888542734
         },
         {
           "entry_time": "2022-02-24 09:00:00",
@@ -1292,10 +1292,10 @@
           "exit_price": 46358000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -34970.82986133918,
-          "profit_pct": -1.2816728109617224,
+          "profit": -33508.21745249536,
+          "profit_pct": -1.2816728109616946,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 6786354.699213881
+          "capital_after": 6502523.671090239
         },
         {
           "entry_time": "2022-02-28 09:00:00",
@@ -1304,10 +1304,10 @@
           "exit_price": 47745000.0,
           "strategy": "trend_following",
           "hold_days": 6,
-          "profit": -479336.8364881743,
-          "profit_pct": -8.829055835817492,
+          "profit": -459289.15652624425,
+          "profit_pct": -8.829055835817472,
           "exit_reason": "TREND_STOP_LOSS",
-          "capital_after": 6307017.862725707
+          "capital_after": 6043234.5145639945
         },
         {
           "entry_time": "2022-03-08 09:00:00",
@@ -1316,10 +1316,10 @@
           "exit_price": 51570000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": 173770.40986741055,
-          "profit_pct": 6.887978346089228,
+          "profit": 166502.67390662292,
+          "profit_pct": 6.887978346089209,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 6480788.272593117
+          "capital_after": 6209737.188470617
         },
         {
           "entry_time": "2022-03-09 09:00:00",
@@ -1328,10 +1328,10 @@
           "exit_price": 48315000.0,
           "strategy": "trend_following",
           "hold_days": 2,
-          "profit": -330644.1625295924,
-          "profit_pct": -6.377390924956375,
+          "profit": -316815.37273693364,
+          "profit_pct": -6.377390924956387,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 6150144.110063525
+          "capital_after": 5892921.815733683
         },
         {
           "entry_time": "2022-04-12 09:00:00",
@@ -1340,10 +1340,10 @@
           "exit_price": 50245000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -17859.166325469967,
-          "profit_pct": -0.7259653597485173,
+          "profit": -17112.22842371557,
+          "profit_pct": -0.7259653597485008,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 6132284.9437380545
+          "capital_after": 5875809.587309968
         },
         {
           "entry_time": "2022-04-26 09:00:00",
@@ -1352,10 +1352,10 @@
           "exit_price": 49731000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 46224.446542839054,
-          "profit_pct": 1.8844707546589492,
+          "profit": 44291.1653089216,
+          "profit_pct": 1.8844707546589654,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 6178509.390280893
+          "capital_after": 5920100.752618889
         },
         {
           "entry_time": "2022-05-09 09:00:00",
@@ -1364,10 +1364,10 @@
           "exit_price": 37099000.0,
           "strategy": "defensive",
           "hold_days": 9,
-          "profit": -118409.70544936997,
-          "profit_pct": -9.582384517828395,
+          "profit": -113457.363591759,
+          "profit_pct": -9.5823845178284,
           "exit_reason": "DEFENSIVE_STOP_LOSS",
-          "capital_after": 6060099.684831523
+          "capital_after": 5806643.38902713
         },
         {
           "entry_time": "2022-05-10 09:00:00",
@@ -1376,10 +1376,10 @@
           "exit_price": 40290000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -46312.41390775191,
-          "profit_pct": -1.9105467036983004,
+          "profit": -44375.453545828816,
+          "profit_pct": -1.9105467036982817,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 6013787.270923771
+          "capital_after": 5762267.935481301
         },
         {
           "entry_time": "2022-05-11 09:00:00",
@@ -1388,10 +1388,10 @@
           "exit_price": 39243000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -64151.24954448454,
-          "profit_pct": -2.6668406552494472,
+          "profit": -61468.20158712752,
+          "profit_pct": -2.6668406552494557,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 5949636.021379286
+          "capital_after": 5700799.733894173
         },
         {
           "entry_time": "2022-05-12 09:00:00",
@@ -1400,10 +1400,10 @@
           "exit_price": 39256000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": -878.0773119358346,
-          "profit_pct": -0.03689626175368424,
+          "profit": -841.3527967487462,
+          "profit_pct": -0.03689626175370067,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 5948757.944067351
+          "capital_after": 5699958.381097425
         },
         {
           "entry_time": "2022-05-13 09:00:00",
@@ -1412,10 +1412,10 @@
           "exit_price": 39256000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -2513.366137138102,
-          "profit_pct": -0.10562566844918703,
+          "profit": -2408.247656544205,
+          "profit_pct": -0.10562566844920278,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 5946244.577930212
+          "capital_after": 5697550.13344088
         },
         {
           "entry_time": "2022-05-18 09:00:00",
@@ -1424,10 +1424,10 @@
           "exit_price": 39550000.0,
           "strategy": "defensive",
           "hold_days": 12,
-          "profit": 77682.00587275648,
-          "profit_pct": 6.532022426480502,
+          "profit": 74433.05049526552,
+          "profit_pct": 6.532022426480494,
           "exit_reason": "DEFENSIVE_TP1",
-          "capital_after": 6023926.583802968
+          "capital_after": 5771983.183936145
         },
         {
           "entry_time": "2022-05-23 09:00:00",
@@ -1436,10 +1436,10 @@
           "exit_price": 29372000.0,
           "strategy": "trend_following",
           "hold_days": 21,
-          "profit": -1040726.5372779309,
-          "profit_pct": -21.59568436798804,
+          "profit": -997199.4161409568,
+          "profit_pct": -21.59568436798803,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 4983200.046525037
+          "capital_after": 4774783.767795188
         },
         {
           "entry_time": "2022-06-13 09:00:00",
@@ -1448,10 +1448,10 @@
           "exit_price": 28829000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -38219.25775789167,
-          "profit_pct": -1.9174053520359533,
+          "profit": -36620.78380473936,
+          "profit_pct": -1.9174053520359429,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 4944980.788767145
+          "capital_after": 4738162.983990449
         },
         {
           "entry_time": "2022-06-14 09:00:00",
@@ -1460,10 +1460,10 @@
           "exit_price": 26898000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -133780.08211715636,
-          "profit_pct": -6.763427798397456,
+          "profit": -128184.89295703499,
+          "profit_pct": -6.763427798397435,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 4811200.706649989
+          "capital_after": 4609978.091033414
         },
         {
           "entry_time": "2022-06-15 09:00:00",
@@ -1472,10 +1472,10 @@
           "exit_price": 26898000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -156168.13096483704,
-          "profit_pct": -8.11482104399548,
+          "profit": -149636.5889019044,
+          "profit_pct": -8.114821043995489,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 4655032.575685152
+          "capital_after": 4460341.50213151
         },
         {
           "entry_time": "2022-06-16 09:00:00",
@@ -1484,10 +1484,10 @@
           "exit_price": 25093000.0,
           "strategy": "defensive",
           "hold_days": 2,
-          "profit": -63083.499976257444,
+          "profit": -60445.1093454269,
           "profit_pct": -6.775838724068701,
           "exit_reason": "DEFENSIVE_STOP_LOSS",
-          "capital_after": 4591949.075708894
+          "capital_after": 4399896.392786083
         },
         {
           "entry_time": "2022-06-17 09:00:00",
@@ -1496,10 +1496,10 @@
           "exit_price": 25093000.0,
           "strategy": "defensive",
           "hold_days": 1,
-          "profit": -65778.78136130085,
-          "profit_pct": -7.162403184005919,
+          "profit": -63027.66386597429,
+          "profit_pct": -7.162403184005907,
           "exit_reason": "DEFENSIVE_STOP_LOSS",
-          "capital_after": 4526170.294347594
+          "capital_after": 4336868.728920109
         },
         {
           "entry_time": "2022-06-18 09:00:00",
@@ -1508,10 +1508,10 @@
           "exit_price": 26642000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": 110415.29391714046,
-          "profit_pct": 6.098715179532137,
+          "profit": 105797.3085948131,
+          "profit_pct": 6.098715179532128,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 4636585.588264734
+          "capital_after": 4442666.037514921
         },
         {
           "entry_time": "2022-06-19 09:00:00",
@@ -1520,10 +1520,10 @@
           "exit_price": 26193000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -32532.680572783574,
-          "profit_pct": -1.7541291945049104,
+          "profit": -31172.040791361826,
+          "profit_pct": -1.7541291945049295,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 4604052.90769195
+          "capital_after": 4411493.99672356
         },
         {
           "entry_time": "2022-06-25 09:00:00",
@@ -1532,10 +1532,10 @@
           "exit_price": 25556000.0,
           "strategy": "trend_following",
           "hold_days": 6,
-          "profit": -303569.62463878,
-          "profit_pct": -8.241912906007471,
+          "profit": -290873.19445096375,
+          "profit_pct": -8.24191290600749,
           "exit_reason": "TREND_STOP_LOSS",
-          "capital_after": 4300483.28305317
+          "capital_after": 4120620.802272596
         },
         {
           "entry_time": "2022-07-01 09:00:00",
@@ -1544,46 +1544,46 @@
           "exit_price": 28115000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": 170923.47879294003,
-          "profit_pct": 9.936294803568638,
+          "profit": 163774.81226039212,
+          "profit_pct": 9.93629480356864,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 4471406.76184611
+          "capital_after": 4284395.6145329885
         },
         {
           "entry_time": "2022-07-20 09:00:00",
           "entry_price": 30505000.0,
-          "exit_time": "2022-08-26 09:00:00",
-          "exit_price": 27969000.0,
+          "exit_time": "2022-07-25 09:00:00",
+          "exit_price": 28555000.0,
           "strategy": "bull_trend",
-          "hold_days": 37,
-          "profit": -224757.18913713517,
-          "profit_pct": -8.377571873463362,
+          "hold_days": 5,
+          "profit": -166009.70509910723,
+          "profit_pct": -6.457920013112623,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 4246649.5727089755
+          "capital_after": 4118385.9094338813
         },
         {
           "entry_time": "2022-07-21 09:00:00",
           "entry_price": 30415000.0,
-          "exit_time": "2022-08-13 09:00:00",
-          "exit_price": 32562000.0,
+          "exit_time": "2022-07-25 09:00:00",
+          "exit_price": 28555000.0,
           "strategy": "bull_trend",
-          "hold_days": 23,
-          "profit": 177953.53049946902,
-          "profit_pct": 6.984075620581949,
-          "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 4424603.103208445
+          "hold_days": 4,
+          "profit": -152737.49429487577,
+          "profit_pct": -6.181122801249388,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 3965648.4151390055
         },
         {
           "entry_time": "2022-07-22 09:00:00",
           "entry_price": 30080000.0,
-          "exit_time": "2022-08-12 09:00:00",
-          "exit_price": 32368000.0,
+          "exit_time": "2022-07-25 09:00:00",
+          "exit_price": 28555000.0,
           "strategy": "bull_trend",
-          "hold_days": 21,
-          "profit": 199931.6691396879,
-          "profit_pct": 7.531058510638314,
-          "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 4624534.772348133
+          "hold_days": 3,
+          "profit": -122211.7259926796,
+          "profit_pct": -5.136264960106395,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 3843436.689146326
         },
         {
           "entry_time": "2022-07-23 09:00:00",
@@ -1592,10 +1592,10 @@
           "exit_price": 32368000.0,
           "strategy": "bull_trend",
           "hold_days": 20,
-          "profit": 244904.20863821823,
-          "profit_pct": 8.826264719736221,
+          "profit": 203539.13791171182,
+          "profit_pct": 8.826264719736212,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 4869438.980986351
+          "capital_after": 4046975.8270580377
         },
         {
           "entry_time": "2022-08-05 09:00:00",
@@ -1604,10 +1604,10 @@
           "exit_price": 30997000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": 13187.042812901083,
-          "profit_pct": 0.6770309097409576,
+          "profit": 10959.710903570754,
+          "profit_pct": 0.677030909740938,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 4882626.023799252
+          "capital_after": 4057935.5379616087
         },
         {
           "entry_time": "2022-08-08 09:00:00",
@@ -1616,10 +1616,10 @@
           "exit_price": 31547000.0,
           "strategy": "trend_following",
           "hold_days": 9,
-          "profit": 8184.584325588774,
-          "profit_pct": 0.2095333608824144,
+          "profit": 6802.182972106151,
+          "profit_pct": 0.20953336088241062,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 4890810.608124841
+          "capital_after": 4064737.720933715
         },
         {
           "entry_time": "2022-08-16 09:00:00",
@@ -1628,10 +1628,10 @@
           "exit_price": 28678000.0,
           "strategy": "bull_trend",
           "hold_days": 3,
-          "profit": -313194.3216138175,
-          "profit_pct": -10.672883860108472,
+          "profit": -260294.84170396533,
+          "profit_pct": -10.672883860108476,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 4577616.2865110235
+          "capital_after": 3804442.8792297496
         },
         {
           "entry_time": "2022-08-21 09:00:00",
@@ -1640,10 +1640,10 @@
           "exit_price": 29104000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -23331.581422224175,
-          "profit_pct": -1.2742211208798742,
+          "profit": -19390.805879582418,
+          "profit_pct": -1.2742211208798788,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 4554284.7050888
+          "capital_after": 3785052.073350167
         },
         {
           "entry_time": "2022-08-30 09:00:00",
@@ -1652,10 +1652,10 @@
           "exit_price": 27309000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": -1608.442501769634,
-          "profit_pct": -0.08829281687047454,
+          "profit": -1336.7716382301878,
+          "profit_pct": -0.08829281687048265,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 4552676.26258703
+          "capital_after": 3783715.3017119365
         },
         {
           "entry_time": "2022-09-09 09:00:00",
@@ -1664,22 +1664,22 @@
           "exit_price": 27566000.0,
           "strategy": "trend_following",
           "hold_days": 10,
-          "profit": -223777.13946585078,
-          "profit_pct": -6.144109710391827,
+          "profit": -185980.49541285168,
+          "profit_pct": -6.14410971039183,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 4328899.12312118
+          "capital_after": 3597734.806299085
         },
         {
           "entry_time": "2022-09-13 09:00:00",
           "entry_price": 28371000.0,
-          "exit_time": "2022-10-23 09:00:00",
-          "exit_price": 27981000.0,
+          "exit_time": "2022-09-20 09:00:00",
+          "exit_price": 26757000.0,
           "strategy": "bull_trend",
-          "hold_days": 40,
-          "profit": -37497.293147342745,
-          "profit_pct": -1.4436808713122589,
-          "exit_reason": "BULL_TREND_TIMEOUT",
-          "capital_after": 4291401.829973837
+          "hold_days": 7,
+          "profit": -124228.17363889678,
+          "profit_pct": -5.754925452046114,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 3473506.632660188
         },
         {
           "entry_time": "2022-09-18 09:00:00",
@@ -1688,10 +1688,10 @@
           "exit_price": 26757000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -46940.34293933865,
-          "profit_pct": -2.734557657329937,
+          "profit": -37994.01664050901,
+          "profit_pct": -2.7345576573299404,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 4244461.487034499
+          "capital_after": 3435512.616019679
         },
         {
           "entry_time": "2022-09-27 09:00:00",
@@ -1700,10 +1700,10 @@
           "exit_price": 27401000.0,
           "strategy": "trend_following",
           "hold_days": 13,
-          "profit": -14715.330821360927,
-          "profit_pct": -0.4333686047780047,
+          "profit": -11910.746472813189,
+          "profit_pct": -0.43336860477799516,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 4229746.156213138
+          "capital_after": 3423601.8695468656
         },
         {
           "entry_time": "2022-10-12 09:00:00",
@@ -1712,10 +1712,10 @@
           "exit_price": 27524000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 2756.1555827402044,
-          "profit_pct": 0.1629031318281149,
+          "profit": 2230.8618667270057,
+          "profit_pct": 0.16290313182810837,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 4232502.311795878
+          "capital_after": 3425832.7314135926
         },
         {
           "entry_time": "2022-11-08 09:00:00",
@@ -1724,10 +1724,10 @@
           "exit_price": 22919000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -238039.31601724983,
-          "profit_pct": -14.060200000000012,
+          "profit": -192671.5734808857,
+          "profit_pct": -14.060200000000009,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 3994462.9957786286
+          "capital_after": 3233161.157932707
         },
         {
           "entry_time": "2022-11-09 09:00:00",
@@ -1736,10 +1736,10 @@
           "exit_price": 24779000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": 128459.63633923931,
-          "profit_pct": 8.03985645097953,
+          "profit": 103976.60637064697,
+          "profit_pct": 8.039856450979535,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 4122922.632117868
+          "capital_after": 3337137.764303354
         },
         {
           "entry_time": "2022-11-10 09:00:00",
@@ -1748,10 +1748,10 @@
           "exit_price": 23656000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -75843.4870869387,
-          "profit_pct": -4.598890996408252,
+          "profit": -61388.53127211449,
+          "profit_pct": -4.59889099640824,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 4047079.1450309292
+          "capital_after": 3275749.2330312394
         },
         {
           "entry_time": "2022-11-11 09:00:00",
@@ -1760,10 +1760,10 @@
           "exit_price": 23380000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -20007.24283591681,
-          "profit_pct": -1.2359063239770116,
+          "profit": -16194.076771464664,
+          "profit_pct": -1.2359063239770152,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 4027071.902195012
+          "capital_after": 3259555.1562597747
         },
         {
           "entry_time": "2022-11-12 09:00:00",
@@ -1772,10 +1772,10 @@
           "exit_price": 22510000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -61026.64032288361,
-          "profit_pct": -3.7885243798118045,
+          "profit": -49395.61670732568,
+          "profit_pct": -3.788524379811801,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 3966045.2618721286
+          "capital_after": 3210159.5395524492
         },
         {
           "entry_time": "2022-11-14 09:00:00",
@@ -1784,10 +1784,10 @@
           "exit_price": 22788000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": 4965.08823723346,
-          "profit_pct": 0.3129747588211931,
+          "profit": 4018.7956306759734,
+          "profit_pct": 0.3129747588211972,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 3971010.350109362
+          "capital_after": 3214178.335183125
         },
         {
           "entry_time": "2022-11-24 09:00:00",
@@ -1796,10 +1796,10 @@
           "exit_price": 21654000.0,
           "strategy": "trend_following",
           "hold_days": 25,
-          "profit": -153567.31463465374,
-          "profit_pct": -4.834012666021648,
+          "profit": -124299.03026502067,
+          "profit_pct": -4.834012666021642,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 3817443.0354747083
+          "capital_after": 3089879.3049181043
         },
         {
           "entry_time": "2022-12-20 09:00:00",
@@ -1808,22 +1808,22 @@
           "exit_price": 21702000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": -22490.249458739767,
-          "profit_pct": -1.4728608423061282,
+          "profit": -18203.848942663753,
+          "profit_pct": -1.4728608423061234,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 3794952.786015969
+          "capital_after": 3071675.4559754403
         }
       ]
     },
     "2023": {
       "year": 2023,
-      "total_return": 101.79270761216961,
+      "total_return": 102.06503432948774,
       "buy_hold": 168.13899540784928,
-      "excess_return": -66.34628779567967,
+      "excess_return": -66.07396107836153,
       "total_trades": 54,
       "win_rate": 46.2962962962963,
-      "avg_profit": 7.920533746137602,
-      "avg_loss": -2.51309530677566,
+      "avg_profit": 8.033332051316231,
+      "avg_loss": -2.5954342171768396,
       "trades": [
         {
           "entry_time": "2023-02-06 09:00:00",
@@ -1972,14 +1972,14 @@
         {
           "entry_time": "2023-03-27 09:00:00",
           "entry_price": 36110000.0,
-          "exit_time": "2023-04-10 09:00:00",
-          "exit_price": 38985000.0,
+          "exit_time": "2023-04-11 09:00:00",
+          "exit_price": 40004000.0,
           "strategy": "bull_trend",
-          "hold_days": 14,
-          "profit": 597568.7350590555,
-          "profit_pct": 7.8862101910827915,
+          "hold_days": 15,
+          "profit": 811247.8626411818,
+          "profit_pct": 10.706167820548314,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 13226548.531859867
+          "capital_after": 13440227.659441995
         },
         {
           "entry_time": "2023-03-28 09:00:00",
@@ -1988,10 +1988,10 @@
           "exit_price": 38985000.0,
           "strategy": "bull_trend",
           "hold_days": 13,
-          "profit": 645807.1039184993,
-          "profit_pct": 8.13776300449674,
+          "profit": 656240.3245141264,
+          "profit_pct": 8.137763004496755,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 13872355.635778368
+          "capital_after": 14096467.98395612
         },
         {
           "entry_time": "2023-04-11 09:00:00",
@@ -2000,10 +2000,10 @@
           "exit_price": 38700000.0,
           "strategy": "trend_following",
           "hold_days": 6,
-          "profit": -369270.1502495408,
-          "profit_pct": -3.3273922607739337,
+          "profit": -375235.82779250294,
+          "profit_pct": -3.327392260773914,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 13503085.485528827
+          "capital_after": 13721232.156163618
         },
         {
           "entry_time": "2023-04-19 09:00:00",
@@ -2012,10 +2012,10 @@
           "exit_price": 37672000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -92282.18747153692,
-          "profit_pct": -1.7085389033942495,
+          "profit": -93773.03576523904,
+          "profit_pct": -1.7085389033942535,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 13410803.29805729
+          "capital_after": 13627459.12039838
         },
         {
           "entry_time": "2023-04-23 09:00:00",
@@ -2024,10 +2024,10 @@
           "exit_price": 39258000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": 353985.0657998603,
-          "profit_pct": 6.598878865279067,
+          "profit": 359703.8079082053,
+          "profit_pct": 6.598878865279066,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 13764788.36385715
+          "capital_after": 13987162.928306585
         },
         {
           "entry_time": "2023-05-12 09:00:00",
@@ -2036,10 +2036,10 @@
           "exit_price": 36240000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": -19145.63469319977,
-          "profit_pct": -0.34772846096695825,
+          "profit": -19454.9385534171,
+          "profit_pct": -0.3477284609669678,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 13745642.72916395
+          "capital_after": 13967707.989753168
         },
         {
           "entry_time": "2023-05-28 09:00:00",
@@ -2048,10 +2048,10 @@
           "exit_price": 34298000.0,
           "strategy": "trend_following",
           "hold_days": 8,
-          "profit": -905632.4550990257,
-          "profit_pct": -8.235632128514052,
+          "profit": -920263.2374569103,
+          "profit_pct": -8.235632128514064,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 12840010.274064925
+          "capital_after": 13047444.752296258
         },
         {
           "entry_time": "2023-06-04 09:00:00",
@@ -2060,10 +2060,10 @@
           "exit_price": 34298000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -227838.46948418487,
-          "profit_pct": -4.436103722291944,
+          "profit": -231519.27292823885,
+          "profit_pct": -4.436103722291928,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 12612171.80458074
+          "capital_after": 12815925.47936802
         },
         {
           "entry_time": "2023-06-15 09:00:00",
@@ -2072,10 +2072,10 @@
           "exit_price": 36946000.0,
           "strategy": "sideways",
           "hold_days": 5,
-          "profit": 523526.3988875523,
-          "profit_pct": 10.377403808783502,
+          "profit": 531984.1355307177,
+          "profit_pct": 10.377403808783518,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 13135698.203468293
+          "capital_after": 13347909.614898738
         },
         {
           "entry_time": "2023-06-18 09:00:00",
@@ -2084,10 +2084,10 @@
           "exit_price": 39860000.0,
           "strategy": "trend_following",
           "hold_days": 18,
-          "profit": 1636103.8439792208,
-          "profit_pct": 15.56925085591597,
+          "profit": 1662535.6255716104,
+          "profit_pct": 15.569250855915978,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 14771802.047447514
+          "capital_after": 15010445.240470348
         },
         {
           "entry_time": "2023-06-21 09:00:00",
@@ -2096,10 +2096,10 @@
           "exit_price": 40077000.0,
           "strategy": "sideways",
           "hold_days": 5,
-          "profit": 137990.35003180336,
-          "profit_pct": 2.3353675737830395,
+          "profit": 140219.6283305632,
+          "profit_pct": 2.3353675737830657,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 14909792.397479318
+          "capital_after": 15150664.868800912
         },
         {
           "entry_time": "2023-06-23 09:00:00",
@@ -2108,10 +2108,10 @@
           "exit_price": 40077000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -88327.457244277,
-          "profit_pct": -1.481030970947822,
+          "profit": -89754.41560458113,
+          "profit_pct": -1.4810309709478227,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 14821464.940235041
+          "capital_after": 15060910.453196332
         },
         {
           "entry_time": "2023-06-30 09:00:00",
@@ -2120,22 +2120,22 @@
           "exit_price": 40610000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": 5055.096627407707,
-          "profit_pct": 0.08526648087404817,
+          "profit": 5136.7633324135095,
+          "profit_pct": 0.0852664808740588,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 14826520.036862448
+          "capital_after": 15066047.216528745
         },
         {
           "entry_time": "2023-07-05 09:00:00",
           "entry_price": 40385000.0,
-          "exit_time": "2023-08-14 09:00:00",
-          "exit_price": 39288000.0,
+          "exit_time": "2023-07-19 09:00:00",
+          "exit_price": 38323000.0,
           "strategy": "bull_trend",
-          "hold_days": 40,
-          "profit": -247702.54555726983,
-          "profit_pct": -2.78445363377492,
-          "exit_reason": "BULL_TREND_TIMEOUT",
-          "capital_after": 14578817.491305178
+          "hold_days": 14,
+          "profit": -467555.072176069,
+          "profit_pct": -5.172282035409184,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 14598492.144352676
         },
         {
           "entry_time": "2023-07-11 09:00:00",
@@ -2144,10 +2144,10 @@
           "exit_price": 39092000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -152974.83383051492,
-          "profit_pct": -2.6232380287658663,
+          "profit": -153181.2790228231,
+          "profit_pct": -2.623238028765871,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 14425842.657474663
+          "capital_after": 14445310.865329854
         },
         {
           "entry_time": "2023-07-13 09:00:00",
@@ -2156,10 +2156,10 @@
           "exit_price": 39092000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -150669.26644834876,
-          "profit_pct": -2.6110999202233844,
+          "profit": -150872.60019225813,
+          "profit_pct": -2.6110999202233676,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 14275173.391026314
+          "capital_after": 14294438.265137596
         },
         {
           "entry_time": "2023-07-18 09:00:00",
@@ -2168,10 +2168,10 @@
           "exit_price": 37892000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": -79630.25614046771,
-          "profit_pct": -1.3945584750396978,
+          "profit": -79737.72011431865,
+          "profit_pct": -1.3945584750397169,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 14195543.134885848
+          "capital_after": 14214700.545023277
         },
         {
           "entry_time": "2023-07-28 09:00:00",
@@ -2180,10 +2180,10 @@
           "exit_price": 39001000.0,
           "strategy": "sideways",
           "hold_days": 19,
-          "profit": 155936.80635590386,
-          "profit_pct": 2.7462282505536164,
+          "profit": 156147.24883961212,
+          "profit_pct": 2.746228250553631,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 14351479.941241752
+          "capital_after": 14370847.79386289
         },
         {
           "entry_time": "2023-08-03 09:00:00",
@@ -2192,10 +2192,10 @@
           "exit_price": 36588000.0,
           "strategy": "trend_following",
           "hold_days": 14,
-          "profit": -559664.8828198109,
-          "profit_pct": -4.874626912269737,
+          "profit": -560420.1712647714,
+          "profit_pct": -4.87462691226975,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 13791815.058421941
+          "capital_after": 13810427.62259812
         },
         {
           "entry_time": "2023-08-07 09:00:00",
@@ -2204,10 +2204,10 @@
           "exit_price": 39001000.0,
           "strategy": "sideways",
           "hold_days": 9,
-          "profit": 50236.359606198035,
-          "profit_pct": 0.9106190772098794,
+          "profit": 50304.15543025732,
+          "profit_pct": 0.9106190772098939,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 13842051.418028139
+          "capital_after": 13860731.778028376
         },
         {
           "entry_time": "2023-08-17 09:00:00",
@@ -2216,10 +2216,10 @@
           "exit_price": 35890000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -109429.38392433338,
-          "profit_pct": -1.9763938996392283,
+          "profit": -109577.06292252336,
+          "profit_pct": -1.9763938996392256,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 13732622.034103805
+          "capital_after": 13751154.715105854
         },
         {
           "entry_time": "2023-08-18 09:00:00",
@@ -2228,10 +2228,10 @@
           "exit_price": 35684000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": -35351.84796089027,
-          "profit_pct": -0.643574254667043,
+          "profit": -35399.556586341,
+          "profit_pct": -0.6435742546670289,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 13697270.186142914
+          "capital_after": 13715755.158519514
         },
         {
           "entry_time": "2023-08-20 09:00:00",
@@ -2240,10 +2240,10 @@
           "exit_price": 35479000.0,
           "strategy": "sideways",
           "hold_days": 5,
-          "profit": -75416.76042995416,
-          "profit_pct": -1.3764925310856986,
+          "profit": -75518.53813560959,
+          "profit_pct": -1.376492531085709,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 13621853.42571296
+          "capital_after": 13640236.620383903
         },
         {
           "entry_time": "2023-08-22 09:00:00",
@@ -2252,10 +2252,10 @@
           "exit_price": 34327000.0,
           "strategy": "defensive",
           "hold_days": 20,
-          "profit": -105437.58128277957,
-          "profit_pct": -3.870162818069709,
+          "profit": -105579.87319576554,
+          "profit_pct": -3.87016281806972,
           "exit_reason": "DEFENSIVE_TIMEOUT",
-          "capital_after": 13516415.84443018
+          "capital_after": 13534656.747188138
         },
         {
           "entry_time": "2023-08-29 09:00:00",
@@ -2264,10 +2264,10 @@
           "exit_price": 35308000.0,
           "strategy": "trend_following",
           "hold_days": 5,
-          "profit": -624246.6975455601,
-          "profit_pct": -5.773042061690474,
+          "profit": -625089.1415364798,
+          "profit_pct": -5.77304206169048,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 12892169.14688462
+          "capital_after": 12909567.605651658
         },
         {
           "entry_time": "2023-09-05 09:00:00",
@@ -2276,10 +2276,10 @@
           "exit_price": 35196000.0,
           "strategy": "sideways",
           "hold_days": 5,
-          "profit": 16970.295879257843,
-          "profit_pct": 0.3290814696485482,
+          "profit": 16993.19792078156,
+          "profit_pct": 0.32908146964856777,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 12909139.442763878
+          "capital_after": 12926560.803572439
         },
         {
           "entry_time": "2023-09-07 09:00:00",
@@ -2288,10 +2288,10 @@
           "exit_price": 36671000.0,
           "strategy": "trend_following",
           "hold_days": 34,
-          "profit": 298765.74510301277,
-          "profit_pct": 2.8929672890635993,
+          "profit": 299168.9405186139,
+          "profit_pct": 2.892967289063599,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 13207905.18786689
+          "capital_after": 13225729.744091053
         },
         {
           "entry_time": "2023-09-26 09:00:00",
@@ -2300,10 +2300,10 @@
           "exit_price": 37789000.0,
           "strategy": "sideways",
           "hold_days": 5,
-          "profit": 326286.83306783997,
-          "profit_pct": 6.17597621323734,
+          "profit": 326727.16920884885,
+          "profit_pct": 6.175976213237363,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 13534192.02093473
+          "capital_after": 13552456.913299901
         },
         {
           "entry_time": "2023-10-16 09:00:00",
@@ -2312,10 +2312,10 @@
           "exit_price": 47056000.0,
           "strategy": "trend_following",
           "hold_days": 20,
-          "profit": 2329617.3996987324,
-          "profit_pct": 21.516036902085407,
+          "profit": 2332761.3044838663,
+          "profit_pct": 21.516036902085414,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 15863809.420633463
+          "capital_after": 15885218.217783768
         },
         {
           "entry_time": "2023-10-20 09:00:00",
@@ -2324,10 +2324,10 @@
           "exit_price": 44179000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 614542.252404402,
-          "profit_pct": 9.68465763975155,
+          "profit": 615371.5998879205,
+          "profit_pct": 9.684657639751554,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 16478351.673037864
+          "capital_after": 16500589.817671688
         },
         {
           "entry_time": "2023-10-23 09:00:00",
@@ -2336,10 +2336,10 @@
           "exit_price": 45980000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": 263900.3973489003,
-          "profit_pct": 4.0037438602050575,
+          "profit": 264256.5406890614,
+          "profit_pct": 4.003743860205072,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 16742252.070386764
+          "capital_after": 16764846.358360749
         },
         {
           "entry_time": "2023-10-24 09:00:00",
@@ -2348,10 +2348,10 @@
           "exit_price": 45980000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 51228.59636114631,
-          "profit_pct": 0.7649597578894127,
+          "profit": 51297.731245380826,
+          "profit_pct": 0.7649597578894344,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 16793480.66674791
+          "capital_after": 16816144.08960613
         },
         {
           "entry_time": "2023-10-25 09:00:00",
@@ -2360,10 +2360,10 @@
           "exit_price": 45980000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -77484.11689855438,
-          "profit_pct": -1.1534850701316721,
+          "profit": -77588.6845781738,
+          "profit_pct": -1.1534850701316612,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 16715996.549849354
+          "capital_after": 16738555.405027956
         },
         {
           "entry_time": "2023-11-09 09:00:00",
@@ -2372,10 +2372,10 @@
           "exit_price": 49418000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -2245.8448935477063,
-          "profit_pct": -0.033588259109325225,
+          "profit": -2248.875744238496,
+          "profit_pct": -0.03358825910931021,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 16713750.704955805
+          "capital_after": 16736306.529283717
         },
         {
           "entry_time": "2023-11-11 09:00:00",
@@ -2384,10 +2384,10 @@
           "exit_price": 58735000.0,
           "strategy": "trend_following",
           "hold_days": 33,
-          "profit": 2442253.3021575063,
-          "profit_pct": 18.265299522456623,
+          "profit": 2445549.2132561095,
+          "profit_pct": 18.26529952245663,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 19156004.00711331
+          "capital_after": 19181855.742539827
         },
         {
           "entry_time": "2023-12-03 09:00:00",
@@ -2396,10 +2396,10 @@
           "exit_price": 58735000.0,
           "strategy": "trend_following",
           "hold_days": 11,
-          "profit": 1425145.4845298324,
-          "profit_pct": 9.299600558659211,
+          "profit": 1427068.7710355483,
+          "profit_pct": 9.299600558659197,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 20581149.491643146
+          "capital_after": 20608924.513575375
         },
         {
           "entry_time": "2023-12-04 09:00:00",
@@ -2408,10 +2408,10 @@
           "exit_price": 59250000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 330994.2033757027,
-          "profit_pct": 4.020599086437093,
+          "profit": 331440.89228693116,
+          "profit_pct": 4.020599086437123,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 20912143.69501885
+          "capital_after": 20940365.405862305
         },
         {
           "entry_time": "2023-12-05 09:00:00",
@@ -2420,10 +2420,10 @@
           "exit_price": 59250000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -141454.7996731326,
-          "profit_pct": -1.6910604878210822,
+          "profit": -141645.69815355632,
+          "profit_pct": -1.6910604878210753,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 20770688.895345718
+          "capital_after": 20798719.70770875
         },
         {
           "entry_time": "2023-12-06 09:00:00",
@@ -2432,10 +2432,10 @@
           "exit_price": 59250000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -152279.58554619178,
-          "profit_pct": -1.8328663328580603,
+          "profit": -152485.0924752429,
+          "profit_pct": -1.8328663328580568,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 20618409.309799526
+          "capital_after": 20646234.615233507
         },
         {
           "entry_time": "2023-12-11 09:00:00",
@@ -2444,10 +2444,10 @@
           "exit_price": 56639000.0,
           "strategy": "bull_trend",
           "hold_days": 19,
-          "profit": -76169.86361484975,
-          "profit_pct": -0.6157107989464518,
+          "profit": -76272.65766108595,
+          "profit_pct": -0.6157107989464363,
           "exit_reason": "FORCED_EXIT",
-          "capital_after": 20542239.446184676
+          "capital_after": 20569961.957572423
         },
         {
           "entry_time": "2023-12-12 09:00:00",
@@ -2456,10 +2456,10 @@
           "exit_price": 56639000.0,
           "strategy": "bull_trend",
           "hold_days": 18,
-          "profit": -215171.4014583025,
-          "profit_pct": -1.7457639093828727,
+          "profit": -215461.78321745247,
+          "profit_pct": -1.7457639093828796,
           "exit_reason": "FORCED_EXIT",
-          "capital_after": 20327068.04472637
+          "capital_after": 20354500.17435497
         },
         {
           "entry_time": "2023-12-27 09:00:00",
@@ -2468,22 +2468,22 @@
           "exit_price": 56907000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -147797.28350941185,
-          "profit_pct": -1.8177398135359242,
+          "profit": -147996.74140619487,
+          "profit_pct": -1.817739813535913,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 20179270.76121696
+          "capital_after": 20206503.432948776
         }
       ]
     },
     "2024": {
       "year": 2024,
-      "total_return": 15.63599240579307,
+      "total_return": 33.37147626099644,
       "buy_hold": 134.35476469688473,
-      "excess_return": -118.71877229109165,
+      "excess_return": -100.98328843588828,
       "total_trades": 56,
       "win_rate": 39.285714285714285,
-      "avg_profit": 7.023462002772303,
-      "avg_loss": -4.252562555806994,
+      "avg_profit": 7.279711356975131,
+      "avg_loss": -3.737623623193893,
       "trades": [
         {
           "entry_time": "2024-02-26 09:00:00",
@@ -2776,14 +2776,14 @@
         {
           "entry_time": "2024-07-25 09:00:00",
           "entry_price": 92465000.0,
-          "exit_time": "2024-08-04 09:00:00",
-          "exit_price": 81871000.0,
+          "exit_time": "2024-08-02 09:00:00",
+          "exit_price": 86691000.0,
           "strategy": "bull_trend",
-          "hold_days": 10,
-          "profit": -939660.2491549039,
-          "profit_pct": -11.519288054939716,
+          "hold_days": 8,
+          "profit": -514736.73132253904,
+          "profit_pct": -6.310153787919756,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 12655801.621308487
+          "capital_after": 13080725.139140852
         },
         {
           "entry_time": "2024-07-26 09:00:00",
@@ -2792,10 +2792,10 @@
           "exit_price": 86691000.0,
           "strategy": "bull_trend",
           "hold_days": 7,
-          "profit": -649044.2389034722,
-          "profit_pct": -8.547387439695125,
+          "profit": -670836.1545383809,
+          "profit_pct": -8.547387439695129,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 12006757.382405015
+          "capital_after": 12409888.98460247
         },
         {
           "entry_time": "2024-07-27 09:00:00",
@@ -2804,46 +2804,46 @@
           "exit_price": 86691000.0,
           "strategy": "bull_trend",
           "hold_days": 6,
-          "profit": -585364.467780685,
-          "profit_pct": -8.125486467568837,
+          "profit": -605018.3100505127,
+          "profit_pct": -8.125486467568823,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 11421392.91462433
+          "capital_after": 11804870.674551956
         },
         {
           "entry_time": "2024-07-28 09:00:00",
           "entry_price": 95363000.0,
-          "exit_time": "2024-08-02 09:00:00",
-          "exit_price": 86691000.0,
+          "exit_time": "2024-07-31 09:00:00",
+          "exit_price": 90345000.0,
           "strategy": "bull_trend",
-          "hold_days": 5,
-          "profit": -627535.2814204805,
-          "profit_pct": -9.157308075459044,
+          "hold_days": 3,
+          "profit": -377400.45158184785,
+          "profit_pct": -5.328315489235855,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 10793857.63320385
+          "capital_after": 11427470.22297011
         },
         {
           "entry_time": "2024-07-29 09:00:00",
           "entry_price": 93618000.0,
-          "exit_time": "2024-08-03 09:00:00",
-          "exit_price": 85957000.0,
+          "exit_time": "2024-08-02 09:00:00",
+          "exit_price": 86691000.0,
           "strategy": "bull_trend",
-          "hold_days": 5,
-          "profit": -534135.7986437138,
-          "profit_pct": -8.247527078125987,
+          "hold_days": 4,
+          "profit": -511770.47624997515,
+          "profit_pct": -7.464038646414154,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 10259721.834560135
+          "capital_after": 10915699.746720135
         },
         {
           "entry_time": "2024-07-30 09:00:00",
           "entry_price": 92788000.0,
-          "exit_time": "2024-08-04 09:00:00",
-          "exit_price": 81871000.0,
+          "exit_time": "2024-08-02 09:00:00",
+          "exit_price": 86691000.0,
           "strategy": "bull_trend",
-          "hold_days": 5,
-          "profit": -728068.4884789968,
-          "profit_pct": -11.827294154416538,
+          "hold_days": 3,
+          "profit": -434638.70158515684,
+          "profit_pct": -6.6362931629089825,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 9531653.346081138
+          "capital_after": 10481061.045134978
         },
         {
           "entry_time": "2024-08-03 09:00:00",
@@ -2852,10 +2852,10 @@
           "exit_price": 81871000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -183778.36251081573,
-          "profit_pct": -4.8202120827855826,
+          "profit": -202083.74836069206,
+          "profit_pct": -4.820212082785592,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 9347874.983570322
+          "capital_after": 10278977.296774287
         },
         {
           "entry_time": "2024-08-05 09:00:00",
@@ -2864,10 +2864,10 @@
           "exit_price": 78388000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": 24026.50679754326,
-          "profit_pct": 0.6425660067066544,
+          "profit": 26419.68557846686,
+          "profit_pct": 0.6425660067066641,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 9371901.490367865
+          "capital_after": 10305396.982352754
         },
         {
           "entry_time": "2024-08-06 09:00:00",
@@ -2876,10 +2876,10 @@
           "exit_price": 78388000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -88357.9096835577,
-          "profit_pct": -2.3569899282010454,
+          "profit": -97158.86757407524,
+          "profit_pct": -2.3569899282010374,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 9283543.580684308
+          "capital_after": 10208238.114778679
         },
         {
           "entry_time": "2024-08-21 09:00:00",
@@ -2888,10 +2888,10 @@
           "exit_price": 80439000.0,
           "strategy": "trend_following",
           "hold_days": 9,
-          "profit": -225520.21255029924,
-          "profit_pct": -3.0365588661037406,
+          "profit": -247983.3276378354,
+          "profit_pct": -3.03655886610375,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 9058023.368134009
+          "capital_after": 9960254.787140843
         },
         {
           "entry_time": "2024-08-31 09:00:00",
@@ -2900,10 +2900,10 @@
           "exit_price": 78301000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -90998.28275564825,
-          "profit_pct": -2.511538087762581,
+          "profit": -100062.23704689508,
+          "profit_pct": -2.511538087762578,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 8967025.08537836
+          "capital_after": 9860192.550093947
         },
         {
           "entry_time": "2024-09-02 09:00:00",
@@ -2912,10 +2912,10 @@
           "exit_price": 78272000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -88895.03837054735,
+          "profit": -97749.49737910787,
           "profit_pct": -2.4783871329717724,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 8878130.047007812
+          "capital_after": 9762443.05271484
         },
         {
           "entry_time": "2024-09-08 09:00:00",
@@ -2924,10 +2924,10 @@
           "exit_price": 77301000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 134054.63746844046,
-          "profit_pct": 3.77485564974408,
+          "profit": 147407.25325138122,
+          "profit_pct": 3.774855649744065,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 9012184.684476253
+          "capital_after": 9909850.30596622
         },
         {
           "entry_time": "2024-09-11 09:00:00",
@@ -2936,10 +2936,10 @@
           "exit_price": 81500000.0,
           "strategy": "trend_following",
           "hold_days": 20,
-          "profit": 386313.43298396,
-          "profit_pct": 5.358210113711329,
+          "profit": 424792.48107834905,
+          "profit_pct": 5.3582101137113405,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 9398498.117460214
+          "capital_after": 10334642.78704457
         },
         {
           "entry_time": "2024-10-15 09:00:00",
@@ -2948,10 +2948,10 @@
           "exit_price": 92161000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": 62095.95175211085,
-          "profit_pct": 1.6517519867549655,
+          "profit": 68281.06702361535,
+          "profit_pct": 1.6517519867549748,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 9460594.069212325
+          "capital_after": 10402923.854068186
         },
         {
           "entry_time": "2024-10-29 09:00:00",
@@ -2960,34 +2960,34 @@
           "exit_price": 98112000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -121839.65382446256,
-          "profit_pct": -3.219661813335965,
+          "profit": -133975.58671994042,
+          "profit_pct": -3.219661813335961,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 9338754.415387861
+          "capital_after": 10268948.267348245
         },
         {
           "entry_time": "2024-11-01 09:00:00",
           "entry_price": 97285000.0,
-          "exit_time": "2024-11-07 09:00:00",
-          "exit_price": 104115000.0,
+          "exit_time": "2024-11-08 09:00:00",
+          "exit_price": 106843000.0,
           "strategy": "bull_trend",
-          "hold_days": 6,
-          "profit": 389184.8459634781,
-          "profit_pct": 6.945695122577977,
+          "hold_days": 7,
+          "profit": 600601.8926134845,
+          "profit_pct": 9.747864418975178,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 9727939.26135134
+          "capital_after": 10869550.15996173
         },
         {
           "entry_time": "2024-11-02 09:00:00",
           "entry_price": 97205000.0,
-          "exit_time": "2024-11-06 09:00:00",
-          "exit_price": 104085000.0,
+          "exit_time": "2024-11-08 09:00:00",
+          "exit_price": 106843000.0,
           "strategy": "bull_trend",
-          "hold_days": 4,
-          "profit": 408741.007113738,
-          "profit_pct": 7.002870737102006,
+          "hold_days": 6,
+          "profit": 641620.0176840238,
+          "profit_pct": 9.838187233167014,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 10136680.268465078
+          "capital_after": 11511170.177645754
         },
         {
           "entry_time": "2024-11-05 09:00:00",
@@ -2996,10 +2996,10 @@
           "exit_price": 104085000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": 330636.4598892825,
-          "profit_pct": 8.154456171363199,
+          "profit": 375469.33077886235,
+          "profit_pct": 8.154456171363211,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 10467316.72835436
+          "capital_after": 11886639.508424617
         },
         {
           "entry_time": "2024-11-06 09:00:00",
@@ -3008,10 +3008,10 @@
           "exit_price": 129791000.0,
           "strategy": "trend_following",
           "hold_days": 19,
-          "profit": 2060791.4636324868,
+          "profit": 2340225.8540512584,
           "profit_pct": 24.60983455829369,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 12528108.191986848
+          "capital_after": 14226865.362475876
         },
         {
           "entry_time": "2024-11-10 09:00:00",
@@ -3020,10 +3020,10 @@
           "exit_price": 124503000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": 583499.0178534295,
-          "profit_pct": 11.64379746949032,
+          "profit": 662618.9556255033,
+          "profit_pct": 11.6437974694903,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 13111607.209840277
+          "capital_after": 14889484.31810138
         },
         {
           "entry_time": "2024-11-11 09:00:00",
@@ -3032,10 +3032,10 @@
           "exit_price": 123572000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -42861.828488166444,
-          "profit_pct": -0.8172497048263959,
+          "profit": -48673.706655942835,
+          "profit_pct": -0.8172497048264029,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 13068745.381352112
+          "capital_after": 14840810.611445438
         },
         {
           "entry_time": "2024-11-12 09:00:00",
@@ -3044,10 +3044,10 @@
           "exit_price": 123572000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -61972.68562091235,
-          "profit_pct": -1.1855132955100194,
+          "profit": -70375.91318405885,
+          "profit_pct": -1.1855132955100172,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 13006772.6957312
+          "capital_after": 14770434.69826138
         },
         {
           "entry_time": "2024-11-13 09:00:00",
@@ -3056,10 +3056,10 @@
           "exit_price": 123572000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -187845.95329616964,
-          "profit_pct": -3.610541171328002,
+          "profit": -213317.0503859371,
+          "profit_pct": -3.6105411713279927,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 12818926.74243503
+          "capital_after": 14557117.647875443
         },
         {
           "entry_time": "2024-11-14 09:00:00",
@@ -3068,10 +3068,10 @@
           "exit_price": 126472000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 116660.80614049453,
-          "profit_pct": 2.275167189978303,
+          "profit": 132479.50581240188,
+          "profit_pct": 2.275167189978312,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 12935587.548575524
+          "capital_after": 14689597.153687846
         },
         {
           "entry_time": "2024-11-21 09:00:00",
@@ -3080,10 +3080,10 @@
           "exit_price": 129791000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": -277489.02154125273,
-          "profit_pct": -5.362899452754467,
+          "profit": -315115.3301467849,
+          "profit_pct": -5.362899452754473,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 12658098.527034272
+          "capital_after": 14374481.82354106
         },
         {
           "entry_time": "2024-11-22 09:00:00",
@@ -3092,10 +3092,10 @@
           "exit_price": 129791000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": -265550.2668656688,
-          "profit_pct": -5.244671352070086,
+          "profit": -301557.73208311107,
+          "profit_pct": -5.244671352070072,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 12392548.260168603
+          "capital_after": 14072924.091457948
         },
         {
           "entry_time": "2024-12-03 09:00:00",
@@ -3104,10 +3104,10 @@
           "exit_price": 138864000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": 187854.91111560352,
-          "profit_pct": 3.789674794315623,
+          "profit": 213327.22284686193,
+          "profit_pct": 3.7896747943156375,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 12580403.171284206
+          "capital_after": 14286251.31430481
         },
         {
           "entry_time": "2024-12-05 09:00:00",
@@ -3116,10 +3116,10 @@
           "exit_price": 138864000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": 46324.64912480954,
-          "profit_pct": 0.9205716322062978,
+          "profit": 52606.070762076415,
+          "profit_pct": 0.9205716322063087,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 12626727.820409015
+          "capital_after": 14338857.385066886
         },
         {
           "entry_time": "2024-12-15 09:00:00",
@@ -3128,70 +3128,70 @@
           "exit_price": 148138000.0,
           "strategy": "trend_following",
           "hold_days": 5,
-          "profit": -81809.57491154224,
-          "profit_pct": -0.8098849527281189,
+          "profit": -92902.59868383966,
+          "profit_pct": -0.8098849527281066,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 12544918.245497473
+          "capital_after": 14245954.786383046
         },
         {
           "entry_time": "2024-12-18 09:00:00",
           "entry_price": 147754000.0,
-          "exit_time": "2024-12-30 09:00:00",
-          "exit_price": 137892000.0,
+          "exit_time": "2024-12-29 09:00:00",
+          "exit_price": 139735000.0,
           "strategy": "bull_trend",
-          "hold_days": 12,
-          "profit": -507311.6441265559,
-          "profit_pct": -6.739935568580215,
-          "exit_reason": "FORCED_EXIT",
-          "capital_after": 12037606.601370916
+          "hold_days": 11,
+          "profit": -469557.9370160876,
+          "profit_pct": -5.493465151535663,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 13776396.84936696
         },
         {
           "entry_time": "2024-12-19 09:00:00",
           "entry_price": 147474000.0,
-          "exit_time": "2024-12-30 09:00:00",
-          "exit_price": 137892000.0,
+          "exit_time": "2024-12-29 09:00:00",
+          "exit_price": 139735000.0,
           "strategy": "bull_trend",
-          "hold_days": 11,
-          "profit": -474007.3607916087,
-          "profit_pct": -6.562868302209204,
-          "exit_reason": "FORCED_EXIT",
-          "capital_after": 11563599.240579307
+          "hold_days": 10,
+          "profit": -439249.22326731496,
+          "profit_pct": -5.314031286870908,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 13337147.626099644
         }
       ]
     },
     "2025": {
       "year": 2025,
-      "total_return": 17.146107953758854,
-      "buy_hold": 20.152844607981883,
-      "excess_return": -3.0067366542230296,
+      "total_return": 19.318268974128813,
+      "buy_hold": 9.018539484857062,
+      "excess_return": 10.299729489271751,
       "total_trades": 35,
       "win_rate": 45.714285714285715,
-      "avg_profit": 6.602641544480396,
-      "avg_loss": -3.753778392293351,
+      "avg_profit": 6.701686716240798,
+      "avg_loss": -3.6798702067648157,
       "trades": [
         {
           "entry_time": "2025-01-31 09:00:00",
           "entry_price": 156580000.0,
-          "exit_time": "2025-02-18 09:00:00",
-          "exit_price": 143728000.0,
+          "exit_time": "2025-02-09 09:00:00",
+          "exit_price": 147579000.0,
           "strategy": "bull_trend",
-          "hold_days": 18,
-          "profit": -496331.955549879,
-          "profit_pct": -8.272199259164651,
+          "hold_days": 9,
+          "profit": -348868.51322007924,
+          "profit_pct": -5.814475220334654,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 9503668.044450121
+          "capital_after": 9651131.48677992
         },
         {
           "entry_time": "2025-02-01 09:00:00",
           "entry_price": 157330000.0,
-          "exit_time": "2025-02-17 09:00:00",
-          "exit_price": 144390000.0,
+          "exit_time": "2025-02-08 09:00:00",
+          "exit_price": 148803000.0,
           "strategy": "bull_trend",
-          "hold_days": 16,
-          "profit": -472655.03871648666,
-          "profit_pct": -8.288993199008464,
+          "hold_days": 7,
+          "profit": -317678.05368643533,
+          "profit_pct": -5.4860243437360925,
           "exit_reason": "BULL_TREND_STOP_LOSS",
-          "capital_after": 9031013.005733635
+          "capital_after": 9333453.433093484
         },
         {
           "entry_time": "2025-02-03 09:00:00",
@@ -3200,10 +3200,10 @@
           "exit_price": 154122000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -95960.13755540363,
-          "profit_pct": -2.656405695974532,
+          "profit": -99173.75545112975,
+          "profit_pct": -2.6564056959745166,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 8935052.868178232
+          "capital_after": 9234279.677642355
         },
         {
           "entry_time": "2025-02-24 09:00:00",
@@ -3212,10 +3212,10 @@
           "exit_price": 122784000.0,
           "strategy": "defensive",
           "hold_days": 2,
-          "profit": -127626.49781252653,
-          "profit_pct": -7.141899421046643,
+          "profit": -131900.59336707368,
+          "profit_pct": -7.141899421046656,
           "exit_reason": "DEFENSIVE_STOP_LOSS",
-          "capital_after": 8807426.370365705
+          "capital_after": 9102379.084275281
         },
         {
           "entry_time": "2025-02-25 09:00:00",
@@ -3224,10 +3224,10 @@
           "exit_price": 122784000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -190575.52295609936,
-          "profit_pct": -5.409512238368738,
+          "profit": -196957.7242186349,
+          "profit_pct": -5.409512238368734,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 8616850.847409606
+          "capital_after": 8905421.360056646
         },
         {
           "entry_time": "2025-02-26 09:00:00",
@@ -3236,10 +3236,10 @@
           "exit_price": 142500000.0,
           "strategy": "defensive",
           "hold_days": 4,
-          "profit": 275329.5224711667,
+          "profit": 284550.0582392025,
           "profit_pct": 15.976226544175134,
           "exit_reason": "DEFENSIVE_TP2",
-          "capital_after": 8892180.369880773
+          "capital_after": 9189971.41829585
         },
         {
           "entry_time": "2025-02-27 09:00:00",
@@ -3248,10 +3248,10 @@
           "exit_price": 142500000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 516926.6881098617,
-          "profit_pct": 14.533181587858204,
+          "profit": 534238.093637282,
+          "profit_pct": 14.533181587858218,
           "exit_reason": "SIDEWAYS_TP2",
-          "capital_after": 9409107.057990635
+          "capital_after": 9724209.511933131
         },
         {
           "entry_time": "2025-02-28 09:00:00",
@@ -3260,10 +3260,10 @@
           "exit_price": 142500000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": 541160.2590281195,
-          "profit_pct": 14.378629547225257,
+          "profit": 559283.2248467635,
+          "profit_pct": 14.378629547225286,
           "exit_reason": "SIDEWAYS_TP2",
-          "capital_after": 9950267.317018755
+          "capital_after": 10283492.736779895
         },
         {
           "entry_time": "2025-03-02 09:00:00",
@@ -3272,10 +3272,10 @@
           "exit_price": 130094000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -349050.23266911693,
-          "profit_pct": -8.769870736842108,
+          "profit": -360739.6080992571,
+          "profit_pct": -8.769870736842101,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 9601217.084349638
+          "capital_after": 9922753.128680637
         },
         {
           "entry_time": "2025-03-03 09:00:00",
@@ -3284,10 +3284,10 @@
           "exit_price": 129522000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": -19562.45287157735,
-          "profit_pct": -0.5093742985841065,
+          "profit": -20217.581659779884,
+          "profit_pct": -0.5093742985841088,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 9581654.63147806
+          "capital_after": 9902535.547020856
         },
         {
           "entry_time": "2025-03-05 09:00:00",
@@ -3296,10 +3296,10 @@
           "exit_price": 121111000.0,
           "strategy": "trend_following",
           "hold_days": 4,
-          "profit": -792924.4849078311,
-          "profit_pct": -10.344305281872739,
+          "profit": -819478.8061038423,
+          "profit_pct": -10.344305281872728,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 8788730.146570228
+          "capital_after": 9083056.740917014
         },
         {
           "entry_time": "2025-03-15 09:00:00",
@@ -3308,10 +3308,10 @@
           "exit_price": 117517000.0,
           "strategy": "trend_following",
           "hold_days": 22,
-          "profit": -372260.0979397353,
-          "profit_pct": -5.294566048387099,
+          "profit": -384726.7506882623,
+          "profit_pct": -5.2945660483870975,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 8416470.048630493
+          "capital_after": 8698329.990228752
         },
         {
           "entry_time": "2025-04-07 09:00:00",
@@ -3320,10 +3320,10 @@
           "exit_price": 114489000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -104143.26926347008,
-          "profit_pct": -3.093436697978151,
+          "profit": -107630.93281159084,
+          "profit_pct": -3.093436697978169,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 8312326.779367022
+          "capital_after": 8590699.057417162
         },
         {
           "entry_time": "2025-04-12 09:00:00",
@@ -3332,34 +3332,34 @@
           "exit_price": 137400000.0,
           "strategy": "trend_following",
           "hold_days": 24,
-          "profit": 740215.3538397225,
-          "profit_pct": 11.131289912667649,
+          "profit": 765004.494084728,
+          "profit_pct": 11.131289912667631,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 9052542.133206744
+          "capital_after": 9355703.551501889
         },
         {
           "entry_time": "2025-05-04 09:00:00",
           "entry_price": 135652000.0,
-          "exit_time": "2025-05-11 09:00:00",
-          "exit_price": 145510000.0,
+          "exit_time": "2025-05-17 09:00:00",
+          "exit_price": 146555000.0,
           "strategy": "bull_trend",
-          "hold_days": 7,
-          "profit": 390637.3465857776,
-          "profit_pct": 7.192037714150899,
+          "hold_days": 13,
+          "profit": 446932.363230465,
+          "profit_pct": 7.961852018400014,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 9443179.47979252
+          "capital_after": 9802635.914732354
         },
         {
           "entry_time": "2025-05-05 09:00:00",
           "entry_price": 134890000.0,
-          "exit_time": "2025-05-08 09:00:00",
-          "exit_price": 144780000.0,
+          "exit_time": "2025-05-13 09:00:00",
+          "exit_price": 145880000.0,
           "strategy": "bull_trend",
-          "hold_days": 3,
-          "profit": 411161.76108350046,
-          "profit_pct": 7.256767736674327,
+          "hold_days": 8,
+          "profit": 474742.2169197416,
+          "profit_pct": 8.071676180591606,
           "exit_reason": "BULL_TREND_TP1",
-          "capital_after": 9854341.24087602
+          "capital_after": 10277378.131652094
         },
         {
           "entry_time": "2025-05-08 09:00:00",
@@ -3368,22 +3368,22 @@
           "exit_price": 150660000.0,
           "strategy": "trend_following",
           "hold_days": 16,
-          "profit": 314431.6505617108,
-          "profit_pct": 3.9884915043514213,
+          "profit": 327929.8829208128,
+          "profit_pct": 3.9884915043514346,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 10168772.891437732
+          "capital_after": 10605308.014572907
         },
         {
           "entry_time": "2025-05-23 09:00:00",
           "entry_price": 149878000.0,
-          "exit_time": "2025-07-02 09:00:00",
-          "exit_price": 147372000.0,
+          "exit_time": "2025-06-05 09:00:00",
+          "exit_price": 141588000.0,
           "strategy": "bull_trend",
-          "hold_days": 40,
-          "profit": -106214.22575000767,
-          "profit_pct": -1.7408561630125785,
-          "exit_reason": "BULL_TREND_TIMEOUT",
-          "capital_after": 10062558.665687725
+          "hold_days": 13,
+          "profit": -356166.13173365034,
+          "profit_pct": -5.597293532072765,
+          "exit_reason": "BULL_TREND_STOP_LOSS",
+          "capital_after": 10249141.882839257
         },
         {
           "entry_time": "2025-06-06 09:00:00",
@@ -3392,10 +3392,10 @@
           "exit_price": 145801000.0,
           "strategy": "sideways",
           "hold_days": 6,
-          "profit": 13942.136729744263,
-          "profit_pct": 0.3463864707016689,
+          "profit": 14200.656338069122,
+          "profit_pct": 0.34638647070166234,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 10076500.802417468
+          "capital_after": 10263342.539177326
         },
         {
           "entry_time": "2025-06-22 09:00:00",
@@ -3404,10 +3404,10 @@
           "exit_price": 145759000.0,
           "strategy": "sideways",
           "hold_days": 8,
-          "profit": 135841.7887308183,
-          "profit_pct": 3.370261943963432,
+          "profit": 138360.61111060157,
+          "profit_pct": 3.3702619439634347,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 10212342.591148287
+          "capital_after": 10401703.150287928
         },
         {
           "entry_time": "2025-06-26 09:00:00",
@@ -3416,10 +3416,10 @@
           "exit_price": 160928000.0,
           "strategy": "trend_following",
           "hold_days": 28,
-          "profit": 776828.4695069725,
-          "profit_pct": 9.508450957426518,
+          "profit": 791232.6742257727,
+          "profit_pct": 9.50845095742651,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 10989171.060655259
+          "capital_after": 11192935.8245137
         },
         {
           "entry_time": "2025-07-11 09:00:00",
@@ -3428,10 +3428,10 @@
           "exit_price": 160811000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": 69787.17379292753,
-          "profit_pct": 1.5876350774715824,
+          "profit": 71081.19013954606,
+          "profit_pct": 1.5876350774716053,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 11058958.234448187
+          "capital_after": 11264017.014653247
         },
         {
           "entry_time": "2025-07-14 09:00:00",
@@ -3440,10 +3440,10 @@
           "exit_price": 160811000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -87017.3423337806,
-          "profit_pct": -1.967123405501371,
+          "profit": -88630.84603796061,
+          "profit_pct": -1.9671234055013773,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 10971940.892114406
+          "capital_after": 11175386.168615285
         },
         {
           "entry_time": "2025-07-15 09:00:00",
@@ -3452,10 +3452,10 @@
           "exit_price": 160072000.0,
           "strategy": "sideways",
           "hold_days": 5,
-          "profit": -23226.45760553796,
-          "profit_pct": -0.5292239958709343,
+          "profit": -23657.13009422086,
+          "profit_pct": -0.5292239958709222,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 10948714.434508868
+          "capital_after": 11151729.038521064
         },
         {
           "entry_time": "2025-08-11 09:00:00",
@@ -3464,10 +3464,10 @@
           "exit_price": 164723000.0,
           "strategy": "sideways",
           "hold_days": 3,
-          "profit": 10606.508601049893,
-          "profit_pct": 0.2421861640582115,
+          "profit": 10803.177913824096,
+          "profit_pct": 0.2421861640582151,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 10959320.943109918
+          "capital_after": 11162532.216434889
         },
         {
           "entry_time": "2025-08-12 09:00:00",
@@ -3476,10 +3476,10 @@
           "exit_price": 163111000.0,
           "strategy": "trend_following",
           "hold_days": 5,
-          "profit": -69434.92443398014,
-          "profit_pct": -0.7919619837125217,
+          "profit": -70722.40925906226,
+          "profit_pct": -0.7919619837125285,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 10889886.018675938
+          "capital_after": 11091809.807175826
         },
         {
           "entry_time": "2025-08-14 09:00:00",
@@ -3488,10 +3488,10 @@
           "exit_price": 163058000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -47047.803513046354,
-          "profit_pct": -1.080080255944835,
+          "profit": -47920.17910170369,
+          "profit_pct": -1.0800802559448373,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 10842838.215162892
+          "capital_after": 11043889.628074123
         },
         {
           "entry_time": "2025-08-20 09:00:00",
@@ -3500,10 +3500,10 @@
           "exit_price": 157603000.0,
           "strategy": "sideways",
           "hold_days": 4,
-          "profit": -45138.15999471955,
-          "profit_pct": -1.0407367309879538,
+          "profit": -45975.12635565456,
+          "profit_pct": -1.0407367309879547,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 10797700.055168172
+          "capital_after": 10997914.501718469
         },
         {
           "entry_time": "2025-08-22 09:00:00",
@@ -3512,10 +3512,10 @@
           "exit_price": 157603000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -98703.05068340711,
-          "profit_pct": -2.285279508115347,
+          "profit": -100533.23457112815,
+          "profit_pct": -2.2852795081153667,
           "exit_reason": "SIDEWAYS_STOP_LOSS",
-          "capital_after": 10698997.004484765
+          "capital_after": 10897381.26714734
         },
         {
           "entry_time": "2025-09-01 09:00:00",
@@ -3524,10 +3524,10 @@
           "exit_price": 162167000.0,
           "strategy": "sideways",
           "hold_days": 15,
-          "profit": 270515.6334227603,
-          "profit_pct": 6.321051246891801,
+          "profit": 275531.62178622745,
+          "profit_pct": 6.321051246891783,
           "exit_reason": "SIDEWAYS_TP1",
-          "capital_after": 10969512.637907526
+          "capital_after": 11172912.888933567
         },
         {
           "entry_time": "2025-09-06 09:00:00",
@@ -3536,10 +3536,10 @@
           "exit_price": 158200000.0,
           "strategy": "trend_following",
           "hold_days": 19,
-          "profit": 214052.6688086558,
-          "profit_pct": 2.4391770613964026,
+          "profit": 218021.70262133703,
+          "profit_pct": 2.4391770613964168,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 11183565.306716181
+          "capital_after": 11390934.591554904
         },
         {
           "entry_time": "2025-09-30 09:00:00",
@@ -3548,10 +3548,10 @@
           "exit_price": 173833000.0,
           "strategy": "trend_following",
           "hold_days": 12,
-          "profit": 598001.7456694823,
-          "profit_pct": 6.683934519861458,
+          "profit": 609090.087439822,
+          "profit_pct": 6.683934519861453,
           "exit_reason": "TREND_DEAD_CROSS",
-          "capital_after": 11781567.052385664
+          "capital_after": 12000024.678994726
         },
         {
           "entry_time": "2025-10-05 09:00:00",
@@ -3560,10 +3560,10 @@
           "exit_price": 175460000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": -44905.56421375554,
-          "profit_pct": -0.9528775759219262,
+          "profit": -45738.217708494514,
+          "profit_pct": -0.952877575921913,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 11736661.488171909
+          "capital_after": 11954286.461286232
         },
         {
           "entry_time": "2025-10-10 09:00:00",
@@ -3572,10 +3572,10 @@
           "exit_price": 170390000.0,
           "strategy": "sideways",
           "hold_days": 1,
-          "profit": -54133.565136036836,
-          "profit_pct": -1.1530869572789526,
+          "profit": -55137.32720834296,
+          "profit_pct": -1.153086957278971,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 11682527.923035871
+          "capital_after": 11899149.134077888
         },
         {
           "entry_time": "2025-10-11 09:00:00",
@@ -3584,10 +3584,10 @@
           "exit_price": 171680000.0,
           "strategy": "sideways",
           "hold_days": 2,
-          "profit": 32082.872340014204,
-          "profit_pct": 0.6865567228123735,
+          "profit": 32677.76333499234,
+          "profit_pct": 0.6865567228123634,
           "exit_reason": "SIDEWAYS_TRAILING_ATR",
-          "capital_after": 11714610.795375885
+          "capital_after": 11931826.897412881
         }
       ]
     }

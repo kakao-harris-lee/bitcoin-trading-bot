@@ -185,8 +185,8 @@ def run_backtest_single(year: str, config: Dict):
 
 
 if __name__ == '__main__':
-    # Config 로드
-    with open('config.json') as f:
+    # Config 로드 (Optuna 최적화 버전)
+    with open('config_optimized.json') as f:
         config = json.load(f)
 
     # Config 병합 (depth 제거)
@@ -203,23 +203,22 @@ if __name__ == '__main__':
     print(f"Strategy: {config['strategy_name']} {config['version']}")
     print(f"Timeframe: {config['timeframe']}")
 
-    # 2025 백테스팅 (Out-of-Sample 검증)
-    results_2025 = run_backtest_single('2025', merged_config)
-
-    # 2024 백테스팅 (비교용)
-    results_2024 = run_backtest_single('2024', merged_config)
-
-    # 2023 백테스팅 (SIDEWAYS 강화 효과 확인)
+    # 백테스팅 실행 (2020~2025)
+    results_2020 = run_backtest_single('2020', merged_config)
+    results_2021 = run_backtest_single('2021', merged_config)
+    results_2022 = run_backtest_single('2022', merged_config)
     results_2023 = run_backtest_single('2023', merged_config)
+    results_2024 = run_backtest_single('2024', merged_config)
+    results_2025 = run_backtest_single('2025', merged_config)
 
     # 종합 요약
     print(f"\n{'='*70}")
-    print(f"  종합 요약 (최적화 전)")
+    print(f"  종합 요약 (2020~2025)")
     print(f"{'='*70}")
     print(f"\n{'연도':^10s} | {'수익률':^10s} | {'B&H':^10s} | {'초과':^10s} | {'Sharpe':^8s} | {'MDD':^8s} | {'거래':^6s} | {'승률':^6s}")
     print(f"{'-'*10}|{'-'*12}|{'-'*12}|{'-'*12}|{'-'*10}|{'-'*10}|{'-'*8}|{'-'*8}")
 
-    for year, res in [('2023', results_2023), ('2024', results_2024), ('2025', results_2025)]:
+    for year, res in [('2020', results_2020), ('2021', results_2021), ('2022', results_2022), ('2023', results_2023), ('2024', results_2024), ('2025', results_2025)]:
         print(f"{year:^10s} | {res['total_return']:>9.2f}% | {res['buy_hold_return']:>9.2f}% | "
               f"{res['excess_return']:>+9.2f}%p | {res['sharpe_ratio']:>7.2f} | "
               f"{res['max_drawdown']:>7.2f}% | {res['total_trades']:>5d}회 | {res['win_rate']:>5.1f}%")
@@ -247,6 +246,9 @@ if __name__ == '__main__':
         'backtest_date': datetime.now().isoformat(),
         'config': config,
         'results': {
+            '2020': {k: v for k, v in results_2020.items() if k not in ['trades', 'equity_curve']},
+            '2021': {k: v for k, v in results_2021.items() if k not in ['trades', 'equity_curve']},
+            '2022': {k: v for k, v in results_2022.items() if k not in ['trades', 'equity_curve']},
             '2023': {k: v for k, v in results_2023.items() if k not in ['trades', 'equity_curve']},
             '2024': {k: v for k, v in results_2024.items() if k not in ['trades', 'equity_curve']},
             '2025': {k: v for k, v in results_2025.items() if k not in ['trades', 'equity_curve']}

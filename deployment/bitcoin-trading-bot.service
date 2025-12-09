@@ -10,7 +10,7 @@ Group=ubuntu
 WorkingDirectory=/home/ubuntu/bitcoin-trading-bot/live_trading
 Environment="PATH=/home/ubuntu/bitcoin-trading-bot/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONUNBUFFERED=1"
-ExecStart=/home/ubuntu/bitcoin-trading-bot/venv/bin/python main.py
+ExecStart=/home/ubuntu/bitcoin-trading-bot/venv/bin/python main.py --paper --auto --capital 10000000
 Restart=always
 RestartSec=10
 StandardOutput=append:/home/ubuntu/bitcoin-trading-bot/logs/trading.log

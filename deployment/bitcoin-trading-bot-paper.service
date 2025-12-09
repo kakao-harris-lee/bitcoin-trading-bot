@@ -1,0 +1,29 @@
+[Unit]
+Description=Bitcoin Trading Bot - Paper Trading (v35 Strategy)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/bitcoin-trading-bot/live_trading
+Environment="PATH=/home/ubuntu/bitcoin-trading-bot/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/home/ubuntu/bitcoin-trading-bot/venv/bin/python main.py --paper --auto --capital 10000000
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/ubuntu/bitcoin-trading-bot/logs/paper_trading.log
+StandardError=append:/home/ubuntu/bitcoin-trading-bot/logs/paper_error.log
+
+# 보안 설정
+NoNewPrivileges=true
+PrivateTmp=true
+
+# 리소스 제한
+LimitNOFILE=65536
+CPUQuota=80%
+MemoryLimit=1G
+
+[Install]
+WantedBy=multi-user.target

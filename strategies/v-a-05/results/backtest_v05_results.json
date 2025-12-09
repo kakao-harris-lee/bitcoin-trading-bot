@@ -1,7 +1,7 @@
 {
   "strategy": "v-a-05",
   "description": "v37 Entry + v37 Exit",
-  "backtest_date": "2025-10-22T11:29:44.088525",
+  "backtest_date": "2025-11-18T08:39:45.498621",
   "results": {
     "2020": {
       "year": 2020,
@@ -630,8 +630,8 @@
     "2025": {
       "year": 2025,
       "total_return": 21.5553359797582,
-      "buy_hold": 20.152844607981883,
-      "excess_return": 1.4024913717763177,
+      "buy_hold": 9.018539484857062,
+      "excess_return": 12.53679649490114,
       "total_trades": 11,
       "win_rate": 63.63636363636363,
       "avg_profit": 10.885743510509377,

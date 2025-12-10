@@ -24,6 +24,27 @@ except ImportError:
 from dotenv import load_dotenv
 
 
+def find_and_load_env():
+    """프로젝트 루트에서 .env 파일 검색 및 로드"""
+    # 검색 경로 (우선순위 순)
+    search_paths = [
+        Path(__file__).parent / '.env',                    # strategies/SHORT_V1/.env
+        Path(__file__).parent.parent.parent / '.env',      # cairo/.env
+        Path(__file__).parent.parent.parent.parent / '.env',  # bitcoin-trading-bot/.env
+        Path.home() / '.env',                              # 홈 디렉토리
+    ]
+
+    for env_path in search_paths:
+        if env_path.exists():
+            load_dotenv(env_path)
+            print(f".env 로드: {env_path}")
+            return True
+
+    # 기본 load_dotenv() 시도
+    load_dotenv()
+    return False
+
+
 class BinanceDataCollector:
     """바이낸스 선물 데이터 수집기"""
 
@@ -51,7 +72,7 @@ class BinanceDataCollector:
             api_key: 바이낸스 API 키 (없으면 .env에서 로드)
             api_secret: 바이낸스 API 시크릿 (없으면 .env에서 로드)
         """
-        load_dotenv()
+        find_and_load_env()
 
         self.api_key = api_key or os.getenv('BINANCE_API_KEY')
         self.api_secret = api_secret or os.getenv('BINANCE_API_SECRET')
@@ -260,24 +281,45 @@ class BinanceDataCollector:
         Returns:
             병합된 데이터프레임
         """
-        if funding_df.empty:
-            klines_df['funding_rate'] = 0.0
+        if klines_df.empty:
+            print("캔들 데이터가 비어있습니다")
             return klines_df
 
-        # 펀딩비는 8시간마다 발생 -> 캔들 타임프레임에 맞게 리샘플링
-        funding_resampled = funding_df['funding_rate'].resample('4h').last().ffill()
-
-        # 캔들 데이터에 펀딩비 추가
         merged = klines_df.copy()
-        merged['funding_rate'] = merged.index.map(
-            lambda x: funding_resampled.get(
-                funding_resampled.index[funding_resampled.index <= x].max()
-                if len(funding_resampled.index[funding_resampled.index <= x]) > 0
-                else None,
-                0.0
+
+        if funding_df.empty:
+            merged['funding_rate'] = 0.0
+            return merged
+
+        try:
+            # 펀딩비 인덱스 정렬 및 중복 제거
+            funding_df = funding_df.sort_index()
+            funding_df = funding_df[~funding_df.index.duplicated(keep='first')]
+
+            # merge_asof를 사용한 효율적인 병합
+            # 각 캔들 시점에서 가장 최근의 펀딩비를 매핑
+            merged = merged.reset_index()
+            funding_reset = funding_df.reset_index()
+
+            # timestamp 컬럼명 통일
+            if 'timestamp' not in merged.columns:
+                merged = merged.rename(columns={merged.columns[0]: 'timestamp'})
+
+            merged = pd.merge_asof(
+                merged.sort_values('timestamp'),
+                funding_reset[['timestamp', 'funding_rate']].sort_values('timestamp'),
+                on='timestamp',
+                direction='backward'
             )
-        )
-        merged['funding_rate'] = merged['funding_rate'].fillna(0.0)
+
+            merged = merged.set_index('timestamp')
+            merged['funding_rate'] = merged['funding_rate'].fillna(0.0)
+
+            print(f"펀딩비 병합 완료: {len(merged)}개 캔들")
+
+        except Exception as e:
+            print(f"펀딩비 병합 오류 (기본값 0 사용): {e}")
+            merged['funding_rate'] = 0.0
 
         return merged
 

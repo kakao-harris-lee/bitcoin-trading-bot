@@ -21,6 +21,7 @@
 ### 권장 사양
 
 **최소 사양:**
+
 - 인스턴스 타입: **t3.micro** (프리티어)
 - vCPU: 2
 - 메모리: 1GB
@@ -28,6 +29,7 @@
 - OS: **Ubuntu 22.04 LTS**
 
 **권장 사양 (안정성 향상):**
+
 - 인스턴스 타입: **t3.small**
 - vCPU: 2
 - 메모리: 2GB
@@ -38,6 +40,7 @@
 1. **AWS Console** → **EC2** → **인스턴스 시작**
 
 2. **이름 및 태그**
+
    ```
    이름: bitcoin-trading-bot
    태그: Environment=Production, Project=TradingBot
@@ -61,6 +64,7 @@
    - 서브넷: 자동 할당
    - 퍼블릭 IP: 자동 할당 활성화
    - 보안 그룹:
+
      ```
      이름: bitcoin-trading-bot-sg
      규칙:
@@ -81,11 +85,13 @@
 ### 1. SSH 접속
 
 **로컬에서 키 파일 권한 설정:**
+
 ```bash
 chmod 400 ~/Downloads/bitcoin-trading-bot-key.pem
 ```
 
 **SSH 접속:**
+
 ```bash
 ssh -i ~/Downloads/bitcoin-trading-bot-key.pem ubuntu@<EC2_PUBLIC_IP>
 ```
@@ -249,6 +255,7 @@ nano .env
 ```
 
 **내용 입력:**
+
 ```env
 # 업비트 API 키
 UPBIT_ACCESS_KEY=N3Tu6nHKL4l6dMzB4KOpYUQPycFd4Wfrv3zT61dq
@@ -266,6 +273,7 @@ AUTO_TRADE=False
 **저장:** `Ctrl + X` → `Y` → `Enter`
 
 **권한 설정:**
+
 ```bash
 chmod 600 .env  # 본인만 읽기/쓰기 가능
 ```
@@ -305,6 +313,7 @@ sudo nano /etc/systemd/system/bitcoin-trading-bot.service
 ```
 
 **내용:**
+
 ```ini
 [Unit]
 Description=Bitcoin Trading Bot (v35 Strategy)
@@ -401,6 +410,7 @@ sudo nano /etc/logrotate.d/bitcoin-trading-bot
 ```
 
 **내용:**
+
 ```
 /home/ubuntu/bitcoin-trading-bot/logs/*.log {
     daily
@@ -438,6 +448,7 @@ sudo nano /etc/ssh/sshd_config
 ```
 
 **변경사항:**
+
 ```
 # 비밀번호 로그인 비활성화
 PasswordAuthentication no
@@ -450,6 +461,7 @@ Port 2222
 ```
 
 **SSH 재시작:**
+
 ```bash
 sudo systemctl restart sshd
 ```
@@ -491,6 +503,7 @@ python test_connection.py
 ```
 
 **예상 결과:**
+
 ```
 ✅ 업비트 API: 성공
 ✅ 텔레그램 봇: 성공
@@ -599,21 +612,26 @@ free -h
 ### AWS EC2 (서울 리전)
 
 **t3.micro (프리티어):**
+
 - 월 750시간 무료 (12개월)
 - 초과 시: ~$10/월
 
 **t3.small (권장):**
+
 - 시간당: $0.0272
 - 월간: ~$20/월
 
 **스토리지 (gp3 30GB):**
+
 - ~$3/월
 
 **데이터 전송:**
+
 - 아웃바운드 15GB 무료/월
 - 초과 시: $0.126/GB
 
 **총 예상 비용:**
+
 - 프리티어: ~$3/월
 - t3.small: ~$23/월
 
@@ -624,6 +642,7 @@ free -h
 문제가 발생하면:
 
 1. **로그 확인**
+
    ```bash
    sudo journalctl -u bitcoin-trading-bot -n 100
    ```
@@ -631,11 +650,13 @@ free -h
 2. **텔레그램 에러 메시지 확인**
 
 3. **서비스 재시작**
+
    ```bash
    sudo systemctl restart bitcoin-trading-bot
    ```
 
 4. **디스크 공간 확인**
+
    ```bash
    df -h
    ```

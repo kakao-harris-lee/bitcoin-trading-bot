@@ -27,6 +27,7 @@ automation/
 ## 🚀 사용 방법
 
 ### Step 1: 데이터 검증
+
 **현재 DB 상태를 확인하고 누락 구간을 식별합니다.**
 
 ```bash
@@ -35,6 +36,7 @@ python automation/verify_all_timeframes.py
 ```
 
 **출력 예시:**
+
 ```
 ============================================================
 📊 검증 요약
@@ -52,11 +54,13 @@ python automation/verify_all_timeframes.py
 ```
 
 **생성 파일:**
+
 - `data_gap_report.json` - 상세 검증 결과
 
 ---
 
 ### Step 2: 누락 데이터 수집
+
 **업비트 API를 통해 누락된 데이터를 수집합니다.**
 
 ```bash
@@ -64,12 +68,14 @@ python automation/collect_missing_data.py
 ```
 
 **특징:**
+
 - ✅ 자동으로 기존 데이터와 비교하여 누락분만 수집
 - ✅ 중단해도 진행된 데이터는 저장됨
 - ✅ 재실행 시 이어서 수집 (중복 체크)
 - ✅ API Rate Limit 자동 준수 (초당 10회)
 
 **예상 소요 시간:**
+
 - minute5: ~1시간 (90,560개 캔들)
 - minute15: ~15분 (7,247개 캔들)
 - minute30: ~8분 (3,623개 캔들)
@@ -78,6 +84,7 @@ python automation/collect_missing_data.py
 - day: ~10초 (75개 캔들)
 
 **주의사항:**
+
 - 실행 중 `Ctrl+C`로 언제든지 중단 가능
 - 중단 시에도 진행된 데이터는 보존됨
 - 재실행하면 이어서 수집됨
@@ -85,6 +92,7 @@ python automation/collect_missing_data.py
 ---
 
 ### Step 3: 선형보간 처리
+
 **API에서도 없는 미세 누락 구간을 선형보간으로 채웁니다.**
 
 ```bash
@@ -92,6 +100,7 @@ python automation/interpolate_gaps.py
 ```
 
 **처리 방법:**
+
 ```python
 # 이전 캔들: 시가 100,000원
 # 다음 캔들: 시가 102,000원
@@ -103,12 +112,14 @@ python automation/interpolate_gaps.py
 ```
 
 **보간 데이터 표시:**
+
 - DB 컬럼 `is_interpolated = 1`로 표시
 - 원본 데이터와 구분 가능
 
 ---
 
 ### Step 4: 최종 검증
+
 **모든 데이터가 완전한지 재확인합니다.**
 
 ```bash
@@ -116,6 +127,7 @@ python automation/verify_all_timeframes.py
 ```
 
 **성공 기준:**
+
 ```
 완전한 타임프레임: 6/6
   ✅ minute5     : 100.00% (누락: 0개)
@@ -157,12 +169,14 @@ ls -lh upbit_bitcoin.db
 ## 📊 예상 결과
 
 ### 수집 전 (현재)
+
 ```
 DB 크기: 489MB
 minute5: 119,680개 (2024-08-26 ~ 2025-10-16)
 ```
 
 ### 수집 후 (예상)
+
 ```
 DB 크기: ~520MB (+31MB)
 minute5: 210,240개 (2024-01-01 ~ 2025-12-31) ✅
@@ -178,10 +192,12 @@ day: 730개 (2024-01-01 ~ 2025-12-31) ✅
 ## ⚠️ 주의사항
 
 ### 1. API Rate Limit
+
 - 업비트: 초당 10회 제한
 - 스크립트에 자동으로 구현됨 (`time.sleep(0.1)`)
 
 ### 2. 디스크 용량
+
 ```bash
 # 실행 전 확인
 df -h .
@@ -189,11 +205,13 @@ df -h .
 ```
 
 ### 3. 중단 및 재실행
+
 - `Ctrl+C`로 안전하게 중단 가능
 - 진행된 데이터는 자동 저장
 - 재실행 시 중복 체크로 이어서 수집
 
 ### 4. 데이터 백업
+
 ```bash
 # 수집 전 백업 권장
 cp upbit_bitcoin.db upbit_bitcoin_backup.db
@@ -204,6 +222,7 @@ cp upbit_bitcoin.db upbit_bitcoin_backup.db
 ## 🛠️ 문제 해결
 
 ### Python 모듈 없음
+
 ```bash
 cd upbit_history_db
 source venv/bin/activate
@@ -211,11 +230,13 @@ pip install -r requirements.txt
 ```
 
 ### Permission denied
+
 ```bash
 chmod +x automation/*.py
 ```
 
 ### DB locked 에러
+
 ```bash
 # 다른 프로세스가 DB를 사용 중
 ps aux | grep python
@@ -223,6 +244,7 @@ kill <PID>
 ```
 
 ### 수집 중단 후 재개
+
 ```bash
 # 단순히 다시 실행
 python automation/collect_missing_data.py
@@ -234,12 +256,14 @@ python automation/collect_missing_data.py
 ## 📈 진행 상황 모니터링
 
 ### 실시간 로그 확인
+
 ```bash
 # 수집 중인 다른 터미널에서
 watch -n 5 "sqlite3 upbit_bitcoin.db 'SELECT COUNT(*) FROM bitcoin_minute5'"
 ```
 
 ### DB 크기 모니터링
+
 ```bash
 watch -n 30 "ls -lh upbit_bitcoin.db"
 ```
@@ -249,6 +273,7 @@ watch -n 30 "ls -lh upbit_bitcoin.db"
 ## 🔍 추가 도구
 
 ### 특정 타임프레임만 수집
+
 ```python
 # collect_missing_data.py 수정
 # collector.collect_all_timeframes() 대신:
@@ -256,6 +281,7 @@ collector.collect_all_data('minute5')
 ```
 
 ### 특정 기간만 수집
+
 ```python
 # upbit_bitcoin_collector.py의 collect_all_data 메서드 수정
 # 2019년 체크 부분을 원하는 날짜로 변경
@@ -266,6 +292,7 @@ collector.collect_all_data('minute5')
 ## 📝 참고 사항
 
 ### 보간 데이터 식별
+
 ```sql
 -- 보간된 데이터만 조회
 SELECT * FROM bitcoin_minute5
@@ -283,6 +310,7 @@ FROM bitcoin_minute5;
 ```
 
 ### 기존 수집기 직접 사용
+
 ```bash
 cd upbit_history_db
 source venv/bin/activate

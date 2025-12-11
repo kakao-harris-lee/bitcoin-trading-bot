@@ -24,7 +24,7 @@ Upbit(v35_optimized) + Binance(SHORT_V1) Dual Exchange Paper Trading 시스템
 
 자동으로:
 
-- ✅ Upbit 데이터 수집 (v1_db생성 사용)
+- ✅ Upbit 데이터 수집 (upbit_history_db 사용)
 - ✅ Binance 4시간봉 + Funding Rate 수집
 - ✅ 데이터 검증
 

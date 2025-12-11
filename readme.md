@@ -49,7 +49,7 @@
 │   ├── app.py
 │   └── templates/
 │
-└── v1_db생성/                  # 완료된 데이터 수집 프로젝트
+└── upbit_history_db/          # Upbit 과거 데이터 DB 관리
 ```
 
 ---
@@ -59,8 +59,8 @@
 ### 1. 환경 설정
 
 ```bash
-# 가상환경 사용 (v1_db생성/venv 공용)
-source v1_db생성/venv/bin/activate
+# 가상환경 사용 (upbit_history_db/venv 공용)
+source upbit_history_db/venv/bin/activate
 
 # 의존성 설치 (TA-Lib 포함)
 # macOS

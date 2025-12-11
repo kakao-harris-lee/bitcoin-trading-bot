@@ -11,7 +11,7 @@ from pathlib import Path
 
 # 프로젝트 루트를 경로에 추가
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root / "v1_db생성"))
+sys.path.insert(0, str(project_root / "upbit_history_db"))
 
 from upbit_bitcoin_collector import UpbitBitcoinCollector
 

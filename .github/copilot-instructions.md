@@ -182,7 +182,7 @@ See `deployment/SERVER_DEPLOYMENT.md` for complete setup guide.
 
 ```bash
 # Setup
-source v1_db생성/venv/bin/activate
+source upbit_history_db/venv/bin/activate
 pip install -r requirements.txt
 
 # Data validation

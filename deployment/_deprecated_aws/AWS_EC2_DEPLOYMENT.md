@@ -291,7 +291,7 @@ cd ~/bitcoin-trading-bot
 source venv/bin/activate
 
 # 데이터 수집 (시간 소요: 약 10-20분)
-python v1_db생성/upbit_bitcoin_collector.py
+python upbit_history_db/upbit_bitcoin_collector.py
 ```
 
 ---

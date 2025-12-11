@@ -36,9 +36,9 @@ if [ -f "upbit_bitcoin.db" ]; then
 else
     print_warning "upbit_bitcoin.db 없음 - 데이터 수집 시작"
 
-    # v1_db생성 디렉토리로 이동
-    if [ -d "v1_db생성" ]; then
-        cd v1_db생성
+    # upbit_history_db 디렉토리로 이동
+    if [ -d "upbit_history_db" ]; then
+        cd upbit_history_db
 
         # 가상환경 활성화
         if [ -d "venv" ]; then
@@ -55,7 +55,7 @@ else
         cd ..
         print_step "upbit_bitcoin.db 생성 완료"
     else
-        print_error "v1_db생성 디렉토리 없음"
+        print_error "upbit_history_db 디렉토리 없음"
         exit 1
     fi
 fi

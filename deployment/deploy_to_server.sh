@@ -103,7 +103,7 @@ rsync -avz --progress \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
     --exclude='venv' \
-    --exclude='v1_db생성' \
+    --exclude='upbit_history_db' \
     --exclude='logs/*.log' \
     --exclude='*.backup' \
     --exclude='strategies/_archive' \

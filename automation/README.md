@@ -205,7 +205,7 @@ cp upbit_bitcoin.db upbit_bitcoin_backup.db
 
 ### Python 모듈 없음
 ```bash
-cd v1_db생성
+cd upbit_history_db
 source venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -284,7 +284,7 @@ FROM bitcoin_minute5;
 
 ### 기존 수집기 직접 사용
 ```bash
-cd v1_db생성
+cd upbit_history_db
 source venv/bin/activate
 python upbit_bitcoin_collector.py
 ```

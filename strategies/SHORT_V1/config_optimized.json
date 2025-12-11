@@ -1,6 +1,6 @@
 {
   "strategy_name": "SHORT_V1",
-  "description": "EMA/ADX \ucd94\uc138 \ucd94\uc885 \uae30\ubc18 \ube44\ud2b8\ucf54\uc778 \uc120\ubb3c \uc20f \uc804\ub7b5",
+  "description": "EMA/ADX 추세 추종 기반 비트코인 선물 숏 전략",
   "symbol": "BTCUSDT",
   "timeframe": "4h",
   "indicators": {
@@ -27,16 +27,6 @@
     "position_risk_pct": 1.0,
     "max_drawdown_pct": 20.0,
     "emergency_stop_pct": 25.0
-  },
-  "trailing_stop": {
-    "enabled": true,
-    "activation_pct": 2.0,
-    "trail_pct": 1.5
-  },
-  "market_filter": {
-    "enabled": true,
-    "ma_period": 100,
-    "require_below_ma": true
   },
   "backtest": {
     "initial_capital": 10000,

@@ -1,6 +1,15 @@
-# 📦 배포 파일
+# 📦 배포 가이드
 
-AWS EC2에 Bitcoin Trading Bot을 배포하기 위한 모든 파일과 스크립트
+Bitcoin Trading Bot을 새로운 서버(49.247.171.64)에 Docker Compose로 배포하는 가이드입니다.
+
+---
+
+## 🖥️ 서버 정보
+
+- **서버 주소**: 49.247.171.64
+- **SSH 접속**: `ssh deploy@49.247.171.64`
+- **배포 경로**: `/home/deploy/bitcoin-trading-bot`
+- **배포 방식**: Docker Compose
 
 ---
 
@@ -8,76 +17,76 @@ AWS EC2에 Bitcoin Trading Bot을 배포하기 위한 모든 파일과 스크립
 
 | 파일 | 설명 |
 |------|------|
-| `AWS_EC2_DEPLOYMENT.md` | 완전한 배포 가이드 (상세) |
-| `setup_ec2.sh` | EC2 환경 설정 스크립트 |
-| `deploy.sh` | 로컬→EC2 배포 자동화 |
-| `monitor.sh` | EC2 모니터링 도구 |
-| `bitcoin-trading-bot.service` | systemd 서비스 파일 |
-| `logrotate.conf` | 로그 로테이션 설정 |
+| `SERVER_DEPLOYMENT.md` | 완전한 서버 배포 가이드 (상세) |
+| `deploy_to_server.sh` | 서버 자동 배포 스크립트 |
+| `monitor_server.sh` | 서버 모니터링 도구 |
+| `deploy_docker.sh` | 로컬 Docker Compose 실행 |
+| `_deprecated_aws/` | AWS EC2 관련 구 파일들 (사용 안 함) |
 
 ---
 
 ## 🚀 빠른 시작
 
-### 1. 로컬에서 EC2로 배포
+### 1. 서버로 배포
 
 ```bash
 cd deployment
 
-# 실행 권한 부여
-chmod +x deploy.sh monitor.sh
+# 실행 권한 확인
+chmod +x deploy_to_server.sh monitor_server.sh
 
-# 배포 실행
-./deploy.sh <EC2_IP> <KEY_FILE>
-
-# 예시
-./deploy.sh 13.125.123.456 ~/Downloads/bitcoin-trading-bot-key.pem
+# 서버로 배포
+./deploy_to_server.sh
 ```
 
 ### 2. 모니터링
 
 ```bash
-./monitor.sh <EC2_IP> <KEY_FILE>
+./monitor_server.sh
 ```
 
-인터랙티브 메뉴에서:
-- 1: 서비스 상태
-- 2: 실시간 로그
-- 3: 에러 로그
-- 4: 시스템 리소스
-- 6: 재시작
+인터랙티브 메뉴:
+
+- 1: 실시간 로그
+- 2: 컨테이너 상태
+- 3: 시스템 리소스
+- 4: 최근 에러 로그
+- 5: 컨테이너 재시작
+- 6: 컨테이너 중지
+- 7: 컨테이너 시작
+- 8: 서버 SSH 접속
+- 9: 종료
 
 ---
 
 ## 📖 상세 가이드
 
-완전한 배포 가이드는 [`AWS_EC2_DEPLOYMENT.md`](./AWS_EC2_DEPLOYMENT.md)를 참고하세요.
+완전한 배포 가이드는 [`SERVER_DEPLOYMENT.md`](./SERVER_DEPLOYMENT.md)를 참고하세요.
 
-### 주요 내용:
-- ✅ EC2 인스턴스 생성
-- ✅ Ubuntu 환경 설정
-- ✅ TA-Lib 설치
-- ✅ Python 환경 구축
-- ✅ systemd 서비스 설정
+### 주요 내용
+
+- ✅ SSH 키 설정
+- ✅ Docker 설치
+- ✅ 자동/수동 배포 방법
+- ✅ 모니터링 및 관리
+- ✅ 문제 해결
 - ✅ 보안 설정
-- ✅ 모니터링 설정
 
 ---
 
-## 🛠️ 수동 설정 (선택)
+## 🛠️ 로컬 Docker 테스트
 
-자동화 스크립트를 사용하지 않고 수동으로 설정하려면:
-
-### EC2에서 실행:
+서버 배포 전에 로컬에서 테스트:
 
 ```bash
-# 1. 프로젝트 clone 또는 업로드
-cd ~
-git clone https://github.com/YOUR_REPO/bitcoin-trading-bot.git
-# 또는
-# scp -i key.pem -r bitcoin-trading-bot ubuntu@<IP>:~/
+# 로컬 Docker Compose 실행
+./deploy_docker.sh start
 
-# 2. 환경 설정 스크립트 실행
+# 로그 확인
+./deploy_docker.sh logs
+
+# 중지
+./deploy_docker.sh stop
 cd bitcoin-trading-bot/deployment
 chmod +x setup_ec2.sh
 ./setup_ec2.sh
@@ -141,7 +150,7 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
 ## 📊 유용한 명령어
 
-### 로컬에서:
+### 로컬에서
 
 ```bash
 # SSH 접속
@@ -154,7 +163,7 @@ ssh -i <KEY_FILE> ubuntu@<EC2_IP> "tail -f ~/bitcoin-trading-bot/logs/trading.lo
 ssh -i <KEY_FILE> ubuntu@<EC2_IP> "sudo systemctl restart bitcoin-trading-bot"
 ```
 
-### EC2에서:
+### EC2에서
 
 ```bash
 # 서비스 관리
@@ -184,6 +193,7 @@ python main.py --once
 ### 백그라운드 실행 (screen/tmux 대신 systemd 사용)
 
 systemd를 사용하면:
+
 - ✅ 자동 재시작
 - ✅ 부팅 시 자동 시작
 - ✅ 로그 관리

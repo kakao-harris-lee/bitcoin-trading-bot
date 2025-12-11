@@ -1,34 +1,41 @@
 version: '3.8'
 
 services:
-  # 메인 트레이딩 봇 (v35 Optimized)
-  trading-bot:
+  # Dual Exchange Paper Trading (Upbit + Binance)
+  paper-trading:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: bitcoin-trading-bot-v35-optimized
-    restart: always
+    container_name: bitcoin-paper-trading-dual
+    restart: unless-stopped
     env_file:
       - .env
     volumes:
-      # 로그 파일 호스트에 저장
+      # 로그 디렉토리
       - ./logs:/app/logs
-      # DB 파일 호스트에 저장 (백업 용이)
+      # DB 파일 (읽기 전용)
       - ./upbit_bitcoin.db:/app/upbit_bitcoin.db:ro
-      # 설정 파일 (읽기 전용)
+      # Binance 데이터 (읽기 전용)
+      - ./strategies/SHORT_V1/results:/app/strategies/SHORT_V1/results:ro
+      # 전략 설정 파일
       - ./strategies/v35_optimized/config_optimized.json:/app/strategies/v35_optimized/config_optimized.json:ro
+      - ./strategies/SHORT_V1/config_optimized.json:/app/strategies/SHORT_V1/config_optimized.json:ro
     environment:
       - TZ=Asia/Seoul
       - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+      - PAPER_TRADING=true
+    command: python live_trading/dual_paper_trading.py --interval 60
     networks:
       - trading-network
     deploy:
       resources:
         limits:
-          cpus: '0.8'
-          memory: 1G
+          cpus: '1.0'
+          memory: 1.5G
         reservations:
-          memory: 256M
+          cpus: '0.5'
+          memory: 512M
     healthcheck:
       test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
       interval: 60s
@@ -38,24 +45,36 @@ services:
     logging:
       driver: "json-file"
       options:
+        max-size: "20m"
+        max-file: "5"
+
+  # 웹 대시보드
+  dashboard:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: trading-dashboard
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # DB 파일 (읽기 전용)
+      - ./upbit_bitcoin.db:/app/upbit_bitcoin.db:ro
+      - ./dashboard.db:/app/dashboard.db
+      # Paper Trading 로그
+      - ./logs:/app/logs:ro
+    environment:
+      - TZ=Asia/Seoul
+      - PYTHONUNBUFFERED=1
+    networks:
+      - trading-network
+    depends_on:
+      - paper-trading
+    logging:
+      driver: "json-file"
+      options:
         max-size: "10m"
         max-file: "3"
-
-  # 선택: 웹 대시보드 (향후 추가 가능)
-  # dashboard:
-  #   build:
-  #     context: ./web
-  #     dockerfile: Dockerfile
-  #   container_name: trading-dashboard
-  #   restart: always
-  #   ports:
-  #     - "8080:8080"
-  #   volumes:
-  #     - ./upbit_bitcoin.db:/app/upbit_bitcoin.db:ro
-  #   networks:
-  #     - trading-network
-  #   depends_on:
-  #     - trading-bot
 
 networks:
   trading-network:

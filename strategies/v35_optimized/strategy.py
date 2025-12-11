@@ -15,11 +15,19 @@ from typing import Dict, Optional
 import pandas as pd
 import numpy as np
 import sys
-sys.path.append('../..')
+import os
 
-from strategies.v34_supreme.market_classifier_v34 import MarketClassifierV34
-from strategies.v35_optimized.dynamic_exit_manager import DynamicExitManager
-from strategies.v35_optimized.sideways_enhanced import SidewaysEnhancedStrategies
+# 프로젝트 루트 경로 추가 (상대 경로 지원)
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_strategies_dir = os.path.dirname(_current_dir)
+_project_root = os.path.dirname(_strategies_dir)
+sys.path.insert(0, _project_root)
+sys.path.insert(0, _current_dir)
+sys.path.insert(0, os.path.join(_strategies_dir, '_deprecated', 'v34_supreme'))
+
+from market_classifier_v34 import MarketClassifierV34
+from dynamic_exit_manager import DynamicExitManager
+from sideways_enhanced import SidewaysEnhancedStrategies
 # AI 모드 제거: MarketAnalyzerV2 import 비활성화
 # from core.market_analyzer_v2 import MarketAnalyzerV2
 

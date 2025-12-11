@@ -249,8 +249,15 @@ class BinanceDataCollector:
         # 데이터프레임 변환
         df = pd.DataFrame(all_funding)
         df['timestamp'] = pd.to_datetime(df['fundingTime'], unit='ms')
-        df['funding_rate'] = df['fundingRate'].astype(float)
-        df['mark_price'] = df['markPrice'].astype(float) if 'markPrice' in df.columns else np.nan
+
+        # fundingRate 변환 (빈 문자열 처리)
+        df['funding_rate'] = pd.to_numeric(df['fundingRate'], errors='coerce').fillna(0.0)
+
+        # markPrice 변환 (빈 문자열 처리)
+        if 'markPrice' in df.columns:
+            df['mark_price'] = pd.to_numeric(df['markPrice'], errors='coerce')
+        else:
+            df['mark_price'] = np.nan
 
         df = df[['timestamp', 'funding_rate', 'mark_price']]
         df.set_index('timestamp', inplace=True)

@@ -312,6 +312,7 @@ def print_results(results: Dict):
 
     print(f"\n🔧 청산 유형:")
     print(f"  Stop Loss: {results.get('sl_exits', 0)}회")
+    print(f"  Trailing Stop: {results.get('trailing_exits', 0)}회")
     print(f"  Take Profit: {results.get('tp_exits', 0)}회")
     print(f"  Reversal: {results.get('reversal_exits', 0)}회")
 

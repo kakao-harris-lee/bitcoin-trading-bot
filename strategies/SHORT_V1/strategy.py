@@ -23,6 +23,10 @@ class Position:
     stop_loss: float
     take_profit: float
     entry_reason: str
+    # Trailing Stop 관련
+    trailing_activated: bool = False
+    highest_profit_pct: float = 0.0
+    trailing_stop_price: float = 0.0
 
 
 @dataclass
@@ -65,6 +69,18 @@ class ShortV1Strategy:
         self.max_sl_pct = exit_config.get('max_stop_loss_pct', 5.0)
         self.rr_ratio = exit_config.get('risk_reward_ratio', 2.5)
 
+        # Trailing Stop 설정
+        ts_config = config.get('trailing_stop', {})
+        self.trailing_enabled = ts_config.get('enabled', False)
+        self.trailing_activation_pct = ts_config.get('activation_pct', 2.0)
+        self.trailing_trail_pct = ts_config.get('trail_pct', 1.5)
+
+        # 시장 필터 설정
+        mf_config = config.get('market_filter', {})
+        self.market_filter_enabled = mf_config.get('enabled', False)
+        self.market_filter_ma_period = mf_config.get('ma_period', 100)
+        self.market_filter_require_below = mf_config.get('require_below_ma', True)
+
         # 상태
         self.position: Optional[Position] = None
         self.trades: List[Trade] = []
@@ -80,7 +96,15 @@ class ShortV1Strategy:
         Returns:
             지표가 추가된 데이터프레임
         """
-        return self.indicators.add_all_indicators(df)
+        df = self.indicators.add_all_indicators(df)
+
+        # 시장 필터용 MA 추가
+        if self.market_filter_enabled:
+            df['market_filter_ma'] = df['close'].rolling(
+                window=self.market_filter_ma_period
+            ).mean()
+
+        return df
 
     def calculate_position_size(
         self,
@@ -139,17 +163,31 @@ class ShortV1Strategy:
 
         # 포지션 있을 때: 청산 조건 확인
         if self.position is not None:
+            current_price = row['close']
+
+            # Trailing Stop 업데이트
+            if self.trailing_enabled:
+                trailing_result = self._update_trailing_stop(current_price)
+                if trailing_result:
+                    return trailing_result
+
+            # 기존 청산 조건 확인 (Trailing Stop 가격 사용)
+            effective_sl = self.position.trailing_stop_price if self.position.trailing_activated else self.position.stop_loss
+
             exit_signal = self.signal_gen.check_exit_signal(
                 row=row,
                 entry_price=self.position.entry_price,
-                stop_loss_price=self.position.stop_loss,
+                stop_loss_price=effective_sl,
                 take_profit_price=self.position.take_profit
             )
 
             if exit_signal['signal']:
+                exit_reason = exit_signal['reason']
+                if self.position.trailing_activated and 'STOP_LOSS' in exit_reason:
+                    exit_reason = f"TRAILING_STOP_{effective_sl:.2f}"
                 return {
                     'action': 'close_short',
-                    'reason': exit_signal['reason'],
+                    'reason': exit_reason,
                     'exit_type': exit_signal['type'],
                     'exit_price': exit_signal['exit_price']
                 }
@@ -157,6 +195,13 @@ class ShortV1Strategy:
             return {'action': 'hold', 'reason': 'HOLDING_POSITION'}
 
         # 포지션 없을 때: 진입 조건 확인
+        # 시장 필터 체크
+        if self.market_filter_enabled:
+            market_filter_ma = row.get('market_filter_ma', None)
+            if market_filter_ma is not None and not np.isnan(market_filter_ma):
+                if self.market_filter_require_below and row['close'] >= market_filter_ma:
+                    return {'action': 'hold', 'reason': f'MARKET_FILTER_ABOVE_MA{self.market_filter_ma_period}'}
+
         entry_signal = self.signal_gen.check_entry_signal(row, prev_row)
 
         if entry_signal['signal']:
@@ -192,6 +237,39 @@ class ShortV1Strategy:
             }
 
         return {'action': 'hold', 'reason': entry_signal.get('reason', 'NO_SIGNAL')}
+
+    def _update_trailing_stop(self, current_price: float) -> Optional[Dict]:
+        """
+        Trailing Stop 업데이트
+
+        Args:
+            current_price: 현재 가격
+
+        Returns:
+            청산 신호 또는 None
+        """
+        if self.position is None:
+            return None
+
+        # 숏 포지션의 수익률 계산 (가격 하락 시 수익)
+        profit_pct = (self.position.entry_price - current_price) / self.position.entry_price * 100
+
+        # Trailing Stop 활성화 체크
+        if not self.position.trailing_activated:
+            if profit_pct >= self.trailing_activation_pct:
+                # Trailing Stop 활성화
+                self.position.trailing_activated = True
+                self.position.highest_profit_pct = profit_pct
+                # 손익분기점 + 트레일 거리로 설정
+                self.position.trailing_stop_price = self.position.entry_price * (1 - self.trailing_trail_pct / 100)
+        else:
+            # 이미 활성화된 경우: 최고 수익 갱신 시 Trailing Stop 조정
+            if profit_pct > self.position.highest_profit_pct:
+                self.position.highest_profit_pct = profit_pct
+                # Trailing Stop을 현재 가격 + 트레일 거리로 조정
+                self.position.trailing_stop_price = current_price * (1 + self.trailing_trail_pct / 100)
+
+        return None
 
     def open_position(
         self,
@@ -284,6 +362,7 @@ class ShortV1Strategy:
 
         # Exit 유형별 통계
         sl_exits = [t for t in self.trades if t.exit_reason.startswith('STOP_LOSS')]
+        trailing_exits = [t for t in self.trades if t.exit_reason.startswith('TRAILING_STOP')]
         tp_exits = [t for t in self.trades if t.exit_reason.startswith('TAKE_PROFIT')]
         reversal_exits = [t for t in self.trades if 'REVERSAL' in t.exit_reason]
 
@@ -301,6 +380,7 @@ class ShortV1Strategy:
             'rr_ratio': rr_ratio,
             'expectancy': expectancy,
             'sl_exits': len(sl_exits),
+            'trailing_exits': len(trailing_exits),
             'tp_exits': len(tp_exits),
             'reversal_exits': len(reversal_exits),
             'total_funding_paid': sum(t.funding_paid for t in self.trades)

@@ -234,6 +234,7 @@ class FuturesBacktester:
 
 def run_backtest(
     data_path: Optional[str] = None,
+    config_path: Optional[str] = None,
     start_date: str = '2022-01-01',
     end_date: str = '2024-12-31',
     verbose: bool = True
@@ -243,6 +244,7 @@ def run_backtest(
 
     Args:
         data_path: 데이터 파일 경로 (없으면 데이터 수집)
+        config_path: 설정 파일 경로 (없으면 config.json 사용)
         start_date: 시작일
         end_date: 종료일
         verbose: 상세 출력
@@ -251,9 +253,21 @@ def run_backtest(
         백테스트 결과
     """
     # 설정 로드
-    config_path = Path(__file__).parent / 'config.json'
-    with open(config_path) as f:
+    if config_path:
+        # 상대 경로인 경우 SHORT_V1 폴더 기준으로 변환
+        cfg_path = Path(config_path)
+        if not cfg_path.is_absolute():
+            cfg_path = Path(__file__).parent / config_path
+    else:
+        cfg_path = Path(__file__).parent / 'config.json'
+
+    if not cfg_path.exists():
+        raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {cfg_path}")
+
+    with open(cfg_path) as f:
         config = json.load(f)
+
+    print(f"설정 파일: {cfg_path.name}")
 
     # 데이터 로드 또는 수집
     if data_path and Path(data_path).exists():
@@ -358,6 +372,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='SHORT_V1 백테스트')
+    parser.add_argument('--config', type=str, help='설정 파일 경로 (예: config_optimized.json)')
     parser.add_argument('--data', type=str, help='데이터 파일 경로')
     parser.add_argument('--start', type=str, default='2022-01-01', help='시작일')
     parser.add_argument('--end', type=str, default='2024-12-31', help='종료일')
@@ -369,6 +384,7 @@ if __name__ == '__main__':
     # 백테스트 실행
     results = run_backtest(
         data_path=args.data,
+        config_path=args.config,
         start_date=args.start,
         end_date=args.end,
         verbose=not args.quiet

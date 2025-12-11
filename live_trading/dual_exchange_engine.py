@@ -11,6 +11,7 @@ import json
 
 from upbit_trader import UpbitTrader
 from binance_futures_trader import BinanceFuturesTrader
+from trade_logger import TradeLogger
 
 
 class DualExchangeEngine:
@@ -49,6 +50,13 @@ class DualExchangeEngine:
         self.binance_position = False
         self.last_market_state = 'UNKNOWN'
         self.trade_log = []
+
+        # 거래 로거 (DB 기록)
+        self.trade_logger = TradeLogger()
+
+        # 포지션 진입 가격 추적 (손익 계산용)
+        self.upbit_entry_price = 0
+        self.binance_entry_price = 0
 
     def get_total_value(self) -> Dict[str, float]:
         """
@@ -150,7 +158,15 @@ class DualExchangeEngine:
 
                 if result and result['success']:
                     self.binance_position = True
+                    self.binance_entry_price = result['avg_price']
                     print(f"✅ 바이낸스 숏 오픈: {result['executed_qty']:.3f} BTC @ {result['avg_price']:,.2f} USDT")
+
+                    # DB에 거래 기록
+                    self.trade_logger.log_position_open(
+                        price=result['avg_price'],
+                        volume=result['executed_qty'],
+                        exchange='binance'
+                    )
 
     def _handle_bull_market(self, signal: Dict, market_state: str):
         """BULL/SIDEWAYS 시장 대응"""
@@ -163,6 +179,17 @@ class DualExchangeEngine:
             if result and result['success']:
                 self.binance_position = False
                 print(f"✅ 바이낸스 숏 청산: {result['realized_pnl']:+.2f} USDT")
+
+                # DB에 거래 기록 (손익 포함)
+                # 바이넨스는 숏이므로 entry_price와 current_price를 반대로
+                current_price = result.get('avg_price', self.binance_entry_price)
+                self.trade_logger.log_position_close(
+                    price=current_price,
+                    volume=result.get('executed_qty', 0),
+                    entry_price=self.binance_entry_price,
+                    exchange='binance'
+                )
+                self.binance_entry_price = 0
 
         # 2. 업비트 거래 실행
         if signal['action'] == 'buy' and not self.upbit_position:
@@ -177,7 +204,15 @@ class DualExchangeEngine:
 
                 if result and result['success']:
                     self.upbit_position = True
+                    self.upbit_entry_price = result['executed_price']
                     print(f"✅ 업비트 매수: {result['executed_volume']:.8f} BTC @ {result['executed_price']:,.0f}원")
+
+                    # DB에 거래 기록
+                    self.trade_logger.log_position_open(
+                        price=result['executed_price'],
+                        volume=result['executed_volume'],
+                        exchange='upbit'
+                    )
 
         elif signal['action'] == 'sell' and self.upbit_position:
             print(f"📊 업비트 매도 시그널")
@@ -187,6 +222,15 @@ class DualExchangeEngine:
             if result and result['success']:
                 self.upbit_position = False
                 print(f"✅ 업비트 매도: {result['executed_volume']:.8f} BTC @ {result['executed_price']:,.0f}원")
+
+                # DB에 거래 기록 (손익 포함)
+                self.trade_logger.log_position_close(
+                    price=result['executed_price'],
+                    volume=result['executed_volume'],
+                    entry_price=self.upbit_entry_price,
+                    exchange='upbit'
+                )
+                self.upbit_entry_price = 0
 
     def _log_trade(self, signal: Dict, market_state: str):
         """거래 로그 기록"""

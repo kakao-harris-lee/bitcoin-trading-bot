@@ -41,7 +41,10 @@ RUN pip install --no-cache-dir \
     requests>=2.32.0 \
     python-dotenv>=1.2.0 \
     python-binance>=1.0.0 \
-    websocket-client>=1.9.0
+    websocket-client>=1.9.0 \
+    fastapi>=0.124.0 \
+    uvicorn>=0.38.0 \
+    jinja2>=3.1.0
 
 # 프로젝트 파일 복사
 COPY . .

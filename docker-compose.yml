@@ -1,20 +1,21 @@
 version: '3.8'
 
 services:
-  # 메인 트레이딩 봇 (v35 Optimized)
+  # 듀얼 거래소 트레이딩 봇 (업비트 + 바이넨스)
   trading-bot:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: bitcoin-trading-bot-v35-optimized
+    container_name: bitcoin-dual-trading-bot
     restart: always
     env_file:
       - .env
+    command: ["python", "main_dual.py", "--mode", "hedge", "--interval", "300"]
     volumes:
       # 로그 파일 호스트에 저장
       - ./logs:/app/logs
-      # DB 파일 호스트에 저장 (백업 용이)
-      - ./upbit_bitcoin.db:/app/upbit_bitcoin.db:ro
+      # 거래 결과 DB (읽기/쓰기)
+      - ./trading_results.db:/app/trading_results.db
       # 설정 파일 (읽기 전용)
       - ./strategies/v35_optimized/config_optimized.json:/app/strategies/v35_optimized/config_optimized.json:ro
     environment:
@@ -41,21 +42,47 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # 선택: 웹 대시보드 (향후 추가 가능)
-  # dashboard:
-  #   build:
-  #     context: ./web
-  #     dockerfile: Dockerfile
-  #   container_name: trading-dashboard
-  #   restart: always
-  #   ports:
-  #     - "8080:8080"
-  #   volumes:
-  #     - ./upbit_bitcoin.db:/app/upbit_bitcoin.db:ro
-  #   networks:
-  #     - trading-network
-  #   depends_on:
-  #     - trading-bot
+  # 웹 대시보드
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trading-dashboard
+    restart: always
+    working_dir: /app
+    command: ["python", "-m", "uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      # 거래 결과 DB (읽기 전용)
+      - ./trading_results.db:/app/trading_results.db:ro
+      # 로그
+      - ./logs:/app/logs
+    environment:
+      - TZ=Asia/Seoul
+      - PYTHONUNBUFFERED=1
+    networks:
+      - trading-network
+    depends_on:
+      - trading-bot
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/strategies"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   trading-network:

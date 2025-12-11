@@ -63,5 +63,5 @@ pytest_cache/
 optimization_*.json
 optuna_*.db
 
-# 웹 대시보드 (별도 이미지)
-web/
+# 웹 대시보드 - Docker Compose에서 사용하므로 포함
+# web/

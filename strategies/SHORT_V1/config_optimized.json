@@ -1,0 +1,37 @@
+{
+  "strategy_name": "SHORT_V1",
+  "description": "EMA/ADX 추세 추종 기반 비트코인 선물 숏 전략",
+  "symbol": "BTCUSDT",
+  "timeframe": "4h",
+  "indicators": {
+    "ema_fast": 68,
+    "ema_slow": 128,
+    "adx_period": 14,
+    "adx_threshold": 30
+  },
+  "entry": {
+    "require_death_cross": true,
+    "adx_min": 30,
+    "di_negative_dominant": true,
+    "require_bearish_candle": false
+  },
+  "exit": {
+    "stop_loss_pct": 4.221341981985326,
+    "max_stop_loss_pct": 4.633831193906388,
+    "risk_reward_ratio": 2.545316046883437,
+    "exit_on_golden_cross": true
+  },
+  "risk_management": {
+    "margin_type": "ISOLATED",
+    "max_leverage": 2,
+    "position_risk_pct": 1.0,
+    "max_drawdown_pct": 20.0,
+    "emergency_stop_pct": 25.0
+  },
+  "backtest": {
+    "initial_capital": 10000,
+    "fee_rate": 0.0004,
+    "slippage": 0.0005,
+    "funding_rate_avg": -0.0001
+  }
+}

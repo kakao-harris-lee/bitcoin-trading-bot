@@ -5,7 +5,14 @@ v35 Optimized Backtesting Script
 """
 
 import sys
-sys.path.append('../..')
+import os
+
+# 프로젝트 루트 경로 추가 (상대 경로 지원)
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_strategies_dir = os.path.dirname(_current_dir)
+_project_root = os.path.dirname(_strategies_dir)
+sys.path.insert(0, _project_root)
+sys.path.insert(0, _current_dir)
 
 from core.data_loader import DataLoader
 from core.market_analyzer import MarketAnalyzer

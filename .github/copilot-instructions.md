@@ -210,3 +210,147 @@ python live_trading/main.py
 5. **Test data integrity** - use `automation/verify_all_timeframes.py` before backtesting
 6. **Follow naming conventions** - `YYMMDD-HHMM_` prefix for reports
 7. **Reference AI v2 plan** - for any market analysis enhancements (`core/market_analyzer_v2_plan.md`)
+8. **Write unit tests** - all new modules and features must include corresponding tests
+
+## Unit Testing Standards
+
+### Testing Framework
+
+- **Framework**: `pytest` (standard for Python projects)
+- **Location**: Tests in `tests/` directory mirroring source structure, or `test_*.py` in same directory
+- **Naming**: `test_<module_name>.py` for files, `test_<function_name>()` for functions
+
+### Required Test Coverage
+
+All new code must include tests for:
+
+1. **Core modules** (`core/`) - Unit tests for DataLoader, Backtester, KellyCalculator
+2. **Strategy logic** - Test `execute()` method with known inputs/outputs
+3. **Trading engine** - Mock API calls, test order logic and position management
+4. **Data validation** - Verify DataFrame structures and edge cases
+
+### Test Structure Example
+
+```python
+import pytest
+from unittest.mock import Mock, patch
+from core.backtester import Backtester
+
+class TestBacktester:
+    """Backtester 단위 테스트"""
+
+    @pytest.fixture
+    def backtester(self):
+        return Backtester(
+            initial_capital=10_000_000,
+            fee_rate=0.0005,
+            slippage=0.0002
+        )
+
+    def test_initial_capital(self, backtester):
+        """초기 자본금 설정 테스트"""
+        assert backtester.initial_capital == 10_000_000
+
+    def test_fee_calculation(self, backtester):
+        """수수료 계산 테스트"""
+        order_amount = 1_000_000
+        expected_fee = order_amount * 0.0005
+        assert backtester.calculate_fee(order_amount) == expected_fee
+
+    def test_buy_signal_execution(self, backtester, sample_df):
+        """매수 신호 실행 테스트"""
+        # Given: 매수 조건이 충족된 상태
+        # When: execute() 호출
+        # Then: 포지션 진입 확인
+        pass
+
+class TestStrategy:
+    """Strategy execute() 메서드 테스트"""
+
+    def test_hold_on_insufficient_data(self, strategy, sample_df):
+        """데이터 부족 시 hold 반환"""
+        result = strategy.execute(sample_df, i=5)  # warmup 미충족
+        assert result['action'] == 'hold'
+        assert result['reason'] == 'INSUFFICIENT_DATA'
+```
+
+### Mocking External Dependencies
+
+```python
+from unittest.mock import patch, AsyncMock
+
+class TestLiveTrading:
+    """실거래 모듈 테스트 (API 모킹)"""
+
+    @patch('live_trading.upbit_api.UpbitAPI')
+    def test_order_placement(self, mock_api):
+        """주문 실행 테스트"""
+        mock_api.return_value.place_order.return_value = {
+            'uuid': 'test-order-123',
+            'side': 'bid',
+            'price': 50_000_000
+        }
+        # Test order logic...
+
+    @pytest.mark.asyncio
+    async def test_websocket_connection(self):
+        """WebSocket 연결 테스트"""
+        with patch('aiohttp.ClientSession') as mock_session:
+            mock_ws = AsyncMock()
+            mock_session.return_value.ws_connect.return_value = mock_ws
+            # Test WebSocket logic...
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_backtester.py -v
+
+# Run with coverage report
+pytest tests/ --cov=core --cov-report=html
+
+# Run only fast unit tests (exclude integration)
+pytest tests/ -m "not integration" -v
+
+# Run tests matching pattern
+pytest tests/ -k "test_buy" -v
+```
+
+### Test Markers
+
+```python
+import pytest
+
+@pytest.mark.slow
+def test_full_backtest():
+    """전체 백테스트 (시간 소요)"""
+    pass
+
+@pytest.mark.integration
+def test_api_connection():
+    """API 연결 테스트 (실제 네트워크)"""
+    pass
+
+@pytest.mark.parametrize("timeframe", ["day", "minute60", "minute15"])
+def test_multi_timeframe(timeframe):
+    """다중 타임프레임 테스트"""
+    pass
+```
+
+### CI/CD Integration
+
+Tests must pass before:
+
+- Merging to `main` branch
+- Deploying to production server
+- Creating release tags
+
+```yaml
+# .github/workflows/test.yml (future)
+- name: Run tests
+  run: pytest tests/ -v --cov=core --cov-fail-under=80
+```

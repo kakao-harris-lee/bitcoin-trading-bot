@@ -5,7 +5,7 @@ Pydantic 모델로 정의된 메시지 타입
 
 from datetime import datetime
 from typing import Optional, Dict, Any, List, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
 
@@ -64,15 +64,14 @@ class OHLCV(BaseModel):
 
 class PriceMessage(BaseModel):
     """실시간 가격 메시지"""
+    model_config = ConfigDict(use_enum_values=True)
+
     timestamp: int = Field(description="Unix timestamp (ms)")
     exchange: Exchange
     symbol: str = Field(description="거래 심볼 (예: BTC-KRW, BTCUSDT)")
     price: float
     volume_24h: Optional[float] = None
     ohlcv: Optional[OHLCV] = None
-
-    class Config:
-        use_enum_values = True
 
     def to_dict(self) -> Dict[str, Any]:
         return self.model_dump()
@@ -86,6 +85,8 @@ class PriceMessage(BaseModel):
 
 class SignalMessage(BaseModel):
     """전략 신호 메시지"""
+    model_config = ConfigDict(use_enum_values=True)
+
     id: str = Field(description="신호 고유 ID")
     timestamp: int
     strategy: str = Field(description="전략 이름 (예: v35-long, short-v1)")
@@ -101,9 +102,6 @@ class SignalMessage(BaseModel):
     take_profit_pct: Optional[float] = None
     metadata: Optional[Dict[str, Any]] = None
 
-    class Config:
-        use_enum_values = True
-
     def to_dict(self) -> Dict[str, Any]:
         return self.model_dump()
 
@@ -112,6 +110,8 @@ class SignalMessage(BaseModel):
 
 class OrderMessage(BaseModel):
     """주문 메시지"""
+    model_config = ConfigDict(use_enum_values=True)
+
     id: str = Field(description="주문 고유 ID")
     timestamp: int
     signal_id: str = Field(description="원본 신호 ID")
@@ -132,9 +132,6 @@ class OrderMessage(BaseModel):
     # 결과
     error_message: Optional[str] = None
 
-    class Config:
-        use_enum_values = True
-
     def to_dict(self) -> Dict[str, Any]:
         return self.model_dump()
 
@@ -143,6 +140,8 @@ class OrderMessage(BaseModel):
 
 class Position(BaseModel):
     """단일 포지션"""
+    model_config = ConfigDict(use_enum_values=True)
+
     exchange: Exchange
     symbol: str
     side: Direction
@@ -153,20 +152,16 @@ class Position(BaseModel):
     unrealized_pnl: float
     unrealized_pnl_pct: float
 
-    class Config:
-        use_enum_values = True
-
 
 class PositionMessage(BaseModel):
     """포지션 업데이트 메시지"""
+    model_config = ConfigDict(use_enum_values=True)
+
     timestamp: int
     total_equity_krw: float = Field(description="총 자산 (KRW 환산)")
     positions: Dict[str, Position] = Field(description="거래소별 포지션")
     hedge_ratio: float = Field(description="헤지 비율 (Short/Long)")
     total_pnl_pct: float = Field(description="총 수익률")
-
-    class Config:
-        use_enum_values = True
 
     def to_dict(self) -> Dict[str, Any]:
         return self.model_dump()
@@ -187,14 +182,13 @@ class EventType(str, Enum):
 
 class SystemEvent(BaseModel):
     """시스템 이벤트 메시지"""
+    model_config = ConfigDict(use_enum_values=True)
+
     timestamp: int
     event_type: EventType
     module: str = Field(description="이벤트 발생 모듈")
     message: str
     data: Optional[Dict[str, Any]] = None
-
-    class Config:
-        use_enum_values = True
 
     def to_dict(self) -> Dict[str, Any]:
         return self.model_dump()

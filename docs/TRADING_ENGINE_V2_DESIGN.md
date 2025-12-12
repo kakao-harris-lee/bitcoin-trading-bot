@@ -719,11 +719,18 @@ POST /api/commands/stop    긴급 정지
 - [x] Stream/Consumer Group 생성 (7 Streams, 15 Consumer Groups)
 - [x] Core 모듈 기본 구조 생성 (trading_engine_v2/core/)
 
-### Phase 2: Core 모듈 (2주)
+### Phase 2: Core 모듈 (2주) ✅ 완료
 
 - [x] Base Module 구현 (base_module.py)
-- [ ] Feed Handler 구현
-- [ ] 테스트
+- [x] Feed Handler 구현 (trading_engine_v2/modules/feed_handler.py)
+  - Upbit/Binance WebSocket 핸들러
+  - 데이터 정규화 및 Redis 발행
+  - 자동 재연결 로직
+- [x] 단위 테스트 (tests/trading_engine_v2/)
+  - test_feed_handler.py - 24 테스트
+  - test_message_types.py - 24 테스트
+  - test_redis_client.py - 16 테스트
+  - 총 64개 테스트 통과
 
 ### Phase 3: 전략 마이그레이션 (2주)
 

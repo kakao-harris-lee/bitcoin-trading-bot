@@ -61,8 +61,8 @@ RUN useradd -m -u 1000 trader && \
     chown -R trader:trader /app
 USER trader
 
-# 작업 디렉토리를 live_trading으로 변경
-WORKDIR /app/live_trading
+# 작업 디렉토리를 루트로 설정 (import 경로 문제 해결)
+WORKDIR /app
 
 # 기본 명령어
-CMD ["python", "main.py", "--auto"]
+CMD ["python", "live_trading/main.py", "--auto"]

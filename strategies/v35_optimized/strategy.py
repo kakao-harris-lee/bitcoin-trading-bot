@@ -21,9 +21,19 @@ import os
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _strategies_dir = os.path.dirname(_current_dir)
 _project_root = os.path.dirname(_strategies_dir)
+_v34_dir = os.path.join(_strategies_dir, 'v34_supreme')
+
+# Docker 컨테이너 환경에서도 작동하도록 경로 추가
 sys.path.insert(0, _project_root)
 sys.path.insert(0, _current_dir)
-sys.path.insert(0, os.path.join(_strategies_dir, '_deprecated', 'v34_supreme'))
+sys.path.insert(0, _v34_dir)
+
+# v34_supreme 경로가 존재하는지 확인하고 없으면 대체 경로 시도
+if not os.path.exists(os.path.join(_v34_dir, 'market_classifier_v34.py')):
+    # Docker 환경에서 /app 기준 경로
+    _v34_dir = '/app/strategies/v34_supreme'
+    if os.path.exists(_v34_dir):
+        sys.path.insert(0, _v34_dir)
 
 from market_classifier_v34 import MarketClassifierV34
 from dynamic_exit_manager import DynamicExitManager

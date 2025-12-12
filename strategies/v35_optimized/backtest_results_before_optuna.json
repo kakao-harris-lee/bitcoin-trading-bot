@@ -1,7 +1,7 @@
 {
   "version": "v35",
   "optimization_status": "before_optuna",
-  "backtest_date": "2025-12-06T11:50:29.742008",
+  "backtest_date": "2025-12-11T23:07:24.951662",
   "config": {
     "strategy_name": "optimized",
     "version": "v35",

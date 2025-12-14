@@ -165,30 +165,6 @@ class DualPaperTradingEngine:
                     recommend_kill_on_consecutive_errors=int(rc.get("recommend_kill_on_consecutive_errors", self.risk_config.recommend_kill_on_consecutive_errors)),
                 )
 
-    def _recommend_kill_switch(self, reason: str) -> None:
-        """Notify operator that kill-switch is recommended (does not auto-enable)."""
-        if not self.telegram:
-            return
-        now = datetime.now()
-        # Basic rate limit: once per 30 minutes
-        if self._last_kill_recommend_at and (now - self._last_kill_recommend_at).total_seconds() < 1800:
-            return
-        self._last_kill_recommend_at = now
-
-        active = kill_switch_active(self.risk_config.kill_switch_file)
-        state = "ON" if active else "OFF"
-        msg = (
-            "⚠️ Kill-Switch 권장\n"
-            f"- reason: {reason}\n"
-            f"- kill_switch: {state} ({self.risk_config.kill_switch_file})\n"
-            f"- daily_block_new_entries: {self._block_new_entries}\n\n"
-            "Telegram으로 제어: /kill_on /kill_off /kill_status"
-        )
-        try:
-            self.telegram.send_message(msg)
-        except Exception:
-            pass
-
         # 전략 로드
         self.v35_strategy = self._load_v35_strategy()
         self.short_v1_strategy = self._load_short_v1_strategy()
@@ -231,6 +207,30 @@ class DualPaperTradingEngine:
 
         # 시작 알림 전송
         self._send_startup_notification(upbit_capital, binance_capital)
+
+    def _recommend_kill_switch(self, reason: str) -> None:
+        """Notify operator that kill-switch is recommended (does not auto-enable)."""
+        if not self.telegram:
+            return
+        now = datetime.now()
+        # Basic rate limit: once per 30 minutes
+        if self._last_kill_recommend_at and (now - self._last_kill_recommend_at).total_seconds() < 1800:
+            return
+        self._last_kill_recommend_at = now
+
+        active = kill_switch_active(self.risk_config.kill_switch_file)
+        state = "ON" if active else "OFF"
+        msg = (
+            "⚠️ Kill-Switch 권장\n"
+            f"- reason: {reason}\n"
+            f"- kill_switch: {state} ({self.risk_config.kill_switch_file})\n"
+            f"- daily_block_new_entries: {self._block_new_entries}\n\n"
+            "Telegram으로 제어: /kill_on /kill_off /kill_status"
+        )
+        try:
+            self.telegram.send_message(msg)
+        except Exception:
+            pass
 
     def _cmd_kill_switch(self, active: bool) -> None:
         p = set_kill_switch(self.risk_config.kill_switch_file, bool(active))

@@ -16,9 +16,25 @@ app = Flask(__name__)
 CORS(app)
 
 BASE_DIR = Path(__file__).parent
-PROJECT_ROOT = BASE_DIR.parent
-LOG_DIR = PROJECT_ROOT / "logs"
-KILL_SWITCH_FILE = PROJECT_ROOT / "analysis" / "KILL_SWITCH"
+
+
+def _detect_project_root() -> Path:
+    """Best-effort project root detection for local run and Docker."""
+    # Local run: repo_root/web/app.py
+    local_root = BASE_DIR.parent
+    if (local_root / "logs").exists() or (local_root / "analysis").exists():
+        return local_root
+
+    # Docker run (default workdir=/app). We mount volumes under /app.
+    docker_root = Path(os.getenv("PROJECT_ROOT", "/app"))
+    return docker_root
+
+
+PROJECT_ROOT = _detect_project_root()
+LOG_DIR = Path(os.getenv("LOG_DIR", str(PROJECT_ROOT / "logs")))
+KILL_SWITCH_FILE = Path(
+    os.getenv("KILL_SWITCH_FILE", str(PROJECT_ROOT / "analysis" / "KILL_SWITCH"))
+)
 
 
 def load_trading_log(exchange: str):

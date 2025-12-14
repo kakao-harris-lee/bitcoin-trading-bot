@@ -33,20 +33,36 @@ class TelegramNotifier:
 
     def send_message(self, message: str) -> bool:
         """텔레그램 메시지 전송"""
+        def _post(payload: Dict[str, Any]) -> requests.Response:
+            return requests.post(self.api_url, json=payload, timeout=10)
+
+        payload: Dict[str, Any] = {
+            'chat_id': self.chat_id,
+            'text': message,
+            'parse_mode': 'Markdown'
+        }
+
         try:
-            response = requests.post(
-                self.api_url,
-                json={
-                    'chat_id': self.chat_id,
-                    'text': message,
-                    'parse_mode': 'Markdown'
-                },
-                timeout=10
-            )
-            response.raise_for_status()
-            return True
+            resp = _post(payload)
+
+            # Telegram sometimes returns 400 on Markdown parsing errors.
+            # Fallback: retry without parse_mode (plain text).
+            if resp.status_code == 400 and payload.get('parse_mode'):
+                payload.pop('parse_mode', None)
+                resp = _post(payload)
+
+            if 200 <= resp.status_code < 300:
+                return True
+
+            # IMPORTANT: do not print api_url (it contains the bot token).
+            body = (resp.text or '').strip()
+            if len(body) > 500:
+                body = body[:500] + "..."
+            print(f"❌ 텔레그램 전송 실패: status={resp.status_code} body={body}")
+            return False
         except Exception as e:
-            print(f"❌ 텔레그램 전송 실패: {e}")
+            # Keep logs token-safe by not including the request URL.
+            print(f"❌ 텔레그램 전송 실패: {type(e).__name__}: {e}")
             return False
 
     def notify_start(self, strategy: str, capital: float):

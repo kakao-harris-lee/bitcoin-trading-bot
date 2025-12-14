@@ -111,7 +111,11 @@ class BinanceFuturesTrader:
                 if position_amt != 0:
                     entry_price = float(pos['entryPrice'])
                     unrealized_pnl = float(pos['unRealizedProfit'])
-                    leverage = int(pos['leverage'])
+                    leverage_raw = pos.get('leverage', self.max_leverage)
+                    try:
+                        leverage = int(leverage_raw)
+                    except (TypeError, ValueError):
+                        leverage = int(self.max_leverage)
 
                     return {
                         'symbol': self.symbol,

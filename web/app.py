@@ -80,18 +80,23 @@ def get_status():
     # 상태 구성
     status = {
         'timestamp': datetime.now().isoformat(),
+        'market': {
+            'regime': upbit_log.get('regime') if upbit_log else None,
+            'market_state': upbit_log.get('market_state') if upbit_log else None,
+        },
         'upbit': {
             'enabled': upbit_log is not None,
             'exchange': 'upbit',
-            'strategy': upbit_log.get('strategy', 'v35_optimized') if upbit_log else '-',
+            'strategy': upbit_log.get('strategy', 'none') if upbit_log else '-',
             'regime': upbit_log.get('regime', '-') if upbit_log else '-',
+            'market_state': upbit_log.get('market_state', '-') if upbit_log else '-',
             'position': None,
             'statistics': None
         },
         'binance': {
             'enabled': binance_log is not None,
             'exchange': 'binance',
-            'strategy': binance_log.get('strategy', 'SHORT_V1') if binance_log else '-',
+            'strategy': binance_log.get('strategy', 'none') if binance_log else '-',
             'position': None,
             'statistics': None
         }

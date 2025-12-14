@@ -41,10 +41,55 @@ function formatTime(isoString) {
     });
 }
 
+// Update Market Regime display
+function updateMarketRegime(regime, marketState) {
+    const section = document.querySelector('.regime-section');
+    const iconEl = document.getElementById('market-regime-icon');
+    const labelEl = document.getElementById('market-regime-label');
+    const detailEl = document.getElementById('market-state-detail');
+
+    // Remove old regime classes
+    section.classList.remove('regime-bull', 'regime-bear', 'regime-sideways');
+
+    if (!regime || regime === '-') {
+        iconEl.textContent = '⏳';
+        labelEl.textContent = '확인 중...';
+        detailEl.textContent = '-';
+        return;
+    }
+
+    const regimeLower = regime.toLowerCase();
+    if (regimeLower.includes('bull')) {
+        section.classList.add('regime-bull');
+        iconEl.textContent = '🐂';
+        labelEl.textContent = '상승장 (BULL)';
+    } else if (regimeLower.includes('bear')) {
+        section.classList.add('regime-bear');
+        iconEl.textContent = '🐻';
+        labelEl.textContent = '하락장 (BEAR)';
+    } else if (regimeLower.includes('sideways')) {
+        section.classList.add('regime-sideways');
+        iconEl.textContent = '↔️';
+        labelEl.textContent = '횡보장 (SIDEWAYS)';
+    } else {
+        iconEl.textContent = '❓';
+        labelEl.textContent = regime;
+    }
+
+    // Detail: market_state like BEAR_STRONG, SIDEWAYS_NEUTRAL, etc.
+    detailEl.textContent = marketState || '-';
+}
+
 // Update status display
 function updateStatus(data) {
     // Update timestamp
     document.getElementById('last-update-time').textContent = formatTime(data.timestamp);
+
+    // Update Market Regime Section
+    const market = data.market || {};
+    const regime = market.regime || '-';
+    const marketState = market.market_state || '-';
+    updateMarketRegime(regime, marketState);
 
     // Update Upbit
     const upbit = data.upbit || {};
@@ -54,13 +99,13 @@ function updateStatus(data) {
     document.getElementById('upbit-strategy').textContent = upbit.strategy || '-';
 
     // Regime (from router state if available)
-    const regime = upbit.regime || '-';
+    const upbitRegime = upbit.regime || '-';
     const regimeEl = document.getElementById('upbit-regime');
-    regimeEl.textContent = regime;
+    regimeEl.textContent = upbitRegime;
     regimeEl.className = 'value regime-badge';
-    if (regime.toLowerCase().includes('bull')) regimeEl.classList.add('bull');
-    else if (regime.toLowerCase().includes('bear')) regimeEl.classList.add('bear');
-    else if (regime.toLowerCase().includes('sideways')) regimeEl.classList.add('sideways');
+    if (upbitRegime.toLowerCase().includes('bull')) regimeEl.classList.add('bull');
+    else if (upbitRegime.toLowerCase().includes('bear')) regimeEl.classList.add('bear');
+    else if (upbitRegime.toLowerCase().includes('sideways')) regimeEl.classList.add('sideways');
 
     // Upbit position
     const upbitPos = upbit.position;

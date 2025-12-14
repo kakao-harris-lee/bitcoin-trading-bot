@@ -85,6 +85,59 @@ header h1 {
     50% { opacity: 0.5; }
 }
 
+/* Market Regime Section */
+.regime-section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.regime-section h2 {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    color: #aaa;
+}
+
+.regime-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.regime-icon {
+    font-size: 3rem;
+}
+
+.regime-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.regime-label {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.market-state-detail {
+    font-size: 0.9rem;
+    color: #888;
+    margin-top: 4px;
+}
+
+.regime-bull .regime-icon { color: #2ecc71; }
+.regime-bull .regime-label { color: #2ecc71; }
+
+.regime-bear .regime-icon { color: #e74c3c; }
+.regime-bear .regime-label { color: #e74c3c; }
+
+.regime-sideways .regime-icon { color: #f1c40f; }
+.regime-sideways .regime-label { color: #f1c40f; }
+
 /* Exchange Grid */
 .exchange-grid {
     display: grid;

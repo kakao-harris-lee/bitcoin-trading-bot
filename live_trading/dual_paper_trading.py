@@ -264,6 +264,12 @@ class DualPaperTradingEngine:
             upbit_total = float(self.upbit_account.get_total_value(prices["upbit"]))
             upbit_stats = self.upbit_account.get_statistics() if hasattr(self.upbit_account, "get_statistics") else {}
 
+            # Regime info from last decision
+            regime_info = {
+                "market_state": self._last_regime_decision.market_state if self._last_regime_decision else None,
+                "regime": self._last_regime_decision.regime if self._last_regime_decision else None,
+            }
+
             upbit_payload = {
                 "exchange": "upbit",
                 "mode": self.execution_mode,
@@ -271,6 +277,9 @@ class DualPaperTradingEngine:
                 "current_cash": float(upbit_cash),
                 "btc_balance": float(upbit_btc),
                 "total_value": upbit_total,
+                "strategy": self.upbit_active_strategy or "none",
+                "regime": regime_info["regime"],
+                "market_state": regime_info["market_state"],
                 "trades": self._v2_trades["upbit"],
                 "statistics": upbit_stats,
                 "generated_at": datetime.now().isoformat(),
@@ -289,6 +298,9 @@ class DualPaperTradingEngine:
                 "position_size": float(pos.get("size")) if pos else 0.0,
                 "entry_price": float(pos.get("entry_price")) if pos else 0.0,
                 "leverage": int(pos.get("leverage")) if pos else 1,
+                "strategy": self.binance_active_strategy or "none",
+                "regime": regime_info["regime"],
+                "market_state": regime_info["market_state"],
                 "trades": self._v2_trades["binance"],
                 "statistics": binance_stats,
                 "generated_at": datetime.now().isoformat(),
@@ -376,16 +388,26 @@ class DualPaperTradingEngine:
         binance_position = self.binance_account.get_position()
         binance_stats = self.binance_account.get_statistics()
 
-        msg = "📊 Dual Paper Trading 상태 보고\n"
+        # Regime info
+        regime_str = "⏳ 확인 중"
+        if self._last_regime_decision:
+            rd = self._last_regime_decision
+            regime_emoji = {"BULL": "🐂 상승장", "BEAR": "🐻 하락장", "SIDEWAYS": "↔️ 횡보장"}.get(rd.regime, rd.regime)
+            regime_str = f"{regime_emoji} ({rd.market_state})"
+
+        msg = "📊 Dual Trading 상태 보고\n"
         msg += "=" * 30 + "\n\n"
         msg += f"🕐 {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+        msg += f"🌐 시장 상태: {regime_str}\n\n"
 
         msg += "📈 [Upbit]\n"
+        msg += f"  전략: {self.upbit_active_strategy or 'none'}\n"
         msg += f"  포지션: {'🟢 있음' if self.upbit_position else '⚪ 없음'}\n"
         msg += f"  총 가치: {upbit_total:,.0f}원\n"
         msg += f"  수익률: {upbit_stats['return_pct']:+.2f}%\n\n"
 
         msg += "📉 [Binance]\n"
+        msg += f"  전략: {self.binance_active_strategy or 'none'}\n"
         msg += f"  포지션: {'🔻 숏' if self.binance_position else '⚪ 없음'}\n"
         if binance_position:
             msg += f"  진입가: ${binance_position['entry_price']:,.2f}\n"

@@ -42,6 +42,7 @@ RUN pip install --no-cache-dir \
     python-dotenv>=1.2.0 \
     python-binance>=1.0.0 \
     websocket-client>=1.9.0 \
+    redis>=5.0.0 \
     fastapi>=0.124.0 \
     uvicorn>=0.38.0 \
     jinja2>=3.1.0
@@ -61,8 +62,8 @@ RUN useradd -m -u 1000 trader && \
     chown -R trader:trader /app
 USER trader
 
-# 작업 디렉토리를 live_trading으로 변경
-WORKDIR /app/live_trading
+# 작업 디렉토리를 루트로 설정 (import 경로 문제 해결)
+WORKDIR /app
 
 # 기본 명령어
-CMD ["python", "main.py", "--auto"]
+CMD ["python", "live_trading/main.py", "--auto"]

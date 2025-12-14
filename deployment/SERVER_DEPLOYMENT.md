@@ -181,6 +181,9 @@ cd /home/deploy/bitcoin-trading-bot
 docker compose logs -f              # 실시간 로그
 docker compose logs --tail=100      # 최근 100줄
 
+# 현재 적용 candidate 확인 (컨테이너에서 사용하는 설정)
+cat analysis/selected_candidate.json
+
 # 컨테이너 관리
 docker compose ps                   # 상태 확인
 docker compose restart              # 재시작

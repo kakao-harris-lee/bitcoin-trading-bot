@@ -1,32 +1,37 @@
 version: '3.8'
 
 services:
-  # Dual Exchange Paper Trading (Upbit + Binance)
+  # Dual Exchange Paper Trading (Upbit V35 + Binance SHORT_V1)
   paper-trading:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: bitcoin-paper-trading-dual
+    container_name: bitcoin-dual-paper-trading
     restart: unless-stopped
+    user: root
     env_file:
       - .env
-    command: ["python", "main_dual.py", "--mode", "hedge", "--interval", "300"]
     volumes:
       # 로그 디렉토리
       - ./logs:/app/logs
       # DB 파일 (읽기 전용)
       - ./upbit_bitcoin.db:/app/upbit_bitcoin.db:ro
-      # Binance 데이터 (읽기 전용)
-      - ./strategies/SHORT_V1/results:/app/strategies/SHORT_V1/results:ro
-      # 전략 설정 파일
+      # V35 전략 설정 파일
       - ./strategies/v35_optimized/config_optimized.json:/app/strategies/v35_optimized/config_optimized.json:ro
+      # SHORT_V1 전략 설정 파일
       - ./strategies/SHORT_V1/config_optimized.json:/app/strategies/SHORT_V1/config_optimized.json:ro
+      # SHORT_V1 데이터 파일
+      - ./strategies/SHORT_V1/results:/app/strategies/SHORT_V1/results:ro
+      # 거래 결과 DB
+      - ./trading_results.db:/app/trading_results.db
+      # 선택된 운영 candidate 설정 (tuned)
+      - ./analysis/selected_candidate.json:/app/analysis/selected_candidate.json:ro
     environment:
       - TZ=Asia/Seoul
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=INFO
       - PAPER_TRADING=true
-    command: python live_trading/dual_paper_trading.py --interval 60
+    command: python live_trading/dual_paper_trading.py --upbit-capital 10000000 --binance-capital 10000 --interval 60 --candidate-json /app/analysis/selected_candidate.json
     networks:
       - trading-network
     deploy:
@@ -49,54 +54,34 @@ services:
         max-size: "20m"
         max-file: "5"
 
-  # 웹 대시보드
-  dashboard:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    container_name: trading-dashboard
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    volumes:
-      # DB 파일 (읽기 전용)
-      - ./upbit_bitcoin.db:/app/upbit_bitcoin.db:ro
-      - ./dashboard.db:/app/dashboard.db
-      # Paper Trading 로그
-      - ./logs:/app/logs:ro
-    environment:
-      - TZ=Asia/Seoul
-      - PYTHONUNBUFFERED=1
-    networks:
-      - trading-network
-    depends_on:
-      - paper-trading
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # 선택: 웹 대시보드 (향후 추가 가능)
+  # 웹 대시보드 (모니터링) - 향후 구현 예정
   # dashboard:
   #   build:
   #     context: ./web
   #     dockerfile: Dockerfile
   #   container_name: trading-dashboard
-  #   restart: always
+  #   restart: unless-stopped
   #   ports:
   #     - "8080:8080"
   #   volumes:
+  #     # DB 파일 (읽기 전용)
   #     - ./upbit_bitcoin.db:/app/upbit_bitcoin.db:ro
+  #     - ./trading_results.db:/app/trading_results.db:ro
+  #     # Paper Trading 로그
+  #     - ./logs:/app/logs:ro
+  #   environment:
+  #     - TZ=Asia/Seoul
+  #     - PYTHONUNBUFFERED=1
   #   networks:
   #     - trading-network
   #   depends_on:
-  #     - trading-bot
+  #     - paper-trading
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
 networks:
   trading-network:
     driver: bridge
-
-volumes:
-  logs:
-    driver: local

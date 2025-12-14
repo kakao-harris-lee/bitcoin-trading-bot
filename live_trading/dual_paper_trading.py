@@ -1082,15 +1082,19 @@ if __name__ == '__main__':
     """실행"""
     import argparse
 
-    parser = argparse.ArgumentParser(description='Dual Exchange Paper Trading')
+    parser = argparse.ArgumentParser(description='Dual Exchange Engine (paper/live)')
     parser.add_argument('--upbit-capital', type=float, default=10_000_000,
                         help='Upbit 초기 자본 (KRW, 기본: 10M)')
     parser.add_argument('--binance-capital', type=float, default=10_000,
                         help='Binance 초기 자본 (USDT, 기본: 10K)')
+    parser.add_argument('--mode', choices=['paper', 'live'], default='paper',
+                        help='실행 모드 (paper|live, 기본: paper)')
     parser.add_argument('--interval', type=int, default=60,
                         help='실행 간격 (분, 기본: 60)')
     parser.add_argument('--no-telegram', action='store_true',
                         help='텔레그램 알림 비활성화')
+    parser.add_argument('--telegram-commands', action='store_true',
+                        help='텔레그램 명령어 polling 활성화 (/kill_on 등)')
     parser.add_argument('--candidate-json', type=str, default=None,
                         help='tune_operational_router 결과 JSON 경로 (results[...].candidate 로드)')
     parser.add_argument('--candidate-index', type=int, default=0,
@@ -1104,6 +1108,8 @@ if __name__ == '__main__':
         telegram_enabled=not args.no_telegram,
         candidate_json=args.candidate_json,
         candidate_index=args.candidate_index,
+        execution_mode=str(args.mode),
+        telegram_commands_enabled=bool(args.telegram_commands),
     )
 
     engine.run_forever(interval_minutes=args.interval)

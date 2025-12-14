@@ -2,16 +2,14 @@
 
 ## 🌐 개요
 
-FastAPI 기반 실시간 전략 성과 모니터링 대시보드
+Flask 기반 모니터링 대시보드입니다.
 
-## ✅ 설치 완료 (2025-11-12)
+- `logs/`의 로그 파일을 읽어 상태/거래내역 API를 제공합니다.
+- v2 엔진은 `logs/v2_engine_*.json`을 생성하며(우선 사용), 없으면 기존 `logs/paper_trading_*.json`을 fallback으로 사용합니다.
 
-모든 설정이 완료되었습니다!
+## ✅ 상태
 
-- ✅ FastAPI 패키지 설치
-- ✅ DB 스키마 생성
-- ✅ 테스트 데이터 삽입 (v35, v34, v31, v-a-02)
-- ✅ 웹 서버 실행 테스트 통과
+현재 UI는 기본 템플릿 수준이며, 실제 모니터링은 아래 API 호출로 확인하는 형태가 더 정확합니다.
 
 ## 🚀 사용 방법
 
@@ -21,93 +19,72 @@ FastAPI 기반 실시간 전략 성과 모니터링 대시보드
 # 프로젝트 루트에서
 cd web
 python app.py
-
-# 또는 uvicorn 직접 실행
-uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 2. 브라우저 접속
 
 ```
-http://localhost:8000
+http://localhost:8080
 ```
 
 ### 3. API 엔드포인트
 
-**메인 대시보드**:
-```
-GET http://localhost:8000/
-```
+**상태**:
 
-**전략 목록 API**:
 ```
-GET http://localhost:8000/api/strategies
+GET http://localhost:8080/api/status
 ```
 
-**응답 예시**:
-```json
-{
-  "strategies": [
-    [1, "v35", "optimized", "Optuna 최적화 + 동적 익절 + SIDEWAYS 강화", "day", "2025-11-12 09:48:49"],
-    [2, "v34", "supreme", "7-Level 시장 분류 + Multi-Strategy", "day", "2025-11-12 09:48:49"],
-    ...
-  ]
-}
+**거래 내역(최근 50개)**:
+
+```
+GET http://localhost:8080/api/trades/upbit
+GET http://localhost:8080/api/trades/binance
 ```
 
-## 📊 현재 데이터
+**통합 통계**:
 
-**등록된 전략** (4개):
-
-| 버전 | 전략명 | 수익률 | Sharpe | MDD | 승률 |
-|------|--------|--------|--------|-----|------|
-| v35 | optimized | 14.20% | 2.24 | -2.33% | 25.0% |
-| v-a-02 | multi_indicator_score | 11.28% | 1.85 | -3.50% | 75.0% |
-| v34 | supreme | 8.43% | 1.34 | -2.83% | 60.0% |
-| v31 | scalping_with_classifier | 6.33% | 1.94 | -8.96% | 45.0% |
-
-## 🛠️ DB 관리
-
-### DB 스키마 재생성
-
-```bash
-sqlite3 trading_results.db < web/init_db.sql
+```
+GET http://localhost:8080/api/statistics
 ```
 
-### 테스트 데이터 재삽입
+## ⛔ Kill-Switch (웹에서 제어)
 
-```bash
-sqlite3 trading_results.db < web/insert_test_data.sql
+실거래 LIVE 모드의 kill-switch 파일(`analysis/KILL_SWITCH`)을 웹 API로 제어할 수 있습니다.
+
+보안상, 쓰기 작업은 `WEB_ADMIN_TOKEN` 환경변수와 요청 헤더 `X-Admin-Token`이 필요합니다.
+
+**상태 확인**
+
+```
+GET http://localhost:8080/api/kill_switch/status
 ```
 
-### DB 직접 조회
+**ON/OFF**
 
-```bash
-sqlite3 trading_results.db
-
-# 전략 목록
-SELECT * FROM strategies;
-
-# 백테스팅 결과
-SELECT * FROM backtest_results;
-
-# 실시간 거래 (아직 없음)
-SELECT * FROM trades;
 ```
+POST http://localhost:8080/api/kill_switch/on
+POST http://localhost:8080/api/kill_switch/off
+```
+
+## 📁 로그 파일
+
+대시보드는 아래 파일을 읽습니다.
+
+- 우선: `logs/v2_engine_upbit.json`, `logs/v2_engine_binance.json`
+- fallback: `logs/paper_trading_upbit.json`, `logs/paper_trading_binance.json`
 
 ## 📁 파일 구조
 
 ```
 web/
-├── app.py                    # FastAPI 메인 애플리케이션
-├── init_db.sql               # DB 스키마 (strategies, backtest_results, trades)
-├── insert_test_data.sql      # 테스트 데이터 (v35, v34, v31, v-a-02)
+├── app.py                    # Flask 앱 (API 제공)
 ├── README.md                 # 이 파일
 ├── templates/
-│   └── dashboard.html        # 대시보드 HTML 템플릿
+│   └── dashboard.html        # 대시보드 HTML (기본 템플릿)
 └── static/
-    ├── css/style.css         # 스타일시트
-    └── js/dashboard.js       # 자바스크립트 (TODO: 차트)
+  ├── css/style.css
+  └── js/dashboard.js
 ```
 
 ## 🔧 문제 해결
@@ -115,70 +92,9 @@ web/
 ### 포트 8000 이미 사용 중
 
 ```bash
-# 프로세스 확인
-lsof -i :8000
+---
 
-# 프로세스 종료
-kill -9 <PID>
-
-# 또는 다른 포트 사용
-uvicorn app:app --port 8001
-```
-
-### DB 파일 없음
-
-```bash
-# DB 재생성
-sqlite3 ../trading_results.db < init_db.sql
-sqlite3 ../trading_results.db < insert_test_data.sql
-```
-
-## 📈 향후 개선 사항
-
-- [ ] 실시간 차트 (Plotly)
-- [ ] WebSocket 연동 (실시간 업데이트)
-- [ ] 실시간 거래 내역 표시
-- [ ] 전략 비교 차트
-- [ ] 포지션 현황 대시보드
-- [ ] 텔레그램 알림 연동
-
-## 🚀 AWS 배포
-
-### 1. EC2 보안 그룹
-
-포트 8000 인바운드 허용:
-```
-Type: Custom TCP
-Port Range: 8000
-Source: 0.0.0.0/0 (또는 특정 IP)
-```
-
-### 2. systemd 서비스 생성
-
-```bash
-sudo nano /etc/systemd/system/dashboard.service
-```
-
-```ini
-[Unit]
-Description=Bitcoin Trading Bot Web Dashboard
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/bitcoin-trading-bot/web
-ExecStart=/home/ubuntu/bitcoin-trading-bot/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### 3. 서비스 시작
-
-```bash
-sudo systemctl daemon-reload
+**업데이트**: 2025-12-14
 sudo systemctl enable dashboard
 sudo systemctl start dashboard
 sudo systemctl status dashboard
@@ -197,6 +113,7 @@ location /dashboard {
 ## 📞 지원
 
 문제가 있으면 로그 확인:
+
 ```bash
 tail -f /tmp/dashboard.log
 ```

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Dual Exchange Paper Trading Engine
-Upbit(v35 or SideWays_v2) + Binance(SHORT_V1) Paper Trading
+Dual Exchange Engine (paper / live)
+Upbit(v35 or SideWays_v2) + Binance(SHORT_V1)
 """
 
 import sys
@@ -12,14 +12,30 @@ from typing import Any, Dict, Optional
 from datetime import datetime, timedelta
 import time
 
-# 프로젝트 루트 추가
+# 프로젝트 루트 추가 (스크립트 실행 호환)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from paper_trading_engine import PaperTradingAccount
-from telegram_notifier import TelegramNotifier
+try:
+    # When imported as a package module
+    from .paper_trading_engine import PaperTradingAccount
+    from .telegram_notifier import TelegramNotifier
+    from .regime_router import RegimeRouter, RegimeDecision
+except ImportError:  # pragma: no cover
+    # When executed as a script
+    from paper_trading_engine import PaperTradingAccount
+    from telegram_notifier import TelegramNotifier
+    from live_trading.regime_router import RegimeRouter, RegimeDecision
+
 from core.data_loader import DataLoader
 
-from live_trading.regime_router import RegimeRouter, RegimeDecision
+from live_trading.risk_controls import (
+    RiskConfig,
+    clamp_fraction,
+    kill_switch_active,
+    set_kill_switch,
+    should_block_new_entries,
+    today,
+)
 
 
 def _load_candidate_from_json(path: str, index: int = 0) -> Dict[str, Any]:
@@ -46,7 +62,11 @@ def _load_candidate_from_json(path: str, index: int = 0) -> Dict[str, Any]:
 
 
 class DualPaperTradingEngine:
-    """듀얼 거래소 Paper Trading 엔진"""
+    """듀얼 거래소 엔진 (기본: paper, 옵션: live).
+
+    NOTE: live 모드는 실제 주문을 실행합니다.
+    안전장치로 환경변수 ENABLE_LIVE_TRADING=1 이 반드시 필요합니다.
+    """
 
     def __init__(
         self,
@@ -55,6 +75,8 @@ class DualPaperTradingEngine:
         telegram_enabled: bool = True,
         candidate_json: Optional[str] = None,
         candidate_index: int = 0,
+        execution_mode: str = "paper",  # 'paper' | 'live'
+        telegram_commands_enabled: bool = False,
     ):
         """
         Args:
@@ -62,16 +84,59 @@ class DualPaperTradingEngine:
             binance_capital: Binance 초기 자본 (USDT)
             telegram_enabled: 텔레그램 알림 활성화
         """
+        if execution_mode not in {"paper", "live"}:
+            raise ValueError(f"Invalid execution_mode: {execution_mode}")
+
+        self.execution_mode = execution_mode
+
+        # Risk controls (primarily for live mode)
+        self.risk_config = RiskConfig()
+        self._day_start_date = None
+        self._day_start_total_krw: Optional[float] = None
+        self._block_new_entries = False
+        self._last_risk_alert_date = None
+
+        # Live health monitoring
+        self._consecutive_price_failures = 0
+        self._consecutive_execution_errors = 0
+        self._last_kill_recommend_at: Optional[datetime] = None
+
+        # Simple v2 engine log files (for web dashboard)
+        self._v2_trades: Dict[str, list] = {"upbit": [], "binance": []}
+        self._v2_log_dir = Path(os.path.dirname(os.path.dirname(__file__))) / "logs"
+        self._v2_log_dir.mkdir(parents=True, exist_ok=True)
+
         print("=" * 70)
-        print("  Dual Exchange Paper Trading Engine")
+        print(f"  Dual Exchange Engine [{execution_mode.upper()}]")
         print("=" * 70)
         print(f"  Upbit Capital: {upbit_capital:,.0f} KRW")
         print(f"  Binance Capital: {binance_capital:,.2f} USDT")
         print("=" * 70)
 
-        # Paper Trading 계좌
-        self.upbit_account = PaperTradingAccount(upbit_capital, 'upbit')
-        self.binance_account = PaperTradingAccount(binance_capital, 'binance')
+        # Accounts
+        if execution_mode == "paper":
+            self.upbit_account = PaperTradingAccount(upbit_capital, 'upbit')
+            self.binance_account = PaperTradingAccount(binance_capital, 'binance')
+        else:
+            # Hard safety gate: require explicit opt-in.
+            if os.getenv("ENABLE_LIVE_TRADING") != "1":
+                raise ValueError(
+                    "LIVE 모드 안전장치: ENABLE_LIVE_TRADING=1 환경변수가 필요합니다. "
+                    "(실주문 실행 방지)"
+                )
+
+            from live_trading.upbit_trader import UpbitTrader
+            from live_trading.binance_futures_trader import BinanceFuturesTrader
+            from live_trading.live_account_adapters import UpbitLiveAccount, BinanceLiveAccount
+
+            upbit_trader = UpbitTrader()
+            binance_trader = BinanceFuturesTrader()
+
+            upbit_initial = float(upbit_trader.get_total_value())
+            binance_initial = float((binance_trader.get_account_info() or {}).get("total_balance", 0.0))
+
+            self.upbit_account = UpbitLiveAccount(trader=upbit_trader, initial_capital=upbit_initial)
+            self.binance_account = BinanceLiveAccount(trader=binance_trader, initial_capital=binance_initial)
 
         # Candidate (tuned operational config)
         self._candidate: Optional[Dict[str, Any]] = None
@@ -85,6 +150,45 @@ class DualPaperTradingEngine:
             self._candidate = _load_candidate_from_json(candidate_json, candidate_index)
             self._apply_candidate(self._candidate)
 
+            # Optional risk overrides
+            rc = dict(self._candidate.get("risk_config") or {}) if isinstance(self._candidate, dict) else {}
+            if rc:
+                self.risk_config = RiskConfig(
+                    kill_switch_file=str(rc.get("kill_switch_file", self.risk_config.kill_switch_file)),
+                    daily_max_loss_pct=float(rc.get("daily_max_loss_pct", self.risk_config.daily_max_loss_pct)),
+                    max_upbit_entry_fraction=float(rc.get("max_upbit_entry_fraction", self.risk_config.max_upbit_entry_fraction)),
+                    max_binance_entry_fraction=float(rc.get("max_binance_entry_fraction", self.risk_config.max_binance_entry_fraction)),
+                    min_upbit_order_krw=float(rc.get("min_upbit_order_krw", self.risk_config.min_upbit_order_krw)),
+                    min_binance_order_usdt=float(rc.get("min_binance_order_usdt", self.risk_config.min_binance_order_usdt)),
+                    recommend_kill_on_daily_loss_pct=float(rc.get("recommend_kill_on_daily_loss_pct", self.risk_config.recommend_kill_on_daily_loss_pct)),
+                    recommend_kill_on_price_failures=int(rc.get("recommend_kill_on_price_failures", self.risk_config.recommend_kill_on_price_failures)),
+                    recommend_kill_on_consecutive_errors=int(rc.get("recommend_kill_on_consecutive_errors", self.risk_config.recommend_kill_on_consecutive_errors)),
+                )
+
+    def _recommend_kill_switch(self, reason: str) -> None:
+        """Notify operator that kill-switch is recommended (does not auto-enable)."""
+        if not self.telegram:
+            return
+        now = datetime.now()
+        # Basic rate limit: once per 30 minutes
+        if self._last_kill_recommend_at and (now - self._last_kill_recommend_at).total_seconds() < 1800:
+            return
+        self._last_kill_recommend_at = now
+
+        active = kill_switch_active(self.risk_config.kill_switch_file)
+        state = "ON" if active else "OFF"
+        msg = (
+            "⚠️ Kill-Switch 권장\n"
+            f"- reason: {reason}\n"
+            f"- kill_switch: {state} ({self.risk_config.kill_switch_file})\n"
+            f"- daily_block_new_entries: {self._block_new_entries}\n\n"
+            "Telegram으로 제어: /kill_on /kill_off /kill_status"
+        )
+        try:
+            self.telegram.send_message(msg)
+        except Exception:
+            pass
+
         # 전략 로드
         self.v35_strategy = self._load_v35_strategy()
         self.short_v1_strategy = self._load_short_v1_strategy()
@@ -97,6 +201,22 @@ class DualPaperTradingEngine:
 
         # 텔레그램
         self.telegram = TelegramNotifier() if telegram_enabled else None
+
+        # Telegram commands (optional)
+        self._telegram_commands_enabled = bool(telegram_commands_enabled)
+        self._telegram_cmd = None
+        if self.telegram and self._telegram_commands_enabled:
+            try:
+                from live_trading.telegram_command_handler import TelegramCommandHandler
+            except Exception:  # pragma: no cover
+                TelegramCommandHandler = None
+
+            if TelegramCommandHandler:
+                self._telegram_cmd = TelegramCommandHandler(self.telegram)
+                self._telegram_cmd.register_command("kill_on", lambda _: self._cmd_kill_switch(True))
+                self._telegram_cmd.register_command("kill_off", lambda _: self._cmd_kill_switch(False))
+                self._telegram_cmd.register_command("kill_status", lambda _: self._cmd_kill_status())
+                self._telegram_cmd.start_polling()
 
         # 상태
         self.upbit_position = False
@@ -112,12 +232,80 @@ class DualPaperTradingEngine:
         # 시작 알림 전송
         self._send_startup_notification(upbit_capital, binance_capital)
 
+    def _cmd_kill_switch(self, active: bool) -> None:
+        p = set_kill_switch(self.risk_config.kill_switch_file, bool(active))
+        state = "ON" if active else "OFF"
+        msg = f"⛔ Kill-Switch {state}: {str(p)}"
+        print(msg)
+        if self.telegram:
+            self.telegram.send_message(msg)
+
+    def _cmd_kill_status(self) -> None:
+        active = kill_switch_active(self.risk_config.kill_switch_file)
+        state = "ON" if active else "OFF"
+        msg = f"⛔ Kill-Switch 상태: {state}\n- file: {self.risk_config.kill_switch_file}\n- daily_block_new_entries: {self._block_new_entries}"
+        print(msg)
+        if self.telegram:
+            self.telegram.send_message(msg)
+
+    def _record_trade(self, exchange: str, trade: Dict[str, Any]) -> None:
+        if exchange not in self._v2_trades:
+            return
+        self._v2_trades[exchange].append(trade)
+        # keep last 200
+        if len(self._v2_trades[exchange]) > 200:
+            self._v2_trades[exchange] = self._v2_trades[exchange][-200:]
+
+    def _write_v2_engine_logs(self, prices: Dict[str, float]) -> None:
+        """Write minimal engine logs for web dashboard consumption."""
+        try:
+            # Upbit
+            upbit_cash, upbit_btc = self.upbit_account.get_balance()
+            upbit_total = float(self.upbit_account.get_total_value(prices["upbit"]))
+            upbit_stats = self.upbit_account.get_statistics() if hasattr(self.upbit_account, "get_statistics") else {}
+
+            upbit_payload = {
+                "exchange": "upbit",
+                "mode": self.execution_mode,
+                "initial_capital": getattr(self.upbit_account, "initial_capital", None),
+                "current_cash": float(upbit_cash),
+                "btc_balance": float(upbit_btc),
+                "total_value": upbit_total,
+                "trades": self._v2_trades["upbit"],
+                "statistics": upbit_stats,
+                "generated_at": datetime.now().isoformat(),
+            }
+
+            # Binance
+            binance_cash, _ = self.binance_account.get_balance()
+            binance_stats = self.binance_account.get_statistics() if hasattr(self.binance_account, "get_statistics") else {}
+            pos = self.binance_account.get_position() if hasattr(self.binance_account, "get_position") else None
+
+            binance_payload = {
+                "exchange": "binance",
+                "mode": self.execution_mode,
+                "initial_capital": getattr(self.binance_account, "initial_capital", None),
+                "current_cash": float(binance_cash),
+                "position_size": float(pos.get("size")) if pos else 0.0,
+                "entry_price": float(pos.get("entry_price")) if pos else 0.0,
+                "leverage": int(pos.get("leverage")) if pos else 1,
+                "trades": self._v2_trades["binance"],
+                "statistics": binance_stats,
+                "generated_at": datetime.now().isoformat(),
+            }
+
+            (self._v2_log_dir / "v2_engine_upbit.json").write_text(json.dumps(upbit_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            (self._v2_log_dir / "v2_engine_binance.json").write_text(json.dumps(binance_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as e:
+            print(f"⚠️  v2_engine 로그 저장 실패: {e}")
+
     def _send_startup_notification(self, upbit_capital: float, binance_capital: float):
         """시작 알림 전송"""
         if not self.telegram:
             return
 
-        msg = "🚀 Dual Exchange Paper Trading 시작\n"
+        mode_label = "LIVE" if self.execution_mode == "live" else "PAPER"
+        msg = f"🚀 Dual Exchange {mode_label} 시작\n"
         msg += "=" * 30 + "\n\n"
         msg += "📊 전략 구성:\n"
         msg += f"  • Upbit: v35 ↔ SideWays_v2 (레짐 라우팅)\n"
@@ -132,6 +320,9 @@ class DualPaperTradingEngine:
 
         if self._candidate:
             msg += "\n\n🧪 Candidate 적용됨: router/policy/mults"
+
+        if self._telegram_commands_enabled and self.telegram:
+            msg += "\n\n⌨️ Telegram commands: /kill_on /kill_off /kill_status"
 
         try:
             self.telegram.send_message(msg)
@@ -342,15 +533,19 @@ class DualPaperTradingEngine:
         # Special: bull_hold
         if strategy_name == "bull_hold":
             if not self.upbit_position:
+                if self.execution_mode == "live" and self._block_new_entries:
+                    print("⛔ [Risk] LIVE 신규 진입 차단 (daily loss guard)")
+                    return
                 cash, _ = self.upbit_account.get_balance()
-                frac = max(0.0, min(1.0, float(self.bull_hold_fraction)))
+                frac = clamp_fraction(float(self.bull_hold_fraction), self.risk_config.max_upbit_entry_fraction)
                 buy_amount = cash * frac
-                if buy_amount >= 5000:
+                if buy_amount >= float(self.risk_config.min_upbit_order_krw):
                     result = self.upbit_account.buy(buy_amount, current_price)
                     if result.get("success"):
                         self.upbit_position = True
                         self.upbit_active_strategy = "bull_hold"
-                        msg = f"🟢 [Upbit Paper] BULL_HOLD 매수\n━━━━━━━━━━━━━━━━━━━━\n💰 가격: {current_price:,.0f}원\n📊 수량: {result['executed_volume']:.8f} BTC\n📝 사유: BULL_HOLD_ENTRY"
+                        tag = "Live" if self.execution_mode == "live" else "Paper"
+                        msg = f"🟢 [Upbit {tag}] BULL_HOLD 매수\n━━━━━━━━━━━━━━━━━━━━\n💰 가격: {current_price:,.0f}원\n📊 수량: {result['executed_volume']:.8f} BTC\n📝 사유: BULL_HOLD_ENTRY"
                         print(msg)
                         if self.telegram:
                             self.telegram.send_message(msg)
@@ -365,7 +560,10 @@ class DualPaperTradingEngine:
                         if result.get("success"):
                             self.upbit_position = False
                             self.upbit_active_strategy = None
-                            msg = f"🔴 [Upbit Paper] BULL_HOLD 청산\n━━━━━━━━━━━━━━━━━━━━\n💰 가격: {current_price:,.0f}원\n📊 수량: {result['executed_volume']:.8f} BTC\n💵 손익: {result['pnl']:+,.0f}원\n📝 사유: BULL_HOLD_EXIT_{decision.regime}"
+                            tag = "Live" if self.execution_mode == "live" else "Paper"
+                            pnl = result.get("pnl")
+                            pnl_str = f"{float(pnl):+,.0f}원" if pnl is not None else "N/A"
+                            msg = f"🔴 [Upbit {tag}] BULL_HOLD 청산\n━━━━━━━━━━━━━━━━━━━━\n💰 가격: {current_price:,.0f}원\n📊 수량: {result['executed_volume']:.8f} BTC\n💵 손익: {pnl_str}\n📝 사유: BULL_HOLD_EXIT_{decision.regime}"
                             print(msg)
                             if self.telegram:
                                 self.telegram.send_message(msg)
@@ -414,11 +612,15 @@ class DualPaperTradingEngine:
                 signal["fraction"] = max(0.0, min(1.0, base_fraction * float(mult)))
 
             if signal['action'] == 'buy' and not self.upbit_position:
+                if self.execution_mode == "live" and self._block_new_entries:
+                    print("⛔ [Risk] LIVE 신규 진입 차단 (daily loss guard)")
+                    return
                 # 매수
                 cash, btc = self.upbit_account.get_balance()
-                buy_amount = cash * float(signal.get('fraction', 0.5))
+                frac = clamp_fraction(float(signal.get('fraction', 0.5)), self.risk_config.max_upbit_entry_fraction)
+                buy_amount = cash * frac
 
-                if buy_amount >= 5000:
+                if buy_amount >= float(self.risk_config.min_upbit_order_krw):
                     result = self.upbit_account.buy(buy_amount, current_price)
 
                     if result['success']:
@@ -426,7 +628,8 @@ class DualPaperTradingEngine:
                         self.upbit_active_strategy = strategy_name
                         self.last_upbit_signal = signal
 
-                        msg = f"🟢 [Upbit Paper] 매수\n"
+                        tag = "Live" if self.execution_mode == "live" else "Paper"
+                        msg = f"🟢 [Upbit {tag}] 매수\n"
                         msg += f"━━━━━━━━━━━━━━━━━━━━\n"
                         msg += f"💰 가격: {current_price:,.0f}원\n"
                         msg += f"📊 수량: {result['executed_volume']:.8f} BTC\n"
@@ -435,6 +638,19 @@ class DualPaperTradingEngine:
                         print(msg)
                         if self.telegram:
                             self.telegram.send_message(msg)
+
+                        self._record_trade(
+                            "upbit",
+                            {
+                                "timestamp": datetime.now().isoformat(),
+                                "type": "buy",
+                                "price": float(current_price),
+                                "amount": float(buy_amount),
+                                "btc_qty": float(result.get("executed_volume", 0.0)),
+                                "fee": float(result.get("fee", 0.0)),
+                                "reason": signal.get("reason"),
+                            },
+                        )
                     else:
                         if strategy_name == "sideways_v2" and self.sideways_v2_strategy:
                             self.sideways_v2_strategy.clear_position()
@@ -458,7 +674,7 @@ class DualPaperTradingEngine:
                     frac = max(0.0, min(1.0, frac))
                     sell_btc = btc if frac >= 1.0 else btc * frac
 
-                    if sell_btc * current_price < 5000:
+                    if sell_btc * current_price < float(self.risk_config.min_upbit_order_krw):
                         return
 
                     result = self.upbit_account.sell(sell_btc, current_price)
@@ -479,16 +695,33 @@ class DualPaperTradingEngine:
                             self.sideways_v2_strategy.entry_method = None
                             self.sideways_v2_strategy.partial_exits = 0
 
-                        msg = f"🔴 [Upbit Paper] 매도\n"
+                        tag = "Live" if self.execution_mode == "live" else "Paper"
+                        msg = f"🔴 [Upbit {tag}] 매도\n"
                         msg += f"━━━━━━━━━━━━━━━━━━━━\n"
                         msg += f"💰 가격: {current_price:,.0f}원\n"
                         msg += f"📊 수량: {result['executed_volume']:.8f} BTC\n"
-                        msg += f"💵 손익: {result['pnl']:+,.0f}원\n"
+                        pnl = result.get('pnl')
+                        pnl_str = f"{float(pnl):+,.0f}원" if pnl is not None else "N/A"
+                        msg += f"💵 손익: {pnl_str}\n"
                         msg += f"📝 사유: {signal.get('reason', 'N/A')}"
 
                         print(msg)
                         if self.telegram:
                             self.telegram.send_message(msg)
+
+                        self._record_trade(
+                            "upbit",
+                            {
+                                "timestamp": datetime.now().isoformat(),
+                                "type": "sell",
+                                "price": float(current_price),
+                                "btc_qty": float(result.get("executed_volume", 0.0)),
+                                "amount": float(result.get("total_value", 0.0)),
+                                "fee": float(result.get("fee", 0.0)),
+                                "pnl": result.get("pnl"),
+                                "reason": signal.get("reason"),
+                            },
+                        )
 
             elif signal['action'] == 'hold':
                 # 대기 상태 (첫 번째 반복에서만 알림)
@@ -501,6 +734,8 @@ class DualPaperTradingEngine:
             traceback.print_exc()
             if self.telegram:
                 self.telegram.send_message(f"❌ [Upbit] 전략 실행 오류: {e}")
+            if self.execution_mode == "live":
+                self._consecutive_execution_errors += 1
 
     def execute_binance_strategy(self, current_price: float, strategy_name: Optional[str]):
         """Binance 전략 실행 (현재는 SHORT_V1만)."""
@@ -546,13 +781,17 @@ class DualPaperTradingEngine:
                 print(f"[Binance] 신호: {signal['action']} | 사유: {signal.get('reason', 'N/A')}")
 
                 if signal['action'] == 'open_short' and not self.binance_position:
+                    if self.execution_mode == "live" and self._block_new_entries:
+                        print("⛔ [Risk] LIVE 신규 진입 차단 (daily loss guard)")
+                        return
                     # 숏 진입
                     base_fraction = float(signal.get("fraction", 0.5))
                     base_fraction = max(0.0, min(1.0, base_fraction))
-                    position_size = cash * base_fraction * float(self.binance_fraction_mult)
+                    frac = clamp_fraction(base_fraction * float(self.binance_fraction_mult), self.risk_config.max_binance_entry_fraction)
+                    position_size = cash * frac
                     leverage = signal.get('leverage', 2)
 
-                    if position_size >= 10:  # 최소 10 USDT
+                    if position_size >= float(self.risk_config.min_binance_order_usdt):
                         result = self.binance_account.open_short(
                             position_size,
                             current_price,
@@ -564,7 +803,8 @@ class DualPaperTradingEngine:
                             self.binance_active_strategy = strategy_name
                             self.last_binance_signal = signal
 
-                            msg = f"🔻 [Binance Paper] 숏 진입\n"
+                            tag = "Live" if self.execution_mode == "live" else "Paper"
+                            msg = f"🔻 [Binance {tag}] 숏 진입\n"
                             msg += f"━━━━━━━━━━━━━━━━━━━━\n"
                             msg += f"💰 가격: ${current_price:,.2f}\n"
                             msg += f"📊 수량: {result['executed_qty']:.6f} BTC\n"
@@ -575,6 +815,19 @@ class DualPaperTradingEngine:
                             if self.telegram:
                                 self.telegram.send_message(msg)
 
+                            self._record_trade(
+                                "binance",
+                                {
+                                    "timestamp": datetime.now().isoformat(),
+                                    "type": "open_short",
+                                    "price": float(current_price),
+                                    "size": float(result.get("executed_qty", 0.0)),
+                                    "margin": float(position_size),
+                                    "leverage": int(leverage),
+                                    "reason": signal.get("reason"),
+                                },
+                            )
+
                 elif signal['action'] == 'close_short' and self.binance_position:
                     # 숏 청산
                     result = self.binance_account.close_short(current_price)
@@ -584,7 +837,8 @@ class DualPaperTradingEngine:
                         self.binance_active_strategy = None
                         self.last_binance_signal = signal
 
-                        msg = f"🔺 [Binance Paper] 숏 청산\n"
+                        tag = "Live" if self.execution_mode == "live" else "Paper"
+                        msg = f"🔺 [Binance {tag}] 숏 청산\n"
                         msg += f"━━━━━━━━━━━━━━━━━━━━\n"
                         msg += f"💰 가격: ${current_price:,.2f}\n"
                         msg += f"💵 손익: ${result['realized_pnl']:+,.2f}\n"
@@ -593,6 +847,17 @@ class DualPaperTradingEngine:
                         print(msg)
                         if self.telegram:
                             self.telegram.send_message(msg)
+
+                        self._record_trade(
+                            "binance",
+                            {
+                                "timestamp": datetime.now().isoformat(),
+                                "type": "close_short",
+                                "price": float(current_price),
+                                "realized_pnl": float(result.get("realized_pnl", 0.0)),
+                                "reason": signal.get("reason"),
+                            },
+                        )
 
                 elif signal['action'] == 'hold':
                     # 대기 상태 (첫 번째 반복에서만 알림)
@@ -609,18 +874,75 @@ class DualPaperTradingEngine:
             traceback.print_exc()
             if self.telegram:
                 self.telegram.send_message(f"❌ [Binance] 전략 실행 오류: {e}")
+            if self.execution_mode == "live":
+                self._consecutive_execution_errors += 1
 
     def run_iteration(self):
         """1회 반복 실행"""
         self.iteration_count += 1
 
         print(f"\n{'='*70}")
-        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Paper Trading 실행 (#{self.iteration_count})")
+        mode_label = "LIVE" if self.execution_mode == "live" else "PAPER"
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {mode_label} 실행 (#{self.iteration_count})")
         print(f"{'='*70}")
+
+        if self.execution_mode == "live":
+            if kill_switch_active(self.risk_config.kill_switch_file):
+                msg = f"⛔ LIVE 중지: kill-switch 활성화 ({self.risk_config.kill_switch_file})"
+                print(msg)
+                if self.telegram:
+                    self.telegram.send_message(msg)
+                return False
 
         # 현재 가격
         prices = self.get_current_prices()
         print(f"Upbit: {prices['upbit']:,.0f}원 | Binance: ${prices['binance']:,.2f}")
+
+        # Live: detect bad price feed (placeholders/zeros)
+        if self.execution_mode == "live":
+            up = float(prices.get("upbit", 0.0) or 0.0)
+            bn = float(prices.get("binance", 0.0) or 0.0)
+            looks_like_placeholder = (up >= 90_000_000 and bn >= 90_000)  # matches fallback values
+            if up <= 0 or bn <= 0 or looks_like_placeholder:
+                self._consecutive_price_failures += 1
+                if self._consecutive_price_failures >= int(self.risk_config.recommend_kill_on_price_failures):
+                    self._recommend_kill_switch(f"PRICE_FEED_UNRELIABLE (count={self._consecutive_price_failures})")
+            else:
+                self._consecutive_price_failures = 0
+
+        # Live: recommend kill if repeated execution errors
+        if self.execution_mode == "live" and self._consecutive_execution_errors >= int(self.risk_config.recommend_kill_on_consecutive_errors):
+            self._recommend_kill_switch(f"CONSECUTIVE_ERRORS (count={self._consecutive_execution_errors})")
+
+        if self.execution_mode == "live":
+            d = today()
+            if self._day_start_date != d:
+                self._day_start_date = d
+                upbit_total = float(self.upbit_account.get_total_value(prices['upbit']))
+                binance_total_usdt = float(self.binance_account.get_total_value(prices['binance']))
+                self._day_start_total_krw = upbit_total + (binance_total_usdt * 1300.0)
+                self._block_new_entries = False
+
+            upbit_total = float(self.upbit_account.get_total_value(prices['upbit']))
+            binance_total_usdt = float(self.binance_account.get_total_value(prices['binance']))
+            current_total_krw = upbit_total + (binance_total_usdt * 1300.0)
+
+            blocked, daily_ret = should_block_new_entries(
+                daily_max_loss_pct=self.risk_config.daily_max_loss_pct,
+                day_start_total=float(self._day_start_total_krw or 0.0),
+                current_total=current_total_krw,
+            )
+            self._block_new_entries = bool(blocked)
+            if blocked and self._last_risk_alert_date != d:
+                self._last_risk_alert_date = d
+                msg = f"⛔ LIVE 신규 진입 차단: Daily loss guard ({daily_ret:+.2f}%)"
+                print(msg)
+                if self.telegram:
+                    self.telegram.send_message(msg)
+
+            # Recommend kill-switch at a more severe daily loss threshold
+            if daily_ret is not None and daily_ret <= -abs(float(self.risk_config.recommend_kill_on_daily_loss_pct)):
+                self._recommend_kill_switch(f"DAILY_LOSS_SEVERE ({daily_ret:+.2f}%)")
 
         decision = self._maybe_update_regime_decision()
         if decision:
@@ -645,6 +967,11 @@ class DualPaperTradingEngine:
 
         # 주기적 상태 알림 (6시간마다)
         self._send_status_notification(prices)
+
+        # Write v2 engine logs (paper + live)
+        self._write_v2_engine_logs(prices)
+
+        return True
 
     def print_status(self, prices: Dict[str, float]):
         """현재 상태 출력"""
@@ -690,7 +1017,8 @@ class DualPaperTradingEngine:
 
     def run_forever(self, interval_minutes: int = 60):
         """무한 루프 실행"""
-        print(f"\n🚀 Paper Trading 시작 (간격: {interval_minutes}분)\n")
+        mode_label = "LIVE" if self.execution_mode == "live" else "PAPER"
+        print(f"\n🚀 {mode_label} 시작 (간격: {interval_minutes}분)\n")
 
         # 로그 디렉토리 (절대 경로)
         log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
@@ -698,12 +1026,16 @@ class DualPaperTradingEngine:
 
         try:
             while True:
-                self.run_iteration()
+                cont = self.run_iteration()
+                if cont is False:
+                    break
 
                 # 로그 저장 (절대 경로 사용)
                 try:
-                    self.upbit_account.save_log(os.path.join(log_dir, 'paper_trading_upbit.json'))
-                    self.binance_account.save_log(os.path.join(log_dir, 'paper_trading_binance.json'))
+                    if hasattr(self.upbit_account, "save_log"):
+                        self.upbit_account.save_log(os.path.join(log_dir, 'paper_trading_upbit.json'))
+                    if hasattr(self.binance_account, "save_log"):
+                        self.binance_account.save_log(os.path.join(log_dir, 'paper_trading_binance.json'))
                 except Exception as e:
                     print(f"⚠️  로그 저장 실패: {e}")
 

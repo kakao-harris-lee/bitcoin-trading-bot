@@ -18,20 +18,34 @@ CORS(app)
 BASE_DIR = Path(__file__).parent
 PROJECT_ROOT = BASE_DIR.parent
 LOG_DIR = PROJECT_ROOT / "logs"
+KILL_SWITCH_FILE = PROJECT_ROOT / "analysis" / "KILL_SWITCH"
 
 
-def load_paper_trading_log(exchange: str):
-    """Paper Trading 로그 로드"""
-    log_file = LOG_DIR / f"paper_trading_{exchange}.json"
+def load_trading_log(exchange: str):
+    """Trading 로그 로드 (v2 engine 우선, 없으면 paper fallback)."""
+    candidates = [
+        LOG_DIR / f"v2_engine_{exchange}.json",
+        LOG_DIR / f"paper_trading_{exchange}.json",
+    ]
 
-    if log_file.exists():
-        try:
-            with open(log_file, 'r') as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"로그 로드 실패 ({exchange}): {e}")
-            return None
+    for log_file in candidates:
+        if log_file.exists():
+            try:
+                with open(log_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"로그 로드 실패 ({exchange}): {e}")
+                return None
     return None
+
+
+def _require_admin_token() -> bool:
+    """Very small guard for mutating endpoints."""
+    token = os.getenv("WEB_ADMIN_TOKEN")
+    if not token:
+        return False
+    from flask import request
+    return request.headers.get("X-Admin-Token") == token
 
 
 @app.route("/")
@@ -44,11 +58,8 @@ def dashboard():
 def get_status():
     """현재 상태 API"""
 
-    # Upbit Paper Trading
-    upbit_log = load_paper_trading_log('upbit')
-
-    # Binance Paper Trading
-    binance_log = load_paper_trading_log('binance')
+    upbit_log = load_trading_log('upbit')
+    binance_log = load_trading_log('binance')
 
     # 상태 구성
     status = {
@@ -89,11 +100,41 @@ def get_status():
     return jsonify(status)
 
 
+@app.route("/api/kill_switch/status")
+def kill_switch_status():
+    return jsonify({
+        "active": KILL_SWITCH_FILE.exists(),
+        "path": str(KILL_SWITCH_FILE),
+        "checked_at": datetime.now().isoformat(),
+    })
+
+
+@app.route("/api/kill_switch/on", methods=["POST"])
+def kill_switch_on():
+    if not _require_admin_token():
+        return jsonify({"error": "forbidden"}), 403
+    KILL_SWITCH_FILE.parent.mkdir(parents=True, exist_ok=True)
+    KILL_SWITCH_FILE.touch(exist_ok=True)
+    return kill_switch_status()
+
+
+@app.route("/api/kill_switch/off", methods=["POST"])
+def kill_switch_off():
+    if not _require_admin_token():
+        return jsonify({"error": "forbidden"}), 403
+    try:
+        KILL_SWITCH_FILE.unlink(missing_ok=True)
+    except TypeError:
+        if KILL_SWITCH_FILE.exists():
+            KILL_SWITCH_FILE.unlink()
+    return kill_switch_status()
+
+
 @app.route("/api/trades/<exchange>")
 def get_trades(exchange: str):
     """거래 기록 API"""
 
-    log = load_paper_trading_log(exchange)
+    log = load_trading_log(exchange)
 
     if not log:
         return jsonify({'error': 'No data'}), 404
@@ -114,8 +155,8 @@ def get_trades(exchange: str):
 def get_statistics():
     """통합 통계 API"""
 
-    upbit_log = load_paper_trading_log('upbit')
-    binance_log = load_paper_trading_log('binance')
+    upbit_log = load_trading_log('upbit')
+    binance_log = load_trading_log('binance')
 
     statistics = {
         'upbit': upbit_log.get('statistics', {}) if upbit_log else {},

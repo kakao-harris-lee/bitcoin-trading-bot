@@ -697,6 +697,7 @@ async def shutdown():
 | 숏 진입/청산 | HIGH | 🔻/🔺 숏 포지션 알림 |
 | 위험 경고 | CRITICAL | ⚠️ Drawdown 15% 도달 |
 | 시스템 오류 | CRITICAL | ❌ 연결 끊김/오류 |
+| Kill Switch 권장 | CRITICAL | ⚠️ Kill Switch 권장 (운영자 /kill_on) |
 | 6시간 리포트 | INFO | 📊 정기 상태 보고 |
 
 ### 9.2 Dashboard API

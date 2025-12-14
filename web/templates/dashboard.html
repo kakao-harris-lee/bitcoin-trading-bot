@@ -3,45 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Trading Bot Dashboard</title>
+    <title>Bitcoin Trading Bot - Live Dashboard</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <div class="container">
-        <h1>🤖 Bitcoin Trading Bot Dashboard</h1>
+        <header>
+            <h1>🤖 Bitcoin Trading Bot</h1>
+            <p class="subtitle">Dual Exchange Live Dashboard</p>
+            <div class="last-update">
+                Last update: <span id="last-update-time">-</span>
+            </div>
+        </header>
 
-        <section class="summary">
-            <h2>전략 버전 비교</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>버전</th>
-                        <th>전략명</th>
-                        <th>수익률</th>
-                        <th>Sharpe</th>
-                        <th>MDD</th>
-                        <th>승률</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for strategy in strategies %}
-                    <tr>
-                        <td>{{ strategy[0] }}</td>
-                        <td>{{ strategy[1] }}</td>
-                        <td>{{ "%.2f"|format(strategy[2] or 0) }}%</td>
-                        <td>{{ "%.2f"|format(strategy[3] or 0) }}</td>
-                        <td>{{ "%.2f"|format(strategy[4] or 0) }}%</td>
-                        <td>{{ "%.1f"|format((strategy[5] or 0) * 100) }}%</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <!-- Kill Switch Status -->
+        <section class="kill-switch-section">
+            <h2>🛑 Kill Switch</h2>
+            <div class="kill-switch-status">
+                <span id="kill-switch-indicator" class="indicator off">●</span>
+                <span id="kill-switch-text">Checking...</span>
+            </div>
         </section>
 
-        <section class="charts">
-            <h2>📊 성과 차트</h2>
-            <div id="performance-chart"></div>
+        <!-- Exchange Cards -->
+        <div class="exchange-grid">
+            <!-- Upbit Card -->
+            <section class="exchange-card upbit">
+                <div class="card-header">
+                    <h2>🇰🇷 Upbit (Long)</h2>
+                    <span id="upbit-status" class="status-badge">-</span>
+                </div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <span class="label">Strategy</span>
+                        <span id="upbit-strategy" class="value">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Regime</span>
+                        <span id="upbit-regime" class="value regime-badge">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Position</span>
+                        <span id="upbit-position" class="value">-</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="stats-grid">
+                        <div class="stat">
+                            <span class="stat-label">Initial</span>
+                            <span id="upbit-initial" class="stat-value">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Current</span>
+                            <span id="upbit-current" class="stat-value">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Return</span>
+                            <span id="upbit-return" class="stat-value">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Trades</span>
+                            <span id="upbit-trades" class="stat-value">-</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Binance Card -->
+            <section class="exchange-card binance">
+                <div class="card-header">
+                    <h2>🌐 Binance (Short)</h2>
+                    <span id="binance-status" class="status-badge">-</span>
+                </div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <span class="label">Strategy</span>
+                        <span id="binance-strategy" class="value">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Position</span>
+                        <span id="binance-position" class="value">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Entry Price</span>
+                        <span id="binance-entry" class="value">-</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="stats-grid">
+                        <div class="stat">
+                            <span class="stat-label">Initial</span>
+                            <span id="binance-initial" class="stat-value">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Current</span>
+                            <span id="binance-current" class="stat-value">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Return</span>
+                            <span id="binance-return" class="stat-value">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Leverage</span>
+                            <span id="binance-leverage" class="stat-value">-</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Recent Trades -->
+        <section class="trades-section">
+            <h2>📜 Recent Activity</h2>
+            <div id="trades-container">
+                <p class="loading">Loading...</p>
+            </div>
         </section>
+
+        <footer>
+            <p>Auto-refresh every 30 seconds</p>
+        </footer>
     </div>
 
     <script src="/static/js/dashboard.js"></script>

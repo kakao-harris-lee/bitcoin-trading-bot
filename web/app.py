@@ -83,14 +83,15 @@ def get_status():
         'upbit': {
             'enabled': upbit_log is not None,
             'exchange': 'upbit',
-            'strategy': 'v35_optimized',
+            'strategy': upbit_log.get('strategy', 'v35_optimized') if upbit_log else '-',
+            'regime': upbit_log.get('regime', '-') if upbit_log else '-',
             'position': None,
             'statistics': None
         },
         'binance': {
             'enabled': binance_log is not None,
             'exchange': 'binance',
-            'strategy': 'SHORT_V1',
+            'strategy': binance_log.get('strategy', 'SHORT_V1') if binance_log else '-',
             'position': None,
             'statistics': None
         }
@@ -98,17 +99,19 @@ def get_status():
 
     if upbit_log:
         status['upbit']['statistics'] = upbit_log.get('statistics', {})
-        if upbit_log.get('btc_balance', 0) > 0:
+        btc_balance = upbit_log.get('btc_balance', 0) or 0
+        if btc_balance > 0:
             status['upbit']['position'] = {
-                'btc_balance': upbit_log['btc_balance'],
-                'cash_balance': upbit_log['current_cash']
+                'btc_balance': btc_balance,
+                'cash_balance': upbit_log.get('current_cash', 0)
             }
 
     if binance_log:
         status['binance']['statistics'] = binance_log.get('statistics', {})
-        if binance_log.get('position_size', 0) > 0:
+        position_size = binance_log.get('position_size', 0) or 0
+        if position_size > 0:
             status['binance']['position'] = {
-                'size': binance_log['position_size'],
+                'size': position_size,
                 'entry_price': binance_log.get('entry_price', 0),
                 'leverage': binance_log.get('leverage', 1)
             }

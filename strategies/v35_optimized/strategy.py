@@ -28,6 +28,11 @@ sys.path.insert(0, _project_root)
 sys.path.insert(0, _current_dir)
 sys.path.insert(0, _v34_dir)
 
+# v34_supreme 실제 구조가 strategies/v34_supreme/v34_supreme 인 경우도 지원
+_v34_nested_dir = os.path.join(_v34_dir, 'v34_supreme')
+if os.path.exists(os.path.join(_v34_nested_dir, 'market_classifier_v34.py')):
+    sys.path.insert(0, _v34_nested_dir)
+
 # v34_supreme 경로가 존재하는지 확인하고 없으면 대체 경로 시도
 if not os.path.exists(os.path.join(_v34_dir, 'market_classifier_v34.py')):
     # Docker 환경에서 /app 기준 경로
@@ -53,7 +58,27 @@ class V35OptimizedStrategy:
             config: 하이퍼파라미터 설정 딕셔너리
         """
         self.config = config
-        self.classifier = MarketClassifierV34()
+        # NOTE: MarketClassifierV34 has its own defaults.
+        # To avoid changing existing behavior unexpectedly, overrides are opt-in.
+        use_overrides = bool(self.config.get('use_market_classifier_overrides', False))
+        if use_overrides:
+            overrides = {
+                'mfi_bull_strong': self.config.get('mfi_bull_strong'),
+                'mfi_bull_moderate': self.config.get('mfi_bull_moderate'),
+                'mfi_sideways_up': self.config.get('mfi_sideways_up'),
+                'mfi_sideways_flat': self.config.get('mfi_sideways_flat'),
+                'mfi_sideways_down': self.config.get('mfi_sideways_down'),
+                'mfi_bear_moderate': self.config.get('mfi_bear_moderate'),
+                'mfi_bear_strong': self.config.get('mfi_bear_strong'),
+                'adx_strong_trend': self.config.get('adx_strong_trend'),
+                'adx_moderate_trend': self.config.get('adx_moderate_trend'),
+                'adx_weak_trend': self.config.get('adx_weak_trend'),
+                'price_change_sideways_up': self.config.get('price_change_sideways_up'),
+                'price_change_sideways_down': self.config.get('price_change_sideways_down'),
+            }
+            self.classifier = MarketClassifierV34(overrides)
+        else:
+            self.classifier = MarketClassifierV34()
         self.exit_manager = DynamicExitManager(config)
         self.sideways_strategies = SidewaysEnhancedStrategies(config)
 
@@ -69,8 +94,10 @@ class V35OptimizedStrategy:
         self.in_position = False
         self.entry_price = 0
         self.entry_time = None
+        self.entry_index = None
         self.entry_market_state = 'UNKNOWN'
         self.entry_strategy = 'unknown'  # 어떤 전략으로 진입했는지
+        self.last_sideways_down_entry_index = None
 
     def execute(self, df: pd.DataFrame, i: int) -> Dict:
         """
@@ -96,6 +123,7 @@ class V35OptimizedStrategy:
             self.in_position = False
             self.entry_price = 0
             self.entry_time = None
+            self.entry_index = None
             self.entry_market_state = 'UNKNOWN'
             self.entry_strategy = 'unknown'
             self.exit_manager.reset()
@@ -113,6 +141,7 @@ class V35OptimizedStrategy:
                 self.in_position = False
                 self.entry_price = 0
                 self.entry_time = None
+                self.entry_index = None
                 self.entry_market_state = 'UNKNOWN'
                 self.entry_strategy = 'unknown'
                 self.exit_manager.reset()
@@ -126,8 +155,12 @@ class V35OptimizedStrategy:
                 self.in_position = True
                 self.entry_price = current_row['close']
                 self.entry_time = current_row.name
+                self.entry_index = i
                 self.entry_market_state = market_state
                 self.entry_strategy = entry_signal.get('strategy', 'unknown')
+
+                if self.entry_strategy == 'sideways_down':
+                    self.last_sideways_down_entry_index = i
 
                 # Exit Manager 초기화
                 self.exit_manager.set_entry(self.entry_price, market_state)
@@ -174,8 +207,74 @@ class V35OptimizedStrategy:
             if sideways_signal:
                 return sideways_signal
 
+        # 5. SIDEWAYS_DOWN: (옵션) 소액/엄격 조건 보조 진입
+        elif market_state == 'SIDEWAYS_DOWN':
+            if bool(self.config.get('enable_sideways_down_entry', False)):
+                cooldown = int(self.config.get('sideways_down_cooldown_bars', 0))
+                if cooldown > 0 and self.last_sideways_down_entry_index is not None:
+                    if (i - self.last_sideways_down_entry_index) < cooldown:
+                        return None
+                return self._sideways_down_entry(row, prev_row)
+
         # 5-7. SIDEWAYS_DOWN, BEAR_MODERATE, BEAR_STRONG: 거래 안함
         return None
+
+    def _sideways_down_entry(self, row: pd.Series, prev_row: pd.Series) -> Optional[Dict]:
+        """SIDEWAYS_DOWN 보조 진입 (소액/엄격): 약하락 구간의 과매도 반등만 노림."""
+        # Strict filters
+        rsi = row.get('rsi', 50)
+        stoch_k = row.get('stoch_k', 50)
+        bb_lower = row.get('bb_lower', np.nan)
+        close = row.get('close', np.nan)
+        adx = row.get('adx', 0)
+        mfi = row.get('mfi', 50)
+
+        rsi_oversold = float(self.config.get('sideways_down_rsi_oversold', 25))
+        stoch_oversold = float(self.config.get('sideways_down_stoch_oversold', 15))
+        bb_epsilon = float(self.config.get('sideways_down_bb_epsilon', 0.01))
+        adx_max = float(self.config.get('sideways_down_adx_max', 18))
+        mfi_min = float(self.config.get('sideways_down_mfi_min', 35))
+
+        # Avoid strong downtrends: require weak ADX
+        if adx > adx_max:
+            return None
+
+        # Avoid very bearish money flow
+        if mfi < mfi_min:
+            return None
+
+        # Reversal confirmation: candle must close off the lows (bounce evidence)
+        close_off_lows = float(self.config.get('sideways_down_close_off_lows', 0.20))
+        low = row.get('low', np.nan)
+        high = row.get('high', np.nan)
+        if np.isnan(low) or np.isnan(high) or np.isnan(close) or high <= low:
+            return None
+        if close <= low + (high - low) * close_off_lows:
+            return None
+
+        # Oversold conditions
+        # Require at least one strong oversold signal (RSI or Stoch)
+        if not (rsi < rsi_oversold or stoch_k < stoch_oversold):
+            return None
+
+        # Near/under lower Bollinger band
+        if not (isinstance(bb_lower, (int, float)) and isinstance(close, (int, float))):
+            return None
+        if np.isnan(bb_lower) or np.isnan(close):
+            return None
+        if close > bb_lower * (1 + bb_epsilon):
+            return None
+
+        base_fraction = float(self.config.get('position_size', 0.5))
+        factor = float(self.config.get('sideways_down_position_factor', 0.25))
+        fraction = max(0.01, min(1.0, base_fraction * factor))
+
+        return {
+            'action': 'buy',
+            'fraction': fraction,
+            'reason': 'SIDEWAYS_DOWN_STRICT_MEAN_REVERT',
+            'strategy': 'sideways_down'
+        }
 
     def _momentum_entry(self, row: pd.Series, aggressive: bool = True) -> Optional[Dict]:
         """Momentum Trading Entry (v34와 동일)"""
@@ -255,6 +354,26 @@ class V35OptimizedStrategy:
         """
         row = df.iloc[i]
         prev_row = df.iloc[i-1] if i > 0 else None
+
+        # 0. SIDEWAYS_DOWN 보조 진입: 빠른 핸드오프/시간 제한 (슬롯 점유 최소화)
+        if self.entry_strategy == 'sideways_down':
+            take_profit = float(self.config.get('sideways_down_take_profit', 0.01))
+            max_hold_bars = int(self.config.get('sideways_down_max_hold_bars', 6))
+
+            if self.entry_price:
+                profit = (row['close'] - self.entry_price) / self.entry_price
+            else:
+                profit = 0.0
+
+            if profit >= take_profit:
+                return {'action': 'sell', 'fraction': 1.0, 'reason': 'SIDEWAYS_DOWN_TP_HANDOFF'}
+
+            # Market improves: close and let main strategy re-enter next bar
+            if market_state in ['SIDEWAYS_UP', 'BULL_MODERATE', 'BULL_STRONG']:
+                return {'action': 'sell', 'fraction': 1.0, 'reason': f'SIDEWAYS_DOWN_HANDOFF_{market_state}'}
+
+            if self.entry_index is not None and (i - self.entry_index) >= max_hold_bars:
+                return {'action': 'sell', 'fraction': 1.0, 'reason': 'SIDEWAYS_DOWN_TIME_STOP'}
 
         # 1. Dynamic Exit Manager 우선 (TP, SL, Trailing Stop)
         exit_signal = self.exit_manager.check_exit(

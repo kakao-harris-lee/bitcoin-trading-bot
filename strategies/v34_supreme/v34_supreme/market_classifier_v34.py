@@ -27,7 +27,7 @@ class MarketClassifierV34:
     - BEAR_STRONG: 평균 16%
     """
 
-    def __init__(self):
+    def __init__(self, thresholds: Dict[str, float] = None):
         # 2020-2024 데이터 기반 최적화된 임계값
         # 분석 결과: BULL_STRONG 23%, SIDEWAYS_FLAT 31%, BEAR_STRONG 16%
         self.thresholds = {
@@ -44,8 +44,19 @@ class MarketClassifierV34:
             'adx_moderate_trend': 15,   # 18 → 15
             'adx_weak_trend': 12,       # 15 → 12
             'volatility_high': 0.03,
-            'volatility_low': 0.01
+            'volatility_low': 0.01,
+
+            # SIDEWAYS_UP/DOWN price change thresholds (absolute, per-candle)
+            # Defaults preserve existing behavior (0.5% in either direction)
+            'price_change_sideways_up': 0.005,
+            'price_change_sideways_down': 0.005,
         }
+
+        # Optional overrides (opt-in)
+        if thresholds:
+            for key, value in thresholds.items():
+                if key in self.thresholds and value is not None:
+                    self.thresholds[key] = float(value)
 
     def classify_market_state(self, row: pd.Series, prev_row: pd.Series = None) -> str:
         """
@@ -89,14 +100,17 @@ class MarketClassifierV34:
         if prev_row is not None:
             price_change = (row['close'] - prev_row['close']) / prev_row['close']
 
+            up_thr = float(self.thresholds.get('price_change_sideways_up', 0.005))
+            down_thr = float(self.thresholds.get('price_change_sideways_down', 0.005))
+
             # SIDEWAYS_UP: 약한 상승
             if (self.thresholds['mfi_sideways_up'] <= mfi < self.thresholds['mfi_bull_moderate'] and
-                price_change > 0.005):  # 0.5% 이상 상승
+                price_change > up_thr):
                 return 'SIDEWAYS_UP'
 
             # SIDEWAYS_DOWN: 약한 하락
             if (self.thresholds['mfi_sideways_down'] <= mfi < self.thresholds['mfi_sideways_up'] and
-                price_change < -0.005):  # 0.5% 이상 하락
+                price_change < -down_thr):
                 return 'SIDEWAYS_DOWN'
 
         # SIDEWAYS_FLAT: 나머지 (가장 많은 경우)

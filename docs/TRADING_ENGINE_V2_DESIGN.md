@@ -732,16 +732,33 @@ POST /api/commands/stop    긴급 정지
   - test_redis_client.py - 16 테스트
   - 총 64개 테스트 통과
 
-### Phase 3: 전략 마이그레이션 (2주)
+### Phase 3: 전략 마이그레이션 (2주) ✅ 완료
 
-- [ ] V35 Strategy 이식
-- [ ] SHORT_V1 Strategy 이식
-- [ ] Risk Manager 구현
+- [x] V35 Strategy 이식 (trading_engine_v2/modules/v35_long_strategy.py)
+  - MarketClassifier: 7-level 시장 상태 분류
+  - DynamicExitManager: 동적 익절/손절 관리
+  - BaseStrategy 상속, RSI/MACD/BB/ADX/MFI 지표
+- [x] SHORT_V1 Strategy 이식 (trading_engine_v2/modules/short_v1_strategy.py)
+  - EMA(50/200) 데드크로스/골든크로스
+  - ADX/+DI/-DI 추세 강도 판단
+- [x] Risk Manager 구현 (trading_engine_v2/modules/risk_manager.py)
+  - 신호 검증 (일일 손실/최대 낙폭/거래 횟수 제한)
+  - 포지션 추적 및 헤지 비율 관리
+  - 쿨다운 시행 및 주문 생성
+- [x] 단위 테스트 37개 통과 (tests/trading_engine_v2/test_phase3_strategies.py)
 
-### Phase 4: 실행/포지션 (1주)
+### Phase 4: 실행/포지션 (1주) ✅ 완료
 
-- [ ] Execution Manager 구현
-- [ ] Position Manager 구현
+- [x] Execution Manager 구현 (trading_engine_v2/modules/execution_manager.py)
+  - UpbitAdapter: Upbit 시장가/지정가 주문
+  - BinanceAdapter: Binance Futures 레버리지 주문
+  - OrderTracker: 주문 상태 추적 (CREATED → SUBMITTED → FILLED)
+  - 자동 재시도 및 취소 기능
+- [x] Position Manager 구현 (trading_engine_v2/modules/position_manager.py)
+  - PositionEntry: Long/Short 포지션 추적 및 PnL 계산
+  - Stop Loss / Take Profit / Trailing Stop 모니터링
+  - 헤지 비율 계산 및 포트폴리오 요약
+- [x] 단위 테스트 37개 통과 (tests/trading_engine_v2/test_phase4_execution.py)
 
 ### Phase 5: 통합 테스트 (1주)
 

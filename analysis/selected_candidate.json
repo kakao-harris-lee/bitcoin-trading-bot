@@ -1,0 +1,30 @@
+{
+  "source": {
+    "path": "analysis/tune_operational_router_results.json",
+    "index": 0,
+    "generated_at": "2025-12-14"
+  },
+  "candidate": {
+    "router_config": {
+      "mfi_bull": 54.0,
+      "mfi_bear": 49.0,
+      "adx_strong": 25.0,
+      "adx_trend": 18.0,
+      "adx_weak": 18.0
+    },
+    "bull_policy": "hold_long",
+    "bull_hold_fraction": 0.6,
+    "sideways_policy": "v35",
+    "sideways_bear_policy": "sideways_v2",
+    "bear_moderate_policy": "hold",
+    "bear_strong_policy": "hold",
+    "binance_gate_mode": "bear_strong_only",
+    "sideways_v2_config": {
+      "obv_downtrend_threshold": -0.02,
+      "position_size": 0.45
+    },
+    "v35_fraction_mult": 0.8,
+    "sideways_fraction_mult": 0.8,
+    "binance_fraction_mult": 0.4
+  }
+}

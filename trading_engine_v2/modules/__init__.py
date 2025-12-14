@@ -6,6 +6,8 @@ from .feed_handler import FeedHandler, UpbitWebSocket, BinanceWebSocket
 from .base_strategy import BaseStrategy
 from .v35_long_strategy import V35LongStrategy, MarketClassifier, DynamicExitManager
 from .short_v1_strategy import ShortV1Strategy
+from .sideways_v1_strategy import SideWaysV1Strategy
+from .sideways_v2_strategy import SideWaysV2Strategy
 from .risk_manager import RiskManager
 from .execution_manager import (
     ExecutionManager, UpbitAdapter, BinanceAdapter, OrderTracker, OrderState
@@ -25,6 +27,8 @@ __all__ = [
     "MarketClassifier",
     "DynamicExitManager",
     "ShortV1Strategy",
+    "SideWaysV1Strategy",
+    "SideWaysV2Strategy",
     # Risk Management
     "RiskManager",
     # Execution

@@ -65,6 +65,24 @@ docker compose logs -f paper-trading
 open http://localhost:8080
 ```
 
+### Candidate(튜닝 결과) 적용
+
+현재 Paper Trading은 운영형 레짐 라우터 + 튜닝된 candidate 설정을 적용할 수 있습니다.
+
+- 기본 pinned 설정 파일: `analysis/selected_candidate.json`
+- Docker Compose 실행 시 기본으로 해당 candidate를 사용하도록 `docker-compose.yml`에 반영되어 있습니다.
+
+로컬에서 다른 candidate를 테스트하려면:
+
+```bash
+python live_trading/dual_paper_trading.py \
+   --upbit-capital 10000000 \
+   --binance-capital 10000 \
+   --interval 60 \
+   --candidate-json analysis/tune_operational_router_results.json \
+   --candidate-index 0
+```
+
 ### 개별 실행 (테스트용)
 
 ```bash
@@ -72,7 +90,8 @@ open http://localhost:8080
 python live_trading/dual_paper_trading.py \
   --upbit-capital 10000000 \
   --binance-capital 10000 \
-  --interval 60
+   --interval 60 \
+   --candidate-json analysis/selected_candidate.json
 
 # 대시보드
 cd web

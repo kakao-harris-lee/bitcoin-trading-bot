@@ -24,12 +24,14 @@ services:
       - ./strategies/SHORT_V1/results:/app/strategies/SHORT_V1/results:ro
       # 거래 결과 DB
       - ./trading_results.db:/app/trading_results.db
+      # 선택된 운영 candidate 설정 (tuned)
+      - ./analysis/selected_candidate.json:/app/analysis/selected_candidate.json:ro
     environment:
       - TZ=Asia/Seoul
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=INFO
       - PAPER_TRADING=true
-    command: python live_trading/dual_paper_trading.py --upbit-capital 10000000 --binance-capital 10000 --interval 60
+    command: python live_trading/dual_paper_trading.py --upbit-capital 10000000 --binance-capital 10000 --interval 60 --candidate-json /app/analysis/selected_candidate.json
     networks:
       - trading-network
     deploy:

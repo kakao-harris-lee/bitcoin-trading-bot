@@ -45,6 +45,10 @@ strategies/v41_scalping_voting/analysis/tier_backtest/*.csv
 strategies/v41_scalping_voting/analysis/advanced/*.csv
 strategies/v41_scalping_voting/analysis/signals/*.csv
 
+# Tuning outputs (large, regenerate locally)
+analysis/tune_operational_router_results.json
+analysis/_smoke_tune_operational_router_results.json
+
 # Large ML libraries
 venv/
 

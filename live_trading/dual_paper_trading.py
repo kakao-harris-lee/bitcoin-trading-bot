@@ -879,6 +879,8 @@ class DualPaperTradingEngine:
 
     def run_iteration(self):
         """1회 반복 실행"""
+        if not hasattr(self, "iteration_count"):
+            self.iteration_count = 0
         self.iteration_count += 1
 
         print(f"\n{'='*70}")

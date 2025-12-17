@@ -6,9 +6,10 @@ Flask 웹 대시보드 - Dual Exchange Paper Trading 모니터링
 
 from flask import Flask, render_template, jsonify
 from flask_cors import CORS
-import sqlite3
+import secrets
 import json
 import os
+import requests
 from pathlib import Path
 from datetime import datetime
 
@@ -16,6 +17,9 @@ app = Flask(__name__)
 CORS(app)
 
 BASE_DIR = Path(__file__).parent
+
+# 대시보드 비밀 경로 (환경변수 또는 랜덤 생성)
+DASHBOARD_SECRET_PATH = os.getenv("DASHBOARD_SECRET_PATH") or secrets.token_urlsafe(16)
 
 
 def _detect_project_root() -> Path:
@@ -64,9 +68,69 @@ def _require_admin_token() -> bool:
     return request.headers.get("X-Admin-Token") == token
 
 
+def _send_telegram_notification(message: str) -> bool:
+    """텔레그램으로 알림 전송"""
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+
+    if not bot_token or not chat_id:
+        print("텔레그램 설정 없음 - 알림 스킵")
+        return False
+
+    api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+
+    try:
+        resp = requests.post(api_url, json=payload, timeout=10)
+        if resp.status_code == 400:
+            # Markdown 파싱 오류 시 plain text로 재시도
+            payload.pop("parse_mode", None)
+            resp = requests.post(api_url, json=payload, timeout=10)
+        return 200 <= resp.status_code < 300
+    except Exception as e:
+        print(f"텔레그램 전송 실패: {e}")
+        return False
+
+
+def _notify_dashboard_url(port: int = 8080):
+    """대시보드 URL을 텔레그램으로 알림"""
+    # 환경변수에서 설정된 경로인지, 랜덤 생성인지 확인
+    is_random = not os.getenv("DASHBOARD_SECRET_PATH")
+    path_type = "랜덤 생성" if is_random else "환경변수 설정"
+
+    message = f"""
+🖥️ *대시보드 시작*
+
+🔐 경로 타입: `{path_type}`
+🔗 접속 경로: `/{DASHBOARD_SECRET_PATH}`
+🕐 시작 시간: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`
+
+_이 URL을 안전하게 보관하세요._
+"""
+    _send_telegram_notification(message)
+
+
 @app.route("/")
+def index():
+    """루트 경로 - 404 반환 (보안)"""
+    return "Not Found", 404
+
+
+@app.route("/index.html")
+@app.route("/default.html")
+@app.route("/dashboard.html")
+def block_common():
+    """일반적인 파일명 차단"""
+    return "Not Found", 404
+
+
+@app.route(f"/{DASHBOARD_SECRET_PATH}")
 def dashboard():
-    """메인 대시보드"""
+    """메인 대시보드 (비밀 경로)"""
     return render_template("dashboard.html")
 
 
@@ -204,4 +268,11 @@ def get_statistics():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    print(f"\n{'='*50}")
+    print(f"Dashboard available at: http://localhost:8080/{DASHBOARD_SECRET_PATH}")
+    print(f"{'='*50}\n")
+
+    # 텔레그램으로 대시보드 URL 알림
+    _notify_dashboard_url(port=8080)
+
+    app.run(host="0.0.0.0", port=8080, debug=False)

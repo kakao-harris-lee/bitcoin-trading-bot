@@ -76,6 +76,7 @@ services:
       - TZ=Asia/Seoul
       - PYTHONUNBUFFERED=1
       - PROJECT_ROOT=/app
+      - DASHBOARD_SECRET_PATH=${DASHBOARD_SECRET_PATH}
     networks:
       - trading-network
     depends_on:

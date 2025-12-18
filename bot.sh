@@ -54,8 +54,8 @@ start() {
         echo "   ⚠️  LIVE 모드 - 실제 거래가 실행됩니다!"
     fi
 
-    # nohup으로 백그라운드 실행
-    nohup python run.py --mode "$MODE" --interval 5 --sideways-policy "$SIDEWAYS_POLICY" --binance-policy "$BINANCE_POLICY" >> "$LOG_FILE" 2>&1 &
+    # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
+    nohup python -u run.py --mode "$MODE" --interval 5 --sideways-policy "$SIDEWAYS_POLICY" --binance-policy "$BINANCE_POLICY" >> "$LOG_FILE" 2>&1 &
 
     PID=$!
     echo $PID > "$PID_FILE"

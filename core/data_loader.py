@@ -10,6 +10,10 @@ from pathlib import Path
 from typing import Optional, List, Tuple
 from datetime import datetime
 
+# 프로젝트 루트 기준 기본 DB 경로
+_PROJECT_ROOT = Path(__file__).parent.parent
+_DEFAULT_DB_PATH = _PROJECT_ROOT / "upbit_history_db" / "upbit_bitcoin.db"
+
 class DataLoader:
     """upbit_bitcoin.db 데이터 로더"""
 
@@ -34,14 +38,18 @@ class DataLoader:
         "month": "bitcoin_month"
     }
 
-    def __init__(self, db_path: str = "upbit_bitcoin.db"):
+    def __init__(self, db_path: str = None):
         """
         Args:
-            db_path: upbit_bitcoin.db 경로
+            db_path: upbit_bitcoin.db 경로 (기본: upbit_history_db/upbit_bitcoin.db)
         """
-        self.db_path = Path(db_path)
+        if db_path is None:
+            self.db_path = _DEFAULT_DB_PATH
+        else:
+            self.db_path = Path(db_path)
+
         if not self.db_path.exists():
-            raise FileNotFoundError(f"DB 파일을 찾을 수 없습니다: {db_path}")
+            raise FileNotFoundError(f"DB 파일을 찾을 수 없습니다: {self.db_path}")
 
         self.conn = sqlite3.connect(str(self.db_path))
 

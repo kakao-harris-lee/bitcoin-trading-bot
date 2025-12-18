@@ -12,6 +12,15 @@ from .message_types import (
     PositionMessage,
     SystemEvent,
 )
+from .risk_controls import (
+    RiskConfig,
+    clamp_fraction,
+    kill_switch_active,
+    set_kill_switch,
+    should_block_new_entries,
+    today,
+)
+from .trade_logger import TradeLogger
 
 __all__ = [
     "Config",
@@ -21,4 +30,11 @@ __all__ = [
     "OrderMessage",
     "PositionMessage",
     "SystemEvent",
+    "RiskConfig",
+    "clamp_fraction",
+    "kill_switch_active",
+    "set_kill_switch",
+    "should_block_new_entries",
+    "today",
+    "TradeLogger",
 ]

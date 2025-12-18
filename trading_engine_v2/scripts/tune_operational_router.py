@@ -38,9 +38,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.backtester import Backtester
 from core.data_loader import DataLoader
 
-from live_trading.regime_router import RegimeRouter as LiveRegimeRouter
-from live_trading.regime_router import _calc_adx as _live_calc_adx
-from live_trading.regime_router import _calc_mfi as _live_calc_mfi
+from trading_engine_v2.modules.regime_router import RegimeRouter as LiveRegimeRouter
+from trading_engine_v2.modules.regime_router import _calc_adx as _live_calc_adx
+from trading_engine_v2.modules.regime_router import _calc_mfi as _live_calc_mfi
 from trading_engine_v2.scripts.backtest_operational_portfolio import (
     BearOnlyShortWrapper,
     PortfolioBacktestConfig,

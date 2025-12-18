@@ -17,25 +17,32 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     # When imported as a package module
-    from .paper_trading_engine import PaperTradingAccount
-    from .telegram_notifier import TelegramNotifier
-    from .regime_router import RegimeRouter, RegimeDecision
+    from .adapters.paper_account import PaperTradingAccount
+    from .notifications.telegram_notifier import TelegramNotifier
+    from .modules.regime_router import RegimeRouter, RegimeDecision
+    from .core.risk_controls import (
+        RiskConfig,
+        clamp_fraction,
+        kill_switch_active,
+        set_kill_switch,
+        should_block_new_entries,
+        today,
+    )
 except ImportError:  # pragma: no cover
     # When executed as a script
-    from paper_trading_engine import PaperTradingAccount
-    from telegram_notifier import TelegramNotifier
-    from live_trading.regime_router import RegimeRouter, RegimeDecision
+    from trading_engine_v2.adapters.paper_account import PaperTradingAccount
+    from trading_engine_v2.notifications.telegram_notifier import TelegramNotifier
+    from trading_engine_v2.modules.regime_router import RegimeRouter, RegimeDecision
+    from trading_engine_v2.core.risk_controls import (
+        RiskConfig,
+        clamp_fraction,
+        kill_switch_active,
+        set_kill_switch,
+        should_block_new_entries,
+        today,
+    )
 
 from core.data_loader import DataLoader
-
-from live_trading.risk_controls import (
-    RiskConfig,
-    clamp_fraction,
-    kill_switch_active,
-    set_kill_switch,
-    should_block_new_entries,
-    today,
-)
 
 
 def _load_candidate_from_json(path: str, index: int = 0) -> Dict[str, Any]:
@@ -125,9 +132,9 @@ class DualPaperTradingEngine:
                     "(실주문 실행 방지)"
                 )
 
-            from live_trading.upbit_trader import UpbitTrader
-            from live_trading.binance_futures_trader import BinanceFuturesTrader
-            from live_trading.live_account_adapters import UpbitLiveAccount, BinanceLiveAccount
+            from trading_engine_v2.adapters.upbit_trader import UpbitTrader
+            from trading_engine_v2.adapters.binance_trader import BinanceFuturesTrader
+            from trading_engine_v2.adapters.live_adapters import UpbitLiveAccount, BinanceLiveAccount
 
             upbit_trader = UpbitTrader()
             binance_trader = BinanceFuturesTrader()
@@ -183,7 +190,7 @@ class DualPaperTradingEngine:
         self._telegram_cmd = None
         if self.telegram and self._telegram_commands_enabled:
             try:
-                from live_trading.telegram_command_handler import TelegramCommandHandler
+                from trading_engine_v2.notifications.telegram_commands import TelegramCommandHandler
             except Exception:  # pragma: no cover
                 TelegramCommandHandler = None
 
@@ -495,7 +502,7 @@ class DualPaperTradingEngine:
     def _init_sideways_v2_strategy(self, strategy_config: Optional[Dict[str, Any]] = None):
         """Trading Engine V2 SideWays_v2 전략 인스턴스 생성 (paper/live에서 직접 사용)."""
         try:
-            from trading_engine_v2.modules.sideways_v2_strategy import SideWaysV2Strategy
+            from trading_engine_v2.modules.strategies.sideways_v2 import SideWaysV2Strategy
 
             strategy = SideWaysV2Strategy(config=None, strategy_config=(strategy_config or None))
             print("✅ SideWays_v2 전략 초기화 완료")

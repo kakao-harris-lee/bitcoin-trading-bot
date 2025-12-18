@@ -1,6 +1,6 @@
 import pandas as pd
 
-from live_trading.regime_router import RegimeDecision
+from trading_engine_v2.modules.regime_router import RegimeDecision
 from trading_engine_v2.scripts.backtest_v2_strategies import RegimeRouterLiveAdapter
 
 

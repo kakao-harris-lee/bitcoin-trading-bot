@@ -31,7 +31,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.data_loader import DataLoader
 from core.backtester import Backtester
-from trading_engine_v2.modules.sideways_v2_strategy import SideWaysV2Strategy
+from trading_engine_v2.modules.strategies.sideways_v2 import SideWaysV2Strategy
 
 
 def _bars_per_day(timeframe: str) -> int:

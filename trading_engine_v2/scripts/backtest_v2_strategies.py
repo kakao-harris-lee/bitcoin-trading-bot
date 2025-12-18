@@ -23,11 +23,11 @@ from core.data_loader import DataLoader
 from core.backtester import Backtester
 
 from trading_engine_v2.modules.sideways_v1_strategy import SideWaysV1Strategy
-from trading_engine_v2.modules.sideways_v2_strategy import SideWaysV2Strategy
+from trading_engine_v2.modules.strategies.sideways_v2 import SideWaysV2Strategy
 
-from live_trading.regime_router import RegimeRouter as LiveRegimeRouter
-from live_trading.regime_router import _calc_adx as _live_calc_adx
-from live_trading.regime_router import _calc_mfi as _live_calc_mfi
+from trading_engine_v2.modules.regime_router import RegimeRouter as LiveRegimeRouter
+from trading_engine_v2.modules.regime_router import _calc_adx as _live_calc_adx
+from trading_engine_v2.modules.regime_router import _calc_mfi as _live_calc_mfi
 
 
 def _market_state_to_regime(market_state: str) -> str:

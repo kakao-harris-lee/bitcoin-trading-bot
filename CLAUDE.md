@@ -1,6 +1,6 @@
 # 비트코인 트레이딩 봇 - 프로젝트 가이드
 
-**최종 업데이트**: 2025-12-10
+**최종 업데이트**: 2025-12-18
 
 ---
 
@@ -35,21 +35,95 @@ Stop Loss: -2.1%
 ## 프로젝트 구조
 
 ```
-strategies/
-├── v35_optimized/         # 현재 최고 전략 (Production Ready)
-├── v36_multi_timeframe/   # 다중 타임프레임 (설계 완료)
-├── v41_scalping_voting/   # Perfect Signal 추출 완료
-├── v31_scalping_with_classifier/  # 참고용 보관
-├── v-a-01 ~ v-a-15/       # Perfect Signal 재현 연구
-├── _archive/              # v0-v29 아카이브
-├── _deprecated/           # v30-v46 폐기 전략
-├── _reports/              # 분석 보고서
-├── _analysis/             # 분석 자료
-├── _library/              # 공통 라이브러리
-├── _plans/                # 전략 계획서
-├── _raw_analysis/         # 원시 데이터 분석
-├── _templates/            # 템플릿
-└── validation/            # 검증 도구
+bitcoin-trading-bot/
+├── run.py                    # 단일 진입점
+│
+├── trading_engine_v2/        # 메인 트레이딩 엔진 (Redis 기반)
+│   ├── trading_engine.py     # DualPaperTradingEngine 클래스
+│   ├── core/                 # 핵심 인프라
+│   │   ├── redis_client.py   # Redis Streams
+│   │   ├── config.py         # 설정
+│   │   ├── message_types.py  # 메시지 정의
+│   │   ├── risk_controls.py  # 위험 관리
+│   │   └── trade_logger.py   # 거래 로그
+│   ├── adapters/             # 거래소 어댑터
+│   │   ├── upbit_trader.py   # Upbit API
+│   │   ├── binance_trader.py # Binance Futures API
+│   │   ├── paper_account.py  # Paper Trading 계좌
+│   │   └── live_adapters.py  # Live 계좌 어댑터
+│   ├── modules/              # 실행 모듈
+│   │   ├── regime_router.py  # 시장 상태 라우팅
+│   │   ├── strategies/       # 전략 모듈
+│   │   │   └── sideways_v2.py
+│   │   ├── feed_handler.py   # 가격 수집
+│   │   ├── risk_manager.py   # 신호 검증
+│   │   ├── execution_manager.py
+│   │   └── position_manager.py
+│   ├── notifications/        # 알림 시스템
+│   │   ├── telegram_notifier.py
+│   │   └── telegram_commands.py
+│   └── scripts/              # 유틸리티 스크립트
+│       ├── backtest_operational_portfolio.py
+│       ├── tune_operational_router.py
+│       └── setup_redis.py
+│
+├── strategies/               # 전략 설정/백테스트
+│   ├── v35_optimized/        # 현재 최고 전략
+│   ├── SHORT_V1/             # 바이낸스 숏 전략
+│   ├── v-a-01 ~ v-a-15/      # Perfect Signal 연구
+│   └── _archive/             # 폐기 전략
+│
+├── core/                     # 공통 라이브러리
+│   ├── data_loader.py        # 시장 데이터 로드
+│   └── backtester.py         # 백테스팅 엔진
+│
+├── web/                      # 대시보드
+│   └── app.py
+│
+├── analysis/                 # 분석 결과
+│   └── selected_candidate.json  # 튜닝된 운영 설정
+│
+└── _archive/                 # 레거시 백업
+    └── live_trading_legacy/  # 구 live_trading 폴더
+```
+
+---
+
+## 실행 방법
+
+### 로컬 실행
+
+```bash
+# Paper Trading (기본)
+python run.py --mode paper
+
+# Live Trading (실거래)
+ENABLE_LIVE_TRADING=1 python run.py --mode live
+
+# 옵션
+python run.py --mode paper \
+  --upbit-capital 10000000 \
+  --binance-capital 10000 \
+  --interval 60 \
+  --telegram-commands \
+  --candidate-json analysis/selected_candidate.json
+```
+
+### Docker 배포
+
+```bash
+# .env 파일 생성
+cp .env.example .env
+nano .env
+
+# 실행
+docker-compose up -d
+
+# 로그 확인
+docker-compose logs -f paper-trading
+
+# 중지
+docker-compose down
 ```
 
 ---
@@ -71,20 +145,34 @@ pip install -r requirements.txt
 
 ---
 
-## 배포
+## 트레이딩 엔진 아키텍처
 
-배포 가이드: `docs/DEPLOYMENT.md`
+### 실행 흐름
 
-### 빠른 시작 (Docker)
-
-```bash
-# .env 파일 생성
-cp .env.example .env
-nano .env
-
-# Docker 배포
-./deployment/deploy_docker.sh start
 ```
+run.py
+  └─ DualPaperTradingEngine (trading_engine_v2/trading_engine.py)
+      ├─ RegimeRouter: 시장 상태 분류 (BULL/SIDEWAYS/BEAR)
+      ├─ Upbit 전략: v35 또는 sideways_v2
+      ├─ Binance 전략: SHORT_V1 (BEAR 시장만)
+      └─ 텔레그램 알림/명령어
+```
+
+### 시장 상태 분류 (RegimeRouter)
+
+| 상태 | 조건 | Upbit 전략 | Binance 전략 |
+|------|------|------------|--------------|
+| BULL_STRONG | MFI >= 52, ADX >= 25 | v35 | - |
+| BULL_MODERATE | MFI >= 52, ADX >= 20 | v35 | - |
+| SIDEWAYS_* | 48 < MFI < 52 | sideways_v2 | - |
+| BEAR_MODERATE | MFI <= 48, ADX >= 20 | - | - |
+| BEAR_STRONG | MFI <= 48, ADX >= 25 | - | short_v1 |
+
+### 위험 관리
+
+- **Kill-Switch**: `/kill_on`, `/kill_off` (텔레그램 명령)
+- **일일 손실 한도**: 기본 5%
+- **최대 포지션**: Upbit 80%, Binance 50%
 
 ---
 
@@ -234,4 +322,4 @@ strategies/v{NN}_{name}/
 
 ---
 
-**문서 버전**: v3.0 (2025-12-10 정리)
+**문서 버전**: v4.0 (2025-12-18 아키텍처 재구성)

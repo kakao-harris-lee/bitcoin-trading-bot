@@ -59,6 +59,7 @@ class RegimeRouter:
         bear_moderate_policy: str | None = None,
         bear_strong_policy: str | None = None,
         binance_gate_mode: str = "bear_only",
+        binance_policy: str = "short_v1",  # 'short_v1' | 'h4_short' | 'hold'
     ):
         self.lookback_days = int(lookback_days)
         self.mfi_period = int(mfi_period)
@@ -77,6 +78,7 @@ class RegimeRouter:
         self.bear_moderate_policy = str(bear_moderate_policy) if bear_moderate_policy is not None else None
         self.bear_strong_policy = str(bear_strong_policy) if bear_strong_policy is not None else None
         self.binance_gate_mode = str(binance_gate_mode)
+        self.binance_policy = str(binance_policy)
 
     def get_recent_daily_df(self, end_dt: datetime | None = None) -> pd.DataFrame:
         """Load daily candles for lookback window.
@@ -171,7 +173,15 @@ class RegimeRouter:
         else:
             allow_binance = regime == "BEAR"
 
-        binance_strategy = "short_v1" if allow_binance else None
+        # binance_policy에 따라 전략 선택
+        binance_strategy: str | None = None
+        if allow_binance:
+            if self.binance_policy == "hold":
+                binance_strategy = None
+            elif self.binance_policy == "h4_short":
+                binance_strategy = "h4_short"
+            else:
+                binance_strategy = "short_v1"
 
         return RegimeDecision(
             market_state=market_state,

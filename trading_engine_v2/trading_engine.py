@@ -85,13 +85,15 @@ class DualPaperTradingEngine:
         execution_mode: str = "paper",  # 'paper' | 'live'
         telegram_commands_enabled: bool = False,
         sideways_policy: str = "sideways_v2",  # 'sideways_v2' | 'h4_conservative' | 'v35' | 'hold'
+        binance_policy: str = "short_v1",  # 'short_v1' | 'h4_short' | 'hold'
     ):
         """
         Args:
             paper_upbit_capital: [Paper 전용] Upbit 시뮬레이션 자본 (KRW)
             paper_binance_capital: [Paper 전용] Binance 시뮬레이션 자본 (USDT)
             telegram_enabled: 텔레그램 알림 활성화
-            sideways_policy: Sideways 레짐 전략 (sideways_v2, h4_conservative, v35, hold)
+            sideways_policy: Sideways 레짐 Upbit 전략 (sideways_v2, h4_conservative, v35, hold)
+            binance_policy: Bear 레짐 Binance 전략 (short_v1, h4_short, hold)
 
         Note:
             Live 모드에서는 paper_*_capital 값이 무시되고 실제 거래소 잔고를 조회합니다.
@@ -161,6 +163,7 @@ class DualPaperTradingEngine:
         self.bull_hold_fraction = 1.0
         self.sideways_v2_strategy_config: Dict[str, Any] = {}
         self._sideways_policy = sideways_policy  # CLI or default policy
+        self._binance_policy = binance_policy    # CLI or default policy for Binance
 
         if candidate_json:
             self._candidate = _load_candidate_from_json(candidate_json, candidate_index)
@@ -186,6 +189,7 @@ class DualPaperTradingEngine:
         self.short_v1_strategy = self._load_short_v1_strategy()
         self.sideways_v2_strategy = self._init_sideways_v2_strategy(strategy_config=self.sideways_v2_strategy_config)
         self.h4_strategy = self._init_h4_strategy()
+        self.h4_short_strategy = self._init_h4_short_strategy()
 
         # 운영형 라우팅 (레짐 기반)
         self.router = self._build_router()
@@ -335,12 +339,13 @@ class DualPaperTradingEngine:
 
         mode_label = "LIVE" if self.execution_mode == "live" else "PAPER"
         sideways_label = self._sideways_policy
+        binance_label = self._binance_policy
         msg = f"🚀 Dual Exchange {mode_label} 시작\n"
         msg += "=" * 30 + "\n\n"
         msg += "📊 전략 구성:\n"
         msg += f"  • Upbit BULL: v35\n"
         msg += f"  • Upbit SIDEWAYS: {sideways_label}\n"
-        msg += f"  • Binance: SHORT_V1 (BEAR 레짐)\n\n"
+        msg += f"  • Binance BEAR: {binance_label}\n\n"
 
         # 자본금 정보 (Paper: 시뮬레이션 자본, Live: 실제 잔고)
         upbit_capital = getattr(self.upbit_account, 'initial_capital', 0)
@@ -352,7 +357,8 @@ class DualPaperTradingEngine:
         msg += f"✅ V35 전략: {'로드 성공' if self.v35_strategy else '❌ 로드 실패'}\n"
         msg += f"✅ SHORT_V1 전략: {'로드 성공' if self.short_v1_strategy else '❌ 로드 실패'}\n"
         msg += f"✅ SideWays_v2 전략: {'로드 성공' if self.sideways_v2_strategy else '❌ 로드 실패'}\n"
-        msg += f"✅ H4 Conservative: {'로드 성공 (50%)' if self.h4_strategy else '❌ 로드 실패'}\n\n"
+        msg += f"✅ H4 Conservative: {'로드 성공 (50%)' if self.h4_strategy else '❌ 로드 실패'}\n"
+        msg += f"✅ H4 Short: {'로드 성공 (50%)' if self.h4_short_strategy else '❌ 로드 실패'}\n\n"
         msg += "⏰ 신호 체크: 60분마다 (레짐은 day 기반)"
 
         if self._candidate:
@@ -374,16 +380,22 @@ class DualPaperTradingEngine:
         self.sideways_v2_strategy_config = dict(candidate.get("sideways_v2_config") or {})
 
     def _build_router(self) -> RegimeRouter:
-        # CLI sideways_policy가 기본 policy로 사용됨
+        # CLI policy가 기본 policy로 사용됨
         default_sideways_policy = self._sideways_policy
+        default_binance_policy = self._binance_policy
 
         if not self._candidate:
-            return RegimeRouter(lookback_days=180, sideways_policy=default_sideways_policy)
+            return RegimeRouter(
+                lookback_days=180,
+                sideways_policy=default_sideways_policy,
+                binance_policy=default_binance_policy,
+            )
 
         cand = self._candidate
         rcfg = dict(cand.get("router_config") or {})
-        # candidate에 sideways_policy가 있으면 그걸 사용, 없으면 CLI 값 사용
+        # candidate에 policy가 있으면 그걸 사용, 없으면 CLI 값 사용
         sideways_policy = str(cand.get("sideways_policy", default_sideways_policy))
+        binance_policy = str(cand.get("binance_policy", default_binance_policy))
         return RegimeRouter(
             lookback_days=int(rcfg.get("lookback_days", 180)),
             mfi_period=int(rcfg.get("mfi_period", 14)),
@@ -399,6 +411,7 @@ class DualPaperTradingEngine:
             bear_moderate_policy=cand.get("bear_moderate_policy"),
             bear_strong_policy=cand.get("bear_strong_policy"),
             binance_gate_mode=str(cand.get("binance_gate_mode", "bear_only")),
+            binance_policy=binance_policy,
         )
 
     def _send_status_notification(self, prices: Dict[str, float]):
@@ -549,6 +562,30 @@ class DualPaperTradingEngine:
             return strategy
         except Exception as e:
             print(f"⚠️  H4 Conservative 전략 초기화 실패: {e}")
+            return None
+
+    def _init_h4_short_strategy(self):
+        """H4 Short 전략 초기화 (Binance 숏, 4시간봉).
+
+        과매수 구간에서 숏 진입, H4 Conservative의 반대 로직
+        백테스트: Train +7.97%, Validation +15.53% (88% 승률)
+        """
+        try:
+            from trading_engine_v2.modules.strategies.h4_short import H4ShortStrategy
+
+            config = {
+                'position_fraction': 0.5,  # 50% 자본 배분
+                'take_profit': 0.05,       # 5% 익절
+                'stop_loss': -0.02,        # 2% 손절
+                'rsi_overbought': 72.0,    # RSI > 72 (과매수)
+                'bb_position_min': 0.82,   # BB 상단
+                'pct_rise_threshold': 6.0, # 저점 대비 6% 상승
+            }
+            strategy = H4ShortStrategy(config)
+            print("✅ H4 Short 전략 초기화 완료 (Binance, 50% 자본)")
+            return strategy
+        except Exception as e:
+            print(f"⚠️  H4 Short 전략 초기화 실패: {e}")
             return None
 
     def get_current_prices(self) -> Dict[str, float]:
@@ -822,7 +859,7 @@ class DualPaperTradingEngine:
                 self._consecutive_execution_errors += 1
 
     def execute_binance_strategy(self, current_price: float, strategy_name: Optional[str]):
-        """Binance 전략 실행 (현재는 SHORT_V1만)."""
+        """Binance 전략 실행 (SHORT_V1 또는 H4_SHORT)."""
         if not strategy_name:
             if self.binance_position:
                 strategy_name = self.binance_active_strategy or "short_v1"
@@ -830,8 +867,13 @@ class DualPaperTradingEngine:
                 print("⚪ [Binance] 레짐상 진입 스킵")
                 return
 
-        if strategy_name != "short_v1":
+        if strategy_name not in ("short_v1", "h4_short"):
             print(f"⚠️  알 수 없는 Binance 전략: {strategy_name}")
+            return
+
+        # H4 Short 전략 분기
+        if strategy_name == "h4_short":
+            self._execute_h4_short_strategy(current_price)
             return
 
         if not self.short_v1_strategy:
@@ -958,6 +1000,135 @@ class DualPaperTradingEngine:
             traceback.print_exc()
             if self.telegram:
                 self.telegram.send_message(f"❌ [Binance] 전략 실행 오류: {e}")
+            if self.execution_mode == "live":
+                self._consecutive_execution_errors += 1
+
+    def _execute_h4_short_strategy(self, current_price: float):
+        """H4 Short 전략 실행 (Binance 숏, 4시간봉).
+
+        과매수 구간에서 숏 진입하는 역발상 전략
+        """
+        if not self.h4_short_strategy:
+            print("⚠️  H4 Short 전략 미로드 - Binance 거래 스킵")
+            return
+
+        try:
+            import pandas as pd
+            import requests
+
+            # Binance 4시간봉 데이터 수집 (최근 500개)
+            url = 'https://api.binance.com/api/v3/klines'
+            params = {
+                'symbol': 'BTCUSDT',
+                'interval': '4h',
+                'limit': 500
+            }
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+
+            df = pd.DataFrame(data, columns=[
+                'timestamp', 'open', 'high', 'low', 'close', 'volume',
+                'close_time', 'quote_volume', 'trades', 'taker_buy_base',
+                'taker_buy_quote', 'ignore'
+            ])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            df['open'] = df['open'].astype(float)
+            df['high'] = df['high'].astype(float)
+            df['low'] = df['low'].astype(float)
+            df['close'] = df['close'].astype(float)
+            df['volume'] = df['volume'].astype(float)
+            df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+
+            # 지표 계산
+            df = self.h4_short_strategy.add_indicators(df)
+
+            # 신호 생성
+            signal = self.h4_short_strategy.generate_signal(df, len(df) - 1) or {'action': 'hold'}
+
+            print(f"[Binance H4] 신호: {signal['action']} | 사유: {signal.get('reason', 'N/A')}")
+
+            cash, _ = self.binance_account.get_balance()
+
+            if signal['action'] == 'short' and not self.binance_position:
+                if self.execution_mode == "live" and self._block_new_entries:
+                    print("⛔ [Risk] LIVE 신규 진입 차단 (daily loss guard)")
+                    return
+
+                # 숏 진입
+                base_fraction = float(signal.get("fraction", 0.5))
+                frac = clamp_fraction(base_fraction * float(self.binance_fraction_mult), self.risk_config.max_binance_entry_fraction)
+                position_size = cash * frac
+                leverage = 2  # H4 전략은 낮은 레버리지
+
+                if position_size >= float(self.risk_config.min_binance_order_usdt):
+                    result = self.binance_account.open_short(position_size, current_price, leverage)
+
+                    if result['success']:
+                        self.binance_position = True
+                        self.binance_active_strategy = "h4_short"
+                        self.last_binance_signal = signal
+
+                        tag = "Live" if self.execution_mode == "live" else "Paper"
+                        msg = f"🔻 [Binance {tag}] H4 숏 진입\n"
+                        msg += f"━━━━━━━━━━━━━━━━━━━━\n"
+                        msg += f"💰 가격: ${current_price:,.2f}\n"
+                        msg += f"📊 수량: {result['executed_qty']:.6f} BTC\n"
+                        msg += f"⚡ 레버리지: {leverage}x\n"
+                        msg += f"📝 사유: {signal.get('reason', 'N/A')}"
+
+                        print(msg)
+                        if self.telegram:
+                            self.telegram.send_message(msg)
+
+                        self._record_trade("binance", {
+                            "timestamp": datetime.now().isoformat(),
+                            "type": "open_short",
+                            "strategy": "h4_short",
+                            "price": float(current_price),
+                            "size": float(result.get("executed_qty", 0.0)),
+                            "margin": float(position_size),
+                            "leverage": leverage,
+                            "reason": signal.get("reason"),
+                        })
+
+            elif signal['action'] == 'close_short' and self.binance_position:
+                # 숏 청산
+                result = self.binance_account.close_short(current_price)
+
+                if result['success']:
+                    self.binance_position = False
+                    self.binance_active_strategy = None
+                    self.last_binance_signal = signal
+
+                    # H4 Short 전략 상태 초기화
+                    self.h4_short_strategy._reset_position()
+
+                    tag = "Live" if self.execution_mode == "live" else "Paper"
+                    msg = f"🔺 [Binance {tag}] H4 숏 청산\n"
+                    msg += f"━━━━━━━━━━━━━━━━━━━━\n"
+                    msg += f"💰 가격: ${current_price:,.2f}\n"
+                    msg += f"💵 손익: ${result['realized_pnl']:+,.2f}\n"
+                    msg += f"📝 사유: {signal.get('reason', 'N/A')}"
+
+                    print(msg)
+                    if self.telegram:
+                        self.telegram.send_message(msg)
+
+                    self._record_trade("binance", {
+                        "timestamp": datetime.now().isoformat(),
+                        "type": "close_short",
+                        "strategy": "h4_short",
+                        "price": float(current_price),
+                        "realized_pnl": float(result.get("realized_pnl", 0.0)),
+                        "reason": signal.get("reason"),
+                    })
+
+        except Exception as e:
+            print(f"❌ H4 Short 전략 실행 오류: {e}")
+            import traceback
+            traceback.print_exc()
+            if self.telegram:
+                self.telegram.send_message(f"❌ [Binance H4] 전략 실행 오류: {e}")
             if self.execution_mode == "live":
                 self._consecutive_execution_errors += 1
 

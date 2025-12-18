@@ -106,7 +106,15 @@ Examples:
         type=str,
         choices=['sideways_v2', 'h4_conservative', 'v35', 'hold'],
         default='sideways_v2',
-        help='Sideways 레짐 전략 (기본: sideways_v2, 옵션: h4_conservative)'
+        help='Sideways 레짐 Upbit 전략 (기본: sideways_v2, 옵션: h4_conservative)'
+    )
+
+    parser.add_argument(
+        '--binance-policy',
+        type=str,
+        choices=['short_v1', 'h4_short', 'hold'],
+        default='short_v1',
+        help='Bear 레짐 Binance 전략 (기본: short_v1, 옵션: h4_short)'
     )
 
     args = parser.parse_args()
@@ -121,6 +129,7 @@ Examples:
         execution_mode=str(args.mode),
         telegram_commands_enabled=bool(args.telegram_commands),
         sideways_policy=str(args.sideways_policy),
+        binance_policy=str(args.binance_policy),
     )
 
     if args.once:

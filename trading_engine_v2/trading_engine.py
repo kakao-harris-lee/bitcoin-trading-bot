@@ -1075,8 +1075,9 @@ class DualPaperTradingEngine:
                 time.sleep(interval_minutes * 60)
 
         except KeyboardInterrupt:
+            mode_label = "LIVE Trading" if self.execution_mode == "live" else "Paper Trading"
             print(f"\n\n{'='*70}")
-            print("  Paper Trading 중지")
+            print(f"  {mode_label} 중지")
             print(f"{'='*70}\n")
 
             # 최종 통계

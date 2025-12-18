@@ -100,6 +100,15 @@ Examples:
         help='candidate index (기본: 0)'
     )
 
+    # 전략 정책 설정
+    parser.add_argument(
+        '--sideways-policy',
+        type=str,
+        choices=['sideways_v2', 'h4_conservative', 'v35', 'hold'],
+        default='sideways_v2',
+        help='Sideways 레짐 전략 (기본: sideways_v2, 옵션: h4_conservative)'
+    )
+
     args = parser.parse_args()
 
     # 엔진 초기화 및 실행
@@ -111,6 +120,7 @@ Examples:
         candidate_index=int(args.candidate_index),
         execution_mode=str(args.mode),
         telegram_commands_enabled=bool(args.telegram_commands),
+        sideways_policy=str(args.sideways_policy),
     )
 
     if args.once:

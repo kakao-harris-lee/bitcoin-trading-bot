@@ -130,6 +130,8 @@ class RegimeRouter:
 
             if policy == "sideways_v2":
                 upbit_strategy = "sideways_v2"
+            elif policy == "h4_conservative":
+                upbit_strategy = "h4_conservative"
             elif policy == "v35":
                 upbit_strategy = "v35"
             elif policy == "hold":
@@ -149,6 +151,8 @@ class RegimeRouter:
                 upbit_strategy = "v35"
             elif policy == "sideways_v2":
                 upbit_strategy = "sideways_v2"
+            elif policy == "h4_conservative":
+                upbit_strategy = "h4_conservative"
             else:
                 upbit_strategy = None
 

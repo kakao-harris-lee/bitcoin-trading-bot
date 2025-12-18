@@ -3,11 +3,11 @@
 # Bitcoin Trading Bot - 시작/종료 스크립트
 #
 # 사용법:
-#   ./bot.sh start [paper|live]   # 시작 (기본: paper)
-#   ./bot.sh stop                 # 종료
-#   ./bot.sh status               # 상태 확인
-#   ./bot.sh logs                 # 로그 보기
-#   ./bot.sh restart [paper|live] # 재시작
+#   ./bot.sh start [paper|live] [sideways_v2|h4_conservative]   # 시작 (기본: paper, sideways_v2)
+#   ./bot.sh stop                                                # 종료
+#   ./bot.sh status                                              # 상태 확인
+#   ./bot.sh logs                                                # 로그 보기
+#   ./bot.sh restart [paper|live] [sideways_v2|h4_conservative]  # 재시작
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,6 +22,7 @@ mkdir -p "$LOG_DIR"
 
 start() {
     MODE="${1:-paper}"
+    SIDEWAYS_POLICY="${2:-sideways_v2}"
 
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
@@ -32,7 +33,7 @@ start() {
         fi
     fi
 
-    echo "🚀 Trading Bot 시작 (mode: $MODE)"
+    echo "🚀 Trading Bot 시작 (mode: $MODE, sideways: $SIDEWAYS_POLICY)"
     echo "   로그: $LOG_FILE"
 
     # 환경 설정
@@ -45,7 +46,7 @@ start() {
     fi
 
     # nohup으로 백그라운드 실행
-    nohup python run.py --mode "$MODE" --interval 5 >> "$LOG_FILE" 2>&1 &
+    nohup python run.py --mode "$MODE" --interval 5 --sideways-policy "$SIDEWAYS_POLICY" >> "$LOG_FILE" 2>&1 &
 
     PID=$!
     echo $PID > "$PID_FILE"
@@ -132,14 +133,15 @@ logs() {
 
 restart() {
     MODE="${1:-paper}"
+    SIDEWAYS_POLICY="${2:-sideways_v2}"
     stop
     sleep 2
-    start "$MODE"
+    start "$MODE" "$SIDEWAYS_POLICY"
 }
 
 case "$1" in
     start)
-        start "$2"
+        start "$2" "$3"
         ;;
     stop)
         stop
@@ -151,25 +153,27 @@ case "$1" in
         logs
         ;;
     restart)
-        restart "$2"
+        restart "$2" "$3"
         ;;
     *)
         echo "Bitcoin Trading Bot 관리 스크립트"
         echo ""
-        echo "사용법: $0 {start|stop|status|logs|restart} [mode]"
+        echo "사용법: $0 {start|stop|status|logs|restart} [mode] [sideways_policy]"
         echo ""
         echo "명령어:"
-        echo "  start [paper|live]   봇 시작 (기본: paper)"
-        echo "  stop                 봇 종료"
-        echo "  status               상태 확인"
-        echo "  logs                 실시간 로그 보기"
-        echo "  restart [paper|live] 재시작"
+        echo "  start [paper|live] [sideways_v2|h4_conservative]   봇 시작 (기본: paper, sideways_v2)"
+        echo "  stop                                                봇 종료"
+        echo "  status                                              상태 확인"
+        echo "  logs                                                실시간 로그 보기"
+        echo "  restart [paper|live] [sideways_v2|h4_conservative]  재시작"
         echo ""
         echo "예시:"
-        echo "  $0 start             # Paper 모드 시작"
-        echo "  $0 start live        # Live 모드 시작"
-        echo "  $0 stop              # 종료"
-        echo "  $0 logs              # 로그 확인"
+        echo "  $0 start                         # Paper 모드 + sideways_v2"
+        echo "  $0 start paper h4_conservative   # Paper 모드 + H4 전략"
+        echo "  $0 start live                    # Live 모드 + sideways_v2"
+        echo "  $0 start live h4_conservative    # Live 모드 + H4 전략"
+        echo "  $0 stop                          # 종료"
+        echo "  $0 logs                          # 로그 확인"
         exit 1
         ;;
 esac

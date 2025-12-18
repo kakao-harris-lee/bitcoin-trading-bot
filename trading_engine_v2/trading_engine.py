@@ -84,12 +84,14 @@ class DualPaperTradingEngine:
         candidate_index: int = 0,
         execution_mode: str = "paper",  # 'paper' | 'live'
         telegram_commands_enabled: bool = False,
+        sideways_policy: str = "sideways_v2",  # 'sideways_v2' | 'h4_conservative' | 'v35' | 'hold'
     ):
         """
         Args:
             paper_upbit_capital: [Paper 전용] Upbit 시뮬레이션 자본 (KRW)
             paper_binance_capital: [Paper 전용] Binance 시뮬레이션 자본 (USDT)
             telegram_enabled: 텔레그램 알림 활성화
+            sideways_policy: Sideways 레짐 전략 (sideways_v2, h4_conservative, v35, hold)
 
         Note:
             Live 모드에서는 paper_*_capital 값이 무시되고 실제 거래소 잔고를 조회합니다.
@@ -158,6 +160,7 @@ class DualPaperTradingEngine:
         self.binance_fraction_mult = 1.0
         self.bull_hold_fraction = 1.0
         self.sideways_v2_strategy_config: Dict[str, Any] = {}
+        self._sideways_policy = sideways_policy  # CLI or default policy
 
         if candidate_json:
             self._candidate = _load_candidate_from_json(candidate_json, candidate_index)
@@ -182,6 +185,7 @@ class DualPaperTradingEngine:
         self.v35_strategy = self._load_v35_strategy()
         self.short_v1_strategy = self._load_short_v1_strategy()
         self.sideways_v2_strategy = self._init_sideways_v2_strategy(strategy_config=self.sideways_v2_strategy_config)
+        self.h4_strategy = self._init_h4_strategy()
 
         # 운영형 라우팅 (레짐 기반)
         self.router = self._build_router()
@@ -330,11 +334,13 @@ class DualPaperTradingEngine:
             return
 
         mode_label = "LIVE" if self.execution_mode == "live" else "PAPER"
+        sideways_label = self._sideways_policy
         msg = f"🚀 Dual Exchange {mode_label} 시작\n"
         msg += "=" * 30 + "\n\n"
         msg += "📊 전략 구성:\n"
-        msg += f"  • Upbit: v35 ↔ SideWays_v2 (레짐 라우팅)\n"
-        msg += f"  • Binance: SHORT_V1 (BEAR 레짐에서만)\n\n"
+        msg += f"  • Upbit BULL: v35\n"
+        msg += f"  • Upbit SIDEWAYS: {sideways_label}\n"
+        msg += f"  • Binance: SHORT_V1 (BEAR 레짐)\n\n"
 
         # 자본금 정보 (Paper: 시뮬레이션 자본, Live: 실제 잔고)
         upbit_capital = getattr(self.upbit_account, 'initial_capital', 0)
@@ -344,8 +350,9 @@ class DualPaperTradingEngine:
         msg += f"  • Upbit: {upbit_capital:,.0f} KRW\n"
         msg += f"  • Binance: ${binance_capital:,.2f} USDT\n\n"
         msg += f"✅ V35 전략: {'로드 성공' if self.v35_strategy else '❌ 로드 실패'}\n"
-        msg += f"✅ SHORT_V1 전략: {'로드 성공' if self.short_v1_strategy else '❌ 로드 실패'}\n\n"
-        msg += f"✅ SideWays_v2 전략: {'로드 성공' if self.sideways_v2_strategy else '❌ 로드 실패'}\n\n"
+        msg += f"✅ SHORT_V1 전략: {'로드 성공' if self.short_v1_strategy else '❌ 로드 실패'}\n"
+        msg += f"✅ SideWays_v2 전략: {'로드 성공' if self.sideways_v2_strategy else '❌ 로드 실패'}\n"
+        msg += f"✅ H4 Conservative: {'로드 성공 (50%)' if self.h4_strategy else '❌ 로드 실패'}\n\n"
         msg += "⏰ 신호 체크: 60분마다 (레짐은 day 기반)"
 
         if self._candidate:
@@ -367,11 +374,16 @@ class DualPaperTradingEngine:
         self.sideways_v2_strategy_config = dict(candidate.get("sideways_v2_config") or {})
 
     def _build_router(self) -> RegimeRouter:
+        # CLI sideways_policy가 기본 policy로 사용됨
+        default_sideways_policy = self._sideways_policy
+
         if not self._candidate:
-            return RegimeRouter(lookback_days=180)
+            return RegimeRouter(lookback_days=180, sideways_policy=default_sideways_policy)
 
         cand = self._candidate
         rcfg = dict(cand.get("router_config") or {})
+        # candidate에 sideways_policy가 있으면 그걸 사용, 없으면 CLI 값 사용
+        sideways_policy = str(cand.get("sideways_policy", default_sideways_policy))
         return RegimeRouter(
             lookback_days=int(rcfg.get("lookback_days", 180)),
             mfi_period=int(rcfg.get("mfi_period", 14)),
@@ -382,7 +394,7 @@ class DualPaperTradingEngine:
             adx_trend=float(rcfg.get("adx_trend", 20.0)),
             adx_weak=float(rcfg.get("adx_weak", 15.0)),
             bull_policy=str(cand.get("bull_policy", "v35")),
-            sideways_policy=str(cand.get("sideways_policy", "sideways_v2")),
+            sideways_policy=sideways_policy,
             sideways_bear_policy=cand.get("sideways_bear_policy"),
             bear_moderate_policy=cand.get("bear_moderate_policy"),
             bear_strong_policy=cand.get("bear_strong_policy"),
@@ -522,6 +534,23 @@ class DualPaperTradingEngine:
             print(f"⚠️  SideWays_v2 전략 초기화 실패: {e}")
             return None
 
+    def _init_h4_strategy(self):
+        """H4 Conservative 전략 초기화 (Sideways 레짐 대응, 4시간봉)."""
+        try:
+            from trading_engine_v2.modules.strategies.h4_conservative import H4ConservativeStrategy
+
+            config = {
+                'position_fraction': 0.5,  # 50% 자본 배분
+                'take_profit': 0.04,       # 4% 익절
+                'stop_loss': -0.02,        # 2% 손절
+            }
+            strategy = H4ConservativeStrategy(config)
+            print("✅ H4 Conservative 전략 초기화 완료 (50% 자본)")
+            return strategy
+        except Exception as e:
+            print(f"⚠️  H4 Conservative 전략 초기화 실패: {e}")
+            return None
+
     def get_current_prices(self) -> Dict[str, float]:
         """현재 가격 조회 (실제 시장 데이터)"""
         try:
@@ -616,6 +645,10 @@ class DualPaperTradingEngine:
             print("⚠️  SideWays_v2 전략 미로드 - Upbit 거래 스킵")
             return
 
+        if strategy_name == "h4_conservative" and not self.h4_strategy:
+            print("⚠️  H4 Conservative 전략 미로드 - Upbit 거래 스킵")
+            return
+
         if strategy_name == "v35" and not self.v35_strategy:
             print("⚠️  V35 전략 미로드 - Upbit 거래 스킵")
             return
@@ -634,6 +667,15 @@ class DualPaperTradingEngine:
                     "action": "hold",
                     "reason": "SIDEWAYS_V2_NO_SIGNAL",
                 }
+            elif strategy_name == "h4_conservative":
+                with DataLoader() as loader:
+                    df = loader.load_timeframe('minute240', start_date='2024-01-01')
+                df = df.tail(500).reset_index(drop=True)
+                df = self.h4_strategy.add_indicators(df)
+                signal = self.h4_strategy.generate_signal(df, len(df) - 1) or {
+                    "action": "hold",
+                    "reason": "H4_NO_SIGNAL",
+                }
             else:
                 print(f"⚠️  알 수 없는 Upbit 전략: {strategy_name}")
                 return
@@ -649,6 +691,8 @@ class DualPaperTradingEngine:
                     mult = self.v35_fraction_mult
                 elif strategy_name == "sideways_v2":
                     mult = self.sideways_fraction_mult
+                elif strategy_name == "h4_conservative":
+                    mult = 1.0  # H4 uses 50% from strategy config
                 signal["fraction"] = max(0.0, min(1.0, base_fraction * float(mult)))
 
             if signal['action'] == 'buy' and not self.upbit_position:

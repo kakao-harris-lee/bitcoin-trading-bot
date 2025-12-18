@@ -1096,29 +1096,39 @@ class DualPaperTradingEngine:
 
     def print_final_statistics(self):
         """최종 통계 출력"""
-        upbit_stats = self.upbit_account.get_statistics()
-        binance_stats = self.binance_account.get_statistics()
+        try:
+            upbit_stats = self.upbit_account.get_statistics()
+            binance_stats = self.binance_account.get_statistics()
 
-        print("\n📊 최종 통계")
-        print(f"{'='*70}")
+            print("\n📊 최종 통계")
+            print(f"{'='*70}")
 
-        print(f"\n[Upbit]")
-        print(f"  초기 자본: {upbit_stats['initial_capital']:,.0f}원")
-        print(f"  최종 자본: {upbit_stats['current_cash']:,.0f}원")
-        print(f"  총 거래: {upbit_stats['total_trades']}회")
-        print(f"  승률: {upbit_stats['win_rate']*100:.1f}%")
-        print(f"  순손익: {upbit_stats['net_pnl']:+,.0f}원")
-        print(f"  수익률: {upbit_stats['return_pct']:+.2f}%")
+            # Helper for safe formatting
+            def safe_pct(val):
+                return (val or 0) * 100
 
-        print(f"\n[Binance]")
-        print(f"  초기 자본: ${binance_stats['initial_capital']:,.2f}")
-        print(f"  최종 자본: ${binance_stats['current_cash']:,.2f}")
-        print(f"  총 거래: {binance_stats['total_trades']}회")
-        print(f"  승률: {binance_stats['win_rate']*100:.1f}%")
-        print(f"  순손익: ${binance_stats['net_pnl']:+,.2f}")
-        print(f"  수익률: {binance_stats['return_pct']:+.2f}%")
+            def safe_val(val, default=0):
+                return val if val is not None else default
 
-        print(f"\n{'='*70}\n")
+            print(f"\n[Upbit]")
+            print(f"  초기 자본: {safe_val(upbit_stats.get('initial_capital'), 0):,.0f}원")
+            print(f"  최종 자본: {safe_val(upbit_stats.get('current_cash'), 0):,.0f}원")
+            print(f"  총 거래: {safe_val(upbit_stats.get('total_trades'), 0)}회")
+            print(f"  승률: {safe_pct(upbit_stats.get('win_rate')):.1f}%")
+            print(f"  순손익: {safe_val(upbit_stats.get('net_pnl'), 0):+,.0f}원")
+            print(f"  수익률: {safe_val(upbit_stats.get('return_pct'), 0):+.2f}%")
+
+            print(f"\n[Binance]")
+            print(f"  초기 자본: ${safe_val(binance_stats.get('initial_capital'), 0):,.2f}")
+            print(f"  최종 자본: ${safe_val(binance_stats.get('current_cash'), 0):,.2f}")
+            print(f"  총 거래: {safe_val(binance_stats.get('total_trades'), 0)}회")
+            print(f"  승률: {safe_pct(binance_stats.get('win_rate')):.1f}%")
+            print(f"  순손익: ${safe_val(binance_stats.get('net_pnl'), 0):+,.2f}")
+            print(f"  수익률: {safe_val(binance_stats.get('return_pct'), 0):+.2f}%")
+
+            print(f"\n{'='*70}\n")
+        except Exception as e:
+            print(f"\n⚠️ 통계 출력 오류: {e}\n")
 
 
 if __name__ == '__main__':

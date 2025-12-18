@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 from trading_engine_v2.modules.sideways_v1_strategy import SideWaysV1Strategy
-from trading_engine_v2.modules.sideways_v2_strategy import SideWaysV2Strategy
+from trading_engine_v2.modules.strategies.sideways_v2 import SideWaysV2Strategy
 
 
 def _make_ohlcv_df(n: int = 80) -> pd.DataFrame:

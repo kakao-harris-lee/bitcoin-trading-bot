@@ -30,7 +30,7 @@ services:
       - LOG_LEVEL=INFO
       - PAPER_TRADING=false
       - ENABLE_LIVE_TRADING=1
-    command: python live_trading/dual_paper_trading.py --mode live --upbit-capital 10000000 --binance-capital 10000 --interval 60 --telegram-commands --candidate-json /app/analysis/selected_candidate.json
+    command: python run.py --mode live --upbit-capital 10000000 --binance-capital 10000 --interval 60 --telegram-commands --candidate-json /app/analysis/selected_candidate.json
     networks:
       - trading-network
     deploy:

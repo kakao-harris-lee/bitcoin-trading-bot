@@ -7,7 +7,8 @@ from .base_strategy import BaseStrategy
 from .v35_long_strategy import V35LongStrategy, MarketClassifier, DynamicExitManager
 from .short_v1_strategy import ShortV1Strategy
 from .sideways_v1_strategy import SideWaysV1Strategy
-from .sideways_v2_strategy import SideWaysV2Strategy
+from .strategies.sideways_v2 import SideWaysV2Strategy
+from .regime_router import RegimeRouter, RegimeDecision
 from .risk_manager import RiskManager
 from .execution_manager import (
     ExecutionManager, UpbitAdapter, BinanceAdapter, OrderTracker, OrderState
@@ -29,6 +30,9 @@ __all__ = [
     "ShortV1Strategy",
     "SideWaysV1Strategy",
     "SideWaysV2Strategy",
+    # Router
+    "RegimeRouter",
+    "RegimeDecision",
     # Risk Management
     "RiskManager",
     # Execution

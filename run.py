@@ -43,19 +43,19 @@ Examples:
         help='실행 모드 (기본: paper)'
     )
 
-    # 자본금 설정
+    # Paper Trading 자본금 설정 (Live 모드에서는 무시됨 - 실제 잔고 조회)
     parser.add_argument(
-        '--upbit-capital',
+        '--paper-upbit-capital',
         type=float,
         default=10_000_000,
-        help='Upbit 초기 자본 (KRW, 기본: 10,000,000)'
+        help='[Paper 전용] Upbit 시뮬레이션 자본 (KRW, 기본: 10,000,000)'
     )
 
     parser.add_argument(
-        '--binance-capital',
+        '--paper-binance-capital',
         type=float,
         default=10_000,
-        help='Binance 초기 자본 (USDT, 기본: 10,000)'
+        help='[Paper 전용] Binance 시뮬레이션 자본 (USDT, 기본: 10,000)'
     )
 
     # 실행 옵션
@@ -104,8 +104,8 @@ Examples:
 
     # 엔진 초기화 및 실행
     engine = DualPaperTradingEngine(
-        upbit_capital=float(args.upbit_capital),
-        binance_capital=float(args.binance_capital),
+        paper_upbit_capital=float(args.paper_upbit_capital),
+        paper_binance_capital=float(args.paper_binance_capital),
         telegram_enabled=not bool(args.no_telegram),
         candidate_json=args.candidate_json,
         candidate_index=int(args.candidate_index),

@@ -77,8 +77,8 @@ class DualPaperTradingEngine:
 
     def __init__(
         self,
-        upbit_capital: float = 10_000_000,  # 10M KRW
-        binance_capital: float = 10_000,    # 10K USDT
+        paper_upbit_capital: float = 10_000_000,  # 10M KRW (Paper 전용)
+        paper_binance_capital: float = 10_000,    # 10K USDT (Paper 전용)
         telegram_enabled: bool = True,
         candidate_json: Optional[str] = None,
         candidate_index: int = 0,
@@ -87,9 +87,12 @@ class DualPaperTradingEngine:
     ):
         """
         Args:
-            upbit_capital: Upbit 초기 자본 (KRW)
-            binance_capital: Binance 초기 자본 (USDT)
+            paper_upbit_capital: [Paper 전용] Upbit 시뮬레이션 자본 (KRW)
+            paper_binance_capital: [Paper 전용] Binance 시뮬레이션 자본 (USDT)
             telegram_enabled: 텔레그램 알림 활성화
+
+        Note:
+            Live 모드에서는 paper_*_capital 값이 무시되고 실제 거래소 잔고를 조회합니다.
         """
         if execution_mode not in {"paper", "live"}:
             raise ValueError(f"Invalid execution_mode: {execution_mode}")
@@ -116,14 +119,17 @@ class DualPaperTradingEngine:
         print("=" * 70)
         print(f"  Dual Exchange Engine [{execution_mode.upper()}]")
         print("=" * 70)
-        print(f"  Upbit Capital: {upbit_capital:,.0f} KRW")
-        print(f"  Binance Capital: {binance_capital:,.2f} USDT")
+        if execution_mode == "paper":
+            print(f"  [Paper] Upbit Capital: {paper_upbit_capital:,.0f} KRW")
+            print(f"  [Paper] Binance Capital: {paper_binance_capital:,.2f} USDT")
+        else:
+            print("  [Live] 실제 거래소 잔고 조회...")
         print("=" * 70)
 
         # Accounts
         if execution_mode == "paper":
-            self.upbit_account = PaperTradingAccount(upbit_capital, 'upbit')
-            self.binance_account = PaperTradingAccount(binance_capital, 'binance')
+            self.upbit_account = PaperTradingAccount(paper_upbit_capital, 'upbit')
+            self.binance_account = PaperTradingAccount(paper_binance_capital, 'binance')
         else:
             # Hard safety gate: require explicit opt-in.
             if os.getenv("ENABLE_LIVE_TRADING") != "1":
@@ -213,7 +219,7 @@ class DualPaperTradingEngine:
         print("✅ 초기화 완료\n")
 
         # 시작 알림 전송
-        self._send_startup_notification(upbit_capital, binance_capital)
+        self._send_startup_notification()
 
     def _recommend_kill_switch(self, reason: str) -> None:
         """Notify operator that kill-switch is recommended (does not auto-enable)."""
@@ -318,7 +324,7 @@ class DualPaperTradingEngine:
         except Exception as e:
             print(f"⚠️  v2_engine 로그 저장 실패: {e}")
 
-    def _send_startup_notification(self, upbit_capital: float, binance_capital: float):
+    def _send_startup_notification(self):
         """시작 알림 전송"""
         if not self.telegram:
             return
@@ -329,7 +335,12 @@ class DualPaperTradingEngine:
         msg += "📊 전략 구성:\n"
         msg += f"  • Upbit: v35 ↔ SideWays_v2 (레짐 라우팅)\n"
         msg += f"  • Binance: SHORT_V1 (BEAR 레짐에서만)\n\n"
-        msg += "💰 초기 자본:\n"
+
+        # 자본금 정보 (Paper: 시뮬레이션 자본, Live: 실제 잔고)
+        upbit_capital = getattr(self.upbit_account, 'initial_capital', 0)
+        binance_capital = getattr(self.binance_account, 'initial_capital', 0)
+        capital_label = "시뮬레이션 자본" if self.execution_mode == "paper" else "실제 잔고"
+        msg += f"💰 {capital_label}:\n"
         msg += f"  • Upbit: {upbit_capital:,.0f} KRW\n"
         msg += f"  • Binance: ${binance_capital:,.2f} USDT\n\n"
         msg += f"✅ V35 전략: {'로드 성공' if self.v35_strategy else '❌ 로드 실패'}\n"
@@ -1111,14 +1122,14 @@ class DualPaperTradingEngine:
 
 
 if __name__ == '__main__':
-    """실행"""
+    """실행 - run.py 사용 권장"""
     import argparse
 
     parser = argparse.ArgumentParser(description='Dual Exchange Engine (paper/live)')
-    parser.add_argument('--upbit-capital', type=float, default=10_000_000,
-                        help='Upbit 초기 자본 (KRW, 기본: 10M)')
-    parser.add_argument('--binance-capital', type=float, default=10_000,
-                        help='Binance 초기 자본 (USDT, 기본: 10K)')
+    parser.add_argument('--paper-upbit-capital', type=float, default=10_000_000,
+                        help='[Paper 전용] Upbit 시뮬레이션 자본 (KRW, 기본: 10M)')
+    parser.add_argument('--paper-binance-capital', type=float, default=10_000,
+                        help='[Paper 전용] Binance 시뮬레이션 자본 (USDT, 기본: 10K)')
     parser.add_argument('--mode', choices=['paper', 'live'], default='paper',
                         help='실행 모드 (paper|live, 기본: paper)')
     parser.add_argument('--interval', type=int, default=60,
@@ -1135,8 +1146,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     engine = DualPaperTradingEngine(
-        upbit_capital=args.upbit_capital,
-        binance_capital=args.binance_capital,
+        paper_upbit_capital=args.paper_upbit_capital,
+        paper_binance_capital=args.paper_binance_capital,
         telegram_enabled=not args.no_telegram,
         candidate_json=args.candidate_json,
         candidate_index=args.candidate_index,

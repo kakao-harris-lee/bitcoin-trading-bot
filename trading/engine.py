@@ -478,22 +478,15 @@ class DualPaperTradingEngine:
     def _load_v35_strategy(self):
         """v35 전략 로드"""
         try:
-            import importlib.util
             import json
-
-            # 절대 경로로 모듈 로드
-            strategy_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                         'strategies/v35_optimized/strategy.py')
-            spec = importlib.util.spec_from_file_location("v35_strategy", strategy_path)
-            v35_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(v35_module)
+            from trading.strategy.v35_long import V35LongStrategy
 
             config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                       'strategies/v35_optimized/config_optimized.json')
+                                       'config/strategies/v35_long.json')
             with open(config_path, 'r') as f:
                 config = json.load(f)
 
-            strategy = v35_module.V35OptimizedStrategy(config)
+            strategy = V35LongStrategy(config=config)
             print("✅ V35 전략 로드 완료")
             return strategy
 
@@ -506,31 +499,15 @@ class DualPaperTradingEngine:
     def _load_short_v1_strategy(self):
         """SHORT_V1 전략 로드"""
         try:
-            import importlib.util
             import json
-
-            # 절대 경로로 모듈 로드
-            strategy_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                         'strategies/SHORT_V1/strategy.py')
-            spec = importlib.util.spec_from_file_location("short_v1_strategy", strategy_path)
-            short_module = importlib.util.module_from_spec(spec)
-
-            # SHORT_V1 indicators 모듈도 로드해야 함
-            indicators_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                           'strategies/SHORT_V1/indicators.py')
-            ind_spec = importlib.util.spec_from_file_location("indicators", indicators_path)
-            ind_module = importlib.util.module_from_spec(ind_spec)
-            sys.modules['indicators'] = ind_module
-            ind_spec.loader.exec_module(ind_module)
-
-            spec.loader.exec_module(short_module)
+            from trading.strategy.short_v1 import ShortV1Strategy
 
             config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                       'strategies/SHORT_V1/config_optimized.json')
+                                       'config/strategies/short_v1.json')
             with open(config_path, 'r') as f:
                 config = json.load(f)
 
-            strategy = short_module.ShortV1Strategy(config)
+            strategy = ShortV1Strategy(config=config)
             print("✅ SHORT_V1 전략 로드 완료")
             return strategy
 
@@ -699,7 +676,12 @@ class DualPaperTradingEngine:
             if strategy_name == "v35":
                 with DataLoader() as loader:
                     df = loader.load_timeframe('day', start_date='2024-01-01')
-                signal = self.v35_strategy.execute(df, len(df) - 1)
+                df = df.tail(500).reset_index(drop=True)
+                df = self.v35_strategy.add_indicators(df)
+                signal = self.v35_strategy.generate_signal(df, len(df) - 1) or {
+                    "action": "hold",
+                    "reason": "V35_NO_SIGNAL",
+                }
             elif strategy_name == "sideways_v2":
                 with DataLoader() as loader:
                     df = loader.load_timeframe('minute240', start_date='2024-01-01')
@@ -886,27 +868,23 @@ class DualPaperTradingEngine:
             return
 
         try:
-            # 4시간봉 데이터 필요 (Binance API 또는 로컬 CSV)
-            import pandas as pd
+            # 4시간봉 데이터 로드 (Binance DataLoader 사용)
+            with DataLoader(exchange="binance") as loader:
+                df = loader.load_timeframe('minute240', start_date='2024-01-01')
+            df = df.tail(300).reset_index(drop=True)
 
-            # 로컬 CSV 로드 (data_collector로 미리 수집)
-            csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                    'strategies/SHORT_V1/results/btcusdt_4h_with_funding_2022-01-01_2024-12-31.csv')
-
-            if os.path.exists(csv_path):
-                df = pd.read_csv(csv_path)
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-                df = df.tail(300)  # 최근 300개 (워밍업 포함)
-                df = df.reset_index(drop=True)
-
+            if len(df) > 0:
                 # 지표 계산
-                df = self.short_v1_strategy.prepare_data(df)
+                df = self.short_v1_strategy.add_indicators(df)
 
                 # 현재 자본
                 cash, _ = self.binance_account.get_balance()
 
-                # 전략 실행 (execute 메서드 사용)
-                signal = self.short_v1_strategy.execute(df, len(df) - 1, cash)
+                # 전략 실행 (generate_signal 메서드 사용)
+                signal = self.short_v1_strategy.generate_signal(df, len(df) - 1) or {
+                    "action": "hold",
+                    "reason": "SHORT_V1_NO_SIGNAL",
+                }
 
                 # 신호 로그 출력
                 print(f"[Binance] 신호: {signal['action']} | 사유: {signal.get('reason', 'N/A')}")
@@ -995,9 +973,9 @@ class DualPaperTradingEngine:
                     if self.iteration_count == 1:
                         print(f"⚪ [Binance] 대기 중 - {signal.get('reason', 'N/A')}")
             else:
-                print(f"⚠️  SHORT_V1 데이터 파일 없음: {csv_path}")
+                print("⚠️  SHORT_V1 데이터 부족 - 전략 실행 스킵")
                 if self.telegram and self.iteration_count == 1:
-                    self.telegram.send_message(f"⚠️ [Binance] SHORT_V1 데이터 파일 없음\n실시간 데이터 수집 필요")
+                    self.telegram.send_message("⚠️ [Binance] SHORT_V1 데이터 부족")
 
         except Exception as e:
             print(f"❌ Binance 전략 실행 오류: {e}")

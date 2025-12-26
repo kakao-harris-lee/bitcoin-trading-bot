@@ -1,6 +1,6 @@
 import pytest
 
-from trading_engine_v2.modules.regime_router import RegimeRouter
+from trading.modules.regime_router import RegimeRouter
 
 
 @pytest.mark.parametrize(

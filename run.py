@@ -18,7 +18,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from trading_engine_v2.trading_engine import DualPaperTradingEngine
+from trading.engine import DualPaperTradingEngine
 
 
 def main():
@@ -117,6 +117,14 @@ Examples:
         help='Bear 레짐 Binance 전략 (기본: short_v1, 옵션: h4_short)'
     )
 
+    parser.add_argument(
+        '--binance-gate',
+        type=str,
+        choices=['bear_only', 'sideways_and_bear', 'bear_or_sideways_bear', 'always'],
+        default='bear_only',
+        help='Binance 활성화 조건 (기본: bear_only, 옵션: sideways_and_bear, always)'
+    )
+
     args = parser.parse_args()
 
     # 엔진 초기화 및 실행
@@ -130,6 +138,7 @@ Examples:
         telegram_commands_enabled=bool(args.telegram_commands),
         sideways_policy=str(args.sideways_policy),
         binance_policy=str(args.binance_policy),
+        binance_gate_mode=str(args.binance_gate),
     )
 
     if args.once:

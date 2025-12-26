@@ -354,7 +354,7 @@ sudo systemctl restart bitcoin-trading-bot
 bitcoin-trading-bot/
 ├── run.py                           # 단일 진입점
 │
-├── trading_engine_v2/               # 메인 엔진
+├── trading/               # 메인 엔진
 │   ├── trading_engine.py            # 트레이딩 엔진 (DualPaperTradingEngine)
 │   ├── core/                        # 핵심 인프라
 │   │   ├── redis_client.py          # Redis Streams

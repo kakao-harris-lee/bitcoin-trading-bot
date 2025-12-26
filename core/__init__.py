@@ -4,11 +4,13 @@ Core Library for Bitcoin Trading Bot
 """
 
 from .data_loader import DataLoader
-from .kelly_calculator import KellyCalculator
+from .backtester import Backtester
+from .market_analyzer import MarketAnalyzer
 
 __all__ = [
     "DataLoader",
-    "KellyCalculator",
+    "Backtester",
+    "MarketAnalyzer",
 ]
 
 __version__ = "1.0.0"

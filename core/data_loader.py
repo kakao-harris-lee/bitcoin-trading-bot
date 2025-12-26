@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 """
 data_loader.py
-upbit_bitcoin.db에서 가격 데이터를 읽어오는 공통 모듈
+Upbit/Binance 가격 데이터를 읽어오는 공통 모듈
+
+지원 DB:
+- upbit_bitcoin.db: Upbit BTC/KRW 데이터
+- binance_bitcoin.db: Binance BTCUSDT 데이터
 """
 
 import sqlite3
 import pandas as pd
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Literal
 from datetime import datetime
 
 # 프로젝트 루트 기준 기본 DB 경로
 _PROJECT_ROOT = Path(__file__).parent.parent
-_DEFAULT_DB_PATH = _PROJECT_ROOT / "upbit_history_db" / "upbit_bitcoin.db"
+_DB_DIR = _PROJECT_ROOT / "upbit_history_db"
+_UPBIT_DB_PATH = _DB_DIR / "upbit_bitcoin.db"
+_BINANCE_DB_PATH = _DB_DIR / "binance_bitcoin.db"
+
 
 class DataLoader:
-    """upbit_bitcoin.db 데이터 로더"""
+    """Upbit/Binance 데이터 로더"""
 
     TIMEFRAMES = [
         "minute1", "minute3", "minute5", "minute10",
@@ -23,8 +30,8 @@ class DataLoader:
         "day", "week", "month"
     ]
 
-    # 실제 테이블명 매핑 (bitcoin_ 접두사)
-    TABLE_MAP = {
+    # Upbit 테이블명 매핑
+    UPBIT_TABLE_MAP = {
         "minute1": "bitcoin_minute1",
         "minute3": "bitcoin_minute3",
         "minute5": "bitcoin_minute5",
@@ -38,13 +45,33 @@ class DataLoader:
         "month": "bitcoin_month"
     }
 
-    def __init__(self, db_path: str = None):
+    # Binance 테이블명 매핑
+    BINANCE_TABLE_MAP = {
+        "minute1": "binance_minute1",
+        "minute5": "binance_minute5",
+        "minute15": "binance_minute15",
+        "minute30": "binance_minute30",
+        "minute60": "binance_minute60",
+        "minute240": "binance_minute240",
+        "day": "binance_day",
+    }
+
+    # 하위 호환성을 위한 별칭
+    TABLE_MAP = UPBIT_TABLE_MAP
+
+    def __init__(self, db_path: str = None, exchange: Literal["upbit", "binance"] = "upbit"):
         """
         Args:
-            db_path: upbit_bitcoin.db 경로 (기본: upbit_history_db/upbit_bitcoin.db)
+            db_path: DB 경로 (기본: exchange에 따라 자동 설정)
+            exchange: 거래소 선택 ("upbit" 또는 "binance")
         """
+        self.exchange = exchange
+
         if db_path is None:
-            self.db_path = _DEFAULT_DB_PATH
+            if exchange == "binance":
+                self.db_path = _BINANCE_DB_PATH
+            else:
+                self.db_path = _UPBIT_DB_PATH
         else:
             self.db_path = Path(db_path)
 
@@ -57,7 +84,8 @@ class DataLoader:
         self,
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
+        exchange: Optional[str] = None
     ) -> pd.DataFrame:
         """
         특정 타임프레임 데이터 로드
@@ -66,15 +94,30 @@ class DataLoader:
             timeframe: minute1, minute5, day, ... (TIMEFRAMES 참고)
             start_date: 시작일 (YYYY-MM-DD 또는 YYYY-MM-DD HH:MM:SS)
             end_date: 종료일 (YYYY-MM-DD 또는 YYYY-MM-DD HH:MM:SS)
+            exchange: 거래소 지정 (None이면 인스턴스 설정 사용)
 
         Returns:
             DataFrame with columns: timestamp, open, high, low, close, volume
         """
+        # exchange 파라미터가 주어지면 해당 거래소 DB 사용
+        target_exchange = exchange or self.exchange
+
+        if target_exchange == "binance":
+            return self._load_binance_timeframe(timeframe, start_date, end_date)
+        else:
+            return self._load_upbit_timeframe(timeframe, start_date, end_date)
+
+    def _load_upbit_timeframe(
+        self,
+        timeframe: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> pd.DataFrame:
+        """Upbit 데이터 로드"""
         if timeframe not in self.TIMEFRAMES:
             raise ValueError(f"지원하지 않는 타임프레임: {timeframe}")
 
-        # 실제 테이블명 가져오기
-        table_name = self.TABLE_MAP[timeframe]
+        table_name = self.UPBIT_TABLE_MAP[timeframe]
         query = f"SELECT * FROM {table_name}"
         conditions = []
 
@@ -90,7 +133,7 @@ class DataLoader:
 
         df = pd.read_sql_query(query, self.conn)
 
-        # 컬럼명 정리 (이미 timestamp 컬럼 존재)
+        # Upbit 컬럼명 정리
         df = df.rename(columns={
             'opening_price': 'open',
             'high_price': 'high',
@@ -99,13 +142,64 @@ class DataLoader:
             'candle_acc_trade_volume': 'volume'
         })
 
-        # timestamp를 datetime으로 변환
         df['timestamp'] = pd.to_datetime(df['timestamp'])
-
-        # 필요한 컬럼만 선택
         df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
 
         return df
+
+    def _load_binance_timeframe(
+        self,
+        timeframe: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> pd.DataFrame:
+        """Binance 데이터 로드"""
+        if timeframe not in self.BINANCE_TABLE_MAP:
+            raise ValueError(f"Binance에서 지원하지 않는 타임프레임: {timeframe}")
+
+        # Binance DB 연결 (다른 DB인 경우)
+        if self.exchange != "binance":
+            conn = sqlite3.connect(str(_BINANCE_DB_PATH))
+        else:
+            conn = self.conn
+
+        table_name = self.BINANCE_TABLE_MAP[timeframe]
+        query = f"SELECT * FROM {table_name}"
+        conditions = []
+
+        if start_date:
+            conditions.append(f"timestamp >= '{start_date}'")
+        if end_date:
+            conditions.append(f"timestamp <= '{end_date}'")
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += " ORDER BY timestamp ASC"
+
+        try:
+            df = pd.read_sql_query(query, conn)
+        finally:
+            if self.exchange != "binance":
+                conn.close()
+
+        # Binance 컬럼명은 이미 표준 형식
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+        # 필요한 컬럼만 선택 (funding_rate 등 추가 컬럼 제외)
+        cols = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+        df = df[[c for c in cols if c in df.columns]]
+
+        return df
+
+    def load_binance(
+        self,
+        timeframe: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> pd.DataFrame:
+        """Binance 데이터 로드 (편의 메서드)"""
+        return self._load_binance_timeframe(timeframe, start_date, end_date)
 
     def get_date_range(self, timeframe: str) -> Tuple[str, str]:
         """

@@ -3,16 +3,17 @@
 # Bitcoin Trading Bot - 시작/종료 스크립트
 #
 # 사용법:
-#   ./bot.sh start [mode] [sideways_policy] [binance_policy]
+#   ./bot.sh start [mode] [sideways_policy] [binance_policy] [binance_gate]
 #   ./bot.sh stop
 #   ./bot.sh status
 #   ./bot.sh logs
-#   ./bot.sh restart [mode] [sideways_policy] [binance_policy]
+#   ./bot.sh restart [mode] [sideways_policy] [binance_policy] [binance_gate]
 #
 # 옵션:
 #   mode: paper (기본), live
 #   sideways_policy: sideways_v2 (기본), h4_conservative
 #   binance_policy: short_v1 (기본), h4_short
+#   binance_gate: bear_only (기본), sideways_and_bear, bear_or_sideways_bear, always
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,6 +30,7 @@ start() {
     MODE="${1:-paper}"
     SIDEWAYS_POLICY="${2:-sideways_v2}"
     BINANCE_POLICY="${3:-short_v1}"
+    BINANCE_GATE="${4:-bear_only}"
 
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
@@ -43,6 +45,7 @@ start() {
     echo "   mode: $MODE"
     echo "   sideways: $SIDEWAYS_POLICY"
     echo "   binance: $BINANCE_POLICY"
+    echo "   binance_gate: $BINANCE_GATE"
     echo "   로그: $LOG_FILE"
 
     # 환경 설정
@@ -55,7 +58,7 @@ start() {
     fi
 
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
-    nohup python -u run.py --mode "$MODE" --interval 5 --sideways-policy "$SIDEWAYS_POLICY" --binance-policy "$BINANCE_POLICY" >> "$LOG_FILE" 2>&1 &
+    nohup python -u run.py --mode "$MODE" --interval 5 --sideways-policy "$SIDEWAYS_POLICY" --binance-policy "$BINANCE_POLICY" --binance-gate "$BINANCE_GATE" >> "$LOG_FILE" 2>&1 &
 
     PID=$!
     echo $PID > "$PID_FILE"
@@ -144,14 +147,15 @@ restart() {
     MODE="${1:-paper}"
     SIDEWAYS_POLICY="${2:-sideways_v2}"
     BINANCE_POLICY="${3:-short_v1}"
+    BINANCE_GATE="${4:-bear_only}"
     stop
     sleep 2
-    start "$MODE" "$SIDEWAYS_POLICY" "$BINANCE_POLICY"
+    start "$MODE" "$SIDEWAYS_POLICY" "$BINANCE_POLICY" "$BINANCE_GATE"
 }
 
 case "$1" in
     start)
-        start "$2" "$3" "$4"
+        start "$2" "$3" "$4" "$5"
         ;;
     stop)
         stop
@@ -163,30 +167,31 @@ case "$1" in
         logs
         ;;
     restart)
-        restart "$2" "$3" "$4"
+        restart "$2" "$3" "$4" "$5"
         ;;
     *)
         echo "Bitcoin Trading Bot 관리 스크립트"
         echo ""
-        echo "사용법: $0 {start|stop|status|logs|restart} [mode] [sideways_policy] [binance_policy]"
+        echo "사용법: $0 {start|stop|status|logs|restart} [mode] [sideways] [binance] [gate]"
         echo ""
         echo "명령어:"
-        echo "  start [mode] [sideways] [binance]  봇 시작"
-        echo "  stop                               봇 종료"
-        echo "  status                             상태 확인"
-        echo "  logs                               실시간 로그 보기"
-        echo "  restart [mode] [sideways] [binance] 재시작"
+        echo "  start [mode] [sideways] [binance] [gate]  봇 시작"
+        echo "  stop                                      봇 종료"
+        echo "  status                                    상태 확인"
+        echo "  logs                                      실시간 로그 보기"
+        echo "  restart [mode] [sideways] [binance] [gate] 재시작"
         echo ""
         echo "옵션:"
         echo "  mode:     paper (기본), live"
-        echo "  sideways: sideways_v2 (기본), h4_conservative"
-        echo "  binance:  short_v1 (기본), h4_short"
+        echo "  sideways: sideways_v2 (기본), h4_conservative, v35, hold"
+        echo "  binance:  short_v1 (기본), h4_short, hold"
+        echo "  gate:     bear_only (기본), sideways_and_bear, bear_or_sideways_bear, always"
         echo ""
         echo "예시:"
-        echo "  $0 start                                    # 기본 설정"
-        echo "  $0 start paper h4_conservative h4_short     # H4 전략 조합"
-        echo "  $0 start live sideways_v2 short_v1          # Live + 기본 전략"
-        echo "  $0 stop                                     # 종료"
+        echo "  $0 start                                              # 기본 설정"
+        echo "  $0 start paper h4_conservative h4_short               # H4 전략 조합"
+        echo "  $0 start live h4_conservative h4_short sideways_and_bear  # Sideways에서도 숏"
+        echo "  $0 stop                                               # 종료"
         exit 1
         ;;
 esac

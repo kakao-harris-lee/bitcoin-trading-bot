@@ -1,284 +1,108 @@
-# 비트코인 자동 트레이딩 봇 개발 프로젝트
+# Bitcoin Trading Bot
 
-> 과거 데이터 기반 백테스팅을 통해 **오버피팅 없이 수익을 내는 자동 거래 봇** 개발
+비트코인 자동 트레이딩 봇 - Upbit(현물) + Binance(선물) 듀얼 엔진
 
-## 📊 프로젝트 개요
+## 빠른 시작
 
-이 프로젝트는 비트코인(KRW-BTC) 자동 거래 봇을 **반복적으로 개발하고 개선**하는 시스템입니다.
+```bash
+# Paper Trading (시뮬레이션)
+python run.py --mode paper
 
-### 핵심 목표
+# Live Trading (실거래)
+ENABLE_LIVE_TRADING=1 python run.py --mode live
 
-- ✅ 안정적인 수익 창출 (목표: 연 20%+, MDD < 20%)
-- ✅ 오버피팅 방지 (Out-of-sample 검증)
-- ✅ 범용성 (다양한 시장 조건에서 작동)
-- ✅ 완전 자동화 (분석 → 개발 → 기록 사이클)
+# 서버 실행
+./bot.sh start live h4_conservative h4_short bear_only
+./bot.sh status
+./bot.sh logs
+./bot.sh stop
+```
 
-### 데이터
-
-- **기간**: 2017~2025년 (8년)
-- **레코드**: 4,174,195개 (489MB)
-- **타임프레임**: 11개 (1분 ~ 월봉)
-
----
-
-## 🗂️ 프로젝트 구조
+## 프로젝트 구조
 
 ```
-251015_봉봇/
-├── claude.md                    # 마스터 프로젝트 규칙
-├── readme.md                    # 이 파일
-├── requirements.txt             # Python 의존성
-├── upbit_bitcoin.db            # 원본 가격 데이터 (489MB)
-├── trading_results.db          # 통합 결과 DB
-│
+bitcoin-trading-bot/
+├── run.py                      # 진입점
+├── bot.sh                      # 서버 실행 스크립트
+├── trading/                    # 메인 트레이딩 엔진
+│   ├── engine.py               # DualPaperTradingEngine
+│   ├── adapters/               # 거래소 API 어댑터
+│   ├── modules/                # 전략 및 레짐 라우팅
+│   └── notifications/          # 텔레그램 알림
 ├── core/                       # 공통 라이브러리
-│   ├── data_loader.py         # 데이터 로드
-│   ├── kelly_calculator.py    # Kelly Criterion
-│   └── init_db.py             # DB 초기화
-│
-├── automation/                 # 자동화 시스템 (미구현)
-│   ├── orchestrator.py        # 메인 오케스트레이터
-│   ├── log_analyzer.py        # 로그 분석기
-│   └── strategy_generator.py  # 전략 생성기
-│
-├── strategies/                 # 전략 버전들
-│   ├── _plans/                # 계획 문서
-│   ├── _results/              # 결과 문서
-│   ├── _analysis/             # 통합 분석
-│   └── _templates/            # 문서 템플릿
-│
-├── web/                        # 관리자 대시보드 (미구현)
-│   ├── app.py
-│   └── templates/
-│
-└── upbit_history_db/          # Upbit 과거 데이터 DB 관리
+├── upbit_history_db/           # 데이터 수집/저장
+├── strategies/                 # 전략 설정/백테스트
+├── web/                        # 대시보드
+└── docs/                       # 문서
 ```
 
----
-
-## 🚀 빠른 시작
-
-### 1. 환경 설정
+## 데이터 수집
 
 ```bash
-# 가상환경 사용 (upbit_history_db/venv 공용)
-source upbit_history_db/venv/bin/activate
+# Upbit 데이터 (Go)
+cd upbit_history_db && ./upbit-collector
 
-# 의존성 설치 (TA-Lib 포함)
+# Binance 데이터 (Python)
+python upbit_history_db/binance_collector.py --start 2020-01-01
+```
+
+### 데이터 사용
+
+```python
+from core.data_loader import DataLoader
+
+with DataLoader() as loader:
+    # Upbit
+    df = loader.load_timeframe('minute240', start_date='2024-01-01')
+    # Binance
+    df = loader.load_binance('minute240', start_date='2024-01-01')
+```
+
+## 전략
+
+| 전략 | 거래소 | 레짐 | 설명 |
+|------|--------|------|------|
+| V35 Optimized | Upbit | BULL | 모멘텀 추종 |
+| H4 Conservative | Upbit | SIDEWAYS | 4시간봉 롱 |
+| H4 Short | Binance | BEAR | 4시간봉 숏 |
+
+## 환경 설정
+
+### .env
+
+```env
+UPBIT_ACCESS_KEY=your_key
+UPBIT_SECRET_KEY=your_secret
+BINANCE_API_KEY=your_key
+BINANCE_API_SECRET=your_secret
+TELEGRAM_BOT_TOKEN=your_token
+TELEGRAM_CHAT_ID=your_chat_id
+```
+
+### 의존성
+
+```bash
 # macOS
-brew install ta-lib
-pip install -r requirements.txt
+brew install ta-lib && pip install -r requirements.txt
 
-# Linux
-# TA-Lib 수동 설치 필요: https://ta-lib.org/install.html
+# Ubuntu
+sudo apt-get install build-essential libta-lib-dev && pip install -r requirements.txt
 ```
 
-### 2. DB 초기화
-
-```bash
-python core/init_db.py
-```
-
-### 3. 데이터 확인
-
-```python
-from core import DataLoader
-
-with DataLoader() as loader:
-    df = loader.load_timeframe("minute5", start_date="2024-01-01")
-    print(df.head())
-```
-
----
-
-## 🔄 개발 사이클
-
-이 프로젝트는 **완전 자동화된 반복 개발 시스템**을 목표로 합니다.
+## CLI 옵션
 
 ```
-┌─────────────────────────────────────────────┐
-│ 1. ANALYZE (분석)                           │
-│  - 기존 로그 분석                            │
-│  - 문제 파악 및 가설 수립                    │
-└─────────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────────┐
-│ 2. DEVELOP (개발)                           │
-│  - 전략 계획 수립                            │
-│  - 사용자 승인                               │
-│  - 구현 및 백테스팅                          │
-│  - 하이퍼파라미터 최적화                     │
-└─────────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────────┐
-│ 3. RECORD (기록)                            │
-│  - 결과 문서 작성                            │
-│  - claude.md 업데이트                        │
-│  - 대시보드 갱신                             │
-└─────────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────────┐
-│ 4. ITERATE (반복)                           │
-│  - 목표 달성? → 실시간 배포                 │
-│  - 미달? → 다음 버전 개발                   │
-└─────────────────────────────────────────────┘
+python run.py --help
+
+--mode {paper,live}           실행 모드 (기본: paper)
+--interval INT                실행 간격 분 (기본: 60)
+--sideways-policy {sideways_v2,h4_conservative,v35,hold}
+--binance-policy {short_v1,h4_short,hold}
+--binance-gate {bear_only,sideways_and_bear,always}
+--no-telegram                 텔레그램 비활성화
 ```
 
----
+## 문서
 
-## 📐 핵심 설정
-
-### 거래 조건
-
-```yaml
-초기_자본: 10,000,000원
-수수료: 0.05%
-슬리피지: 0.02%
-최소_주문: 10,000원
-```
-
-### Kelly Criterion
-
-- 모든 전략에 기본 적용
-- 승률 확보 후 투자 비율 자동 계산
-- Fractional Kelly (0.25) 사용
-
-### 평가 지표
-
-- Total Return (총 수익률)
-- Sharpe Ratio (위험 대비 수익)
-- Max Drawdown (MDD, 최대 낙폭)
-- Win Rate (승률)
-- Profit Factor (수익/손실 비율)
-
----
-
-## 📚 문서화 규칙
-
-### 파일 네이밍
-
-```
-계획: YYMMDD_HHMM.v0N.전략명.plan.md
-결과: YYMMDD_HHMM.v0N.전략명.result.md
-```
-
-### 문서 계층
-
-- **claude.md (루트)**: 범용적 학습 내용
-- **strategies/v0N/claude.md**: 전략 특화 내용
-
----
-
-## 🎯 전략 개발 철학
-
-### 반응형 전략 (가격 예측 X)
-
-- ❌ 미래 가격 예측
-- ✅ 현재 시장 흐름 대응
-
-> "가시거리가 짧은 자율주행처럼 시장 변화에 민감하게 반응"
-
-### 기술 스택
-
-- **규칙 기반**: TA-Lib (RSI, MACD, Bollinger Bands 등)
-- **머신러닝**: scikit-learn, TensorFlow
-- **강화학습**: Stable-Baselines3, Gymnasium
-- **LLM**: Ollama Gemma3:12b (최소 사용)
-
----
-
-## 📊 데이터베이스
-
-### upbit_bitcoin.db (원본)
-
-- **용도**: 공용 가격 데이터 (읽기 전용)
-- **타임프레임**: minute1, minute5, day, week, month 등
-
-### trading_results.db (결과)
-
-- **용도**: 모든 버전의 백테스팅 결과
-- **테이블**: strategies, backtest_results, trades, hyperparameters, realtime_performance
-
----
-
-## 🛠️ 사용 예제
-
-### 데이터 로드
-
-```python
-from core import DataLoader
-
-with DataLoader() as loader:
-    # 5분봉 데이터 로드
-    df = loader.load_timeframe("minute5", start_date="2024-01-01")
-
-    # 데이터 분할
-    train, val, test = loader.split_by_date(
-        df,
-        train_end="2023-12-31",
-        val_end="2024-06-30"
-    )
-```
-
-### Kelly Criterion 계산
-
-```python
-from core import KellyCalculator
-
-trades = [
-    {"profit_loss_pct": 5.2},
-    {"profit_loss_pct": -2.1},
-    # ...
-]
-
-kelly, stats = KellyCalculator.from_trades(trades)
-print(f"Quarter Kelly: {stats['kelly_quarter']:.1%}")
-```
-
----
-
-## 📌 다음 단계
-
-### 즉시 진행 가능
-
-1. ✅ 프로젝트 구조 완료
-2. ✅ claude.md 작성 완료
-3. ✅ trading_results.db 초기화 완료
-4. ✅ 문서 템플릿 완료
-5. ✅ 핵심 라이브러리 완료
-
-### 다음 작업
-
-1. ⏸️ automation/ 오케스트레이터 구현
-2. ⏸️ web/ 대시보드 구현
-3. ⏸️ **v01 전략 개발** (첫 번째 버전)
-
----
-
-## 📖 참고 문서
-
-- [claude.md](claude.md) - 프로젝트 전체 규칙
-- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - 데이터 수집 프로젝트 요약
-- [strategies/_templates/](strategies/_templates/) - 문서 템플릿
-
----
-
-## ⚙️ 시스템 요구사항
-
-- **Python**: 3.9+
-- **TA-Lib**: 0.4.28+
-- **SQLite**: 3.0+
-- **메모리**: 최소 4GB (백테스팅 시 8GB+ 권장)
-- **디스크**: 최소 2GB (데이터 + 결과)
-
----
-
-## 📄 라이센스
-
-이 프로젝트는 개인 학습 및 연구 목적으로 개발되었습니다.
-
----
-
-**최종 업데이트**: 2025-10-16
-**버전**: 1.0.0
-**작성자**: Claude
+- [배포 가이드](docs/DEPLOYMENT.md)
+- [엔진 설계](docs/TRADING_ENGINE_DESIGN.md)

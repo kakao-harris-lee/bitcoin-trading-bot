@@ -17,10 +17,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     # When imported as a package module
-    from .adapters.paper_account import PaperTradingAccount
-    from .notifications.telegram_notifier import TelegramNotifier
-    from .modules.regime_router import RegimeRouter, RegimeDecision
-    from .core.risk_controls import (
+    from .execution.paper_account import PaperTradingAccount
+    from .notification.telegram_notifier import TelegramNotifier
+    from .strategy.regime_router import RegimeRouter, RegimeDecision
+    from .risk.risk_controls import (
         RiskConfig,
         clamp_fraction,
         kill_switch_active,

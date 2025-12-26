@@ -16,7 +16,7 @@ from datetime import datetime
 
 # 프로젝트 루트 기준 기본 DB 경로
 _PROJECT_ROOT = Path(__file__).parent.parent
-_DB_DIR = _PROJECT_ROOT / "upbit_history_db"
+_DB_DIR = _PROJECT_ROOT / "data"
 _UPBIT_DB_PATH = _DB_DIR / "upbit_bitcoin.db"
 _BINANCE_DB_PATH = _DB_DIR / "binance_bitcoin.db"
 

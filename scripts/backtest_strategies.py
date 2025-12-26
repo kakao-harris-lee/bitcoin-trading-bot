@@ -22,12 +22,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.data_loader import DataLoader
 from core.backtester import Backtester
 
-from trading.modules.sideways_v1_strategy import SideWaysV1Strategy
-from trading.modules.strategies.sideways_v2 import SideWaysV2Strategy
+from trading.strategy.sideways_v1 import SideWaysV1Strategy
+from trading.strategy.sideways_v2 import SideWaysV2Strategy
 
-from trading.modules.regime_router import RegimeRouter as LiveRegimeRouter
-from trading.modules.regime_router import _calc_adx as _live_calc_adx
-from trading.modules.regime_router import _calc_mfi as _live_calc_mfi
+from trading.strategy.regime_router import RegimeRouter as LiveRegimeRouter
+from trading.strategy.regime_router import _calc_adx as _live_calc_adx
+from trading.strategy.regime_router import _calc_mfi as _live_calc_mfi
 
 
 def _market_state_to_regime(market_state: str) -> str:

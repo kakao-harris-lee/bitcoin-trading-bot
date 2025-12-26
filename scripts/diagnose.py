@@ -27,16 +27,16 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.data_loader import DataLoader
-from trading.modules.regime_router import RegimeRouter as LiveRegimeRouter
-from trading.modules.regime_router import _calc_adx as _live_calc_adx
-from trading.modules.regime_router import _calc_mfi as _live_calc_mfi
-from trading.scripts.backtest_operational_portfolio import (
+from trading.strategy.regime_router import RegimeRouter as LiveRegimeRouter
+from trading.strategy.regime_router import _calc_adx as _live_calc_adx
+from trading.strategy.regime_router import _calc_mfi as _live_calc_mfi
+from scripts.backtest import (
     BearOnlyShortWrapper,
     PortfolioBacktestConfig,
     ShortMarginBacktester,
     _to_daily_last,
 )
-from trading.scripts.backtest_v2_strategies import RegimeRouterLiveAdapter
+from scripts.backtest_strategies import RegimeRouterLiveAdapter
 from core.backtester import Backtester
 
 

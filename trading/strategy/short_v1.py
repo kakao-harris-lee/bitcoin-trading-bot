@@ -13,9 +13,9 @@ from typing import Optional, Dict, Any
 import pandas as pd
 import numpy as np
 
-from .base_strategy import BaseStrategy
+from .base import BaseStrategy
 from ..core.config import Config
-from ..core.message_types import Exchange, Direction
+from core.types import Exchange, Direction
 
 logger = logging.getLogger(__name__)
 

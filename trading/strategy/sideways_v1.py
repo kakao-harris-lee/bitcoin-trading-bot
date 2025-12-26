@@ -26,9 +26,9 @@ from typing import Dict, Optional
 import numpy as np
 import pandas as pd
 
-from .base_strategy import BaseStrategy
+from .base import BaseStrategy
 from ..core.config import Config
-from ..core.message_types import Exchange, Direction
+from core.types import Exchange, Direction
 
 logger = logging.getLogger(__name__)
 

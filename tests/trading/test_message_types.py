@@ -14,7 +14,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from trading.core.message_types import (
+from core.types import (
     Exchange, Direction, Action, OrderStatus, MarketState, EventType,
     OHLCV, PriceMessage, SignalMessage, OrderMessage, Position, PositionMessage,
     SystemEvent, create_message_id, current_timestamp,

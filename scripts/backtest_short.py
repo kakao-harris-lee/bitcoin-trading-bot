@@ -437,7 +437,7 @@ def run_backtest(
 
     # 전략 초기화
     if preset_cfg.get('strategy_impl') == 'optimized':
-        from trading.scripts.optimize_short_v1 import ShortV1StrategyOptimized  # type: ignore
+        from scripts.optimize import ShortV1StrategyOptimized  # type: ignore
         strategy = ShortV1StrategyOptimized(preset_cfg)
     else:
         strategy = ShortV1Strategy(preset_cfg)

@@ -11,7 +11,7 @@ from datetime import datetime
 
 from .config import Config
 from .redis_client import RedisClient
-from .message_types import SystemEvent, EventType, current_timestamp
+from core.types import SystemEvent, EventType, current_timestamp
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
-from trading.core.risk_controls import clamp_fraction, should_block_new_entries
+from trading.risk.risk_controls import clamp_fraction, should_block_new_entries
 
 
 def test_clamp_fraction_respects_cap():

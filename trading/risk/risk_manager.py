@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 from ..core.base_module import BaseModule
 from ..core.config import Config
-from ..core.message_types import (
+from core.types import (
     SignalMessage, OrderMessage, Exchange, Direction, Action,
     OrderStatus, EventType, create_message_id, current_timestamp
 )

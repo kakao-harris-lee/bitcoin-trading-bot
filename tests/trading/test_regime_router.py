@@ -1,6 +1,6 @@
 import pandas as pd
 
-from trading.scripts.backtest_v2_strategies import RegimeRouterV1Adapter
+from scripts.backtest_strategies import RegimeRouterV1Adapter
 
 
 def _make_min_df(n: int = 40) -> pd.DataFrame:

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from trading.scripts.optimize_short_v1 import (
+from scripts.optimize import (
     ShortV1StrategyOptimized,
     QuickBacktester,
     _normalize_config,

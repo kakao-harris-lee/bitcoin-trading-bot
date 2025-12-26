@@ -1,6 +1,6 @@
 import pandas as pd
 
-from trading.scripts.backtest_v2_strategies import RegimeRouterLiveAdapter
+from scripts.backtest_strategies import RegimeRouterLiveAdapter
 
 
 def _df(n: int = 80) -> pd.DataFrame:

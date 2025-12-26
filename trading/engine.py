@@ -30,10 +30,10 @@ try:
     )
 except ImportError:  # pragma: no cover
     # When executed as a script
-    from trading.adapters.paper_account import PaperTradingAccount
-    from trading.notifications.telegram_notifier import TelegramNotifier
-    from trading.modules.regime_router import RegimeRouter, RegimeDecision
-    from trading.core.risk_controls import (
+    from trading.execution.paper_account import PaperTradingAccount
+    from trading.notification.telegram_notifier import TelegramNotifier
+    from trading.strategy.regime_router import RegimeRouter, RegimeDecision
+    from trading.risk.risk_controls import (
         RiskConfig,
         clamp_fraction,
         kill_switch_active,
@@ -144,8 +144,8 @@ class DualPaperTradingEngine:
                     "(실주문 실행 방지)"
                 )
 
-            from trading.adapters.upbit_trader import UpbitTrader
-            from trading.adapters.binance_trader import BinanceFuturesTrader
+            from trading.adapters.upbit import UpbitTrader
+            from trading.adapters.binance import BinanceFuturesTrader
             from trading.adapters.live_adapters import UpbitLiveAccount, BinanceLiveAccount
 
             upbit_trader = UpbitTrader()
@@ -207,7 +207,7 @@ class DualPaperTradingEngine:
         self._telegram_cmd = None
         if self.telegram and self._telegram_commands_enabled:
             try:
-                from trading.notifications.telegram_commands import TelegramCommandHandler
+                from trading.notification.telegram_commands import TelegramCommandHandler
             except Exception:  # pragma: no cover
                 TelegramCommandHandler = None
 
@@ -543,7 +543,7 @@ class DualPaperTradingEngine:
     def _init_sideways_v2_strategy(self, strategy_config: Optional[Dict[str, Any]] = None):
         """Trading Engine V2 SideWays_v2 전략 인스턴스 생성 (paper/live에서 직접 사용)."""
         try:
-            from trading.modules.strategies.sideways_v2 import SideWaysV2Strategy
+            from trading.strategy.sideways_v2 import SideWaysV2Strategy
 
             strategy = SideWaysV2Strategy(config=None, strategy_config=(strategy_config or None))
             print("✅ SideWays_v2 전략 초기화 완료")
@@ -555,7 +555,7 @@ class DualPaperTradingEngine:
     def _init_h4_strategy(self):
         """H4 Conservative 전략 초기화 (Sideways 레짐 대응, 4시간봉)."""
         try:
-            from trading.modules.strategies.h4_conservative import H4ConservativeStrategy
+            from trading.strategy.h4_conservative import H4ConservativeStrategy
 
             config = {
                 'position_fraction': 0.5,  # 50% 자본 배분
@@ -576,7 +576,7 @@ class DualPaperTradingEngine:
         백테스트: Train +7.97%, Validation +15.53% (88% 승률)
         """
         try:
-            from trading.modules.strategies.h4_short import H4ShortStrategy
+            from trading.strategy.h4_short import H4ShortStrategy
 
             config = {
                 'position_fraction': 0.5,  # 50% 자본 배분

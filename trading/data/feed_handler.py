@@ -13,7 +13,7 @@ import aiohttp
 
 from ..core.base_module import BaseModule
 from ..core.config import Config
-from ..core.message_types import (
+from core.types import (
     PriceMessage, OHLCV, Exchange, EventType, current_timestamp
 )
 

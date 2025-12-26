@@ -17,9 +17,9 @@ from typing import Dict, Optional
 import numpy as np
 import pandas as pd
 
-from trading.modules.base_strategy import BaseStrategy
+from trading.strategy.base import BaseStrategy
 from trading.core.config import Config
-from trading.core.message_types import Exchange, Direction
+from core.types import Exchange, Direction
 
 logger = logging.getLogger(__name__)
 

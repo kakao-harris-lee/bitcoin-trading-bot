@@ -19,14 +19,14 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from trading.modules.execution_manager import (
+from trading.execution.execution_manager import (
     ExecutionManager, UpbitAdapter, BinanceAdapter,
     OrderTracker, OrderState
 )
-from trading.modules.position_manager import (
+from trading.execution.position_manager import (
     PositionManager, PositionEntry, ClosedPosition
 )
-from trading.core.message_types import (
+from core.types import (
     Exchange, Direction, Action, OrderMessage, OrderStatus
 )
 

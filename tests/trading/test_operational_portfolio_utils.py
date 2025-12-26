@@ -1,6 +1,6 @@
 import pandas as pd
 
-from trading.scripts.backtest_operational_portfolio import _regime_lookup
+from scripts.backtest import _regime_lookup
 
 
 def test_regime_lookup_prev_day_fallback():

@@ -18,13 +18,13 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from trading.modules.feed_handler import (
+from trading.data.feed_handler import (
     FeedHandler,
     UpbitWebSocket,
     BinanceWebSocket,
     WebSocketHandler,
 )
-from trading.core.message_types import (
+from core.types import (
     PriceMessage, OHLCV, Exchange
 )
 from trading.core.config import Config, TradingConfig

@@ -1,7 +1,7 @@
 import pandas as pd
 
-from trading.modules.regime_router import RegimeDecision
-from trading.scripts.backtest_v2_strategies import RegimeRouterLiveAdapter
+from trading.strategy.regime_router import RegimeDecision
+from scripts.backtest_strategies import RegimeRouterLiveAdapter
 
 
 def _df(n: int = 80) -> pd.DataFrame:

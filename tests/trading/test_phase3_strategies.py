@@ -21,12 +21,12 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # 테스트 대상 모듈
-from trading.modules.v35_long_strategy import (
+from trading.strategy.v35_long import (
     V35LongStrategy, MarketClassifier, DynamicExitManager
 )
-from trading.modules.short_v1_strategy import ShortV1Strategy
-from trading.modules.risk_manager import RiskManager, RiskState
-from trading.core.message_types import (
+from trading.strategy.short_v1 import ShortV1Strategy
+from trading.risk.risk_manager import RiskManager, RiskState
+from core.types import (
     PriceMessage, SignalMessage, Exchange, Direction, Action, EventType
 )
 from trading.core.config import Config

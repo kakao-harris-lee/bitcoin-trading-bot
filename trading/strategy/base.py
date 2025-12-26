@@ -12,7 +12,7 @@ import pandas as pd
 
 from ..core.base_module import BaseModule
 from ..core.config import Config
-from ..core.message_types import (
+from core.types import (
     PriceMessage, SignalMessage, Exchange, Direction, Action,
     MarketState, create_message_id, current_timestamp
 )

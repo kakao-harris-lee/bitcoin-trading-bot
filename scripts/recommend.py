@@ -27,7 +27,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.data_loader import DataLoader
-from trading.scripts.backtest_v2_strategies import (
+from scripts.backtest_strategies import (
     V35StrategyAdapter,
     _market_state_to_regime,
 )

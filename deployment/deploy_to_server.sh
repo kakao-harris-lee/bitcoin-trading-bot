@@ -2,7 +2,7 @@
 
 ################################################################################
 # Bitcoin Trading Bot - 서버 배포 스크립트
-# 새로운 서버: 49.247.171.64
+# 새로운 서버: chsvr.duckdns.org
 # 사용법: ./deploy_to_server.sh [옵션]
 ################################################################################
 
@@ -17,7 +17,7 @@ NC='\033[0m'
 
 # 서버 정보
 SERVER_USER="deploy"
-SERVER_HOST="49.247.171.64"
+SERVER_HOST="chsvr.duckdns.org"
 SERVER_PATH="/home/deploy/bitcoin-trading-bot"
 SSH_CONN="${SERVER_USER}@${SERVER_HOST}"
 

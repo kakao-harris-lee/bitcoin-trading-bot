@@ -2,8 +2,8 @@
 
 ## Server Info
 
-- **Server**: 49.247.171.64
-- **SSH**: `ssh deploy@49.247.171.64`
+- **Server**: chsvr.duckdns.org
+- **SSH**: `ssh deploy@chsvr.duckdns.org`
 - **Path**: `/home/deploy/bitcoin-trading-bot`
 
 ## Quick Start
@@ -20,7 +20,7 @@
 
 ```bash
 # SSH to server
-ssh deploy@49.247.171.64
+ssh deploy@chsvr.duckdns.org
 
 # Start bot
 ./bot.sh start live h4_conservative h4_short bear_only

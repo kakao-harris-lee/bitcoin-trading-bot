@@ -716,7 +716,7 @@ POST /api/commands/stop    긴급 정지
 
 ### Phase 1: 인프라 (1주) ✅ 완료
 
-- [x] Redis 서버 설정 (49.247.171.64, Redis 7.0.15)
+- [x] Redis 서버 설정 (chsvr.duckdns.org, Redis 7.0.15)
 - [x] Stream/Consumer Group 생성 (7 Streams, 15 Consumer Groups)
 - [x] Core 모듈 기본 구조 생성 (trading/core/)
 

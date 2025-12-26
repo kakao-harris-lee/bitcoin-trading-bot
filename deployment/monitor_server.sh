@@ -6,7 +6,7 @@
 ################################################################################
 
 SERVER_USER="deploy"
-SERVER_HOST="49.247.171.64"
+SERVER_HOST="chsvr.duckdns.org"
 SERVER_PATH="/home/deploy/bitcoin-trading-bot"
 SSH_CONN="${SERVER_USER}@${SERVER_HOST}"
 

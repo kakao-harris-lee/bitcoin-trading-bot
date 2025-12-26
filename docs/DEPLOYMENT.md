@@ -46,17 +46,20 @@
 ### 1. API 키 발급
 
 #### 업비트 (필수)
+
 1. 업비트 웹사이트 로그인
 2. 마이페이지 > Open API 관리
 3. API 키 발급 (자산조회, 주문조회, 주문하기 권한)
 
 #### 텔레그램 (필수)
+
 1. 텔레그램에서 @BotFather 검색
 2. `/newbot` 명령어로 봇 생성
 3. `python _archive/live_trading_legacy/get_chat_id.py`로 Chat ID 확인
 
 #### 바이낸스 (선택, 헤지용)
-1. https://www.binance.com > API Management
+
+1. <https://www.binance.com> > API Management
 2. Spot & Margin Trading, Futures 권한 활성화
 
 ### 2. .env 파일 생성
@@ -95,7 +98,7 @@ REDIS_PASSWORD=your_redis_password    # 선택
 | 항목 | 값 |
 |------|-----|
 | **호스트** | chl_svr |
-| **IP** | 49.247.171.64 |
+| **IP** | chsvr.duckdns.org |
 | **계정** | deploy |
 | **프로젝트 경로** | ~/project/bitcoin-trading-bot |
 | **Python 환경** | .venv (Python 3.12) |
@@ -104,7 +107,7 @@ REDIS_PASSWORD=your_redis_password    # 선택
 
 ```bash
 # 로컬에서 실행 (SSH 접속)
-ssh deploy@49.247.171.64
+ssh deploy@chsvr.duckdns.org
 
 # 서버에서 git pull
 cd ~/project/bitcoin-trading-bot
@@ -130,6 +133,7 @@ pip install -r requirements.txt
 ### 실행 방법
 
 #### Paper Trading (테스트)
+
 ```bash
 cd ~/project/bitcoin-trading-bot
 source .venv/bin/activate
@@ -137,6 +141,7 @@ python run.py --mode paper --interval 5
 ```
 
 #### Live Trading (실거래)
+
 ```bash
 # ENABLE_LIVE_TRADING=1 환경변수 필수
 ENABLE_LIVE_TRADING=1 python run.py --mode live --interval 5
@@ -221,11 +226,13 @@ docker compose version
 ### Docker 설치
 
 #### macOS
+
 ```bash
 brew install --cask docker
 ```
 
 #### Ubuntu/Debian
+
 ```bash
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
@@ -342,6 +349,7 @@ sudo systemctl restart bitcoin-trading-bot
 **원인**: VPS가 바이낸스 제한 지역에 있음
 
 **해결**:
+
 1. VPS 위치 확인 (바이낸스 허용 지역인지)
 2. 허용 지역으로 VPS 이전 (서울, 도쿄, 싱가포르 등)
 3. 또는 바이낸스 없이 업비트만 운영

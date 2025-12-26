@@ -5,7 +5,7 @@ set -euo pipefail
 # - Does NOT overwrite server .env by default (secrets stay on server)
 # - Excludes large local artifacts (DB/logs/.git)
 
-SERVER_HOST=${SERVER_HOST:-"49.247.171.64"}
+SERVER_HOST=${SERVER_HOST:-"chsvr.duckdns.org"}
 SERVER_USER=${SERVER_USER:-"deploy"}
 SERVER_DIR=${SERVER_DIR:-"/home/deploy/bitcoin-trading-bot"}
 SERVICES=${SERVICES:-"paper-trading dashboard"}
@@ -20,7 +20,7 @@ usage() {
 Usage: $(basename "$0") [--no-cache] [--no-logs]
 
 Environment overrides:
-  SERVER_HOST (default: 49.247.171.64)
+  SERVER_HOST (default: chsvr.duckdns.org)
   SERVER_USER (default: deploy)
   SERVER_DIR  (default: ~/bitcoin-trading-bot)
   SERVICES    (default: "paper-trading dashboard")

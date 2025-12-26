@@ -24,48 +24,72 @@ bitcoin-trading-bot/
 ├── run.py                          # Entry point
 ├── trading/                        # Main trading engine
 │   ├── engine.py                   # DualPaperTradingEngine
-│   ├── core/                       # Infrastructure (redis, config, risk)
+│   ├── data/                       # Data feeds (feed_handler)
+│   ├── strategy/                   # All strategies + classification
+│   │   ├── base.py                 # BaseStrategy abstract class
+│   │   ├── regime_router.py        # Market regime classification
+│   │   ├── v35_long.py             # V35 long strategy
+│   │   ├── short_v1.py             # Binance short strategy
+│   │   ├── sideways_v1.py          # Sideways strategy v1
+│   │   ├── sideways_v2.py          # Sideways strategy v2
+│   │   ├── h4_conservative.py      # H4 conservative
+│   │   └── h4_short.py             # H4 short
+│   ├── execution/                  # Order execution, positions
+│   │   ├── execution_manager.py
+│   │   ├── position_manager.py
+│   │   └── paper_account.py        # Paper trading simulator
+│   ├── risk/                       # Risk management
+│   │   ├── risk_manager.py
+│   │   ├── risk_controls.py        # Kill switches, limits
+│   │   └── trade_logger.py
+│   ├── notification/               # Telegram integration
 │   ├── adapters/                   # Exchange adapters (Upbit, Binance)
-│   ├── modules/                    # Execution modules & strategies
-│   └── notifications/              # Telegram integration
-├── strategies/                     # Strategy configs & backtests
-│   ├── v35_optimized/              # Current production strategy
-│   ├── SHORT_V1/                   # Binance short strategy
-│   └── _plans/                     # Strategy plan documents
-├── core/                           # Shared libs (data_loader, backtester)
+│   └── core/                       # Config, Redis, base classes
+├── core/                           # Shared libraries
+│   ├── data_loader.py              # Historical data loading
+│   ├── backtester.py               # Backtesting engine
+│   ├── market_analyzer.py          # Market indicators
+│   └── types.py                    # Shared data types
+├── config/                         # All configuration files
+│   ├── strategies/                 # Strategy parameters
+│   │   ├── v35_long.json
+│   │   └── short_v1.json
+│   └── tuned/                      # Tuned operational settings
+│       └── selected_candidate.json
+├── scripts/                        # CLI tools
+│   ├── backtest.py                 # Unified backtesting
+│   ├── optimize.py                 # Parameter optimization
+│   ├── collect_data.py             # Data collection
+│   └── tune_router.py              # Router tuning
+├── data/                           # Database files
+│   ├── upbit_bitcoin.db            # Market data
+│   └── binance_bitcoin.db          # Binance data
+├── tests/                          # Test suite
 ├── web/                            # Dashboard (Flask)
-├── analysis/                       # Tuned settings (selected_candidate.json)
+├── upbit_history_db/               # Data collector tools
 └── docs/                           # Documentation
+    └── plans/                      # Design & plan documents
 ```
 
 ## Key Files
 
 - `run.py` - Single entry point for all trading modes
 - `trading/engine.py` - Main engine class
-- `strategies/v35_optimized/` - Current production strategy
-- `analysis/selected_candidate.json` - Tuned operational settings
-- `upbit_bitcoin.db` - Market data (read-only)
-- `trading_results.db` - Backtest/trading results
+- `trading/strategy/` - All strategy implementations
+- `config/strategies/` - Strategy configuration files
+- `config/tuned/selected_candidate.json` - Tuned operational settings
+- `data/upbit_bitcoin.db` - Market data (read-only)
 
 ## Development Rules
 
 ### Strategy Development Workflow
 
-1. Create plan: `strategies/_plans/{DATE}.v{NN}.{name}.plan.md`
+1. Create plan: `docs/plans/{DATE}-{name}-design.md`
 2. Wait for user approval
-3. Implement in `strategies/v{NN}_{name}/`
-4. Run backtesting
-5. Document results
-
-### Strategy Directory Structure
-
-```
-strategies/v{NN}_{name}/
-├── config.json      # Hyperparameters
-├── strategy.py      # Strategy logic
-├── backtest.py      # Backtesting script
-└── results.json     # Results (auto-generated)
-```
+3. Implement in `trading/strategy/{name}.py`
+4. Add config in `config/strategies/{name}.json`
+5. Run backtesting
+6. Document results
 
 ### Backtesting Standards
 
@@ -77,7 +101,7 @@ strategies/v{NN}_{name}/
 
 ```
 Cost per trade = 0.05% (entry) + 0.05% (exit) + 0.04% (slippage) = 0.14%
-Minimum profit target: 1.4% (10× fees)
+Minimum profit target: 1.4% (10x fees)
 ```
 
 ## Do's and Don'ts
@@ -92,7 +116,7 @@ Minimum profit target: 1.4% (10× fees)
 
 **Don't:**
 
-- Predictive strategies (e.g., RSI < 30 → buy)
+- Predictive strategies (e.g., RSI < 30 -> buy)
 - Complex indicator combos (3+ indicators)
 - Over-optimisation (overfitting)
 - Split trading (fee explosion)

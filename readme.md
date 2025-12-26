@@ -26,12 +26,26 @@ bitcoin-trading-bot/
 ├── bot.sh                      # 서버 실행 스크립트
 ├── trading/                    # 메인 트레이딩 엔진
 │   ├── engine.py               # DualPaperTradingEngine
-│   ├── adapters/               # 거래소 API 어댑터
-│   ├── modules/                # 전략 및 레짐 라우팅
-│   └── notifications/          # 텔레그램 알림
+│   ├── data/                   # 데이터 피드
+│   ├── strategy/               # 모든 전략 + 레짐 분류
+│   ├── execution/              # 주문 실행, 포지션 관리
+│   ├── risk/                   # 리스크 관리
+│   ├── notification/           # 텔레그램 알림
+│   └── adapters/               # 거래소 API 어댑터
 ├── core/                       # 공통 라이브러리
-├── upbit_history_db/           # 데이터 수집/저장
-├── strategies/                 # 전략 설정/백테스트
+│   ├── data_loader.py          # 히스토리 데이터 로딩
+│   ├── backtester.py           # 백테스트 엔진
+│   └── types.py                # 공유 데이터 타입
+├── config/                     # 설정 파일
+│   ├── strategies/             # 전략 파라미터
+│   └── tuned/                  # 튜닝된 설정
+├── scripts/                    # CLI 도구
+│   ├── backtest.py             # 백테스트
+│   ├── optimize.py             # 파라미터 최적화
+│   └── collect_data.py         # 데이터 수집
+├── data/                       # 데이터베이스 파일
+├── upbit_history_db/           # 데이터 수집 도구
+├── tests/                      # 테스트
 ├── web/                        # 대시보드
 └── docs/                       # 문서
 ```
@@ -60,11 +74,13 @@ with DataLoader() as loader:
 
 ## 전략
 
-| 전략 | 거래소 | 레짐 | 설명 |
+| 전략 | 거래소 | 레짐 | 파일 |
 |------|--------|------|------|
-| V35 Optimized | Upbit | BULL | 모멘텀 추종 |
-| H4 Conservative | Upbit | SIDEWAYS | 4시간봉 롱 |
-| H4 Short | Binance | BEAR | 4시간봉 숏 |
+| V35 Long | Upbit | BULL | `trading/strategy/v35_long.py` |
+| Sideways V2 | Upbit | SIDEWAYS | `trading/strategy/sideways_v2.py` |
+| H4 Conservative | Upbit | SIDEWAYS | `trading/strategy/h4_conservative.py` |
+| Short V1 | Binance | BEAR | `trading/strategy/short_v1.py` |
+| H4 Short | Binance | BEAR | `trading/strategy/h4_short.py` |
 
 ## 환경 설정
 

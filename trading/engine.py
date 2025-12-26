@@ -119,6 +119,7 @@ class DualPaperTradingEngine:
 
         # Simple v2 engine log files (for web dashboard)
         self._v2_trades: Dict[str, list] = {"upbit": [], "binance": []}
+        self._signal_history: Dict[str, list] = {"upbit": [], "binance": []}
         self._v2_log_dir = Path(os.path.dirname(os.path.dirname(__file__))) / "logs"
         self._v2_log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -280,6 +281,43 @@ class DualPaperTradingEngine:
         if len(self._v2_trades[exchange]) > 200:
             self._v2_trades[exchange] = self._v2_trades[exchange][-200:]
 
+    def _record_signal(self, exchange: str, signal: Dict[str, Any], strategy: str,
+                       indicators: Optional[Dict[str, Any]] = None) -> None:
+        """Record strategy signal for dashboard display."""
+        if exchange not in self._signal_history:
+            return
+        record = {
+            "timestamp": datetime.now().isoformat(),
+            "strategy": strategy,
+            "action": signal.get("action", "hold"),
+            "reason": signal.get("reason", ""),
+            "regime": self._last_regime_decision.regime if self._last_regime_decision else None,
+            "market_state": self._last_regime_decision.market_state if self._last_regime_decision else None,
+            "indicators": indicators or {},
+        }
+        self._signal_history[exchange].append(record)
+        # keep last 100
+        if len(self._signal_history[exchange]) > 100:
+            self._signal_history[exchange] = self._signal_history[exchange][-100:]
+
+    def _extract_indicators(self, df, columns: list) -> Dict[str, Any]:
+        """Extract indicator values from last row of dataframe."""
+        if df is None or len(df) == 0:
+            return {}
+        last_row = df.iloc[-1]
+        result = {}
+        for col in columns:
+            if col in df.columns:
+                val = last_row[col]
+                # Convert numpy types to Python types
+                if hasattr(val, 'item'):
+                    val = val.item()
+                if isinstance(val, float):
+                    result[col] = round(val, 2)
+                else:
+                    result[col] = val
+        return result
+
     def _write_v2_engine_logs(self, prices: Dict[str, float]) -> None:
         """Write minimal engine logs for web dashboard consumption."""
         try:
@@ -305,6 +343,7 @@ class DualPaperTradingEngine:
                 "regime": regime_info["regime"],
                 "market_state": regime_info["market_state"],
                 "trades": self._v2_trades["upbit"],
+                "signals": self._signal_history["upbit"][-50:],
                 "statistics": upbit_stats,
                 "generated_at": datetime.now().isoformat(),
             }
@@ -326,6 +365,7 @@ class DualPaperTradingEngine:
                 "regime": regime_info["regime"],
                 "market_state": regime_info["market_state"],
                 "trades": self._v2_trades["binance"],
+                "signals": self._signal_history["binance"][-50:],
                 "statistics": binance_stats,
                 "generated_at": datetime.now().isoformat(),
             }
@@ -682,6 +722,7 @@ class DualPaperTradingEngine:
                     "action": "hold",
                     "reason": "V35_NO_SIGNAL",
                 }
+                indicators = self._extract_indicators(df, ["rsi", "mfi", "adx", "close"])
             elif strategy_name == "sideways_v2":
                 with DataLoader() as loader:
                     df = loader.load_timeframe('minute240', start_date='2024-01-01')
@@ -691,6 +732,7 @@ class DualPaperTradingEngine:
                     "action": "hold",
                     "reason": "SIDEWAYS_V2_NO_SIGNAL",
                 }
+                indicators = self._extract_indicators(df, ["rsi", "bb_upper", "bb_lower", "close"])
             elif strategy_name == "h4_conservative":
                 with DataLoader() as loader:
                     df = loader.load_timeframe('minute240', start_date='2024-01-01')
@@ -700,12 +742,16 @@ class DualPaperTradingEngine:
                     "action": "hold",
                     "reason": "H4_NO_SIGNAL",
                 }
+                indicators = self._extract_indicators(df, ["rsi", "stoch_k", "stoch_d", "close"])
             else:
                 print(f"⚠️  알 수 없는 Upbit 전략: {strategy_name}")
                 return
 
             # 신호 로그 출력
             print(f"[Upbit:{strategy_name}] 신호: {signal['action']} | 사유: {signal.get('reason', 'N/A')}")
+
+            # Record signal for dashboard
+            self._record_signal("upbit", signal, strategy_name, indicators)
 
             # Apply multipliers (mirror backtest scaling behavior)
             if signal.get("action") in {"buy", "sell"}:
@@ -1029,6 +1075,10 @@ class DualPaperTradingEngine:
             signal = self.h4_short_strategy.generate_signal(df, len(df) - 1) or {'action': 'hold'}
 
             print(f"[Binance H4] 신호: {signal['action']} | 사유: {signal.get('reason', 'N/A')}")
+
+            # Record signal for dashboard
+            indicators = self._extract_indicators(df, ["rsi", "stoch_k", "stoch_d", "close"])
+            self._record_signal("binance", signal, "h4_short", indicators)
 
             cash, _ = self.binance_account.get_balance()
 

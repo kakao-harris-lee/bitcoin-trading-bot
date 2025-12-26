@@ -9,126 +9,121 @@
 <body>
     <div class="container">
         <header>
-            <h1>🤖 Bitcoin Trading Bot</h1>
-            <p class="subtitle">Dual Exchange Live Dashboard</p>
-            <div class="last-update">
-                Last update: <span id="last-update-time">-</span>
+            <h1>Bitcoin Trading Bot</h1>
+            <div class="header-info">
+                <span class="last-update">Last update: <span id="last-update-time">-</span></span>
+                <span class="kill-switch">
+                    <span id="kill-switch-indicator" class="indicator off"></span>
+                    <span id="kill-switch-text">Checking...</span>
+                </span>
             </div>
         </header>
 
-        <!-- Kill Switch Status -->
-        <section class="kill-switch-section">
-            <h2>🛑 Kill Switch</h2>
-            <div class="kill-switch-status">
-                <span id="kill-switch-indicator" class="indicator off">●</span>
-                <span id="kill-switch-text">Checking...</span>
-            </div>
-        </section>
-
         <!-- Market Regime Section -->
         <section class="regime-section">
-            <h2>🌐 시장 상태</h2>
             <div class="regime-display">
-                <span id="market-regime-icon" class="regime-icon">⏳</span>
+                <span id="market-regime-icon" class="regime-icon">-</span>
                 <div class="regime-info">
-                    <span id="market-regime-label" class="regime-label">확인 중...</span>
+                    <span id="market-regime-label" class="regime-label">Loading...</span>
                     <span id="market-state-detail" class="market-state-detail">-</span>
                 </div>
             </div>
         </section>
 
-        <!-- Exchange Cards -->
+        <!-- Exchange Grid -->
         <div class="exchange-grid">
-            <!-- Upbit Card -->
-            <section class="exchange-card upbit">
-                <div class="card-header">
-                    <h2>🇰🇷 Upbit (Long)</h2>
-                    <span id="upbit-status" class="status-badge">-</span>
-                </div>
-                <div class="card-body">
-                    <div class="info-row">
-                        <span class="label">Strategy</span>
-                        <span id="upbit-strategy" class="value">-</span>
+            <!-- Upbit Column -->
+            <div class="exchange-column">
+                <section class="exchange-card upbit">
+                    <div class="card-header">
+                        <h2>Upbit (Long)</h2>
+                        <span id="upbit-status" class="status-badge">-</span>
                     </div>
-                    <div class="info-row">
-                        <span class="label">Regime</span>
-                        <span id="upbit-regime" class="value regime-badge">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Position</span>
-                        <span id="upbit-position" class="value">-</span>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="stats-grid">
-                        <div class="stat">
-                            <span class="stat-label">Initial</span>
-                            <span id="upbit-initial" class="stat-value">-</span>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <span class="label">Strategy</span>
+                            <span id="upbit-strategy" class="value">-</span>
                         </div>
-                        <div class="stat">
-                            <span class="stat-label">Current</span>
-                            <span id="upbit-current" class="stat-value">-</span>
+                        <div class="info-row">
+                            <span class="label">Position</span>
+                            <span id="upbit-position" class="value">-</span>
                         </div>
-                        <div class="stat">
-                            <span class="stat-label">Return</span>
-                            <span id="upbit-return" class="stat-value">-</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Trades</span>
-                            <span id="upbit-trades" class="stat-value">-</span>
+                        <div class="stats-row">
+                            <div class="stat">
+                                <span class="stat-label">Cash</span>
+                                <span id="upbit-cash" class="stat-value">-</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Return</span>
+                                <span id="upbit-return" class="stat-value">-</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            <!-- Binance Card -->
-            <section class="exchange-card binance">
-                <div class="card-header">
-                    <h2>🌐 Binance (Short)</h2>
-                    <span id="binance-status" class="status-badge">-</span>
-                </div>
-                <div class="card-body">
-                    <div class="info-row">
-                        <span class="label">Strategy</span>
-                        <span id="binance-strategy" class="value">-</span>
+                <section class="signals-section">
+                    <h3>Recent Signals</h3>
+                    <div id="upbit-signals" class="signals-list">
+                        <p class="loading">Loading...</p>
                     </div>
-                    <div class="info-row">
-                        <span class="label">Position</span>
-                        <span id="binance-position" class="value">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Entry Price</span>
-                        <span id="binance-entry" class="value">-</span>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="stats-grid">
-                        <div class="stat">
-                            <span class="stat-label">Initial</span>
-                            <span id="binance-initial" class="stat-value">-</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Current</span>
-                            <span id="binance-current" class="stat-value">-</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Return</span>
-                            <span id="binance-return" class="stat-value">-</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Leverage</span>
-                            <span id="binance-leverage" class="stat-value">-</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
+                </section>
 
-        <!-- Recent Trades -->
-        <section class="trades-section">
-            <h2>📜 Recent Activity</h2>
-            <div id="trades-container">
-                <p class="loading">Loading...</p>
+                <section class="trades-section">
+                    <h3>Trade History</h3>
+                    <div id="upbit-trades" class="trades-list">
+                        <p class="loading">Loading...</p>
+                    </div>
+                </section>
             </div>
-        </section>
+
+            <!-- Binance Column -->
+            <div class="exchange-column">
+                <section class="exchange-card binance">
+                    <div class="card-header">
+                        <h2>Binance (Short)</h2>
+                        <span id="binance-status" class="status-badge">-</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <span class="label">Strategy</span>
+                            <span id="binance-strategy" class="value">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Position</span>
+                            <span id="binance-position" class="value">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Entry Price</span>
+                            <span id="binance-entry" class="value">-</span>
+                        </div>
+                        <div class="stats-row">
+                            <div class="stat">
+                                <span class="stat-label">Cash</span>
+                                <span id="binance-cash" class="stat-value">-</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Return</span>
+                                <span id="binance-return" class="stat-value">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="signals-section">
+                    <h3>Recent Signals</h3>
+                    <div id="binance-signals" class="signals-list">
+                        <p class="loading">Loading...</p>
+                    </div>
+                </section>
+
+                <section class="trades-section">
+                    <h3>Trade History</h3>
+                    <div id="binance-trades" class="trades-list">
+                        <p class="loading">Loading...</p>
+                    </div>
+                </section>
+            </div>
+        </div>
 
         <footer>
             <p>Auto-refresh every 30 seconds</p>

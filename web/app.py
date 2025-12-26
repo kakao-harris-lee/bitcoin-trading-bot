@@ -26,7 +26,7 @@ def _detect_project_root() -> Path:
     """Best-effort project root detection for local run and Docker."""
     # Local run: repo_root/web/app.py
     local_root = BASE_DIR.parent
-    if (local_root / "logs").exists() or (local_root / "analysis").exists():
+    if (local_root / "logs").exists() or (local_root / "trading").exists():
         return local_root
 
     # Docker run (default workdir=/app). We mount volumes under /app.
@@ -37,7 +37,7 @@ def _detect_project_root() -> Path:
 PROJECT_ROOT = _detect_project_root()
 LOG_DIR = Path(os.getenv("LOG_DIR", str(PROJECT_ROOT / "logs")))
 KILL_SWITCH_FILE = Path(
-    os.getenv("KILL_SWITCH_FILE", str(PROJECT_ROOT / "analysis" / "KILL_SWITCH"))
+    os.getenv("KILL_SWITCH_FILE", str(PROJECT_ROOT / "data" / "KILL_SWITCH"))
 )
 
 
@@ -236,6 +236,27 @@ def get_trades(exchange: str):
         'exchange': exchange,
         'trades': recent_trades,
         'total_count': len(trades)
+    })
+
+
+@app.route("/api/signals/<exchange>")
+def get_signals(exchange: str):
+    """전략 신호 기록 API"""
+
+    log = load_trading_log(exchange)
+
+    if not log:
+        return jsonify({'error': 'No data'}), 404
+
+    signals = log.get('signals', [])
+
+    # 최근 50개
+    recent_signals = signals[-50:] if len(signals) > 50 else signals
+
+    return jsonify({
+        'exchange': exchange,
+        'signals': recent_signals,
+        'total_count': len(signals)
     })
 
 

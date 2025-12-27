@@ -22,6 +22,18 @@ BASE_DIR = Path(__file__).parent
 DASHBOARD_SECRET_PATH = os.getenv("DASHBOARD_SECRET_PATH") or secrets.token_urlsafe(16)
 
 
+def load_allocation_config() -> dict:
+    """Load strategy allocation config."""
+    config_path = BASE_DIR.parent / 'config' / 'strategies' / 'allocation.json'
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
 def _detect_project_root() -> Path:
     """Best-effort project root detection for local run and Docker."""
     # Local run: repo_root/web/app.py
@@ -140,6 +152,24 @@ def get_status():
 
     upbit_log = load_trading_log('upbit')
     binance_log = load_trading_log('binance')
+    allocation = load_allocation_config()
+
+    # Extract last signal for each exchange
+    upbit_signals = upbit_log.get('signals', []) if upbit_log else []
+    binance_signals = binance_log.get('signals', []) if binance_log else []
+    upbit_last_signal = upbit_signals[-1] if upbit_signals else None
+    binance_last_signal = binance_signals[-1] if binance_signals else None
+
+    # Build per-strategy info for Upbit
+    upbit_alloc = allocation.get('upbit', {})
+    upbit_strategies = {}
+    for strat_name in ['v35', 'va02']:
+        strat_config = upbit_alloc.get(strat_name, {})
+        upbit_strategies[strat_name] = {
+            'enabled': strat_config.get('enabled', False),
+            'ratio': strat_config.get('ratio', 0),
+            'regimes': strat_config.get('regimes', []),
+        }
 
     # 상태 구성
     status = {
@@ -155,19 +185,24 @@ def get_status():
             'regime': upbit_log.get('regime', '-') if upbit_log else '-',
             'market_state': upbit_log.get('market_state', '-') if upbit_log else '-',
             'position': None,
-            'statistics': None
+            'statistics': None,
+            'strategies': upbit_strategies,
+            'last_signal': upbit_last_signal,
         },
         'binance': {
             'enabled': binance_log is not None,
             'exchange': 'binance',
             'strategy': binance_log.get('strategy', 'none') if binance_log else '-',
             'position': None,
-            'statistics': None
+            'statistics': None,
+            'last_signal': binance_last_signal,
         }
     }
 
     if upbit_log:
         status['upbit']['statistics'] = upbit_log.get('statistics', {})
+        status['upbit']['current_cash'] = upbit_log.get('current_cash', 0)
+        status['upbit']['total_value'] = upbit_log.get('total_value', 0)
         btc_balance = upbit_log.get('btc_balance', 0) or 0
         if btc_balance > 0:
             status['upbit']['position'] = {
@@ -177,6 +212,7 @@ def get_status():
 
     if binance_log:
         status['binance']['statistics'] = binance_log.get('statistics', {})
+        status['binance']['current_cash'] = binance_log.get('current_cash', 0)
         position_size = binance_log.get('position_size', 0) or 0
         if position_size > 0:
             status['binance']['position'] = {

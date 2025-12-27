@@ -244,6 +244,97 @@ header h1 {
     color: #e74c3c;
 }
 
+/* Per-Strategy Info */
+.strategies-info {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.strategy-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.strategy-row.disabled {
+    opacity: 0.4;
+}
+
+.strategy-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #f39c12;
+    min-width: 50px;
+}
+
+.strategy-ratio {
+    font-size: 0.8rem;
+    color: #2ecc71;
+    min-width: 40px;
+}
+
+.strategy-row.disabled .strategy-ratio {
+    color: #e74c3c;
+}
+
+.strategy-regimes {
+    font-size: 0.75rem;
+    color: #888;
+    margin-left: auto;
+    font-family: monospace;
+}
+
+/* Last Signal Card */
+.last-signal-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 12px 15px;
+}
+
+.last-signal-card.upbit {
+    border-left: 4px solid #3498db;
+}
+
+.last-signal-card.binance {
+    border-left: 4px solid #f3ba2f;
+}
+
+.last-signal-card h3 {
+    font-size: 0.85rem;
+    color: #aaa;
+    margin-bottom: 10px;
+}
+
+.last-signal-content {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.last-signal-item .signal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.last-signal-item .signal-reason {
+    font-size: 0.8rem;
+    color: #bbb;
+    margin-bottom: 4px;
+}
+
+.last-signal-item .signal-indicators {
+    font-size: 0.75rem;
+    color: #888;
+    font-family: monospace;
+}
+
 /* Signals Section */
 .signals-section {
     background: rgba(255, 255, 255, 0.05);

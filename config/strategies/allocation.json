@@ -1,0 +1,14 @@
+{
+  "upbit": {
+    "v35": {
+      "ratio": 0.5,
+      "enabled": true,
+      "regimes": ["BULL"]
+    },
+    "va02": {
+      "ratio": 0.5,
+      "enabled": true,
+      "regimes": ["BULL", "SIDEWAYS"]
+    }
+  }
+}

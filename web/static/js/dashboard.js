@@ -88,6 +88,64 @@ function updateMarketRegime(regime, marketState) {
     detailEl.textContent = marketState || '-';
 }
 
+// Render last signal card
+function renderLastSignal(signal, containerId) {
+    const container = document.getElementById(containerId);
+    if (!signal) {
+        container.innerHTML = '<p class="no-data">No signal yet</p>';
+        return;
+    }
+
+    const actionClass = signal.action === 'buy' || signal.action === 'short' ? 'action-entry' :
+                       signal.action === 'sell' || signal.action === 'close' ? 'action-exit' : 'action-hold';
+
+    // Format indicators if available
+    let indicatorStr = '';
+    if (signal.indicators) {
+        const parts = [];
+        if (signal.indicators.rsi !== undefined) parts.push(`RSI:${signal.indicators.rsi}`);
+        if (signal.indicators.mfi !== undefined) parts.push(`MFI:${signal.indicators.mfi}`);
+        if (signal.indicators.adx !== undefined) parts.push(`ADX:${signal.indicators.adx}`);
+        if (signal.indicators.score !== undefined) parts.push(`Score:${signal.indicators.score}`);
+        indicatorStr = parts.join(' | ');
+    }
+
+    container.innerHTML = `
+        <div class="last-signal-item">
+            <div class="signal-header">
+                <span class="signal-time">${formatTime(signal.timestamp)}</span>
+                <span class="signal-strategy">${signal.strategy || '-'}</span>
+                <span class="signal-action ${actionClass}">${(signal.action || 'hold').toUpperCase()}</span>
+            </div>
+            <div class="signal-reason">${signal.reason || '-'}</div>
+            ${indicatorStr ? `<div class="signal-indicators">${indicatorStr}</div>` : ''}
+        </div>
+    `;
+}
+
+// Update per-strategy allocation display
+function updateStrategiesInfo(strategies) {
+    if (!strategies) return;
+
+    // v35
+    const v35 = strategies.v35 || {};
+    const v35Row = document.getElementById('upbit-v35-row');
+    if (v35Row) {
+        v35Row.classList.toggle('disabled', !v35.enabled);
+        document.getElementById('upbit-v35-ratio').textContent = v35.enabled ? `${(v35.ratio * 100).toFixed(0)}%` : 'OFF';
+        document.getElementById('upbit-v35-regimes').textContent = v35.regimes ? v35.regimes.join('/') : '-';
+    }
+
+    // va02
+    const va02 = strategies.va02 || {};
+    const va02Row = document.getElementById('upbit-va02-row');
+    if (va02Row) {
+        va02Row.classList.toggle('disabled', !va02.enabled);
+        document.getElementById('upbit-va02-ratio').textContent = va02.enabled ? `${(va02.ratio * 100).toFixed(0)}%` : 'OFF';
+        document.getElementById('upbit-va02-regimes').textContent = va02.regimes ? va02.regimes.join('/') : '-';
+    }
+}
+
 // Update status display
 function updateStatus(data) {
     document.getElementById('last-update-time').textContent = formatTime(data.timestamp);
@@ -111,10 +169,18 @@ function updateStatus(data) {
     }
 
     const upbitStats = upbit.statistics || {};
-    document.getElementById('upbit-cash').textContent = formatKRW(upbitStats.current_cash);
+    // Use current_cash from response root level if available
+    const upbitCash = upbit.current_cash || upbitStats.current_cash;
+    document.getElementById('upbit-cash').textContent = formatKRW(upbitCash);
     const upbitReturnEl = document.getElementById('upbit-return');
     upbitReturnEl.textContent = formatPercent(upbitStats.return_pct);
     upbitReturnEl.className = 'stat-value ' + ((upbitStats.return_pct >= 0) ? 'positive' : 'negative');
+
+    // Update per-strategy info
+    updateStrategiesInfo(upbit.strategies);
+
+    // Update last signal
+    renderLastSignal(upbit.last_signal, 'upbit-last-signal');
 
     // Binance
     const binance = data.binance || {};
@@ -133,10 +199,14 @@ function updateStatus(data) {
     }
 
     const binanceStats = binance.statistics || {};
-    document.getElementById('binance-cash').textContent = formatUSD(binanceStats.current_cash);
+    const binanceCash = binance.current_cash || binanceStats.current_cash;
+    document.getElementById('binance-cash').textContent = formatUSD(binanceCash);
     const binanceReturnEl = document.getElementById('binance-return');
     binanceReturnEl.textContent = formatPercent(binanceStats.return_pct);
     binanceReturnEl.className = 'stat-value ' + ((binanceStats.return_pct >= 0) ? 'positive' : 'negative');
+
+    // Update last signal
+    renderLastSignal(binance.last_signal, 'binance-last-signal');
 }
 
 // Update kill switch status

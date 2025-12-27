@@ -45,6 +45,21 @@ except ImportError:  # pragma: no cover
 from core.data_loader import DataLoader
 
 
+def _load_allocation_config() -> Dict[str, Any]:
+    """Load strategy allocation config."""
+    config_path = Path(__file__).parent.parent / 'config' / 'strategies' / 'allocation.json'
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    # Default: v35 only
+    return {
+        "upbit": {
+            "v35": {"ratio": 1.0, "enabled": True, "regimes": ["BULL"]},
+            "va02": {"ratio": 0.0, "enabled": False, "regimes": ["BULL", "SIDEWAYS"]}
+        }
+    }
+
+
 def _load_candidate_from_json(path: str, index: int = 0) -> Dict[str, Any]:
     p = Path(path)
     with p.open("r", encoding="utf-8") as f:
@@ -194,6 +209,10 @@ class DualPaperTradingEngine:
         self.sideways_v2_strategy = self._init_sideways_v2_strategy(strategy_config=self.sideways_v2_strategy_config)
         self.h4_strategy = self._init_h4_strategy()
         self.h4_short_strategy = self._init_h4_short_strategy()
+        self.va02_strategy = self._load_va02_strategy()
+
+        # Multi-strategy allocation config
+        self._allocation_config = _load_allocation_config()
 
         # 운영형 라우팅 (레짐 기반)
         self.router = self._build_router()
@@ -398,10 +417,20 @@ class DualPaperTradingEngine:
         msg += f"  • Upbit: {upbit_capital:,.0f} KRW\n"
         msg += f"  • Binance: ${binance_capital:,.2f} USDT\n\n"
         msg += f"✅ V35 전략: {'로드 성공' if self.v35_strategy else '❌ 로드 실패'}\n"
+        msg += f"✅ VA02 전략: {'로드 성공' if self.va02_strategy else '❌ 로드 실패'}\n"
         msg += f"✅ SHORT_V1 전략: {'로드 성공' if self.short_v1_strategy else '❌ 로드 실패'}\n"
         msg += f"✅ SideWays_v2 전략: {'로드 성공' if self.sideways_v2_strategy else '❌ 로드 실패'}\n"
         msg += f"✅ H4 Conservative: {'로드 성공 (50%)' if self.h4_strategy else '❌ 로드 실패'}\n"
         msg += f"✅ H4 Short: {'로드 성공 (50%)' if self.h4_short_strategy else '❌ 로드 실패'}\n\n"
+
+        # Show allocation config
+        upbit_alloc = self._allocation_config.get("upbit", {})
+        if upbit_alloc.get("va02", {}).get("enabled"):
+            v35_ratio = upbit_alloc.get("v35", {}).get("ratio", 0.5)
+            va02_ratio = upbit_alloc.get("va02", {}).get("ratio", 0.5)
+            msg += f"📊 Upbit 자본 배분:\n"
+            msg += f"  • V35: {v35_ratio:.0%}\n"
+            msg += f"  • VA02: {va02_ratio:.0%}\n\n"
         msg += "⏰ 신호 체크: 60분마다 (레짐은 day 기반)"
 
         if self._candidate:
@@ -610,6 +639,35 @@ class DualPaperTradingEngine:
             print(f"⚠️  H4 Short 전략 초기화 실패: {e}")
             return None
 
+    def _load_va02_strategy(self):
+        """VA02 Long 전략 로드"""
+        try:
+            from trading.strategy.va02_long import VA02LongStrategy
+
+            strategy = VA02LongStrategy()
+            print("✅ VA02 Long 전략 로드 완료")
+            return strategy
+        except Exception as e:
+            print(f"⚠️  VA02 Long 전략 로드 실패: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def _is_strategy_allowed_in_regime(self, strategy_name: str, regime: str) -> bool:
+        """Check if strategy is allowed to trade in current regime."""
+        upbit_config = self._allocation_config.get("upbit", {})
+        strategy_config = upbit_config.get(strategy_name, {})
+
+        if not strategy_config.get("enabled", False):
+            return False
+
+        allowed_regimes = strategy_config.get("regimes", [])
+        # Check if regime matches any allowed regime prefix
+        for allowed in allowed_regimes:
+            if regime.startswith(allowed):
+                return True
+        return False
+
     def get_current_prices(self) -> Dict[str, float]:
         """현재 가격 조회 (실제 시장 데이터)"""
         try:
@@ -712,8 +770,28 @@ class DualPaperTradingEngine:
             print("⚠️  V35 전략 미로드 - Upbit 거래 스킵")
             return
 
+        if strategy_name == "va02" and not self.va02_strategy:
+            print("⚠️  VA02 전략 미로드 - Upbit 거래 스킵")
+            return
+
         try:
-            if strategy_name == "v35":
+            if strategy_name == "va02":
+                if not self.va02_strategy:
+                    print("⚠️  VA02 전략 미로드 - 스킵")
+                    return
+                with DataLoader() as loader:
+                    df = loader.load_timeframe('day', start_date='2024-01-01')
+                df = df.tail(500).reset_index(drop=True)
+                df = self.va02_strategy.add_indicators(df)
+                signal = self.va02_strategy.generate_signal(df, len(df) - 1) or {
+                    "action": "hold",
+                    "reason": "VA02_NO_SIGNAL",
+                }
+                indicators = self._extract_indicators(df, ["rsi", "mfi", "adx", "close", "score"])
+                if "score" in signal:
+                    indicators["score"] = signal.get("score", 0)
+                    indicators["tier"] = signal.get("tier", "C")
+            elif strategy_name == "v35":
                 with DataLoader() as loader:
                     df = loader.load_timeframe('day', start_date='2024-01-01')
                 df = df.tail(500).reset_index(drop=True)

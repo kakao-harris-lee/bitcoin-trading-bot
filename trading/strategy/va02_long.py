@@ -233,52 +233,63 @@ class VA02LongStrategy(BaseStrategy):
 
     def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """Add all required indicators"""
-        import talib
+        try:
+            import talib
+        except ImportError as e:
+            logger.error(f"talib not installed: {e}")
+            raise ImportError("talib is required for VA02 strategy. Install with: pip install TA-Lib")
 
-        # RSI
-        df['rsi'] = talib.RSI(df['close'].values, timeperiod=14)
+        try:
+            # RSI
+            df['rsi'] = talib.RSI(df['close'].values, timeperiod=14)
 
-        # MFI
-        df['mfi'] = talib.MFI(
-            df['high'].values,
-            df['low'].values,
-            df['close'].values,
-            df['volume'].values,
-            timeperiod=14
-        )
+            # MFI
+            df['mfi'] = talib.MFI(
+                df['high'].values,
+                df['low'].values,
+                df['close'].values,
+                df['volume'].values,
+                timeperiod=14
+            )
 
-        # ADX
-        df['adx'] = talib.ADX(
-            df['high'].values,
-            df['low'].values,
-            df['close'].values,
-            timeperiod=14
-        )
+            # ADX
+            df['adx'] = talib.ADX(
+                df['high'].values,
+                df['low'].values,
+                df['close'].values,
+                timeperiod=14
+            )
 
-        # ATR
-        df['atr'] = talib.ATR(
-            df['high'].values,
-            df['low'].values,
-            df['close'].values,
-            timeperiod=14
-        )
-        df['atr_ratio'] = df['atr'] / df['atr'].rolling(20).mean()
+            # ATR
+            df['atr'] = talib.ATR(
+                df['high'].values,
+                df['low'].values,
+                df['close'].values,
+                timeperiod=14
+            )
+            atr_ma = df['atr'].rolling(20).mean()
+            df['atr_ratio'] = np.where(atr_ma > 0, df['atr'] / atr_ma, 1.0)
 
-        # Bollinger Bands
-        df['bb_upper'], df['bb_middle'], df['bb_lower'] = talib.BBANDS(
-            df['close'].values,
-            timeperiod=20,
-            nbdevup=2,
-            nbdevdn=2
-        )
-        bb_range = df['bb_upper'] - df['bb_lower']
-        df['bb_position'] = (df['close'] - df['bb_lower']) / bb_range.replace(0, np.nan)
+            # Bollinger Bands
+            df['bb_upper'], df['bb_middle'], df['bb_lower'] = talib.BBANDS(
+                df['close'].values,
+                timeperiod=20,
+                nbdevup=2,
+                nbdevdn=2
+            )
+            bb_range = df['bb_upper'] - df['bb_lower']
+            df['bb_position'] = np.where(bb_range > 0, (df['close'] - df['bb_lower']) / bb_range, 0.5)
 
-        # Volume ratio
-        df['volume_ratio'] = df['volume'] / df['volume'].rolling(20).mean()
+            # Volume ratio
+            vol_ma = df['volume'].rolling(20).mean()
+            df['volume_ratio'] = np.where(vol_ma > 0, df['volume'] / vol_ma, 1.0)
 
-        # Local minima
-        df = self._add_local_minima(df)
+            # Local minima
+            df = self._add_local_minima(df)
+
+        except Exception as e:
+            logger.error(f"Error calculating indicators: {e}")
+            raise
 
         return df
 

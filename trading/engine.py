@@ -716,6 +716,13 @@ class DualPaperTradingEngine:
                 print("⚪ [Upbit] 레짐상 진입 스킵")
                 return
 
+        # Check if strategy is allowed in current regime (from allocation config)
+        current_regime = decision.regime if decision else "UNKNOWN"
+        if strategy_name not in ["bull_hold"] and not self.upbit_position:
+            if not self._is_strategy_allowed_in_regime(strategy_name, current_regime):
+                print(f"⚪ [{strategy_name}] 레짐 {current_regime}에서 비활성화됨 (allocation config)")
+                return
+
         # Special: bull_hold
         if strategy_name == "bull_hold":
             if not self.upbit_position:
@@ -776,9 +783,6 @@ class DualPaperTradingEngine:
 
         try:
             if strategy_name == "va02":
-                if not self.va02_strategy:
-                    print("⚠️  VA02 전략 미로드 - 스킵")
-                    return
                 with DataLoader() as loader:
                     df = loader.load_timeframe('day', start_date='2024-01-01')
                 df = df.tail(500).reset_index(drop=True)
@@ -837,6 +841,8 @@ class DualPaperTradingEngine:
                 mult = 1.0
                 if strategy_name == "v35":
                     mult = self.v35_fraction_mult
+                elif strategy_name == "va02":
+                    mult = 1.0  # VA02 uses fraction from strategy config (default 0.5)
                 elif strategy_name == "sideways_v2":
                     mult = self.sideways_fraction_mult
                 elif strategy_name == "h4_conservative":

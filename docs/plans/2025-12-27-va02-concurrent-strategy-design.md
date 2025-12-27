@@ -1,8 +1,11 @@
 # v-a-02 Concurrent Strategy Design
 
+**Status:** Implemented (v0.0.4)
+**Last Updated:** 2025-12-27
+
 ## Overview
 
-Add v-a-02 strategy to run concurrently with v35 on Upbit, with independent signals and split capital allocation.
+Add v-a-02 strategy as an alternative long strategy on Upbit, with regime-based gating via allocation config.
 
 **v-a-02 Background:**
 - 7-dimension score-based strategy (RSI, MFI, volume, volatility, local minima, trend, mean reversion)
@@ -11,11 +14,18 @@ Add v-a-02 strategy to run concurrently with v35 on Upbit, with independent sign
 
 ## Design Decisions
 
-| Decision | Choice |
-|----------|--------|
-| Signal mode | Independent - either strategy can trigger trades |
-| Capital management | Split capital with configurable ratios via config file |
-| v-a-02 regimes | BULL + SIDEWAYS (not BEAR) |
+| Decision | Choice | Status |
+|----------|--------|--------|
+| Signal mode | Alternative - router selects one strategy based on regime | Implemented |
+| Capital management | Single account (full capital per strategy) | Implemented |
+| v-a-02 regimes | BULL + SIDEWAYS (not BEAR) | Implemented |
+
+### Implementation Note
+
+The original design proposed per-strategy position tracking and split capital. This was deferred in v0.0.4 to avoid complexity. Currently:
+- Only ONE strategy can hold a position at a time
+- The router selects which strategy runs based on regime
+- `allocation.json` controls which strategies are enabled and their allowed regimes
 
 ## Architecture
 
@@ -192,19 +202,28 @@ self._signal_history = {
 
 ## Implementation Checklist
 
-- [ ] Restore v-a-02 score engine from git history
-- [ ] Create `trading/strategy/va02_long.py` (port to BaseStrategy)
-- [ ] Create `config/strategies/va02_long.json`
-- [ ] Create `config/strategies/allocation.json`
-- [ ] Modify `trading/engine.py` for multi-strategy support
-- [ ] Update `web/app.py` API response
-- [ ] Update `web/templates/dashboard.html` layout
-- [ ] Update `web/static/js/dashboard.js`
-- [ ] Add unit tests for VA02 score engine
-- [ ] Integration test for dual-strategy execution
+- [x] Restore v-a-02 score engine from git history
+- [x] Create `trading/strategy/va02_long.py` (port to BaseStrategy)
+- [x] Create `config/strategies/va02_long.json`
+- [x] Create `config/strategies/allocation.json`
+- [x] Modify `trading/engine.py` for multi-strategy support
+- [x] Update `web/app.py` API response
+- [x] Update `web/templates/dashboard.html` layout
+- [x] Update `web/static/js/dashboard.js`
+- [x] Add unit tests for VA02 score engine (21 tests)
+- [ ] Integration test for dual-strategy execution (deferred)
+- [ ] Per-strategy position tracking (deferred - future enhancement)
 
 ## Testing
 
-- Unit tests for VA02 score engine
-- Integration test for dual-strategy execution
-- Backtest comparison: v35-only vs v35+va02
+- [x] Unit tests for VA02ScoreEngine (14 tests)
+- [x] Unit tests for MarketClassifier (7 tests)
+- [ ] Integration test for dual-strategy execution (deferred)
+- [ ] Backtest comparison: v35-only vs v35+va02 (future)
+
+## Future Enhancements
+
+If concurrent execution with split capital is needed:
+1. Implement per-strategy position tracking in engine
+2. Split capital on initialization based on `allocation.json` ratios
+3. Update dashboard to show separate cards per strategy

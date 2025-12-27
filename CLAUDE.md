@@ -3,10 +3,16 @@
 ## Quick Reference
 
 ```bash
-# Run paper trading
-python run.py --mode paper
+# Bot management (recommended)
+./bot.sh start paper                    # Start paper trading
+./bot.sh start live h4_conservative h4_short sideways_and_bear  # Start live
+./bot.sh stop                           # Stop bot
+./bot.sh restart live h4_conservative h4_short sideways_and_bear  # Restart
+./bot.sh status                         # Check status
+./bot.sh logs                           # View logs
 
-# Run live trading (requires ENABLE_LIVE_TRADING=1)
+# Direct run (alternative)
+python run.py --mode paper
 ENABLE_LIVE_TRADING=1 python run.py --mode live
 
 # Run tests

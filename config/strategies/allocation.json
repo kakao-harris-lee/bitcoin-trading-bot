@@ -1,4 +1,9 @@
 {
+  "capital_split": {
+    "upbit_ratio": 0.6,
+    "binance_ratio": 0.4,
+    "description": "60% Upbit spot, 40% Binance futures"
+  },
   "upbit": {
     "v35": {
       "ratio": 0.5,
@@ -9,6 +14,14 @@
       "ratio": 0.5,
       "enabled": true,
       "regimes": ["BULL", "SIDEWAYS"]
+    }
+  },
+  "binance": {
+    "short_v1": {
+      "ratio": 1.0,
+      "enabled": true,
+      "regimes": ["SIDEWAYS", "BEAR"],
+      "hedge_mode": true
     }
   }
 }

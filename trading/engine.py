@@ -997,20 +997,35 @@ class DualPaperTradingEngine:
             print(f"⚪ [{strategy_name}] 매수 금액 부족: {buy_amount:,.0f} < {self.risk_config.min_upbit_order_krw:,.0f}")
             return
 
-        # Calculate BTC amount (simulated for paper, real for live)
-        fee_rate = 0.0005  # 0.05%
-        btc_amount = (buy_amount * (1 - fee_rate)) / current_price
+        tag = "Live" if self.execution_mode == "live" else "Paper"
+
+        if self.execution_mode == "live":
+            # LIVE MODE: Place actual order on exchange
+            result = self.upbit_account.buy(buy_amount, current_price)
+            if not result or not result.get("success"):
+                print(f"❌ [{strategy_name}] 실제 주문 실패: {result}")
+                return
+            # Use executed values from exchange
+            btc_amount = float(result.get("executed_volume", 0))
+            actual_price = float(result.get("executed_price", current_price))
+            # Refresh actual balance from exchange
+            actual_cash, actual_btc = self.upbit_account.get_balance()
+            pos["cash"] = actual_cash * pos.get("ratio", 0.5)  # Approximate strategy's share
+        else:
+            # PAPER MODE: Simulate trade
+            fee_rate = 0.0005  # 0.05%
+            btc_amount = (buy_amount * (1 - fee_rate)) / current_price
+            actual_price = current_price
+            pos["cash"] = cash - buy_amount
 
         # Update position
         pos["active"] = True
         pos["btc"] = btc_amount
-        pos["entry_price"] = current_price
-        pos["cash"] = cash - buy_amount
+        pos["entry_price"] = actual_price
 
-        tag = "Live" if self.execution_mode == "live" else "Paper"
         msg = f"🟢 [{strategy_name} {tag}] 매수\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━\n"
-        msg += f"💰 가격: {current_price:,.0f}원\n"
+        msg += f"💰 가격: {actual_price:,.0f}원\n"
         msg += f"📊 수량: {btc_amount:.8f} BTC\n"
         msg += f"💵 투자: {buy_amount:,.0f}원 ({frac*100:.0f}%)\n"
         msg += f"📝 사유: {signal.get('reason', 'N/A')}"
@@ -1024,7 +1039,7 @@ class DualPaperTradingEngine:
             "timestamp": datetime.now().isoformat(),
             "strategy": strategy_name,
             "type": "buy",
-            "price": current_price,
+            "price": actual_price,
             "amount": btc_amount,
             "value": buy_amount,
             "reason": signal.get("reason"),
@@ -1041,18 +1056,38 @@ class DualPaperTradingEngine:
         btc = pos.get("btc", 0.0)
         entry_price = pos.get("entry_price", current_price)
         frac = float(signal.get("fraction", 1.0))
-
         sell_btc = btc * frac
-        fee_rate = 0.0005  # 0.05%
-        sell_value = sell_btc * current_price * (1 - fee_rate)
+
+        tag = "Live" if self.execution_mode == "live" else "Paper"
+
+        if self.execution_mode == "live":
+            # LIVE MODE: Place actual order on exchange
+            result = self.upbit_account.sell(sell_btc, current_price)
+            if not result or not result.get("success"):
+                print(f"❌ [{strategy_name}] 실제 매도 주문 실패: {result}")
+                return
+            # Use executed values from exchange
+            executed_btc = float(result.get("executed_volume", sell_btc))
+            actual_price = float(result.get("executed_price", current_price))
+            sell_value = float(result.get("executed_amount", executed_btc * actual_price))
+            # Refresh actual balance from exchange
+            actual_cash, actual_btc = self.upbit_account.get_balance()
+            pos["cash"] = actual_cash * pos.get("ratio", 0.5)  # Approximate strategy's share
+        else:
+            # PAPER MODE: Simulate trade
+            fee_rate = 0.0005  # 0.05%
+            sell_value = sell_btc * current_price * (1 - fee_rate)
+            actual_price = current_price
+            executed_btc = sell_btc
+            pos["cash"] = pos.get("cash", 0.0) + sell_value
 
         # Calculate PnL
-        cost_basis = sell_btc * entry_price
+        cost_basis = executed_btc * entry_price
         pnl = sell_value - cost_basis
-        pnl_pct = (current_price - entry_price) / entry_price if entry_price > 0 else 0
+        pnl_pct = (actual_price - entry_price) / entry_price if entry_price > 0 else 0
 
         # Update position
-        remaining_btc = btc - sell_btc
+        remaining_btc = btc - executed_btc
         if remaining_btc < 1e-8:
             pos["active"] = False
             pos["btc"] = 0.0
@@ -1060,14 +1095,11 @@ class DualPaperTradingEngine:
         else:
             pos["btc"] = remaining_btc
 
-        pos["cash"] = pos.get("cash", 0.0) + sell_value
-
-        tag = "Live" if self.execution_mode == "live" else "Paper"
         pnl_emoji = "📈" if pnl >= 0 else "📉"
         msg = f"🔴 [{strategy_name} {tag}] 매도\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━\n"
-        msg += f"💰 가격: {current_price:,.0f}원\n"
-        msg += f"📊 수량: {sell_btc:.8f} BTC\n"
+        msg += f"💰 가격: {actual_price:,.0f}원\n"
+        msg += f"📊 수량: {executed_btc:.8f} BTC\n"
         msg += f"{pnl_emoji} 손익: {pnl:+,.0f}원 ({pnl_pct:+.2%})\n"
         msg += f"📝 사유: {signal.get('reason', 'N/A')}"
         print(msg)
@@ -1080,8 +1112,8 @@ class DualPaperTradingEngine:
             "timestamp": datetime.now().isoformat(),
             "strategy": strategy_name,
             "type": "sell",
-            "price": current_price,
-            "amount": sell_btc,
+            "price": actual_price,
+            "amount": executed_btc,
             "value": sell_value,
             "pnl": pnl,
             "pnl_pct": pnl_pct,

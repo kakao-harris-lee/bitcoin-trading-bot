@@ -123,7 +123,7 @@ function renderLastSignal(signal, containerId) {
     `;
 }
 
-// Update per-strategy allocation display
+// Update per-strategy allocation display with position info
 function updateStrategiesInfo(strategies) {
     if (!strategies) return;
 
@@ -132,7 +132,18 @@ function updateStrategiesInfo(strategies) {
     const v35Row = document.getElementById('upbit-v35-row');
     if (v35Row) {
         v35Row.classList.toggle('disabled', !v35.enabled);
-        document.getElementById('upbit-v35-ratio').textContent = v35.enabled ? `${(v35.ratio * 100).toFixed(0)}%` : 'OFF';
+        v35Row.classList.toggle('has-position', v35.active);
+
+        // Show position or cash
+        let v35Status = '';
+        if (v35.active && v35.btc > 0) {
+            v35Status = `${v35.btc.toFixed(6)} BTC`;
+        } else if (v35.cash > 0) {
+            v35Status = formatKRW(v35.cash);
+        } else {
+            v35Status = v35.enabled ? `${(v35.ratio * 100).toFixed(0)}%` : 'OFF';
+        }
+        document.getElementById('upbit-v35-ratio').textContent = v35Status;
         document.getElementById('upbit-v35-regimes').textContent = v35.regimes ? v35.regimes.join('/') : '-';
     }
 
@@ -141,7 +152,18 @@ function updateStrategiesInfo(strategies) {
     const va02Row = document.getElementById('upbit-va02-row');
     if (va02Row) {
         va02Row.classList.toggle('disabled', !va02.enabled);
-        document.getElementById('upbit-va02-ratio').textContent = va02.enabled ? `${(va02.ratio * 100).toFixed(0)}%` : 'OFF';
+        va02Row.classList.toggle('has-position', va02.active);
+
+        // Show position or cash
+        let va02Status = '';
+        if (va02.active && va02.btc > 0) {
+            va02Status = `${va02.btc.toFixed(6)} BTC`;
+        } else if (va02.cash > 0) {
+            va02Status = formatKRW(va02.cash);
+        } else {
+            va02Status = va02.enabled ? `${(va02.ratio * 100).toFixed(0)}%` : 'OFF';
+        }
+        document.getElementById('upbit-va02-ratio').textContent = va02Status;
         document.getElementById('upbit-va02-regimes').textContent = va02.regimes ? va02.regimes.join('/') : '-';
     }
 }

@@ -265,6 +265,11 @@ header h1 {
     opacity: 0.4;
 }
 
+.strategy-row.has-position {
+    background: rgba(46, 204, 113, 0.2);
+    border-left: 3px solid #2ecc71;
+}
+
 .strategy-name {
     font-weight: 700;
     font-size: 0.85rem;

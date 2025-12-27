@@ -160,15 +160,25 @@ def get_status():
     upbit_last_signal = upbit_signals[-1] if upbit_signals else None
     binance_last_signal = binance_signals[-1] if binance_signals else None
 
-    # Build per-strategy info for Upbit
+    # Build per-strategy info for Upbit (from log file, fallback to allocation config)
     upbit_alloc = allocation.get('upbit', {})
+    log_strategies = upbit_log.get('strategies', {}) if upbit_log else {}
+
     upbit_strategies = {}
     for strat_name in ['v35', 'va02']:
         strat_config = upbit_alloc.get(strat_name, {})
+        log_strat = log_strategies.get(strat_name, {})
+
         upbit_strategies[strat_name] = {
             'enabled': strat_config.get('enabled', False),
             'ratio': strat_config.get('ratio', 0),
             'regimes': strat_config.get('regimes', []),
+            # Per-strategy position data from engine
+            'active': log_strat.get('active', False),
+            'btc': log_strat.get('btc', 0.0),
+            'entry_price': log_strat.get('entry_price', 0.0),
+            'cash': log_strat.get('cash', 0.0),
+            'value': log_strat.get('value', 0.0),
         }
 
     # 상태 구성

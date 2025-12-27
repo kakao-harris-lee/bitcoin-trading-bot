@@ -16,16 +16,18 @@ Add v-a-02 strategy as an alternative long strategy on Upbit, with regime-based 
 
 | Decision | Choice | Status |
 |----------|--------|--------|
-| Signal mode | Alternative - router selects one strategy based on regime | Implemented |
-| Capital management | Single account (full capital per strategy) | Implemented |
+| Signal mode | Concurrent - both strategies execute each cycle | Implemented |
+| Capital management | Split capital per allocation.json ratios | Implemented |
 | v-a-02 regimes | BULL + SIDEWAYS (not BEAR) | Implemented |
+| Position tracking | Per-strategy (independent BTC, cash, entry price) | Implemented |
 
 ### Implementation Note
 
-The original design proposed per-strategy position tracking and split capital. This was deferred in v0.0.4 to avoid complexity. Currently:
-- Only ONE strategy can hold a position at a time
-- The router selects which strategy runs based on regime
-- `allocation.json` controls which strategies are enabled and their allowed regimes
+**v0.0.4:** Implemented concurrent execution with split capital:
+- Both v35 and va02 execute each cycle with independent position tracking
+- Capital split based on `allocation.json` ratios (50/50 default)
+- Each strategy has its own BTC balance, cash, and entry price
+- Dashboard shows per-strategy position status
 
 ## Architecture
 

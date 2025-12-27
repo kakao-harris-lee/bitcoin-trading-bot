@@ -238,14 +238,17 @@ class DualPaperTradingEngine:
                 self._telegram_cmd.register_command("kill_status", lambda _: self._cmd_kill_status())
                 self._telegram_cmd.start_polling()
 
-        # 상태
-        self.upbit_position = False
+        # 상태 (legacy - kept for binance compatibility)
+        self.upbit_position = False  # Deprecated: use _upbit_positions
         self.binance_position = False
-        self.upbit_active_strategy: Optional[str] = None
+        self.upbit_active_strategy: Optional[str] = None  # Deprecated: use _upbit_positions
         self.binance_active_strategy: Optional[str] = None
         self.last_upbit_signal = None
         self.last_binance_signal = None
         self.iteration_count = 0  # 반복 횟수
+
+        # Per-strategy position tracking for concurrent execution
+        self._upbit_positions = self._init_upbit_positions()
 
         print("✅ 초기화 완료\n")
 
@@ -351,19 +354,37 @@ class DualPaperTradingEngine:
                 "regime": self._last_regime_decision.regime if self._last_regime_decision else None,
             }
 
+            # Build per-strategy positions for concurrent execution
+            strategy_positions = {}
+            total_btc = 0.0
+            total_cash = 0.0
+            for strat_name, pos in self._upbit_positions.items():
+                strategy_positions[strat_name] = {
+                    "active": pos.get("active", False),
+                    "btc": pos.get("btc", 0.0),
+                    "entry_price": pos.get("entry_price", 0.0),
+                    "cash": pos.get("cash", 0.0),
+                    "initial_cash": pos.get("initial_cash", 0.0),
+                    "ratio": pos.get("ratio", 0.0),
+                    "value": pos.get("cash", 0.0) + pos.get("btc", 0.0) * prices["upbit"],
+                }
+                total_btc += pos.get("btc", 0.0)
+                total_cash += pos.get("cash", 0.0)
+
             upbit_payload = {
                 "exchange": "upbit",
                 "mode": self.execution_mode,
                 "initial_capital": getattr(self.upbit_account, "initial_capital", None),
-                "current_cash": float(upbit_cash),
-                "btc_balance": float(upbit_btc),
-                "total_value": upbit_total,
+                "current_cash": total_cash,
+                "btc_balance": total_btc,
+                "total_value": total_cash + total_btc * prices["upbit"],
                 "strategy": self.upbit_active_strategy or "none",
                 "regime": regime_info["regime"],
                 "market_state": regime_info["market_state"],
                 "trades": self._v2_trades["upbit"],
                 "signals": self._signal_history["upbit"][-50:],
                 "statistics": upbit_stats,
+                "strategies": strategy_positions,  # Per-strategy data
                 "generated_at": datetime.now().isoformat(),
             }
 
@@ -668,6 +689,53 @@ class DualPaperTradingEngine:
                 return True
         return False
 
+    def _init_upbit_positions(self) -> Dict[str, Dict[str, Any]]:
+        """Initialize per-strategy position tracking with split capital."""
+        upbit_config = self._allocation_config.get("upbit", {})
+
+        # Get total Upbit capital
+        total_cash, _ = self.upbit_account.get_balance()
+
+        positions = {}
+        for strategy_name, config in upbit_config.items():
+            if not config.get("enabled", False):
+                continue
+
+            ratio = config.get("ratio", 0.0)
+            allocated_cash = float(total_cash) * ratio
+
+            positions[strategy_name] = {
+                "active": False,
+                "btc": 0.0,
+                "entry_price": 0.0,
+                "cash": allocated_cash,
+                "initial_cash": allocated_cash,
+                "ratio": ratio,
+                "regimes": config.get("regimes", []),
+            }
+
+            print(f"  📊 {strategy_name}: {ratio*100:.0f}% = {allocated_cash:,.0f} KRW")
+
+        return positions
+
+    def _get_upbit_strategy_position(self, strategy_name: str) -> Dict[str, Any]:
+        """Get position info for a specific strategy."""
+        return self._upbit_positions.get(strategy_name, {
+            "active": False, "btc": 0.0, "entry_price": 0.0, "cash": 0.0
+        })
+
+    def _has_any_upbit_position(self) -> bool:
+        """Check if any Upbit strategy has an active position."""
+        return any(pos.get("active", False) for pos in self._upbit_positions.values())
+
+    def _get_total_upbit_value(self, current_price: float) -> float:
+        """Get total value across all Upbit strategies."""
+        total = 0.0
+        for pos in self._upbit_positions.values():
+            total += pos.get("cash", 0.0)
+            total += pos.get("btc", 0.0) * current_price
+        return total
+
     def get_current_prices(self) -> Dict[str, float]:
         """현재 가격 조회 (실제 시장 데이터)"""
         try:
@@ -706,6 +774,205 @@ class DualPaperTradingEngine:
         except Exception as e:
             print(f"⚠️  레짐 판단 실패: {e}")
             return self._last_regime_decision
+
+    def _execute_upbit_strategies_concurrent(self, current_price: float, regime: str, decision: Optional[RegimeDecision] = None):
+        """Execute all enabled Upbit strategies concurrently."""
+        executed = []
+
+        for strategy_name, pos in self._upbit_positions.items():
+            # Check if strategy is allowed in current regime
+            if not self._is_strategy_allowed_in_regime(strategy_name, regime):
+                if not pos.get("active", False):
+                    # Skip if not in position and regime doesn't match
+                    continue
+
+            # Execute strategy with its own position tracking
+            self._execute_upbit_strategy_with_position(current_price, strategy_name, pos, decision)
+            executed.append(strategy_name)
+
+        if executed:
+            active_strats = [s for s, p in self._upbit_positions.items() if p.get("active")]
+            print(f"  [Concurrent] executed={executed} active={active_strats}")
+
+        # Update legacy flags for compatibility
+        self.upbit_position = self._has_any_upbit_position()
+        active = [s for s, p in self._upbit_positions.items() if p.get("active")]
+        self.upbit_active_strategy = active[0] if len(active) == 1 else ",".join(active) if active else None
+
+    def _execute_upbit_strategy_with_position(
+        self,
+        current_price: float,
+        strategy_name: str,
+        pos: Dict[str, Any],
+        decision: Optional[RegimeDecision] = None
+    ):
+        """Execute a single Upbit strategy with its own position tracking."""
+        # Get strategy object
+        strategy = None
+        if strategy_name == "v35":
+            strategy = self.v35_strategy
+        elif strategy_name == "va02":
+            strategy = self.va02_strategy
+        elif strategy_name == "sideways_v2":
+            strategy = self.sideways_v2_strategy
+        elif strategy_name == "h4_conservative":
+            strategy = self.h4_strategy
+
+        if not strategy:
+            return
+
+        try:
+            # Load data and generate signal
+            if strategy_name == "va02":
+                with DataLoader() as loader:
+                    df = loader.load_timeframe('day', start_date='2024-01-01')
+                df = df.tail(500).reset_index(drop=True)
+                df = strategy.add_indicators(df)
+                signal = strategy.generate_signal(df, len(df) - 1) or {
+                    "action": "hold", "reason": "VA02_NO_SIGNAL"
+                }
+                indicators = self._extract_indicators(df, ["rsi", "mfi", "adx", "close"])
+                if "score" in signal:
+                    indicators["score"] = signal.get("score", 0)
+                    indicators["tier"] = signal.get("tier", "C")
+            elif strategy_name == "v35":
+                with DataLoader() as loader:
+                    df = loader.load_timeframe('day', start_date='2024-01-01')
+                df = df.tail(500).reset_index(drop=True)
+                df = strategy.add_indicators(df)
+                signal = strategy.generate_signal(df, len(df) - 1) or {
+                    "action": "hold", "reason": "V35_NO_SIGNAL"
+                }
+                indicators = self._extract_indicators(df, ["rsi", "mfi", "adx", "close"])
+            else:
+                # For other strategies, skip concurrent execution for now
+                return
+
+            # Record signal
+            self._record_signal("upbit", signal, strategy_name, indicators)
+
+            # Execute based on signal
+            if signal.get("action") == "buy" and not pos.get("active", False):
+                self._execute_strategy_buy(current_price, strategy_name, pos, signal)
+            elif signal.get("action") == "sell" and pos.get("active", False):
+                self._execute_strategy_sell(current_price, strategy_name, pos, signal)
+
+        except Exception as e:
+            print(f"⚠️  [{strategy_name}] 전략 실행 오류: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _execute_strategy_buy(
+        self,
+        current_price: float,
+        strategy_name: str,
+        pos: Dict[str, Any],
+        signal: Dict[str, Any]
+    ):
+        """Execute buy for a specific strategy using its allocated capital."""
+        if self.execution_mode == "live" and self._block_new_entries:
+            print(f"⛔ [{strategy_name}] LIVE 신규 진입 차단 (daily loss guard)")
+            return
+
+        cash = pos.get("cash", 0.0)
+        frac = float(signal.get("fraction", 0.5))
+        frac = clamp_fraction(frac, self.risk_config.max_upbit_entry_fraction)
+        buy_amount = cash * frac
+
+        if buy_amount < float(self.risk_config.min_upbit_order_krw):
+            print(f"⚪ [{strategy_name}] 매수 금액 부족: {buy_amount:,.0f} < {self.risk_config.min_upbit_order_krw:,.0f}")
+            return
+
+        # Calculate BTC amount (simulated for paper, real for live)
+        fee_rate = 0.0005  # 0.05%
+        btc_amount = (buy_amount * (1 - fee_rate)) / current_price
+
+        # Update position
+        pos["active"] = True
+        pos["btc"] = btc_amount
+        pos["entry_price"] = current_price
+        pos["cash"] = cash - buy_amount
+
+        tag = "Live" if self.execution_mode == "live" else "Paper"
+        msg = f"🟢 [{strategy_name} {tag}] 매수\n"
+        msg += f"━━━━━━━━━━━━━━━━━━━━\n"
+        msg += f"💰 가격: {current_price:,.0f}원\n"
+        msg += f"📊 수량: {btc_amount:.8f} BTC\n"
+        msg += f"💵 투자: {buy_amount:,.0f}원 ({frac*100:.0f}%)\n"
+        msg += f"📝 사유: {signal.get('reason', 'N/A')}"
+        print(msg)
+
+        if self.telegram:
+            self.telegram.send_message(msg)
+
+        # Record trade
+        self._v2_trades["upbit"].append({
+            "timestamp": datetime.now().isoformat(),
+            "strategy": strategy_name,
+            "type": "buy",
+            "price": current_price,
+            "amount": btc_amount,
+            "value": buy_amount,
+            "reason": signal.get("reason"),
+        })
+
+    def _execute_strategy_sell(
+        self,
+        current_price: float,
+        strategy_name: str,
+        pos: Dict[str, Any],
+        signal: Dict[str, Any]
+    ):
+        """Execute sell for a specific strategy."""
+        btc = pos.get("btc", 0.0)
+        entry_price = pos.get("entry_price", current_price)
+        frac = float(signal.get("fraction", 1.0))
+
+        sell_btc = btc * frac
+        fee_rate = 0.0005  # 0.05%
+        sell_value = sell_btc * current_price * (1 - fee_rate)
+
+        # Calculate PnL
+        cost_basis = sell_btc * entry_price
+        pnl = sell_value - cost_basis
+        pnl_pct = (current_price - entry_price) / entry_price if entry_price > 0 else 0
+
+        # Update position
+        remaining_btc = btc - sell_btc
+        if remaining_btc < 1e-8:
+            pos["active"] = False
+            pos["btc"] = 0.0
+            pos["entry_price"] = 0.0
+        else:
+            pos["btc"] = remaining_btc
+
+        pos["cash"] = pos.get("cash", 0.0) + sell_value
+
+        tag = "Live" if self.execution_mode == "live" else "Paper"
+        pnl_emoji = "📈" if pnl >= 0 else "📉"
+        msg = f"🔴 [{strategy_name} {tag}] 매도\n"
+        msg += f"━━━━━━━━━━━━━━━━━━━━\n"
+        msg += f"💰 가격: {current_price:,.0f}원\n"
+        msg += f"📊 수량: {sell_btc:.8f} BTC\n"
+        msg += f"{pnl_emoji} 손익: {pnl:+,.0f}원 ({pnl_pct:+.2%})\n"
+        msg += f"📝 사유: {signal.get('reason', 'N/A')}"
+        print(msg)
+
+        if self.telegram:
+            self.telegram.send_message(msg)
+
+        # Record trade
+        self._v2_trades["upbit"].append({
+            "timestamp": datetime.now().isoformat(),
+            "strategy": strategy_name,
+            "type": "sell",
+            "price": current_price,
+            "amount": sell_btc,
+            "value": sell_value,
+            "pnl": pnl,
+            "pnl_pct": pnl_pct,
+            "reason": signal.get("reason"),
+        })
 
     def execute_upbit_strategy(self, current_price: float, strategy_name: Optional[str], decision: Optional[RegimeDecision] = None):
         """Upbit 전략 실행 (v35 또는 SideWays_v2)."""
@@ -1319,21 +1586,19 @@ class DualPaperTradingEngine:
                 self._recommend_kill_switch(f"DAILY_LOSS_SEVERE ({daily_ret:+.2f}%)")
 
         decision = self._maybe_update_regime_decision()
-        if decision:
-            # stickiness: 포지션 보유 중에는 기존 전략 유지
-            if self.upbit_position and self.upbit_active_strategy == "bull_hold" and decision.regime != "BULL":
-                upbit_target = "bull_hold"
-            else:
-                upbit_target = self.upbit_active_strategy if self.upbit_position else decision.upbit_strategy
-            binance_target = self.binance_active_strategy if self.binance_position else decision.binance_strategy
-            print(f"[Router] state={decision.market_state} regime={decision.regime} | upbit={upbit_target or 'NONE'} | binance={binance_target or 'NONE'}")
-        else:
-            upbit_target = self.upbit_active_strategy if self.upbit_position else "v35"
-            binance_target = self.binance_active_strategy if self.binance_position else None
-            print(f"[Router] 결정 없음 - 기본값 사용 (upbit={upbit_target}, binance={binance_target})")
+        current_regime = decision.regime if decision else "UNKNOWN"
 
-        # 전략 실행
-        self.execute_upbit_strategy(prices['upbit'], upbit_target, decision=decision)
+        if decision:
+            binance_target = self.binance_active_strategy if self.binance_position else decision.binance_strategy
+            print(f"[Router] state={decision.market_state} regime={decision.regime}")
+        else:
+            binance_target = self.binance_active_strategy if self.binance_position else None
+            print(f"[Router] 결정 없음 - 기본값 사용")
+
+        # Execute ALL enabled Upbit strategies concurrently
+        self._execute_upbit_strategies_concurrent(prices['upbit'], current_regime, decision)
+
+        # Execute Binance strategy (single)
         self.execute_binance_strategy(prices['binance'], binance_target)
 
         # 상태 출력

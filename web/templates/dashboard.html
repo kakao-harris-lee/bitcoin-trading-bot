@@ -30,6 +30,67 @@
             </div>
         </section>
 
+        <!-- Kimchi Premium & Hedge Ratio Section -->
+        <section class="hedge-section">
+            <div class="hedge-grid">
+                <!-- Kimchi Premium Card -->
+                <div class="hedge-card premium-card">
+                    <h3>Kimchi Premium</h3>
+                    <div class="premium-display">
+                        <span id="premium-value" class="premium-value">-</span>
+                        <span id="premium-trend" class="premium-trend">-</span>
+                    </div>
+                    <div class="premium-stats">
+                        <div class="stat-item">
+                            <span class="label">24h Mean</span>
+                            <span id="premium-mean" class="value">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">24h Std</span>
+                            <span id="premium-std" class="value">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">Volatility</span>
+                            <span id="premium-volatility" class="value">-</span>
+                        </div>
+                    </div>
+                    <div class="price-comparison">
+                        <span>Upbit: $<span id="upbit-usd-price">-</span></span>
+                        <span>Binance: $<span id="binance-usd-price">-</span></span>
+                    </div>
+                </div>
+
+                <!-- Hedge Ratio Card -->
+                <div class="hedge-card ratio-card">
+                    <h3>Hedge Ratio</h3>
+                    <div class="ratio-display">
+                        <div class="ratio-bar-container">
+                            <div id="ratio-bar" class="ratio-bar" style="width: 0%"></div>
+                            <div id="ratio-target-marker" class="ratio-target-marker" style="left: 50%"></div>
+                        </div>
+                        <div class="ratio-labels">
+                            <span id="ratio-current" class="ratio-current">0%</span>
+                            <span id="ratio-target" class="ratio-target">Target: 50%</span>
+                        </div>
+                    </div>
+                    <div class="ratio-stats">
+                        <div class="stat-item">
+                            <span class="label">Long Exposure</span>
+                            <span id="long-exposure" class="value">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">Short Exposure</span>
+                            <span id="short-exposure" class="value">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">Adjustment</span>
+                            <span id="hedge-adjustment" class="value">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Exchange Grid -->
         <div class="exchange-grid">
             <!-- Upbit Column -->

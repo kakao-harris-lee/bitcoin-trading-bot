@@ -334,6 +334,32 @@ def get_statistics():
     return jsonify(statistics)
 
 
+@app.route("/api/hedge")
+def get_hedge_info():
+    """Kimchi Premium and Hedge Ratio API"""
+    combined_log = LOG_DIR / "v2_engine_combined.json"
+
+    if not combined_log.exists():
+        return jsonify({'error': 'No hedge data available'}), 404
+
+    try:
+        with open(combined_log, 'r') as f:
+            data = json.load(f)
+
+        return jsonify({
+            'generated_at': data.get('generated_at'),
+            'mode': data.get('mode'),
+            'regime': data.get('regime'),
+            'market_state': data.get('market_state'),
+            'kimchi_premium': data.get('kimchi_premium', {}),
+            'premium_stats': data.get('premium_stats', {}),
+            'hedge_ratio': data.get('hedge_ratio', {}),
+            'prices': data.get('prices', {}),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == "__main__":
     print(f"\n{'='*50}")
     print(f"Dashboard available at: http://localhost:8081/{DASHBOARD_SECRET_PATH}")

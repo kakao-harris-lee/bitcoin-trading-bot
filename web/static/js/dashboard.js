@@ -376,11 +376,99 @@ async function fetchTrades(exchange) {
     }
 }
 
+// Update hedge info display
+function updateHedgeInfo(data) {
+    if (!data || data.error) {
+        return;
+    }
+
+    // Kimchi Premium
+    const premium = data.kimchi_premium || {};
+    const premiumStats = data.premium_stats || {};
+
+    const premiumPct = premium.premium_pct || 0;
+    const premiumEl = document.getElementById('premium-value');
+    if (premiumEl) {
+        premiumEl.textContent = `${premiumPct >= 0 ? '+' : ''}${premiumPct.toFixed(2)}%`;
+        premiumEl.className = `premium-value ${premiumPct >= 0 ? 'positive' : 'negative'}`;
+    }
+
+    // Trend indicator
+    const trendEl = document.getElementById('premium-trend');
+    if (trendEl) {
+        const volatility = premiumStats.volatility_state || 'normal';
+        const trend = premiumStats.trend || 'stable';
+        const volEmoji = volatility === 'high' ? '🔴' : volatility === 'elevated' ? '🟡' : '🟢';
+        const trendEmoji = trend === 'rising' ? '📈' : trend === 'falling' ? '📉' : '➡️';
+        trendEl.textContent = `${volEmoji} ${trendEmoji}`;
+    }
+
+    // Premium stats
+    const meanEl = document.getElementById('premium-mean');
+    if (meanEl) meanEl.textContent = `${(premiumStats.mean_24h || 0).toFixed(2)}%`;
+
+    const stdEl = document.getElementById('premium-std');
+    if (stdEl) stdEl.textContent = `±${(premiumStats.std_24h || 0).toFixed(2)}%`;
+
+    const volEl = document.getElementById('premium-volatility');
+    if (volEl) volEl.textContent = premiumStats.volatility_state || 'normal';
+
+    // Price comparison
+    const upbitUsdEl = document.getElementById('upbit-usd-price');
+    if (upbitUsdEl) upbitUsdEl.textContent = (premium.upbit_usd || 0).toLocaleString();
+
+    const binanceUsdEl = document.getElementById('binance-usd-price');
+    if (binanceUsdEl) binanceUsdEl.textContent = (premium.binance_usd || 0).toLocaleString();
+
+    // Hedge Ratio
+    const hedge = data.hedge_ratio || {};
+    const currentRatio = (hedge.hedge_ratio || 0) * 100;
+    const targetRatio = (hedge.adjusted_target || hedge.target || 0.5) * 100;
+
+    // Update bar
+    const barEl = document.getElementById('ratio-bar');
+    if (barEl) barEl.style.width = `${Math.min(currentRatio, 100)}%`;
+
+    // Update target marker
+    const markerEl = document.getElementById('ratio-target-marker');
+    if (markerEl) markerEl.style.left = `${targetRatio}%`;
+
+    // Update labels
+    const currentEl = document.getElementById('ratio-current');
+    if (currentEl) currentEl.textContent = `${currentRatio.toFixed(1)}%`;
+
+    const targetEl = document.getElementById('ratio-target');
+    if (targetEl) targetEl.textContent = `Target: ${targetRatio.toFixed(0)}%`;
+
+    // Exposure stats
+    const longEl = document.getElementById('long-exposure');
+    if (longEl) longEl.textContent = formatKRW(hedge.long_exposure_krw || 0);
+
+    const shortEl = document.getElementById('short-exposure');
+    if (shortEl) shortEl.textContent = formatKRW(hedge.short_exposure_krw || 0);
+
+    const adjEl = document.getElementById('hedge-adjustment');
+    if (adjEl) adjEl.textContent = hedge.adjustment_reason || 'normal';
+}
+
+// Fetch hedge info
+async function fetchHedgeInfo() {
+    try {
+        const response = await fetch('/api/hedge');
+        if (!response.ok) return;
+        const data = await response.json();
+        updateHedgeInfo(data);
+    } catch (err) {
+        console.error('Hedge info fetch error:', err);
+    }
+}
+
 // Fetch all data
 async function fetchAll() {
     await Promise.all([
         fetchStatus(),
         fetchKillSwitch(),
+        fetchHedgeInfo(),
         fetchSignals('upbit'),
         fetchSignals('binance'),
         fetchTrades('upbit'),

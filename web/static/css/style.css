@@ -126,6 +126,177 @@ header h1 {
 .regime-sideways .regime-icon { color: #f1c40f; border: 2px solid #f1c40f; }
 .regime-sideways .regime-label { color: #f1c40f; }
 
+/* Hedge Section - Kimchi Premium & Hedge Ratio */
+.hedge-section {
+    margin-bottom: 25px;
+}
+
+.hedge-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .hedge-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.hedge-card {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 15px 20px;
+}
+
+.hedge-card h3 {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Premium Card */
+.premium-card {
+    border-left: 4px solid #9b59b6;
+}
+
+.premium-display {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.premium-value {
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.premium-value.positive {
+    color: #2ecc71;
+}
+
+.premium-value.negative {
+    color: #e74c3c;
+}
+
+.premium-trend {
+    font-size: 1.5rem;
+}
+
+.premium-stats {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 12px;
+}
+
+.premium-stats .stat-item {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+}
+
+.premium-stats .label {
+    display: block;
+    font-size: 0.7rem;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.premium-stats .value {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.price-comparison {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #888;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Ratio Card */
+.ratio-card {
+    border-left: 4px solid #e67e22;
+}
+
+.ratio-display {
+    margin-bottom: 15px;
+}
+
+.ratio-bar-container {
+    position: relative;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    overflow: visible;
+    margin-bottom: 8px;
+}
+
+.ratio-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3498db, #2ecc71);
+    border-radius: 12px;
+    transition: width 0.5s ease;
+}
+
+.ratio-target-marker {
+    position: absolute;
+    top: -4px;
+    width: 4px;
+    height: 32px;
+    background: #f39c12;
+    border-radius: 2px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 8px rgba(243, 156, 18, 0.5);
+}
+
+.ratio-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+}
+
+.ratio-current {
+    font-weight: 700;
+    color: #3498db;
+}
+
+.ratio-target {
+    color: #f39c12;
+}
+
+.ratio-stats {
+    display: flex;
+    gap: 10px;
+}
+
+.ratio-stats .stat-item {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+}
+
+.ratio-stats .label {
+    display: block;
+    font-size: 0.65rem;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.ratio-stats .value {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
 /* Exchange Grid - Two Columns */
 .exchange-grid {
     display: grid;

@@ -290,10 +290,10 @@ def get_statistics():
 
 if __name__ == "__main__":
     print(f"\n{'='*50}")
-    print(f"Dashboard available at: http://localhost:8080/{DASHBOARD_SECRET_PATH}")
+    print(f"Dashboard available at: http://localhost:8081/{DASHBOARD_SECRET_PATH}")
     print(f"{'='*50}\n")
 
     # 텔레그램으로 대시보드 URL 알림
-    _notify_dashboard_url(port=8080)
+    _notify_dashboard_url(port=8081)
 
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    app.run(host="0.0.0.0", port=8081, debug=False)

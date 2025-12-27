@@ -88,14 +88,28 @@ bitcoin-trading-bot/
 
 ## Development Rules
 
+### Git Workflow
+
+**New features must be developed on feature branches and merged via PR:**
+
+1. Create feature branch: `git checkout -b feature/{name}`
+2. Implement and commit changes
+3. Push branch: `git push -u origin feature/{name}`
+4. Create PR to main
+5. Merge after review
+
+**Never commit new features directly to main.**
+
 ### Strategy Development Workflow
 
 1. Create plan: `docs/plans/{DATE}-{name}-design.md`
 2. Wait for user approval
-3. Implement in `trading/strategy/{name}.py`
-4. Add config in `config/strategies/{name}.json`
-5. Run backtesting
-6. Document results
+3. Create feature branch: `git checkout -b feature/{strategy-name}`
+4. Implement in `trading/strategy/{name}.py`
+5. Add config in `config/strategies/{name}.json`
+6. Run backtesting
+7. Document results
+8. Create PR and merge
 
 ### Backtesting Standards
 

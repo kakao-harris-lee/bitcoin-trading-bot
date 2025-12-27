@@ -4,6 +4,32 @@
     "binance_ratio": 0.4,
     "description": "60% Upbit spot, 40% Binance futures"
   },
+  "hedge_ratio_targets": {
+    "BULL": {
+      "min": 0.3,
+      "max": 0.5,
+      "target": 0.4,
+      "description": "Light hedging in bull market"
+    },
+    "SIDEWAYS": {
+      "min": 0.7,
+      "max": 1.0,
+      "target": 0.85,
+      "description": "Near-full hedge for premium capture"
+    },
+    "BEAR": {
+      "min": 0.5,
+      "max": 0.8,
+      "target": 0.7,
+      "description": "Moderate hedge, allow short profits"
+    }
+  },
+  "premium_tracking": {
+    "enabled": true,
+    "log_interval_minutes": 60,
+    "alert_threshold_pct": 5.0,
+    "usd_krw_rate": 1450
+  },
   "upbit": {
     "v35": {
       "ratio": 0.5,

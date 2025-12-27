@@ -410,8 +410,26 @@ class DualPaperTradingEngine:
                 "generated_at": datetime.now().isoformat(),
             }
 
+            # Calculate premium and hedge ratio for combined log
+            premium_info = self.calculate_kimchi_premium(prices)
+            hedge_info = self.calculate_hedge_ratio(prices)
+
+            combined_payload = {
+                "generated_at": datetime.now().isoformat(),
+                "mode": self.execution_mode,
+                "regime": regime_info["regime"],
+                "market_state": regime_info["market_state"],
+                "kimchi_premium": premium_info,
+                "hedge_ratio": hedge_info,
+                "prices": {
+                    "upbit_krw": prices.get("upbit", 0),
+                    "binance_usd": prices.get("binance", 0),
+                },
+            }
+
             (self._v2_log_dir / "v2_engine_upbit.json").write_text(json.dumps(upbit_payload, ensure_ascii=False, indent=2), encoding="utf-8")
             (self._v2_log_dir / "v2_engine_binance.json").write_text(json.dumps(binance_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            (self._v2_log_dir / "v2_engine_combined.json").write_text(json.dumps(combined_payload, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception as e:
             print(f"⚠️  v2_engine 로그 저장 실패: {e}")
 
@@ -758,6 +776,74 @@ class DualPaperTradingEngine:
         except Exception as e:
             print(f"⚠️  가격 조회 실패: {e}")
             return {'upbit': 100_000_000, 'binance': 100_000}  # 임시값
+
+    def calculate_kimchi_premium(self, prices: Dict[str, float]) -> Dict[str, float]:
+        """Calculate Kimchi Premium (Upbit vs Binance price differential).
+
+        Returns:
+            Dict with premium_pct, upbit_usd, binance_usd, usd_krw_rate
+        """
+        premium_config = self._allocation_config.get("premium_tracking", {})
+        usd_krw_rate = premium_config.get("usd_krw_rate", 1450)
+
+        upbit_krw = prices.get('upbit', 0)
+        binance_usd = prices.get('binance', 0)
+
+        if binance_usd <= 0:
+            return {"premium_pct": 0.0, "upbit_usd": 0.0, "binance_usd": 0.0, "usd_krw_rate": usd_krw_rate}
+
+        # Convert Upbit KRW to USD equivalent
+        upbit_usd = upbit_krw / usd_krw_rate
+
+        # Premium = (Upbit - Binance) / Binance * 100
+        premium_pct = ((upbit_usd - binance_usd) / binance_usd) * 100
+
+        return {
+            "premium_pct": round(premium_pct, 2),
+            "upbit_usd": round(upbit_usd, 2),
+            "binance_usd": round(binance_usd, 2),
+            "usd_krw_rate": usd_krw_rate,
+        }
+
+    def calculate_hedge_ratio(self, prices: Dict[str, float]) -> Dict[str, float]:
+        """Calculate current hedge ratio (short exposure / long exposure).
+
+        Returns:
+            Dict with hedge_ratio, long_exposure, short_exposure, regime_target
+        """
+        # Calculate long exposure (Upbit positions)
+        _, upbit_btc = self.upbit_account.get_balance()
+        long_exposure = upbit_btc * prices.get('upbit', 0)
+
+        # Calculate short exposure (Binance positions)
+        binance_pos = self.binance_account.get_position() if hasattr(self.binance_account, 'get_position') else None
+        if binance_pos and binance_pos.get('size', 0) > 0:
+            # Convert to KRW equivalent for comparison
+            usd_krw_rate = self._allocation_config.get("premium_tracking", {}).get("usd_krw_rate", 1450)
+            short_exposure = binance_pos['size'] * prices.get('binance', 0) * usd_krw_rate
+        else:
+            short_exposure = 0.0
+
+        # Calculate hedge ratio
+        if long_exposure > 0:
+            hedge_ratio = short_exposure / long_exposure
+        else:
+            hedge_ratio = 0.0
+
+        # Get regime-based target
+        current_regime = self._last_regime_decision.regime if self._last_regime_decision else "SIDEWAYS"
+        hedge_targets = self._allocation_config.get("hedge_ratio_targets", {})
+        regime_config = hedge_targets.get(current_regime, {"min": 0.3, "max": 0.7, "target": 0.5})
+
+        return {
+            "hedge_ratio": round(hedge_ratio, 3),
+            "long_exposure_krw": round(long_exposure, 0),
+            "short_exposure_krw": round(short_exposure, 0),
+            "regime": current_regime,
+            "target_min": regime_config.get("min", 0.3),
+            "target_max": regime_config.get("max", 0.7),
+            "target": regime_config.get("target", 0.5),
+        }
 
     def _maybe_update_regime_decision(self) -> Optional[RegimeDecision]:
         """레짐 결정을 갱신 (day 캔들 기반)."""
@@ -1644,9 +1730,25 @@ class DualPaperTradingEngine:
         print(f"  현금: ${binance_cash:,.2f}")
         print(f"  수익률: {binance_stats['return_pct']:+.2f}%")
 
+        # Kimchi Premium & Hedge Ratio
+        premium_info = self.calculate_kimchi_premium(prices)
+        hedge_info = self.calculate_hedge_ratio(prices)
+
+        print(f"\n[Kimchi Premium]")
+        print(f"  프리미엄: {premium_info['premium_pct']:+.2f}%")
+        print(f"  Upbit: ${premium_info['upbit_usd']:,.2f} | Binance: ${premium_info['binance_usd']:,.2f}")
+        print(f"  환율: {premium_info['usd_krw_rate']:,.0f} KRW/USD")
+
+        print(f"\n[Hedge Ratio]")
+        print(f"  현재: {hedge_info['hedge_ratio']:.1%} (목표: {hedge_info['target']:.0%})")
+        print(f"  범위: {hedge_info['target_min']:.0%} ~ {hedge_info['target_max']:.0%} [{hedge_info['regime']}]")
+        if hedge_info['long_exposure_krw'] > 0:
+            print(f"  Long: {hedge_info['long_exposure_krw']:,.0f}원 | Short: {hedge_info['short_exposure_krw']:,.0f}원")
+
         # 합계
-        total_krw = upbit_total + (binance_cash * 1300)  # 간단히 1300 고정
-        initial_total = self.upbit_account.initial_capital + (self.binance_account.initial_capital * 1300)
+        usd_krw_rate = premium_info['usd_krw_rate']
+        total_krw = upbit_total + (binance_cash * usd_krw_rate)
+        initial_total = self.upbit_account.initial_capital + (self.binance_account.initial_capital * usd_krw_rate)
         total_return_pct = ((total_krw - initial_total) / initial_total) * 100
 
         print(f"\n[합계]")

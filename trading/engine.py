@@ -28,6 +28,7 @@ try:
         should_block_new_entries,
         today,
     )
+    from .risk.premium_tracker import PremiumTracker
 except ImportError:  # pragma: no cover
     # When executed as a script
     from trading.execution.paper_account import PaperTradingAccount
@@ -41,6 +42,7 @@ except ImportError:  # pragma: no cover
         should_block_new_entries,
         today,
     )
+    from trading.risk.premium_tracker import PremiumTracker
 
 from core.data_loader import DataLoader
 
@@ -250,6 +252,11 @@ class DualPaperTradingEngine:
         # Per-strategy position tracking for concurrent execution
         self._upbit_positions = self._init_upbit_positions()
 
+        # Premium tracker for Kimchi Premium monitoring
+        premium_config = self._allocation_config.get("premium_tracking", {})
+        self.premium_tracker = PremiumTracker(config=premium_config)
+        self._last_premium_alert_at: Optional[datetime] = None
+
         print("✅ 초기화 완료\n")
 
         # 시작 알림 전송
@@ -413,6 +420,7 @@ class DualPaperTradingEngine:
             # Calculate premium and hedge ratio for combined log
             premium_info = self.calculate_kimchi_premium(prices)
             hedge_info = self.calculate_hedge_ratio(prices)
+            premium_stats = self.premium_tracker.get_stats()
 
             combined_payload = {
                 "generated_at": datetime.now().isoformat(),
@@ -420,6 +428,16 @@ class DualPaperTradingEngine:
                 "regime": regime_info["regime"],
                 "market_state": regime_info["market_state"],
                 "kimchi_premium": premium_info,
+                "premium_stats": {
+                    "current": premium_stats.current,
+                    "mean_24h": premium_stats.mean_24h,
+                    "std_24h": premium_stats.std_24h,
+                    "min_24h": premium_stats.min_24h,
+                    "max_24h": premium_stats.max_24h,
+                    "volatility_state": premium_stats.volatility_state,
+                    "trend": premium_stats.trend,
+                    "readings_count": premium_stats.readings_count,
+                },
                 "hedge_ratio": hedge_info,
                 "prices": {
                     "upbit_krw": prices.get("upbit", 0),
@@ -834,6 +852,14 @@ class DualPaperTradingEngine:
         current_regime = self._last_regime_decision.regime if self._last_regime_decision else "SIDEWAYS"
         hedge_targets = self._allocation_config.get("hedge_ratio_targets", {})
         regime_config = hedge_targets.get(current_regime, {"min": 0.3, "max": 0.7, "target": 0.5})
+        base_target = regime_config.get("target", 0.5)
+
+        # Apply dynamic premium-based adjustment
+        premium_adjustment = self.premium_tracker.get_hedge_adjustment(
+            base_target=base_target,
+            regime=current_regime,
+        )
+        adjusted_target = premium_adjustment.get("adjusted_target", base_target)
 
         return {
             "hedge_ratio": round(hedge_ratio, 3),
@@ -842,7 +868,9 @@ class DualPaperTradingEngine:
             "regime": current_regime,
             "target_min": regime_config.get("min", 0.3),
             "target_max": regime_config.get("max", 0.7),
-            "target": regime_config.get("target", 0.5),
+            "target": base_target,
+            "adjusted_target": adjusted_target,
+            "adjustment_reason": premium_adjustment.get("reason", "normal"),
         }
 
     def _maybe_update_regime_decision(self) -> Optional[RegimeDecision]:
@@ -1625,6 +1653,20 @@ class DualPaperTradingEngine:
         prices = self.get_current_prices()
         print(f"Upbit: {prices['upbit']:,.0f}원 | Binance: ${prices['binance']:,.2f}")
 
+        # Track Kimchi Premium
+        premium_info = self.calculate_kimchi_premium(prices)
+        self.premium_tracker.record(premium_info)
+        premium_stats = self.premium_tracker.get_stats()
+        print(f"[Premium] {self.premium_tracker.format_status(premium_stats)}")
+
+        # Check for premium alerts (rate-limited to 1 per hour)
+        now = datetime.now()
+        if self._last_premium_alert_at is None or (now - self._last_premium_alert_at).total_seconds() >= 3600:
+            alert_msg = self.premium_tracker.should_alert(premium_stats)
+            if alert_msg and self.telegram:
+                self._last_premium_alert_at = now
+                self.telegram.send_message(f"🔔 Premium Alert\n{alert_msg}")
+
         # Live: detect bad price feed (placeholders/zeros)
         if self.execution_mode == "live":
             up = float(prices.get("upbit", 0.0) or 0.0)
@@ -1740,7 +1782,13 @@ class DualPaperTradingEngine:
         print(f"  환율: {premium_info['usd_krw_rate']:,.0f} KRW/USD")
 
         print(f"\n[Hedge Ratio]")
-        print(f"  현재: {hedge_info['hedge_ratio']:.1%} (목표: {hedge_info['target']:.0%})")
+        adjusted = hedge_info.get('adjusted_target', hedge_info['target'])
+        reason = hedge_info.get('adjustment_reason', 'normal')
+        if adjusted != hedge_info['target']:
+            print(f"  현재: {hedge_info['hedge_ratio']:.1%} (목표: {hedge_info['target']:.0%} → {adjusted:.0%})")
+            print(f"  조정: {reason}")
+        else:
+            print(f"  현재: {hedge_info['hedge_ratio']:.1%} (목표: {hedge_info['target']:.0%})")
         print(f"  범위: {hedge_info['target_min']:.0%} ~ {hedge_info['target_max']:.0%} [{hedge_info['regime']}]")
         if hedge_info['long_exposure_krw'] > 0:
             print(f"  Long: {hedge_info['long_exposure_krw']:,.0f}원 | Short: {hedge_info['short_exposure_krw']:,.0f}원")

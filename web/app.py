@@ -185,7 +185,6 @@ def dashboard():
 
 
 @app.route("/api/status")
-@requires_auth
 def get_status():
     """현재 상태 API"""
 
@@ -274,7 +273,6 @@ def get_status():
 
 
 @app.route("/api/kill_switch/status")
-@requires_auth
 def kill_switch_status():
     return jsonify({
         "active": KILL_SWITCH_FILE.exists(),
@@ -305,7 +303,6 @@ def kill_switch_off():
 
 
 @app.route("/api/trades/<exchange>")
-@requires_auth
 def get_trades(exchange: str):
     """거래 기록 API"""
 
@@ -327,7 +324,6 @@ def get_trades(exchange: str):
 
 
 @app.route("/api/signals/<exchange>")
-@requires_auth
 def get_signals(exchange: str):
     """전략 신호 기록 API"""
 
@@ -349,7 +345,6 @@ def get_signals(exchange: str):
 
 
 @app.route("/api/statistics")
-@requires_auth
 def get_statistics():
     """통합 통계 API"""
 
@@ -378,7 +373,6 @@ def get_statistics():
 
 
 @app.route("/api/hedge")
-@requires_auth
 def get_hedge_info():
     """Kimchi Premium and Hedge Ratio API"""
     combined_log = LOG_DIR / "v2_engine_combined.json"

@@ -4,14 +4,19 @@ app.py
 Flask 웹 대시보드 - Dual Exchange Paper Trading 모니터링
 """
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request, Response
 from flask_cors import CORS
+from functools import wraps
 import secrets
 import json
 import os
 import requests
 from pathlib import Path
 from datetime import datetime
+
+# Load .env file from project root
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 app = Flask(__name__)
 CORS(app)
@@ -20,6 +25,38 @@ BASE_DIR = Path(__file__).parent
 
 # 대시보드 비밀 경로 (환경변수 또는 랜덤 생성)
 DASHBOARD_SECRET_PATH = os.getenv("DASHBOARD_SECRET_PATH") or secrets.token_urlsafe(16)
+
+# 대시보드 인증 정보
+DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME")
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD")
+
+
+def check_auth(username, password):
+    """Check if username/password combination is valid."""
+    if not DASHBOARD_USERNAME or not DASHBOARD_PASSWORD:
+        return True  # No auth configured
+    return username == DASHBOARD_USERNAME and password == DASHBOARD_PASSWORD
+
+
+def authenticate():
+    """Send 401 response to enable basic auth."""
+    return Response(
+        'Authentication required.', 401,
+        {'WWW-Authenticate': 'Basic realm="Bitcoin Trading Bot Dashboard"'}
+    )
+
+
+def requires_auth(f):
+    """Decorator for routes that require authentication."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not DASHBOARD_USERNAME or not DASHBOARD_PASSWORD:
+            return f(*args, **kwargs)  # No auth configured
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
 
 
 def load_allocation_config() -> dict:
@@ -141,12 +178,14 @@ def block_common():
 
 
 @app.route(f"/{DASHBOARD_SECRET_PATH}")
+@requires_auth
 def dashboard():
     """메인 대시보드 (비밀 경로)"""
     return render_template("dashboard.html")
 
 
 @app.route("/api/status")
+@requires_auth
 def get_status():
     """현재 상태 API"""
 
@@ -235,6 +274,7 @@ def get_status():
 
 
 @app.route("/api/kill_switch/status")
+@requires_auth
 def kill_switch_status():
     return jsonify({
         "active": KILL_SWITCH_FILE.exists(),
@@ -265,6 +305,7 @@ def kill_switch_off():
 
 
 @app.route("/api/trades/<exchange>")
+@requires_auth
 def get_trades(exchange: str):
     """거래 기록 API"""
 
@@ -286,6 +327,7 @@ def get_trades(exchange: str):
 
 
 @app.route("/api/signals/<exchange>")
+@requires_auth
 def get_signals(exchange: str):
     """전략 신호 기록 API"""
 
@@ -307,6 +349,7 @@ def get_signals(exchange: str):
 
 
 @app.route("/api/statistics")
+@requires_auth
 def get_statistics():
     """통합 통계 API"""
 
@@ -335,6 +378,7 @@ def get_statistics():
 
 
 @app.route("/api/hedge")
+@requires_auth
 def get_hedge_info():
     """Kimchi Premium and Hedge Ratio API"""
     combined_log = LOG_DIR / "v2_engine_combined.json"

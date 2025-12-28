@@ -3,17 +3,18 @@
 # Bitcoin Trading Bot - 시작/종료 스크립트
 #
 # 사용법:
-#   ./bot.sh start [mode] [sideways_policy] [binance_policy] [binance_gate]
+#   ./bot.sh start [mode] [engine] [sideways_policy] [binance_policy] [binance_gate]
 #   ./bot.sh stop
 #   ./bot.sh status
 #   ./bot.sh logs
-#   ./bot.sh restart [mode] [sideways_policy] [binance_policy] [binance_gate]
+#   ./bot.sh restart [mode] [engine] [sideways_policy] [binance_policy] [binance_gate]
 #
 # 옵션:
 #   mode: paper (기본), live
-#   sideways_policy: sideways_v2 (기본), h4_conservative
-#   binance_policy: short_v1 (기본), h4_short
-#   binance_gate: bear_only (기본), sideways_and_bear, bear_or_sideways_bear, always
+#   engine: sync (기본), async
+#   sideways_policy: sideways_v2 (기본), h4_conservative (sync only)
+#   binance_policy: short_v1 (기본), h4_short (sync only)
+#   binance_gate: bear_only (기본), sideways_and_bear, bear_or_sideways_bear, always (sync only)
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,9 +29,10 @@ mkdir -p "$LOG_DIR"
 
 start() {
     MODE="${1:-paper}"
-    SIDEWAYS_POLICY="${2:-sideways_v2}"
-    BINANCE_POLICY="${3:-short_v1}"
-    BINANCE_GATE="${4:-bear_only}"
+    ENGINE="${2:-sync}"
+    SIDEWAYS_POLICY="${3:-sideways_v2}"
+    BINANCE_POLICY="${4:-short_v1}"
+    BINANCE_GATE="${5:-bear_only}"
 
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
@@ -43,9 +45,12 @@ start() {
 
     echo "🚀 Trading Bot 시작"
     echo "   mode: $MODE"
-    echo "   sideways: $SIDEWAYS_POLICY"
-    echo "   binance: $BINANCE_POLICY"
-    echo "   binance_gate: $BINANCE_GATE"
+    echo "   engine: $ENGINE"
+    if [ "$ENGINE" = "sync" ]; then
+        echo "   sideways: $SIDEWAYS_POLICY"
+        echo "   binance: $BINANCE_POLICY"
+        echo "   binance_gate: $BINANCE_GATE"
+    fi
     echo "   로그: $LOG_FILE"
 
     # 환경 설정
@@ -58,7 +63,11 @@ start() {
     fi
 
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
-    nohup python -u run.py --mode "$MODE" --interval 5 --sideways-policy "$SIDEWAYS_POLICY" --binance-policy "$BINANCE_POLICY" --binance-gate "$BINANCE_GATE" >> "$LOG_FILE" 2>&1 &
+    if [ "$ENGINE" = "async" ]; then
+        nohup python -u run.py --mode "$MODE" --engine async >> "$LOG_FILE" 2>&1 &
+    else
+        nohup python -u run.py --mode "$MODE" --interval 5 --sideways-policy "$SIDEWAYS_POLICY" --binance-policy "$BINANCE_POLICY" --binance-gate "$BINANCE_GATE" >> "$LOG_FILE" 2>&1 &
+    fi
 
     PID=$!
     echo $PID > "$PID_FILE"

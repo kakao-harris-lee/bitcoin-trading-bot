@@ -29,6 +29,10 @@ try:
         today,
     )
     from .risk.premium_tracker import PremiumTracker
+    from .risk.premium_controller import PremiumController
+    from .execution.hedge_manager import HedgeManager
+    from .execution.alpha_manager import AlphaManager
+    from .data.data_cache import DataCache, get_data_cache
 except ImportError:  # pragma: no cover
     # When executed as a script
     from trading.execution.paper_account import PaperTradingAccount
@@ -43,6 +47,10 @@ except ImportError:  # pragma: no cover
         today,
     )
     from trading.risk.premium_tracker import PremiumTracker
+    from trading.risk.premium_controller import PremiumController
+    from trading.execution.hedge_manager import HedgeManager
+    from trading.execution.alpha_manager import AlphaManager
+    from trading.data.data_cache import DataCache, get_data_cache
 
 from core.data_loader import DataLoader
 
@@ -252,10 +260,21 @@ class DualPaperTradingEngine:
         # Per-strategy position tracking for concurrent execution
         self._upbit_positions = self._init_upbit_positions()
 
-        # Premium tracker for Kimchi Premium monitoring
+        # Premium tracker for Kimchi Premium monitoring (legacy)
         premium_config = self._allocation_config.get("premium_tracking", {})
         self.premium_tracker = PremiumTracker(config=premium_config)
         self._last_premium_alert_at: Optional[datetime] = None
+
+        # New Hedge Infrastructure (Phase 3)
+        hedge_config = self._allocation_config.get("hedge", {})
+        self._hedge_enabled = hedge_config.get("enabled", False)
+        self.premium_controller: Optional[PremiumController] = None
+        self.hedge_manager: Optional[HedgeManager] = None
+        self.alpha_manager: Optional[AlphaManager] = None
+        self.data_cache: Optional[DataCache] = None
+
+        if self._hedge_enabled:
+            self._init_hedge_infrastructure(hedge_config)
 
         print("✅ 초기화 완료\n")
 
@@ -301,6 +320,65 @@ class DualPaperTradingEngine:
         print(msg)
         if self.telegram:
             self.telegram.send_message(msg)
+
+    def _init_hedge_infrastructure(self, hedge_config: Dict[str, Any]) -> None:
+        """Initialize hedge infrastructure (PremiumController, HedgeManager, AlphaManager)."""
+        try:
+            # Initialize DataCache for in-memory data caching
+            self.data_cache = get_data_cache()
+            print("✅ DataCache 초기화 완료")
+
+            # Initialize PremiumController for hedge signal generation
+            history_file = str(self._v2_log_dir / "premium_history.json")
+            premium_controller_config = {
+                "history_file": history_file,
+                "entry_threshold_pct": hedge_config.get("entry_threshold_pct", 1.5),
+                "entry_sigma": hedge_config.get("entry_sigma", 2.0),
+                "min_hold_minutes": hedge_config.get("min_hold_minutes", 30),
+                "negative_funding_exit": hedge_config.get("negative_funding_exit", -0.05),
+                "volatility_block_threshold": hedge_config.get("volatility_block_threshold", 2.0),
+            }
+            self.premium_controller = PremiumController(config=premium_controller_config)
+            print("✅ PremiumController 초기화 완료")
+
+            # Initialize HedgeManager for delta-neutral execution
+            hedge_manager_config = {
+                "capital_usdt": hedge_config.get("capital_usdt", 5000),
+                "max_capital_usage_pct": hedge_config.get("max_capital_usage_pct", 0.8),
+                "fee_pct": 0.04,
+                "slippage_pct": 0.02,
+            }
+            self.hedge_manager = HedgeManager(
+                binance_account=self.binance_account,
+                premium_controller=self.premium_controller,
+                config=hedge_manager_config,
+            )
+            print("✅ HedgeManager 초기화 완료")
+
+            # Initialize AlphaManager for directional strategies
+            self.alpha_manager = AlphaManager(
+                upbit_account=self.upbit_account,
+                regime_router=self.router,
+                allocation_config=self._allocation_config,
+                strategies={
+                    "v35": self.v35_strategy,
+                    "va02": self.va02_strategy,
+                    "sideways_v2": self.sideways_v2_strategy,
+                    "h4_conservative": self.h4_strategy,
+                },
+                execution_mode=self.execution_mode,
+                risk_config=self.risk_config,
+                telegram_notifier=self.telegram,
+            )
+            print("✅ AlphaManager 초기화 완료")
+
+            print(f"🔄 Hedge Infrastructure 활성화 (capital: ${hedge_config.get('capital_usdt', 5000):,.0f})")
+
+        except Exception as e:
+            print(f"⚠️  Hedge Infrastructure 초기화 실패: {e}")
+            import traceback
+            traceback.print_exc()
+            self._hedge_enabled = False
 
     def _record_trade(self, exchange: str, trade: Dict[str, Any]) -> None:
         if exchange not in self._v2_trades:
@@ -422,6 +500,27 @@ class DualPaperTradingEngine:
             hedge_info = self.calculate_hedge_ratio(prices)
             premium_stats = self.premium_tracker.get_stats()
 
+            # Build hedge manager state (if enabled)
+            hedge_manager_state = None
+            if self._hedge_enabled and self.hedge_manager:
+                hedge_manager_state = self.hedge_manager.to_dict()
+
+            # Build premium controller stats (if enabled)
+            premium_controller_stats = None
+            if self._hedge_enabled and self.premium_controller:
+                pc_stats = self.premium_controller.get_stats()
+                premium_controller_stats = {
+                    "current": pc_stats.current,
+                    "mean_24h": pc_stats.mean_24h,
+                    "std_24h": pc_stats.std_24h,
+                    "min_24h": pc_stats.min_24h,
+                    "max_24h": pc_stats.max_24h,
+                    "volatility_state": pc_stats.volatility_state,
+                    "trend": pc_stats.trend,
+                    "readings_count": pc_stats.readings_count,
+                    "entry_threshold": pc_stats.mean_24h + 2 * pc_stats.std_24h if pc_stats.std_24h > 0 else 0,
+                }
+
             combined_payload = {
                 "generated_at": datetime.now().isoformat(),
                 "mode": self.execution_mode,
@@ -443,6 +542,10 @@ class DualPaperTradingEngine:
                     "upbit_krw": prices.get("upbit", 0),
                     "binance_usd": prices.get("binance", 0),
                 },
+                # New hedge infrastructure state
+                "hedge_enabled": self._hedge_enabled,
+                "hedge_manager": hedge_manager_state,
+                "premium_controller": premium_controller_stats,
             }
 
             (self._v2_log_dir / "v2_engine_upbit.json").write_text(json.dumps(upbit_payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -1662,6 +1765,60 @@ class DualPaperTradingEngine:
             if self.execution_mode == "live":
                 self._consecutive_execution_errors += 1
 
+    def _execute_hedge_strategy(self, prices: Dict[str, float], premium_info: Dict[str, float]) -> None:
+        """Execute delta-neutral hedge strategy using HedgeManager.
+
+        This runs separately from directional strategies (SHORT_V1) and uses
+        independent capital allocation for Kimchi Premium mean-reversion.
+        """
+        if not self.hedge_manager or not self.premium_controller:
+            return
+
+        try:
+            import asyncio
+
+            # Record premium in PremiumController
+            self.premium_controller.record(premium_info)
+
+            # Get Upbit BTC balance for hedge size calculation
+            _, upbit_btc = self.upbit_account.get_balance()
+
+            # Evaluate hedge signal (sync wrapper for async method)
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            signal = loop.run_until_complete(
+                self.hedge_manager.evaluate(
+                    upbit_btc_balance=upbit_btc,
+                    binance_price=prices['binance'],
+                    premium_info=premium_info,
+                )
+            )
+
+            # Log hedge status
+            if signal:
+                exposure = self.hedge_manager.get_delta_exposure(upbit_btc)
+                print(f"[Hedge] signal={signal.action} | reason={signal.reason}")
+                print(f"[Hedge] delta: net={exposure['net_btc']:.6f} BTC | ratio={exposure['hedge_ratio']:.1%}")
+
+                # Send telegram notification on action
+                if signal.action in ("open", "close") and self.telegram:
+                    emoji = "🔄" if signal.action == "open" else "✅"
+                    msg = f"{emoji} [Hedge] {signal.action.upper()}\n"
+                    msg += f"━━━━━━━━━━━━━━━━━━━━\n"
+                    msg += f"📊 Premium: {premium_info['premium_pct']:+.2f}%\n"
+                    msg += f"💰 BTC: {signal.target_btc_qty:.6f}\n"
+                    msg += f"📝 사유: {signal.reason}"
+                    self.telegram.send_message(msg)
+
+        except Exception as e:
+            print(f"⚠️  Hedge 전략 실행 오류: {e}")
+            import traceback
+            traceback.print_exc()
+
     def run_iteration(self):
         """1회 반복 실행"""
         if not hasattr(self, "iteration_count"):
@@ -1758,8 +1915,12 @@ class DualPaperTradingEngine:
         # Execute ALL enabled Upbit strategies concurrently
         self._execute_upbit_strategies_concurrent(prices['upbit'], current_regime, decision)
 
-        # Execute Binance strategy (single)
+        # Execute Binance strategy (single) - for directional SHORT_V1
         self.execute_binance_strategy(prices['binance'], binance_target)
+
+        # Execute Hedge Strategy (if enabled)
+        if self._hedge_enabled and self.hedge_manager and self.premium_controller:
+            self._execute_hedge_strategy(prices, premium_info)
 
         # 상태 출력
         self.print_status(prices)

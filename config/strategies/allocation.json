@@ -49,5 +49,16 @@
       "regimes": ["SIDEWAYS", "BEAR"],
       "hedge_mode": true
     }
+  },
+  "hedge": {
+    "enabled": true,
+    "capital_usdt": 5000,
+    "description": "Delta-neutral Kimchi Premium hedge (separate from SHORT_V1)",
+    "entry_threshold_pct": 1.5,
+    "entry_sigma": 2.0,
+    "volatility_block_threshold": 2.0,
+    "negative_funding_exit": -0.05,
+    "min_hold_minutes": 30,
+    "max_capital_usage_pct": 0.8
   }
 }

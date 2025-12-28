@@ -56,3 +56,4 @@ venv/
 *.tmp
 *.bak
 *.swp
+.worktrees/

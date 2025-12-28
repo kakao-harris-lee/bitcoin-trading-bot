@@ -114,6 +114,7 @@ class HedgeManager:
         premium_controller: PremiumController,
         config: Optional[Dict[str, Any]] = None,
         telegram_notifier: Optional[Any] = None,
+        execution_mode: str = "paper",
     ):
         """
         Initialize HedgeManager.
@@ -123,11 +124,13 @@ class HedgeManager:
             premium_controller: Premium signal generator
             config: Optional configuration overrides
             telegram_notifier: Optional telegram notifier for alerts
+            execution_mode: "paper" or "live"
         """
         self.account = binance_account
         self.controller = premium_controller
         self.config = {**self.DEFAULT_CONFIG, **(config or {})}
         self.telegram = telegram_notifier
+        self.execution_mode = execution_mode
 
         # Capital tracking
         self.capital = float(self.config["capital_usdt"])
@@ -210,11 +213,17 @@ class HedgeManager:
         fee = margin_required * fee_pct
 
         try:
-            # Execute short order
-            if hasattr(self.account, 'open_short') and asyncio.iscoroutinefunction(self.account.open_short):
-                result = await self.account.open_short(qty, price)
+            # Execute short order based on execution mode
+            if self.execution_mode == "live":
+                # LIVE MODE: Place actual order on exchange
+                if hasattr(self.account, 'open_short'):
+                    result = self.account.open_short(qty, price)
+                    if not result or not result.get("success"):
+                        raise ExecutionError(f"Live short order failed: {result}")
+                else:
+                    raise ExecutionError("Live account missing open_short method")
             else:
-                # Sync fallback for paper trading
+                # PAPER MODE: Simulate trade
                 result = self._sync_open_short(qty, price)
 
             if not result.get("success", True):
@@ -256,11 +265,17 @@ class HedgeManager:
 
         for attempt in range(max_retries):
             try:
-                # Execute close order
-                if hasattr(self.account, 'close_short') and asyncio.iscoroutinefunction(self.account.close_short):
-                    result = await self.account.close_short(qty)
+                # Execute close order based on execution mode
+                if self.execution_mode == "live":
+                    # LIVE MODE: Place actual order on exchange
+                    if hasattr(self.account, 'close_short'):
+                        result = self.account.close_short(qty)
+                        if not result or not result.get("success"):
+                            raise ExecutionError(f"Live close order failed: {result}")
+                    else:
+                        raise ExecutionError("Live account missing close_short method")
                 else:
-                    # Sync fallback
+                    # PAPER MODE: Simulate trade
                     result = self._sync_close_short(qty, price)
 
                 if result.get("success", True):

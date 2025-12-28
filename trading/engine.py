@@ -352,6 +352,8 @@ class DualPaperTradingEngine:
                 binance_account=self.binance_account,
                 premium_controller=self.premium_controller,
                 config=hedge_manager_config,
+                telegram_notifier=self.telegram,
+                execution_mode=self.execution_mode,
             )
             print("✅ HedgeManager 초기화 완료")
 
@@ -1915,12 +1917,21 @@ class DualPaperTradingEngine:
         # Execute ALL enabled Upbit strategies concurrently
         self._execute_upbit_strategies_concurrent(prices['upbit'], current_regime, decision)
 
-        # Execute Binance strategy (single) - for directional SHORT_V1
-        self.execute_binance_strategy(prices['binance'], binance_target)
-
-        # Execute Hedge Strategy (if enabled)
+        # Execute Hedge Strategy first (if enabled) - has priority over SHORT_V1
         if self._hedge_enabled and self.hedge_manager and self.premium_controller:
             self._execute_hedge_strategy(prices, premium_info)
+
+        # Execute Binance strategy (SHORT_V1) only when hedge is NOT active
+        # Design doc: "Execute SHORT_V1 only when hedge inactive"
+        hedge_is_active = (
+            self._hedge_enabled
+            and self.hedge_manager
+            and self.hedge_manager.hedge_position is not None
+        )
+        if not hedge_is_active:
+            self.execute_binance_strategy(prices['binance'], binance_target)
+        else:
+            print("[Binance] SHORT_V1 skipped - hedge position active")
 
         # 상태 출력
         self.print_status(prices)

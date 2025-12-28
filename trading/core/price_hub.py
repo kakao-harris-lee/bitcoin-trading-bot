@@ -68,6 +68,8 @@ class PriceHub:
         self._fx_rate: float = default_fx_rate
         self._cached_premium: Optional[PremiumInfo] = None
         self._subscribers: List[asyncio.Queue] = []
+        self._subscriber_failures: Dict[int, int] = {}  # queue id -> consecutive failures
+        self._max_failures = 10  # Remove after 10 consecutive failures
         self._price_change_threshold = price_change_threshold
         self._started_at = datetime.now()
 
@@ -161,12 +163,28 @@ class PriceHub:
 
         self._notification_count += 1
 
+        dead_subscribers = []
         for queue in self._subscribers:
+            queue_id = id(queue)
             try:
                 # Non-blocking put - drop if queue is full
                 queue.put_nowait(event)
+                # Reset failure count on success
+                self._subscriber_failures[queue_id] = 0
             except asyncio.QueueFull:
-                logger.warning(f"Subscriber queue full, dropping event for {exchange}")
+                # Track consecutive failures
+                failures = self._subscriber_failures.get(queue_id, 0) + 1
+                self._subscriber_failures[queue_id] = failures
+                if failures >= self._max_failures:
+                    dead_subscribers.append(queue)
+                    logger.warning(f"Removing dead subscriber (queue full {failures} times)")
+                else:
+                    logger.debug(f"Subscriber queue full ({failures}/{self._max_failures})")
+
+        # Remove dead subscribers
+        for queue in dead_subscribers:
+            self._subscribers.remove(queue)
+            self._subscriber_failures.pop(id(queue), None)
 
     def subscribe(self, maxsize: int = 100) -> asyncio.Queue:
         """

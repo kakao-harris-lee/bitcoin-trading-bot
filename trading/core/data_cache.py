@@ -8,6 +8,7 @@ DataCache - In-memory OHLCV cache with hybrid update strategy.
 
 import asyncio
 import logging
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Any, Literal
@@ -76,6 +77,7 @@ class DataCache:
         self._sync_task: Optional[asyncio.Task] = None
         self._last_sync: Dict[str, datetime] = {}
         self._tick_count: int = 0
+        self._lock = threading.Lock()  # Thread-safe cache access
 
     async def start(self) -> None:
         """Initialize cache with data from DB."""
@@ -118,23 +120,26 @@ class DataCache:
             for tf in self.SUPPORTED_TIMEFRAMES:
                 try:
                     df = loader.load_timeframe(tf, start_date=start_date)
-                    if df is not None and len(df) > 0:
-                        self._cache[tf] = df.tail(self._max_rows).copy()
-                        self._last_sync[tf] = datetime.now()
-                        logger.info(f"Loaded {len(self._cache[tf])} rows for {tf}")
-                    else:
-                        self._cache[tf] = pd.DataFrame()
-                        logger.warning(f"No data found for {tf}")
+                    with self._lock:
+                        if df is not None and len(df) > 0:
+                            self._cache[tf] = df.tail(self._max_rows).copy()
+                            self._last_sync[tf] = datetime.now()
+                            logger.info(f"Loaded {len(self._cache[tf])} rows for {tf}")
+                        else:
+                            self._cache[tf] = pd.DataFrame()
+                            logger.warning(f"No data found for {tf}")
                 except Exception as e:
                     logger.error(f"Failed to load {tf}: {e}")
-                    self._cache[tf] = pd.DataFrame()
+                    with self._lock:
+                        self._cache[tf] = pd.DataFrame()
 
             loader.close()
         except Exception as e:
             logger.error(f"DataLoader initialization failed: {e}")
             # Initialize empty caches
-            for tf in self.SUPPORTED_TIMEFRAMES:
-                self._cache[tf] = pd.DataFrame()
+            with self._lock:
+                for tf in self.SUPPORTED_TIMEFRAMES:
+                    self._cache[tf] = pd.DataFrame()
 
     async def _db_sync_loop(self) -> None:
         """Background loop to sync with DB periodically."""
@@ -160,9 +165,10 @@ class DataCache:
                 try:
                     df = loader.load_timeframe(tf, start_date=start_date)
                     if df is not None and len(df) > 0:
-                        self._cache[tf] = df.tail(self._max_rows).copy()
-                        self._last_sync[tf] = datetime.now()
-                        logger.debug(f"Synced {len(self._cache[tf])} rows for {tf}")
+                        with self._lock:
+                            self._cache[tf] = df.tail(self._max_rows).copy()
+                            self._last_sync[tf] = datetime.now()
+                        logger.debug(f"Synced {len(df)} rows for {tf}")
                 except Exception as e:
                     logger.error(f"Failed to sync {tf}: {e}")
 
@@ -247,17 +253,18 @@ class DataCache:
             "volume": candle.volume,
         }])
 
-        # Append to cache
-        if timeframe in self._cache and len(self._cache[timeframe]) > 0:
-            self._cache[timeframe] = pd.concat(
-                [self._cache[timeframe], new_row],
-                ignore_index=True
-            )
-            # Enforce max rows
-            if len(self._cache[timeframe]) > self._max_rows:
-                self._cache[timeframe] = self._cache[timeframe].tail(self._max_rows)
-        else:
-            self._cache[timeframe] = new_row
+        # Append to cache (thread-safe)
+        with self._lock:
+            if timeframe in self._cache and len(self._cache[timeframe]) > 0:
+                self._cache[timeframe] = pd.concat(
+                    [self._cache[timeframe], new_row],
+                    ignore_index=True
+                )
+                # Enforce max rows
+                if len(self._cache[timeframe]) > self._max_rows:
+                    self._cache[timeframe] = self._cache[timeframe].tail(self._max_rows)
+            else:
+                self._cache[timeframe] = new_row
 
         logger.debug(f"Finalized candle for {timeframe}: {candle.close}")
 
@@ -276,15 +283,16 @@ class DataCache:
         Returns:
             DataFrame with OHLCV columns, or empty DataFrame if not available
         """
-        if timeframe not in self._cache:
-            logger.warning(f"Timeframe {timeframe} not in cache")
-            return pd.DataFrame()
+        with self._lock:
+            if timeframe not in self._cache:
+                logger.warning(f"Timeframe {timeframe} not in cache")
+                return pd.DataFrame()
 
-        df = self._cache[timeframe]
-        if len(df) == 0:
-            return pd.DataFrame()
+            df = self._cache[timeframe]
+            if len(df) == 0:
+                return pd.DataFrame()
 
-        return df.tail(periods).copy()
+            return df.tail(periods).copy()
 
     def get_current_candle(self, timeframe: str) -> Optional[OHLCV]:
         """Get the current (incomplete) candle being built from ticks."""

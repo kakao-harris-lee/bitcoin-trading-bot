@@ -285,12 +285,13 @@ class HealthMonitor:
             result["used_mb"] = round(used_mb, 1)
             result["percent"] = round(process.memory_percent(), 1)
 
-            if used_mb > self.max_memory_mb:
-                result["status"] = HealthStatus.DEGRADED
-                result["issue"] = f"High memory: {used_mb:.0f}MB"
-            elif used_mb > self.max_memory_mb * 1.5:
+            # Check critical first (higher threshold), then degraded
+            if used_mb > self.max_memory_mb * 1.5:
                 result["status"] = HealthStatus.UNHEALTHY
                 result["issue"] = f"Critical memory: {used_mb:.0f}MB"
+            elif used_mb > self.max_memory_mb:
+                result["status"] = HealthStatus.DEGRADED
+                result["issue"] = f"High memory: {used_mb:.0f}MB"
 
         except Exception as e:
             result["status"] = HealthStatus.DEGRADED
@@ -372,11 +373,15 @@ class HealthMonitor:
     async def _write_health_json(self, health: Dict[str, Any]) -> None:
         """Write health status to JSON for dashboard."""
         try:
-            health_file = self.log_dir / "async_engine_health.json"
-            with open(health_file, "w") as f:
-                json.dump(health, f, indent=2, ensure_ascii=False)
+            await asyncio.to_thread(self._write_health_json_sync, health)
         except Exception as e:
             logger.error(f"Failed to write health JSON: {e}")
+
+    def _write_health_json_sync(self, health: Dict[str, Any]) -> None:
+        """Sync helper for writing health JSON."""
+        health_file = self.log_dir / "async_engine_health.json"
+        with open(health_file, "w") as f:
+            json.dump(health, f, indent=2, ensure_ascii=False)
 
     def get_health(self) -> Dict[str, Any]:
         """Get last health check result."""

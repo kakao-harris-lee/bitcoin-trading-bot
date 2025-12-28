@@ -100,12 +100,19 @@ class WebSocketClient:
     async def disconnect(self) -> None:
         """Disconnect from WebSocket."""
         self._connected = False
-        if self._ws:
-            await self._ws.close()
-            self._ws = None
-        if self._session:
-            await self._session.close()
-            self._session = None
+        # Set to None first, then close (ensures reconnect works even if close fails)
+        ws, self._ws = self._ws, None
+        session, self._session = self._session, None
+        if ws:
+            try:
+                await ws.close()
+            except Exception as e:
+                logger.debug(f"Error closing WebSocket for {self.name}: {e}")
+        if session:
+            try:
+                await session.close()
+            except Exception as e:
+                logger.debug(f"Error closing session for {self.name}: {e}")
         logger.info(f"Disconnected from {self.name}")
 
     async def reconnect(self) -> bool:
@@ -372,8 +379,13 @@ class SimpleFeedHandler:
 
     def get_last_price(self, exchange: str, symbol: str) -> Optional[PriceMessage]:
         """Get last price for exchange and symbol."""
+        # Try exact match first, then uppercase (Binance returns uppercase)
         key = f"{exchange}:{symbol}"
-        return self._last_prices.get(key)
+        result = self._last_prices.get(key)
+        if result is None:
+            key_upper = f"{exchange}:{symbol.upper()}"
+            result = self._last_prices.get(key_upper)
+        return result
 
     def get_stats(self) -> Dict[str, Any]:
         """Get feed handler statistics."""

@@ -427,11 +427,15 @@ class AsyncTradingEngine:
             }
 
             status_file = self.log_dir / "async_engine_status.json"
-            with open(status_file, "w") as f:
-                json.dump(status, f, indent=2, ensure_ascii=False)
+            await asyncio.to_thread(self._write_json_sync, status_file, status)
 
         except Exception as e:
             logger.error(f"Failed to write status: {e}")
+
+    def _write_json_sync(self, file_path: Path, data: Dict) -> None:
+        """Sync helper for writing JSON file."""
+        with open(file_path, "w") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
     def get_stats(self) -> Dict[str, Any]:
         """Get engine statistics."""

@@ -133,8 +133,9 @@ class FXRateCache:
             self._fetch_count += 1
 
             # Notify callback if rate changed significantly (>0.1%)
-            if self._on_rate_change and abs(rate - old_rate) / old_rate > 0.001:
-                self._on_rate_change(rate)
+            if self._on_rate_change and old_rate > 0:
+                if abs(rate - old_rate) / old_rate > 0.001:
+                    self._on_rate_change(rate)
 
             logger.info(f"FX rate updated: {self._rate:.2f} KRW/USD")
         else:

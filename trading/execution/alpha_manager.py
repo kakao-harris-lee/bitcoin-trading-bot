@@ -100,6 +100,7 @@ class AlphaManager:
         execution_mode: str = "paper",
         risk_config: Optional[Any] = None,
         telegram_notifier: Optional[Any] = None,
+        delta_rebalancer: Optional[Any] = None,
     ):
         """
         Initialize AlphaManager.
@@ -112,6 +113,7 @@ class AlphaManager:
             execution_mode: "paper" or "live"
             risk_config: Risk configuration
             telegram_notifier: Optional telegram notifier
+            delta_rebalancer: Optional DeltaRebalancer for hedge notifications
         """
         self.account = upbit_account
         self.router = regime_router
@@ -120,6 +122,7 @@ class AlphaManager:
         self.execution_mode = execution_mode
         self.risk_config = risk_config
         self.telegram = telegram_notifier
+        self.delta_rebalancer = delta_rebalancer
 
         # Per-strategy position tracking
         self.positions: Dict[str, StrategyPosition] = {}
@@ -349,6 +352,10 @@ class AlphaManager:
             pos.btc = btc_amount
             pos.entry_price = actual_price
 
+            # Notify DeltaRebalancer of position change
+            if self.delta_rebalancer:
+                self.delta_rebalancer.on_alpha_trade(btc_amount, "buy")
+
             # Record trade
             trade = {
                 "timestamp": datetime.now().isoformat(),
@@ -400,13 +407,16 @@ class AlphaManager:
             pnl = (actual_price - pos.entry_price) * pos.btc
             pnl_pct = ((actual_price / pos.entry_price) - 1) * 100
 
+            # Capture btc before clearing for rebalancer notification
+            sold_btc = pos.btc
+
             # Record trade
             trade = {
                 "timestamp": datetime.now().isoformat(),
                 "strategy": pos.name,
                 "type": "sell",
                 "price": actual_price,
-                "btc": pos.btc,
+                "btc": sold_btc,
                 "proceeds_krw": proceeds,
                 "pnl": pnl,
                 "pnl_pct": pnl_pct,
@@ -418,6 +428,10 @@ class AlphaManager:
             pos.active = False
             pos.btc = 0.0
             pos.entry_price = 0.0
+
+            # Notify DeltaRebalancer of position change
+            if self.delta_rebalancer:
+                self.delta_rebalancer.on_alpha_trade(sold_btc, "sell")
 
             msg = f"🔴 [{pos.name}] SELL @ {actual_price:,.0f}원 | PnL: {pnl:+,.0f}원 ({pnl_pct:+.2f}%)"
             logger.info(msg)

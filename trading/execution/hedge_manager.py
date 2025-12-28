@@ -404,6 +404,148 @@ class HedgeManager:
             logger.error(f"Position sync failed: {e}")
             await self._notify(f"⚠️ Hedge position sync failed: {e}")
 
+    async def adjust_position(self, target_qty: float, current_price: float) -> Optional[Dict[str, Any]]:
+        """
+        Adjust existing hedge position to match target quantity.
+
+        Used by DeltaRebalancer to maintain delta neutrality when Alpha
+        positions change.
+
+        Args:
+            target_qty: Desired short BTC quantity (should match Upbit long)
+            current_price: Current Binance BTC price
+
+        Returns:
+            Dict with direction, qty_adjusted, new_short_qty, fees_paid, success
+            None if no adjustment needed
+        """
+        if not self.hedge_position:
+            return None
+
+        current_qty = self.hedge_position.qty
+        diff = target_qty - current_qty
+
+        if abs(diff) < 0.0001:  # Negligible difference
+            return None
+
+        if diff > 0:
+            # Need to increase short (Alpha bought more)
+            return await self._increase_short(diff, current_price)
+        else:
+            # Need to decrease short (Alpha sold some)
+            return await self._decrease_short(abs(diff), current_price)
+
+    async def _increase_short(self, qty: float, price: float) -> Dict[str, Any]:
+        """Increase short position for rebalancing."""
+        # Check margin availability
+        margin_required = qty * price
+        max_margin = self.capital * self.config["max_capital_usage_pct"]
+
+        if margin_required > max_margin:
+            qty = max_margin / price  # Partial fill
+            margin_required = qty * price
+            logger.warning(f"Rebalance qty capped to {qty:.6f} BTC due to capital limits")
+
+        if qty <= 0:
+            return {"direction": "increase", "qty_adjusted": 0, "new_short_qty": self.hedge_position.qty,
+                    "fees_paid": 0, "success": False}
+
+        # Calculate fees
+        fee_pct = (self.config["fee_pct"] + self.config["slippage_pct"]) / 100
+        fee = margin_required * fee_pct
+
+        try:
+            # Execute order based on mode
+            if self.execution_mode == "live":
+                if hasattr(self.account, 'open_short'):
+                    result = self.account.open_short(qty, price)
+                    if not result or not result.get("success"):
+                        raise ExecutionError(f"Live increase short failed: {result}")
+                else:
+                    raise ExecutionError("Live account missing open_short method")
+            else:
+                result = self._sync_open_short(qty, price)
+
+            if result.get("success", True):
+                filled_qty = result.get("filled_qty", qty)
+                self.hedge_position.qty += filled_qty
+                self.capital -= fee
+
+                logger.info(f"Rebalance increase: +{filled_qty:.6f} BTC @ ${price:,.2f}, fee: ${fee:.2f}")
+                await self._notify(f"🔄 Hedge rebalance: +{filled_qty:.4f} BTC @ ${price:,.2f}")
+
+                return {
+                    "direction": "increase",
+                    "qty_adjusted": filled_qty,
+                    "new_short_qty": self.hedge_position.qty,
+                    "fees_paid": fee,
+                    "success": True,
+                }
+
+        except Exception as e:
+            logger.error(f"Rebalance increase failed: {e}")
+            await self._notify(f"❌ Rebalance failed: {e}")
+
+        return {"direction": "increase", "qty_adjusted": 0, "new_short_qty": self.hedge_position.qty,
+                "fees_paid": 0, "success": False}
+
+    async def _decrease_short(self, qty: float, price: float) -> Dict[str, Any]:
+        """Decrease short position for rebalancing."""
+        # Can't decrease more than current position
+        qty = min(qty, self.hedge_position.qty)
+
+        if qty <= 0:
+            return {"direction": "decrease", "qty_adjusted": 0, "new_short_qty": self.hedge_position.qty,
+                    "fees_paid": 0, "success": False}
+
+        # Calculate fees
+        fee_pct = (self.config["fee_pct"] + self.config["slippage_pct"]) / 100
+        fee = qty * price * fee_pct
+
+        try:
+            # Execute order based on mode
+            if self.execution_mode == "live":
+                if hasattr(self.account, 'close_short'):
+                    result = self.account.close_short(qty)
+                    if not result or not result.get("success"):
+                        raise ExecutionError(f"Live decrease short failed: {result}")
+                else:
+                    raise ExecutionError("Live account missing close_short method")
+            else:
+                result = self._sync_close_short(qty, price)
+
+            if result.get("success", True):
+                old_qty = self.hedge_position.qty
+                self.hedge_position.qty -= qty
+                self.capital -= fee
+
+                # If fully closed, clear position
+                if self.hedge_position.qty < 0.0001:
+                    self.hedge_position = None
+                    self.controller.set_position_state(False)
+                    new_qty = 0.0
+                else:
+                    new_qty = self.hedge_position.qty
+
+                logger.info(f"Rebalance decrease: -{qty:.6f} BTC @ ${price:,.2f}, fee: ${fee:.2f}")
+                await self._notify(f"🔄 Hedge rebalance: -{qty:.4f} BTC @ ${price:,.2f}")
+
+                return {
+                    "direction": "decrease",
+                    "qty_adjusted": qty,
+                    "new_short_qty": new_qty,
+                    "fees_paid": fee,
+                    "success": True,
+                }
+
+        except Exception as e:
+            logger.error(f"Rebalance decrease failed: {e}")
+            await self._notify(f"❌ Rebalance failed: {e}")
+
+        return {"direction": "decrease", "qty_adjusted": 0,
+                "new_short_qty": self.hedge_position.qty if self.hedge_position else 0,
+                "fees_paid": 0, "success": False}
+
     async def _notify(self, message: str) -> None:
         """Send telegram notification if available."""
         if self.telegram:

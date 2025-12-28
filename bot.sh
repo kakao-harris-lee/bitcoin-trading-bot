@@ -3,18 +3,11 @@
 # Bitcoin Trading Bot - 시작/종료 스크립트
 #
 # 사용법:
-#   ./bot.sh start [mode] [engine] [sideways_policy] [binance_policy] [binance_gate]
+#   ./bot.sh start [mode]    # paper (기본) 또는 live
 #   ./bot.sh stop
 #   ./bot.sh status
 #   ./bot.sh logs
-#   ./bot.sh restart [mode] [engine] [sideways_policy] [binance_policy] [binance_gate]
-#
-# 옵션:
-#   mode: paper (기본), live
-#   engine: sync (기본), async
-#   sideways_policy: sideways_v2 (기본), h4_conservative (sync only)
-#   binance_policy: short_v1 (기본), h4_short (sync only)
-#   binance_gate: bear_only (기본), sideways_and_bear, bear_or_sideways_bear, always (sync only)
+#   ./bot.sh restart [mode]
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,10 +22,6 @@ mkdir -p "$LOG_DIR"
 
 start() {
     MODE="${1:-paper}"
-    ENGINE="${2:-sync}"
-    SIDEWAYS_POLICY="${3:-sideways_v2}"
-    BINANCE_POLICY="${4:-short_v1}"
-    BINANCE_GATE="${5:-bear_only}"
 
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
@@ -43,14 +32,8 @@ start() {
         fi
     fi
 
-    echo "🚀 Trading Bot 시작"
+    echo "🚀 AsyncTradingEngine 시작"
     echo "   mode: $MODE"
-    echo "   engine: $ENGINE"
-    if [ "$ENGINE" = "sync" ]; then
-        echo "   sideways: $SIDEWAYS_POLICY"
-        echo "   binance: $BINANCE_POLICY"
-        echo "   binance_gate: $BINANCE_GATE"
-    fi
     echo "   로그: $LOG_FILE"
 
     # 환경 설정
@@ -63,11 +46,7 @@ start() {
     fi
 
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
-    if [ "$ENGINE" = "async" ]; then
-        nohup python -u run.py --mode "$MODE" --engine async >> "$LOG_FILE" 2>&1 &
-    else
-        nohup python -u run.py --mode "$MODE" --interval 5 --sideways-policy "$SIDEWAYS_POLICY" --binance-policy "$BINANCE_POLICY" --binance-gate "$BINANCE_GATE" >> "$LOG_FILE" 2>&1 &
-    fi
+    nohup python -u run.py --mode "$MODE" --engine async >> "$LOG_FILE" 2>&1 &
 
     PID=$!
     echo $PID > "$PID_FILE"
@@ -131,6 +110,22 @@ status() {
         echo "   PID: $PID"
         echo "   실행 시간: $UPTIME"
         echo "   로그: $LOG_FILE"
+
+        # Health status
+        HEALTH_FILE="$LOG_DIR/async_engine_health.json"
+        if [ -f "$HEALTH_FILE" ]; then
+            echo ""
+            python3 -c "
+import json
+with open('$HEALTH_FILE') as f:
+    d = json.load(f)
+print(f\"   Health: {d['status'].upper()}\")
+if d['prices'].get('upbit', {}).get('price'):
+    print(f\"   Upbit:  ₩{d['prices']['upbit']['price']:,.0f}\")
+if d['prices'].get('binance', {}).get('price'):
+    print(f\"   Binance: \${d['prices']['binance']['price']:,.2f}\")
+" 2>/dev/null
+        fi
     else
         echo "❌ 봇이 실행 중이지 않습니다 (stale PID file)"
         rm -f "$PID_FILE"
@@ -154,17 +149,14 @@ logs() {
 
 restart() {
     MODE="${1:-paper}"
-    SIDEWAYS_POLICY="${2:-sideways_v2}"
-    BINANCE_POLICY="${3:-short_v1}"
-    BINANCE_GATE="${4:-bear_only}"
     stop
     sleep 2
-    start "$MODE" "$SIDEWAYS_POLICY" "$BINANCE_POLICY" "$BINANCE_GATE"
+    start "$MODE"
 }
 
 case "$1" in
     start)
-        start "$2" "$3" "$4" "$5"
+        start "$2"
         ;;
     stop)
         stop
@@ -176,31 +168,25 @@ case "$1" in
         logs
         ;;
     restart)
-        restart "$2" "$3" "$4" "$5"
+        restart "$2"
         ;;
     *)
-        echo "Bitcoin Trading Bot 관리 스크립트"
+        echo "Bitcoin Trading Bot (AsyncEngine)"
         echo ""
-        echo "사용법: $0 {start|stop|status|logs|restart} [mode] [sideways] [binance] [gate]"
+        echo "사용법: $0 {start|stop|status|logs|restart} [mode]"
         echo ""
         echo "명령어:"
-        echo "  start [mode] [sideways] [binance] [gate]  봇 시작"
-        echo "  stop                                      봇 종료"
-        echo "  status                                    상태 확인"
-        echo "  logs                                      실시간 로그 보기"
-        echo "  restart [mode] [sideways] [binance] [gate] 재시작"
-        echo ""
-        echo "옵션:"
-        echo "  mode:     paper (기본), live"
-        echo "  sideways: sideways_v2 (기본), h4_conservative, v35, hold"
-        echo "  binance:  short_v1 (기본), h4_short, hold"
-        echo "  gate:     bear_only (기본), sideways_and_bear, bear_or_sideways_bear, always"
+        echo "  start [mode]    봇 시작 (paper 또는 live)"
+        echo "  stop            봇 종료"
+        echo "  status          상태 확인"
+        echo "  logs            실시간 로그 보기"
+        echo "  restart [mode]  재시작"
         echo ""
         echo "예시:"
-        echo "  $0 start                                              # 기본 설정"
-        echo "  $0 start paper h4_conservative h4_short               # H4 전략 조합"
-        echo "  $0 start live h4_conservative h4_short sideways_and_bear  # Sideways에서도 숏"
-        echo "  $0 stop                                               # 종료"
+        echo "  $0 start        # Paper 모드 시작"
+        echo "  $0 start live   # Live 모드 시작"
+        echo "  $0 stop         # 종료"
+        echo "  $0 status       # 상태 확인"
         exit 1
         ;;
 esac

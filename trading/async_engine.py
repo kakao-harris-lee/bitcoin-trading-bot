@@ -186,6 +186,7 @@ class AsyncTradingEngine:
             self._main_loop(),
             self._regime_update_loop(),
             self._price_feed_loop(),
+            self._periodic_status_loop(),
         )
 
     async def stop(self) -> None:
@@ -321,6 +322,30 @@ class AsyncTradingEngine:
                 logger.error(f"Regime update failed: {e}")
 
             await asyncio.sleep(self.config.regime_update_interval)
+
+    async def _periodic_status_loop(self) -> None:
+        """Log status every 5 minutes like the old engine."""
+        interval = 300  # 5 minutes
+
+        while self._running:
+            try:
+                await asyncio.sleep(interval)
+
+                if not self._running:
+                    break
+
+                # Print status
+                self._print_cycle_status()
+
+                # Write status files
+                await self._write_status()
+
+                print(f"\n⏱️  다음 실행까지 5분 대기...\n")
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Periodic status loop error: {e}")
 
     def _calculate_regime(self, df) -> str:
         """Calculate market regime from daily data (sync)."""

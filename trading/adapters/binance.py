@@ -4,13 +4,16 @@
 BTCUSDT 무기한 선물 거래 (숏 포지션)
 """
 
+import logging
 import os
+import time
 from typing import Optional, Dict, Any, Tuple
 from binance.client import Client
 from binance.enums import *
 from binance.exceptions import BinanceAPIException
 from dotenv import load_dotenv
-import time
+
+logger = logging.getLogger(__name__)
 
 
 class BinanceFuturesTrader:
@@ -132,6 +135,39 @@ class BinanceFuturesTrader:
             print(f"❌ 포지션 조회 실패: {e}")
             return None
 
+    def _wait_for_order_fill(self, order_id: int, max_wait: float = 30.0) -> Optional[Dict[str, Any]]:
+        """
+        Wait for order fill with exponential backoff.
+
+        Args:
+            order_id: Order ID
+            max_wait: Maximum wait time in seconds
+
+        Returns:
+            Order status dict if filled, None if timeout
+        """
+        delay = 0.1  # Start at 100ms
+        elapsed = 0.0
+        order_status = None
+
+        while elapsed < max_wait:
+            order_status = self.client.futures_get_order(
+                symbol=self.symbol,
+                orderId=order_id
+            )
+
+            if order_status and order_status.get('status') == 'FILLED':
+                return order_status
+
+            time.sleep(delay)
+            elapsed += delay
+            delay = min(delay * 2, 2.0)  # Double delay, cap at 2s
+
+        # Timeout - log warning and return last status
+        status = order_status.get('status', 'unknown') if order_status else 'unknown'
+        logger.warning(f"Order {order_id} not filled after {max_wait}s, status: {status}")
+        return order_status
+
     def open_short(self, usdt_amount: float, leverage: int = 1) -> Optional[Dict[str, Any]]:
         """
         숏 포지션 오픈
@@ -182,14 +218,10 @@ class BinanceFuturesTrader:
                 quantity=quantity
             )
 
-            # 체결 확인
-            time.sleep(1)
-            order_status = self.client.futures_get_order(
-                symbol=self.symbol,
-                orderId=order['orderId']
-            )
+            # 체결 확인 (exponential backoff, 최대 30초)
+            order_status = self._wait_for_order_fill(order['orderId'], max_wait=30.0)
 
-            if order_status['status'] == 'FILLED':
+            if order_status and order_status.get('status') == 'FILLED':
                 avg_price = float(order_status['avgPrice'])
                 executed_qty = float(order_status['executedQty'])
                 commission = float(order_status.get('fee', 0))
@@ -255,14 +287,10 @@ class BinanceFuturesTrader:
                 quantity=position_amt
             )
 
-            # 체결 확인
-            time.sleep(1)
-            order_status = self.client.futures_get_order(
-                symbol=self.symbol,
-                orderId=order['orderId']
-            )
+            # 체결 확인 (exponential backoff, 최대 30초)
+            order_status = self._wait_for_order_fill(order['orderId'], max_wait=30.0)
 
-            if order_status['status'] == 'FILLED':
+            if order_status and order_status.get('status') == 'FILLED':
                 avg_price = float(order_status['avgPrice'])
                 executed_qty = float(order_status['executedQty'])
                 commission = float(order_status.get('fee', 0))

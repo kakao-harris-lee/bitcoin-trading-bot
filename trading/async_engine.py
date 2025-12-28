@@ -561,6 +561,9 @@ class AsyncTradingEngine:
             status_file = self.log_dir / "async_engine_status.json"
             await asyncio.to_thread(self._write_json_sync, status_file, status)
 
+            # Also write v2_engine_combined.json for dashboard compatibility
+            await self._write_combined_log(prices, premium)
+
         except Exception as e:
             logger.error(f"Failed to write status: {e}")
 
@@ -568,6 +571,87 @@ class AsyncTradingEngine:
         """Sync helper for writing JSON file."""
         with open(file_path, "w") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+
+    async def _write_combined_log(self, prices: Dict, premium) -> None:
+        """Write v2_engine_combined.json for dashboard compatibility."""
+        try:
+            upbit_price = prices.get("upbit", 0)
+            binance_price = prices.get("binance", 0)
+            premium_stats = self.premium_tracker.get_stats()
+
+            # Get paper accounts for hedge ratio calculation
+            upbit_account = self.executor._paper_accounts.get("upbit")
+            binance_account = self.executor._paper_accounts.get("binance")
+
+            # Calculate exposures
+            long_exposure = 0.0
+            short_exposure = 0.0
+            if upbit_account:
+                _, btc = upbit_account.get_balance()
+                long_exposure = btc * upbit_price if btc > 0 else 0
+
+            if binance_account:
+                pos = binance_account.get_position()
+                if pos and pos.get("size", 0) > 0:
+                    fx_rate = premium.usd_krw_rate if premium else 1450
+                    short_exposure = pos["size"] * binance_price * fx_rate
+
+            # Calculate hedge ratio
+            total_exposure = long_exposure + short_exposure
+            hedge_ratio = short_exposure / total_exposure if total_exposure > 0 else 0
+
+            # Determine target based on regime
+            regime = self._regime_cache or "SIDEWAYS_NEUTRAL"
+            if "BULL" in regime:
+                target_min, target_max, target = 0.3, 0.5, 0.4
+            elif "BEAR" in regime:
+                target_min, target_max, target = 0.5, 0.7, 0.6
+            else:
+                target_min, target_max, target = 0.4, 0.6, 0.5
+
+            combined = {
+                "generated_at": datetime.now().isoformat(),
+                "mode": self.execution_mode,
+                "regime": regime.split("_")[0] if "_" in regime else regime,
+                "market_state": regime,
+                "kimchi_premium": {
+                    "premium_pct": premium.premium_pct if premium else 0,
+                    "upbit_usd": premium.upbit_usd if premium else 0,
+                    "binance_usd": premium.binance_usd if premium else 0,
+                    "usd_krw_rate": premium.usd_krw_rate if premium else 1450,
+                },
+                "premium_stats": {
+                    "current": premium_stats.current,
+                    "mean_24h": premium_stats.mean_24h,
+                    "std_24h": premium_stats.std_24h,
+                    "min_24h": premium_stats.min_24h,
+                    "max_24h": premium_stats.max_24h,
+                    "volatility_state": premium_stats.volatility_state,
+                    "trend": premium_stats.trend,
+                    "readings_count": premium_stats.readings_count,
+                },
+                "hedge_ratio": {
+                    "hedge_ratio": hedge_ratio,
+                    "long_exposure_krw": long_exposure,
+                    "short_exposure_krw": short_exposure,
+                    "regime": regime.split("_")[0] if "_" in regime else regime,
+                    "target_min": target_min,
+                    "target_max": target_max,
+                    "target": target,
+                    "adjusted_target": target,
+                    "adjustment_reason": "normal",
+                },
+                "prices": {
+                    "upbit_krw": upbit_price,
+                    "binance_usd": binance_price,
+                },
+            }
+
+            combined_file = self.log_dir / "v2_engine_combined.json"
+            await asyncio.to_thread(self._write_json_sync, combined_file, combined)
+
+        except Exception as e:
+            logger.error(f"Failed to write combined log: {e}")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get engine statistics."""

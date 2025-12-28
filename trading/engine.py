@@ -32,6 +32,7 @@ try:
     from .risk.premium_controller import PremiumController
     from .execution.hedge_manager import HedgeManager
     from .execution.alpha_manager import AlphaManager
+    from .execution.delta_rebalancer import DeltaRebalancer
     from .data.data_cache import DataCache, get_data_cache
 except ImportError:  # pragma: no cover
     # When executed as a script
@@ -50,6 +51,7 @@ except ImportError:  # pragma: no cover
     from trading.risk.premium_controller import PremiumController
     from trading.execution.hedge_manager import HedgeManager
     from trading.execution.alpha_manager import AlphaManager
+    from trading.execution.delta_rebalancer import DeltaRebalancer
     from trading.data.data_cache import DataCache, get_data_cache
 
 from core.data_loader import DataLoader
@@ -357,6 +359,23 @@ class DualPaperTradingEngine:
             )
             print("✅ HedgeManager 초기화 완료")
 
+            # Initialize DeltaRebalancer for automatic delta-neutral rebalancing
+            rebalancer_config = {
+                "calm_threshold_pct": hedge_config.get("calm_threshold_pct", 3.0),
+                "normal_threshold_pct": hedge_config.get("normal_threshold_pct", 5.0),
+                "volatile_threshold_pct": hedge_config.get("volatile_threshold_pct", 8.0),
+                "volatility_calm": hedge_config.get("volatility_calm", 0.5),
+                "volatility_high": hedge_config.get("volatility_high", 1.5),
+                "min_rebalance_interval": hedge_config.get("min_rebalance_interval", 30),
+            }
+            self.delta_rebalancer = DeltaRebalancer(
+                upbit_account=self.upbit_account,
+                hedge_manager=self.hedge_manager,
+                premium_controller=self.premium_controller,
+                config=rebalancer_config,
+            )
+            print("✅ DeltaRebalancer 초기화 완료")
+
             # Initialize AlphaManager for directional strategies
             self.alpha_manager = AlphaManager(
                 upbit_account=self.upbit_account,
@@ -371,6 +390,7 @@ class DualPaperTradingEngine:
                 execution_mode=self.execution_mode,
                 risk_config=self.risk_config,
                 telegram_notifier=self.telegram,
+                delta_rebalancer=self.delta_rebalancer,  # Pass rebalancer for trade notifications
             )
             print("✅ AlphaManager 초기화 완료")
 
@@ -1821,6 +1841,39 @@ class DualPaperTradingEngine:
             import traceback
             traceback.print_exc()
 
+    def _flush_delta_rebalance(self, prices: Dict[str, float]) -> Optional[Dict[str, Any]]:
+        """Flush pending delta rebalance after Alpha execution.
+
+        Called after Alpha strategies execute to check if hedge position
+        needs adjustment to maintain delta neutrality.
+
+        Returns:
+            Dict with rebalance result, or None if no rebalance needed
+        """
+        if not hasattr(self, 'delta_rebalancer') or not self.delta_rebalancer:
+            return None
+
+        try:
+            import asyncio
+
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            result = loop.run_until_complete(
+                self.delta_rebalancer.flush_rebalance(prices['binance'])
+            )
+
+            return result
+
+        except Exception as e:
+            print(f"⚠️  Delta rebalance 오류: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
     def run_iteration(self):
         """1회 반복 실행"""
         if not hasattr(self, "iteration_count"):
@@ -1916,6 +1969,13 @@ class DualPaperTradingEngine:
 
         # Execute ALL enabled Upbit strategies concurrently
         self._execute_upbit_strategies_concurrent(prices['upbit'], current_regime, decision)
+
+        # Flush delta rebalance after Alpha execution (if needed)
+        if self._hedge_enabled and hasattr(self, 'delta_rebalancer') and self.delta_rebalancer:
+            if self.hedge_manager and self.hedge_manager.hedge_position:
+                rebalance_result = self._flush_delta_rebalance(prices)
+                if rebalance_result and rebalance_result.get('success'):
+                    print(f"🔄 Rebalance: {rebalance_result['direction']} {rebalance_result['qty_adjusted']:.4f} BTC")
 
         # Execute Hedge Strategy first (if enabled) - has priority over SHORT_V1
         if self._hedge_enabled and self.hedge_manager and self.premium_controller:

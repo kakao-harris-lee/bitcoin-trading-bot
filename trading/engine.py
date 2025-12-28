@@ -228,6 +228,11 @@ class DualPaperTradingEngine:
         # Multi-strategy allocation config
         self._allocation_config = _load_allocation_config()
 
+        # Initialize DataCache early (before managers that need it)
+        self.data_cache: Optional[DataCache] = get_data_cache()
+        self.data_cache.preload_sync(['day', 'minute60'])
+        print("✅ DataCache 초기화 및 프리로드 완료")
+
         # 운영형 라우팅 (레짐 기반)
         self.router = self._build_router()
         self._last_regime_decision: Optional[RegimeDecision] = None
@@ -275,7 +280,6 @@ class DualPaperTradingEngine:
         self.premium_controller: Optional[PremiumController] = None
         self.hedge_manager: Optional[HedgeManager] = None
         self.alpha_manager: Optional[AlphaManager] = None
-        self.data_cache: Optional[DataCache] = None
 
         if self._hedge_enabled:
             self._init_hedge_infrastructure(hedge_config)
@@ -328,9 +332,7 @@ class DualPaperTradingEngine:
     def _init_hedge_infrastructure(self, hedge_config: Dict[str, Any]) -> None:
         """Initialize hedge infrastructure (PremiumController, HedgeManager, AlphaManager)."""
         try:
-            # Initialize DataCache for in-memory data caching
-            self.data_cache = get_data_cache()
-            print("✅ DataCache 초기화 완료")
+            # DataCache already initialized in __init__ before _build_router()
 
             # Initialize FXRateCache for live USD/KRW rate
             default_fx_rate = self._allocation_config.get("premium_tracking", {}).get("usd_krw_rate", 1450)
@@ -403,6 +405,7 @@ class DualPaperTradingEngine:
                 risk_config=self.risk_config,
                 telegram_notifier=self.telegram,
                 delta_rebalancer=self.delta_rebalancer,  # Pass rebalancer for trade notifications
+                data_cache=self.data_cache,
             )
             print("✅ AlphaManager 초기화 완료")
 
@@ -673,6 +676,7 @@ class DualPaperTradingEngine:
                 sideways_policy=default_sideways_policy,
                 binance_policy=default_binance_policy,
                 binance_gate_mode=default_binance_gate_mode,
+                data_cache=self.data_cache,
             )
 
         cand = self._candidate
@@ -696,6 +700,7 @@ class DualPaperTradingEngine:
             bear_strong_policy=cand.get("bear_strong_policy"),
             binance_gate_mode=str(cand.get("binance_gate_mode", "bear_only")),
             binance_policy=binance_policy,
+            data_cache=self.data_cache,
         )
 
     def _send_status_notification(self, prices: Dict[str, float]):
@@ -1926,6 +1931,10 @@ class DualPaperTradingEngine:
         if not hasattr(self, "iteration_count"):
             self.iteration_count = 0
         self.iteration_count += 1
+
+        # Refresh DataCache at start of each iteration
+        if self.data_cache:
+            self.data_cache.refresh_if_stale_sync()
 
         print(f"\n{'='*70}")
         mode_label = "LIVE" if self.execution_mode == "live" else "PAPER"

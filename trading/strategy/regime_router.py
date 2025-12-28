@@ -13,11 +13,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, Optional, TYPE_CHECKING
 
 import pandas as pd
 
 from core.data_loader import DataLoader
+
+if TYPE_CHECKING:
+    from trading.data.data_cache import DataCache
 
 MarketState = Literal[
     "BULL_STRONG",
@@ -60,6 +63,8 @@ class RegimeRouter:
         bear_strong_policy: str | None = None,
         binance_gate_mode: str = "bear_only",
         binance_policy: str = "short_v1",  # 'short_v1' | 'h4_short' | 'hold'
+        # Data cache for efficient data loading
+        data_cache: Optional["DataCache"] = None,
     ):
         self.lookback_days = int(lookback_days)
         self.mfi_period = int(mfi_period)
@@ -80,11 +85,22 @@ class RegimeRouter:
         self.binance_gate_mode = str(binance_gate_mode)
         self.binance_policy = str(binance_policy)
 
+        # Data cache
+        self.data_cache = data_cache
+
     def get_recent_daily_df(self, end_dt: datetime | None = None) -> pd.DataFrame:
         """Load daily candles for lookback window.
 
+        Uses DataCache if available, otherwise falls back to direct DataLoader.
         Returns a DataFrame with columns: timestamp, open, high, low, close, volume
         """
+        # Try cache first
+        if self.data_cache:
+            df = self.data_cache.get('day', periods=self.lookback_days)
+            if df is not None and len(df) > 0:
+                return df
+
+        # Fallback to direct DataLoader
         if end_dt is None:
             end_dt = datetime.utcnow()
 

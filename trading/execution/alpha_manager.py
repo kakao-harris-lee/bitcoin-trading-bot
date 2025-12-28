@@ -7,11 +7,16 @@ Completely separate from Hedge strategies.
 
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Protocol
+from typing import Dict, List, Optional, Any, Protocol, TYPE_CHECKING
 from dataclasses import dataclass, field
+
+import pandas as pd
 
 from core.data_loader import DataLoader
 from trading.strategy.regime_router import RegimeRouter, RegimeDecision
+
+if TYPE_CHECKING:
+    from trading.data.data_cache import DataCache
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +106,7 @@ class AlphaManager:
         risk_config: Optional[Any] = None,
         telegram_notifier: Optional[Any] = None,
         delta_rebalancer: Optional[Any] = None,
+        data_cache: Optional["DataCache"] = None,
     ):
         """
         Initialize AlphaManager.
@@ -114,6 +120,7 @@ class AlphaManager:
             risk_config: Risk configuration
             telegram_notifier: Optional telegram notifier
             delta_rebalancer: Optional DeltaRebalancer for hedge notifications
+            data_cache: Optional DataCache for efficient data loading
         """
         self.account = upbit_account
         self.router = regime_router
@@ -123,6 +130,7 @@ class AlphaManager:
         self.risk_config = risk_config
         self.telegram = telegram_notifier
         self.delta_rebalancer = delta_rebalancer
+        self.data_cache = data_cache
 
         # Per-strategy position tracking
         self.positions: Dict[str, StrategyPosition] = {}
@@ -234,6 +242,18 @@ class AlphaManager:
 
         return signals
 
+    def _get_daily_df(self) -> pd.DataFrame:
+        """Get daily DataFrame from cache or fallback to DataLoader."""
+        if self.data_cache:
+            df = self.data_cache.get('day')
+            if df is not None and len(df) > 0:
+                return df.tail(500).reset_index(drop=True)
+
+        # Fallback to direct DataLoader
+        with DataLoader() as loader:
+            df = loader.load_timeframe('day', start_date='2024-01-01')
+        return df.tail(500).reset_index(drop=True)
+
     def _evaluate_strategy(
         self,
         name: str,
@@ -246,10 +266,8 @@ class AlphaManager:
             return None
 
         try:
-            # Load data
-            with DataLoader() as loader:
-                df = loader.load_timeframe('day', start_date='2024-01-01')
-            df = df.tail(500).reset_index(drop=True)
+            # Load data (from cache if available)
+            df = self._get_daily_df()
 
             # Add indicators and generate signal
             if hasattr(strategy, 'add_indicators'):

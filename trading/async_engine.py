@@ -271,6 +271,9 @@ class AsyncTradingEngine:
                 await self._evaluate_and_execute()
                 self._iteration_count += 1
 
+                # Print cycle status (like old engine)
+                self._print_cycle_status()
+
                 # Write status
                 await self._write_status()
 
@@ -398,6 +401,110 @@ class AsyncTradingEngine:
             self._telegram.send_message(msg)
         except Exception as e:
             logger.error(f"Startup notification failed: {e}")
+
+    def _print_cycle_status(self) -> None:
+        """Print cycle status like the old engine."""
+        try:
+            now = datetime.now()
+            prices = self.price_hub.get_prices()
+            premium = self.price_hub.get_premium()
+            premium_stats = self.premium_tracker.get_stats()
+
+            upbit_price = prices.get("upbit", 0)
+            binance_price = prices.get("binance", 0)
+
+            mode_label = "LIVE" if self.execution_mode == "live" else "PAPER"
+
+            # Header
+            print(f"\n{'='*70}")
+            print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {mode_label} 실행 (#{self._iteration_count})")
+            print(f"{'='*70}")
+
+            # Prices
+            print(f"Upbit: {upbit_price:,.0f}원 | Binance: ${binance_price:,.2f}")
+
+            # Premium
+            if premium_stats:
+                trend_icon = {"rising": "↗️", "falling": "↘️", "stable": "➡️"}.get(
+                    premium_stats.trend, "➡️"
+                )
+                vol_icon = "🔴" if premium_stats.volatility_state == "high" else "🟢"
+                print(
+                    f"[Premium] Premium: {premium_stats.current:+.2f}% "
+                    f"(24h: {premium_stats.mean_24h:+.2f}% "
+                    f"±{premium_stats.std_24h:.2f}%) {vol_icon} {trend_icon}"
+                )
+
+            # Router
+            regime = self._regime_cache or "UNKNOWN"
+            print(f"[Router] state={regime}")
+
+            # Strategy execution info
+            upbit_stats = self.upbit_runner.get_stats()
+            binance_stats = self.binance_runner.get_stats()
+            strategies = upbit_stats.get("strategies_loaded", [])
+            print(f"  [Strategies] Upbit: {strategies}")
+
+            # Positions status
+            print(f"\n{'─'*70}")
+            print("  현재 상태")
+            print(f"{'─'*70}")
+
+            # Upbit
+            upbit_pos = upbit_stats.get("position", {})
+            upbit_account = self.executor._paper_accounts.get("upbit")
+            if upbit_account:
+                cash, btc = upbit_account.get_balance()
+                total = upbit_account.get_total_value(upbit_price)
+                stats = upbit_account.get_statistics()
+
+                print(f"\n[Upbit]")
+                print(f"  포지션: {'🟢 있음' if upbit_pos.get('active') else '⚪ 없음'}")
+                print(f"  현금: {cash:,.0f}원")
+                print(f"  BTC: {btc:.8f} BTC")
+                print(f"  총 가치: {total:,.0f}원")
+                print(f"  수익률: {stats.get('return_pct', 0):+.2f}%")
+
+            # Binance
+            binance_pos = binance_stats.get("position", {})
+            binance_account = self.executor._paper_accounts.get("binance")
+            if binance_account:
+                cash, _ = binance_account.get_balance()
+                stats = binance_account.get_statistics()
+
+                print(f"\n[Binance]")
+                print(f"  포지션: {'🔻 숏' if binance_pos.get('active') else '⚪ 없음'}")
+                print(f"  현금: ${cash:,.2f}")
+                print(f"  수익률: {stats.get('return_pct', 0):+.2f}%")
+
+            # Premium info
+            if premium:
+                print(f"\n[Kimchi Premium]")
+                print(f"  프리미엄: {premium.premium_pct:+.2f}%")
+                print(f"  Upbit: ${premium.upbit_usd:,.2f} | Binance: ${premium.binance_usd:,.2f}")
+                print(f"  환율: {premium.usd_krw_rate:,.0f} KRW/USD")
+
+            # Totals
+            if upbit_account and binance_account:
+                fx_rate = premium.usd_krw_rate if premium else 1450
+                upbit_total = upbit_account.get_total_value(upbit_price)
+                binance_cash, _ = binance_account.get_balance()
+                total_krw = upbit_total + (binance_cash * fx_rate)
+
+                initial_total = (
+                    upbit_account.initial_capital +
+                    (binance_account.initial_capital * fx_rate)
+                )
+                total_return = ((total_krw - initial_total) / initial_total) * 100 if initial_total > 0 else 0
+
+                print(f"\n[합계]")
+                print(f"  총 자산: {total_krw:,.0f}원")
+                print(f"  총 수익률: {total_return:+.2f}%")
+
+            print(f"{'─'*70}\n")
+
+        except Exception as e:
+            logger.error(f"Failed to print cycle status: {e}")
 
     async def _write_status(self) -> None:
         """Write engine status to JSON for dashboard."""

@@ -4,13 +4,15 @@ Bitcoin Trading Bot - Entry Point
 비트코인 트레이딩 봇 진입점
 
 Usage:
-    python run.py --mode paper                    # Paper Trading (기본)
+    python run.py --mode paper                    # Paper Trading (기본, sync)
+    python run.py --mode paper --engine async     # Paper Trading (async)
     python run.py --mode live                     # Live Trading (ENABLE_LIVE_TRADING=1 필요)
     python run.py --mode paper --once             # 한 번만 실행
     python run.py --help                          # 도움말
 """
 
 import argparse
+import asyncio
 import sys
 from pathlib import Path
 
@@ -18,7 +20,50 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from trading.engine import DualPaperTradingEngine
+
+def sync_main(args):
+    """Synchronous engine (legacy)."""
+    from trading.engine import DualPaperTradingEngine
+
+    engine = DualPaperTradingEngine(
+        paper_upbit_capital=float(args.paper_upbit_capital),
+        paper_binance_capital=float(args.paper_binance_capital),
+        telegram_enabled=not bool(args.no_telegram),
+        candidate_json=args.candidate_json,
+        candidate_index=int(args.candidate_index),
+        execution_mode=str(args.mode),
+        telegram_commands_enabled=bool(args.telegram_commands),
+        sideways_policy=str(args.sideways_policy),
+        binance_policy=str(args.binance_policy),
+        binance_gate_mode=str(args.binance_gate),
+    )
+
+    if args.once:
+        engine.run_iteration()
+    else:
+        engine.run_forever(interval_minutes=int(args.interval))
+
+
+async def async_main(args):
+    """Asynchronous engine (new)."""
+    from trading.async_engine import AsyncTradingEngine, AsyncEngineConfig
+
+    config = AsyncEngineConfig(
+        execution_mode=str(args.mode),
+        paper_upbit_capital=float(args.paper_upbit_capital),
+        paper_binance_capital=float(args.paper_binance_capital),
+        telegram_enabled=not bool(args.no_telegram),
+        telegram_commands_enabled=bool(args.telegram_commands),
+    )
+
+    engine = AsyncTradingEngine(config)
+
+    try:
+        await engine.start()
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+    finally:
+        await engine.stop()
 
 
 def main():
@@ -28,11 +73,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run.py --mode paper                    # Paper trading mode
+  python run.py --mode paper                    # Paper trading (sync engine)
+  python run.py --mode paper --engine async     # Paper trading (async engine)
   python run.py --mode live                     # Live trading (requires ENABLE_LIVE_TRADING=1)
   python run.py --mode paper --once             # Run once then exit
-  python run.py --mode paper --interval 30      # 30 minute interval
+  python run.py --mode paper --interval 30      # 30 minute interval (sync only)
         """
+    )
+
+    # 엔진 타입
+    parser.add_argument(
+        '--engine',
+        choices=['sync', 'async'],
+        default='sync',
+        help='엔진 타입 (기본: sync, 신규: async)'
     )
 
     # 실행 모드
@@ -63,13 +117,13 @@ Examples:
         '--interval',
         type=int,
         default=60,
-        help='실행 간격 (분, 기본: 60)'
+        help='[Sync 전용] 실행 간격 (분, 기본: 60)'
     )
 
     parser.add_argument(
         '--once',
         action='store_true',
-        help='한 번만 실행 후 종료'
+        help='[Sync 전용] 한 번만 실행 후 종료'
     )
 
     # 텔레그램 설정
@@ -85,28 +139,28 @@ Examples:
         help='텔레그램 명령어 polling 활성화'
     )
 
-    # Candidate 설정
+    # Candidate 설정 (Sync 전용)
     parser.add_argument(
         '--candidate-json',
         type=str,
         default=None,
-        help='튜닝된 candidate JSON 경로 (예: analysis/selected_candidate.json)'
+        help='[Sync 전용] 튜닝된 candidate JSON 경로'
     )
 
     parser.add_argument(
         '--candidate-index',
         type=int,
         default=0,
-        help='candidate index (기본: 0)'
+        help='[Sync 전용] candidate index (기본: 0)'
     )
 
-    # 전략 정책 설정
+    # 전략 정책 설정 (Sync 전용)
     parser.add_argument(
         '--sideways-policy',
         type=str,
         choices=['sideways_v2', 'h4_conservative', 'v35', 'hold'],
         default='sideways_v2',
-        help='Sideways 레짐 Upbit 전략 (기본: sideways_v2, 옵션: h4_conservative)'
+        help='[Sync 전용] Sideways 레짐 Upbit 전략'
     )
 
     parser.add_argument(
@@ -114,7 +168,7 @@ Examples:
         type=str,
         choices=['short_v1', 'h4_short', 'hold'],
         default='short_v1',
-        help='Bear 레짐 Binance 전략 (기본: short_v1, 옵션: h4_short)'
+        help='[Sync 전용] Bear 레짐 Binance 전략'
     )
 
     parser.add_argument(
@@ -122,29 +176,18 @@ Examples:
         type=str,
         choices=['bear_only', 'sideways_and_bear', 'bear_or_sideways_bear', 'always'],
         default='bear_only',
-        help='Binance 활성화 조건 (기본: bear_only, 옵션: sideways_and_bear, always)'
+        help='[Sync 전용] Binance 활성화 조건'
     )
 
     args = parser.parse_args()
 
-    # 엔진 초기화 및 실행
-    engine = DualPaperTradingEngine(
-        paper_upbit_capital=float(args.paper_upbit_capital),
-        paper_binance_capital=float(args.paper_binance_capital),
-        telegram_enabled=not bool(args.no_telegram),
-        candidate_json=args.candidate_json,
-        candidate_index=int(args.candidate_index),
-        execution_mode=str(args.mode),
-        telegram_commands_enabled=bool(args.telegram_commands),
-        sideways_policy=str(args.sideways_policy),
-        binance_policy=str(args.binance_policy),
-        binance_gate_mode=str(args.binance_gate),
-    )
-
-    if args.once:
-        engine.run_iteration()
+    # 엔진 선택
+    if args.engine == 'async':
+        print("Starting AsyncTradingEngine...")
+        asyncio.run(async_main(args))
     else:
-        engine.run_forever(interval_minutes=int(args.interval))
+        print("Starting DualPaperTradingEngine (sync)...")
+        sync_main(args)
 
 
 if __name__ == "__main__":

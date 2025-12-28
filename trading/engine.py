@@ -33,6 +33,7 @@ try:
     from .execution.hedge_manager import HedgeManager
     from .execution.alpha_manager import AlphaManager
     from .data.data_cache import DataCache, get_data_cache
+    from .core.fx_cache import FXRateCache
 except ImportError:  # pragma: no cover
     # When executed as a script
     from trading.execution.paper_account import PaperTradingAccount
@@ -51,6 +52,7 @@ except ImportError:  # pragma: no cover
     from trading.execution.hedge_manager import HedgeManager
     from trading.execution.alpha_manager import AlphaManager
     from trading.data.data_cache import DataCache, get_data_cache
+    from trading.core.fx_cache import FXRateCache
 
 from core.data_loader import DataLoader
 
@@ -328,6 +330,16 @@ class DualPaperTradingEngine:
             self.data_cache = get_data_cache()
             print("✅ DataCache 초기화 완료")
 
+            # Initialize FXRateCache for live USD/KRW rate
+            default_fx_rate = self._allocation_config.get("premium_tracking", {}).get("usd_krw_rate", 1450)
+            self.fx_cache = FXRateCache(
+                default_rate=default_fx_rate,
+                refresh_interval=300,  # 5 minutes
+                on_rate_change=self._on_fx_rate_change,
+            )
+            self._start_fx_cache()
+            print(f"✅ FXRateCache 초기화 완료 (USD/KRW: {self.fx_cache.rate:.2f})")
+
             # Initialize PremiumController for hedge signal generation
             history_file = str(self._v2_log_dir / "premium_history.json")
             premium_controller_config = {
@@ -381,6 +393,22 @@ class DualPaperTradingEngine:
             import traceback
             traceback.print_exc()
             self._hedge_enabled = False
+
+    def _start_fx_cache(self) -> None:
+        """Start FX rate cache with sync-compatible initialization."""
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        # Initial fetch (blocking, one-time at startup)
+        loop.run_until_complete(self.fx_cache.start())
+
+    def _on_fx_rate_change(self, new_rate: float) -> None:
+        """Callback when FX rate updates significantly."""
+        print(f"📈 FX rate updated: USD/KRW = {new_rate:.2f}")
 
     def _record_trade(self, exchange: str, trade: Dict[str, Any]) -> None:
         if exchange not in self._v2_trades:
@@ -904,16 +932,31 @@ class DualPaperTradingEngine:
         """Calculate Kimchi Premium (Upbit vs Binance price differential).
 
         Returns:
-            Dict with premium_pct, upbit_usd, binance_usd, usd_krw_rate
+            Dict with premium_pct, upbit_usd, binance_usd, usd_krw_rate, fx_stale
         """
         premium_config = self._allocation_config.get("premium_tracking", {})
-        usd_krw_rate = premium_config.get("usd_krw_rate", 1450)
+        fallback_rate = premium_config.get("usd_krw_rate", 1450)
+
+        # Use live FX rate if available, fallback to config
+        fx_stale = False
+        if hasattr(self, 'fx_cache') and self.fx_cache:
+            usd_krw_rate = self.fx_cache.rate
+            fx_stale = self.fx_cache.is_stale
+            if fx_stale:
+                print(f"⚠️  FX rate may be stale: {usd_krw_rate:.2f}")
+        else:
+            usd_krw_rate = fallback_rate
+
+        # Sanity check: KRW/USD should be in reasonable range (1100-1600)
+        if not (1100 <= usd_krw_rate <= 1600):
+            print(f"⚠️  FX rate out of bounds: {usd_krw_rate:.2f}, using fallback {fallback_rate}")
+            usd_krw_rate = fallback_rate
 
         upbit_krw = prices.get('upbit', 0)
         binance_usd = prices.get('binance', 0)
 
         if binance_usd <= 0:
-            return {"premium_pct": 0.0, "upbit_usd": 0.0, "binance_usd": 0.0, "usd_krw_rate": usd_krw_rate}
+            return {"premium_pct": 0.0, "upbit_usd": 0.0, "binance_usd": 0.0, "usd_krw_rate": usd_krw_rate, "fx_stale": fx_stale}
 
         # Convert Upbit KRW to USD equivalent
         upbit_usd = upbit_krw / usd_krw_rate
@@ -926,6 +969,7 @@ class DualPaperTradingEngine:
             "upbit_usd": round(upbit_usd, 2),
             "binance_usd": round(binance_usd, 2),
             "usd_krw_rate": usd_krw_rate,
+            "fx_stale": fx_stale,
         }
 
     def calculate_hedge_ratio(self, prices: Dict[str, float]) -> Dict[str, float]:
@@ -941,8 +985,11 @@ class DualPaperTradingEngine:
         # Calculate short exposure (Binance positions)
         binance_pos = self.binance_account.get_position() if hasattr(self.binance_account, 'get_position') else None
         if binance_pos and binance_pos.get('size', 0) > 0:
-            # Convert to KRW equivalent for comparison
-            usd_krw_rate = self._allocation_config.get("premium_tracking", {}).get("usd_krw_rate", 1450)
+            # Convert to KRW equivalent for comparison (use live FX rate)
+            if hasattr(self, 'fx_cache') and self.fx_cache:
+                usd_krw_rate = self.fx_cache.rate
+            else:
+                usd_krw_rate = self._allocation_config.get("premium_tracking", {}).get("usd_krw_rate", 1450)
             short_exposure = binance_pos['size'] * prices.get('binance', 0) * usd_krw_rate
         else:
             short_exposure = 0.0

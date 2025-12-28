@@ -292,13 +292,16 @@ class StrategyRunner:
     ) -> Optional[Dict[str, Any]]:
         """Run strategy (sync, runs in thread pool)."""
         try:
+            # Strategies expect (df, i) where i is the index of the last row
+            i = len(df) - 1
+
             # Most strategies have generate_signal method
             if hasattr(strategy, "generate_signal"):
-                return strategy.generate_signal(df, current_price)
+                return strategy.generate_signal(df, i)
 
             # Some strategies have evaluate method
             if hasattr(strategy, "evaluate"):
-                return strategy.evaluate(df, current_price)
+                return strategy.evaluate(df, i)
 
             logger.warning(f"Strategy has no generate_signal or evaluate method")
             return None

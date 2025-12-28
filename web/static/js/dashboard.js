@@ -323,7 +323,7 @@ function renderTrades(trades, containerId) {
 // Fetch and update status
 async function fetchStatus() {
     try {
-        const response = await fetch('/api/status');
+        const response = await fetch('/api/status', { credentials: 'include' });
         if (!response.ok) throw new Error('Status fetch failed');
         const data = await response.json();
         updateStatus(data);
@@ -335,7 +335,7 @@ async function fetchStatus() {
 // Fetch and update kill switch
 async function fetchKillSwitch() {
     try {
-        const response = await fetch('/api/kill_switch/status');
+        const response = await fetch('/api/kill_switch/status', { credentials: 'include' });
         if (!response.ok) throw new Error('Kill switch fetch failed');
         const data = await response.json();
         updateKillSwitch(data);
@@ -347,7 +347,7 @@ async function fetchKillSwitch() {
 // Fetch signals for an exchange
 async function fetchSignals(exchange) {
     try {
-        const response = await fetch(`/api/signals/${exchange}`);
+        const response = await fetch(`/api/signals/${exchange}`, { credentials: 'include' });
         if (response.ok) {
             const data = await response.json();
             renderSignals(data.signals, `${exchange}-signals`);
@@ -363,7 +363,7 @@ async function fetchSignals(exchange) {
 // Fetch trades for an exchange
 async function fetchTrades(exchange) {
     try {
-        const response = await fetch(`/api/trades/${exchange}`);
+        const response = await fetch(`/api/trades/${exchange}`, { credentials: 'include' });
         if (response.ok) {
             const data = await response.json();
             renderTrades(data.trades, `${exchange}-trades`);
@@ -454,7 +454,7 @@ function updateHedgeInfo(data) {
 // Fetch hedge info
 async function fetchHedgeInfo() {
     try {
-        const response = await fetch('/api/hedge');
+        const response = await fetch('/api/hedge', { credentials: 'include' });
         if (!response.ok) return;
         const data = await response.json();
         updateHedgeInfo(data);

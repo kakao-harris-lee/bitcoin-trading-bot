@@ -3,11 +3,14 @@
 실제 매수/매도 주문 실행
 """
 
+import logging
 import os
 import time
 from typing import Optional, Dict, Any, Tuple
 import pyupbit
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 
 class UpbitTrader:
@@ -77,6 +80,36 @@ class UpbitTrader:
         total_value = krw_balance + (btc_balance * current_price)
         return total_value
 
+    def _wait_for_order_fill(self, uuid: str, max_wait: float = 30.0) -> Optional[Dict[str, Any]]:
+        """
+        Wait for order fill with exponential backoff.
+
+        Args:
+            uuid: Order UUID
+            max_wait: Maximum wait time in seconds
+
+        Returns:
+            Order status dict if filled, None if timeout
+        """
+        delay = 0.1  # Start at 100ms
+        elapsed = 0.0
+        order_status = None
+
+        while elapsed < max_wait:
+            order_status = self.upbit.get_order(uuid)
+
+            if order_status and order_status.get('state') == 'done':
+                return order_status
+
+            time.sleep(delay)
+            elapsed += delay
+            delay = min(delay * 2, 2.0)  # Double delay, cap at 2s
+
+        # Timeout - log warning and return last status
+        state = order_status.get('state', 'unknown') if order_status else 'unknown'
+        logger.warning(f"Order {uuid} not filled after {max_wait}s, state: {state}")
+        return order_status
+
     def buy_market_order(self, amount: float) -> Optional[Dict[str, Any]]:
         """
         시장가 매수
@@ -105,34 +138,32 @@ class UpbitTrader:
             # 주문 UUID
             uuid = order['uuid']
 
-            # 주문 체결 대기 (최대 30초)
-            for i in range(30):
-                time.sleep(1)
-                order_status = self.upbit.get_order(uuid)
+            # 주문 체결 대기 (exponential backoff, 최대 30초)
+            order_status = self._wait_for_order_fill(uuid, max_wait=30.0)
 
-                if order_status and order_status['state'] == 'done':
-                    # 체결 완료
-                    executed_volume = float(order_status['executed_volume'])
-                    executed_amount = float(order_status['paid_fee']) + float(
-                        order_status['executed_volume']) * float(order_status['price'])
-                    executed_price = float(order_status['price'])
-                    fee = float(order_status['paid_fee'])
+            if order_status and order_status.get('state') == 'done':
+                # 체결 완료
+                executed_volume = float(order_status['executed_volume'])
+                executed_amount = float(order_status['paid_fee']) + float(
+                    order_status['executed_volume']) * float(order_status['price'])
+                executed_price = float(order_status['price'])
+                fee = float(order_status['paid_fee'])
 
-                    krw_balance, btc_balance = self.get_balance()
+                krw_balance, btc_balance = self.get_balance()
 
-                    result = {
-                        'success': True,
-                        'executed_volume': executed_volume,
-                        'executed_amount': executed_amount,
-                        'executed_price': executed_price,
-                        'fee': fee,
-                        'krw_balance': krw_balance,
-                        'btc_balance': btc_balance,
-                        'total_value': self.get_total_value()
-                    }
+                result = {
+                    'success': True,
+                    'executed_volume': executed_volume,
+                    'executed_amount': executed_amount,
+                    'executed_price': executed_price,
+                    'fee': fee,
+                    'krw_balance': krw_balance,
+                    'btc_balance': btc_balance,
+                    'total_value': self.get_total_value()
+                }
 
-                    print(f"✅ 매수 완료: {executed_volume:.8f} BTC @ {executed_price:,.0f} KRW")
-                    return result
+                print(f"✅ 매수 완료: {executed_volume:.8f} BTC @ {executed_price:,.0f} KRW")
+                return result
 
             print("⚠️ 주문 체결 시간 초과")
             return None
@@ -183,34 +214,32 @@ class UpbitTrader:
             # 주문 UUID
             uuid = order['uuid']
 
-            # 주문 체결 대기 (최대 30초)
-            for i in range(30):
-                time.sleep(1)
-                order_status = self.upbit.get_order(uuid)
+            # 주문 체결 대기 (exponential backoff, 최대 30초)
+            order_status = self._wait_for_order_fill(uuid, max_wait=30.0)
 
-                if order_status and order_status['state'] == 'done':
-                    # 체결 완료
-                    executed_volume = float(order_status['executed_volume'])
-                    executed_amount = float(order_status['executed_volume']) * float(
-                        order_status['price']) - float(order_status['paid_fee'])
-                    executed_price = float(order_status['price'])
-                    fee = float(order_status['paid_fee'])
+            if order_status and order_status.get('state') == 'done':
+                # 체결 완료
+                executed_volume = float(order_status['executed_volume'])
+                executed_amount = float(order_status['executed_volume']) * float(
+                    order_status['price']) - float(order_status['paid_fee'])
+                executed_price = float(order_status['price'])
+                fee = float(order_status['paid_fee'])
 
-                    krw_balance, btc_balance = self.get_balance()
+                krw_balance, btc_balance = self.get_balance()
 
-                    result = {
-                        'success': True,
-                        'executed_volume': executed_volume,
-                        'executed_amount': executed_amount,
-                        'executed_price': executed_price,
-                        'fee': fee,
-                        'krw_balance': krw_balance,
-                        'btc_balance': btc_balance,
-                        'total_value': self.get_total_value()
-                    }
+                result = {
+                    'success': True,
+                    'executed_volume': executed_volume,
+                    'executed_amount': executed_amount,
+                    'executed_price': executed_price,
+                    'fee': fee,
+                    'krw_balance': krw_balance,
+                    'btc_balance': btc_balance,
+                    'total_value': self.get_total_value()
+                }
 
-                    print(f"✅ 매도 완료: {executed_volume:.8f} BTC @ {executed_price:,.0f} KRW")
-                    return result
+                print(f"✅ 매도 완료: {executed_volume:.8f} BTC @ {executed_price:,.0f} KRW")
+                return result
 
             print("⚠️ 주문 체결 시간 초과")
             return None

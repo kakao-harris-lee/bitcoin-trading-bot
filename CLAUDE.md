@@ -18,11 +18,6 @@ ENABLE_LIVE_TRADING=1 python run.py --mode live
 # Run tests
 pytest
 
-# Docker
-docker-compose up -d
-docker-compose logs -f paper-trading
-```
-
 ## Project Structure
 
 ```
@@ -99,6 +94,23 @@ bitcoin-trading-bot/
 5. Merge after review
 
 **Never commit new features directly to main.**
+
+### Deployment
+
+**Source code sync via git pull only:**
+
+```bash
+# On target server
+cd ~/bitcoin-trading-bot
+git pull origin main
+./bot.sh restart live h4_conservative h4_short sideways_and_bear
+```
+
+**Prohibited:**
+- SSH/rsync bulk file transfers
+- Direct file uploads to server
+
+All code changes must be committed, pushed, and pulled via git.
 
 ### Strategy Development Workflow
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# SCP-based deploy for the LIVE docker-compose service.
-# - Does NOT overwrite server .env by default (secrets stay on server)
-# - Excludes large local artifacts (DB/logs/.git)
+# Git-based deploy for the LIVE docker-compose service.
+# - Commits and pushes local changes
+# - Pulls on remote server via git
+# - Does NOT transfer bulk files (rsync/scp prohibited)
 
 SERVER_HOST=${SERVER_HOST:-"chsvr.duckdns.org"}
 SERVER_USER=${SERVER_USER:-"deploy"}
@@ -11,25 +12,38 @@ SERVER_DIR=${SERVER_DIR:-"/home/deploy/bitcoin-trading-bot"}
 SERVICES=${SERVICES:-"paper-trading dashboard"}
 SERVICE_MAIN=${SERVICE_MAIN:-"paper-trading"}
 DASHBOARD_PORT=${DASHBOARD_PORT:-"8081"}
+BRANCH=${BRANCH:-"main"}
 
 NO_CACHE=0
 TAIL_LOGS=1
+SKIP_PUSH=0
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [--no-cache] [--no-logs]
+Usage: $(basename "$0") [--no-cache] [--no-logs] [--skip-push]
+
+Git-based deployment (rsync/scp prohibited):
+  1. Push local commits to origin
+  2. Pull on remote server
+  3. Rebuild and restart Docker services
+
+Options:
+  --no-cache   Build Docker images without cache
+  --no-logs    Skip tailing logs after deploy
+  --skip-push  Skip git push (assume remote is up-to-date)
 
 Environment overrides:
-  SERVER_HOST (default: chsvr.duckdns.org)
-  SERVER_USER (default: deploy)
-  SERVER_DIR  (default: ~/bitcoin-trading-bot)
-  SERVICES    (default: "paper-trading dashboard")
+  SERVER_HOST  (default: chsvr.duckdns.org)
+  SERVER_USER  (default: deploy)
+  SERVER_DIR   (default: ~/bitcoin-trading-bot)
+  SERVICES     (default: "paper-trading dashboard")
   SERVICE_MAIN (default: paper-trading)
-  DASHBOARD_PORT (optional: host port for dashboard, e.g. 8081)
+  BRANCH       (default: main)
 
 Examples:
   $(basename "$0")
   $(basename "$0") --no-cache
+  $(basename "$0") --skip-push
 EOF
 }
 
@@ -41,6 +55,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-logs)
       TAIL_LOGS=0
+      shift
+      ;;
+    --skip-push)
+      SKIP_PUSH=1
       shift
       ;;
     -h|--help)
@@ -56,51 +74,39 @@ while [[ $# -gt 0 ]]; do
 done
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-TMP_TGZ=$(mktemp -t bitcoin-trading-bot_deploy.XXXXXX.tgz)
+cd "$REPO_ROOT"
 
-cleanup() {
-  rm -f "$TMP_TGZ"
-}
-trap cleanup EXIT
+echo "[1/4] Checking local git status…"
+if [[ -n $(git status --porcelain) ]]; then
+  echo "WARNING: Uncommitted changes detected:"
+  git status --short
+  echo ""
+  read -p "Continue without committing? (y/N) " -n 1 -r
+  echo ""
+  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Aborted. Please commit your changes first."
+    exit 1
+  fi
+fi
 
-echo "[1/4] Packaging repo (excluding .env, DB, logs)…"
-(
-  cd "$REPO_ROOT"
-  tar -czf "$TMP_TGZ" \
-    --exclude ".git" \
-    --exclude ".DS_Store" \
-    --exclude "__pycache__" \
-    --exclude "**/__pycache__" \
-    --exclude ".pytest_cache" \
-    --exclude "**/.pytest_cache" \
-    --exclude "*.pyc" \
-    --exclude "*.tgz" \
-    --exclude ".env" \
-    --exclude "logs" \
-    --exclude "upbit_bitcoin.db" \
-    --exclude "trading_results.db" \
-    .
-)
+if [[ $SKIP_PUSH -eq 0 ]]; then
+  echo "[2/4] Pushing to origin/${BRANCH}…"
+  git push origin "${BRANCH}"
+else
+  echo "[2/4] Skipping git push (--skip-push)"
+fi
 
-echo "[2/4] Uploading archive via scp…"
-scp "$TMP_TGZ" "${SERVER_USER}@${SERVER_HOST}:bitcoin-trading-bot_deploy.tgz"
-
-echo "[3/4] Extracting + rebuilding + restarting on server…"
+echo "[3/4] Pulling and rebuilding on server…"
 ssh "${SERVER_USER}@${SERVER_HOST}" \
-  "SERVER_DIR='${SERVER_DIR}' SERVICES='${SERVICES}' SERVICE_MAIN='${SERVICE_MAIN}' NO_CACHE='${NO_CACHE}' DASHBOARD_PORT='${DASHBOARD_PORT}'" \
+  "SERVER_DIR='${SERVER_DIR}' SERVICES='${SERVICES}' SERVICE_MAIN='${SERVICE_MAIN}' NO_CACHE='${NO_CACHE}' DASHBOARD_PORT='${DASHBOARD_PORT}' BRANCH='${BRANCH}'" \
   'bash -s' <<'REMOTE'
 set -euo pipefail
 
 cd "${SERVER_DIR}"
 
-# Extract repo overlay (archive is placed in remote HOME)
-if [[ -f "$HOME/bitcoin-trading-bot_deploy.tgz" ]]; then
-  tar -xzf "$HOME/bitcoin-trading-bot_deploy.tgz" -C "${SERVER_DIR}"
-  rm -f "$HOME/bitcoin-trading-bot_deploy.tgz"
-else
-  echo "ERROR: deploy archive not found at $HOME/bitcoin-trading-bot_deploy.tgz" >&2
-  exit 1
-fi
+echo "--- git pull ---"
+git fetch origin
+git reset --hard "origin/${BRANCH}"
 
 echo "--- .env TELEGRAM keys (masked) ---"
 if [[ -f .env ]]; then

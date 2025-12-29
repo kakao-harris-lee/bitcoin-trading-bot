@@ -3,6 +3,7 @@
 ################################################################################
 # Bitcoin Trading Bot - 서버 배포 스크립트
 # 새로운 서버: chsvr.duckdns.org
+# 배포 방식: git push/pull (rsync/scp 금지)
 # 사용법: ./deploy_to_server.sh [옵션]
 ################################################################################
 
@@ -20,6 +21,7 @@ SERVER_USER="deploy"
 SERVER_HOST="chsvr.duckdns.org"
 SERVER_PATH="/home/deploy/bitcoin-trading-bot"
 SSH_CONN="${SERVER_USER}@${SERVER_HOST}"
+BRANCH="main"
 
 print_step() {
     echo -e "${GREEN}[✓]${NC} $1"
@@ -50,6 +52,7 @@ cd "$(dirname "$0")/.."
 print_header "Bitcoin Trading Bot 서버 배포"
 echo "서버: ${SERVER_HOST}"
 echo "경로: ${SERVER_PATH}"
+echo "방식: git push/pull (rsync/scp 금지)"
 echo ""
 
 # 1. SSH 연결 확인
@@ -67,68 +70,44 @@ if ! ssh -o ConnectTimeout=5 ${SSH_CONN} "echo 'SSH 연결 성공'" &> /dev/null
 fi
 print_step "서버 연결 성공"
 
-# 2. .env 파일 확인
-if [ ! -f ".env" ]; then
-    print_error ".env 파일이 없습니다!"
+# 2. 로컬 git 상태 확인
+print_info "로컬 git 상태 확인 중..."
+if [[ -n $(git status --porcelain) ]]; then
+    print_warning "커밋되지 않은 변경사항이 있습니다:"
+    git status --short
     echo ""
-    echo "다음 내용으로 .env 파일을 생성하세요:"
+    read -p "커밋 없이 계속하시겠습니까? (y/N) " -n 1 -r
     echo ""
-    echo "UPBIT_ACCESS_KEY=your_access_key"
-    echo "UPBIT_SECRET_KEY=your_secret_key"
-    echo "TELEGRAM_BOT_TOKEN=your_bot_token"
-    echo "TELEGRAM_CHAT_ID=your_chat_id"
-    echo "AUTO_TRADE=False"
-    echo ""
-    exit 1
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_error "배포 중단. 먼저 변경사항을 커밋하세요."
+        exit 1
+    fi
 fi
-print_step ".env 파일 확인"
+print_step "git 상태 확인 완료"
 
-# 3. upbit_bitcoin.db 확인
-if [ ! -f "upbit_bitcoin.db" ]; then
-    print_warning "upbit_bitcoin.db 파일이 없습니다"
-    print_info "서버에서 데이터 수집이 필요합니다"
-fi
+# 3. git push
+print_info "origin/${BRANCH}로 push 중..."
+git push origin "${BRANCH}"
+print_step "git push 완료"
 
-# 4. 서버에 디렉토리 생성
-print_info "서버 디렉토리 설정 중..."
-ssh ${SSH_CONN} "mkdir -p ${SERVER_PATH}"
-print_step "디렉토리 생성 완료"
+# 4. 서버에서 git pull 및 Docker 재시작
+print_info "서버에서 git pull 및 Docker 재시작 중..."
 
-# 5. 필수 파일 전송
-print_info "파일 전송 중..."
+ssh ${SSH_CONN} << EOF
+set -e
+cd ${SERVER_PATH}
 
-# 핵심 파일들
-rsync -avz --progress \
-    --exclude='.git' \
-    --exclude='__pycache__' \
-    --exclude='*.pyc' \
-    --exclude='venv' \
-    --exclude='upbit_history_db' \
-    --exclude='logs/*.log' \
-    --exclude='*.backup' \
-    --exclude='strategies/_archive' \
-    --exclude='strategies/_deprecated' \
-    --exclude='*.ipynb' \
-    ./ ${SSH_CONN}:${SERVER_PATH}/
+echo ""
+echo "========================================="
+echo "git pull 실행 중..."
+echo "========================================="
+git fetch origin
+git reset --hard origin/${BRANCH}
 
-print_step "파일 전송 완료"
-
-# 6. 서버에서 Docker Compose 실행
-print_info "Docker Compose 시작 중..."
-
-ssh ${SSH_CONN} << 'EOF'
-cd /home/deploy/bitcoin-trading-bot
-
-# Docker 및 Docker Compose 확인
-if ! command -v docker &> /dev/null; then
-    echo "Docker가 설치되어 있지 않습니다. 설치를 시작합니다..."
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh get-docker.sh
-    sudo usermod -aG docker $USER
-    rm get-docker.sh
-    echo "Docker 설치 완료. 로그아웃 후 다시 로그인해주세요."
-    exit 1
-fi
+echo ""
+echo "========================================="
+echo "Docker Compose 재시작 중..."
+echo "========================================="
 
 # Docker Compose 버전 확인
 if docker compose version &> /dev/null 2>&1; then
@@ -139,26 +118,26 @@ fi
 
 # 이전 컨테이너 중지
 echo "이전 컨테이너 중지 중..."
-$DC down 2>/dev/null || true
+\$DC down 2>/dev/null || true
 
 # 이미지 빌드 및 실행
 echo "Docker 이미지 빌드 중..."
-$DC build
+\$DC build
 
 echo "컨테이너 시작 중..."
-$DC up -d
+\$DC up -d
 
 # 상태 확인
 echo ""
 echo "========================================="
 echo "컨테이너 상태:"
 echo "========================================="
-$DC ps
+\$DC ps
 
 echo ""
 echo "로그 확인:"
 echo "========================================="
-$DC logs --tail=20
+\$DC logs --tail=20
 
 EOF
 

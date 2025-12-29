@@ -11,9 +11,6 @@
 ```bash
 # Deploy to server
 ./deployment/deploy_to_server.sh
-
-# Monitor
-./deployment/monitor_server.sh
 ```
 
 ## Commands

@@ -22,6 +22,7 @@ SERVER_HOST="chsvr.duckdns.org"
 SERVER_PATH="/home/deploy/bitcoin-trading-bot"
 SSH_CONN="${SERVER_USER}@${SERVER_HOST}"
 BRANCH="main"
+MODE="paper"
 
 print_step() {
     echo -e "${GREEN}[✓]${NC} $1"
@@ -90,8 +91,8 @@ print_info "origin/${BRANCH}로 push 중..."
 git push origin "${BRANCH}"
 print_step "git push 완료"
 
-# 4. 서버에서 git pull 및 Docker 재시작
-print_info "서버에서 git pull 및 Docker 재시작 중..."
+# 4. 서버에서 git pull 및 재시작
+print_info "서버에서 git pull 및 재시작 중..."
 
 ssh ${SSH_CONN} << EOF
 set -e
@@ -106,38 +107,35 @@ git reset --hard origin/${BRANCH}
 
 echo ""
 echo "========================================="
-echo "Docker Compose 재시작 중..."
+echo ".env 확인..."
 echo "========================================="
-
-# Docker Compose 버전 확인
-if docker compose version &> /dev/null 2>&1; then
-    DC="docker compose"
+if [ -f .env ]; then
+    echo ".env 파일 존재"
 else
-    DC="docker-compose"
+    echo "경고: .env 파일이 없습니다"
+    echo "필수 시크릿을 포함한 .env 파일을 생성하세요"
 fi
 
-# 이전 컨테이너 중지
-echo "이전 컨테이너 중지 중..."
-\$DC down 2>/dev/null || true
-
-# 이미지 빌드 및 실행
-echo "Docker 이미지 빌드 중..."
-\$DC build
-
-echo "컨테이너 시작 중..."
-\$DC up -d
-
-# 상태 확인
 echo ""
 echo "========================================="
-echo "컨테이너 상태:"
+echo "pip install 실행 중..."
 echo "========================================="
-\$DC ps
+source .venv/bin/activate 2>/dev/null || (python3 -m venv .venv && source .venv/bin/activate)
+pip install -q -r requirements.txt
 
 echo ""
-echo "로그 확인:"
 echo "========================================="
-\$DC logs --tail=20
+echo "봇 재시작 중 (mode: ${MODE})..."
+echo "========================================="
+./bot.sh stop 2>/dev/null || true
+sleep 2
+./bot.sh start ${MODE}
+
+echo ""
+echo "========================================="
+echo "상태 확인:"
+echo "========================================="
+./bot.sh status
 
 EOF
 
@@ -150,10 +148,8 @@ echo "서버 접속: ssh ${SSH_CONN}"
 echo "작업 디렉토리: cd ${SERVER_PATH}"
 echo ""
 echo "유용한 명령어:"
-echo "  - 로그 확인: docker compose logs -f"
-echo "  - 컨테이너 재시작: docker compose restart"
-echo "  - 컨테이너 중지: docker compose down"
-echo "  - 컨테이너 상태: docker compose ps"
-echo ""
-print_info "원격 모니터링: ./deployment/monitor_server.sh"
+echo "  - 로그 확인: ./bot.sh logs"
+echo "  - 봇 재시작: ./bot.sh restart"
+echo "  - 봇 종료: ./bot.sh stop"
+echo "  - 상태 확인: ./bot.sh status"
 echo ""

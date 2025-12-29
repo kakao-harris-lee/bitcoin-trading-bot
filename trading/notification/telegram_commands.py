@@ -124,15 +124,27 @@ class TelegramCommandHandler:
             command = parts[0][1:]  # '/' 제거
             args = parts[1] if len(parts) > 1 else ''
 
-            print(f"📥 명령어 수신: /{command} {args}")
+            import sys
+            print(f"📥 명령어 수신: /{command} {args}", flush=True)
+            sys.stdout.flush()
 
             # 명령어 처리
             if command in self.command_handlers:
                 try:
-                    self.command_handlers[command](args)
+                    print(f"🔧 Calling handler for /{command}...", flush=True)
+                    sys.stdout.flush()
+                    handler = self.command_handlers[command]
+                    print(f"🔧 Handler: {handler}", flush=True)
+                    sys.stdout.flush()
+                    result = handler(args)
+                    print(f"🔧 Handler returned: {result}", flush=True)
+                    sys.stdout.flush()
                 except Exception as e:
+                    import traceback
                     error_msg = f"명령어 처리 실패: {e}"
-                    print(f"❌ {error_msg}")
+                    print(f"❌ {error_msg}", flush=True)
+                    traceback.print_exc()
+                    sys.stdout.flush()
                     self.notifier.send_message(f"⚠️ {error_msg}")
             else:
                 # 알 수 없는 명령어

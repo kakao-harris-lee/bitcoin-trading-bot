@@ -146,10 +146,10 @@ class AsyncTradingEngine:
             try:
                 from .notification.telegram_commands import TelegramCommandHandler
                 self._telegram_cmd = TelegramCommandHandler(self._telegram)
-                self._telegram_cmd.register_command("kill_on", lambda _: self._cmd_kill_switch(True))
-                self._telegram_cmd.register_command("kill_off", lambda _: self._cmd_kill_switch(False))
-                self._telegram_cmd.register_command("kill_status", lambda _: self._cmd_kill_status())
-                self._telegram_cmd.register_command("dashboard", lambda _: self._cmd_dashboard())
+                self._telegram_cmd.register_command("kill_on", self._handle_kill_on)
+                self._telegram_cmd.register_command("kill_off", self._handle_kill_off)
+                self._telegram_cmd.register_command("kill_status", self._handle_kill_status)
+                self._telegram_cmd.register_command("dashboard", self._handle_dashboard)
                 self._telegram_cmd.start_polling()
             except Exception as e:
                 logger.warning(f"Telegram command handler init failed: {e}")
@@ -667,6 +667,23 @@ class AsyncTradingEngine:
         except Exception as e:
             logger.error(f"Failed to write combined log: {e}")
 
+    def _handle_kill_on(self, args: str) -> None:
+        """Handler wrapper for /kill_on command."""
+        self._cmd_kill_switch(True)
+
+    def _handle_kill_off(self, args: str) -> None:
+        """Handler wrapper for /kill_off command."""
+        self._cmd_kill_switch(False)
+
+    def _handle_kill_status(self, args: str) -> None:
+        """Handler wrapper for /kill_status command."""
+        self._cmd_kill_status()
+
+    def _handle_dashboard(self, args: str) -> None:
+        """Handler wrapper for /dashboard command."""
+        print(f"🔧 _handle_dashboard called with args: {args}", flush=True)
+        self._cmd_dashboard()
+
     def _cmd_kill_switch(self, activate: bool) -> None:
         """Toggle kill switch via Telegram command."""
         try:
@@ -694,13 +711,19 @@ class AsyncTradingEngine:
 
     def _cmd_dashboard(self) -> None:
         """Send dashboard URL and current TOTP code via Telegram."""
+        # Send debug message first to verify handler is called
+        if self._telegram:
+            self._telegram.send_message("🔍 Dashboard command received...")
+
         try:
             import pyotp
+            from dotenv import load_dotenv
+            env_path = Path(__file__).parent.parent / ".env"
+            load_dotenv(env_path, override=True)
 
             totp_secret = os.environ.get("DASHBOARD_TOTP_SECRET")
             if not totp_secret:
                 msg = "⚠️ DASHBOARD_TOTP_SECRET not configured in .env"
-                print(msg)
                 if self._telegram:
                     self._telegram.send_message(msg)
                 return

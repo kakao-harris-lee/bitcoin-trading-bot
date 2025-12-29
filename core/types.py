@@ -207,3 +207,155 @@ def create_message_id(prefix: str = "msg") -> str:
 def current_timestamp() -> int:
     """현재 Unix timestamp (ms)"""
     return int(datetime.now().timestamp() * 1000)
+
+
+# ========== Multi-Asset Types (v0.0.6) ==========
+
+class AssetConfig(BaseModel):
+    """Configuration for a single tradeable asset."""
+    model_config = ConfigDict(use_enum_values=True)
+
+    symbol: str = Field(description="Asset symbol (e.g., BTC, ETH, SOL)")
+    enabled: bool = Field(default=True, description="Whether this asset is active")
+    alpha_ratio: float = Field(ge=0.0, le=1.0, description="Capital allocation ratio")
+    hedge_enabled: bool = Field(default=False, description="Whether hedging is enabled")
+    upbit_symbol: str = Field(description="Upbit trading pair (e.g., KRW-BTC)")
+    binance_symbol: str = Field(description="Binance trading pair (e.g., BTCUSDT)")
+    db_path: str = Field(description="Path to historical data DB")
+    strategies: Dict[str, Optional[str]] = Field(
+        description="Strategy mapping per regime (BULL, SIDEWAYS, BEAR)"
+    )
+    params_override: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Per-asset strategy parameter overrides"
+    )
+
+
+class AssetPosition(BaseModel):
+    """Position state for a single asset."""
+    model_config = ConfigDict(use_enum_values=True)
+
+    symbol: str
+    quantity: float = Field(default=0.0, description="Asset quantity held")
+    entry_price: float = Field(default=0.0, description="Average entry price")
+    current_price: float = Field(default=0.0, description="Current market price")
+    value_krw: float = Field(default=0.0, description="Position value in KRW")
+    unrealized_pnl: float = Field(default=0.0, description="Unrealized P&L in KRW")
+    unrealized_pnl_pct: float = Field(default=0.0, description="Unrealized P&L %")
+    strategy: Optional[str] = Field(default=None, description="Active strategy name")
+
+
+class PortfolioState(BaseModel):
+    """Aggregate portfolio state across all assets."""
+    model_config = ConfigDict(use_enum_values=True)
+
+    timestamp: int = Field(description="Unix timestamp (ms)")
+    total_value_krw: float = Field(description="Total portfolio value in KRW")
+    cash_krw: float = Field(description="Available cash in KRW")
+    positions: Dict[str, AssetPosition] = Field(
+        default_factory=dict,
+        description="Per-asset positions"
+    )
+    exposure_pct: float = Field(
+        default=0.0,
+        description="Total exposure as % of portfolio"
+    )
+    allocation_drift: Dict[str, float] = Field(
+        default_factory=dict,
+        description="Drift from target allocation per asset"
+    )
+
+    def get_position(self, symbol: str) -> Optional[AssetPosition]:
+        """Get position for a specific asset."""
+        return self.positions.get(symbol)
+
+
+class SymbolPrices(BaseModel):
+    """Price tracking for a single symbol across exchanges."""
+    model_config = ConfigDict(use_enum_values=True)
+
+    symbol: str
+    upbit_krw: float = Field(default=0.0, description="Upbit price in KRW")
+    upbit_usd: float = Field(default=0.0, description="Upbit price in USD")
+    binance_usd: float = Field(default=0.0, description="Binance price in USD")
+    premium_pct: float = Field(default=0.0, description="Kimchi premium %")
+    last_update_upbit: Optional[int] = Field(default=None, description="Last Upbit update (ms)")
+    last_update_binance: Optional[int] = Field(default=None, description="Last Binance update (ms)")
+
+    def update_upbit(self, price_krw: float, fx_rate: float, timestamp: int) -> None:
+        """Update Upbit price and recalculate premium."""
+        self.upbit_krw = price_krw
+        self.upbit_usd = price_krw / fx_rate if fx_rate > 0 else 0.0
+        self.last_update_upbit = timestamp
+        self._recalculate_premium()
+
+    def update_binance(self, price_usd: float, timestamp: int) -> None:
+        """Update Binance price and recalculate premium."""
+        self.binance_usd = price_usd
+        self.last_update_binance = timestamp
+        self._recalculate_premium()
+
+    def _recalculate_premium(self) -> None:
+        """Recalculate Kimchi premium."""
+        if self.binance_usd > 0 and self.upbit_usd > 0:
+            self.premium_pct = ((self.upbit_usd - self.binance_usd) / self.binance_usd) * 100
+        else:
+            self.premium_pct = 0.0
+
+
+class DeltaState(BaseModel):
+    """Delta tracking state for a single asset."""
+    model_config = ConfigDict(use_enum_values=True)
+
+    symbol: str
+    long_qty: float = Field(default=0.0, description="Long position quantity (Upbit)")
+    short_qty: float = Field(default=0.0, description="Short position quantity (Binance)")
+    net_delta: float = Field(default=0.0, description="Net delta (long - short)")
+    drift_pct: float = Field(default=0.0, description="Delta drift %")
+    pending_delta: float = Field(default=0.0, description="Pending delta from trades")
+    last_rebalance: Optional[int] = Field(default=None, description="Last rebalance timestamp (ms)")
+
+    def update(self, long_qty: float, short_qty: float) -> None:
+        """Update delta state."""
+        self.long_qty = long_qty
+        self.short_qty = short_qty
+        self.net_delta = long_qty - short_qty
+        if long_qty > 0:
+            self.drift_pct = abs(self.net_delta) / long_qty * 100
+        else:
+            self.drift_pct = 0.0
+
+    def add_pending(self, qty: float) -> None:
+        """Add pending delta from trade."""
+        self.pending_delta += qty
+
+    def clear_pending(self) -> float:
+        """Clear and return pending delta."""
+        pending = self.pending_delta
+        self.pending_delta = 0.0
+        return pending
+
+
+class MultiAssetPremiumInfo(BaseModel):
+    """Premium information across all tracked assets."""
+    model_config = ConfigDict(use_enum_values=True)
+
+    timestamp: int
+    fx_rate: float = Field(description="USD/KRW exchange rate")
+    assets: Dict[str, SymbolPrices] = Field(
+        default_factory=dict,
+        description="Per-asset price and premium data"
+    )
+
+    def get_premium(self, symbol: str) -> Optional[float]:
+        """Get premium for a specific asset."""
+        if symbol in self.assets:
+            return self.assets[symbol].premium_pct
+        return None
+
+    def get_best_premium(self) -> Optional[tuple[str, float]]:
+        """Get asset with highest premium."""
+        if not self.assets:
+            return None
+        best = max(self.assets.items(), key=lambda x: x[1].premium_pct)
+        return (best[0], best[1].premium_pct)

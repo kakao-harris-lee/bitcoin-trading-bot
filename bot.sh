@@ -46,7 +46,7 @@ start() {
     fi
 
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
-    nohup python -u run.py --mode "$MODE" --engine async >> "$LOG_FILE" 2>&1 &
+    nohup python -u run.py --mode "$MODE" --engine async --telegram-commands >> "$LOG_FILE" 2>&1 &
 
     PID=$!
     echo $PID > "$PID_FILE"

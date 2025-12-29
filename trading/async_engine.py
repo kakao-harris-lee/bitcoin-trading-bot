@@ -133,12 +133,26 @@ class AsyncTradingEngine:
 
         # Telegram
         self._telegram = None
+        self._telegram_cmd = None
         if config.telegram_enabled:
             try:
                 from .notification.telegram_notifier import TelegramNotifier
                 self._telegram = TelegramNotifier()
             except Exception as e:
                 logger.warning(f"Telegram init failed: {e}")
+
+        # Telegram commands
+        if self._telegram and config.telegram_commands_enabled:
+            try:
+                from .notification.telegram_commands import TelegramCommandHandler
+                self._telegram_cmd = TelegramCommandHandler(self._telegram)
+                self._telegram_cmd.register_command("kill_on", lambda _: self._cmd_kill_switch(True))
+                self._telegram_cmd.register_command("kill_off", lambda _: self._cmd_kill_switch(False))
+                self._telegram_cmd.register_command("kill_status", lambda _: self._cmd_kill_status())
+                self._telegram_cmd.register_command("dashboard", lambda _: self._cmd_dashboard())
+                self._telegram_cmd.start_polling()
+            except Exception as e:
+                logger.warning(f"Telegram command handler init failed: {e}")
 
         # Statistics
         self._iteration_count = 0
@@ -652,6 +666,69 @@ class AsyncTradingEngine:
 
         except Exception as e:
             logger.error(f"Failed to write combined log: {e}")
+
+    def _cmd_kill_switch(self, activate: bool) -> None:
+        """Toggle kill switch via Telegram command."""
+        try:
+            from .risk.risk_controls import set_kill_switch
+            set_kill_switch(self.risk_config.kill_switch_file, activate)
+            status = "🔴 활성화" if activate else "🟢 비활성화"
+            msg = f"Kill Switch {status}"
+            print(f"⚠️ {msg}")
+            if self._telegram:
+                self._telegram.send_message(msg)
+        except Exception as e:
+            logger.error(f"Kill switch command failed: {e}")
+
+    def _cmd_kill_status(self) -> None:
+        """Get kill switch status via Telegram command."""
+        try:
+            from .risk.risk_controls import kill_switch_active
+            active = kill_switch_active(self.risk_config.kill_switch_file)
+            status = "🔴 활성화" if active else "🟢 비활성화"
+            msg = f"Kill Switch 상태: {status}"
+            if self._telegram:
+                self._telegram.send_message(msg)
+        except Exception as e:
+            logger.error(f"Kill status command failed: {e}")
+
+    def _cmd_dashboard(self) -> None:
+        """Send dashboard URL and current TOTP code via Telegram."""
+        try:
+            import pyotp
+
+            totp_secret = os.environ.get("DASHBOARD_TOTP_SECRET")
+            if not totp_secret:
+                msg = "⚠️ DASHBOARD_TOTP_SECRET not configured in .env"
+                print(msg)
+                if self._telegram:
+                    self._telegram.send_message(msg)
+                return
+
+            totp = pyotp.TOTP(totp_secret, interval=30)
+            current_code = totp.now()
+
+            msg = f"""🖥️ *Dashboard Access*
+
+🔗 URL: `/btc-dashboard`
+🔐 TOTP Code: `{current_code}`
+⏱️ Valid for: ~30 seconds
+
+_코드 만료 시 다시 /dashboard 명령어를 사용하세요._"""
+
+            print(f"📱 Dashboard TOTP: {current_code}")
+            if self._telegram:
+                self._telegram.send_message(msg)
+        except ImportError:
+            msg = "⚠️ pyotp not installed. Run: pip install pyotp"
+            print(msg)
+            if self._telegram:
+                self._telegram.send_message(msg)
+        except Exception as e:
+            msg = f"Dashboard command failed: {e}"
+            logger.error(msg)
+            if self._telegram:
+                self._telegram.send_message(f"⚠️ {msg}")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get engine statistics."""

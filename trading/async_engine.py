@@ -681,7 +681,6 @@ class AsyncTradingEngine:
 
     def _handle_dashboard(self, args: str) -> None:
         """Handler wrapper for /dashboard command."""
-        print(f"🔧 _handle_dashboard called with args: {args}", flush=True)
         self._cmd_dashboard()
 
     def _cmd_kill_switch(self, activate: bool) -> None:
@@ -711,16 +710,12 @@ class AsyncTradingEngine:
 
     def _cmd_dashboard(self) -> None:
         """Send dashboard URL and current TOTP code via Telegram."""
-        # Send debug message first to verify handler is called
-        if self._telegram:
-            self._telegram.send_message("🔍 Dashboard command received...")
-
         try:
             import pyotp
             from dotenv import load_dotenv
+
             env_path = Path(__file__).parent.parent / ".env"
             load_dotenv(env_path, override=True)
-
             totp_secret = os.environ.get("DASHBOARD_TOTP_SECRET")
             if not totp_secret:
                 msg = "⚠️ DASHBOARD_TOTP_SECRET not configured in .env"

@@ -92,3 +92,4 @@ jupyterlab>=4.0.0
 pyupbit
 python-binance
 cryptography
+pyotp>=2.9.0

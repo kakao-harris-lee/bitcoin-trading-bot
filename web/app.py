@@ -4,7 +4,7 @@ app.py
 Flask 웹 대시보드 - Dual Exchange Paper Trading 모니터링
 """
 
-from flask import Flask, render_template, jsonify, request, Response
+from flask import Flask, render_template, jsonify, request, Response, session
 from flask_cors import CORS
 from functools import wraps
 import secrets
@@ -14,19 +14,31 @@ import requests
 from pathlib import Path
 from datetime import datetime
 
+import pyotp
+
 # Load .env file from project root
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
 CORS(app)
 
 BASE_DIR = Path(__file__).parent
 
-# 대시보드 비밀 경로 (환경변수 또는 랜덤 생성)
-DASHBOARD_SECRET_PATH = os.getenv("DASHBOARD_SECRET_PATH") or secrets.token_urlsafe(16)
+# 대시보드 고정 경로
+DASHBOARD_PATH = "btc-dashboard"
 
-# 대시보드 인증 정보
+# TOTP 설정 (환경변수에서 비밀키 로드, 없으면 생성하여 출력)
+TOTP_SECRET = os.getenv("DASHBOARD_TOTP_SECRET")
+if not TOTP_SECRET:
+    TOTP_SECRET = pyotp.random_base32()
+    print(f"\n⚠️  DASHBOARD_TOTP_SECRET not set. Generated new secret:")
+    print(f"   Add to .env: DASHBOARD_TOTP_SECRET={TOTP_SECRET}\n")
+
+totp = pyotp.TOTP(TOTP_SECRET, interval=30)
+
+# 대시보드 인증 정보 (기존 Basic Auth - optional fallback)
 DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME")
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD")
 
@@ -57,6 +69,69 @@ def requires_auth(f):
             return authenticate()
         return f(*args, **kwargs)
     return decorated
+
+
+def verify_totp(code: str) -> bool:
+    """Verify TOTP code with 1 interval tolerance."""
+    return totp.verify(code, valid_window=1)
+
+
+def get_current_totp() -> str:
+    """Get current TOTP code."""
+    return totp.now()
+
+
+def requires_totp(f):
+    """Decorator for routes that require TOTP authentication."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # Check if already authenticated in session
+        if session.get('totp_authenticated'):
+            return f(*args, **kwargs)
+
+        # Check for TOTP code in query parameter
+        totp_code = request.args.get('code')
+        if totp_code and verify_totp(totp_code):
+            session['totp_authenticated'] = True
+            session.permanent = False  # Session expires when browser closes
+            return f(*args, **kwargs)
+
+        # Return TOTP input form
+        return render_totp_form()
+
+    return decorated
+
+
+def render_totp_form():
+    """Render TOTP input form."""
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Dashboard Access</title>
+        <style>
+            body { font-family: Arial; background: #1a1a2e; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .container { background: #16213e; padding: 40px; border-radius: 10px; text-align: center; }
+            h2 { margin-bottom: 20px; }
+            input { padding: 15px; font-size: 24px; width: 200px; text-align: center; letter-spacing: 8px; border: 2px solid #0f3460; border-radius: 5px; background: #1a1a2e; color: #fff; }
+            button { padding: 15px 40px; font-size: 16px; background: #e94560; color: #fff; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px; }
+            button:hover { background: #ff6b6b; }
+            .error { color: #e94560; margin-top: 10px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>🔐 Dashboard Access</h2>
+            <form method="GET">
+                <input type="text" name="code" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required autofocus>
+                <br>
+                <button type="submit">Verify</button>
+            </form>
+            <p style="margin-top: 20px; font-size: 12px; color: #888;">Enter TOTP code from Telegram /dashboard command</p>
+        </div>
+    </body>
+    </html>
+    ''', 200
 
 
 def load_allocation_config() -> dict:
@@ -147,18 +222,16 @@ def _send_telegram_notification(message: str) -> bool:
 
 def _notify_dashboard_url(port: int = 8080):
     """대시보드 URL을 텔레그램으로 알림"""
-    # 환경변수에서 설정된 경로인지, 랜덤 생성인지 확인
-    is_random = not os.getenv("DASHBOARD_SECRET_PATH")
-    path_type = "랜덤 생성" if is_random else "환경변수 설정"
+    current_code = get_current_totp()
 
     message = f"""
 🖥️ *대시보드 시작*
 
-🔐 경로 타입: `{path_type}`
-🔗 접속 경로: `/{DASHBOARD_SECRET_PATH}`
+🔗 접속 경로: `/{DASHBOARD_PATH}`
+🔐 현재 TOTP: `{current_code}`
 🕐 시작 시간: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`
 
-_이 URL을 안전하게 보관하세요._
+_/dashboard 명령어로 TOTP 코드를 받을 수 있습니다._
 """
     _send_telegram_notification(message)
 
@@ -177,10 +250,10 @@ def block_common():
     return "Not Found", 404
 
 
-@app.route(f"/{DASHBOARD_SECRET_PATH}")
-@requires_auth
+@app.route(f"/{DASHBOARD_PATH}")
+@requires_totp
 def dashboard():
-    """메인 대시보드 (비밀 경로)"""
+    """메인 대시보드 (TOTP 인증 필요)"""
     return render_template("dashboard.html")
 
 
@@ -400,7 +473,8 @@ def get_hedge_info():
 
 if __name__ == "__main__":
     print(f"\n{'='*50}")
-    print(f"Dashboard available at: http://localhost:8081/{DASHBOARD_SECRET_PATH}")
+    print(f"Dashboard available at: http://localhost:8081/{DASHBOARD_PATH}")
+    print(f"TOTP authentication required (use /dashboard command in Telegram)")
     print(f"{'='*50}\n")
 
     # 텔레그램으로 대시보드 URL 알림

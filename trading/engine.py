@@ -255,6 +255,7 @@ class DualPaperTradingEngine:
                 self._telegram_cmd.register_command("kill_on", lambda _: self._cmd_kill_switch(True))
                 self._telegram_cmd.register_command("kill_off", lambda _: self._cmd_kill_switch(False))
                 self._telegram_cmd.register_command("kill_status", lambda _: self._cmd_kill_status())
+                self._telegram_cmd.register_command("dashboard", lambda _: self._cmd_dashboard())
                 self._telegram_cmd.start_polling()
 
         # 상태 (legacy - kept for binance compatibility)
@@ -328,6 +329,45 @@ class DualPaperTradingEngine:
         print(msg)
         if self.telegram:
             self.telegram.send_message(msg)
+
+    def _cmd_dashboard(self) -> None:
+        """Send dashboard URL and current TOTP code to Telegram."""
+        try:
+            import pyotp
+            import os
+
+            totp_secret = os.getenv("DASHBOARD_TOTP_SECRET")
+            if not totp_secret:
+                msg = "⚠️ DASHBOARD_TOTP_SECRET not configured in .env"
+                print(msg)
+                if self.telegram:
+                    self.telegram.send_message(msg)
+                return
+
+            totp = pyotp.TOTP(totp_secret, interval=30)
+            current_code = totp.now()
+
+            msg = f"""🖥️ *Dashboard Access*
+
+🔗 URL: `/btc-dashboard`
+🔐 TOTP Code: `{current_code}`
+⏱️ Valid for: ~30 seconds
+
+_코드 만료 시 다시 /dashboard 명령어를 사용하세요._"""
+            print(f"📱 Dashboard TOTP: {current_code}")
+            if self.telegram:
+                self.telegram.send_message(msg)
+
+        except ImportError:
+            msg = "⚠️ pyotp not installed. Run: pip install pyotp"
+            print(msg)
+            if self.telegram:
+                self.telegram.send_message(msg)
+        except Exception as e:
+            msg = f"⚠️ Dashboard error: {e}"
+            print(msg)
+            if self.telegram:
+                self.telegram.send_message(msg)
 
     def _init_hedge_infrastructure(self, hedge_config: Dict[str, Any]) -> None:
         """Initialize hedge infrastructure (PremiumController, HedgeManager, AlphaManager)."""

@@ -104,7 +104,9 @@ class HedgeManager:
         "capital_usdt": 5000,           # Separate hedge capital pool
         "max_capital_usage_pct": 0.8,   # Max 80% of capital per position
         "fee_pct": 0.04,                # Binance taker fee
-        "slippage_pct": 0.02,           # Expected slippage
+        "slippage_pct": 0.02,           # Base expected slippage
+        "slippage_elevated_pct": 0.04,  # Slippage during elevated volatility
+        "slippage_high_pct": 0.08,      # Slippage during high volatility
         "max_retries": 3,               # Retry count for failed orders
     }
 
@@ -148,6 +150,29 @@ class HedgeManager:
     def is_hedged(self) -> bool:
         """Check if currently hedged."""
         return self.hedge_position is not None
+
+    def _get_dynamic_slippage(self) -> float:
+        """
+        Get dynamic slippage based on current volatility state.
+
+        Returns higher slippage during high volatility periods for more
+        accurate actual profit calculations.
+
+        Returns:
+            Slippage percentage (0.02, 0.04, or 0.08)
+        """
+        try:
+            stats = self.controller.get_stats()
+            volatility_state = getattr(stats, 'volatility_state', None) or stats.get('volatility_state', 'normal')
+
+            if volatility_state == "high":
+                return self.config["slippage_high_pct"]
+            elif volatility_state == "elevated":
+                return self.config["slippage_elevated_pct"]
+            else:
+                return self.config["slippage_pct"]
+        except Exception:
+            return self.config["slippage_pct"]
 
     async def evaluate(
         self,
@@ -208,8 +233,9 @@ class HedgeManager:
             logger.warning("Hedge qty is zero, skipping open")
             return
 
-        # Calculate fees
-        fee_pct = (self.config["fee_pct"] + self.config["slippage_pct"]) / 100
+        # Calculate fees with dynamic slippage
+        slippage = self._get_dynamic_slippage()
+        fee_pct = (self.config["fee_pct"] + slippage) / 100
         fee = margin_required * fee_pct
 
         try:
@@ -283,8 +309,9 @@ class HedgeManager:
                     exit_price = result.get("avg_price", price)
                     pnl = (pos.entry_price - exit_price) * qty  # Short P&L
 
-                    # Calculate fees
-                    fee_pct = (self.config["fee_pct"] + self.config["slippage_pct"]) / 100
+                    # Calculate fees with dynamic slippage
+                    slippage = self._get_dynamic_slippage()
+                    fee_pct = (self.config["fee_pct"] + slippage) / 100
                     exit_fee = qty * exit_price * fee_pct
 
                     # Record trade
@@ -450,8 +477,9 @@ class HedgeManager:
             return {"direction": "increase", "qty_adjusted": 0, "new_short_qty": self.hedge_position.qty,
                     "fees_paid": 0, "success": False}
 
-        # Calculate fees
-        fee_pct = (self.config["fee_pct"] + self.config["slippage_pct"]) / 100
+        # Calculate fees with dynamic slippage
+        slippage = self._get_dynamic_slippage()
+        fee_pct = (self.config["fee_pct"] + slippage) / 100
         fee = margin_required * fee_pct
 
         try:
@@ -498,8 +526,9 @@ class HedgeManager:
             return {"direction": "decrease", "qty_adjusted": 0, "new_short_qty": self.hedge_position.qty,
                     "fees_paid": 0, "success": False}
 
-        # Calculate fees
-        fee_pct = (self.config["fee_pct"] + self.config["slippage_pct"]) / 100
+        # Calculate fees with dynamic slippage
+        slippage = self._get_dynamic_slippage()
+        fee_pct = (self.config["fee_pct"] + slippage) / 100
         fee = qty * price * fee_pct
 
         try:

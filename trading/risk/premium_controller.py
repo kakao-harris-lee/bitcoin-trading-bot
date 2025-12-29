@@ -100,6 +100,10 @@ class PremiumController:
         # Volatility thresholds
         "high_volatility_threshold": 2.0,
         "elevated_volatility_threshold": 1.0,
+
+        # Funding rate alert thresholds
+        "funding_rate_sharp_change_pct": 0.03,  # 0.03% absolute change triggers alert
+        "funding_rate_critical_threshold": -0.1,  # Critical negative funding
     }
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -111,6 +115,8 @@ class PremiumController:
         self._has_position: bool = False
         self._position_entry_time: Optional[datetime] = None
         self._last_funding_rate: float = 0.0
+        self._previous_funding_rate: float = 0.0  # For detecting sharp changes
+        self._funding_rate_change_time: Optional[datetime] = None
 
         self._load_history()
 
@@ -220,7 +226,18 @@ class PremiumController:
 
     def set_funding_rate(self, rate: float) -> None:
         """Update current funding rate (called periodically)."""
+        self._previous_funding_rate = self._last_funding_rate
         self._last_funding_rate = rate
+        self._funding_rate_change_time = datetime.now()
+
+    def get_funding_rate_change(self) -> float:
+        """Get the absolute change in funding rate from previous reading."""
+        return abs(self._last_funding_rate - self._previous_funding_rate)
+
+    def is_funding_rate_sharp_change(self) -> bool:
+        """Check if funding rate has changed sharply since last reading."""
+        threshold = self.config["funding_rate_sharp_change_pct"]
+        return self.get_funding_rate_change() >= threshold
 
     def generate_signal(
         self,
@@ -333,26 +350,60 @@ class PremiumController:
         Check if an alert should be sent.
 
         Returns alert message if threshold exceeded, None otherwise.
+        Alert priority: CRITICAL > URGENT > NORMAL
         """
         if stats is None:
             stats = self.get_stats()
 
-        alerts = []
+        critical_alerts = []  # Highest priority - immediate action needed
+        urgent_alerts = []    # High priority - sharp changes detected
+        normal_alerts = []    # Normal priority
 
-        # Entry opportunity alert
+        # ═══════════════════════════════════════════════════════
+        # CRITICAL: Funding rate below critical threshold
+        # ═══════════════════════════════════════════════════════
+        critical_threshold = self.config["funding_rate_critical_threshold"]
+        if self._last_funding_rate < critical_threshold:
+            critical_alerts.append(
+                f"🚨 CRITICAL Negative Funding: {self._last_funding_rate:.4f}% < {critical_threshold}%\n"
+                f"   Immediate action required!"
+            )
+
+        # ═══════════════════════════════════════════════════════
+        # URGENT: Sharp funding rate change detected
+        # ═══════════════════════════════════════════════════════
+        if self.is_funding_rate_sharp_change():
+            change = self._last_funding_rate - self._previous_funding_rate
+            direction = "↗️" if change > 0 else "↘️"
+            urgent_alerts.append(
+                f"⚡ Funding Rate Sharp Change {direction}: "
+                f"{self._previous_funding_rate:.4f}% → {self._last_funding_rate:.4f}% "
+                f"(Δ{change:+.4f}%)"
+            )
+
+        # ═══════════════════════════════════════════════════════
+        # URGENT: High volatility warning
+        # ═══════════════════════════════════════════════════════
+        if stats.volatility_state == "high":
+            urgent_alerts.append(f"⚠️ High Volatility: σ={stats.std_24h:.2f}%")
+
+        # ═══════════════════════════════════════════════════════
+        # NORMAL: Negative funding (but not critical)
+        # ═══════════════════════════════════════════════════════
+        if self._last_funding_rate < self.config["negative_funding_exit"] and not critical_alerts:
+            normal_alerts.append(f"💸 Negative Funding: {self._last_funding_rate:.4f}%")
+
+        # ═══════════════════════════════════════════════════════
+        # NORMAL: Entry opportunity
+        # ═══════════════════════════════════════════════════════
         entry_threshold = stats.mean_24h + (self.config["entry_sigma"] * stats.std_24h)
         if stats.current > entry_threshold and stats.current > self.config["entry_threshold_pct"]:
             if not self._has_position:
-                alerts.append(f"📊 Hedge Entry Opportunity: {stats.current:+.2f}% > {entry_threshold:.2f}%")
+                normal_alerts.append(f"📊 Hedge Entry Opportunity: {stats.current:+.2f}% > {entry_threshold:.2f}%")
 
-        # Volatility alerts
-        if stats.volatility_state == "high":
-            alerts.append(f"⚠️ High Volatility: σ={stats.std_24h:.2f}%")
+        # Combine alerts by priority
+        all_alerts = critical_alerts + urgent_alerts + normal_alerts
 
-        # Funding rate alert
-        if self._last_funding_rate < self.config["negative_funding_exit"]:
-            alerts.append(f"💸 Negative Funding: {self._last_funding_rate:.4f}%")
-
-        if alerts:
-            return "\n".join(alerts)
+        if all_alerts:
+            return "\n".join(all_alerts)
         return None

@@ -223,19 +223,30 @@ class DeltaRebalancer:
         logger.info(f"Rebalancing: drift {state.drift_pct:.2f}% > threshold {state.threshold_pct:.2f}%, "
                     f"adjusting to {target_qty:.4f} BTC")
 
-        result = await self.hedge_manager.adjust_position(target_qty, binance_price)
+        try:
+            result = await self.hedge_manager.adjust_position(target_qty, binance_price)
 
-        if result and result.get('success'):
-            self._last_rebalance_time = now
-            self._rebalance_count += 1
-            self._total_qty_adjusted += result.get('qty_adjusted', 0)
-            self._total_fees_paid += result.get('fees_paid', 0)
+            if result and result.get('success'):
+                self._last_rebalance_time = now
+                self._rebalance_count += 1
+                self._total_qty_adjusted += result.get('qty_adjusted', 0)
+                self._total_fees_paid += result.get('fees_paid', 0)
 
-            logger.info(f"Rebalance complete: {result.get('direction')} {result.get('qty_adjusted', 0):.4f} BTC, "
-                        f"fees: ${result.get('fees_paid', 0):.2f}")
+                logger.info(f"Rebalance complete: {result.get('direction')} {result.get('qty_adjusted', 0):.4f} BTC, "
+                            f"fees: ${result.get('fees_paid', 0):.2f}")
 
-        self._pending_delta = 0.0
-        return result
+                # Only reset pending_delta on success
+                self._pending_delta = 0.0
+                return result
+            else:
+                # Order failed (non-exception): preserve pending_delta for next cycle
+                logger.warning(f"Rebalance order failed, preserving pending_delta: {self._pending_delta:.4f} BTC")
+                return result
+
+        except Exception as e:
+            # Network error or other exception: preserve pending_delta for retry
+            logger.error(f"Rebalance exception, preserving pending_delta for retry: {e}")
+            return None
 
     def get_stats(self) -> Dict[str, Any]:
         """Get rebalancing statistics."""

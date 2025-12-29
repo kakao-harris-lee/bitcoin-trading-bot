@@ -287,11 +287,42 @@ class SimpleFeedHandler:
     maintains price cache, and supports callbacks.
     """
 
+    @classmethod
+    def from_config(
+        cls,
+        config: Dict[str, Any],
+        on_price: Optional[Callable[["PriceMessage"], None]] = None,
+    ) -> "SimpleFeedHandler":
+        """
+        Create SimpleFeedHandler from allocation config.
+
+        Args:
+            config: Allocation config with "assets" section
+            on_price: Callback for price updates
+
+        Returns:
+            Configured SimpleFeedHandler
+        """
+        assets = config.get("assets", {})
+        upbit_symbols = []
+        binance_symbols = []
+
+        for symbol, asset_config in assets.items():
+            if asset_config.get("enabled", False):
+                upbit_symbols.append(asset_config.get("upbit_symbol", f"KRW-{symbol}"))
+                binance_symbols.append(asset_config.get("binance_symbol", f"{symbol}USDT"))
+
+        return cls(
+            upbit_symbols=upbit_symbols,
+            binance_symbols=binance_symbols,
+            on_price=on_price,
+        )
+
     def __init__(
         self,
         upbit_symbols: List[str] = None,
         binance_symbols: List[str] = None,
-        on_price: Optional[Callable[[PriceMessage], None]] = None,
+        on_price: Optional[Callable[["PriceMessage"], None]] = None,
     ):
         """
         Args:
@@ -299,16 +330,41 @@ class SimpleFeedHandler:
             binance_symbols: Binance symbols to subscribe
             on_price: Callback for new prices
         """
-        self._upbit_ws = UpbitWebSocketClient(upbit_symbols or ["KRW-BTC"])
-        self._binance_ws = BinanceWebSocketClient(binance_symbols or ["btcusdt"])
+        self._upbit_symbols = upbit_symbols or ["KRW-BTC"]
+        self._binance_symbols = binance_symbols or ["btcusdt"]
+        self._upbit_ws = UpbitWebSocketClient(self._upbit_symbols)
+        self._binance_ws = BinanceWebSocketClient(self._binance_symbols)
         self._on_price = on_price
         self._last_prices: Dict[str, PriceMessage] = {}
         self._started = False
         self._tasks: List[asyncio.Task] = []
 
+        # Symbol mapping (exchange symbol -> canonical symbol)
+        self._symbol_map: Dict[str, str] = {}
+        self._build_symbol_map()
+
         # Statistics
         self._upbit_count = 0
         self._binance_count = 0
+
+    def _build_symbol_map(self) -> None:
+        """Build mapping from exchange symbols to canonical symbols."""
+        # Upbit: KRW-BTC -> BTC
+        for sym in self._upbit_symbols:
+            canonical = sym.replace("KRW-", "")
+            self._symbol_map[sym] = canonical
+            self._symbol_map[sym.upper()] = canonical
+
+        # Binance: btcusdt/BTCUSDT -> BTC
+        for sym in self._binance_symbols:
+            canonical = sym.upper().replace("USDT", "")
+            self._symbol_map[sym] = canonical
+            self._symbol_map[sym.upper()] = canonical
+            self._symbol_map[sym.lower()] = canonical
+
+    def get_canonical_symbol(self, exchange_symbol: str) -> Optional[str]:
+        """Get canonical symbol from exchange symbol."""
+        return self._symbol_map.get(exchange_symbol) or self._symbol_map.get(exchange_symbol.upper())
 
     async def start(self) -> None:
         """Start feed handler."""

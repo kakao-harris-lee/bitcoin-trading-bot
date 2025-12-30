@@ -115,14 +115,18 @@ class Config:
         config = cls()
 
         # Redis 설정 오버라이드
-        if os.getenv("REDIS_HOST"):
-            config.redis.host = os.getenv("REDIS_HOST")
-        if os.getenv("REDIS_PORT"):
-            config.redis.port = int(os.getenv("REDIS_PORT"))
-        if os.getenv("REDIS_USERNAME"):
-            config.redis.username = os.getenv("REDIS_USERNAME")
-        if os.getenv("REDIS_PASSWORD"):
-            config.redis.password = os.getenv("REDIS_PASSWORD")
+        redis_host = os.getenv("REDIS_HOST")
+        if redis_host is not None:
+            config.redis.host = redis_host
+        redis_port = os.getenv("REDIS_PORT")
+        if redis_port is not None:
+            config.redis.port = int(redis_port)
+        redis_username = os.getenv("REDIS_USERNAME")
+        if redis_username is not None:
+            config.redis.username = redis_username
+        redis_password = os.getenv("REDIS_PASSWORD")
+        if redis_password is not None:
+            config.redis.password = redis_password
 
         # 트레이딩 모드
         config.paper_trading = os.getenv("PAPER_TRADING", "true").lower() == "true"

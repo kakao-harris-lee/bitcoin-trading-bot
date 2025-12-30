@@ -143,7 +143,7 @@ def _score_for_selection(mdd: float, total_return: float) -> float:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Tune SideWays_v2 OBV filter threshold")
     parser.add_argument("--timeframe", default="minute240")
-    parser.add_argument("--db-path", default=str(PROJECT_ROOT / "upbit_history_db" / "upbit_bitcoin.db"))
+    parser.add_argument("--db-path", default=str(PROJECT_ROOT / "data" / "upbit_bitcoin.db"))
 
     parser.add_argument("--train", nargs=2, metavar=("START", "END"), default=["2020-01-01", "2024-12-31"])
     parser.add_argument("--valid", nargs=2, metavar=("START", "END"), default=["2025-01-01", "2025-12-11"])

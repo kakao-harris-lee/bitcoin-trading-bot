@@ -49,7 +49,7 @@ def main():
         return
 
     # DB 경로 설정
-    db_path = project_root / "upbit_bitcoin.db"
+    db_path = project_root / "data" / "upbit_bitcoin.db"
 
     if not db_path.exists():
         print(f"\n❌ DB 파일을 찾을 수 없습니다: {db_path}")

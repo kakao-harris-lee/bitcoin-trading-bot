@@ -352,7 +352,7 @@ def load_upbit_data(timeframe: str, start_date: str, end_date: str) -> pd.DataFr
     """Upbit 데이터 로드"""
     from core.data_loader import DataLoader
 
-    db_path = PROJECT_ROOT / 'upbit_history_db' / 'upbit_bitcoin.db'
+    db_path = PROJECT_ROOT / 'data' / 'upbit_bitcoin.db'
     loader = DataLoader(str(db_path))
     df = loader.load_timeframe(timeframe, start_date, end_date)
     loader.conn.close()

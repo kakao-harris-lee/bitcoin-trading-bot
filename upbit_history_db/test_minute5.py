@@ -6,7 +6,7 @@ from upbit_bitcoin_collector import UpbitBitcoinCollector
 
 def test_minute5():
     """5분 단위 테스트 (보간 확인용)"""
-    collector = UpbitBitcoinCollector("upbit_bitcoin.db")
+    collector = UpbitBitcoinCollector("../data/upbit_bitcoin.db")
 
     try:
         print("테스트: 5분(minute5) 단위 데이터 수집 (일부만 수집)")

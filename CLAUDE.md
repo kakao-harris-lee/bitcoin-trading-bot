@@ -4,16 +4,17 @@
 
 ```bash
 # Bot management (recommended)
-./bot.sh start paper                    # Start paper trading
-./bot.sh start live h4_conservative h4_short sideways_and_bear  # Start live
-./bot.sh stop                           # Stop bot
-./bot.sh restart live h4_conservative h4_short sideways_and_bear  # Restart
-./bot.sh status                         # Check status
-./bot.sh logs                           # View logs
+./bot.sh start                                # Both paper (default)
+./bot.sh start --trend=live                   # Trend live, premium paper
+./bot.sh start --trend=live --premium=live    # Both live
+./bot.sh stop                                 # Stop bot
+./bot.sh restart --trend=live                 # Restart
+./bot.sh status                               # Check status
+./bot.sh logs                                 # View logs
 
 # Direct run (alternative)
-python run.py --mode paper
-ENABLE_LIVE_TRADING=1 python run.py --mode live
+python run.py --trend paper --premium paper
+ENABLE_LIVE_TRADING=1 python run.py --trend live --premium paper
 
 # Run tests
 pytest
@@ -103,7 +104,7 @@ bitcoin-trading-bot/
 # On target server
 cd ~/bitcoin-trading-bot
 git pull origin main
-./bot.sh restart live h4_conservative h4_short sideways_and_bear
+./bot.sh restart --trend=live --premium=paper
 ```
 
 **Prohibited:**

@@ -6,7 +6,7 @@ from upbit_bitcoin_collector import UpbitBitcoinCollector
 
 def test_single_timeframe():
     """한 시간단위만 테스트"""
-    collector = UpbitBitcoinCollector("upbit_bitcoin.db")
+    collector = UpbitBitcoinCollector("../data/upbit_bitcoin.db")
 
     try:
         # 일 단위만 수집 (데이터가 적어서 빠름)

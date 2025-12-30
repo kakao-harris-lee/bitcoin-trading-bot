@@ -17,7 +17,7 @@ class BitcoinDBCLI:
         'minute30', 'minute60', 'minute240', 'day', 'week', 'month'
     ]
 
-    def __init__(self, db_path="upbit_bitcoin.db"):
+    def __init__(self, db_path="../data/upbit_bitcoin.db"):
         try:
             self.conn = sqlite3.connect(db_path)
             self.cursor = self.conn.cursor()
@@ -247,7 +247,7 @@ class BitcoinDBCLI:
         print("📦 DB 파일 정보")
         print("="*60)
 
-        db_path = "upbit_bitcoin.db"
+        db_path = "../data/upbit_bitcoin.db"
         if os.path.exists(db_path):
             size = os.path.getsize(db_path)
             size_mb = size / (1024 * 1024)

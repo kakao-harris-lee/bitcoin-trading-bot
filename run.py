@@ -4,9 +4,10 @@ Bitcoin Trading Bot - Entry Point
 비트코인 트레이딩 봇 진입점
 
 Usage:
-    python run.py --mode paper      # Paper Trading (기본)
-    python run.py --mode live       # Live Trading (ENABLE_LIVE_TRADING=1 필요)
-    python run.py --help            # 도움말
+    python run.py --trend paper --premium paper  # Both paper (default)
+    python run.py --trend live --premium paper   # Trend live, premium paper
+    python run.py --trend live --premium live    # Both live
+    python run.py --help                         # Help
 """
 
 import argparse
@@ -24,7 +25,8 @@ async def main(args):
     from trading.async_engine import AsyncTradingEngine, AsyncEngineConfig
 
     config = AsyncEngineConfig(
-        execution_mode=str(args.mode),
+        trend_mode=str(args.trend),
+        premium_mode=str(args.premium),
         paper_upbit_capital=float(args.paper_upbit_capital),
         paper_binance_capital=float(args.paper_binance_capital),
         telegram_enabled=not bool(args.no_telegram),
@@ -48,18 +50,34 @@ def run():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run.py --mode paper        # Paper trading
-  python run.py --mode live         # Live trading (requires ENABLE_LIVE_TRADING=1)
-  python run.py --no-telegram       # Without telegram notifications
+  python run.py --trend paper --premium paper  # Both paper (default)
+  python run.py --trend live --premium paper   # Trend live, premium paper
+  python run.py --trend live --premium live    # Both live
+  python run.py --no-telegram                  # Without telegram notifications
         """
     )
 
-    # 실행 모드
+    # 실행 모드 (Dual mode)
+    parser.add_argument(
+        '--trend',
+        choices=['paper', 'live'],
+        default='paper',
+        help='Trend/directional trading mode (default: paper)'
+    )
+
+    parser.add_argument(
+        '--premium',
+        choices=['paper', 'live'],
+        default='paper',
+        help='Kimchi premium hedge mode (default: paper)'
+    )
+
+    # Legacy --mode argument (maps to --trend)
     parser.add_argument(
         '--mode',
         choices=['paper', 'live'],
-        default='paper',
-        help='실행 모드 (기본: paper)'
+        default=None,
+        help=argparse.SUPPRESS  # Hidden, for backward compatibility
     )
 
     # Paper Trading 자본금 설정 (Live 모드에서는 무시됨 - 실제 잔고 조회)
@@ -67,27 +85,27 @@ Examples:
         '--paper-upbit-capital',
         type=float,
         default=10_000_000,
-        help='[Paper 전용] Upbit 시뮬레이션 자본 (KRW, 기본: 10,000,000)'
+        help='[Paper only] Upbit simulation capital in KRW (default: 10,000,000)'
     )
 
     parser.add_argument(
         '--paper-binance-capital',
         type=float,
         default=10_000,
-        help='[Paper 전용] Binance 시뮬레이션 자본 (USDT, 기본: 10,000)'
+        help='[Paper only] Binance simulation capital in USDT (default: 10,000)'
     )
 
     # 텔레그램 설정
     parser.add_argument(
         '--no-telegram',
         action='store_true',
-        help='텔레그램 알림 비활성화'
+        help='Disable telegram notifications'
     )
 
     parser.add_argument(
         '--telegram-commands',
         action='store_true',
-        help='텔레그램 명령어 polling 활성화'
+        help='Enable telegram command polling'
     )
 
     # Legacy compatibility (ignored)
@@ -102,7 +120,12 @@ Examples:
 
     args = parser.parse_args()
 
-    print("Starting AsyncTradingEngine...")
+    # Handle legacy --mode argument
+    if args.mode is not None:
+        args.trend = args.mode
+        print(f"Warning: --mode is deprecated. Use --trend instead.")
+
+    print(f"Starting AsyncTradingEngine (Trend={args.trend.upper()}, Premium={args.premium.upper()})...")
     asyncio.run(main(args))
 
 

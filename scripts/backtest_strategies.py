@@ -757,7 +757,7 @@ def run_backtest(
 
     # DB 경로
     if db_path is None:
-        db_path = PROJECT_ROOT / 'upbit_history_db' / 'upbit_bitcoin.db'
+        db_path = PROJECT_ROOT / 'data' / 'upbit_bitcoin.db'
 
     if verbose:
         print(f"\n{'='*60}")

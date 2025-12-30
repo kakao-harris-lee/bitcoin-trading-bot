@@ -177,7 +177,7 @@ def _pick_indices(n: int) -> List[int]:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--db-path", default=str(PROJECT_ROOT / "upbit_history_db" / "upbit_bitcoin.db"))
+    p.add_argument("--db-path", default=str(PROJECT_ROOT / "data" / "upbit_bitcoin.db"))
     p.add_argument("--tuning-json", default=str(PROJECT_ROOT / "analysis" / "tune_operational_router_results.json"))
     p.add_argument("--val-start", default="2025-01-01")
     p.add_argument("--val-end", default="2025-12-11")

@@ -340,7 +340,7 @@ def _sample_candidates(max_trials: int, seed: int) -> List[Candidate]:
 
 def main():
     p = argparse.ArgumentParser(description="Tune operational router thresholds/policy")
-    p.add_argument("--db-path", default=str(PROJECT_ROOT / "upbit_history_db" / "upbit_bitcoin.db"))
+    p.add_argument("--db-path", default=str(PROJECT_ROOT / "data" / "upbit_bitcoin.db"))
     p.add_argument("--train-start", default="2020-01-01")
     p.add_argument("--train-end", default="2024-12-31")
     p.add_argument("--val-start", default="2025-01-01")

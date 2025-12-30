@@ -5,7 +5,7 @@
 import sqlite3
 from datetime import datetime
 
-def verify_database(db_path="upbit_bitcoin.db"):
+def verify_database(db_path="../data/upbit_bitcoin.db"):
     """데이터베이스 검증"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()

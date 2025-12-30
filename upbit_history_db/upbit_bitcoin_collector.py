@@ -34,7 +34,7 @@ class UpbitBitcoinCollector:
     MARKET = "KRW-BTC"
     MAX_COUNT = 200  # API 최대 요청 개수
 
-    def __init__(self, db_path: str = "upbit_bitcoin.db"):
+    def __init__(self, db_path: str = "../data/upbit_bitcoin.db"):
         self.db_path = db_path
         self.conn = None
         self.init_database()
@@ -325,7 +325,7 @@ class UpbitBitcoinCollector:
 
 def main():
     """메인 실행 함수"""
-    collector = UpbitBitcoinCollector("upbit_bitcoin.db")
+    collector = UpbitBitcoinCollector("../data/upbit_bitcoin.db")
 
     try:
         collector.collect_all_timeframes()

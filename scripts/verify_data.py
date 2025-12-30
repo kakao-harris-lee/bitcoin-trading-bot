@@ -26,7 +26,7 @@ class TimeframeVerifier:
         'day': 1440
     }
 
-    def __init__(self, db_path: str = "upbit_bitcoin.db"):
+    def __init__(self, db_path: str = "data/upbit_bitcoin.db"):
         self.db_path = Path(db_path)
         if not self.db_path.exists():
             raise FileNotFoundError(f"DB 파일을 찾을 수 없습니다: {db_path}")
@@ -297,7 +297,7 @@ def main():
     """메인 실행 함수"""
 
     # DB 경로 설정
-    db_path = Path(__file__).parent.parent / "upbit_bitcoin.db"
+    db_path = Path(__file__).parent.parent / "data" / "upbit_bitcoin.db"
 
     if not db_path.exists():
         print(f"❌ DB 파일을 찾을 수 없습니다: {db_path}")

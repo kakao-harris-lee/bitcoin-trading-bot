@@ -6,7 +6,7 @@ from upbit_bitcoin_collector import UpbitBitcoinCollector
 
 def test_minute1_short():
     """1분 단위 일부만 수집하여 중복 체크 테스트"""
-    collector = UpbitBitcoinCollector("upbit_bitcoin.db")
+    collector = UpbitBitcoinCollector("../data/upbit_bitcoin.db")
 
     try:
         print("테스트: 1분(minute1) 단위 데이터 수집 (최신 600개)")

@@ -36,7 +36,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AsyncEngineConfig:
     """Configuration for AsyncTradingEngine."""
-    execution_mode: str = "paper"
+    # Dual execution modes: trend (directional) and premium (kimchi hedge)
+    trend_mode: str = "paper"      # Trend/directional trading mode
+    premium_mode: str = "paper"    # Kimchi premium hedge mode
     paper_upbit_capital: float = 10_000_000
     paper_binance_capital: float = 10_000
     telegram_enabled: bool = True
@@ -46,11 +48,20 @@ class AsyncEngineConfig:
     regime_update_interval: int = 300  # 5 minutes
     log_dir: Optional[Path] = None
 
+    @property
+    def execution_mode(self) -> str:
+        """Legacy compatibility: returns trend_mode."""
+        return self.trend_mode
+
     @classmethod
     def from_args(cls, args: Any) -> "AsyncEngineConfig":
         """Create config from argparse args."""
+        # Support both new (--trend/--premium) and legacy (--mode) args
+        trend = getattr(args, "trend", None) or getattr(args, "mode", "paper")
+        premium = getattr(args, "premium", None) or "paper"
         return cls(
-            execution_mode=getattr(args, "mode", "paper"),
+            trend_mode=trend,
+            premium_mode=premium,
             paper_upbit_capital=getattr(args, "paper_upbit_capital", 10_000_000),
             paper_binance_capital=getattr(args, "paper_binance_capital", 10_000),
             telegram_enabled=not getattr(args, "no_telegram", False),
@@ -78,7 +89,8 @@ class AsyncTradingEngine:
             config: Engine configuration
         """
         self.config = config
-        self.execution_mode = config.execution_mode
+        self.trend_mode = config.trend_mode
+        self.premium_mode = config.premium_mode
         self._running = False
         self._started_at: Optional[datetime] = None
 
@@ -158,6 +170,15 @@ class AsyncTradingEngine:
         self._iteration_count = 0
         self._signal_count = 0
 
+    @property
+    def execution_mode(self) -> str:
+        """Legacy compatibility: returns trend_mode."""
+        return self.trend_mode
+
+    def _mode_display(self) -> str:
+        """Format mode display string."""
+        return f"Trend={self.trend_mode.upper()}, Premium={self.premium_mode.upper()}"
+
     async def start(self) -> None:
         """Initialize and start all components."""
         if self._running:
@@ -165,7 +186,7 @@ class AsyncTradingEngine:
             return
 
         logger.info("=" * 70)
-        logger.info(f"  AsyncTradingEngine [{self.execution_mode.upper()}]")
+        logger.info(f"  AsyncTradingEngine [{self._mode_display()}]")
         logger.info("=" * 70)
 
         # 1. Load initial data
@@ -426,8 +447,11 @@ class AsyncTradingEngine:
 
         try:
             msg = (
-                f"🚀 AsyncTradingEngine [{self.execution_mode.upper()}] Started\n"
+                f"🚀 AsyncTradingEngine Started\n"
                 f"{'=' * 30}\n\n"
+                f"Modes:\n"
+                f"  • Trend:   {self.trend_mode.upper()}\n"
+                f"  • Premium: {self.premium_mode.upper()}\n\n"
                 f"Components:\n"
                 f"  • PriceHub: Ready\n"
                 f"  • DataCache: {len(self.data_cache.get_sizes())} timeframes\n"
@@ -452,11 +476,14 @@ class AsyncTradingEngine:
             upbit_price = prices.get("upbit", 0)
             binance_price = prices.get("binance", 0)
 
-            mode_label = "LIVE" if self.execution_mode == "live" else "PAPER"
+            # Mode labels
+            trend_label = "LIVE" if self.trend_mode == "live" else "PAPER"
+            premium_label = "LIVE" if self.premium_mode == "live" else "PAPER"
+            mode_label = f"Trend:{trend_label} Premium:{premium_label}"
 
             # Header
             print(f"\n{'='*70}")
-            print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {mode_label} 실행 (#{self._iteration_count})")
+            print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {mode_label} (#{self._iteration_count})")
             print(f"{'='*70}")
 
             # Prices

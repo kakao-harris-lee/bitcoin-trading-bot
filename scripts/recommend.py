@@ -56,7 +56,7 @@ def recommend_strategy(
     db_path: Optional[str] = None,
 ) -> Dict[str, str]:
     if db_path is None:
-        db_path = str(PROJECT_ROOT / "upbit_history_db" / "upbit_bitcoin.db")
+        db_path = str(PROJECT_ROOT / "data" / "upbit_bitcoin.db")
 
     end_ts = pd.Timestamp.utcnow().normalize()  # date boundary
     start_ts = end_ts - pd.Timedelta(days=int(lookback_days))

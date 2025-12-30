@@ -19,9 +19,9 @@ class TradeLogger:
         """
         if db_path is None:
             project_root = Path(__file__).parent.parent
-            db_path = project_root / "trading_results.db"
+            db_path = str(project_root / "trading_results.db")
 
-        self.db_path = str(db_path)
+        self.db_path = db_path
         self.strategy_id = None
 
         # 전략 ID 조회 또는 생성

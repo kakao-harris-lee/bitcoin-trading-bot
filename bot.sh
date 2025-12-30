@@ -2,12 +2,13 @@
 #
 # Bitcoin Trading Bot - 시작/종료 스크립트
 #
-# 사용법:
-#   ./bot.sh start [mode]    # paper (기본) 또는 live
+# Usage:
+#   ./bot.sh start --trend=live --premium=paper   # Start with specific modes
+#   ./bot.sh start                                # Start with defaults (both paper)
 #   ./bot.sh stop
 #   ./bot.sh status
 #   ./bot.sh logs
-#   ./bot.sh restart [mode]
+#   ./bot.sh restart --trend=live --premium=paper
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,8 +21,39 @@ LOG_FILE="$LOG_DIR/bot_$(date +%Y%m%d).log"
 # 로그 디렉토리 생성
 mkdir -p "$LOG_DIR"
 
+# Parse mode arguments
+parse_modes() {
+    TREND_MODE="paper"
+    PREMIUM_MODE="paper"
+
+    for arg in "$@"; do
+        case $arg in
+            --trend=*)
+                TREND_MODE="${arg#*=}"
+                ;;
+            --premium=*)
+                PREMIUM_MODE="${arg#*=}"
+                ;;
+            paper|live)
+                # Legacy: single mode applies to trend only
+                TREND_MODE="$arg"
+                ;;
+        esac
+    done
+
+    # Validate modes
+    if [[ ! "$TREND_MODE" =~ ^(paper|live)$ ]]; then
+        echo "❌ Invalid trend mode: $TREND_MODE (must be paper or live)"
+        exit 1
+    fi
+    if [[ ! "$PREMIUM_MODE" =~ ^(paper|live)$ ]]; then
+        echo "❌ Invalid premium mode: $PREMIUM_MODE (must be paper or live)"
+        exit 1
+    fi
+}
+
 start() {
-    MODE="${1:-paper}"
+    parse_modes "$@"
 
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
@@ -33,20 +65,26 @@ start() {
     fi
 
     echo "🚀 AsyncTradingEngine 시작"
-    echo "   mode: $MODE"
+    echo "   Trend:   $TREND_MODE"
+    echo "   Premium: $PREMIUM_MODE"
     echo "   로그: $LOG_FILE"
 
     # 환경 설정
     source "$SCRIPT_DIR/.venv/bin/activate" 2>/dev/null || source "$SCRIPT_DIR/venv/bin/activate" 2>/dev/null
 
-    # Live 모드 환경변수
-    if [ "$MODE" = "live" ]; then
+    # Live 모드 환경변수 (Trend 또는 Premium 중 하나라도 live면 설정)
+    if [ "$TREND_MODE" = "live" ] || [ "$PREMIUM_MODE" = "live" ]; then
         export ENABLE_LIVE_TRADING=1
-        echo "   ⚠️  LIVE 모드 - 실제 거래가 실행됩니다!"
+        if [ "$TREND_MODE" = "live" ]; then
+            echo "   ⚠️  TREND LIVE - 실제 추세매매가 실행됩니다!"
+        fi
+        if [ "$PREMIUM_MODE" = "live" ]; then
+            echo "   ⚠️  PREMIUM LIVE - 실제 김프 헷지가 실행됩니다!"
+        fi
     fi
 
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
-    nohup python -u run.py --mode "$MODE" --engine async --telegram-commands >> "$LOG_FILE" 2>&1 &
+    nohup python -u run.py --trend "$TREND_MODE" --premium "$PREMIUM_MODE" --telegram-commands >> "$LOG_FILE" 2>&1 &
 
     PID=$!
     echo $PID > "$PID_FILE"
@@ -120,6 +158,8 @@ import json
 with open('$HEALTH_FILE') as f:
     d = json.load(f)
 print(f\"   Health: {d['status'].upper()}\")
+if d.get('mode'):
+    print(f\"   Mode: {d['mode']}\")
 if d['prices'].get('upbit', {}).get('price'):
     print(f\"   Upbit:  ₩{d['prices']['upbit']['price']:,.0f}\")
 if d['prices'].get('binance', {}).get('price'):
@@ -148,15 +188,40 @@ logs() {
 }
 
 restart() {
-    MODE="${1:-paper}"
     stop
     sleep 2
-    start "$MODE"
+    start "$@"
+}
+
+show_help() {
+    echo "Bitcoin Trading Bot (AsyncEngine)"
+    echo ""
+    echo "Usage: $0 {start|stop|status|logs|restart} [options]"
+    echo ""
+    echo "Commands:"
+    echo "  start     Start the bot"
+    echo "  stop      Stop the bot"
+    echo "  status    Show bot status"
+    echo "  logs      Show live logs"
+    echo "  restart   Restart the bot"
+    echo ""
+    echo "Options:"
+    echo "  --trend=MODE     Trend trading mode (paper|live, default: paper)"
+    echo "  --premium=MODE   Premium hedge mode (paper|live, default: paper)"
+    echo ""
+    echo "Examples:"
+    echo "  $0 start                              # Both paper (default)"
+    echo "  $0 start --trend=live                 # Trend live, premium paper"
+    echo "  $0 start --trend=live --premium=live  # Both live"
+    echo "  $0 restart --trend=live               # Restart with trend live"
+    echo "  $0 stop                               # Stop bot"
+    echo "  $0 status                             # Check status"
 }
 
 case "$1" in
     start)
-        start "$2"
+        shift
+        start "$@"
         ;;
     stop)
         stop
@@ -168,25 +233,14 @@ case "$1" in
         logs
         ;;
     restart)
-        restart "$2"
+        shift
+        restart "$@"
+        ;;
+    help|--help|-h)
+        show_help
         ;;
     *)
-        echo "Bitcoin Trading Bot (AsyncEngine)"
-        echo ""
-        echo "사용법: $0 {start|stop|status|logs|restart} [mode]"
-        echo ""
-        echo "명령어:"
-        echo "  start [mode]    봇 시작 (paper 또는 live)"
-        echo "  stop            봇 종료"
-        echo "  status          상태 확인"
-        echo "  logs            실시간 로그 보기"
-        echo "  restart [mode]  재시작"
-        echo ""
-        echo "예시:"
-        echo "  $0 start        # Paper 모드 시작"
-        echo "  $0 start live   # Live 모드 시작"
-        echo "  $0 stop         # 종료"
-        echo "  $0 status       # 상태 확인"
+        show_help
         exit 1
         ;;
 esac

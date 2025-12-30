@@ -425,7 +425,7 @@ def _yearly_table(equity_curve_daily: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     p = argparse.ArgumentParser(description="Operational routed portfolio backtest (A+B)")
-    p.add_argument("--db-path", default=str(PROJECT_ROOT / "upbit_history_db" / "upbit_bitcoin.db"))
+    p.add_argument("--db-path", default=str(PROJECT_ROOT / "data" / "upbit_bitcoin.db"))
     p.add_argument("--start-date", default=None)
     p.add_argument("--end-date", default=None)
     p.add_argument("--upbit-capital-krw", type=float, default=10_000_000)

@@ -27,7 +27,10 @@ from .execution.portfolio_manager import PortfolioManager
 from .execution.multi_asset_alpha_manager import MultiAssetAlphaManager
 from .execution.multi_asset_hedge_manager import MultiAssetHedgeManager
 from .execution.multi_asset_delta_rebalancer import MultiAssetDeltaRebalancer
+from .execution.paper_account import PaperTradingAccount
 from .risk.risk_controls import kill_switch_active, RiskConfig
+from .risk.premium_tracker import PremiumTracker
+from .strategy.regime_router import RegimeRouter
 
 logger = logging.getLogger(__name__)
 
@@ -83,13 +86,7 @@ class MultiAssetTradingEngine:
         logger.info(f"Enabled symbols: {self._symbols}")
         logger.info(f"Hedgeable symbols: {self._hedgeable}")
 
-        # Initialize components
-        self._init_components()
-
-        # Regime cache per symbol
-        self._regime_cache: Dict[str, str] = {sym: "SIDEWAYS_NEUTRAL" for sym in self._symbols}
-
-        # Telegram
+        # Telegram (initialize before components that may use it)
         self._telegram = None
         if config.telegram_enabled:
             try:
@@ -97,6 +94,20 @@ class MultiAssetTradingEngine:
                 self._telegram = TelegramNotifier()
             except Exception as e:
                 logger.warning(f"Telegram init failed: {e}")
+
+        # Initialize components
+        self._init_components()
+
+        # Load and wire strategies, accounts, and routers
+        self._setup_strategies_and_accounts()
+
+        # Premium tracker for each symbol
+        self.premium_trackers: Dict[str, PremiumTracker] = {
+            sym: PremiumTracker() for sym in self._symbols
+        }
+
+        # Regime cache per symbol
+        self._regime_cache: Dict[str, str] = {sym: "SIDEWAYS_NEUTRAL" for sym in self._symbols}
 
         # Statistics
         self._iteration_count = 0
@@ -166,6 +177,83 @@ class MultiAssetTradingEngine:
             engine=self,
             on_alert=self._on_health_alert if self.config.telegram_enabled else None,
         )
+
+    def _setup_strategies_and_accounts(self) -> None:
+        """Load strategies, create accounts, and wire up all components."""
+        import json as json_module
+
+        for symbol in self._symbols:
+            asset_cfg = self.allocation_config["assets"].get(symbol, {})
+
+            # 1. Create paper account for this symbol
+            # Upbit account (spot long)
+            upbit_account = PaperTradingAccount(
+                initial_capital=self.config.total_capital_krw * asset_cfg.get("alpha_ratio", 0.3),
+                exchange="upbit"
+            )
+            self.alpha_manager.set_account(symbol, upbit_account)
+
+            # Binance account (futures short) for hedgeable assets
+            if symbol in self._hedgeable:
+                binance_account = PaperTradingAccount(
+                    initial_capital=self.config.hedge_capital_usdt * asset_cfg.get("alpha_ratio", 0.3),
+                    exchange="binance"
+                )
+                self.hedge_manager.set_account(symbol, binance_account)
+
+            # 2. Create regime router for this symbol
+            router = RegimeRouter()
+            self.alpha_manager.set_regime_router(symbol, router)
+
+            # 3. Load strategy based on config
+            strategy = self._load_strategy_for_asset(symbol, asset_cfg)
+            if strategy:
+                self.alpha_manager.set_strategy(symbol, strategy)
+                logger.info(f"[{symbol}] Strategy loaded: {type(strategy).__name__}")
+            else:
+                logger.warning(f"[{symbol}] No strategy loaded")
+
+    def _load_strategy_for_asset(self, symbol: str, asset_cfg: Dict) -> Optional[Any]:
+        """Load the appropriate strategy for an asset based on config."""
+        strategies_cfg = asset_cfg.get("strategies", {})
+        params_override = asset_cfg.get("params_override", {})
+
+        # For now, load the BULL strategy as the main strategy
+        # The regime router will determine when to use it
+        bull_strategy = strategies_cfg.get("BULL")
+
+        if bull_strategy == "v35":
+            return self._load_v35_strategy(params_override)
+        elif bull_strategy == "sideways_v2":
+            return self._load_sideways_v2_strategy(params_override)
+
+        return None
+
+    def _load_v35_strategy(self, params_override: Dict) -> Optional[Any]:
+        """Load V35 Long Strategy."""
+        try:
+            import json as json_module
+            from .strategy.v35_long import V35LongStrategy
+
+            config_path = Path(__file__).parent.parent / "config" / "strategies" / "v35_long.json"
+            if config_path.exists():
+                with open(config_path) as f:
+                    config = json_module.load(f)
+                # Apply overrides
+                config.update(params_override)
+                return V35LongStrategy(config=config)
+        except Exception as e:
+            logger.warning(f"Failed to load V35: {e}")
+        return None
+
+    def _load_sideways_v2_strategy(self, params_override: Dict) -> Optional[Any]:
+        """Load SideWays V2 Strategy."""
+        try:
+            from .strategy.sideways_v2 import SideWaysV2Strategy
+            return SideWaysV2Strategy()
+        except Exception as e:
+            logger.warning(f"Failed to load SideWays_v2: {e}")
+        return None
 
     async def start(self) -> None:
         """Start all components and main loop."""

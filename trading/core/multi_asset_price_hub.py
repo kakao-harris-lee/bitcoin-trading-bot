@@ -318,6 +318,27 @@ class MultiAssetPriceHub:
         )
         return (best_symbol, self._prices[best_symbol].premium_pct)
 
+    def get_price_age(self, exchange: str, symbol: str = "BTC") -> Optional[float]:
+        """Get age of price in seconds (for HealthMonitor compatibility)."""
+        state = self._prices.get(symbol)
+        if not state:
+            # Try first available symbol
+            if self._prices:
+                symbol = next(iter(self._prices.keys()))
+                state = self._prices[symbol]
+            else:
+                return None
+
+        if exchange == "upbit":
+            last_update = state.last_upbit_update
+        else:
+            last_update = state.last_binance_update
+
+        if not last_update:
+            return None
+
+        return (datetime.now() - last_update).total_seconds()
+
     def is_price_fresh(
         self,
         symbol: str,

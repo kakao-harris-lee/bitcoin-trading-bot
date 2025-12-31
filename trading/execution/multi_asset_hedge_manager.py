@@ -145,6 +145,11 @@ class MultiAssetHedgeManager:
             **kwargs,
         )
 
+    def set_account(self, symbol: str, account: Any) -> None:
+        """Set account for a symbol (for dynamic account setup)."""
+        self._accounts[symbol] = account
+        logger.info(f"Hedge account set for {symbol}")
+
     def _allocate_capital(self) -> None:
         """Allocate capital equally among hedgeable assets."""
         if not self._symbols:

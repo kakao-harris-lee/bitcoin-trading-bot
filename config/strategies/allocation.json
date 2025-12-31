@@ -2,7 +2,7 @@
   "assets": {
     "BTC": {
       "enabled": true,
-      "alpha_ratio": 0.6,
+      "alpha_ratio": 1.0,
       "hedge_enabled": true,
       "upbit_symbol": "KRW-BTC",
       "binance_symbol": "BTCUSDT",
@@ -15,7 +15,7 @@
       "params_override": {}
     },
     "ETH": {
-      "enabled": true,
+      "enabled": false,
       "alpha_ratio": 0.3,
       "hedge_enabled": true,
       "upbit_symbol": "KRW-ETH",

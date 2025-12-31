@@ -468,6 +468,51 @@ class AsyncTradingEngine:
         except Exception as e:
             logger.error(f"Startup notification failed: {e}")
 
+    def _get_altcoin_premiums(self, fx_rate: float) -> Dict[str, Dict[str, float]]:
+        """Get current premiums for multiple assets."""
+        import requests
+
+        assets = {
+            "BTC": {"upbit": "KRW-BTC", "binance": "BTCUSDT"},
+            "ETH": {"upbit": "KRW-ETH", "binance": "ETHUSDT"},
+            "XRP": {"upbit": "KRW-XRP", "binance": "XRPUSDT"},
+            "SOL": {"upbit": "KRW-SOL", "binance": "SOLUSDT"},
+        }
+        result = {}
+
+        try:
+            # Fetch Upbit prices
+            upbit_tickers = ",".join([v["upbit"] for v in assets.values()])
+            upbit_resp = requests.get(
+                f"https://api.upbit.com/v1/ticker?markets={upbit_tickers}",
+                timeout=5
+            )
+            upbit_prices = {t["market"]: t["trade_price"] for t in upbit_resp.json()}
+
+            # Fetch Binance prices
+            binance_resp = requests.get(
+                "https://api.binance.com/api/v3/ticker/price",
+                timeout=5
+            )
+            binance_prices = {t["symbol"]: float(t["price"]) for t in binance_resp.json()}
+
+            # Calculate premiums
+            for asset, symbols in assets.items():
+                upbit_krw = upbit_prices.get(symbols["upbit"], 0)
+                binance_usd = binance_prices.get(symbols["binance"], 0)
+                if upbit_krw and binance_usd and fx_rate:
+                    upbit_usd = upbit_krw / fx_rate
+                    premium = ((upbit_usd - binance_usd) / binance_usd) * 100
+                    result[asset] = {
+                        "upbit_krw": upbit_krw,
+                        "binance_usd": binance_usd,
+                        "premium": premium,
+                    }
+        except Exception as e:
+            logger.warning(f"Failed to fetch altcoin premiums: {e}")
+
+        return result
+
     def _send_status_notification(self) -> None:
         """Send periodic status notification (every 6 iterations = ~30min)."""
         if not self._telegram:
@@ -482,64 +527,120 @@ class AsyncTradingEngine:
             prices = self.price_hub.get_prices()
             upbit_price = prices.get("upbit", 0)
             binance_price = prices.get("binance", 0)
+            fx_rate = self.fx_cache.rate or 1300
 
-            # Regime info
-            regime = self._regime_cache or "UNKNOWN"
-            regime_emoji = {
-                "BULL": "🐂 상승장",
-                "BULL_STRONG": "🐂 강한 상승장",
-                "BEAR": "🐻 하락장",
-                "BEAR_STRONG": "🐻 강한 하락장",
-                "SIDEWAYS": "↔️ 횡보장",
-                "SIDEWAYS_NEUTRAL": "↔️ 횡보장",
-            }.get(regime, regime)
+            # Header with mode info
+            trend_mode = "🔴 LIVE" if self.trend_mode == "live" else "⚪ Paper"
+            premium_mode = "🔴 LIVE" if self.premium_mode == "live" else "⚪ Paper"
 
             msg = "📊 Dual Trading 상태 보고\n"
             msg += "=" * 30 + "\n\n"
-            msg += f"🕐 {now.strftime('%Y-%m-%d %H:%M')}\n\n"
-            msg += f"🌐 시장 상태: {regime_emoji}\n\n"
+            msg += f"🕐 {now.strftime('%Y-%m-%d %H:%M')}\n"
+            msg += f"📍 Trend: {trend_mode} | Premium: {premium_mode}\n\n"
 
-            # Upbit status
-            upbit_account = self.executor._paper_accounts.get("upbit")
-            if upbit_account:
-                cash, btc = upbit_account.get_balance()
-                total = upbit_account.get_total_value(upbit_price)
-                stats = upbit_account.get_statistics()
-                upbit_pos = self.upbit_runner.get_stats().get("position", {})
+            # Market regime
+            regime = self._regime_cache or "UNKNOWN"
+            regime_emoji = {
+                "BULL": "🐂", "BULL_STRONG": "🐂🐂", "BULL_MODERATE": "🐂",
+                "BEAR": "🐻", "BEAR_STRONG": "🐻🐻", "BEAR_MODERATE": "🐻",
+                "SIDEWAYS": "↔️", "SIDEWAYS_NEUTRAL": "↔️", "SIDEWAYS_BULL": "↔️🐂", "SIDEWAYS_BEAR": "↔️🐻",
+            }.get(regime, "❓")
+            msg += f"🌐 시장: {regime_emoji} {regime}\n\n"
 
-                msg += "📈 [Upbit]\n"
-                msg += f"  포지션: {'🟢 있음' if upbit_pos.get('active') else '⚪ 없음'}\n"
-                msg += f"  총 가치: {total:,.0f}원\n"
-                msg += f"  수익률: {stats.get('return_pct', 0):+.2f}%\n\n"
+            # Multi-asset Kimchi Premium
+            altcoin_premiums = self._get_altcoin_premiums(fx_rate)
+            msg += "🥬 김치 프리미엄\n"
+            for asset in ["BTC", "ETH", "XRP", "SOL"]:
+                if asset in altcoin_premiums:
+                    p = altcoin_premiums[asset]
+                    icon = "📈" if p["premium"] > 1.5 else "📉" if p["premium"] < 0 else "➡️"
+                    msg += f"   {asset}: {p['premium']:+.2f}% {icon}\n"
+            msg += "\n"
+
+            # BTC Premium trend (from tracker)
+            premium_stats = self.premium_tracker.get_stats()
+            vol_icon = {"normal": "🟢", "elevated": "🟡", "high": "🔴"}.get(premium_stats.volatility_state, "⚪")
+            msg += f"   BTC 24h: {premium_stats.mean_24h:+.2f}% ±{premium_stats.std_24h:.2f}% {vol_icon}\n"
+            msg += f"   범위: {premium_stats.min_24h:+.2f}% ~ {premium_stats.max_24h:+.2f}%\n\n"
+
+            # Strategy decisions
+            upbit_stats = self.upbit_runner.get_stats()
+            binance_stats = self.binance_runner.get_stats()
+            upbit_strategies = upbit_stats.get("strategies_loaded", [])
+            upbit_pos = upbit_stats.get("position", {})
+            binance_pos = binance_stats.get("position", {})
+
+            # Get account (live or paper)
+            if self.trend_mode == "live" and self.executor._live_adapters:
+                upbit_adapter = self.executor._live_adapters.get("upbit")
+                if upbit_adapter:
+                    try:
+                        krw, btc = upbit_adapter.get_balance()
+                        upbit_total = krw + (btc * upbit_price)
+                        msg += f"📈 [Upbit] LIVE\n"
+                        msg += f"   잔고: {krw:,.0f}원 + {btc:.6f} BTC\n"
+                        msg += f"   총 가치: {upbit_total:,.0f}원\n"
+                    except Exception as e:
+                        msg += f"📈 [Upbit] LIVE (조회 실패)\n"
+            else:
+                upbit_account = self.executor._paper_accounts.get("upbit")
+                if upbit_account:
+                    cash, btc = upbit_account.get_balance()
+                    total = upbit_account.get_total_value(upbit_price)
+                    stats = upbit_account.get_statistics()
+                    msg += f"📈 [Upbit] Paper\n"
+                    msg += f"   잔고: {cash:,.0f}원 + {btc:.6f} BTC\n"
+                    msg += f"   총 가치: {total:,.0f}원 ({stats.get('return_pct', 0):+.2f}%)\n"
+
+            # Upbit position & strategy info
+            active_strategy = upbit_pos.get("strategy") or (upbit_strategies[0] if upbit_strategies else "none")
+            msg += f"   전략: {active_strategy} | 포지션: {'🟢' if upbit_pos.get('active') else '⚪'}\n"
+            if upbit_pos.get("active"):
+                entry = upbit_pos.get("entry_price", 0)
+                pnl = ((upbit_price - entry) / entry * 100) if entry else 0
+                msg += f"   진입가: {entry:,.0f}원 ({pnl:+.2f}%)\n"
+            msg += f"   신호: {upbit_stats.get('signal_count', 0)}건\n\n"
 
             # Binance status
-            binance_account = self.executor._paper_accounts.get("binance")
-            if binance_account:
-                cash, _ = binance_account.get_balance()
-                stats = binance_account.get_statistics()
-                binance_pos = self.binance_runner.get_stats().get("position", {})
+            if self.premium_mode == "live" and self.executor._live_adapters:
+                binance_adapter = self.executor._live_adapters.get("binance")
+                if binance_adapter:
+                    try:
+                        info = binance_adapter.get_account_info() if hasattr(binance_adapter, 'get_account_info') else {}
+                        balance = info.get("total_balance", 0) if info else 0
+                        msg += f"📉 [Binance] LIVE\n"
+                        msg += f"   잔고: ${balance:,.2f}\n"
+                    except Exception as e:
+                        msg += f"📉 [Binance] LIVE (조회 실패)\n"
+            else:
+                binance_account = self.executor._paper_accounts.get("binance")
+                if binance_account:
+                    cash, _ = binance_account.get_balance()
+                    stats = binance_account.get_statistics()
+                    msg += f"📉 [Binance] Paper\n"
+                    msg += f"   잔고: ${cash:,.2f} ({stats.get('return_pct', 0):+.2f}%)\n"
 
-                msg += "📉 [Binance]\n"
-                msg += f"  포지션: {'🔻 숏' if binance_pos.get('active') else '⚪ 없음'}\n"
-                msg += f"  현금: ${cash:,.2f}\n"
-                msg += f"  수익률: {stats.get('return_pct', 0):+.2f}%\n\n"
+            # Binance position
+            msg += f"   포지션: {'🔻 숏' if binance_pos.get('active') else '⚪ 없음'}\n"
+            if binance_pos.get("active"):
+                entry = binance_pos.get("entry_price", 0)
+                pnl = ((entry - binance_price) / entry * 100) if entry else 0  # Short: profit when price drops
+                msg += f"   진입가: ${entry:,.2f} ({pnl:+.2f}%)\n"
+            msg += f"   신호: {binance_stats.get('signal_count', 0)}건\n\n"
 
-            # Total
-            if upbit_account and binance_account:
-                fx_rate = self.fx_cache.rate or 1300
-                upbit_total = upbit_account.get_total_value(upbit_price)
-                binance_cash, _ = binance_account.get_balance()
-                total_krw = upbit_total + (binance_cash * fx_rate)
-                initial_total = upbit_account.initial_capital + (binance_account.initial_capital * fx_rate)
-                total_return = ((total_krw - initial_total) / initial_total) * 100
-
-                msg += f"💰 총 자산: {total_krw:,.0f}원\n"
-                msg += f"📊 총 수익률: {total_return:+.2f}%"
+            # Current prices with premium
+            btc_premium = altcoin_premiums.get("BTC", {}).get("premium", 0)
+            msg += f"💹 BTC 현재가\n"
+            msg += f"   Upbit: ₩{upbit_price:,.0f}\n"
+            msg += f"   Binance: ${binance_price:,.2f}\n"
+            msg += f"   김프: {btc_premium:+.2f}% | 환율: {fx_rate:,.0f}"
 
             self._telegram.send_message(msg)
             logger.info("Status notification sent")
         except Exception as e:
             logger.error(f"Status notification failed: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _print_cycle_status(self) -> None:
         """Print cycle status like the old engine."""

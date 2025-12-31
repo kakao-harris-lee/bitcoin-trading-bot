@@ -54,12 +54,14 @@ class PremiumTracker:
         "alert_threshold_pct": 5.0,
         "high_volatility_threshold": 2.0,  # std dev threshold
         "elevated_volatility_threshold": 1.0,
+        "record_interval_seconds": 60,  # Minimum interval between recordings
     }
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = {**self.DEFAULT_CONFIG, **(config or {})}
         self.history: List[PremiumReading] = []
         self._history_path = Path(self.config["history_file"])
+        self._last_record_time: Optional[datetime] = None
         self._load_history()
 
     def _load_history(self) -> None:
@@ -97,15 +99,25 @@ class PremiumTracker:
         self.history = [r for r in self.history if r.timestamp >= cutoff_str]
 
     def record(self, premium_info: Dict[str, float]) -> None:
-        """Record a new premium reading."""
+        """Record a new premium reading (throttled to once per minute)."""
+        now = datetime.now()
+        interval = self.config["record_interval_seconds"]
+
+        # Throttle: skip if last record was less than interval seconds ago
+        if self._last_record_time is not None:
+            elapsed = (now - self._last_record_time).total_seconds()
+            if elapsed < interval:
+                return
+
         reading = PremiumReading(
-            timestamp=datetime.now().isoformat(),
+            timestamp=now.isoformat(),
             premium_pct=premium_info.get("premium_pct", 0.0),
             upbit_usd=premium_info.get("upbit_usd", 0.0),
             binance_usd=premium_info.get("binance_usd", 0.0),
             usd_krw_rate=premium_info.get("usd_krw_rate", 1450),
         )
         self.history.append(reading)
+        self._last_record_time = now
         self._prune_old_readings()
         self._save_history()
 

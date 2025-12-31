@@ -5,6 +5,7 @@
 
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, Dict, Any
 import requests
 from dotenv import load_dotenv
@@ -16,7 +17,9 @@ class TelegramNotifier:
 
     def __init__(self):
         """환경변수에서 텔레그램 설정 로드"""
-        load_dotenv()
+        # Explicitly load .env from project root
+        project_root = Path(__file__).parent.parent.parent
+        load_dotenv(project_root / '.env')
 
         self.bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         self.chat_id = os.getenv('TELEGRAM_CHAT_ID')

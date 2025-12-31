@@ -5,10 +5,13 @@ Trading Engine V2 - Configuration
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List
 from dotenv import load_dotenv
 
-load_dotenv()
+# Explicitly load .env from project root
+_project_root = Path(__file__).parent.parent.parent
+load_dotenv(_project_root / '.env')
 
 
 @dataclass

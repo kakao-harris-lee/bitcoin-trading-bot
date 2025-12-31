@@ -6,9 +6,14 @@
 import logging
 import os
 import time
+from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
 import pyupbit
 from dotenv import load_dotenv
+
+# Explicitly load .env from project root
+_project_root = Path(__file__).parent.parent.parent
+load_dotenv(_project_root / '.env')
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +23,7 @@ class UpbitTrader:
 
     def __init__(self):
         """환경변수에서 업비트 API 키 로드"""
-        load_dotenv()
+        # .env already loaded at module level
 
         self.access_key = os.getenv('UPBIT_ACCESS_KEY')
         self.secret_key = os.getenv('UPBIT_SECRET_KEY')

@@ -7,11 +7,16 @@ BTCUSDT 무기한 선물 거래 (숏 포지션)
 import logging
 import os
 import time
+from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
 from binance.client import Client
 from binance.enums import *
 from binance.exceptions import BinanceAPIException
 from dotenv import load_dotenv
+
+# Explicitly load .env from project root
+_project_root = Path(__file__).parent.parent.parent
+load_dotenv(_project_root / '.env')
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +26,7 @@ class BinanceFuturesTrader:
 
     def __init__(self):
         """환경변수에서 바이낸스 API 키 로드"""
-        load_dotenv()
+        # .env already loaded at module level
 
         self.api_key = os.getenv('BINANCE_API_KEY')
         self.api_secret = os.getenv('BINANCE_API_SECRET')

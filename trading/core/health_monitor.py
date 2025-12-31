@@ -134,11 +134,10 @@ class HealthMonitor:
         if price_health["status"] != HealthStatus.HEALTHY:
             health["issues"].append(f"Price: {price_health['issue']}")
 
-        # WebSocket connectivity
+        # WebSocket connectivity (informational only - polling mode doesn't need active WS)
         ws_health = self._check_websocket_health()
         health["websockets"] = ws_health
-        if ws_health["status"] != HealthStatus.HEALTHY:
-            health["issues"].append(f"WebSocket: {ws_health['issue']}")
+        # Note: WebSocket disconnections are expected in 5-min polling mode, so we don't alert
 
         # FX rate
         fx_health = self._check_fx_health()

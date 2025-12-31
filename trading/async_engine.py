@@ -310,6 +310,9 @@ class AsyncTradingEngine:
                 # Print cycle status (like old engine)
                 self._print_cycle_status()
 
+                # Periodic Telegram status report (every 6 iterations)
+                self._send_status_notification()
+
                 # Write status
                 await self._write_status()
 
@@ -464,6 +467,79 @@ class AsyncTradingEngine:
             self._telegram.send_message(msg)
         except Exception as e:
             logger.error(f"Startup notification failed: {e}")
+
+    def _send_status_notification(self) -> None:
+        """Send periodic status notification (every 6 iterations = ~30min)."""
+        if not self._telegram:
+            return
+
+        # Send every 6 iterations (iteration 6, 12, 18, ...)
+        if self._iteration_count == 0 or self._iteration_count % 6 != 0:
+            return
+
+        try:
+            now = datetime.now()
+            prices = self.price_hub.get_prices()
+            upbit_price = prices.get("upbit", 0)
+            binance_price = prices.get("binance", 0)
+
+            # Regime info
+            regime = self._regime_cache or "UNKNOWN"
+            regime_emoji = {
+                "BULL": "🐂 상승장",
+                "BULL_STRONG": "🐂 강한 상승장",
+                "BEAR": "🐻 하락장",
+                "BEAR_STRONG": "🐻 강한 하락장",
+                "SIDEWAYS": "↔️ 횡보장",
+                "SIDEWAYS_NEUTRAL": "↔️ 횡보장",
+            }.get(regime, regime)
+
+            msg = "📊 Dual Trading 상태 보고\n"
+            msg += "=" * 30 + "\n\n"
+            msg += f"🕐 {now.strftime('%Y-%m-%d %H:%M')}\n\n"
+            msg += f"🌐 시장 상태: {regime_emoji}\n\n"
+
+            # Upbit status
+            upbit_account = self.executor._paper_accounts.get("upbit")
+            if upbit_account:
+                cash, btc = upbit_account.get_balance()
+                total = upbit_account.get_total_value(upbit_price)
+                stats = upbit_account.get_statistics()
+                upbit_pos = self.upbit_runner.get_stats().get("position", {})
+
+                msg += "📈 [Upbit]\n"
+                msg += f"  포지션: {'🟢 있음' if upbit_pos.get('active') else '⚪ 없음'}\n"
+                msg += f"  총 가치: {total:,.0f}원\n"
+                msg += f"  수익률: {stats.get('return_pct', 0):+.2f}%\n\n"
+
+            # Binance status
+            binance_account = self.executor._paper_accounts.get("binance")
+            if binance_account:
+                cash, _ = binance_account.get_balance()
+                stats = binance_account.get_statistics()
+                binance_pos = self.binance_runner.get_stats().get("position", {})
+
+                msg += "📉 [Binance]\n"
+                msg += f"  포지션: {'🔻 숏' if binance_pos.get('active') else '⚪ 없음'}\n"
+                msg += f"  현금: ${cash:,.2f}\n"
+                msg += f"  수익률: {stats.get('return_pct', 0):+.2f}%\n\n"
+
+            # Total
+            if upbit_account and binance_account:
+                fx_rate = self.fx_cache.rate or 1300
+                upbit_total = upbit_account.get_total_value(upbit_price)
+                binance_cash, _ = binance_account.get_balance()
+                total_krw = upbit_total + (binance_cash * fx_rate)
+                initial_total = upbit_account.initial_capital + (binance_account.initial_capital * fx_rate)
+                total_return = ((total_krw - initial_total) / initial_total) * 100
+
+                msg += f"💰 총 자산: {total_krw:,.0f}원\n"
+                msg += f"📊 총 수익률: {total_return:+.2f}%"
+
+            self._telegram.send_message(msg)
+            logger.info("Status notification sent")
+        except Exception as e:
+            logger.error(f"Status notification failed: {e}")
 
     def _print_cycle_status(self) -> None:
         """Print cycle status like the old engine."""

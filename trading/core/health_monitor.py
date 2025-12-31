@@ -70,10 +70,12 @@ class HealthMonitor:
         self.on_alert = on_alert
 
         self._started = False
+        self._started_at: Optional[datetime] = None
         self._task: Optional[asyncio.Task] = None
         self._last_health: Dict[str, Any] = {}
         self._alert_cooldown: Dict[str, datetime] = {}
         self._alert_cooldown_seconds = 300  # 5 minutes
+        self._startup_grace_seconds = 60  # Skip alerts for first 60 seconds
 
     async def start(self) -> None:
         """Start health monitoring."""
@@ -81,10 +83,11 @@ class HealthMonitor:
             return
 
         self.log_dir.mkdir(parents=True, exist_ok=True)
+        self._started_at = datetime.now()
         self._task = asyncio.create_task(self._run())
         self._started = True
 
-        logger.info("HealthMonitor started")
+        logger.info("HealthMonitor started (60s grace period for alerts)")
 
     async def stop(self) -> None:
         """Stop health monitoring."""
@@ -353,6 +356,12 @@ class HealthMonitor:
             return
 
         now = datetime.now()
+
+        # Skip alerts during startup grace period
+        if self._started_at:
+            elapsed_since_start = (now - self._started_at).total_seconds()
+            if elapsed_since_start < self._startup_grace_seconds:
+                return
 
         for issue in health["issues"]:
             # Check cooldown

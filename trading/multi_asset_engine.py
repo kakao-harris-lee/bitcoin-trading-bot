@@ -216,34 +216,48 @@ class MultiAssetTradingEngine:
     def _load_strategy_for_asset(self, symbol: str, asset_cfg: Dict) -> Optional[Any]:
         """Load the appropriate strategy for an asset based on config."""
         strategies_cfg = asset_cfg.get("strategies", {})
+        strategy_configs = asset_cfg.get("strategy_configs", {})
         params_override = asset_cfg.get("params_override", {})
 
         # For now, load the BULL strategy as the main strategy
         # The regime router will determine when to use it
         bull_strategy = strategies_cfg.get("BULL")
 
-        if bull_strategy == "v35":
-            return self._load_v35_strategy(params_override)
+        if not bull_strategy:
+            return None
+
+        # Check for asset-specific V35 config (e.g., v35_sol, v35_eth)
+        if bull_strategy.startswith("v35"):
+            config_file = strategy_configs.get(bull_strategy)
+            return self._load_v35_strategy(params_override, config_file, symbol)
         elif bull_strategy == "sideways_v2":
             return self._load_sideways_v2_strategy(params_override)
 
         return None
 
-    def _load_v35_strategy(self, params_override: Dict) -> Optional[Any]:
-        """Load V35 Long Strategy."""
+    def _load_v35_strategy(self, params_override: Dict, config_file: Optional[str] = None, symbol: str = "BTC") -> Optional[Any]:
+        """Load V35 Long Strategy with asset-specific config."""
         try:
             import json as json_module
             from .strategy.v35_long import V35LongStrategy
 
-            config_path = Path(__file__).parent.parent / "config" / "strategies" / "v35_long.json"
+            # Use asset-specific config if provided, else default to v35_long.json
+            if config_file:
+                config_path = Path(__file__).parent.parent / config_file
+            else:
+                config_path = Path(__file__).parent.parent / "config" / "strategies" / "v35_long.json"
+
             if config_path.exists():
                 with open(config_path) as f:
                     config = json_module.load(f)
                 # Apply overrides
                 config.update(params_override)
+                logger.info(f"[{symbol}] Loaded V35 config from: {config_path.name}")
                 return V35LongStrategy(config=config)
+            else:
+                logger.warning(f"[{symbol}] Config not found: {config_path}")
         except Exception as e:
-            logger.warning(f"Failed to load V35: {e}")
+            logger.warning(f"[{symbol}] Failed to load V35: {e}")
         return None
 
     def _load_sideways_v2_strategy(self, params_override: Dict) -> Optional[Any]:

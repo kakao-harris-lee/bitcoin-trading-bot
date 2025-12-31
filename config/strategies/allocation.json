@@ -2,7 +2,7 @@
   "assets": {
     "BTC": {
       "enabled": true,
-      "alpha_ratio": 1.0,
+      "alpha_ratio": 0.7,
       "hedge_enabled": true,
       "upbit_symbol": "KRW-BTC",
       "binance_symbol": "BTCUSDT",
@@ -22,29 +22,49 @@
       "binance_symbol": "ETHUSDT",
       "db_path": "data/upbit_ethereum.db",
       "strategies": {
-        "BULL": "v35",
+        "BULL": "v35_eth",
         "SIDEWAYS": "sideways_v2",
         "BEAR": null
       },
-      "params_override": {
-        "entry_threshold_pct": 2.0
-      }
+      "strategy_configs": {
+        "v35_eth": "config/strategies/v35_eth.json"
+      },
+      "params_override": {}
     },
     "SOL": {
-      "enabled": false,
-      "alpha_ratio": 0.1,
+      "enabled": true,
+      "alpha_ratio": 0.3,
       "hedge_enabled": false,
       "upbit_symbol": "KRW-SOL",
       "binance_symbol": "SOLUSDT",
       "db_path": "data/upbit_solana.db",
       "strategies": {
-        "BULL": "v35",
+        "BULL": "v35_sol",
+        "SIDEWAYS": "v35_sol",
+        "BEAR": null
+      },
+      "strategy_configs": {
+        "v35_sol": "config/strategies/v35_sol.json"
+      },
+      "params_override": {}
+    },
+    "XRP": {
+      "enabled": false,
+      "alpha_ratio": 0.1,
+      "hedge_enabled": false,
+      "upbit_symbol": "KRW-XRP",
+      "binance_symbol": "XRPUSDT",
+      "db_path": "data/upbit_xrp.db",
+      "strategies": {
+        "BULL": "v35_xrp",
         "SIDEWAYS": null,
         "BEAR": null
       },
-      "params_override": {
-        "entry_threshold_pct": 2.5
-      }
+      "strategy_configs": {
+        "v35_xrp": "config/strategies/v35_xrp.json"
+      },
+      "params_override": {},
+      "_note": "XRP V35 shows poor OOS results (-5.9% return, 35% win rate). Consider disabling or using different strategy."
     }
   },
   "hedge": {

@@ -193,8 +193,13 @@ class HealthMonitor:
 
         for exchange in ["upbit", "binance"]:
             age = price_hub.get_price_age(exchange)
+            # Support both single-asset PriceHub and MultiAssetPriceHub
+            try:
+                price = price_hub.get_price(exchange)  # Single-asset
+            except TypeError:
+                price = price_hub.get_price("BTC", exchange)  # Multi-asset
             result[exchange] = {
-                "price": price_hub.get_price(exchange),
+                "price": price,
                 "age_seconds": age,
                 "fresh": age is not None and age < self.max_price_age,
             }

@@ -1,0 +1,55 @@
+{
+  "strategy_name": "v35_optimized",
+  "version": "v35",
+  "asset": "ETH",
+  "timeframe": "minute60",
+  "description": "V35 Optuna optimized for ETH",
+  "optimized_at": "2025-12-31T23:53:10.391958",
+  "market_classifier": {
+    "mfi_bull_strong": 50,
+    "mfi_bull_moderate": 51,
+    "mfi_sideways": 48,
+    "adx_strong": 21,
+    "adx_moderate": 17
+  },
+  "entry_conditions": {
+    "rsi_oversold": 30,
+    "bb_mult": 1.7948365793190728,
+    "bb_entry_tolerance": 0.028591630921325273,
+    "sideways_entry_enabled": true,
+    "rsi_sideways_oversold": 35,
+    "stoch_oversold": 26
+  },
+  "position_sizing": {
+    "position_size_bull_strong": 0.6263213376229861,
+    "position_size_bull_moderate": 0.23623842688208466,
+    "position_size_sideways": 0.2930491062156281
+  },
+  "exit_conditions": {
+    "stop_loss": -0.017959968300928292,
+    "tp_bull_strong_1": 0.04666306073198764,
+    "tp_bull_strong_2": 0.10550537945732301,
+    "tp_bull_strong_3": 0.2118050525647799,
+    "tp_bull_moderate_1": 0.03739247045301615,
+    "tp_bull_moderate_2": 0.05846082095448917,
+    "tp_bull_moderate_3": 0.12967728439366696,
+    "tp_sideways_1": 0.025458528212022553,
+    "tp_sideways_2": 0.045396596911940375,
+    "tp_sideways_3": 0.09297797669113114,
+    "exit_fraction_1": 0.32553115098616797,
+    "exit_fraction_2": 0.3163593766099696,
+    "min_profit_for_macd_exit": 0.004480010192971471
+  },
+  "backtesting": {
+    "train_period": "2022-10-20 to 2025-01-15",
+    "validation_period": "2025-01-16 to 2025-12-31",
+    "best_score": 3.300272511868723
+  },
+  "validation_results": {
+    "return_pct": 0.006624582248479128,
+    "mdd_pct": -1.277839625673181,
+    "sharpe": 0.002007830165495903,
+    "trades": 6,
+    "win_rate": 0.6666666666666666
+  }
+}

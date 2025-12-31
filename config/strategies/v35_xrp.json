@@ -1,0 +1,55 @@
+{
+  "strategy_name": "v35_optimized",
+  "version": "v35",
+  "asset": "XRP",
+  "timeframe": "minute60",
+  "description": "V35 Optuna optimized for XRP",
+  "optimized_at": "2026-01-01T00:04:35.585631",
+  "market_classifier": {
+    "mfi_bull_strong": 53,
+    "mfi_bull_moderate": 48,
+    "mfi_sideways": 47,
+    "adx_strong": 22,
+    "adx_moderate": 12
+  },
+  "entry_conditions": {
+    "rsi_oversold": 40,
+    "bb_mult": 2.3778263836610365,
+    "bb_entry_tolerance": 0.042648178297972135,
+    "sideways_entry_enabled": true,
+    "rsi_sideways_oversold": 31,
+    "stoch_oversold": 29
+  },
+  "position_sizing": {
+    "position_size_bull_strong": 0.5810025870001518,
+    "position_size_bull_moderate": 0.4594299235011617,
+    "position_size_sideways": 0.2249329493054099
+  },
+  "exit_conditions": {
+    "stop_loss": -0.01961640716161086,
+    "tp_bull_strong_1": 0.07582126379152983,
+    "tp_bull_strong_2": 0.10750014806084753,
+    "tp_bull_strong_3": 0.16582911200209555,
+    "tp_bull_moderate_1": 0.03837383953735534,
+    "tp_bull_moderate_2": 0.08980846209412566,
+    "tp_bull_moderate_3": 0.12890611418264825,
+    "tp_sideways_1": 0.019808552526711907,
+    "tp_sideways_2": 0.05390911624221742,
+    "tp_sideways_3": 0.09888962532821054,
+    "exit_fraction_1": 0.39940257262657247,
+    "exit_fraction_2": 0.4733303541863883,
+    "min_profit_for_macd_exit": 0.009963407794852303
+  },
+  "backtesting": {
+    "train_period": "2018-12-26 to 2023-11-24",
+    "validation_period": "2023-11-25 to 2025-12-31",
+    "best_score": 35.91600624346491
+  },
+  "validation_results": {
+    "return_pct": -5.923025469291471,
+    "mdd_pct": -10.85154281803209,
+    "sharpe": -0.11155113953301377,
+    "trades": 17,
+    "win_rate": 0.35294117647058826
+  }
+}

@@ -138,6 +138,57 @@ class TradeLogger:
             print(f"❌ 거래 내역 조회 실패: {e}")
             return []
 
+    def get_recent_trades(self, limit: int = 5, exchange: Optional[str] = None):
+        """최근 거래 내역 조회
+
+        Args:
+            limit: 조회할 최대 거래 수
+            exchange: 거래소 필터 ('upbit' 또는 'binance', None이면 전체)
+
+        Returns:
+            List of dicts with trade info
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            if exchange:
+                cursor.execute("""
+                    SELECT action, price, volume, profit, profit_pct, exchange, timestamp
+                    FROM trades
+                    WHERE strategy_id = ? AND exchange = ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """, (self.strategy_id, exchange, limit))
+            else:
+                cursor.execute("""
+                    SELECT action, price, volume, profit, profit_pct, exchange, timestamp
+                    FROM trades
+                    WHERE strategy_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """, (self.strategy_id, limit))
+
+            rows = cursor.fetchall()
+            conn.close()
+
+            trades = []
+            for row in rows:
+                trades.append({
+                    'action': row[0],
+                    'price': row[1],
+                    'volume': row[2],
+                    'profit': row[3],
+                    'profit_pct': row[4],
+                    'exchange': row[5],
+                    'timestamp': row[6]
+                })
+            return trades
+
+        except Exception as e:
+            print(f"❌ 최근 거래 조회 실패: {e}")
+            return []
+
     def get_statistics(self):
         """전체 거래 통계"""
         try:

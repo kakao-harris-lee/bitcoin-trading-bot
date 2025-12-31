@@ -29,6 +29,7 @@ from .strategy.strategy_runner import StrategyRunner, Signal
 from .execution.async_executor import AsyncExecutor
 from .risk.risk_controls import kill_switch_active, RiskConfig
 from .risk.premium_tracker import PremiumTracker
+from .risk.trade_logger import TradeLogger
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +139,13 @@ class AsyncTradingEngine:
             on_alert=self._on_health_alert if config.telegram_enabled else None,
         )
         self.premium_tracker = PremiumTracker()
+
+        # Trade logger for live mode history (optional - may fail if DB not setup)
+        self.trade_logger = None
+        try:
+            self.trade_logger = TradeLogger()
+        except Exception as e:
+            logger.warning(f"TradeLogger init failed (DB may not exist): {e}")
 
         # Regime tracking
         self._regime_cache: Optional[str] = None
@@ -538,14 +546,32 @@ class AsyncTradingEngine:
             msg += f"🕐 {now.strftime('%Y-%m-%d %H:%M')}\n"
             msg += f"📍 Trend: {trend_mode} | Premium: {premium_mode}\n\n"
 
-            # Market regime
+            # Market regime with strategy selection reasoning
             regime = self._regime_cache or "UNKNOWN"
             regime_emoji = {
                 "BULL": "🐂", "BULL_STRONG": "🐂🐂", "BULL_MODERATE": "🐂",
                 "BEAR": "🐻", "BEAR_STRONG": "🐻🐻", "BEAR_MODERATE": "🐻",
                 "SIDEWAYS": "↔️", "SIDEWAYS_NEUTRAL": "↔️", "SIDEWAYS_BULL": "↔️🐂", "SIDEWAYS_BEAR": "↔️🐻",
             }.get(regime, "❓")
-            msg += f"🌐 시장: {regime_emoji} {regime}\n\n"
+            msg += f"🌐 시장: {regime_emoji} {regime}\n"
+
+            # Strategy selection reasoning
+            upbit_strategy_map = {
+                "BULL": "v35", "BULL_STRONG": "v35", "BULL_MODERATE": "v35",
+                "SIDEWAYS": "sideways_v2", "SIDEWAYS_BULL": "sideways_v2",
+                "SIDEWAYS_NEUTRAL": "sideways_v2", "SIDEWAYS_BEAR": "sideways_v2",
+                "BEAR": None, "BEAR_MODERATE": None, "BEAR_STRONG": None,
+            }
+            binance_strategy_map = {
+                "BULL": None, "BULL_STRONG": None, "BULL_MODERATE": None,
+                "SIDEWAYS": None, "SIDEWAYS_BULL": None, "SIDEWAYS_NEUTRAL": None,
+                "SIDEWAYS_BEAR": "short_v1",
+                "BEAR": "short_v1", "BEAR_MODERATE": "short_v1", "BEAR_STRONG": "short_v1",
+            }
+            upbit_active = upbit_strategy_map.get(regime)
+            binance_active = binance_strategy_map.get(regime)
+            msg += f"   → Upbit: {upbit_active or '대기(현금보유)'}\n"
+            msg += f"   → Binance: {binance_active or '대기(숏 없음)'}\n\n"
 
             # Multi-asset Kimchi Premium
             altcoin_premiums = self._get_altcoin_premiums(fx_rate)
@@ -555,84 +581,187 @@ class AsyncTradingEngine:
                     p = altcoin_premiums[asset]
                     icon = "📈" if p["premium"] > 1.5 else "📉" if p["premium"] < 0 else "➡️"
                     msg += f"   {asset}: {p['premium']:+.2f}% {icon}\n"
-            msg += "\n"
 
             # BTC Premium trend (from tracker)
             premium_stats = self.premium_tracker.get_stats()
             vol_icon = {"normal": "🟢", "elevated": "🟡", "high": "🔴"}.get(premium_stats.volatility_state, "⚪")
-            msg += f"   BTC 24h: {premium_stats.mean_24h:+.2f}% ±{premium_stats.std_24h:.2f}% {vol_icon}\n"
+            trend_icon = {"rising": "↗️", "falling": "↘️", "stable": "➡️"}.get(premium_stats.trend, "➡️")
+            msg += f"   24h: {premium_stats.mean_24h:+.2f}% ±{premium_stats.std_24h:.2f}% {vol_icon}{trend_icon}\n"
             msg += f"   범위: {premium_stats.min_24h:+.2f}% ~ {premium_stats.max_24h:+.2f}%\n\n"
 
-            # Strategy decisions
+            # Strategy runner stats
             upbit_stats = self.upbit_runner.get_stats()
             binance_stats = self.binance_runner.get_stats()
-            upbit_strategies = upbit_stats.get("strategies_loaded", [])
             upbit_pos = upbit_stats.get("position", {})
             binance_pos = binance_stats.get("position", {})
 
-            # Get account (live or paper)
+            # Evaluation metrics section
+            msg += "📈 평가 현황\n"
+            msg += f"   Upbit: {upbit_stats.get('eval_count', 0)}회 평가, {upbit_stats.get('signal_count', 0)}건 신호\n"
+            msg += f"   Binance: {binance_stats.get('eval_count', 0)}회 평가, {binance_stats.get('signal_count', 0)}건 신호\n"
+            last_eval = upbit_stats.get('last_eval_at')
+            if last_eval:
+                try:
+                    eval_time = datetime.fromisoformat(last_eval)
+                    elapsed = (now - eval_time).total_seconds()
+                    msg += f"   마지막 평가: {int(elapsed)}초 전\n"
+                except:
+                    pass
+            msg += "\n"
+
+            # Upbit account status
             if self.trend_mode == "live" and self.executor._live_adapters:
                 upbit_adapter = self.executor._live_adapters.get("upbit")
                 if upbit_adapter:
                     try:
                         krw, btc = upbit_adapter.get_balance()
                         upbit_total = krw + (btc * upbit_price)
-                        msg += f"📈 [Upbit] LIVE\n"
+                        msg += f"💰 [Upbit] LIVE\n"
                         msg += f"   잔고: {krw:,.0f}원 + {btc:.6f} BTC\n"
                         msg += f"   총 가치: {upbit_total:,.0f}원\n"
-                    except Exception as e:
-                        msg += f"📈 [Upbit] LIVE (조회 실패)\n"
+                    except Exception:
+                        msg += f"💰 [Upbit] LIVE (조회 실패)\n"
             else:
                 upbit_account = self.executor._paper_accounts.get("upbit")
                 if upbit_account:
                     cash, btc = upbit_account.get_balance()
                     total = upbit_account.get_total_value(upbit_price)
                     stats = upbit_account.get_statistics()
-                    msg += f"📈 [Upbit] Paper\n"
+                    msg += f"💰 [Upbit] Paper\n"
                     msg += f"   잔고: {cash:,.0f}원 + {btc:.6f} BTC\n"
                     msg += f"   총 가치: {total:,.0f}원 ({stats.get('return_pct', 0):+.2f}%)\n"
 
-            # Upbit position & strategy info
-            active_strategy = upbit_pos.get("strategy") or (upbit_strategies[0] if upbit_strategies else "none")
-            msg += f"   전략: {active_strategy} | 포지션: {'🟢' if upbit_pos.get('active') else '⚪'}\n"
+            # Upbit position
+            msg += f"   포지션: {'🟢 롱' if upbit_pos.get('active') else '⚪ 없음'}"
             if upbit_pos.get("active"):
                 entry = upbit_pos.get("entry_price", 0)
                 pnl = ((upbit_price - entry) / entry * 100) if entry else 0
-                msg += f"   진입가: {entry:,.0f}원 ({pnl:+.2f}%)\n"
-            msg += f"   신호: {upbit_stats.get('signal_count', 0)}건\n\n"
+                strategy = upbit_pos.get("strategy", "unknown")
+                msg += f" ({strategy})\n"
+                msg += f"   진입가: {entry:,.0f}원 → 현재 {pnl:+.2f}%\n"
+            else:
+                msg += "\n"
 
-            # Binance status
+            # Upbit recent trades
+            if self.trend_mode == "live" and self.trade_logger:
+                # Live mode: get from TradeLogger DB
+                recent = self.trade_logger.get_recent_trades(limit=3, exchange='upbit')
+                if recent:
+                    msg += "   최근 거래:\n"
+                    for t in recent:
+                        action = t.get('action', '')
+                        t_time = t.get('timestamp', '')[:16]
+                        if action == 'SELL':
+                            pnl = t.get('profit', 0) or 0
+                            msg += f"      {t_time} SELL {pnl:+,.0f}원\n"
+                        elif action == 'BUY':
+                            price = t.get('price', 0)
+                            vol = t.get('volume', 0)
+                            msg += f"      {t_time} BUY {price*vol:,.0f}원\n"
+            elif self.trend_mode != "live":
+                # Paper mode: get from in-memory account
+                upbit_account = self.executor._paper_accounts.get("upbit")
+                if upbit_account and upbit_account.trades:
+                    recent = upbit_account.trades[-3:]  # Last 3 trades
+                    if recent:
+                        msg += "   최근 거래:\n"
+                        for t in reversed(recent):
+                            t_type = t.get('type', '')
+                            t_time = t.get('timestamp', '')[:16]
+                            if t_type == 'sell':
+                                pnl = t.get('pnl', 0)
+                                msg += f"      {t_time} SELL {pnl:+,.0f}원\n"
+                            elif t_type == 'buy':
+                                amt = t.get('amount', 0)
+                                msg += f"      {t_time} BUY {amt:,.0f}원\n"
+            msg += "\n"
+
+            # Binance account status
             if self.premium_mode == "live" and self.executor._live_adapters:
                 binance_adapter = self.executor._live_adapters.get("binance")
                 if binance_adapter:
                     try:
                         info = binance_adapter.get_account_info() if hasattr(binance_adapter, 'get_account_info') else {}
                         balance = info.get("total_balance", 0) if info else 0
-                        msg += f"📉 [Binance] LIVE\n"
+                        msg += f"💵 [Binance] LIVE\n"
                         msg += f"   잔고: ${balance:,.2f}\n"
-                    except Exception as e:
-                        msg += f"📉 [Binance] LIVE (조회 실패)\n"
+                    except Exception:
+                        msg += f"💵 [Binance] LIVE (조회 실패)\n"
             else:
                 binance_account = self.executor._paper_accounts.get("binance")
                 if binance_account:
                     cash, _ = binance_account.get_balance()
                     stats = binance_account.get_statistics()
-                    msg += f"📉 [Binance] Paper\n"
+                    msg += f"💵 [Binance] Paper\n"
                     msg += f"   잔고: ${cash:,.2f} ({stats.get('return_pct', 0):+.2f}%)\n"
 
             # Binance position
-            msg += f"   포지션: {'🔻 숏' if binance_pos.get('active') else '⚪ 없음'}\n"
+            msg += f"   포지션: {'🔻 숏' if binance_pos.get('active') else '⚪ 없음'}"
             if binance_pos.get("active"):
                 entry = binance_pos.get("entry_price", 0)
-                pnl = ((entry - binance_price) / entry * 100) if entry else 0  # Short: profit when price drops
-                msg += f"   진입가: ${entry:,.2f} ({pnl:+.2f}%)\n"
-            msg += f"   신호: {binance_stats.get('signal_count', 0)}건\n\n"
+                pnl = ((entry - binance_price) / entry * 100) if entry else 0
+                strategy = binance_pos.get("strategy", "unknown")
+                msg += f" ({strategy})\n"
+                msg += f"   진입가: ${entry:,.2f} → 현재 {pnl:+.2f}%\n"
+            else:
+                msg += "\n"
 
-            # Current prices with premium
+            # Binance recent trades
+            if self.premium_mode == "live" and self.trade_logger:
+                # Live mode: get from TradeLogger DB
+                recent = self.trade_logger.get_recent_trades(limit=3, exchange='binance')
+                if recent:
+                    msg += "   최근 거래:\n"
+                    for t in recent:
+                        action = t.get('action', '')
+                        t_time = t.get('timestamp', '')[:16]
+                        if action == 'SELL':
+                            pnl = t.get('profit', 0) or 0
+                            msg += f"      {t_time} CLOSE ${pnl:+,.2f}\n"
+                        elif action == 'BUY':
+                            price = t.get('price', 0)
+                            vol = t.get('volume', 0)
+                            msg += f"      {t_time} SHORT ${price*vol:,.0f}\n"
+            elif self.premium_mode != "live":
+                # Paper mode: get from in-memory account
+                binance_account = self.executor._paper_accounts.get("binance")
+                if binance_account and binance_account.trades:
+                    recent = binance_account.trades[-3:]
+                    if recent:
+                        msg += "   최근 거래:\n"
+                        for t in reversed(recent):
+                            t_type = t.get('type', '')
+                            t_time = t.get('timestamp', '')[:16]
+                            if t_type == 'close_short':
+                                pnl = t.get('realized_pnl', 0)
+                                msg += f"      {t_time} CLOSE ${pnl:+,.2f}\n"
+                            elif t_type == 'open_short':
+                                margin = t.get('margin', 0)
+                                msg += f"      {t_time} SHORT ${margin:,.0f}\n"
+            msg += "\n"
+
+            # Entry conditions status (what's needed for next signal)
+            msg += "🎯 진입 조건 상태\n"
+            if upbit_active == "v35" and not upbit_pos.get("active"):
+                msg += "   Upbit(v35): MFI>52, 모멘텀 확인 대기\n"
+            elif upbit_active == "sideways_v2" and not upbit_pos.get("active"):
+                msg += "   Upbit(sideways): RSI 과매도 대기\n"
+            elif not upbit_active:
+                msg += "   Upbit: BEAR 시장 - 롱 진입 안함\n"
+            else:
+                msg += "   Upbit: 포지션 보유중\n"
+
+            if binance_active == "short_v1" and not binance_pos.get("active"):
+                msg += "   Binance(short): EMA데드크로스+ADX≥25 대기\n"
+            elif not binance_active:
+                msg += "   Binance: BULL/SIDEWAYS - 숏 진입 안함\n"
+            else:
+                msg += "   Binance: 숏 포지션 보유중\n"
+            msg += "\n"
+
+            # Current prices
             btc_premium = altcoin_premiums.get("BTC", {}).get("premium", 0)
-            msg += f"💹 BTC 현재가\n"
-            msg += f"   Upbit: ₩{upbit_price:,.0f}\n"
-            msg += f"   Binance: ${binance_price:,.2f}\n"
+            msg += f"💹 BTC: ₩{upbit_price:,.0f} / ${binance_price:,.2f}\n"
             msg += f"   김프: {btc_premium:+.2f}% | 환율: {fx_rate:,.0f}"
 
             self._telegram.send_message(msg)

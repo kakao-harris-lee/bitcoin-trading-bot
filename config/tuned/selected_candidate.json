@@ -18,7 +18,7 @@
     "sideways_bear_policy": "sideways_v2",
     "bear_moderate_policy": "hold",
     "bear_strong_policy": "hold",
-    "binance_gate_mode": "bear_strong_only",
+    "binance_gate_mode": "never",
     "sideways_v2_config": {
       "obv_downtrend_threshold": -0.02,
       "position_size": 0.45

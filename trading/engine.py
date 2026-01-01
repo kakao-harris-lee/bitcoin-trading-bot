@@ -65,11 +65,11 @@ def _load_allocation_config() -> Dict[str, Any]:
     if config_path.exists():
         with open(config_path, 'r') as f:
             return json.load(f)
-    # Default: v35 only
+    # Default: v35 (70%) + va02 (30%) - V35 proven S-Tier, VA02 still tuning
     return {
         "upbit": {
-            "v35": {"ratio": 1.0, "enabled": True, "regimes": ["BULL"]},
-            "va02": {"ratio": 0.0, "enabled": False, "regimes": ["BULL", "SIDEWAYS"]}
+            "v35": {"ratio": 0.7, "enabled": True, "regimes": ["BULL"]},
+            "va02": {"ratio": 0.3, "enabled": True, "regimes": ["BULL", "SIDEWAYS"]}
         }
     }
 

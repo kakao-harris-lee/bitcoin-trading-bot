@@ -34,12 +34,12 @@
     "trailing_stop": 0.015
   },
   "classifier": {
-    "mfi_bull_strong": 52,
-    "mfi_bull_moderate": 45,
-    "mfi_sideways_up": 42,
-    "mfi_bear_moderate": 38,
-    "mfi_bear_strong": 35,
-    "adx_strong_trend": 20,
-    "adx_moderate_trend": 15
+    "mfi_bull_strong": 54,
+    "mfi_bull_moderate": 54,
+    "mfi_sideways_up": 49,
+    "mfi_bear_moderate": 41,
+    "mfi_bear_strong": 34,
+    "adx_strong_trend": 25,
+    "adx_moderate_trend": 18
   }
 }

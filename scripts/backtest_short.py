@@ -15,7 +15,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional, List
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 

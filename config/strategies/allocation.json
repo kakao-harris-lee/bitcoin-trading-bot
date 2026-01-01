@@ -2,7 +2,7 @@
   "assets": {
     "BTC": {
       "enabled": true,
-      "alpha_ratio": 0.7,
+      "alpha_ratio": 0.4,
       "hedge_enabled": true,
       "upbit_symbol": "KRW-BTC",
       "binance_symbol": "BTCUSDT",
@@ -15,7 +15,7 @@
       "params_override": {}
     },
     "ETH": {
-      "enabled": false,
+      "enabled": true,
       "alpha_ratio": 0.3,
       "hedge_enabled": true,
       "upbit_symbol": "KRW-ETH",
@@ -33,7 +33,7 @@
     },
     "SOL": {
       "enabled": true,
-      "alpha_ratio": 0.3,
+      "alpha_ratio": 0.2,
       "hedge_enabled": false,
       "upbit_symbol": "KRW-SOL",
       "binance_symbol": "SOLUSDT",
@@ -49,7 +49,7 @@
       "params_override": {}
     },
     "XRP": {
-      "enabled": false,
+      "enabled": true,
       "alpha_ratio": 0.1,
       "hedge_enabled": false,
       "upbit_symbol": "KRW-XRP",
@@ -70,8 +70,8 @@
   "hedge": {
     "enabled": true,
     "capital_usdt": 5000,
-    "entry_threshold_pct": 1.5,
-    "entry_sigma": 2.0,
+    "entry_threshold_pct": 1.2,
+    "entry_sigma": 1.5,
     "volatility_block_threshold": 2.0,
     "negative_funding_exit": -0.05,
     "min_hold_minutes": 30,

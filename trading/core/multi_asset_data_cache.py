@@ -177,3 +177,16 @@ class MultiAssetDataCache:
                 for symbol, cache in self._caches.items()
             },
         }
+
+    def get_sizes(self) -> Dict[str, int]:
+        """
+        Get combined row counts per timeframe across all symbols.
+
+        Returns aggregated sizes for health check compatibility.
+        """
+        combined: Dict[str, int] = {}
+        for symbol, cache in self._caches.items():
+            for tf, size in cache.get_sizes().items():
+                key = f"{symbol}:{tf}"
+                combined[key] = size
+        return combined

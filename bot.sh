@@ -64,7 +64,7 @@ start() {
         fi
     fi
 
-    echo "🚀 AsyncTradingEngine 시작"
+    echo "🚀 MultiAssetTradingEngine 시작"
     echo "   Trend:   $TREND_MODE"
     echo "   Premium: $PREMIUM_MODE"
     echo "   로그: $LOG_FILE"
@@ -194,7 +194,7 @@ restart() {
 }
 
 show_help() {
-    echo "Bitcoin Trading Bot (AsyncEngine)"
+    echo "Bitcoin Trading Bot (MultiAssetEngine)"
     echo ""
     echo "Usage: $0 {start|stop|status|logs|restart} [options]"
     echo ""

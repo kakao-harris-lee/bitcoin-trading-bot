@@ -1,5 +1,5 @@
 """
-HealthMonitor - Continuous health monitoring for async engine.
+HealthMonitor - Continuous health monitoring for trading engine.
 
 Monitors:
 - Price freshness
@@ -46,7 +46,7 @@ class HealthMonitor:
 
     def __init__(
         self,
-        engine: Any,  # AsyncTradingEngine
+        engine: Any,  # TradingEngine (MultiAsset or legacy)
         check_interval: float = 10.0,
         max_price_age: float = 60.0,
         max_memory_mb: float = 500.0,
@@ -55,7 +55,7 @@ class HealthMonitor:
     ):
         """
         Args:
-            engine: AsyncTradingEngine instance
+            engine: TradingEngine instance
             check_interval: Seconds between health checks
             max_price_age: Maximum acceptable price age in seconds
             max_memory_mb: Maximum acceptable memory usage in MB

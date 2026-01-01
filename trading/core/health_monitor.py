@@ -314,20 +314,27 @@ class HealthMonitor:
             "issue": None,
         }
 
+        # AsyncTradingEngine uses executor
         executor = getattr(self.engine, 'executor', None)
-        if not executor:
-            result["status"] = HealthStatus.DEGRADED
-            result["issue"] = "Executor not available"
+        if executor:
+            stats = executor.get_stats()
+            result["pending"] = stats.get("pending_count", 0)
+            result["queue_size"] = stats.get("queue_size", 0)
+
+            if result["pending"] > 10:
+                result["status"] = HealthStatus.DEGRADED
+                result["issue"] = f"High pending orders: {result['pending']}"
             return result
 
-        stats = executor.get_stats()
-        result["pending"] = stats.get("pending_count", 0)
-        result["queue_size"] = stats.get("queue_size", 0)
+        # MultiAssetTradingEngine uses alpha_manager (no queue concept)
+        alpha_manager = getattr(self.engine, 'alpha_manager', None)
+        if alpha_manager:
+            result["engine_type"] = "multi_asset"
+            return result
 
-        if result["pending"] > 10:
-            result["status"] = HealthStatus.DEGRADED
-            result["issue"] = f"High pending orders: {result['pending']}"
-
+        # Unknown engine type
+        result["status"] = HealthStatus.DEGRADED
+        result["issue"] = "No execution manager available"
         return result
 
     def _check_cache_health(self) -> Dict[str, Any]:

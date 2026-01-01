@@ -4,12 +4,12 @@
   "timeframe": "day",
   "description": "v35 Optuna \ucd5c\uc801\ud654 \uc644\ub8cc (500 trials)",
   "market_classifier": {
-    "mfi_bull_strong": 49,
-    "mfi_bull_moderate": 48,
-    "mfi_sideways_up": 45,
+    "mfi_bull_strong": 54,
+    "mfi_bull_moderate": 54,
+    "mfi_sideways_up": 49,
     "mfi_bear_moderate": 41,
     "mfi_bear_strong": 34,
-    "adx_strong_trend": 20,
+    "adx_strong_trend": 25,
     "adx_moderate_trend": 18
   },
   "entry_conditions": {

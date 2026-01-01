@@ -18,21 +18,25 @@ logger = logging.getLogger(__name__)
 # ========== 시장 상태 분류기 (v34 기반) ==========
 
 class MarketClassifier:
-    """시장 상태 분류기 (7레벨)"""
+    """시장 상태 분류기 (7레벨)
+
+    Thresholds aligned with RegimeRouter (selected_candidate.json):
+    - Router mfi_bull=54, mfi_bear=49, adx_strong=25, adx_trend=18
+    """
 
     def __init__(self, config: Dict):
         self.config = config
 
-        # MFI 임계값
-        self.mfi_bull_strong = config.get('mfi_bull_strong', 52)
-        self.mfi_bull_moderate = config.get('mfi_bull_moderate', 45)
-        self.mfi_sideways_up = config.get('mfi_sideways_up', 42)
-        self.mfi_bear_moderate = config.get('mfi_bear_moderate', 38)
-        self.mfi_bear_strong = config.get('mfi_bear_strong', 35)
+        # MFI 임계값 (aligned with RegimeRouter)
+        self.mfi_bull_strong = config.get('mfi_bull_strong', 54)
+        self.mfi_bull_moderate = config.get('mfi_bull_moderate', 54)
+        self.mfi_sideways_up = config.get('mfi_sideways_up', 49)
+        self.mfi_bear_moderate = config.get('mfi_bear_moderate', 41)
+        self.mfi_bear_strong = config.get('mfi_bear_strong', 34)
 
-        # ADX 임계값
-        self.adx_strong_trend = config.get('adx_strong_trend', 20)
-        self.adx_moderate_trend = config.get('adx_moderate_trend', 15)
+        # ADX 임계값 (aligned with RegimeRouter)
+        self.adx_strong_trend = config.get('adx_strong_trend', 25)
+        self.adx_moderate_trend = config.get('adx_moderate_trend', 18)
 
     def classify(self, row: pd.Series, prev_row: Optional[pd.Series] = None) -> str:
         """
@@ -174,16 +178,16 @@ class V35LongStrategy(BaseStrategy):
     - SIDEWAYS 강화 전략
     """
 
-    # 기본 설정
+    # 기본 설정 (aligned with RegimeRouter thresholds from selected_candidate.json)
     DEFAULT_CONFIG = {
-        # 시장 분류
-        'mfi_bull_strong': 52,
-        'mfi_bull_moderate': 45,
-        'mfi_sideways_up': 42,
-        'mfi_bear_moderate': 38,
-        'mfi_bear_strong': 35,
-        'adx_strong_trend': 20,
-        'adx_moderate_trend': 15,
+        # 시장 분류 - aligned with router: mfi_bull=54, mfi_bear=49, adx_strong=25, adx_trend=18
+        'mfi_bull_strong': 54,
+        'mfi_bull_moderate': 54,
+        'mfi_sideways_up': 49,
+        'mfi_bear_moderate': 41,
+        'mfi_bear_strong': 34,
+        'adx_strong_trend': 25,
+        'adx_moderate_trend': 18,
 
         # Entry
         'momentum_rsi_bull_strong': 52,
@@ -326,17 +330,19 @@ class V35LongStrategy(BaseStrategy):
         # 시장 상태 분류
         market_state = self.classifier.classify(row, prev_row)
 
-        # BEAR 감지 시 즉시 청산
+        # BEAR 감지 시 즉시 청산 (단, BEAR에서 진입한 보수적 포지션은 제외)
+        # Conservative entries in BEAR are intentional and shouldn't trigger protection exit
         if self.in_position and market_state in ['BEAR_MODERATE', 'BEAR_STRONG']:
-            self.clear_position()
-            self.exit_manager.reset()
-            return {
-                'action': 'sell',
-                'fraction': 1.0,
-                'reason': f'BEAR_PROTECTION_{market_state}',
-                'confidence': 0.95,
-                'metadata': {'market_state': market_state}
-            }
+            if self.entry_strategy != 'conservative':
+                self.clear_position()
+                self.exit_manager.reset()
+                return {
+                    'action': 'sell',
+                    'fraction': 1.0,
+                    'reason': f'BEAR_PROTECTION_{market_state}',
+                    'confidence': 0.95,
+                    'metadata': {'market_state': market_state}
+                }
 
         # 포지션 있을 때: Exit 조건
         if self.in_position:
@@ -378,14 +384,19 @@ class V35LongStrategy(BaseStrategy):
         market_state: str,
         prev_row: Optional[pd.Series]
     ) -> Optional[Dict]:
-        """Entry 조건 확인"""
+        """Entry 조건 확인
+
+        Single Source of Truth: V35 generates signals for ALL market states.
+        RegimeRouter controls whether V35 runs at all.
+        Internal classification only affects position sizing and exits.
+        """
         row = df.iloc[i]
 
-        # BULL_STRONG: Momentum
+        # BULL_STRONG: Aggressive momentum
         if market_state == 'BULL_STRONG':
             return self._momentum_entry(row, aggressive=True)
 
-        # BULL_MODERATE: Momentum
+        # BULL_MODERATE: Moderate momentum
         elif market_state == 'BULL_MODERATE':
             return self._momentum_entry(row, aggressive=False)
 
@@ -393,9 +404,14 @@ class V35LongStrategy(BaseStrategy):
         elif market_state == 'SIDEWAYS_UP':
             return self._breakout_entry(df, i)
 
-        # SIDEWAYS_FLAT: Range
-        elif market_state == 'SIDEWAYS_FLAT':
+        # SIDEWAYS_FLAT/SIDEWAYS_DOWN: Conservative range
+        elif market_state in ['SIDEWAYS_FLAT', 'SIDEWAYS_DOWN']:
             return self._range_entry(df, i)
+
+        # BEAR states: Very conservative range entry (if conditions met)
+        # Note: RegimeRouter typically blocks V35 in BEAR, this is a fallback
+        elif market_state in ['BEAR_MODERATE', 'BEAR_STRONG']:
+            return self._conservative_entry(df, i)
 
         return None
 
@@ -473,3 +489,46 @@ class V35LongStrategy(BaseStrategy):
                 }
 
         return None
+
+    def _conservative_entry(self, df: pd.DataFrame, i: int) -> Optional[Dict]:
+        """Conservative Entry for BEAR states.
+
+        Very strict conditions - only enter on extreme oversold with support.
+        Uses smaller position size for risk management.
+        """
+        if i < 20:
+            return None
+
+        row = df.iloc[i]
+        prev_20 = df.iloc[i-20:i]
+
+        rsi = row.get('rsi', 50)
+        stoch_k = row.get('stoch_k', 50)
+
+        # Very strict oversold conditions
+        if rsi > 30:  # RSI must be < 30 (very oversold)
+            return None
+
+        if stoch_k > 20:  # Stochastic must be < 20
+            return None
+
+        # Must be near support
+        support = prev_20['low'].min()
+        resistance = prev_20['high'].max()
+        range_height = resistance - support
+
+        if range_height == 0:
+            return None
+
+        # Price must be in bottom 10% of range
+        if row['close'] > support + range_height * 0.10:
+            return None
+
+        # All conditions met - conservative entry
+        return {
+            'action': 'buy',
+            'fraction': self.strategy_config['position_size'] * 0.5,  # Half size
+            'reason': 'CONSERVATIVE_BEAR_ENTRY',
+            'confidence': 0.55,
+            'strategy': 'conservative',
+        }

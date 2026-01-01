@@ -88,8 +88,10 @@ black>=23.7.0
 flake8>=6.1.0
 mypy>=1.5.0
 jupyterlab>=4.0.0
+pytest-asyncio
 
 pyupbit
 python-binance
+ccxt>=4.0.0
 cryptography
 pyotp>=2.9.0

@@ -63,14 +63,15 @@ class StrategyRunner:
     """
 
     # Strategy selection by regime
+    # V35 (proven S-Tier) for BULL, VA02 (2025 promise) for SIDEWAYS
     UPBIT_STRATEGY_MAP = {
         "BULL": "v35",
         "BULL_STRONG": "v35",
         "BULL_MODERATE": "v35",
-        "SIDEWAYS": "sideways_v2",
-        "SIDEWAYS_BULL": "sideways_v2",
-        "SIDEWAYS_NEUTRAL": "sideways_v2",
-        "SIDEWAYS_BEAR": "sideways_v2",
+        "SIDEWAYS": "va02",
+        "SIDEWAYS_BULL": "va02",
+        "SIDEWAYS_NEUTRAL": "va02",
+        "SIDEWAYS_BEAR": "va02",
         "BEAR": None,  # Hold cash
         "BEAR_MODERATE": None,
         "BEAR_STRONG": None,
@@ -158,7 +159,19 @@ class StrategyRunner:
         except Exception as e:
             logger.warning(f"Failed to load V35: {e}")
 
-        # SideWays V2
+        # VA02 Long (for SIDEWAYS regimes)
+        try:
+            from trading.strategy.va02_long import VA02LongStrategy
+            config_path = Path(__file__).parent.parent.parent / "config" / "strategies" / "va02_long.json"
+            if config_path.exists():
+                with open(config_path) as f:
+                    config = json.load(f)
+                self._strategies["va02"] = VA02LongStrategy(strategy_config=config)
+                logger.debug("Loaded VA02 strategy")
+        except Exception as e:
+            logger.warning(f"Failed to load VA02: {e}")
+
+        # SideWays V2 (fallback)
         try:
             from trading.strategy.sideways_v2 import SideWaysV2Strategy
             self._strategies["sideways_v2"] = SideWaysV2Strategy()

@@ -556,10 +556,11 @@ class AsyncTradingEngine:
             msg += f"🌐 시장: {regime_emoji} {regime}\n"
 
             # Strategy selection reasoning
+            # V35 (proven S-Tier) for BULL, VA02 (2025 promise) for SIDEWAYS
             upbit_strategy_map = {
                 "BULL": "v35", "BULL_STRONG": "v35", "BULL_MODERATE": "v35",
-                "SIDEWAYS": "sideways_v2", "SIDEWAYS_BULL": "sideways_v2",
-                "SIDEWAYS_NEUTRAL": "sideways_v2", "SIDEWAYS_BEAR": "sideways_v2",
+                "SIDEWAYS": "va02", "SIDEWAYS_BULL": "va02",
+                "SIDEWAYS_NEUTRAL": "va02", "SIDEWAYS_BEAR": "va02",
                 "BEAR": None, "BEAR_MODERATE": None, "BEAR_STRONG": None,
             }
             binance_strategy_map = {

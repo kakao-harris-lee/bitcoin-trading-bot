@@ -20,17 +20,23 @@ logger = logging.getLogger(__name__)
 
 
 class MarketClassifier:
-    """시장 상태 분류기 (7레벨)"""
+    """시장 상태 분류기 (7레벨)
+
+    Thresholds aligned with RegimeRouter (selected_candidate.json):
+    - Router mfi_bull=54, mfi_bear=49, adx_strong=25, adx_trend=18
+    """
 
     def __init__(self, config: Dict):
         self.config = config
-        self.mfi_bull_strong = config.get('mfi_bull_strong', 52)
-        self.mfi_bull_moderate = config.get('mfi_bull_moderate', 45)
-        self.mfi_sideways_up = config.get('mfi_sideways_up', 42)
-        self.mfi_bear_moderate = config.get('mfi_bear_moderate', 38)
-        self.mfi_bear_strong = config.get('mfi_bear_strong', 35)
-        self.adx_strong_trend = config.get('adx_strong_trend', 20)
-        self.adx_moderate_trend = config.get('adx_moderate_trend', 15)
+        # MFI thresholds (aligned with RegimeRouter)
+        self.mfi_bull_strong = config.get('mfi_bull_strong', 54)
+        self.mfi_bull_moderate = config.get('mfi_bull_moderate', 54)
+        self.mfi_sideways_up = config.get('mfi_sideways_up', 49)
+        self.mfi_bear_moderate = config.get('mfi_bear_moderate', 41)
+        self.mfi_bear_strong = config.get('mfi_bear_strong', 34)
+        # ADX thresholds (aligned with RegimeRouter)
+        self.adx_strong_trend = config.get('adx_strong_trend', 25)
+        self.adx_moderate_trend = config.get('adx_moderate_trend', 18)
 
     def classify(self, row: pd.Series) -> str:
         mfi = row.get('mfi', 50)

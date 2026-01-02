@@ -25,7 +25,7 @@ pytest
 bitcoin-trading-bot/
 ├── run.py                          # Entry point
 ├── trading/                        # Main trading engine
-│   ├── engine.py                   # DualPaperTradingEngine
+│   ├── multi_asset_engine.py       # MultiAssetTradingEngine
 │   ├── data/                       # Data feeds (feed_handler)
 │   ├── strategy/                   # All strategies + classification
 │   │   ├── base.py                 # BaseStrategy abstract class

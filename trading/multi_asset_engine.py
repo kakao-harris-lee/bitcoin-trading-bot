@@ -101,9 +101,13 @@ class MultiAssetTradingEngine:
         # Load and wire strategies, accounts, and routers
         self._setup_strategies_and_accounts()
 
-        # Premium tracker for each symbol
+        # Premium tracker for each symbol (with symbol-specific history files)
         self.premium_trackers: Dict[str, PremiumTracker] = {
-            sym: PremiumTracker() for sym in self._symbols
+            sym: PremiumTracker(config={
+                "history_file": f"logs/premium_history_{sym}.json",
+                "max_history_hours": 168,  # 7 days
+            })
+            for sym in self._symbols
         }
 
         # Regime cache per symbol
@@ -546,9 +550,21 @@ class MultiAssetTradingEngine:
                 "assets": {},
             }
 
+            # Get current FX rate for premium recording
+            fx_rate = self.fx_cache.rate or 1450.0
+
             for symbol in self._symbols:
                 premium = self.price_hub.get_premium(symbol)
                 state = self.alpha_manager.get_state(symbol)
+
+                # Record premium history for this symbol
+                if premium and symbol in self.premium_trackers:
+                    self.premium_trackers[symbol].record({
+                        "premium_pct": premium.premium_pct,
+                        "upbit_usd": premium.upbit_usd,
+                        "binance_usd": premium.binance_usd,
+                        "usd_krw_rate": fx_rate,
+                    })
 
                 status["assets"][symbol] = {
                     "regime": self._regime_cache.get(symbol),

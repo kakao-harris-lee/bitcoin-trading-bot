@@ -25,7 +25,7 @@ bitcoin-trading-bot/
 ├── run.py                      # 진입점
 ├── bot.sh                      # 서버 실행 스크립트
 ├── trading/                    # 메인 트레이딩 엔진
-│   ├── engine.py               # DualPaperTradingEngine
+│   ├── multi_asset_engine.py   # MultiAssetTradingEngine
 │   ├── data/                   # 데이터 피드
 │   ├── strategy/               # 모든 전략 + 레짐 분류
 │   ├── execution/              # 주문 실행, 포지션 관리

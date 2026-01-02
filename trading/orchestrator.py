@@ -6,6 +6,7 @@ Spawns and monitors:
 - Regime publisher
 - Strategy coroutines (V35, SHORT_V1, SIDEWAYS_V2, H4, PREMIUM)
 - Trade executor
+- Telegram command handler (kill switch control)
 """
 
 import asyncio
@@ -28,6 +29,7 @@ from trading.strategies import (
 from trading.executor.trade_executor import TradeExecutor
 from trading.adapters import UpbitTrader, BinanceFuturesTrader
 from trading.notification import TelegramNotifier
+from trading.risk.risk_controls import kill_switch_active
 from core.types import Exchange
 
 logger = logging.getLogger(__name__)
@@ -47,6 +49,8 @@ class TradingOrchestrator:
         self.notifier: Optional[TelegramNotifier] = None
         self.upbit_adapter: Optional[UpbitTrader] = None
         self.binance_adapter: Optional[BinanceFuturesTrader] = None
+        self.executor: Optional[TradeExecutor] = None
+        self._telegram_cmd = None
 
     async def run(self):
         """Main entry point - spawn all coroutines."""
@@ -70,6 +74,18 @@ class TradingOrchestrator:
             except ValueError as e:
                 self.logger.warning(f"Telegram notifier disabled: {e}")
 
+        # Create executor (need reference for kill switch commands)
+        self.executor = TradeExecutor(
+            self.redis,
+            self.upbit_adapter,
+            self.binance_adapter,
+            self.config,
+            self.notifier
+        )
+
+        # Initialize Telegram command handler for kill switch control
+        self._setup_telegram_commands()
+
         # Define all components
         components = {
             # Publishers
@@ -85,13 +101,7 @@ class TradingOrchestrator:
             "strategy:premium": PremiumStrategy(self.redis, self.config),
 
             # Executor
-            "executor": TradeExecutor(
-                self.redis,
-                self.upbit_adapter,
-                self.binance_adapter,
-                self.config,
-                self.notifier
-            ),
+            "executor": self.executor,
         }
 
         # Spawn with auto-restart
@@ -151,10 +161,70 @@ class TradingOrchestrator:
         if restart_count >= max_restarts:
             self.logger.error(f"[{name}] Max restarts reached, giving up")
 
+    def _setup_telegram_commands(self):
+        """Initialize Telegram command handler for kill switch control."""
+        if not self.notifier:
+            self.logger.info("Telegram commands disabled (no notifier)")
+            return
+
+        try:
+            from trading.notification.telegram_commands import TelegramCommandHandler
+        except ImportError:
+            self.logger.warning("TelegramCommandHandler not available")
+            return
+
+        try:
+            self._telegram_cmd = TelegramCommandHandler(self.notifier)
+            self._telegram_cmd.register_command("kill_on", lambda _: self._cmd_kill_switch(True))
+            self._telegram_cmd.register_command("kill_off", lambda _: self._cmd_kill_switch(False))
+            self._telegram_cmd.register_command("kill_status", lambda _: self._cmd_kill_status())
+            self._telegram_cmd.start_polling()
+            self.logger.info("Telegram commands enabled: /kill_on /kill_off /kill_status")
+        except Exception as e:
+            self.logger.error(f"Failed to setup Telegram commands: {e}")
+
+    def _cmd_kill_switch(self, activate: bool):
+        """Handle kill switch command from Telegram."""
+        if self.executor:
+            self.executor.risk.set_kill_switch(activate)
+            status = "ACTIVATED" if activate else "DEACTIVATED"
+            msg = f"Kill switch {status}"
+            self.logger.warning(msg)
+            if self.notifier:
+                try:
+                    self.notifier.send_message(msg)
+                except Exception:
+                    pass
+
+    def _cmd_kill_status(self):
+        """Handle kill status command from Telegram."""
+        if self.executor:
+            is_on = self.executor.risk.kill_switch_on
+            daily_pnl = self.executor.risk.get_daily_pnl()
+            total_pnl = sum(daily_pnl.values())
+
+            msg = (
+                f"Kill Switch: {'ON' if is_on else 'OFF'}\n"
+                f"Daily P&L: {total_pnl:+.2f}%\n"
+                f"By strategy: {daily_pnl}"
+            )
+            if self.notifier:
+                try:
+                    self.notifier.send_message(msg)
+                except Exception:
+                    pass
+
     def _handle_shutdown(self):
         """Handle shutdown signal."""
         self.logger.info("Shutdown signal received...")
         self.running = False
+
+        # Stop Telegram command polling
+        if self._telegram_cmd:
+            try:
+                self._telegram_cmd.stop_polling()
+            except Exception:
+                pass
 
         for task in self.tasks.values():
             task.cancel()

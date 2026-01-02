@@ -106,11 +106,30 @@ class FeedPublisher:
 
     def _on_price_message(self, price_msg):
         """Callback for WebSocket price messages."""
-        asyncio.create_task(self.publish_price(
-            price=price_msg.price,
-            volume=price_msg.volume,
-            timestamp=price_msg.timestamp.isoformat() if price_msg.timestamp else None,
-        ))
+        task = asyncio.create_task(self._safe_publish_price(price_msg))
+        # Add callback to log any exceptions
+        task.add_done_callback(self._handle_task_exception)
+
+    def _handle_task_exception(self, task: asyncio.Task):
+        """Log exceptions from background tasks."""
+        try:
+            exc = task.exception()
+            if exc:
+                self.logger.error(f"Price publish failed: {exc}")
+        except asyncio.CancelledError:
+            pass
+
+    async def _safe_publish_price(self, price_msg):
+        """Safely publish price with error handling."""
+        try:
+            await self.publish_price(
+                price=price_msg.price,
+                volume=price_msg.volume,
+                timestamp=price_msg.timestamp.isoformat() if price_msg.timestamp else None,
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to publish price: {e}")
+            raise  # Re-raise for the done callback to catch
 
     def stop(self):
         """Stop the publisher gracefully."""

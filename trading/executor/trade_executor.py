@@ -159,11 +159,33 @@ class TradeExecutor:
             elif action in ["sell", "close"]:
                 await self.upbit.sell(size=size, price=price)
 
+    def _has_active_binance_position(self, exclude_strategy: str) -> bool:
+        """Check if any other strategy has an active Binance position."""
+        binance_strategies = ["short_v1", "premium"]
+        for strat in binance_strategies:
+            if strat == exclude_strategy:
+                continue
+            pos = self._positions.get(strat, {})
+            if pos.get("active"):
+                return True
+        return False
+
     async def _execute_binance(self, strategy: str, signal: Dict):
         """Execute trade on Binance."""
         action = signal.get("action")
         price = signal.get("price", 0)
         size = signal.get("size", 0)
+
+        # Guard: Prevent conflicting positions between SHORT_V1 and Premium
+        # Only check for entry actions (short), not exits (close/cover)
+        if action in ["short", "buy"]:
+            if self._has_active_binance_position(exclude_strategy=strategy):
+                conflicting = [s for s in ["short_v1", "premium"]
+                              if s != strategy and self._positions.get(s, {}).get("active")]
+                self.logger.warning(
+                    f"[GUARD] {strategy} entry blocked: {conflicting} has active Binance position"
+                )
+                return
 
         if self.binance_mode == "paper":
             self.logger.info(f"[PAPER] Binance {action}: {size} @ {price}")

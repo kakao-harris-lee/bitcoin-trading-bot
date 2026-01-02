@@ -141,29 +141,34 @@ class StandaloneStrategy(ABC):
 
         while self.running:
             try:
-                # Consume from all subscribed streams
-                messages = await self.redis.consume(
-                    stream_name=self.subscribed_streams[0],  # Primary stream
-                    group_name=group_name,
-                    consumer_name=self.name,
-                    count=10,
-                    block=1000,
-                )
+                # Consume from ALL subscribed streams (not just the first one)
+                for stream in self.subscribed_streams:
+                    messages = await self.redis.consume(
+                        stream_name=stream,
+                        group_name=group_name,
+                        consumer_name=self.name,
+                        count=10,
+                        block=100,  # Short block to cycle through all streams
+                    )
 
-                for msg in messages:
-                    stream = msg.get("stream", "")
-                    data = msg.get("data", {})
+                    for msg in messages:
+                        try:
+                            msg_stream = msg.get("stream", stream)
+                            data = msg.get("data", {})
 
-                    # Route to appropriate handler
-                    if "prices" in stream:
-                        signal = await self.on_price(data)
-                        if signal:
-                            await self._publish_signal(signal)
-                    elif "regime" in stream:
-                        await self.on_regime(data)
+                            # Route to appropriate handler
+                            if "prices" in msg_stream:
+                                signal = await self.on_price(data)
+                                if signal:
+                                    await self._publish_signal(signal)
+                            elif "regime" in msg_stream:
+                                await self.on_regime(data)
 
-                    # ACK the message
-                    await self.redis.ack(stream, group_name, msg["id"])
+                            # ACK the message only after successful processing
+                            await self.redis.ack(msg_stream, group_name, msg["id"])
+                        except Exception as e:
+                            self.logger.error(f"Error processing message: {e}")
+                            # Don't ACK - message will be redelivered
 
             except asyncio.CancelledError:
                 self.logger.info(f"{self.name} strategy cancelled")

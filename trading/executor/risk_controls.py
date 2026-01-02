@@ -2,7 +2,7 @@
 Risk Controls for Trade Executor
 
 Centralized risk management:
-- Kill switch (via Telegram)
+- Kill switch (file-based, via Telegram)
 - Daily loss limit
 - Position size validation
 """
@@ -11,7 +11,16 @@ import logging
 from datetime import datetime, date
 from typing import Dict, Any, Optional
 
+from trading.risk.risk_controls import (
+    kill_switch_active,
+    set_kill_switch as file_set_kill_switch,
+    RiskConfig,
+)
+
 logger = logging.getLogger(__name__)
+
+# Default kill switch file path
+DEFAULT_KILL_SWITCH_FILE = "analysis/KILL_SWITCH"
 
 
 class RiskControls:
@@ -21,8 +30,10 @@ class RiskControls:
         self.config = config
         self.logger = logging.getLogger("risk_controls")
 
-        # Kill switch state
-        self._kill_switch_on = False
+        # Kill switch file path (file-based for persistence and Telegram integration)
+        self.kill_switch_file = getattr(
+            config, 'kill_switch_file', DEFAULT_KILL_SWITCH_FILE
+        )
 
         # Daily P&L tracking
         self._daily_pnl: Dict[str, float] = {}  # strategy -> pnl
@@ -34,12 +45,13 @@ class RiskControls:
 
     @property
     def kill_switch_on(self) -> bool:
-        return self._kill_switch_on
+        """Check if kill switch is active (file-based)."""
+        return kill_switch_active(self.kill_switch_file)
 
     def set_kill_switch(self, on: bool):
-        """Set kill switch state (called from Telegram handler)."""
-        self._kill_switch_on = on
-        self.logger.warning(f"Kill switch {'ON' if on else 'OFF'}")
+        """Set kill switch state (file-based for Telegram integration)."""
+        file_set_kill_switch(self.kill_switch_file, on)
+        self.logger.warning(f"Kill switch {'ON' if on else 'OFF'} ({self.kill_switch_file})")
 
     def allow_trade(self, strategy: str, signal: Dict[str, Any]) -> bool:
         """Check if trade is allowed based on risk controls.
@@ -56,8 +68,8 @@ class RiskControls:
             self._daily_pnl = {}
             self._current_date = date.today()
 
-        # Kill switch check
-        if self._kill_switch_on:
+        # Kill switch check (file-based)
+        if self.kill_switch_on:
             self.logger.warning(f"Trade blocked: kill switch ON ({strategy})")
             return False
 

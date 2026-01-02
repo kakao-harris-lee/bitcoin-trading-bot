@@ -103,7 +103,7 @@ start() {
 stop() {
     if [ ! -f "$PID_FILE" ]; then
         echo "⚠️  봇이 실행 중이지 않습니다"
-        exit 0
+        return 0
     fi
 
     PID=$(cat "$PID_FILE")
@@ -111,7 +111,7 @@ stop() {
     if ! ps -p "$PID" > /dev/null 2>&1; then
         echo "⚠️  봇이 실행 중이지 않습니다 (stale PID file)"
         rm -f "$PID_FILE"
-        exit 0
+        return 0
     fi
 
     echo "🛑 Trading Bot 종료 중 (PID: $PID)..."
@@ -122,7 +122,7 @@ stop() {
         if ! ps -p "$PID" > /dev/null 2>&1; then
             echo "✅ 종료됨"
             rm -f "$PID_FILE"
-            exit 0
+            return 0
         fi
         sleep 1
     done

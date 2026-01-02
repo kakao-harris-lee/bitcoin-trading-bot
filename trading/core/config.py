@@ -17,7 +17,7 @@ load_dotenv(_project_root / '.env')
 @dataclass
 class RedisConfig:
     """Redis 연결 설정"""
-    host: str = "chsvr.duckdns.org"
+    host: str = "localhost"
     port: int = 6379
     username: str = "bitcoin_trader"
     password: str = "@1tidh6ls6ls"

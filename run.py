@@ -31,6 +31,75 @@ logging.basicConfig(
 )
 
 
+def format_info_message(engine) -> str:
+    """Format engine stats for /info command."""
+    stats = engine.get_stats()
+
+    # Basic info
+    mode = stats.get("execution_mode", "unknown").upper()
+    running = "Running" if stats.get("running") else "Stopped"
+    iterations = stats.get("iteration_count", 0)
+    signals = stats.get("signal_count", 0)
+
+    # Price info
+    price_hub = stats.get("price_hub", {})
+    prices = price_hub.get("prices", {})
+
+    # Portfolio info
+    portfolio = stats.get("portfolio", {})
+    positions = portfolio.get("positions", {})
+
+    # Regime info
+    regimes = stats.get("regimes", {})
+
+    # Build message
+    lines = [
+        f"📊 *Trading Bot Status*",
+        f"",
+        f"*Mode:* {mode} | *Status:* {running}",
+        f"*Iterations:* {iterations} | *Signals:* {signals}",
+        f"",
+        f"💰 *Current Prices:*",
+    ]
+
+    # Add prices
+    for symbol, data in prices.items():
+        if isinstance(data, dict) and "upbit" in data:
+            upbit_price = data.get("upbit", 0)
+            binance_price = data.get("binance", 0)
+            premium = data.get("premium_pct", 0)
+            lines.append(f"  {symbol}: ₩{upbit_price:,.0f} | ${binance_price:,.2f} (김프 {premium:.1f}%)")
+
+    lines.append("")
+    lines.append("📈 *Market Regimes:*")
+    for symbol, regime in regimes.items():
+        lines.append(f"  {symbol}: {regime}")
+
+    lines.append("")
+    lines.append("💼 *Positions:*")
+    if positions:
+        for symbol, pos in positions.items():
+            if pos.get("quantity", 0) > 0:
+                qty = pos.get("quantity", 0)
+                entry = pos.get("entry_price", 0)
+                pnl = pos.get("unrealized_pnl_pct", 0)
+                lines.append(f"  {symbol}: {qty:.6f} @ ₩{entry:,.0f} ({pnl:+.2f}%)")
+    else:
+        lines.append("  No open positions")
+
+    # Alpha stats
+    alpha = stats.get("alpha", {})
+    if alpha:
+        total_trades = alpha.get("total_trades", 0)
+        win_rate = alpha.get("win_rate", 0)
+        total_pnl = alpha.get("total_pnl_pct", 0)
+        lines.append("")
+        lines.append("📉 *Alpha Performance:*")
+        lines.append(f"  Trades: {total_trades} | Win Rate: {win_rate:.1f}% | P&L: {total_pnl:+.2f}%")
+
+    return "\n".join(lines)
+
+
 async def main(args):
     """MultiAssetTradingEngine 실행."""
     from trading.multi_asset_engine import MultiAssetTradingEngine, MultiAssetEngineConfig
@@ -52,11 +121,35 @@ async def main(args):
 
     engine = MultiAssetTradingEngine(config, allocation_config)
 
+    # Setup telegram command handler if enabled
+    cmd_handler = None
+    if args.telegram_commands and not args.no_telegram:
+        try:
+            from trading.notification.telegram_commands import TelegramCommandHandler
+
+            cmd_handler = TelegramCommandHandler(engine._telegram)
+
+            # Register /info command
+            def handle_info(cmd_args: str):
+                msg = format_info_message(engine)
+                engine._telegram.send_message(msg)
+
+            cmd_handler.register_command("info", handle_info)
+
+            # Start polling
+            cmd_handler.start_polling()
+            print("✅ Telegram commands enabled: /info")
+
+        except Exception as e:
+            print(f"⚠️  Telegram commands setup failed: {e}")
+
     try:
         await engine.start()
     except KeyboardInterrupt:
         print("\nShutting down...")
     finally:
+        if cmd_handler:
+            cmd_handler.stop_polling()
         await engine.stop()
 
 

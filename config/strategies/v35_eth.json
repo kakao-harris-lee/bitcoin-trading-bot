@@ -4,7 +4,7 @@
   "asset": "ETH",
   "timeframe": "minute60",
   "description": "V35 Optuna optimized for ETH",
-  "optimized_at": "2025-12-31T23:53:10.391958",
+  "optimized_at": "2026-01-02T14:14:51.402218",
   "market_classifier": {
     "mfi_bull_strong": 50,
     "mfi_bull_moderate": 51,

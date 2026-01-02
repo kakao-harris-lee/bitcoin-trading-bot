@@ -4,7 +4,7 @@
   "asset": "SOL",
   "timeframe": "minute60",
   "description": "V35 Optuna optimized for SOL",
-  "optimized_at": "2026-01-01T00:01:21.728747",
+  "optimized_at": "2026-01-02T14:18:58.419963",
   "market_classifier": {
     "mfi_bull_strong": 56,
     "mfi_bull_moderate": 45,

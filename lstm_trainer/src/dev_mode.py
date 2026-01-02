@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
 from dataset import TrendDataset
@@ -35,10 +35,12 @@ def dev_train(data_path: str, days: int = 30):
     dataset = TrendDataset(recent, seq_len=30, threshold=0.015)
     print(f"Dataset size: {len(dataset)}")
 
-    # Split 80/20
+    # Chronological split 80/20 (no data leakage)
     train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_set, val_set = random_split(dataset, [train_size, val_size])
+    train_indices = list(range(train_size))
+    val_indices = list(range(train_size, len(dataset)))
+    train_set = Subset(dataset, train_indices)
+    val_set = Subset(dataset, val_indices)
 
     train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=32, shuffle=False)

@@ -53,7 +53,7 @@ def evaluate(config_path: str = "config/default.yaml", model_path: str = None):
     if model_path is None:
         model_path = Path(config["paths"]["models"]) / "trading_lstm.pth"
 
-    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
     model.eval()
     print(f"Loaded model from {model_path}")
 

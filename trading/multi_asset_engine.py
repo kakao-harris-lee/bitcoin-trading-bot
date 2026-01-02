@@ -153,8 +153,14 @@ class MultiAssetTradingEngine:
         )
 
         # Hedge Manager (empty accounts for now - will be set externally)
+        # Override hedge capital from engine config (allows live balance to be used)
+        hedge_allocation = self.allocation_config.copy()
+        if "hedge" not in hedge_allocation:
+            hedge_allocation["hedge"] = {}
+        hedge_allocation["hedge"]["total_capital_usdt"] = self.config.hedge_capital_usdt
+
         self.hedge_manager = MultiAssetHedgeManager.from_config(
-            self.allocation_config,
+            hedge_allocation,
             binance_accounts={},
             telegram_notifier=self._telegram,
             execution_mode=self.execution_mode,

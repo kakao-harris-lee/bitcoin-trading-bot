@@ -179,10 +179,38 @@ async def main(args):
     # Map mode to execution_mode
     execution_mode = "live" if args.trend == "live" else "paper"
 
+    # Determine capital - fetch live balances in live mode
+    if execution_mode == "live":
+        # Fetch Upbit balance
+        try:
+            from trading.adapters.upbit import UpbitTrader
+            upbit = UpbitTrader()
+            krw_balance, _ = upbit.get_balance()
+            total_capital_krw = krw_balance
+            print(f"Live Upbit balance: ₩{krw_balance:,.0f}")
+        except Exception as e:
+            print(f"Warning: Failed to fetch Upbit balance: {e}")
+            total_capital_krw = float(args.paper_upbit_capital)
+
+        # Fetch Binance balance separately
+        try:
+            from trading.adapters.binance import BinanceFuturesTrader
+            binance = BinanceFuturesTrader()
+            account_info = binance.get_account_info()
+            usdt_balance = account_info.get('total_balance', 0)
+            hedge_capital_usdt = usdt_balance
+            print(f"Live Binance balance: ${usdt_balance:,.2f}")
+        except Exception as e:
+            print(f"Warning: Failed to fetch Binance balance: {e}")
+            hedge_capital_usdt = float(args.paper_binance_capital)
+    else:
+        total_capital_krw = float(args.paper_upbit_capital)
+        hedge_capital_usdt = float(args.paper_binance_capital)
+
     config = MultiAssetEngineConfig(
         execution_mode=execution_mode,
-        total_capital_krw=float(args.paper_upbit_capital),
-        hedge_capital_usdt=float(args.paper_binance_capital),
+        total_capital_krw=total_capital_krw,
+        hedge_capital_usdt=hedge_capital_usdt,
         telegram_enabled=not bool(args.no_telegram),
     )
 

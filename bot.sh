@@ -160,10 +160,11 @@ with open('$HEALTH_FILE') as f:
 print(f\"   Health: {d['status'].upper()}\")
 if d.get('mode'):
     print(f\"   Mode: {d['mode']}\")
+# Show BTC prices (not balances)
 if d['prices'].get('upbit', {}).get('price'):
-    print(f\"   Upbit:  ₩{d['prices']['upbit']['price']:,.0f}\")
+    print(f\"   BTC (Upbit):  ₩{d['prices']['upbit']['price']:,.0f}\")
 if d['prices'].get('binance', {}).get('price'):
-    print(f\"   Binance: \${d['prices']['binance']['price']:,.2f}\")
+    print(f\"   BTC (Binance): \${d['prices']['binance']['price']:,.2f}\")
 " 2>/dev/null
         fi
     else

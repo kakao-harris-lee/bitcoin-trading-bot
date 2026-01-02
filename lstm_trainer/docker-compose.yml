@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  trainer:
+    build: .
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./src:/app/src
+    command: python src/train.py --config config/default.yaml
+
+  notebook:
+    build: .
+    runtime: nvidia
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./:/app
+    command: jupyter notebook --ip=0.0.0.0 --allow-root

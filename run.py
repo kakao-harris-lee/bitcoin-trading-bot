@@ -31,18 +31,18 @@ logging.basicConfig(
 )
 
 
-def format_info_message(engine) -> str:
-    """Format engine stats for /info command."""
+def format_info_message(engine, trend_mode: str = "live", premium_mode: str = "paper") -> str:
+    """Format engine stats for /info command with live exchange balances."""
+    from datetime import datetime
+
     stats = engine.get_stats()
 
-    # Basic info
-    mode = stats.get("execution_mode", "unknown").upper()
+    # Status
     running = "🟢 Running" if stats.get("running") else "🔴 Stopped"
 
     # Uptime
     started_at = stats.get("started_at")
     if started_at:
-        from datetime import datetime
         start = datetime.fromisoformat(started_at)
         uptime = datetime.now() - start
         hours, remainder = divmod(int(uptime.total_seconds()), 3600)
@@ -59,23 +59,66 @@ def format_info_message(engine) -> str:
     # Regime info
     regimes = stats.get("regimes", {})
 
-    # Portfolio info
-    portfolio = stats.get("portfolio", {})
-    total_value = portfolio.get("total_value_krw", 0)
-    cash = portfolio.get("cash_krw", 0)
-    exposure_pct = portfolio.get("exposure_pct", 0)
-
     # Build message
+    trend_emoji = "🔴" if trend_mode == "live" else "⚪"
+    premium_emoji = "🔴" if premium_mode == "live" else "⚪"
+
     lines = [
         f"📊 *Trading Bot Status*",
         f"",
-        f"*Mode:* {mode} | {running}",
-        f"*Uptime:* {uptime_str} | *FX:* ₩{fx_rate:,.0f}/$",
+        f"{running} | Uptime: {uptime_str}",
         f"",
-        f"💰 *Prices & Premium:*",
+        f"*Mode:*",
+        f"  {trend_emoji} Trend: {trend_mode.upper()}",
+        f"  {premium_emoji} Premium: {premium_mode.upper()}",
     ]
 
-    # Add prices with regime
+    # === LIVE EXCHANGE BALANCES ===
+    lines.append("")
+    lines.append("💰 *Live Balances:*")
+
+    # Get BTC price for total value calculation
+    btc_price = 0
+    if "BTC" in assets:
+        btc_price = assets["BTC"].get("upbit_krw", 0)
+
+    # Fetch real Upbit balance
+    try:
+        from trading.adapters.upbit import UpbitTrader
+        upbit = UpbitTrader()
+        krw_balance, btc_balance = upbit.get_balance()
+
+        upbit_total = krw_balance + (btc_balance * btc_price)
+        lines.append(f"  *Upbit:*")
+        lines.append(f"    KRW: ₩{krw_balance:,.0f}")
+        if btc_balance > 0.0001:
+            lines.append(f"    BTC: {btc_balance:.6f} (₩{btc_balance * btc_price:,.0f})")
+        lines.append(f"    Total: ₩{upbit_total:,.0f}")
+    except Exception as e:
+        lines.append(f"  *Upbit:* ⚠️ 조회 실패")
+
+    # Fetch real Binance balance
+    try:
+        from trading.adapters.binance import BinanceFuturesTrader
+        binance = BinanceFuturesTrader()
+        account = binance.get_account_info()
+        total_usdt = account.get("total_balance", 0)
+        available_usdt = account.get("available_balance", 0)
+        unrealized_pnl = account.get("unrealized_pnl", 0)
+
+        lines.append(f"  *Binance Futures:*")
+        lines.append(f"    Total: ${total_usdt:,.2f}")
+        lines.append(f"    Available: ${available_usdt:,.2f}")
+        if abs(unrealized_pnl) > 0.01:
+            pnl_emoji = "📈" if unrealized_pnl >= 0 else "📉"
+            lines.append(f"    {pnl_emoji} Unrealized: ${unrealized_pnl:+,.2f}")
+    except Exception as e:
+        lines.append(f"  *Binance:* ⚠️ 조회 실패")
+
+    # === PRICES & REGIMES ===
+    lines.append("")
+    lines.append(f"📈 *Market (FX ₩{fx_rate:,.0f}):*")
+
     for symbol in assets:
         data = assets.get(symbol, {})
         upbit_krw = data.get("upbit_krw", 0)
@@ -89,12 +132,12 @@ def format_info_message(engine) -> str:
         else:
             upbit_str = f"₩{upbit_krw:,.0f}"
 
-        lines.append(f"  *{symbol}* {upbit_str} (${binance_usd:,.0f})")
+        lines.append(f"  *{symbol}* {upbit_str} | ${binance_usd:,.0f}")
         lines.append(f"    김프 {premium:+.2f}% | {regime}")
 
-    # Positions from alpha manager
+    # === PAPER TRADING POSITIONS ===
     lines.append("")
-    lines.append("💼 *Positions:*")
+    lines.append("💼 *Paper Positions:*")
 
     has_position = False
     for symbol in assets:
@@ -104,28 +147,22 @@ def format_info_message(engine) -> str:
             pnl_pct = ((state.current_price - state.entry_price) / state.entry_price * 100) if state.entry_price > 0 else 0
             pnl_emoji = "📈" if pnl_pct >= 0 else "📉"
             lines.append(f"  *{symbol}* {state.quantity:.6f}")
-            lines.append(f"    진입 ₩{state.entry_price:,.0f} → 현재 ₩{state.current_price:,.0f}")
-            lines.append(f"    {pnl_emoji} P&L: {pnl_pct:+.2f}%")
+            lines.append(f"    ₩{state.entry_price:,.0f} → ₩{state.current_price:,.0f}")
+            lines.append(f"    {pnl_emoji} {pnl_pct:+.2f}%")
 
     if not has_position:
         lines.append("  포지션 없음")
 
-    # Portfolio summary
-    lines.append("")
-    lines.append("💵 *Portfolio:*")
-    lines.append(f"  총 자산: ₩{total_value:,.0f}")
-    lines.append(f"  현금: ₩{cash:,.0f} | 투자: {exposure_pct:.1f}%")
-
-    # Alpha stats
+    # Paper trading stats
     alpha = stats.get("alpha", {})
     if alpha and alpha.get("total_trades", 0) > 0:
         total_trades = alpha.get("total_trades", 0)
         win_rate = alpha.get("win_rate", 0)
         total_pnl = alpha.get("total_pnl_krw", 0)
         lines.append("")
-        lines.append("📉 *Trading Stats:*")
+        lines.append("📉 *Paper Stats:*")
         lines.append(f"  거래: {total_trades}회 | 승률: {win_rate:.0f}%")
-        lines.append(f"  실현 P&L: ₩{total_pnl:+,.0f}")
+        lines.append(f"  P&L: ₩{total_pnl:+,.0f}")
 
     return "\n".join(lines)
 
@@ -159,9 +196,12 @@ async def main(args):
 
             cmd_handler = TelegramCommandHandler(engine._telegram)
 
-            # Register /info command
+            # Register /info command (capture args for mode info)
+            trend_mode = args.trend
+            premium_mode = args.premium
+
             def handle_info(cmd_args: str):
-                msg = format_info_message(engine)
+                msg = format_info_message(engine, trend_mode, premium_mode)
                 engine._telegram.send_message(msg)
 
             cmd_handler.register_command("info", handle_info)

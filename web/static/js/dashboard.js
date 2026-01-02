@@ -1,6 +1,6 @@
 /**
- * Bitcoin Trading Bot Dashboard
- * Real-time status monitoring for Dual Exchange Engine
+ * Multi-Asset Trading Bot Dashboard
+ * Real-time status monitoring for Multi-Asset Engine
  */
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
@@ -25,10 +25,10 @@ function formatUSD(value) {
     }).format(value);
 }
 
-function formatPercent(value) {
+function formatPercent(value, decimals = 2) {
     if (value === null || value === undefined) return '-';
-    const percent = (value * 100).toFixed(2);
-    return `${percent >= 0 ? '+' : ''}${percent}%`;
+    const percent = value.toFixed(decimals);
+    return `${value >= 0 ? '+' : ''}${percent}%`;
 }
 
 function formatTime(isoString) {
@@ -51,184 +51,231 @@ function formatDateTime(isoString) {
     });
 }
 
-// Update Market Regime display
-function updateMarketRegime(regime, marketState) {
-    const section = document.querySelector('.regime-section');
-    const iconEl = document.getElementById('market-regime-icon');
-    const labelEl = document.getElementById('market-regime-label');
-    const detailEl = document.getElementById('market-state-detail');
-
-    section.classList.remove('regime-bull', 'regime-bear', 'regime-sideways');
-
-    if (!regime || regime === '-') {
-        iconEl.textContent = '-';
-        labelEl.textContent = 'Loading...';
-        detailEl.textContent = '-';
-        return;
+function formatPrice(price, isKRW = true) {
+    if (!price) return '-';
+    if (isKRW) {
+        return new Intl.NumberFormat('ko-KR').format(Math.round(price));
     }
+    return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(price);
+}
 
+// Get regime class for styling
+function getRegimeClass(regime) {
+    if (!regime) return '';
     const regimeLower = regime.toLowerCase();
-    if (regimeLower.includes('bull')) {
-        section.classList.add('regime-bull');
-        iconEl.textContent = 'BULL';
-        labelEl.textContent = 'Uptrend';
-    } else if (regimeLower.includes('bear')) {
-        section.classList.add('regime-bear');
-        iconEl.textContent = 'BEAR';
-        labelEl.textContent = 'Downtrend';
-    } else if (regimeLower.includes('sideways')) {
-        section.classList.add('regime-sideways');
-        iconEl.textContent = 'SIDE';
-        labelEl.textContent = 'Sideways';
-    } else {
-        iconEl.textContent = '?';
-        labelEl.textContent = regime;
-    }
-
-    detailEl.textContent = marketState || '-';
+    if (regimeLower.includes('bull')) return 'regime-bull';
+    if (regimeLower.includes('bear')) return 'regime-bear';
+    if (regimeLower.includes('sideways')) return 'regime-sideways';
+    return '';
 }
 
-// Render last signal card
-function renderLastSignal(signal, containerId) {
-    const container = document.getElementById(containerId);
-    if (!signal) {
-        container.innerHTML = '<p class="no-data">No signal yet</p>';
+// Get regime display label
+function getRegimeLabel(regime) {
+    if (!regime) return '?';
+    const regimeLower = regime.toLowerCase();
+    if (regimeLower.includes('bull')) return 'BULL';
+    if (regimeLower.includes('bear')) return 'BEAR';
+    if (regimeLower.includes('sideways')) return 'SIDE';
+    return regime.substring(0, 4).toUpperCase();
+}
+
+// Render asset cards
+function renderAssetCards(assets) {
+    const container = document.getElementById('assets-grid');
+    if (!assets || Object.keys(assets).length === 0) {
+        container.innerHTML = '<p class="no-data">No assets available</p>';
         return;
     }
 
-    const actionClass = signal.action === 'buy' || signal.action === 'short' ? 'action-entry' :
-                       signal.action === 'sell' || signal.action === 'close' ? 'action-exit' : 'action-hold';
+    let html = '';
+    for (const [symbol, data] of Object.entries(assets)) {
+        const regimeClass = getRegimeClass(data.regime);
+        const regimeLabel = getRegimeLabel(data.regime);
+        const positionStatus = data.position_active ? 'Active' : 'None';
+        const positionClass = data.position_active ? 'has-position' : '';
+        const hedgeIcon = data.hedge_enabled ? '(H)' : '';
 
-    // Format indicators if available
-    let indicatorStr = '';
-    if (signal.indicators) {
-        const parts = [];
-        if (signal.indicators.rsi !== undefined) parts.push(`RSI:${signal.indicators.rsi}`);
-        if (signal.indicators.mfi !== undefined) parts.push(`MFI:${signal.indicators.mfi}`);
-        if (signal.indicators.adx !== undefined) parts.push(`ADX:${signal.indicators.adx}`);
-        if (signal.indicators.score !== undefined) parts.push(`Score:${signal.indicators.score}`);
-        indicatorStr = parts.join(' | ');
-    }
+        // Get active strategy from strategies config
+        let activeStrategy = '-';
+        if (data.strategies) {
+            const regimeKey = data.regime?.split('_')[0] || 'BULL';
+            activeStrategy = data.strategies[regimeKey] || data.strategies['BULL'] || '-';
+        }
 
-    container.innerHTML = `
-        <div class="last-signal-item">
-            <div class="signal-header">
-                <span class="signal-time">${formatTime(signal.timestamp)}</span>
-                <span class="signal-strategy">${signal.strategy || '-'}</span>
-                <span class="signal-action ${actionClass}">${(signal.action || 'hold').toUpperCase()}</span>
+        html += `
+            <div class="asset-card ${regimeClass} ${positionClass}">
+                <div class="asset-header">
+                    <span class="asset-symbol">${symbol}</span>
+                    <span class="asset-hedge">${hedgeIcon}</span>
+                    <span class="asset-regime ${regimeClass}">${regimeLabel}</span>
+                </div>
+                <div class="asset-prices">
+                    <div class="price-row">
+                        <span class="label">Upbit</span>
+                        <span class="value">${formatPrice(data.upbit_price, true)}</span>
+                    </div>
+                    <div class="price-row">
+                        <span class="label">Binance</span>
+                        <span class="value">$${formatPrice(data.binance_price, false)}</span>
+                    </div>
+                </div>
+                <div class="asset-premium ${data.premium_pct >= 0 ? 'positive' : 'negative'}">
+                    Premium: ${formatPercent(data.premium_pct)}
+                </div>
+                <div class="asset-allocation">
+                    <div class="info-row">
+                        <span class="label">Allocation</span>
+                        <span class="value">${(data.alpha_ratio * 100).toFixed(0)}%</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Allocated</span>
+                        <span class="value">${formatKRW(data.allocated_krw)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Position Value</span>
+                        <span class="value">${formatKRW(data.position_value_krw)}</span>
+                    </div>
+                </div>
+                <div class="asset-position">
+                    <div class="info-row">
+                        <span class="label">Strategy</span>
+                        <span class="value">${activeStrategy}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Position</span>
+                        <span class="value ${positionClass}">${positionStatus}</span>
+                    </div>
+                    ${data.position_active ? `
+                    <div class="info-row">
+                        <span class="label">Qty</span>
+                        <span class="value">${data.position_qty.toFixed(6)}</span>
+                    </div>
+                    ` : ''}
+                </div>
             </div>
-            <div class="signal-reason">${signal.reason || '-'}</div>
-            ${indicatorStr ? `<div class="signal-indicators">${indicatorStr}</div>` : ''}
-        </div>
-    `;
+        `;
+    }
+    container.innerHTML = html;
 }
 
-// Update per-strategy allocation display with position info
-function updateStrategiesInfo(strategies) {
-    if (!strategies) return;
-
-    // v35
-    const v35 = strategies.v35 || {};
-    const v35Row = document.getElementById('upbit-v35-row');
-    if (v35Row) {
-        v35Row.classList.toggle('disabled', !v35.enabled);
-        v35Row.classList.toggle('has-position', v35.active);
-
-        // Show position or cash
-        let v35Status = '';
-        if (v35.active && v35.btc > 0) {
-            v35Status = `${v35.btc.toFixed(6)} BTC`;
-        } else if (v35.cash > 0) {
-            v35Status = formatKRW(v35.cash);
-        } else {
-            v35Status = v35.enabled ? `${(v35.ratio * 100).toFixed(0)}%` : 'OFF';
-        }
-        document.getElementById('upbit-v35-ratio').textContent = v35Status;
-        document.getElementById('upbit-v35-regimes').textContent = v35.regimes ? v35.regimes.join('/') : '-';
+// Render premium cards
+function renderPremiumCards(premiums) {
+    const container = document.getElementById('premium-grid');
+    if (!premiums || Object.keys(premiums).length === 0) {
+        container.innerHTML = '<p class="no-data">No premium data available</p>';
+        return;
     }
 
-    // va02
-    const va02 = strategies.va02 || {};
-    const va02Row = document.getElementById('upbit-va02-row');
-    if (va02Row) {
-        va02Row.classList.toggle('disabled', !va02.enabled);
-        va02Row.classList.toggle('has-position', va02.active);
+    let html = '';
+    for (const [symbol, data] of Object.entries(premiums)) {
+        const premiumClass = data.premium_pct >= 0 ? 'positive' : 'negative';
+        const stats = data.stats || {};
 
-        // Show position or cash
-        let va02Status = '';
-        if (va02.active && va02.btc > 0) {
-            va02Status = `${va02.btc.toFixed(6)} BTC`;
-        } else if (va02.cash > 0) {
-            va02Status = formatKRW(va02.cash);
-        } else {
-            va02Status = va02.enabled ? `${(va02.ratio * 100).toFixed(0)}%` : 'OFF';
-        }
-        document.getElementById('upbit-va02-ratio').textContent = va02Status;
-        document.getElementById('upbit-va02-regimes').textContent = va02.regimes ? va02.regimes.join('/') : '-';
+        html += `
+            <div class="premium-card">
+                <div class="premium-header">
+                    <span class="symbol">${symbol}</span>
+                    <span class="premium-value ${premiumClass}">${formatPercent(data.premium_pct)}</span>
+                </div>
+                <div class="premium-prices">
+                    <span>Upbit: ${formatPrice(data.upbit_price, true)}</span>
+                    <span>Binance: $${formatPrice(data.binance_price, false)}</span>
+                </div>
+                ${stats.mean_24h !== undefined ? `
+                <div class="premium-stats">
+                    <span>24h Mean: ${formatPercent(stats.mean_24h)}</span>
+                    <span>Std: ${stats.std_24h?.toFixed(2) || '-'}%</span>
+                    <span class="volatility-${stats.volatility_state || 'normal'}">${stats.volatility_state || 'normal'}</span>
+                </div>
+                ` : ''}
+            </div>
+        `;
     }
+    container.innerHTML = html;
+}
+
+// Render delta grid
+function renderDeltaGrid(deltaStates, hedgeSymbols) {
+    const container = document.getElementById('delta-grid');
+    if (!deltaStates || Object.keys(deltaStates).length === 0) {
+        container.innerHTML = '<p class="no-data">No hedge positions</p>';
+        return;
+    }
+
+    let html = '';
+    for (const [symbol, state] of Object.entries(deltaStates)) {
+        if (!hedgeSymbols.includes(symbol)) continue;
+
+        const netDelta = state.net_delta || 0;
+        const deltaClass = netDelta > 0 ? 'positive' : netDelta < 0 ? 'negative' : '';
+
+        html += `
+            <div class="delta-card">
+                <div class="delta-header">
+                    <span class="symbol">${symbol}</span>
+                </div>
+                <div class="delta-info">
+                    <div class="delta-row">
+                        <span class="label">Long</span>
+                        <span class="value">${state.long_qty?.toFixed(6) || '0'}</span>
+                    </div>
+                    <div class="delta-row">
+                        <span class="label">Short</span>
+                        <span class="value">${state.short_qty?.toFixed(6) || '0'}</span>
+                    </div>
+                    <div class="delta-row">
+                        <span class="label">Net Delta</span>
+                        <span class="value ${deltaClass}">${netDelta.toFixed(6)}</span>
+                    </div>
+                    <div class="delta-row">
+                        <span class="label">Drift</span>
+                        <span class="value">${formatPercent(state.drift_pct || 0)}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    container.innerHTML = html || '<p class="no-data">No hedgeable assets</p>';
+}
+
+// Update portfolio summary
+function updatePortfolio(portfolio) {
+    if (!portfolio) return;
+
+    document.getElementById('total-capital').textContent = formatKRW(portfolio.total_capital_krw);
+    document.getElementById('total-value').textContent = formatKRW(portfolio.total_value_krw);
+    document.getElementById('exposure-pct').textContent = `${(portfolio.exposure_pct || 0).toFixed(1)}%`;
+
+    const pnlEl = document.getElementById('unrealized-pnl');
+    const pnl = portfolio.unrealized_pnl || 0;
+    pnlEl.textContent = formatKRW(pnl);
+    pnlEl.className = `value ${pnl >= 0 ? 'positive' : 'negative'}`;
 }
 
 // Update status display
 function updateStatus(data) {
+    if (data.error) {
+        console.error('Status error:', data.error);
+        return;
+    }
+
     document.getElementById('last-update-time').textContent = formatTime(data.timestamp);
+    document.getElementById('engine-mode').textContent = (data.mode || 'paper').toUpperCase();
+    document.getElementById('iteration-count').textContent = data.iteration_count || 0;
 
-    // Market Regime
-    const market = data.market || {};
-    updateMarketRegime(market.regime, market.market_state);
+    // Update portfolio
+    updatePortfolio(data.portfolio);
 
-    // Upbit
-    const upbit = data.upbit || {};
-    const upbitEnabled = upbit.enabled;
-    document.getElementById('upbit-status').textContent = upbitEnabled ? 'Active' : 'Inactive';
-    document.getElementById('upbit-status').className = `status-badge ${upbitEnabled ? 'enabled' : 'disabled'}`;
-    document.getElementById('upbit-strategy').textContent = upbit.strategy || '-';
+    // Render asset cards
+    renderAssetCards(data.assets);
 
-    const upbitPos = upbit.position;
-    if (upbitPos && upbitPos.btc_balance > 0) {
-        document.getElementById('upbit-position').textContent = `${upbitPos.btc_balance.toFixed(6)} BTC`;
-    } else {
-        document.getElementById('upbit-position').textContent = 'No position';
-    }
-
-    const upbitStats = upbit.statistics || {};
-    // Use current_cash from response root level if available
-    const upbitCash = upbit.current_cash || upbitStats.current_cash;
-    document.getElementById('upbit-cash').textContent = formatKRW(upbitCash);
-    const upbitReturnEl = document.getElementById('upbit-return');
-    upbitReturnEl.textContent = formatPercent(upbitStats.return_pct);
-    upbitReturnEl.className = 'stat-value ' + ((upbitStats.return_pct >= 0) ? 'positive' : 'negative');
-
-    // Update per-strategy info
-    updateStrategiesInfo(upbit.strategies);
-
-    // Update last signal
-    renderLastSignal(upbit.last_signal, 'upbit-last-signal');
-
-    // Binance
-    const binance = data.binance || {};
-    const binanceEnabled = binance.enabled;
-    document.getElementById('binance-status').textContent = binanceEnabled ? 'Active' : 'Inactive';
-    document.getElementById('binance-status').className = `status-badge ${binanceEnabled ? 'enabled' : 'disabled'}`;
-    document.getElementById('binance-strategy').textContent = binance.strategy || '-';
-
-    const binancePos = binance.position;
-    if (binancePos && binancePos.size > 0) {
-        document.getElementById('binance-position').textContent = `${binancePos.size.toFixed(4)} BTC`;
-        document.getElementById('binance-entry').textContent = formatUSD(binancePos.entry_price);
-    } else {
-        document.getElementById('binance-position').textContent = 'No position';
-        document.getElementById('binance-entry').textContent = '-';
-    }
-
-    const binanceStats = binance.statistics || {};
-    const binanceCash = binance.current_cash || binanceStats.current_cash;
-    document.getElementById('binance-cash').textContent = formatUSD(binanceCash);
-    const binanceReturnEl = document.getElementById('binance-return');
-    binanceReturnEl.textContent = formatPercent(binanceStats.return_pct);
-    binanceReturnEl.className = 'stat-value ' + ((binanceStats.return_pct >= 0) ? 'positive' : 'negative');
-
-    // Update last signal
-    renderLastSignal(binance.last_signal, 'binance-last-signal');
+    // Update hedge section
+    const hedge = data.hedge || {};
+    document.getElementById('hedge-symbols').textContent = (hedge.symbols || []).join(', ') || '-';
+    document.getElementById('hedge-capital').textContent = formatUSD(hedge.total_capital_usdt);
 }
 
 // Update kill switch status
@@ -247,77 +294,18 @@ function updateKillSwitch(data) {
     }
 }
 
-// Render signals list
-function renderSignals(signals, containerId) {
-    const container = document.getElementById(containerId);
-
-    if (!signals || signals.length === 0) {
-        container.innerHTML = '<p class="no-data">No signals yet</p>';
+// Update hedge info display
+function updateHedgeInfo(data) {
+    if (!data || data.error) {
         return;
     }
 
-    // Show last 10, newest first
-    const recentSignals = signals.slice(-10).reverse();
+    // Render premium cards
+    renderPremiumCards(data.premiums);
 
-    let html = '';
-    for (const sig of recentSignals) {
-        const actionClass = sig.action === 'buy' || sig.action === 'short' ? 'action-entry' :
-                           sig.action === 'sell' || sig.action === 'close' ? 'action-exit' : 'action-hold';
-
-        // Format indicators
-        let indicatorStr = '';
-        if (sig.indicators) {
-            const parts = [];
-            if (sig.indicators.rsi !== undefined) parts.push(`RSI:${sig.indicators.rsi}`);
-            if (sig.indicators.mfi !== undefined) parts.push(`MFI:${sig.indicators.mfi}`);
-            if (sig.indicators.adx !== undefined) parts.push(`ADX:${sig.indicators.adx}`);
-            if (sig.indicators.stoch_k !== undefined) parts.push(`K:${sig.indicators.stoch_k}`);
-            indicatorStr = parts.join(' ');
-        }
-
-        html += `
-            <div class="signal-item">
-                <div class="signal-header">
-                    <span class="signal-time">${formatTime(sig.timestamp)}</span>
-                    <span class="signal-strategy">${sig.strategy || '-'}</span>
-                    <span class="signal-action ${actionClass}">${(sig.action || 'hold').toUpperCase()}</span>
-                </div>
-                <div class="signal-details">
-                    <span class="signal-reason">${sig.reason || '-'}</span>
-                    ${indicatorStr ? `<span class="signal-indicators">${indicatorStr}</span>` : ''}
-                </div>
-            </div>
-        `;
-    }
-    container.innerHTML = html;
-}
-
-// Render trades list
-function renderTrades(trades, containerId) {
-    const container = document.getElementById(containerId);
-
-    if (!trades || trades.length === 0) {
-        container.innerHTML = '<p class="no-data">No trades yet</p>';
-        return;
-    }
-
-    // Show last 10, newest first
-    const recentTrades = trades.slice(-10).reverse();
-
-    let html = '';
-    for (const trade of recentTrades) {
-        const action = (trade.type || trade.action || '').toLowerCase();
-        const actionClass = action.includes('buy') || action.includes('open') ? 'action-entry' : 'action-exit';
-
-        html += `
-            <div class="trade-item">
-                <span class="trade-time">${formatDateTime(trade.timestamp)}</span>
-                <span class="trade-action ${actionClass}">${action.toUpperCase()}</span>
-                <span class="trade-price">${trade.price ? (trade.price > 1000 ? formatKRW(trade.price) : formatUSD(trade.price)) : '-'}</span>
-            </div>
-        `;
-    }
-    container.innerHTML = html;
+    // Render delta grid
+    const hedgeSymbols = data.hedge?.symbols || [];
+    renderDeltaGrid(data.delta?.states, hedgeSymbols);
 }
 
 // Fetch and update status
@@ -344,113 +332,6 @@ async function fetchKillSwitch() {
     }
 }
 
-// Fetch signals for an exchange
-async function fetchSignals(exchange) {
-    try {
-        const response = await fetch(`/api/signals/${exchange}`, { credentials: 'include' });
-        if (response.ok) {
-            const data = await response.json();
-            renderSignals(data.signals, `${exchange}-signals`);
-        } else {
-            renderSignals([], `${exchange}-signals`);
-        }
-    } catch (err) {
-        console.error(`Signals fetch error (${exchange}):`, err);
-        renderSignals([], `${exchange}-signals`);
-    }
-}
-
-// Fetch trades for an exchange
-async function fetchTrades(exchange) {
-    try {
-        const response = await fetch(`/api/trades/${exchange}`, { credentials: 'include' });
-        if (response.ok) {
-            const data = await response.json();
-            renderTrades(data.trades, `${exchange}-trades`);
-        } else {
-            renderTrades([], `${exchange}-trades`);
-        }
-    } catch (err) {
-        console.error(`Trades fetch error (${exchange}):`, err);
-        renderTrades([], `${exchange}-trades`);
-    }
-}
-
-// Update hedge info display
-function updateHedgeInfo(data) {
-    if (!data || data.error) {
-        return;
-    }
-
-    // Kimchi Premium
-    const premium = data.kimchi_premium || {};
-    const premiumStats = data.premium_stats || {};
-
-    const premiumPct = premium.premium_pct || 0;
-    const premiumEl = document.getElementById('premium-value');
-    if (premiumEl) {
-        premiumEl.textContent = `${premiumPct >= 0 ? '+' : ''}${premiumPct.toFixed(2)}%`;
-        premiumEl.className = `premium-value ${premiumPct >= 0 ? 'positive' : 'negative'}`;
-    }
-
-    // Trend indicator
-    const trendEl = document.getElementById('premium-trend');
-    if (trendEl) {
-        const volatility = premiumStats.volatility_state || 'normal';
-        const trend = premiumStats.trend || 'stable';
-        const volEmoji = volatility === 'high' ? '🔴' : volatility === 'elevated' ? '🟡' : '🟢';
-        const trendEmoji = trend === 'rising' ? '📈' : trend === 'falling' ? '📉' : '➡️';
-        trendEl.textContent = `${volEmoji} ${trendEmoji}`;
-    }
-
-    // Premium stats
-    const meanEl = document.getElementById('premium-mean');
-    if (meanEl) meanEl.textContent = `${(premiumStats.mean_24h || 0).toFixed(2)}%`;
-
-    const stdEl = document.getElementById('premium-std');
-    if (stdEl) stdEl.textContent = `±${(premiumStats.std_24h || 0).toFixed(2)}%`;
-
-    const volEl = document.getElementById('premium-volatility');
-    if (volEl) volEl.textContent = premiumStats.volatility_state || 'normal';
-
-    // Price comparison
-    const upbitUsdEl = document.getElementById('upbit-usd-price');
-    if (upbitUsdEl) upbitUsdEl.textContent = (premium.upbit_usd || 0).toLocaleString();
-
-    const binanceUsdEl = document.getElementById('binance-usd-price');
-    if (binanceUsdEl) binanceUsdEl.textContent = (premium.binance_usd || 0).toLocaleString();
-
-    // Hedge Ratio
-    const hedge = data.hedge_ratio || {};
-    const currentRatio = (hedge.hedge_ratio || 0) * 100;
-    const targetRatio = (hedge.adjusted_target || hedge.target || 0.5) * 100;
-
-    // Update bar
-    const barEl = document.getElementById('ratio-bar');
-    if (barEl) barEl.style.width = `${Math.min(currentRatio, 100)}%`;
-
-    // Update target marker
-    const markerEl = document.getElementById('ratio-target-marker');
-    if (markerEl) markerEl.style.left = `${targetRatio}%`;
-
-    // Update labels
-    const currentEl = document.getElementById('ratio-current');
-    if (currentEl) currentEl.textContent = `${currentRatio.toFixed(1)}%`;
-
-    const targetEl = document.getElementById('ratio-target');
-    if (targetEl) targetEl.textContent = `Target: ${targetRatio.toFixed(0)}%`;
-
-    // Exposure stats
-    const longEl = document.getElementById('long-exposure');
-    if (longEl) longEl.textContent = formatKRW(hedge.long_exposure_krw || 0);
-
-    const shortEl = document.getElementById('short-exposure');
-    if (shortEl) shortEl.textContent = formatKRW(hedge.short_exposure_krw || 0);
-
-    const adjEl = document.getElementById('hedge-adjustment');
-    if (adjEl) adjEl.textContent = hedge.adjustment_reason || 'normal';
-}
-
 // Fetch hedge info
 async function fetchHedgeInfo() {
     try {
@@ -469,10 +350,6 @@ async function fetchAll() {
         fetchStatus(),
         fetchKillSwitch(),
         fetchHedgeInfo(),
-        fetchSignals('upbit'),
-        fetchSignals('binance'),
-        fetchTrades('upbit'),
-        fetchTrades('binance')
     ]);
 }
 
@@ -484,4 +361,4 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(fetchAll, REFRESH_INTERVAL);
 });
 
-console.log('Dashboard initialized');
+console.log('Multi-Asset Dashboard initialized');

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Bitcoin Trading Bot Dashboard (Flask)
+# Multi-Asset Trading Bot Dashboard (Flask)
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
@@ -8,20 +8,16 @@ cd "$SCRIPT_DIR"
 export DASHBOARD_SECRET_PATH="${DASHBOARD_SECRET_PATH:-btc-dashboard}"
 
 # Kill existing dashboard
-ps aux | grep "[a]pp.py" | awk '{print $2}' | xargs -r kill 2>/dev/null
+ps aux | grep "[w]eb/app.py" | awk '{print $2}' | xargs -r kill 2>/dev/null
 sleep 1
 
-# Start Flask dashboard on port 8081
+# Start Flask dashboard on port 5080
 echo "Starting dashboard..."
 mkdir -p logs
 cd web
-if [ -f "../.venv/bin/python" ]; then
-    nohup ../.venv/bin/python app.py > ../logs/dashboard.log 2>&1 &
-else
-    nohup python app.py > ../logs/dashboard.log 2>&1 &
-fi
+nohup python3 app.py > ../logs/dashboard.log 2>&1 &
 sleep 3
 
 echo ""
-echo "Dashboard URL: http://localhost:8081/$DASHBOARD_SECRET_PATH"
+echo "Dashboard URL: http://localhost:5080/$DASHBOARD_SECRET_PATH"
 echo "Logs: tail -f logs/dashboard.log"

@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Trading Bot - Live Dashboard</title>
+    <title>Multi-Asset Trading Bot - Live Dashboard</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Bitcoin Trading Bot</h1>
+            <h1>Multi-Asset Trading Bot</h1>
             <div class="header-info">
+                <span class="engine-mode" id="engine-mode">-</span>
                 <span class="last-update">Last update: <span id="last-update-time">-</span></span>
                 <span class="kill-switch">
                     <span id="kill-switch-indicator" class="indicator off"></span>
@@ -19,201 +20,67 @@
             </div>
         </header>
 
-        <!-- Market Regime Section -->
-        <section class="regime-section">
-            <div class="regime-display">
-                <span id="market-regime-icon" class="regime-icon">-</span>
-                <div class="regime-info">
-                    <span id="market-regime-label" class="regime-label">Loading...</span>
-                    <span id="market-state-detail" class="market-state-detail">-</span>
+        <!-- Portfolio Summary Section -->
+        <section class="portfolio-section">
+            <div class="portfolio-summary">
+                <div class="portfolio-stat">
+                    <span class="label">Total Capital</span>
+                    <span id="total-capital" class="value">-</span>
+                </div>
+                <div class="portfolio-stat">
+                    <span class="label">Total Value</span>
+                    <span id="total-value" class="value">-</span>
+                </div>
+                <div class="portfolio-stat">
+                    <span class="label">Exposure</span>
+                    <span id="exposure-pct" class="value">-</span>
+                </div>
+                <div class="portfolio-stat">
+                    <span class="label">Unrealized P&L</span>
+                    <span id="unrealized-pnl" class="value">-</span>
+                </div>
+                <div class="portfolio-stat">
+                    <span class="label">Iterations</span>
+                    <span id="iteration-count" class="value">-</span>
                 </div>
             </div>
         </section>
 
-        <!-- Kimchi Premium & Hedge Ratio Section -->
+        <!-- Assets Grid -->
+        <section class="assets-section">
+            <h2>Assets</h2>
+            <div id="assets-grid" class="assets-grid">
+                <!-- Asset cards will be dynamically generated here -->
+                <p class="loading">Loading assets...</p>
+            </div>
+        </section>
+
+        <!-- Premium Overview Section -->
+        <section class="premium-section">
+            <h2>Kimchi Premium</h2>
+            <div id="premium-grid" class="premium-grid">
+                <!-- Premium cards will be dynamically generated here -->
+                <p class="loading">Loading premium data...</p>
+            </div>
+        </section>
+
+        <!-- Hedge Status Section -->
         <section class="hedge-section">
-            <div class="hedge-grid">
-                <!-- Kimchi Premium Card -->
-                <div class="hedge-card premium-card">
-                    <h3>Kimchi Premium</h3>
-                    <div class="premium-display">
-                        <span id="premium-value" class="premium-value">-</span>
-                        <span id="premium-trend" class="premium-trend">-</span>
-                    </div>
-                    <div class="premium-stats">
-                        <div class="stat-item">
-                            <span class="label">24h Mean</span>
-                            <span id="premium-mean" class="value">-</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">24h Std</span>
-                            <span id="premium-std" class="value">-</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">Volatility</span>
-                            <span id="premium-volatility" class="value">-</span>
-                        </div>
-                    </div>
-                    <div class="price-comparison">
-                        <span>Upbit: $<span id="upbit-usd-price">-</span></span>
-                        <span>Binance: $<span id="binance-usd-price">-</span></span>
-                    </div>
+            <h2>Hedge Status</h2>
+            <div class="hedge-summary">
+                <div class="hedge-stat">
+                    <span class="label">Hedgeable Assets</span>
+                    <span id="hedge-symbols" class="value">-</span>
                 </div>
-
-                <!-- Hedge Ratio Card -->
-                <div class="hedge-card ratio-card">
-                    <h3>Hedge Ratio</h3>
-                    <div class="ratio-display">
-                        <div class="ratio-bar-container">
-                            <div id="ratio-bar" class="ratio-bar" style="width: 0%"></div>
-                            <div id="ratio-target-marker" class="ratio-target-marker" style="left: 50%"></div>
-                        </div>
-                        <div class="ratio-labels">
-                            <span id="ratio-current" class="ratio-current">0%</span>
-                            <span id="ratio-target" class="ratio-target">Target: 50%</span>
-                        </div>
-                    </div>
-                    <div class="ratio-stats">
-                        <div class="stat-item">
-                            <span class="label">Long Exposure</span>
-                            <span id="long-exposure" class="value">-</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">Short Exposure</span>
-                            <span id="short-exposure" class="value">-</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="label">Adjustment</span>
-                            <span id="hedge-adjustment" class="value">-</span>
-                        </div>
-                    </div>
+                <div class="hedge-stat">
+                    <span class="label">Capital (USDT)</span>
+                    <span id="hedge-capital" class="value">-</span>
                 </div>
+            </div>
+            <div id="delta-grid" class="delta-grid">
+                <!-- Delta states will be dynamically generated here -->
             </div>
         </section>
-
-        <!-- Exchange Grid -->
-        <div class="exchange-grid">
-            <!-- Upbit Column -->
-            <div class="exchange-column">
-                <section class="exchange-card upbit">
-                    <div class="card-header">
-                        <h2>Upbit (Long)</h2>
-                        <span id="upbit-status" class="status-badge">-</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="info-row">
-                            <span class="label">Active</span>
-                            <span id="upbit-strategy" class="value">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Position</span>
-                            <span id="upbit-position" class="value">-</span>
-                        </div>
-                        <div class="stats-row">
-                            <div class="stat">
-                                <span class="stat-label">Cash</span>
-                                <span id="upbit-cash" class="stat-value">-</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Return</span>
-                                <span id="upbit-return" class="stat-value">-</span>
-                            </div>
-                        </div>
-                        <!-- Per-strategy allocation info -->
-                        <div class="strategies-info">
-                            <div class="strategy-row" id="upbit-v35-row">
-                                <span class="strategy-name">v35</span>
-                                <span class="strategy-ratio" id="upbit-v35-ratio">-</span>
-                                <span class="strategy-regimes" id="upbit-v35-regimes">-</span>
-                            </div>
-                            <div class="strategy-row" id="upbit-va02-row">
-                                <span class="strategy-name">va02</span>
-                                <span class="strategy-ratio" id="upbit-va02-ratio">-</span>
-                                <span class="strategy-regimes" id="upbit-va02-regimes">-</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Last Signal Card -->
-                <section class="last-signal-card upbit">
-                    <h3>Last Signal</h3>
-                    <div id="upbit-last-signal" class="last-signal-content">
-                        <p class="loading">Loading...</p>
-                    </div>
-                </section>
-
-                <section class="signals-section">
-                    <h3>Recent Signals</h3>
-                    <div id="upbit-signals" class="signals-list">
-                        <p class="loading">Loading...</p>
-                    </div>
-                </section>
-
-                <section class="trades-section">
-                    <h3>Trade History</h3>
-                    <div id="upbit-trades" class="trades-list">
-                        <p class="loading">Loading...</p>
-                    </div>
-                </section>
-            </div>
-
-            <!-- Binance Column -->
-            <div class="exchange-column">
-                <section class="exchange-card binance">
-                    <div class="card-header">
-                        <h2>Binance (Short)</h2>
-                        <span id="binance-status" class="status-badge">-</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="info-row">
-                            <span class="label">Strategy</span>
-                            <span id="binance-strategy" class="value">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Position</span>
-                            <span id="binance-position" class="value">-</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Entry Price</span>
-                            <span id="binance-entry" class="value">-</span>
-                        </div>
-                        <div class="stats-row">
-                            <div class="stat">
-                                <span class="stat-label">Cash</span>
-                                <span id="binance-cash" class="stat-value">-</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Return</span>
-                                <span id="binance-return" class="stat-value">-</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Last Signal Card -->
-                <section class="last-signal-card binance">
-                    <h3>Last Signal</h3>
-                    <div id="binance-last-signal" class="last-signal-content">
-                        <p class="loading">Loading...</p>
-                    </div>
-                </section>
-
-                <section class="signals-section">
-                    <h3>Recent Signals</h3>
-                    <div id="binance-signals" class="signals-list">
-                        <p class="loading">Loading...</p>
-                    </div>
-                </section>
-
-                <section class="trades-section">
-                    <h3>Trade History</h3>
-                    <div id="binance-trades" class="trades-list">
-                        <p class="loading">Loading...</p>
-                    </div>
-                </section>
-            </div>
-        </div>
 
         <footer>
             <p>Auto-refresh every 30 seconds</p>

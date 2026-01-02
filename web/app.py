@@ -183,6 +183,30 @@ def load_trading_log(exchange: str):
     return None
 
 
+def load_multi_asset_status() -> dict:
+    """Load multi-asset engine status."""
+    status_file = LOG_DIR / "multi_asset_engine_status.json"
+    if status_file.exists():
+        try:
+            with open(status_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Multi-asset status load failed: {e}")
+    return None
+
+
+def load_premium_history(symbol: str) -> dict:
+    """Load premium history for a symbol."""
+    history_file = LOG_DIR / f"premium_history_{symbol}.json"
+    if history_file.exists():
+        try:
+            with open(history_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Premium history load failed ({symbol}): {e}")
+    return None
+
+
 def _require_admin_token() -> bool:
     """Very small guard for mutating endpoints."""
     token = os.getenv("WEB_ADMIN_TOKEN")
@@ -220,14 +244,15 @@ def _send_telegram_notification(message: str) -> bool:
         return False
 
 
-def _notify_dashboard_url(port: int = 8080):
+def _notify_dashboard_url(port: int = 5080):
     """대시보드 URL을 텔레그램으로 알림"""
     current_code = get_current_totp()
+    domain = os.getenv("DASHBOARD_DOMAIN", "lchsvr.duckdns.org")
 
     message = f"""
 🖥️ *대시보드 시작*
 
-🔗 접속 경로: `/{DASHBOARD_PATH}`
+🔗 접속: `https://{domain}/{DASHBOARD_PATH}`
 🔐 현재 TOTP: `{current_code}`
 🕐 시작 시간: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`
 
@@ -259,88 +284,70 @@ def dashboard():
 
 @app.route("/api/status")
 def get_status():
-    """현재 상태 API"""
+    """현재 상태 API - Multi-asset support"""
 
-    upbit_log = load_trading_log('upbit')
-    binance_log = load_trading_log('binance')
+    # Load multi-asset engine status
+    ma_status = load_multi_asset_status()
     allocation = load_allocation_config()
 
-    # Extract last signal for each exchange
-    upbit_signals = upbit_log.get('signals', []) if upbit_log else []
-    binance_signals = binance_log.get('signals', []) if binance_log else []
-    upbit_last_signal = upbit_signals[-1] if upbit_signals else None
-    binance_last_signal = binance_signals[-1] if binance_signals else None
+    if not ma_status:
+        return jsonify({'error': 'No engine status available'}), 404
 
-    # Build per-strategy info for Upbit (from log file, fallback to allocation config)
-    upbit_alloc = allocation.get('upbit', {})
-    log_strategies = upbit_log.get('strategies', {}) if upbit_log else {}
+    # Build response
+    assets_data = ma_status.get('assets', {})
+    portfolio = ma_status.get('portfolio', {})
+    hedge = ma_status.get('hedge', {})
+    delta = ma_status.get('delta', {})
 
-    upbit_strategies = {}
-    for strat_name in ['v35', 'va02']:
-        strat_config = upbit_alloc.get(strat_name, {})
-        log_strat = log_strategies.get(strat_name, {})
+    # Build per-asset response
+    assets = {}
+    for symbol, data in assets_data.items():
+        asset_config = allocation.get('assets', {}).get(symbol, {})
+        portfolio_asset = portfolio.get('assets', {}).get(symbol, {})
+        hedge_stats = hedge.get('statistics', {}).get(symbol, {})
+        delta_state = delta.get('states', {}).get(symbol, {})
 
-        upbit_strategies[strat_name] = {
-            'enabled': strat_config.get('enabled', False),
-            'ratio': strat_config.get('ratio', 0),
-            'regimes': strat_config.get('regimes', []),
-            # Per-strategy position data from engine
-            'active': log_strat.get('active', False),
-            'btc': log_strat.get('btc', 0.0),
-            'entry_price': log_strat.get('entry_price', 0.0),
-            'cash': log_strat.get('cash', 0.0),
-            'value': log_strat.get('value', 0.0),
+        assets[symbol] = {
+            'enabled': asset_config.get('enabled', False),
+            'regime': data.get('regime', 'UNKNOWN'),
+            'upbit_price': data.get('upbit_price', 0),
+            'binance_price': data.get('binance_price', 0),
+            'premium_pct': data.get('premium_pct', 0),
+            'position_active': data.get('position_active', False),
+            'position_qty': data.get('position_qty', 0),
+            # Portfolio allocation
+            'alpha_ratio': asset_config.get('alpha_ratio', 0),
+            'allocated_krw': portfolio_asset.get('allocated_krw', 0),
+            'position_value_krw': portfolio_asset.get('position_value_krw', 0),
+            # Hedge info
+            'hedge_enabled': asset_config.get('hedge_enabled', False),
+            'long_qty': delta_state.get('long_qty', 0),
+            'short_qty': delta_state.get('short_qty', 0),
+            'net_delta': delta_state.get('net_delta', 0),
+            # Strategy config
+            'strategies': asset_config.get('strategies', {}),
         }
 
-    # 상태 구성
     status = {
-        'timestamp': datetime.now().isoformat(),
-        'market': {
-            'regime': upbit_log.get('regime') if upbit_log else None,
-            'market_state': upbit_log.get('market_state') if upbit_log else None,
+        'timestamp': ma_status.get('timestamp', datetime.now().isoformat()),
+        'mode': ma_status.get('mode', 'paper'),
+        'engine': ma_status.get('engine', 'multi-asset'),
+        'iteration_count': ma_status.get('iteration_count', 0),
+        'signal_count': ma_status.get('signal_count', 0),
+        'assets': assets,
+        'portfolio': {
+            'total_capital_krw': portfolio.get('total_capital_krw', 0),
+            'total_value_krw': portfolio.get('total_value_krw', 0),
+            'cash_krw': portfolio.get('cash_krw', 0),
+            'exposure_pct': portfolio.get('exposure_pct', 0),
+            'unrealized_pnl': portfolio.get('total_unrealized_pnl', 0),
         },
-        'upbit': {
-            'enabled': upbit_log is not None,
-            'exchange': 'upbit',
-            'strategy': upbit_log.get('strategy', 'none') if upbit_log else '-',
-            'regime': upbit_log.get('regime', '-') if upbit_log else '-',
-            'market_state': upbit_log.get('market_state', '-') if upbit_log else '-',
-            'position': None,
-            'statistics': None,
-            'strategies': upbit_strategies,
-            'last_signal': upbit_last_signal,
+        'hedge': {
+            'symbols': hedge.get('symbols', []),
+            'total_capital_usdt': hedge.get('total_capital', 0),
+            'positions': hedge.get('positions', {}),
         },
-        'binance': {
-            'enabled': binance_log is not None,
-            'exchange': 'binance',
-            'strategy': binance_log.get('strategy', 'none') if binance_log else '-',
-            'position': None,
-            'statistics': None,
-            'last_signal': binance_last_signal,
-        }
     }
-
-    if upbit_log:
-        status['upbit']['statistics'] = upbit_log.get('statistics', {})
-        status['upbit']['current_cash'] = upbit_log.get('current_cash', 0)
-        status['upbit']['total_value'] = upbit_log.get('total_value', 0)
-        btc_balance = upbit_log.get('btc_balance', 0) or 0
-        if btc_balance > 0:
-            status['upbit']['position'] = {
-                'btc_balance': btc_balance,
-                'cash_balance': upbit_log.get('current_cash', 0)
-            }
-
-    if binance_log:
-        status['binance']['statistics'] = binance_log.get('statistics', {})
-        status['binance']['current_cash'] = binance_log.get('current_cash', 0)
-        position_size = binance_log.get('position_size', 0) or 0
-        if position_size > 0:
-            status['binance']['position'] = {
-                'size': position_size,
-                'entry_price': binance_log.get('entry_price', 0),
-                'leverage': binance_log.get('leverage', 1)
-            }
 
     return jsonify(status)
 
@@ -447,25 +454,59 @@ def get_statistics():
 
 @app.route("/api/hedge")
 def get_hedge_info():
-    """Kimchi Premium and Hedge Ratio API"""
-    combined_log = LOG_DIR / "v2_engine_combined.json"
+    """Kimchi Premium and Hedge Ratio API - Multi-asset support"""
+    ma_status = load_multi_asset_status()
+    allocation = load_allocation_config()
 
-    if not combined_log.exists():
+    if not ma_status:
         return jsonify({'error': 'No hedge data available'}), 404
 
     try:
-        with open(combined_log, 'r') as f:
-            data = json.load(f)
+        assets_data = ma_status.get('assets', {})
+        hedge = ma_status.get('hedge', {})
+        delta = ma_status.get('delta', {})
+
+        # Build per-asset premium data
+        premiums = {}
+        for symbol, data in assets_data.items():
+            # Load premium history for stats
+            history = load_premium_history(symbol)
+            premium_stats = {}
+            if history and 'history' in history:
+                recent = history['history'][-24:]  # Last 24 entries (hourly)
+                if recent:
+                    pct_values = [h.get('premium_pct', 0) for h in recent]
+                    import statistics
+                    premium_stats = {
+                        'mean_24h': statistics.mean(pct_values) if pct_values else 0,
+                        'std_24h': statistics.stdev(pct_values) if len(pct_values) > 1 else 0,
+                        'volatility_state': 'high' if len(pct_values) > 1 and statistics.stdev(pct_values) > 1.5 else 'normal',
+                    }
+
+            premiums[symbol] = {
+                'premium_pct': data.get('premium_pct', 0),
+                'upbit_price': data.get('upbit_price', 0),
+                'binance_price': data.get('binance_price', 0),
+                'regime': data.get('regime', 'UNKNOWN'),
+                'stats': premium_stats,
+            }
+
+        # Build hedge/delta info
+        delta_states = delta.get('states', {})
+        hedge_symbols = hedge.get('symbols', [])
 
         return jsonify({
-            'generated_at': data.get('generated_at'),
-            'mode': data.get('mode'),
-            'regime': data.get('regime'),
-            'market_state': data.get('market_state'),
-            'kimchi_premium': data.get('kimchi_premium', {}),
-            'premium_stats': data.get('premium_stats', {}),
-            'hedge_ratio': data.get('hedge_ratio', {}),
-            'prices': data.get('prices', {}),
+            'generated_at': ma_status.get('timestamp'),
+            'mode': ma_status.get('mode'),
+            'premiums': premiums,
+            'hedge': {
+                'symbols': hedge_symbols,
+                'total_capital_usdt': hedge.get('total_capital', 0),
+                'positions': hedge.get('positions', {}),
+            },
+            'delta': {
+                'states': delta_states,
+            },
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -473,11 +514,11 @@ def get_hedge_info():
 
 if __name__ == "__main__":
     print(f"\n{'='*50}")
-    print(f"Dashboard available at: http://localhost:8081/{DASHBOARD_PATH}")
+    print(f"Dashboard available at: http://localhost:5080/{DASHBOARD_PATH}")
     print(f"TOTP authentication required (use /dashboard command in Telegram)")
     print(f"{'='*50}\n")
 
     # 텔레그램으로 대시보드 URL 알림
-    _notify_dashboard_url(port=8081)
+    _notify_dashboard_url(port=5080)
 
-    app.run(host="0.0.0.0", port=8081, debug=False)
+    app.run(host="0.0.0.0", port=5080, debug=False)

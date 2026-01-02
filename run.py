@@ -206,9 +206,37 @@ async def main(args):
 
             cmd_handler.register_command("info", handle_info)
 
+            # Register /dashboard command
+            def handle_dashboard(cmd_args: str):
+                import os
+                try:
+                    import pyotp
+                except ImportError:
+                    engine._telegram.send_message("pyotp not installed. Run: pip install pyotp")
+                    return
+
+                totp_secret = os.getenv("DASHBOARD_TOTP_SECRET")
+                if not totp_secret:
+                    engine._telegram.send_message("DASHBOARD_TOTP_SECRET not configured in .env")
+                    return
+
+                totp = pyotp.TOTP(totp_secret, interval=30)
+                current_code = totp.now()
+
+                msg = f"""*Dashboard Access*
+
+URL: `/btc-dashboard`
+TOTP Code: `{current_code}`
+Valid for: ~30 seconds
+
+_Code expired? Run /dashboard again._"""
+                engine._telegram.send_message(msg)
+
+            cmd_handler.register_command("dashboard", handle_dashboard)
+
             # Start polling
             cmd_handler.start_polling()
-            print("✅ Telegram commands enabled: /info")
+            print("✅ Telegram commands enabled: /info /dashboard")
 
         except Exception as e:
             print(f"⚠️  Telegram commands setup failed: {e}")

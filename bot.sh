@@ -69,8 +69,15 @@ start() {
     echo "   Premium: $PREMIUM_MODE"
     echo "   로그: $LOG_FILE"
 
-    # 환경 설정
-    source "$SCRIPT_DIR/.venv/bin/activate" 2>/dev/null || source "$SCRIPT_DIR/venv/bin/activate" 2>/dev/null
+    # Find venv python
+    if [ -f "$SCRIPT_DIR/.venv/bin/python3" ]; then
+        PYTHON_BIN="$SCRIPT_DIR/.venv/bin/python3"
+    elif [ -f "$SCRIPT_DIR/venv/bin/python3" ]; then
+        PYTHON_BIN="$SCRIPT_DIR/venv/bin/python3"
+    else
+        PYTHON_BIN="python3"
+        echo "   ⚠️  venv not found, using system python"
+    fi
 
     # Live 모드 환경변수 (Trend 또는 Premium 중 하나라도 live면 설정)
     if [ "$TREND_MODE" = "live" ] || [ "$PREMIUM_MODE" = "live" ]; then
@@ -84,7 +91,7 @@ start() {
     fi
 
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
-    nohup python -u run.py --trend "$TREND_MODE" --premium "$PREMIUM_MODE" --telegram-commands >> "$LOG_FILE" 2>&1 &
+    nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" --premium "$PREMIUM_MODE" --telegram-commands >> "$LOG_FILE" 2>&1 &
 
     PID=$!
     echo $PID > "$PID_FILE"

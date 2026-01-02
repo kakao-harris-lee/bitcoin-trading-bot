@@ -61,6 +61,11 @@ def main():
     df = load_data(db_path, args.timeframe, args.start_date, args.end_date)
     print(f"Loaded {len(df):,} candles")
 
+    # Validate data
+    if df.empty:
+        print("ERROR: No data found for the specified date range.")
+        sys.exit(1)
+
     # Initialize strategy adapter
     strategy = V35LongAdapter()
 
@@ -72,14 +77,14 @@ def main():
     )
     results = bt.run(df, strategy, {})
 
-    # Compute metrics
-    metrics = compute_metrics(results.get("equity_curve", None))
+    # Compute metrics with correct timeframe
+    metrics = compute_metrics(results.get("equity_curve"), args.timeframe)
 
     # Print results
     print_summary("V35 Long", results, metrics, verbose=args.verbose)
 
     if args.by_year:
-        print_yearly_table(results.get("equity_curve", None))
+        print_yearly_table(results.get("equity_curve"))
 
 
 if __name__ == "__main__":

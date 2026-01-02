@@ -49,7 +49,7 @@
       "params_override": {}
     },
     "XRP": {
-      "enabled": true,
+      "enabled": false,
       "alpha_ratio": 0.1,
       "hedge_enabled": false,
       "upbit_symbol": "KRW-XRP",
@@ -64,7 +64,7 @@
         "v35_xrp": "config/strategies/v35_xrp.json"
       },
       "params_override": {},
-      "_note": "XRP V35 shows poor OOS results (-5.9% return, 35% win rate). Consider disabling or using different strategy."
+      "_note": "XRP V35 disabled: improved win rate (35%→59%) but still -5.35% OOS return. V35 strategy unsuitable for XRP."
     }
   },
   "hedge": {

@@ -37,65 +37,95 @@ def format_info_message(engine) -> str:
 
     # Basic info
     mode = stats.get("execution_mode", "unknown").upper()
-    running = "Running" if stats.get("running") else "Stopped"
-    iterations = stats.get("iteration_count", 0)
-    signals = stats.get("signal_count", 0)
+    running = "🟢 Running" if stats.get("running") else "🔴 Stopped"
 
-    # Price info
+    # Uptime
+    started_at = stats.get("started_at")
+    if started_at:
+        from datetime import datetime
+        start = datetime.fromisoformat(started_at)
+        uptime = datetime.now() - start
+        hours, remainder = divmod(int(uptime.total_seconds()), 3600)
+        minutes, _ = divmod(remainder, 60)
+        uptime_str = f"{hours}h {minutes}m"
+    else:
+        uptime_str = "N/A"
+
+    # Price info from price_hub.assets
     price_hub = stats.get("price_hub", {})
-    prices = price_hub.get("prices", {})
-
-    # Portfolio info
-    portfolio = stats.get("portfolio", {})
-    positions = portfolio.get("positions", {})
+    assets = price_hub.get("assets", {})
+    fx_rate = price_hub.get("fx_rate", 1450)
 
     # Regime info
     regimes = stats.get("regimes", {})
+
+    # Portfolio info
+    portfolio = stats.get("portfolio", {})
+    total_value = portfolio.get("total_value_krw", 0)
+    cash = portfolio.get("cash_krw", 0)
+    exposure_pct = portfolio.get("exposure_pct", 0)
 
     # Build message
     lines = [
         f"📊 *Trading Bot Status*",
         f"",
-        f"*Mode:* {mode} | *Status:* {running}",
-        f"*Iterations:* {iterations} | *Signals:* {signals}",
+        f"*Mode:* {mode} | {running}",
+        f"*Uptime:* {uptime_str} | *FX:* ₩{fx_rate:,.0f}/$",
         f"",
-        f"💰 *Current Prices:*",
+        f"💰 *Prices & Premium:*",
     ]
 
-    # Add prices
-    for symbol, data in prices.items():
-        if isinstance(data, dict) and "upbit" in data:
-            upbit_price = data.get("upbit", 0)
-            binance_price = data.get("binance", 0)
-            premium = data.get("premium_pct", 0)
-            lines.append(f"  {symbol}: ₩{upbit_price:,.0f} | ${binance_price:,.2f} (김프 {premium:.1f}%)")
+    # Add prices with regime
+    for symbol in assets:
+        data = assets.get(symbol, {})
+        upbit_krw = data.get("upbit_krw", 0)
+        binance_usd = data.get("binance_usd", 0)
+        premium = data.get("premium_pct", 0)
+        regime = regimes.get(symbol, "UNKNOWN")
 
-    lines.append("")
-    lines.append("📈 *Market Regimes:*")
-    for symbol, regime in regimes.items():
-        lines.append(f"  {symbol}: {regime}")
+        # Format price based on magnitude
+        if upbit_krw >= 1_000_000:
+            upbit_str = f"₩{upbit_krw/1_000_000:.1f}M"
+        else:
+            upbit_str = f"₩{upbit_krw:,.0f}"
 
+        lines.append(f"  *{symbol}* {upbit_str} (${binance_usd:,.0f})")
+        lines.append(f"    김프 {premium:+.2f}% | {regime}")
+
+    # Positions from alpha manager
     lines.append("")
     lines.append("💼 *Positions:*")
-    if positions:
-        for symbol, pos in positions.items():
-            if pos.get("quantity", 0) > 0:
-                qty = pos.get("quantity", 0)
-                entry = pos.get("entry_price", 0)
-                pnl = pos.get("unrealized_pnl_pct", 0)
-                lines.append(f"  {symbol}: {qty:.6f} @ ₩{entry:,.0f} ({pnl:+.2f}%)")
-    else:
-        lines.append("  No open positions")
+
+    has_position = False
+    for symbol in assets:
+        state = engine.alpha_manager.get_state(symbol)
+        if state and state.active and state.quantity > 0:
+            has_position = True
+            pnl_pct = ((state.current_price - state.entry_price) / state.entry_price * 100) if state.entry_price > 0 else 0
+            pnl_emoji = "📈" if pnl_pct >= 0 else "📉"
+            lines.append(f"  *{symbol}* {state.quantity:.6f}")
+            lines.append(f"    진입 ₩{state.entry_price:,.0f} → 현재 ₩{state.current_price:,.0f}")
+            lines.append(f"    {pnl_emoji} P&L: {pnl_pct:+.2f}%")
+
+    if not has_position:
+        lines.append("  포지션 없음")
+
+    # Portfolio summary
+    lines.append("")
+    lines.append("💵 *Portfolio:*")
+    lines.append(f"  총 자산: ₩{total_value:,.0f}")
+    lines.append(f"  현금: ₩{cash:,.0f} | 투자: {exposure_pct:.1f}%")
 
     # Alpha stats
     alpha = stats.get("alpha", {})
-    if alpha:
+    if alpha and alpha.get("total_trades", 0) > 0:
         total_trades = alpha.get("total_trades", 0)
         win_rate = alpha.get("win_rate", 0)
-        total_pnl = alpha.get("total_pnl_pct", 0)
+        total_pnl = alpha.get("total_pnl_krw", 0)
         lines.append("")
-        lines.append("📉 *Alpha Performance:*")
-        lines.append(f"  Trades: {total_trades} | Win Rate: {win_rate:.1f}% | P&L: {total_pnl:+.2f}%")
+        lines.append("📉 *Trading Stats:*")
+        lines.append(f"  거래: {total_trades}회 | 승률: {win_rate:.0f}%")
+        lines.append(f"  실현 P&L: ₩{total_pnl:+,.0f}")
 
     return "\n".join(lines)
 

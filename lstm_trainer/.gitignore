@@ -1,0 +1,10 @@
+# lstm_trainer/.gitignore
+__pycache__/
+*.pyc
+*.pth
+*.pt
+data/raw/
+data/processed/
+models/
+logs/
+.ipynb_checkpoints/

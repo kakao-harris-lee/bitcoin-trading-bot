@@ -5,9 +5,11 @@ Manages per-asset strategy evaluation and execution with concurrent processing.
 """
 
 import asyncio
+import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
 
 from core.types import AssetConfig, current_timestamp
@@ -15,6 +17,9 @@ from trading.execution.portfolio_manager import PortfolioManager
 from trading.core.multi_asset_data_cache import MultiAssetDataCache
 
 logger = logging.getLogger(__name__)
+
+# Default state file path
+DEFAULT_ALPHA_STATE_FILE = Path("logs/alpha_state.json")
 
 
 @dataclass
@@ -75,6 +80,7 @@ class MultiAssetAlphaManager:
         delta_rebalancer: Optional[Any] = None,
         telegram_notifier: Optional[Any] = None,
         execution_mode: str = "paper",
+        state_file: Optional[Path] = None,
     ):
         """
         Args:
@@ -84,6 +90,7 @@ class MultiAssetAlphaManager:
             delta_rebalancer: Optional DeltaRebalancer for hedge notifications
             telegram_notifier: Optional telegram notifier
             execution_mode: "paper" or "live"
+            state_file: Path to state persistence file
         """
         self._portfolio = portfolio
         self._config = config
@@ -91,6 +98,10 @@ class MultiAssetAlphaManager:
         self._delta_rebalancer = delta_rebalancer
         self._telegram = telegram_notifier
         self._execution_mode = execution_mode
+
+        # State persistence
+        self._state_file = state_file or DEFAULT_ALPHA_STATE_FILE
+        self._state_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Per-asset state
         self._states: Dict[str, AssetState] = {}
@@ -106,6 +117,7 @@ class MultiAssetAlphaManager:
         self._block_new_entries: bool = False
 
         self._init_states()
+        self._load_state()  # Load persisted state on startup
         logger.info(f"MultiAssetAlphaManager initialized for {len(self._states)} assets")
 
     @classmethod
@@ -128,6 +140,84 @@ class MultiAssetAlphaManager:
         """Initialize per-asset state."""
         for symbol in self._portfolio.get_symbols():
             self._states[symbol] = AssetState(symbol=symbol)
+
+    def _save_state(self) -> None:
+        """Persist current state to file."""
+        try:
+            state_data = {
+                "version": 1,
+                "saved_at": datetime.now().isoformat(),
+                "execution_mode": self._execution_mode,
+                "states": {},
+            }
+
+            for symbol, state in self._states.items():
+                state_data["states"][symbol] = {
+                    "active": state.active,
+                    "quantity": state.quantity,
+                    "entry_price": state.entry_price,
+                    "current_price": state.current_price,
+                    "strategy": state.strategy,
+                    "regime": state.regime,
+                }
+
+            # Write atomically (write to temp, then rename)
+            temp_file = self._state_file.with_suffix(".tmp")
+            temp_file.write_text(json.dumps(state_data, indent=2))
+            temp_file.rename(self._state_file)
+
+            logger.debug(f"State saved to {self._state_file}")
+
+        except Exception as e:
+            logger.error(f"Failed to save state: {e}")
+
+    def _load_state(self) -> None:
+        """Load persisted state from file."""
+        if not self._state_file.exists():
+            logger.info("No persisted state file found, starting fresh")
+            return
+
+        try:
+            state_data = json.loads(self._state_file.read_text())
+
+            # Version check
+            version = state_data.get("version", 0)
+            if version != 1:
+                logger.warning(f"Unknown state version {version}, ignoring")
+                return
+
+            saved_at = state_data.get("saved_at", "unknown")
+            saved_mode = state_data.get("execution_mode", "unknown")
+
+            logger.info(f"Loading state from {saved_at} (mode: {saved_mode})")
+
+            # Restore states
+            states = state_data.get("states", {})
+            restored_count = 0
+
+            for symbol, saved_state in states.items():
+                if symbol in self._states:
+                    state = self._states[symbol]
+                    state.active = saved_state.get("active", False)
+                    state.quantity = saved_state.get("quantity", 0.0)
+                    state.entry_price = saved_state.get("entry_price", 0.0)
+                    state.current_price = saved_state.get("current_price", 0.0)
+                    state.strategy = saved_state.get("strategy")
+                    state.regime = saved_state.get("regime", "UNKNOWN")
+
+                    if state.active:
+                        restored_count += 1
+                        logger.info(
+                            f"Restored {symbol}: {state.quantity:.6f} @ "
+                            f"{state.entry_price:,.0f} ({state.strategy})"
+                        )
+
+            logger.info(f"State loaded: {restored_count} active positions restored")
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid state file format: {e}")
+        except Exception as e:
+            logger.error(f"Failed to load state: {e}")
 
     def set_strategy(self, symbol: str, strategy: Any) -> None:
         """Set strategy instance for an asset."""
@@ -422,6 +512,9 @@ class MultiAssetAlphaManager:
             logger.info(msg)
             self._notify(msg)
 
+            # Persist state after successful trade
+            self._save_state()
+
             return trade
 
         except Exception as e:
@@ -491,6 +584,9 @@ class MultiAssetAlphaManager:
             msg = f"🔴 [{symbol}] SELL @ {actual_price:,.0f} | PnL: {pnl:+,.0f} ({pnl_pct:+.2f}%)"
             logger.info(msg)
             self._notify(msg)
+
+            # Persist state after successful trade
+            self._save_state()
 
             return trade
 

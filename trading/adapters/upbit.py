@@ -11,6 +11,8 @@ from typing import Optional, Dict, Any, Tuple
 import pyupbit
 from dotenv import load_dotenv
 
+from trading.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+
 # Explicitly load .env from project root
 _project_root = Path(__file__).parent.parent.parent
 load_dotenv(_project_root / '.env')
@@ -21,8 +23,20 @@ logger = logging.getLogger(__name__)
 class UpbitTrader:
     """업비트 거래 실행"""
 
-    def __init__(self):
-        """환경변수에서 업비트 API 키 로드"""
+    def __init__(
+        self,
+        ticker: str = "KRW-BTC",
+        circuit_breaker_threshold: int = 3,
+        circuit_breaker_timeout: float = 60.0,
+    ):
+        """
+        환경변수에서 업비트 API 키 로드
+
+        Args:
+            ticker: Trading pair (default: KRW-BTC)
+            circuit_breaker_threshold: Failures before circuit opens
+            circuit_breaker_timeout: Seconds before circuit attempts reset
+        """
         # .env already loaded at module level
 
         self.access_key = os.getenv('UPBIT_ACCESS_KEY')
@@ -32,7 +46,14 @@ class UpbitTrader:
             raise ValueError("업비트 API 키가 .env 파일에 없습니다")
 
         self.upbit = pyupbit.Upbit(self.access_key, self.secret_key)
-        self.ticker = "KRW-BTC"
+        self.ticker = ticker
+
+        # Circuit breaker for API protection
+        self._circuit_breaker = CircuitBreaker(
+            name=f"upbit_{ticker}",
+            failure_threshold=circuit_breaker_threshold,
+            reset_timeout_sec=circuit_breaker_timeout,
+        )
 
         # 연결 테스트
         self._test_connection()
@@ -49,10 +70,15 @@ class UpbitTrader:
     def get_current_price(self) -> float:
         """현재 비트코인 가격 조회"""
         try:
-            price = pyupbit.get_current_price(self.ticker)
-            return price
+            price = self._circuit_breaker.execute(
+                pyupbit.get_current_price, self.ticker
+            )
+            return price if price else 0.0
+        except CircuitOpenError as e:
+            logger.warning(f"Circuit open for price query: {e}")
+            return 0.0
         except Exception as e:
-            print(f"❌ 가격 조회 실패: {e}")
+            logger.error(f"가격 조회 실패: {e}")
             return 0.0
 
     def get_balance(self) -> Tuple[float, float]:
@@ -63,16 +89,23 @@ class UpbitTrader:
             (KRW 잔고, BTC 잔고)
         """
         try:
-            krw_balance = self.upbit.get_balance("KRW")
-            btc_balance = self.upbit.get_balance("BTC")
+            krw_balance = self._circuit_breaker.execute(
+                self.upbit.get_balance, "KRW"
+            )
+            btc_balance = self._circuit_breaker.execute(
+                self.upbit.get_balance, "BTC"
+            )
 
             # None 처리 (API 권한 부족 시)
             krw_balance = krw_balance if krw_balance is not None else 0.0
             btc_balance = btc_balance if btc_balance is not None else 0.0
 
             return krw_balance, btc_balance
+        except CircuitOpenError as e:
+            logger.warning(f"Circuit open for balance query: {e}")
+            return 0.0, 0.0
         except Exception as e:
-            print(f"❌ 잔고 조회 실패: {e}")
+            logger.error(f"잔고 조회 실패: {e}")
             return 0.0, 0.0
 
     def get_total_value(self) -> float:
@@ -126,18 +159,25 @@ class UpbitTrader:
             거래 결과 딕셔너리
         """
         try:
+            # Check circuit breaker first
+            if self._circuit_breaker.is_open():
+                logger.warning(f"Circuit open, buy order blocked: {amount:,.0f} KRW")
+                return {"success": False, "error": "circuit_open"}
+
             # 최소 주문 금액 체크 (5,000 KRW)
             if amount < 5000:
-                print(f"❌ 최소 주문 금액 미만: {amount:,.0f} KRW")
+                logger.warning(f"최소 주문 금액 미만: {amount:,.0f} KRW")
                 return None
 
-            print(f"📊 시장가 매수 주문: {amount:,.0f} KRW")
+            logger.info(f"시장가 매수 주문: {amount:,.0f} KRW")
 
-            # 주문 실행
-            order = self.upbit.buy_market_order(self.ticker, amount)
+            # 주문 실행 with circuit breaker
+            order = self._circuit_breaker.execute(
+                self.upbit.buy_market_order, self.ticker, amount
+            )
 
             if order is None:
-                print("❌ 주문 실패")
+                logger.error("주문 실패: None returned")
                 return None
 
             # 주문 UUID
@@ -167,14 +207,17 @@ class UpbitTrader:
                     'total_value': self.get_total_value()
                 }
 
-                print(f"✅ 매수 완료: {executed_volume:.8f} BTC @ {executed_price:,.0f} KRW")
+                logger.info(f"매수 완료: {executed_volume:.8f} BTC @ {executed_price:,.0f} KRW")
                 return result
 
-            print("⚠️ 주문 체결 시간 초과")
+            logger.warning("주문 체결 시간 초과")
             return None
 
+        except CircuitOpenError as e:
+            logger.warning(f"Circuit open during buy: {e}")
+            return {"success": False, "error": "circuit_open"}
         except Exception as e:
-            print(f"❌ 매수 주문 실패: {e}")
+            logger.error(f"매수 주문 실패: {e}")
             return None
 
     def sell_market_order(self, volume: Optional[float] = None) -> Optional[Dict[str, Any]]:
@@ -188,11 +231,16 @@ class UpbitTrader:
             거래 결과 딕셔너리
         """
         try:
+            # Check circuit breaker first
+            if self._circuit_breaker.is_open():
+                logger.warning(f"Circuit open, sell order blocked")
+                return {"success": False, "error": "circuit_open"}
+
             # 현재 BTC 잔고 조회
             _, btc_balance = self.get_balance()
 
             if btc_balance == 0:
-                print("❌ BTC 잔고 없음")
+                logger.warning("BTC 잔고 없음")
                 return None
 
             # 매도 수량 결정
@@ -204,16 +252,18 @@ class UpbitTrader:
             # 최소 주문 금액 체크 (5,000 KRW)
             current_price = self.get_current_price()
             if volume * current_price < 5000:
-                print(f"❌ 최소 주문 금액 미만: {volume * current_price:,.0f} KRW")
+                logger.warning(f"최소 주문 금액 미만: {volume * current_price:,.0f} KRW")
                 return None
 
-            print(f"📊 시장가 매도 주문: {volume:.8f} BTC")
+            logger.info(f"시장가 매도 주문: {volume:.8f} BTC")
 
-            # 주문 실행
-            order = self.upbit.sell_market_order(self.ticker, volume)
+            # 주문 실행 with circuit breaker
+            order = self._circuit_breaker.execute(
+                self.upbit.sell_market_order, self.ticker, volume
+            )
 
             if order is None:
-                print("❌ 주문 실패")
+                logger.error("주문 실패: None returned")
                 return None
 
             # 주문 UUID
@@ -243,21 +293,41 @@ class UpbitTrader:
                     'total_value': self.get_total_value()
                 }
 
-                print(f"✅ 매도 완료: {executed_volume:.8f} BTC @ {executed_price:,.0f} KRW")
+                logger.info(f"매도 완료: {executed_volume:.8f} BTC @ {executed_price:,.0f} KRW")
                 return result
 
-            print("⚠️ 주문 체결 시간 초과")
+            logger.warning("주문 체결 시간 초과")
             return None
 
+        except CircuitOpenError as e:
+            logger.warning(f"Circuit open during sell: {e}")
+            return {"success": False, "error": "circuit_open"}
         except Exception as e:
-            print(f"❌ 매도 주문 실패: {e}")
+            logger.error(f"매도 주문 실패: {e}")
             return None
 
     def get_orderbook(self) -> Optional[Dict[str, Any]]:
         """호가 정보 조회"""
         try:
-            orderbook = pyupbit.get_orderbook(self.ticker)
+            orderbook = self._circuit_breaker.execute(
+                pyupbit.get_orderbook, self.ticker
+            )
             return orderbook
-        except Exception as e:
-            print(f"❌ 호가 조회 실패: {e}")
+        except CircuitOpenError as e:
+            logger.warning(f"Circuit open for orderbook: {e}")
             return None
+        except Exception as e:
+            logger.error(f"호가 조회 실패: {e}")
+            return None
+
+    def get_circuit_breaker_state(self) -> str:
+        """Get circuit breaker state."""
+        return self._circuit_breaker.get_state()
+
+    def get_circuit_breaker_stats(self) -> Dict[str, Any]:
+        """Get circuit breaker statistics."""
+        return self._circuit_breaker.get_stats()
+
+    def reset_circuit_breaker(self) -> None:
+        """Manually reset circuit breaker."""
+        self._circuit_breaker.reset()

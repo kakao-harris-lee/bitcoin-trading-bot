@@ -6,12 +6,17 @@ their respective long positions on Upbit.
 """
 
 import asyncio
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger(__name__)
+
+# Default state file path
+DEFAULT_HEDGE_STATE_FILE = Path("logs/hedge_state.json")
 
 
 @dataclass
@@ -92,6 +97,7 @@ class MultiAssetHedgeManager:
         config: Optional[Dict[str, Any]] = None,
         telegram_notifier: Optional[Any] = None,
         execution_mode: str = "paper",
+        state_file: Optional[Path] = None,
     ):
         """
         Args:
@@ -100,12 +106,17 @@ class MultiAssetHedgeManager:
             config: Configuration with hedge settings
             telegram_notifier: Optional telegram notifier
             execution_mode: "paper" or "live"
+            state_file: Path to state persistence file
         """
         self._symbols = hedgeable_symbols
         self._accounts = binance_accounts
         self._config = {**self.DEFAULT_CONFIG, **(config or {})}
         self._telegram = telegram_notifier
         self._execution_mode = execution_mode
+
+        # State persistence
+        self._state_file = state_file or DEFAULT_HEDGE_STATE_FILE
+        self._state_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Per-asset capital allocation (proportional)
         self._total_capital = float(self._config.get("total_capital_usdt", 5000))
@@ -119,6 +130,9 @@ class MultiAssetHedgeManager:
         self._trades: Dict[str, List[AssetHedgeTrade]] = {
             sym: [] for sym in hedgeable_symbols
         }
+
+        # Load persisted state
+        self._load_state()
 
         logger.info(f"MultiAssetHedgeManager initialized for {hedgeable_symbols}")
 
@@ -158,6 +172,89 @@ class MultiAssetHedgeManager:
         per_asset = self._total_capital / len(self._symbols)
         for symbol in self._symbols:
             self._capital_per_asset[symbol] = per_asset
+
+    def _save_state(self) -> None:
+        """Persist current state to file."""
+        try:
+            state_data = {
+                "version": 1,
+                "saved_at": datetime.now().isoformat(),
+                "execution_mode": self._execution_mode,
+                "capital_per_asset": self._capital_per_asset,
+                "positions": {},
+            }
+
+            for symbol, pos in self._positions.items():
+                state_data["positions"][symbol] = {
+                    "qty": pos.qty,
+                    "entry_price": pos.entry_price,
+                    "entry_premium": pos.entry_premium,
+                    "entry_time": pos.entry_time.isoformat(),
+                    "accumulated_funding": pos.accumulated_funding,
+                }
+
+            # Write atomically
+            temp_file = self._state_file.with_suffix(".tmp")
+            temp_file.write_text(json.dumps(state_data, indent=2))
+            temp_file.rename(self._state_file)
+
+            logger.debug(f"Hedge state saved to {self._state_file}")
+
+        except Exception as e:
+            logger.error(f"Failed to save hedge state: {e}")
+
+    def _load_state(self) -> None:
+        """Load persisted state from file."""
+        if not self._state_file.exists():
+            logger.info("No persisted hedge state file found, starting fresh")
+            return
+
+        try:
+            state_data = json.loads(self._state_file.read_text())
+
+            # Version check
+            version = state_data.get("version", 0)
+            if version != 1:
+                logger.warning(f"Unknown hedge state version {version}, ignoring")
+                return
+
+            saved_at = state_data.get("saved_at", "unknown")
+            saved_mode = state_data.get("execution_mode", "unknown")
+
+            logger.info(f"Loading hedge state from {saved_at} (mode: {saved_mode})")
+
+            # Restore capital per asset
+            saved_capital = state_data.get("capital_per_asset", {})
+            for symbol, capital in saved_capital.items():
+                if symbol in self._capital_per_asset:
+                    self._capital_per_asset[symbol] = capital
+
+            # Restore positions
+            positions = state_data.get("positions", {})
+            restored_count = 0
+
+            for symbol, saved_pos in positions.items():
+                if symbol in self._symbols:
+                    self._positions[symbol] = AssetHedgePosition(
+                        symbol=symbol,
+                        qty=saved_pos.get("qty", 0.0),
+                        entry_price=saved_pos.get("entry_price", 0.0),
+                        entry_premium=saved_pos.get("entry_premium", 0.0),
+                        entry_time=datetime.fromisoformat(saved_pos.get("entry_time", datetime.now().isoformat())),
+                        accumulated_funding=saved_pos.get("accumulated_funding", 0.0),
+                    )
+                    restored_count += 1
+                    logger.info(
+                        f"Restored hedge {symbol}: {saved_pos['qty']:.4f} @ "
+                        f"${saved_pos['entry_price']:,.2f}"
+                    )
+
+            logger.info(f"Hedge state loaded: {restored_count} positions restored")
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid hedge state file format: {e}")
+        except Exception as e:
+            logger.error(f"Failed to load hedge state: {e}")
 
     def get_position_qty(self, symbol: str) -> float:
         """Get hedge position quantity for a symbol."""
@@ -243,6 +340,9 @@ class MultiAssetHedgeManager:
             logger.info(f"[{symbol}] Hedge opened: {filled_qty:.6f} @ ${avg_price:,.2f}")
             await self._notify(f"🔒 [{symbol}] Hedge opened: {filled_qty:.4f} @ ${avg_price:,.2f}")
 
+            # Persist state after successful trade
+            self._save_state()
+
             return {
                 "success": True,
                 "filled_qty": filled_qty,
@@ -321,6 +421,9 @@ class MultiAssetHedgeManager:
 
             logger.info(f"[{symbol}] Hedge closed: PnL ${net_pnl:+,.2f}")
             await self._notify(f"🔓 [{symbol}] Hedge closed: PnL ${net_pnl:+,.2f}")
+
+            # Persist state after successful trade
+            self._save_state()
 
             return {
                 "success": True,
@@ -409,6 +512,9 @@ class MultiAssetHedgeManager:
 
             logger.info(f"[{symbol}] Hedge increased: +{filled_qty:.6f}")
 
+            # Persist state
+            self._save_state()
+
             return {
                 "success": True,
                 "direction": "increase",
@@ -462,6 +568,9 @@ class MultiAssetHedgeManager:
                 new_qty = pos.qty
 
             logger.info(f"[{symbol}] Hedge decreased: -{qty:.6f}")
+
+            # Persist state after position change
+            self._save_state()
 
             return {
                 "success": True,

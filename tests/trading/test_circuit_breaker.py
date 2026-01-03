@@ -3,7 +3,7 @@
 import pytest
 import time
 from threading import Thread
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from trading.core.circuit_breaker import (
     CircuitBreaker,
@@ -234,3 +234,138 @@ class TestCircuitBreakerRegistry:
         registry.reset_all()
 
         assert breaker.is_closed()
+
+
+class TestCircuitBreakerRetry:
+    """Test retry with exponential backoff."""
+
+    def test_retry_on_transient_failure(self):
+        """Retry succeeds after transient failure."""
+        breaker = CircuitBreaker("retry_test", failure_threshold=10)
+        call_count = [0]
+
+        def flaky_func():
+            call_count[0] += 1
+            if call_count[0] < 3:
+                raise ConnectionError("Transient failure")
+            return "success"
+
+        # Should succeed after retries
+        with patch('time.sleep'):  # Skip actual sleep
+            result = breaker.execute_with_retry(
+                flaky_func,
+                max_retries=5,
+                base_delay=0.1,
+            )
+
+        assert result == "success"
+        assert call_count[0] == 3
+
+    def test_retry_exhausted(self):
+        """Exception raised when retries exhausted."""
+        breaker = CircuitBreaker("retry_exhausted", failure_threshold=10)
+
+        def always_fail():
+            raise ValueError("Always fails")
+
+        with patch('time.sleep'):
+            with pytest.raises(ValueError):
+                breaker.execute_with_retry(
+                    always_fail,
+                    max_retries=3,
+                    base_delay=0.1,
+                )
+
+        # Should have tried max_retries + 1 times
+        stats = breaker.get_stats()
+        assert stats["stats"]["failed_calls"] == 4
+
+    def test_retry_respects_circuit_open(self):
+        """Retry doesn't happen when circuit is open."""
+        breaker = CircuitBreaker("retry_circuit", failure_threshold=1)
+
+        # Open the circuit
+        with pytest.raises(ValueError):
+            breaker.execute(lambda: (_ for _ in ()).throw(ValueError("fail")))
+
+        assert breaker.is_open()
+
+        # Retry should immediately fail with CircuitOpenError
+        with pytest.raises(CircuitOpenError):
+            breaker.execute_with_retry(
+                lambda: "should not run",
+                max_retries=5,
+            )
+
+    def test_retry_only_specific_exceptions(self):
+        """retry_on parameter limits which exceptions trigger retry."""
+        breaker = CircuitBreaker("retry_specific", failure_threshold=10)
+        call_count = [0]
+
+        def fail_with_value_error():
+            call_count[0] += 1
+            raise ValueError("Should not retry")
+
+        # Should not retry ValueError when only retrying ConnectionError
+        with pytest.raises(ValueError):
+            breaker.execute_with_retry(
+                fail_with_value_error,
+                max_retries=5,
+                retry_on=(ConnectionError,),
+            )
+
+        # Should only have called once (no retries)
+        assert call_count[0] == 1
+
+    def test_retry_exponential_backoff(self):
+        """Delays increase exponentially."""
+        breaker = CircuitBreaker("retry_backoff", failure_threshold=10)
+        delays = []
+
+        def record_delay(d):
+            delays.append(d)
+
+        def always_fail():
+            raise ValueError("fail")
+
+        with patch('time.sleep', side_effect=record_delay):
+            with pytest.raises(ValueError):
+                breaker.execute_with_retry(
+                    always_fail,
+                    max_retries=4,
+                    base_delay=1.0,
+                    max_delay=100.0,
+                    jitter=False,
+                )
+
+        # Delays should be: 1, 2, 4, 8 (exponential)
+        assert len(delays) == 4
+        assert delays[0] == 1.0
+        assert delays[1] == 2.0
+        assert delays[2] == 4.0
+        assert delays[3] == 8.0
+
+    def test_retry_max_delay_cap(self):
+        """Delay is capped at max_delay."""
+        breaker = CircuitBreaker("retry_cap", failure_threshold=10)
+        delays = []
+
+        def record_delay(d):
+            delays.append(d)
+
+        def always_fail():
+            raise ValueError("fail")
+
+        with patch('time.sleep', side_effect=record_delay):
+            with pytest.raises(ValueError):
+                breaker.execute_with_retry(
+                    always_fail,
+                    max_retries=5,
+                    base_delay=1.0,
+                    max_delay=5.0,
+                    jitter=False,
+                )
+
+        # Delays should be: 1, 2, 4, 5, 5 (capped at 5)
+        assert delays[-1] == 5.0
+        assert delays[-2] == 5.0

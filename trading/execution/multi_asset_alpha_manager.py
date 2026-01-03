@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Any, Callable
 from core.types import AssetConfig, current_timestamp
 from trading.execution.portfolio_manager import PortfolioManager
 from trading.core.multi_asset_data_cache import MultiAssetDataCache
+from trading.core.asset_health import AssetHealthTracker
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,16 @@ class MultiAssetAlphaManager:
 
         self._init_states()
         self._load_state()  # Load persisted state on startup
+
+        # Per-asset health tracking for graceful degradation
+        self._health_tracker = AssetHealthTracker(
+            symbols=list(self._states.keys()),
+            max_failures=5,
+            disable_duration_sec=300.0,  # 5 minutes
+            on_disable=self._on_asset_disabled,
+            on_recovery=self._on_asset_recovered,
+        )
+
         logger.info(f"MultiAssetAlphaManager initialized for {len(self._states)} assets")
 
     @classmethod
@@ -140,6 +151,20 @@ class MultiAssetAlphaManager:
         """Initialize per-asset state."""
         for symbol in self._portfolio.get_symbols():
             self._states[symbol] = AssetState(symbol=symbol)
+
+    def _on_asset_disabled(self, symbol: str, reason: str) -> None:
+        """Callback when an asset is disabled due to failures."""
+        if self._telegram:
+            asyncio.create_task(
+                self._notify(f"[{symbol}] Asset DISABLED: {reason}")
+            )
+
+    def _on_asset_recovered(self, symbol: str) -> None:
+        """Callback when an asset recovers after being disabled."""
+        if self._telegram:
+            asyncio.create_task(
+                self._notify(f"[{symbol}] Asset RECOVERED and re-enabled")
+            )
 
     def _save_state(self) -> None:
         """Persist current state to file."""
@@ -241,7 +266,10 @@ class MultiAssetAlphaManager:
         prices: Dict[str, float],
     ) -> List[MultiAssetSignal]:
         """
-        Evaluate all assets concurrently.
+        Evaluate all healthy assets concurrently.
+
+        Unhealthy assets are skipped until they recover after
+        the disable timeout period.
 
         Args:
             prices: Dict of symbol -> current price
@@ -252,22 +280,38 @@ class MultiAssetAlphaManager:
         # Update portfolio prices
         self._portfolio.update_prices(prices)
 
-        # Evaluate all assets in parallel
-        tasks = [
-            self._evaluate_asset(symbol, prices.get(symbol, 0))
-            for symbol in self._states.keys()
-        ]
+        # Only evaluate healthy assets
+        healthy_symbols = self._health_tracker.get_healthy_symbols()
+        skipped = set(self._states.keys()) - set(healthy_symbols)
+        if skipped:
+            logger.debug(f"Skipping unhealthy assets: {skipped}")
+
+        # Evaluate healthy assets in parallel
+        tasks = []
+        task_symbols = []
+        for symbol in healthy_symbols:
+            # Check if this is a recovery attempt
+            if self._health_tracker.check_recovery(symbol):
+                logger.info(f"[{symbol}] Attempting recovery evaluation")
+
+            tasks.append(self._evaluate_asset(symbol, prices.get(symbol, 0)))
+            task_symbols.append(symbol)
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Collect valid signals
+        # Collect valid signals and track health
         signals = []
-        for result in results:
+        for symbol, result in zip(task_symbols, results):
             if isinstance(result, Exception):
-                logger.error(f"Asset evaluation error: {result}")
+                logger.error(f"[{symbol}] Evaluation error: {result}")
+                self._health_tracker.record_failure(symbol, result)
             elif result is not None:
+                self._health_tracker.record_success(symbol)
                 signals.append(result)
                 self._signal_history.append(result.to_dict())
+            else:
+                # None result means no signal, but still healthy
+                self._health_tracker.record_success(symbol)
 
         return signals
 
@@ -646,6 +690,18 @@ class MultiAssetAlphaManager:
         """Get recent trade history."""
         return self._trade_history[-limit:]
 
+    def get_health_status(self) -> Dict[str, Any]:
+        """Get health status for all assets."""
+        return self._health_tracker.get_all_health()
+
+    def get_health_summary(self) -> Dict[str, Any]:
+        """Get health summary statistics."""
+        return self._health_tracker.get_summary()
+
+    def reset_asset_health(self, symbol: Optional[str] = None) -> None:
+        """Reset health status for asset(s)."""
+        self._health_tracker.reset(symbol)
+
     def to_dict(self) -> Dict[str, Any]:
         """Serialize for logging."""
         return {
@@ -662,4 +718,5 @@ class MultiAssetAlphaManager:
             },
             "statistics": self.get_statistics(),
             "portfolio": self._portfolio.get_stats(),
+            "health": self._health_tracker.get_summary(),
         }

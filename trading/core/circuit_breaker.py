@@ -7,15 +7,22 @@ States:
 - CLOSED: Normal operation, calls pass through
 - OPEN: Calls blocked, fail fast
 - HALF_OPEN: Testing if service recovered
+
+Features:
+- Automatic state transitions based on failure counts
+- Configurable thresholds and timeouts
+- Retry with exponential backoff
+- Error classification for retry decisions
 """
 
 import logging
+import random
 import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, Callable, Dict, Optional, Tuple, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +230,156 @@ class CircuitBreaker:
         def wrapper(*args, **kwargs) -> T:
             return self.execute(func, *args, **kwargs)
         return wrapper
+
+    def execute_with_retry(
+        self,
+        func: Callable[..., T],
+        *args,
+        max_retries: int = 3,
+        base_delay: float = 0.5,
+        max_delay: float = 30.0,
+        jitter: bool = True,
+        retry_on: Optional[Tuple[type, ...]] = None,
+        **kwargs,
+    ) -> T:
+        """
+        Execute function with circuit breaker protection and retry logic.
+
+        Uses exponential backoff with optional jitter for retries.
+
+        Args:
+            func: Function to execute
+            *args: Positional arguments for func
+            max_retries: Maximum number of retry attempts (default: 3)
+            base_delay: Initial delay between retries in seconds (default: 0.5)
+            max_delay: Maximum delay between retries in seconds (default: 30.0)
+            jitter: Add random jitter to delays to prevent thundering herd (default: True)
+            retry_on: Tuple of exception types to retry on (default: all except excluded)
+            **kwargs: Keyword arguments for func
+
+        Returns:
+            Function result
+
+        Raises:
+            CircuitOpenError: If circuit is open
+            Exception: Last exception after all retries exhausted
+        """
+        last_exception = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                return self.execute(func, *args, **kwargs)
+            except CircuitOpenError:
+                # Don't retry if circuit is open
+                raise
+            except self.excluded_exceptions:
+                # Don't retry excluded exceptions
+                raise
+            except Exception as e:
+                last_exception = e
+
+                # Check if we should retry this exception type
+                if retry_on and not isinstance(e, retry_on):
+                    raise
+
+                # Check if we have retries left
+                if attempt >= max_retries:
+                    logger.warning(
+                        f"CircuitBreaker '{self.name}': all {max_retries} "
+                        f"retries exhausted for {func.__name__}"
+                    )
+                    raise
+
+                # Calculate delay with exponential backoff
+                delay = min(base_delay * (2 ** attempt), max_delay)
+
+                # Add jitter (0-50% of delay)
+                if jitter:
+                    delay = delay * (1 + random.random() * 0.5)
+
+                logger.info(
+                    f"CircuitBreaker '{self.name}': retry {attempt + 1}/{max_retries} "
+                    f"for {func.__name__} after {delay:.2f}s - {type(e).__name__}: {e}"
+                )
+
+                time.sleep(delay)
+
+        # Should not reach here, but just in case
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Unexpected state in execute_with_retry")
+
+    async def execute_with_retry_async(
+        self,
+        func: Callable[..., T],
+        *args,
+        max_retries: int = 3,
+        base_delay: float = 0.5,
+        max_delay: float = 30.0,
+        jitter: bool = True,
+        retry_on: Optional[Tuple[type, ...]] = None,
+        **kwargs,
+    ) -> T:
+        """
+        Execute async function with circuit breaker protection and retry logic.
+
+        Uses exponential backoff with optional jitter for retries.
+
+        Args:
+            func: Async function to execute
+            *args: Positional arguments for func
+            max_retries: Maximum number of retry attempts (default: 3)
+            base_delay: Initial delay between retries in seconds (default: 0.5)
+            max_delay: Maximum delay between retries in seconds (default: 30.0)
+            jitter: Add random jitter to delays (default: True)
+            retry_on: Tuple of exception types to retry on (default: all except excluded)
+            **kwargs: Keyword arguments for func
+
+        Returns:
+            Function result
+
+        Raises:
+            CircuitOpenError: If circuit is open
+            Exception: Last exception after all retries exhausted
+        """
+        import asyncio
+
+        last_exception = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                return await self.execute_async(func, *args, **kwargs)
+            except CircuitOpenError:
+                raise
+            except self.excluded_exceptions:
+                raise
+            except Exception as e:
+                last_exception = e
+
+                if retry_on and not isinstance(e, retry_on):
+                    raise
+
+                if attempt >= max_retries:
+                    logger.warning(
+                        f"CircuitBreaker '{self.name}': all {max_retries} "
+                        f"retries exhausted for {func.__name__}"
+                    )
+                    raise
+
+                delay = min(base_delay * (2 ** attempt), max_delay)
+                if jitter:
+                    delay = delay * (1 + random.random() * 0.5)
+
+                logger.info(
+                    f"CircuitBreaker '{self.name}': retry {attempt + 1}/{max_retries} "
+                    f"for {func.__name__} after {delay:.2f}s - {type(e).__name__}: {e}"
+                )
+
+                await asyncio.sleep(delay)
+
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Unexpected state in execute_with_retry_async")
 
     def _before_call(self) -> None:
         """Check if call should proceed, raise if circuit open."""

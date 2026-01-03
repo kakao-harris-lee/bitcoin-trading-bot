@@ -154,17 +154,11 @@ class MultiAssetAlphaManager:
 
     def _on_asset_disabled(self, symbol: str, reason: str) -> None:
         """Callback when an asset is disabled due to failures."""
-        if self._telegram:
-            asyncio.create_task(
-                self._notify(f"[{symbol}] Asset DISABLED: {reason}")
-            )
+        self._notify(f"[{symbol}] Asset DISABLED: {reason}")
 
     def _on_asset_recovered(self, symbol: str) -> None:
         """Callback when an asset recovers after being disabled."""
-        if self._telegram:
-            asyncio.create_task(
-                self._notify(f"[{symbol}] Asset RECOVERED and re-enabled")
-            )
+        self._notify(f"[{symbol}] Asset RECOVERED and re-enabled")
 
     def _save_state(self) -> None:
         """Persist current state to file."""

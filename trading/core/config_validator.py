@@ -237,6 +237,98 @@ class ConfigValidator:
                 f"Strategy '{strategy}': missing 'entry' or 'exit' sections"
             )
 
+        # Validate entry conditions
+        entry = strategy_config.get("entry", {})
+        if entry:
+            result.merge(self._validate_entry_config(strategy, entry))
+
+        # Validate exit conditions
+        exit_config = strategy_config.get("exit", {})
+        if exit_config:
+            result.merge(self._validate_exit_config(strategy, exit_config))
+
+        # Validate risk parameters if present
+        risk = strategy_config.get("risk", {})
+        if risk:
+            result.merge(self._validate_risk_config(strategy, risk))
+
+        return result
+
+    def _validate_entry_config(self, strategy: str, entry: Dict[str, Any]) -> ValidationResult:
+        """Validate entry configuration."""
+        result = ValidationResult(valid=True)
+
+        # Check for at least one entry condition
+        condition_keys = ["regime", "mfi", "rsi", "adx", "macd", "bb", "volume"]
+        has_condition = any(k in entry for k in condition_keys)
+        if not has_condition:
+            result.add_warning(f"Strategy '{strategy}': entry has no recognized conditions")
+
+        # Validate numeric ranges
+        if "mfi" in entry:
+            mfi_cfg = entry["mfi"]
+            if isinstance(mfi_cfg, dict):
+                low = mfi_cfg.get("low", 0)
+                high = mfi_cfg.get("high", 100)
+                if not (0 <= low <= 100) or not (0 <= high <= 100):
+                    result.add_error(f"Strategy '{strategy}': MFI values must be 0-100")
+                if low > high:
+                    result.add_error(f"Strategy '{strategy}': MFI low > high")
+
+        if "rsi" in entry:
+            rsi_cfg = entry["rsi"]
+            if isinstance(rsi_cfg, dict):
+                low = rsi_cfg.get("low", 0)
+                high = rsi_cfg.get("high", 100)
+                if not (0 <= low <= 100) or not (0 <= high <= 100):
+                    result.add_error(f"Strategy '{strategy}': RSI values must be 0-100")
+
+        return result
+
+    def _validate_exit_config(self, strategy: str, exit_config: Dict[str, Any]) -> ValidationResult:
+        """Validate exit configuration."""
+        result = ValidationResult(valid=True)
+
+        # Check for take profit / stop loss
+        tp = exit_config.get("take_profit_pct") or exit_config.get("tp_pct")
+        sl = exit_config.get("stop_loss_pct") or exit_config.get("sl_pct")
+
+        if tp is not None:
+            if not isinstance(tp, (int, float)) or tp <= 0:
+                result.add_error(f"Strategy '{strategy}': take_profit_pct must be positive")
+            elif tp > 50:
+                result.add_warning(f"Strategy '{strategy}': take_profit_pct={tp}% is very high")
+
+        if sl is not None:
+            if not isinstance(sl, (int, float)) or sl <= 0:
+                result.add_error(f"Strategy '{strategy}': stop_loss_pct must be positive")
+            elif sl > 20:
+                result.add_warning(f"Strategy '{strategy}': stop_loss_pct={sl}% is very high")
+
+        # Check trailing stop if present
+        trailing = exit_config.get("trailing_stop_pct")
+        if trailing is not None:
+            if not isinstance(trailing, (int, float)) or trailing <= 0:
+                result.add_error(f"Strategy '{strategy}': trailing_stop_pct must be positive")
+
+        return result
+
+    def _validate_risk_config(self, strategy: str, risk: Dict[str, Any]) -> ValidationResult:
+        """Validate risk configuration."""
+        result = ValidationResult(valid=True)
+
+        # Max position size
+        max_position = risk.get("max_position_pct")
+        if max_position is not None:
+            if not isinstance(max_position, (int, float)) or not (0 < max_position <= 100):
+                result.add_error(f"Strategy '{strategy}': max_position_pct must be 0-100")
+
+        # Max drawdown
+        max_dd = risk.get("max_drawdown_pct")
+        if max_dd is not None:
+            if not isinstance(max_dd, (int, float)) or max_dd <= 0:
+                result.add_error(f"Strategy '{strategy}': max_drawdown_pct must be positive")
+
         return result
 
     def validate_environment(self) -> ValidationResult:
@@ -272,6 +364,7 @@ class ConfigValidator:
         upbit_test: Optional[callable] = None,
         binance_test: Optional[callable] = None,
         redis_test: Optional[callable] = None,
+        telegram_test: Optional[callable] = None,
     ) -> ValidationResult:
         """
         Validate connectivity to external services.
@@ -280,6 +373,7 @@ class ConfigValidator:
             upbit_test: Function to test Upbit connection
             binance_test: Function to test Binance connection
             redis_test: Function to test Redis connection
+            telegram_test: Function to test Telegram connection
 
         Returns:
             ValidationResult with connection test results
@@ -307,7 +401,56 @@ class ConfigValidator:
             except Exception as e:
                 result.add_warning(f"Redis connection failed: {e}")
 
+        if telegram_test:
+            try:
+                telegram_test()
+                logger.info("Telegram connection: OK")
+            except Exception as e:
+                result.add_warning(f"Telegram connection failed: {e}")
+
         return result
+
+    @staticmethod
+    def test_upbit_connection() -> None:
+        """Default Upbit connection test using pyupbit."""
+        import pyupbit
+        price = pyupbit.get_current_price("KRW-BTC")
+        if price is None:
+            raise ConnectionError("Failed to get BTC price from Upbit")
+
+    @staticmethod
+    def test_binance_connection() -> None:
+        """Default Binance connection test."""
+        from binance.client import Client
+        api_key = os.getenv("BINANCE_API_KEY")
+        api_secret = os.getenv("BINANCE_API_SECRET")
+        if not api_key or not api_secret:
+            raise ValueError("Binance API keys not configured")
+        client = Client(api_key, api_secret)
+        client.ping()
+
+    @staticmethod
+    def test_redis_connection() -> None:
+        """Default Redis connection test."""
+        import redis
+        host = os.getenv("REDIS_HOST", "localhost")
+        port = int(os.getenv("REDIS_PORT", 6379))
+        r = redis.Redis(host=host, port=port, socket_timeout=5.0)
+        r.ping()
+
+    @staticmethod
+    def test_telegram_connection() -> None:
+        """Default Telegram connection test."""
+        import requests
+        token = os.getenv("TELEGRAM_BOT_TOKEN")
+        if not token:
+            raise ValueError("TELEGRAM_BOT_TOKEN not configured")
+        response = requests.get(
+            f"https://api.telegram.org/bot{token}/getMe",
+            timeout=5.0,
+        )
+        if not response.ok:
+            raise ConnectionError(f"Telegram API error: {response.status_code}")
 
 
 class StartupValidator:
@@ -334,6 +477,39 @@ class StartupValidator:
         self._result = self._validator.validate_all(self._config)
         return self._result
 
+    def validate_with_connections(
+        self,
+        test_upbit: bool = True,
+        test_binance: bool = False,
+        test_redis: bool = False,
+        test_telegram: bool = False,
+    ) -> ValidationResult:
+        """
+        Run validations including connection tests.
+
+        Args:
+            test_upbit: Test Upbit connection (critical)
+            test_binance: Test Binance connection (optional)
+            test_redis: Test Redis connection (optional)
+            test_telegram: Test Telegram connection (optional)
+
+        Returns:
+            Combined ValidationResult
+        """
+        # Run config validation first
+        self._result = self._validator.validate_all(self._config)
+
+        # Run connection tests
+        connection_result = self._validator.validate_connections(
+            upbit_test=ConfigValidator.test_upbit_connection if test_upbit else None,
+            binance_test=ConfigValidator.test_binance_connection if test_binance else None,
+            redis_test=ConfigValidator.test_redis_connection if test_redis else None,
+            telegram_test=ConfigValidator.test_telegram_connection if test_telegram else None,
+        )
+
+        self._result.merge(connection_result)
+        return self._result
+
     def validate_or_raise(self) -> None:
         """Run validations and raise exception if invalid."""
         result = self.validate()
@@ -347,6 +523,35 @@ class StartupValidator:
             logger.warning(f"Configuration warnings:\n{result}")
 
         logger.info("Configuration validation passed")
+
+    def validate_connections_or_raise(
+        self,
+        test_upbit: bool = True,
+        test_binance: bool = False,
+        test_redis: bool = False,
+        test_telegram: bool = False,
+    ) -> None:
+        """
+        Run validations with connections and raise if invalid.
+
+        This is the recommended startup validation method.
+        """
+        result = self.validate_with_connections(
+            test_upbit=test_upbit,
+            test_binance=test_binance,
+            test_redis=test_redis,
+            test_telegram=test_telegram,
+        )
+
+        if result.errors:
+            error_msg = f"Startup validation failed:\n{result}"
+            logger.error(error_msg)
+            raise ConfigurationError(error_msg)
+
+        if result.warnings:
+            logger.warning(f"Startup warnings:\n{result}")
+
+        logger.info("Startup validation passed")
 
     def get_result(self) -> Optional[ValidationResult]:
         """Get the last validation result."""

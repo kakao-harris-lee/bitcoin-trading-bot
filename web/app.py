@@ -15,10 +15,17 @@ from pathlib import Path
 from datetime import datetime
 
 import pyotp
+import redis
 
 # Load .env file from project root
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
+
+# Import metrics collector
+try:
+    from trading.core.metrics import metrics_collector
+except ImportError:
+    metrics_collector = None
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
@@ -27,6 +34,8 @@ CORS(app)
 BASE_DIR = Path(__file__).parent
 
 # 대시보드 고정 경로
+DEFAULT_DOMAIN = "lchsvr.duckdns.org"
+DEFAULT_PORT = "5080"
 DASHBOARD_PATH = "btc-dashboard"
 
 # TOTP 설정 (환경변수에서 비밀키 로드, 없으면 생성하여 출력)
@@ -247,12 +256,13 @@ def _send_telegram_notification(message: str) -> bool:
 def _notify_dashboard_url(port: int = 5080):
     """대시보드 URL을 텔레그램으로 알림"""
     current_code = get_current_totp()
-    domain = os.getenv("DASHBOARD_DOMAIN", "lchsvr.duckdns.org")
+    domain = os.getenv("DASHBOARD_DOMAIN", DEFAULT_DOMAIN)
+    port = os.getenv("DASHBOARD_PORT", DEFAULT_PORT)
 
     message = f"""
 🖥️ *대시보드 시작*
 
-🔗 접속: `https://{domain}/{DASHBOARD_PATH}`
+🔗 접속: `https://{domain}:{port}/{DASHBOARD_PATH}`
 🔐 현재 TOTP: `{current_code}`
 🕐 시작 시간: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`
 
@@ -350,6 +360,106 @@ def get_status():
     }
 
     return jsonify(status)
+
+
+@app.route("/health")
+@app.route("/api/health")
+def health_check():
+    """
+    Health check endpoint for monitoring.
+
+    Returns component status and overall health.
+    No authentication required for monitoring tools.
+    """
+    start_time = datetime.now()
+
+    # Check components
+    components = {}
+    overall_healthy = True
+
+    # Check Redis
+    try:
+        r = redis.Redis(
+            host=os.getenv("REDIS_HOST", "localhost"),
+            port=int(os.getenv("REDIS_PORT", 6379)),
+            socket_timeout=2.0,
+        )
+        r.ping()
+        components["redis"] = {"status": "healthy", "latency_ms": 0}
+    except Exception as e:
+        components["redis"] = {"status": "unhealthy", "error": str(e)[:100]}
+        # Redis not critical, don't mark overall unhealthy
+
+    # Check engine status file
+    ma_status = load_multi_asset_status()
+    if ma_status:
+        last_update = ma_status.get("timestamp", "")
+        try:
+            if last_update:
+                last_dt = datetime.fromisoformat(last_update.replace("Z", "+00:00"))
+                age_seconds = (datetime.now() - last_dt.replace(tzinfo=None)).total_seconds()
+                if age_seconds < 300:  # Updated within 5 minutes
+                    components["engine"] = {"status": "healthy", "age_seconds": age_seconds}
+                else:
+                    components["engine"] = {"status": "stale", "age_seconds": age_seconds}
+            else:
+                components["engine"] = {"status": "unknown"}
+        except Exception:
+            components["engine"] = {"status": "unknown", "last_update": last_update}
+    else:
+        components["engine"] = {"status": "not_running"}
+        overall_healthy = False
+
+    # Check kill switch
+    components["kill_switch"] = {
+        "status": "active" if KILL_SWITCH_FILE.exists() else "inactive",
+    }
+
+    # Get asset health if available from engine status
+    assets_health = {}
+    if ma_status:
+        health_data = ma_status.get("health", {})
+        assets_data = health_data.get("assets", {})
+        for symbol, asset_info in assets_data.items():
+            if isinstance(asset_info, dict):
+                assets_health[symbol] = {
+                    "enabled": asset_info.get("enabled", True),
+                    "consecutive_failures": asset_info.get("consecutive_failures", 0),
+                }
+            else:
+                assets_health[symbol] = {"enabled": asset_info}
+
+    # Get metrics summary if available
+    metrics_summary = {}
+    if metrics_collector:
+        try:
+            metrics_summary = metrics_collector.get_summary()
+        except Exception:
+            pass
+
+    response = {
+        "status": "healthy" if overall_healthy else "degraded",
+        "timestamp": datetime.now().isoformat(),
+        "components": components,
+        "assets": assets_health,
+        "metrics": metrics_summary,
+        "response_time_ms": (datetime.now() - start_time).total_seconds() * 1000,
+    }
+
+    status_code = 200 if overall_healthy else 503
+    return jsonify(response), status_code
+
+
+@app.route("/api/metrics")
+def get_metrics():
+    """Get detailed trading metrics."""
+    if not metrics_collector:
+        return jsonify({"error": "Metrics not available"}), 503
+
+    try:
+        return jsonify(metrics_collector.get_metrics())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/kill_switch/status")

@@ -20,6 +20,64 @@
             </div>
         </header>
 
+        <!-- Exchange Balances Section -->
+        <section class="exchange-section">
+            <h2>Exchange Balances</h2>
+            <div class="exchange-grid">
+                <!-- Upbit Card -->
+                <div class="exchange-card upbit">
+                    <div class="exchange-header">
+                        <span class="exchange-name">Upbit</span>
+                        <span class="exchange-status" id="upbit-status">Loading...</span>
+                    </div>
+                    <div class="exchange-balances">
+                        <div class="balance-row">
+                            <span class="label">KRW</span>
+                            <span class="value" id="upbit-krw">-</span>
+                        </div>
+                        <div class="balance-row">
+                            <span class="label">BTC</span>
+                            <span class="value" id="upbit-btc">-</span>
+                        </div>
+                        <div class="balance-row">
+                            <span class="label">BTC Value</span>
+                            <span class="value" id="upbit-btc-value">-</span>
+                        </div>
+                        <div class="balance-row total">
+                            <span class="label">Total</span>
+                            <span class="value" id="upbit-total">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Binance Card -->
+                <div class="exchange-card binance">
+                    <div class="exchange-header">
+                        <span class="exchange-name">Binance Futures</span>
+                        <span class="exchange-status" id="binance-status">Loading...</span>
+                    </div>
+                    <div class="exchange-balances">
+                        <div class="balance-row">
+                            <span class="label">USDT Wallet</span>
+                            <span class="value" id="binance-usdt">-</span>
+                        </div>
+                        <div class="balance-row">
+                            <span class="label">Unrealized PnL</span>
+                            <span class="value" id="binance-pnl">-</span>
+                        </div>
+                        <div class="balance-row total">
+                            <span class="label">Total Equity</span>
+                            <span class="value" id="binance-total">-</span>
+                        </div>
+                        <div class="balance-row positions">
+                            <span class="label">Positions</span>
+                            <span class="value" id="binance-positions">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Portfolio Summary Section -->
         <section class="portfolio-section">
             <div class="portfolio-summary">

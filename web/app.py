@@ -622,6 +622,86 @@ def get_hedge_info():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route("/api/exchange_balances")
+def get_exchange_balances():
+    """Fetch live balances from Upbit and Binance exchanges."""
+    result = {
+        'timestamp': datetime.now().isoformat(),
+        'upbit': None,
+        'binance': None,
+        'errors': []
+    }
+
+    # Fetch Upbit balance
+    try:
+        from trading.adapters.upbit import UpbitTrader
+        upbit = UpbitTrader()
+        krw_balance, btc_balance = upbit.get_balance()
+        btc_price = upbit.get_current_price() or 0
+
+        btc_value = btc_balance * btc_price if btc_price else 0
+        total_krw = krw_balance + btc_value
+
+        result['upbit'] = {
+            'krw_balance': krw_balance,
+            'btc_balance': btc_balance,
+            'btc_price': btc_price,
+            'btc_value_krw': btc_value,
+            'total_krw': total_krw,
+        }
+    except Exception as e:
+        result['errors'].append(f'Upbit: {str(e)}')
+
+    # Fetch Binance balance
+    try:
+        from binance.client import Client
+        import time
+        api_key = os.getenv('BINANCE_API_KEY')
+        api_secret = os.getenv('BINANCE_API_SECRET')
+
+        if api_key and api_secret:
+            # Sync time offset with Binance server
+            client = Client(api_key, api_secret)
+            server_time = client.get_server_time()
+            local_time = int(time.time() * 1000)
+            client.timestamp_offset = server_time['serverTime'] - local_time
+
+            account = client.futures_account(recvWindow=60000)
+
+            usdt_balance = 0
+            unrealized_pnl = 0
+            for asset in account['assets']:
+                if asset['asset'] == 'USDT':
+                    usdt_balance = float(asset['walletBalance'])
+                    unrealized_pnl = float(asset['unrealizedProfit'])
+                    break
+
+            # Get open positions
+            positions = []
+            for pos in account['positions']:
+                size = float(pos['positionAmt'])
+                if size != 0:
+                    positions.append({
+                        'symbol': pos['symbol'],
+                        'size': size,
+                        'entry_price': float(pos['entryPrice']),
+                        'unrealized_pnl': float(pos['unrealizedProfit']),
+                    })
+
+            result['binance'] = {
+                'usdt_balance': usdt_balance,
+                'unrealized_pnl': unrealized_pnl,
+                'total_equity': usdt_balance + unrealized_pnl,
+                'positions': positions,
+            }
+        else:
+            result['errors'].append('Binance: API credentials not configured')
+    except Exception as e:
+        result['errors'].append(f'Binance: {str(e)}')
+
+    return jsonify(result)
+
+
 if __name__ == "__main__":
     print(f"\n{'='*50}")
     print(f"Dashboard available at: http://localhost:5080/{DASHBOARD_PATH}")

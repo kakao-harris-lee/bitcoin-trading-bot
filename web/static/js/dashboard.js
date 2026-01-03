@@ -344,12 +344,74 @@ async function fetchHedgeInfo() {
     }
 }
 
+// Update exchange balances display
+function updateExchangeBalances(data) {
+    // Update Upbit
+    if (data.upbit) {
+        document.getElementById('upbit-status').textContent = 'Connected';
+        document.getElementById('upbit-status').className = 'exchange-status connected';
+        document.getElementById('upbit-krw').textContent = formatKRW(data.upbit.krw_balance);
+        document.getElementById('upbit-btc').textContent = data.upbit.btc_balance.toFixed(8) + ' BTC';
+        document.getElementById('upbit-btc-value').textContent = formatKRW(data.upbit.btc_value_krw);
+        document.getElementById('upbit-total').textContent = formatKRW(data.upbit.total_krw);
+    } else {
+        document.getElementById('upbit-status').textContent = 'Error';
+        document.getElementById('upbit-status').className = 'exchange-status error';
+    }
+
+    // Update Binance
+    if (data.binance) {
+        document.getElementById('binance-status').textContent = 'Connected';
+        document.getElementById('binance-status').className = 'exchange-status connected';
+        document.getElementById('binance-usdt').textContent = formatUSD(data.binance.usdt_balance);
+
+        const pnlEl = document.getElementById('binance-pnl');
+        pnlEl.textContent = formatUSD(data.binance.unrealized_pnl);
+        pnlEl.className = `value ${data.binance.unrealized_pnl >= 0 ? 'positive' : 'negative'}`;
+
+        document.getElementById('binance-total').textContent = formatUSD(data.binance.total_equity);
+
+        const positions = data.binance.positions || [];
+        if (positions.length > 0) {
+            const posText = positions.map(p => `${p.symbol}: ${p.size}`).join(', ');
+            document.getElementById('binance-positions').textContent = posText;
+        } else {
+            document.getElementById('binance-positions').textContent = 'None';
+        }
+    } else {
+        document.getElementById('binance-status').textContent = 'Error';
+        document.getElementById('binance-status').className = 'exchange-status error';
+    }
+
+    // Show errors if any
+    if (data.errors && data.errors.length > 0) {
+        console.warn('Exchange balance errors:', data.errors);
+    }
+}
+
+// Fetch exchange balances
+async function fetchExchangeBalances() {
+    try {
+        const response = await fetch('/api/exchange_balances', { credentials: 'include' });
+        if (!response.ok) throw new Error('Exchange balances fetch failed');
+        const data = await response.json();
+        updateExchangeBalances(data);
+    } catch (err) {
+        console.error('Exchange balances fetch error:', err);
+        document.getElementById('upbit-status').textContent = 'Error';
+        document.getElementById('upbit-status').className = 'exchange-status error';
+        document.getElementById('binance-status').textContent = 'Error';
+        document.getElementById('binance-status').className = 'exchange-status error';
+    }
+}
+
 // Fetch all data
 async function fetchAll() {
     await Promise.all([
         fetchStatus(),
         fetchKillSwitch(),
         fetchHedgeInfo(),
+        fetchExchangeBalances(),
     ]);
 }
 

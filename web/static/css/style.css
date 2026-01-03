@@ -85,6 +85,131 @@ header h1 {
     50% { opacity: 0.5; }
 }
 
+/* Exchange Balances Section */
+.exchange-section {
+    margin-bottom: 25px;
+}
+
+.exchange-section h2 {
+    font-size: 1rem;
+    color: #aaa;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.exchange-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.exchange-card {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px;
+    border-left: 4px solid #3498db;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.exchange-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.exchange-card.upbit {
+    border-left-color: #3498db;
+}
+
+.exchange-card.binance {
+    border-left-color: #f0b90b;
+}
+
+.exchange-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.exchange-name {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.exchange-status {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(0, 0, 0, 0.3);
+    color: #888;
+}
+
+.exchange-status.connected {
+    color: #2ecc71;
+    border: 1px solid #2ecc71;
+}
+
+.exchange-status.error {
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+.exchange-balances {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.balance-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.balance-row .label {
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.balance-row .value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    font-family: monospace;
+}
+
+.balance-row.total {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.balance-row.total .label {
+    color: #fff;
+    font-weight: 600;
+}
+
+.balance-row.total .value {
+    font-size: 1.2rem;
+    color: #f39c12;
+}
+
+.balance-row.positions {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.balance-row.positions .value {
+    font-size: 0.85rem;
+    color: #aaa;
+}
+
 /* Portfolio Section */
 .portfolio-section {
     background: rgba(255, 255, 255, 0.05);
@@ -531,5 +656,9 @@ footer {
 
     .hedge-summary {
         flex-wrap: wrap;
+    }
+
+    .exchange-grid {
+        grid-template-columns: 1fr;
     }
 }

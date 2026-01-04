@@ -59,45 +59,87 @@ def format_info_message(engine, trend_mode: str = "live", premium_mode: str = "p
     # Regime info
     regimes = stats.get("regimes", {})
 
-    # Build message
-    trend_emoji = "🔴" if trend_mode == "live" else "⚪"
-    premium_emoji = "🔴" if premium_mode == "live" else "⚪"
-
+    # Build message - New format
     lines = [
         f"📊 *Trading Bot Status*",
-        f"",
         f"{running} | Uptime: {uptime_str}",
         f"",
-        f"*Mode:*",
-        f"  {trend_emoji} Trend: {trend_mode.upper()}",
-        f"  {premium_emoji} Premium: {premium_mode.upper()}",
+        f"*Mode*",
+        f"  • Trend: *{trend_mode.upper()}*",
+        f"  • Premium: *{premium_mode.upper()}*",
     ]
 
-    # === LIVE EXCHANGE BALANCES ===
+    # === UPBIT ACCOUNT ===
     lines.append("")
-    lines.append("💰 *Live Balances:*")
+    account_label = "LIVE" if trend_mode == "live" else "PAPER"
+    lines.append(f"💰 *[{account_label}] Upbit Account*")
 
-    # Get BTC price for total value calculation
-    btc_price = 0
-    if "BTC" in assets:
-        btc_price = assets["BTC"].get("upbit_krw", 0)
-
-    # Fetch real Upbit balance
     try:
         from trading.adapters.upbit import UpbitTrader
         upbit = UpbitTrader()
-        krw_balance, btc_balance = upbit.get_balance()
+        krw_balance, _ = upbit.get_balance()
 
-        upbit_total = krw_balance + (btc_balance * btc_price)
-        lines.append(f"  *Upbit:*")
-        lines.append(f"    KRW: ₩{krw_balance:,.0f}")
-        if btc_balance > 0.0001:
-            lines.append(f"    BTC: {btc_balance:.6f} (₩{btc_balance * btc_price:,.0f})")
-        lines.append(f"    Total: ₩{upbit_total:,.0f}")
+        # Get all Upbit balances
+        all_balances = upbit.upbit.get_balances()
+        upbit_positions = {}
+        upbit_total = krw_balance
+
+        for bal in all_balances:
+            currency = bal.get("currency", "")
+            balance = float(bal.get("balance", 0))
+            avg_buy_price = float(bal.get("avg_buy_price", 0))
+
+            if currency == "KRW":
+                continue
+
+            if balance > 0.0001:
+                # Get current price for this asset
+                current_price = 0
+                if currency in assets:
+                    current_price = assets[currency].get("upbit_krw", 0)
+                elif currency == "BTC" and "BTC" in assets:
+                    current_price = assets["BTC"].get("upbit_krw", 0)
+
+                if current_price > 0:
+                    value_krw = balance * current_price
+                    upbit_total += value_krw
+                    pnl_pct = ((current_price - avg_buy_price) / avg_buy_price * 100) if avg_buy_price > 0 else 0
+                    pnl_krw = (current_price - avg_buy_price) * balance if avg_buy_price > 0 else 0
+                    upbit_positions[currency] = {
+                        "balance": balance,
+                        "current_price": current_price,
+                        "avg_buy_price": avg_buy_price,
+                        "pnl_pct": pnl_pct,
+                        "pnl_krw": pnl_krw,
+                        "value_krw": value_krw,
+                    }
+
+        # Calculate total P&L
+        total_pnl_krw = sum(p["pnl_krw"] for p in upbit_positions.values())
+        pnl_emoji = "📈" if total_pnl_krw >= 0 else "📉"
+
+        lines.append(f"  Balance: ₩{krw_balance:,.0f}")
+        if upbit_positions:
+            lines.append(f"  {pnl_emoji} P&L: ₩{total_pnl_krw:+,.0f}")
+        lines.append(f"  Total: ₩{upbit_total:,.0f}")
+
+        # Upbit Positions
+        if upbit_positions:
+            lines.append(f"  *Positions:*")
+            for currency, pos in upbit_positions.items():
+                pnl_emoji = "📈" if pos["pnl_pct"] >= 0 else "📉"
+                lines.append(f"    • {currency}: ₩{pos['current_price']:,.0f} ← ₩{pos['avg_buy_price']:,.0f} [LONG]")
+                lines.append(f"      {pnl_emoji} {pos['pnl_pct']:+.2f}% (₩{pos['pnl_krw']:+,.0f})")
+        else:
+            lines.append(f"  *Positions:* None")
+
     except Exception as e:
-        lines.append(f"  *Upbit:* ⚠️ 조회 실패")
+        lines.append(f"  ⚠️ Failed to fetch: {str(e)[:30]}")
 
-    # Fetch real Binance balance
+    # === BINANCE ACCOUNT ===
+    lines.append("")
+    lines.append(f"💰 *[{account_label}] Binance Futures*")
+
     try:
         from trading.adapters.binance import BinanceFuturesTrader
         binance = BinanceFuturesTrader()
@@ -106,63 +148,77 @@ def format_info_message(engine, trend_mode: str = "live", premium_mode: str = "p
         available_usdt = account.get("available_balance", 0)
         unrealized_pnl = account.get("unrealized_pnl", 0)
 
-        lines.append(f"  *Binance Futures:*")
-        lines.append(f"    Total: ${total_usdt:,.2f}")
-        lines.append(f"    Available: ${available_usdt:,.2f}")
-        if abs(unrealized_pnl) > 0.01:
-            pnl_emoji = "📈" if unrealized_pnl >= 0 else "📉"
-            lines.append(f"    {pnl_emoji} Unrealized: ${unrealized_pnl:+,.2f}")
+        pnl_emoji = "📈" if unrealized_pnl >= 0 else "📉"
+        lines.append(f"  Balance: ${available_usdt:,.2f}")
+        lines.append(f"  {pnl_emoji} Unrealized P&L: ${unrealized_pnl:+,.2f}")
+        lines.append(f"  Total: ${total_usdt:,.2f}")
+
+        # Fetch Binance positions
+        positions = binance.client.futures_position_information()
+        active_positions = []
+        for pos in positions:
+            pos_amt = float(pos.get("positionAmt", 0))
+            if abs(pos_amt) > 0.0001:
+                symbol = pos.get("symbol", "")
+                entry_price = float(pos.get("entryPrice", 0))
+                mark_price = float(pos.get("markPrice", 0))
+                unrealized = float(pos.get("unRealizedProfit", 0))
+                side = "LONG" if pos_amt > 0 else "SHORT"
+                pnl_pct = ((mark_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+                if side == "SHORT":
+                    pnl_pct = -pnl_pct
+                active_positions.append({
+                    "symbol": symbol.replace("USDT", ""),
+                    "side": side,
+                    "qty": abs(pos_amt),
+                    "entry_price": entry_price,
+                    "mark_price": mark_price,
+                    "pnl_pct": pnl_pct,
+                    "pnl_usd": unrealized,
+                })
+
+        if active_positions:
+            lines.append(f"  *Positions:*")
+            for pos in active_positions:
+                pnl_emoji = "📈" if pos["pnl_pct"] >= 0 else "📉"
+                lines.append(f"    • {pos['symbol']}: ${pos['mark_price']:,.2f} ← ${pos['entry_price']:,.2f} [{pos['side']}]")
+                lines.append(f"      {pnl_emoji} {pos['pnl_pct']:+.2f}% (${pos['pnl_usd']:+,.2f})")
+        else:
+            lines.append(f"  *Positions:* None")
+
     except Exception as e:
-        lines.append(f"  *Binance:* ⚠️ 조회 실패")
+        lines.append(f"  ⚠️ Failed to fetch: {str(e)[:30]}")
 
-    # === PRICES & REGIMES ===
+    # === MARKET INFORMATION ===
     lines.append("")
-    lines.append(f"📈 *Market (FX ₩{fx_rate:,.0f}):*")
+    lines.append("📈 *Market Information*")
 
+    # Premium for each asset
+    lines.append(f"  *Premium:*")
+    for symbol in assets:
+        data = assets.get(symbol, {})
+        premium = data.get("premium_pct", 0)
+        regime = regimes.get(symbol, "UNKNOWN")
+        premium_emoji = "🔴" if premium > 3 else "🟢" if premium < 1 else "🟡"
+        lines.append(f"    {premium_emoji} {symbol}: {premium:+.2f}% ({regime})")
+
+    # FX Rate
+    lines.append(f"  *FX Rate:*")
+    lines.append(f"    USD/KRW: ₩{fx_rate:,.2f}")
+
+    # Prices
+    lines.append(f"  *Prices:*")
     for symbol in assets:
         data = assets.get(symbol, {})
         upbit_krw = data.get("upbit_krw", 0)
         binance_usd = data.get("binance_usd", 0)
-        premium = data.get("premium_pct", 0)
-        regime = regimes.get(symbol, "UNKNOWN")
 
-        # Format price based on magnitude
         if upbit_krw >= 1_000_000:
-            upbit_str = f"₩{upbit_krw/1_000_000:.1f}M"
+            upbit_str = f"₩{upbit_krw/1_000_000:.2f}M"
         else:
             upbit_str = f"₩{upbit_krw:,.0f}"
 
-        lines.append(f"  *{symbol}* {upbit_str} | ${binance_usd:,.0f}")
-        lines.append(f"    김프 {premium:+.2f}% | {regime}")
-
-    # === PAPER TRADING POSITIONS ===
-    lines.append("")
-    lines.append("💼 *Paper Positions:*")
-
-    has_position = False
-    for symbol in assets:
-        state = engine.alpha_manager.get_state(symbol)
-        if state and state.active and state.quantity > 0:
-            has_position = True
-            pnl_pct = ((state.current_price - state.entry_price) / state.entry_price * 100) if state.entry_price > 0 else 0
-            pnl_emoji = "📈" if pnl_pct >= 0 else "📉"
-            lines.append(f"  *{symbol}* {state.quantity:.6f}")
-            lines.append(f"    ₩{state.entry_price:,.0f} → ₩{state.current_price:,.0f}")
-            lines.append(f"    {pnl_emoji} {pnl_pct:+.2f}%")
-
-    if not has_position:
-        lines.append("  포지션 없음")
-
-    # Paper trading stats
-    alpha = stats.get("alpha", {})
-    if alpha and alpha.get("total_trades", 0) > 0:
-        total_trades = alpha.get("total_trades", 0)
-        win_rate = alpha.get("win_rate", 0)
-        total_pnl = alpha.get("total_pnl_krw", 0)
-        lines.append("")
-        lines.append("📉 *Paper Stats:*")
-        lines.append(f"  거래: {total_trades}회 | 승률: {win_rate:.0f}%")
-        lines.append(f"  P&L: ₩{total_pnl:+,.0f}")
+        lines.append(f"    {symbol}: {upbit_str} | ${binance_usd:,.2f}")
 
     return "\n".join(lines)
 

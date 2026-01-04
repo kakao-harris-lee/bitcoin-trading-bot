@@ -22,6 +22,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.data_loader import DataLoader
 from core.backtester import Backtester
 
+from trading.strategy.v35_long import V35LongStrategy
 from trading.strategy.sideways_v1 import SideWaysV1Strategy
 from trading.strategy.sideways_v2 import SideWaysV2Strategy
 
@@ -81,230 +82,29 @@ def _scale_sideways_config_for_timeframe(config: Dict, timeframe: str) -> Dict:
 
 
 # =============================================================================
-# V35 Long Strategy Adapter
+# V35 Long Strategy Adapter (using actual V35LongStrategy)
 # =============================================================================
 
 class V35StrategyAdapter:
-    """V35 Long 전략 어댑터 (기존 Backtester와 호환)"""
+    """V35 Long 전략 어댑터 - wraps actual V35LongStrategy for backtester compatibility."""
 
     def __init__(self, config: Dict = None):
-        self.config = config or self._default_config()
-        self.in_position = False
-        self.entry_price = 0.0
-        self.entry_time = None
-        self.market_state = 'UNKNOWN'
-        self.partial_exits = 0
+        self.strategy = V35LongStrategy(strategy_config=config)
+        self._cached_df: Optional[pd.DataFrame] = None
 
-        # 캐시된 지표
-        self._cached_df = None
-        self._cached_indicators = None
-
-    def _default_config(self) -> Dict:
-        """기본 설정"""
-        return {
-            # MarketClassifier
-            'mfi_bull_strong': 52,
-            'mfi_bull_moderate': 45,
-            'mfi_sideways_up': 42,
-            'mfi_bear_moderate': 38,
-            'mfi_bear_strong': 35,
-            'adx_strong_trend': 20,
-            'adx_moderate_trend': 15,
-            # Entry
-            'rsi_oversold': 35,
-            'rsi_overbought': 70,
-            'bb_lower_mult': 2.0,
-            # Exit
-            'stop_loss': -0.015,  # -1.5%
-            'tp_bull_strong': [0.05, 0.10, 0.20],
-            'tp_bull_moderate': [0.03, 0.07, 0.12],
-            'tp_sideways': [0.02, 0.04, 0.06],
-        }
-
-    def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """기술적 지표 추가"""
-        df = df.copy()
-
-        # RSI
-        delta = df['close'].diff()
-        gain = delta.where(delta > 0, 0).rolling(window=14).mean()
-        loss = -delta.where(delta < 0, 0).rolling(window=14).mean()
-        rs = gain / loss
-        df['rsi'] = 100 - (100 / (1 + rs))
-
-        # MACD
-        ema12 = df['close'].ewm(span=12, adjust=False).mean()
-        ema26 = df['close'].ewm(span=26, adjust=False).mean()
-        df['macd'] = ema12 - ema26
-        df['macd_signal'] = df['macd'].ewm(span=9, adjust=False).mean()
-        df['macd_hist'] = df['macd'] - df['macd_signal']
-
-        # Bollinger Bands
-        sma20 = df['close'].rolling(window=20).mean()
-        std20 = df['close'].rolling(window=20).std()
-        df['bb_upper'] = sma20 + (std20 * 2)
-        df['bb_middle'] = sma20
-        df['bb_lower'] = sma20 - (std20 * 2)
-
-        # ADX
-        df['tr'] = np.maximum(
-            df['high'] - df['low'],
-            np.maximum(
-                abs(df['high'] - df['close'].shift(1)),
-                abs(df['low'] - df['close'].shift(1))
-            )
-        )
-        df['atr'] = df['tr'].rolling(window=14).mean()
-
-        plus_dm = df['high'].diff()
-        minus_dm = -df['low'].diff()
-        plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0)
-        minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0)
-
-        plus_di = 100 * (plus_dm.rolling(14).mean() / df['atr'])
-        minus_di = 100 * (minus_dm.rolling(14).mean() / df['atr'])
-        dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
-        df['adx'] = dx.rolling(14).mean()
-
-        # MFI (Money Flow Index)
-        typical_price = (df['high'] + df['low'] + df['close']) / 3
-        raw_mf = typical_price * df['volume']
-        mf_positive = raw_mf.where(typical_price > typical_price.shift(1), 0)
-        mf_negative = raw_mf.where(typical_price < typical_price.shift(1), 0)
-        mf_ratio = mf_positive.rolling(14).sum() / mf_negative.rolling(14).sum()
-        df['mfi'] = 100 - (100 / (1 + mf_ratio))
-
-        return df
-
-    def classify_market(self, row: pd.Series) -> str:
-        """시장 상태 분류"""
-        mfi = row.get('mfi', 50)
-        adx = row.get('adx', 15)
-
-        cfg = self.config
-
-        if mfi >= cfg['mfi_bull_strong'] and adx >= cfg['adx_strong_trend']:
-            return 'BULL_STRONG'
-        elif mfi >= cfg['mfi_bull_moderate'] and adx >= cfg['adx_moderate_trend']:
-            return 'BULL_MODERATE'
-        elif mfi >= cfg['mfi_sideways_up']:
-            return 'SIDEWAYS_UP'
-        elif mfi >= cfg['mfi_bear_moderate']:
-            return 'SIDEWAYS_FLAT'
-        elif mfi >= cfg['mfi_bear_strong']:
-            return 'SIDEWAYS_DOWN'
-        elif adx >= cfg['adx_strong_trend']:
-            return 'BEAR_STRONG'
-        else:
-            return 'BEAR_MODERATE'
-
-    def check_entry(self, row: pd.Series) -> Optional[Dict]:
-        """진입 조건 확인"""
-        if self.in_position:
-            return None
-
-        rsi = row.get('rsi', 50)
-        close = row['close']
-        bb_lower = row.get('bb_lower', close)
-        macd = row.get('macd', 0)
-        macd_signal = row.get('macd_signal', 0)
-
-        # BULL 상태에서만 진입
-        if self.market_state not in ['BULL_STRONG', 'BULL_MODERATE']:
-            return None
-
-        # 진입 조건: RSI 과매도 + BB 하단 근처 + MACD 골든크로스
-        if rsi < self.config['rsi_oversold'] and close <= bb_lower * 1.02:
-            if macd > macd_signal:  # MACD 골든크로스
-                return {
-                    'action': 'buy',
-                    'fraction': 0.5 if self.market_state == 'BULL_STRONG' else 0.3,
-                    'reason': f'ENTRY: RSI={rsi:.1f}, BB_LOWER_TOUCH, {self.market_state}'
-                }
-
-        return None
-
-    def check_exit(self, row: pd.Series) -> Optional[Dict]:
-        """청산 조건 확인"""
-        if not self.in_position:
-            return None
-
-        close = row['close']
-        pnl_pct = (close - self.entry_price) / self.entry_price
-
-        # 스탑로스
-        if pnl_pct <= self.config['stop_loss']:
-            return {
-                'action': 'sell',
-                'fraction': 1.0,
-                'reason': f'STOP_LOSS: {pnl_pct*100:.2f}%'
-            }
-
-        # 테이크프로핏 (시장 상태별)
-        if self.market_state == 'BULL_STRONG':
-            tp_levels = self.config['tp_bull_strong']
-        elif self.market_state == 'BULL_MODERATE':
-            tp_levels = self.config['tp_bull_moderate']
-        else:
-            tp_levels = self.config['tp_sideways']
-
-        # 부분 청산
-        if self.partial_exits < len(tp_levels):
-            if pnl_pct >= tp_levels[self.partial_exits]:
-                fraction = 0.4 if self.partial_exits == 0 else 0.3
-                return {
-                    'action': 'sell',
-                    'fraction': fraction,
-                    'reason': f'TP_LEVEL_{self.partial_exits + 1}: {pnl_pct*100:.2f}%'
-                }
-
-        # MACD 데드크로스
-        macd = row.get('macd', 0)
-        macd_signal = row.get('macd_signal', 0)
-        if macd < macd_signal and pnl_pct > 0:
-            return {
-                'action': 'sell',
-                'fraction': 1.0,
-                'reason': f'MACD_DEAD_CROSS: {pnl_pct*100:.2f}%'
-            }
-
-        return None
+    @property
+    def in_position(self) -> bool:
+        return self.strategy.in_position
 
     def __call__(self, df: pd.DataFrame, i: int, params: Dict) -> Dict:
-        """Backtester 호환 인터페이스"""
-        if i < 30:  # 워밍업
+        if i < 200:  # V35 needs 200 bars for EMA warmup
             return {'action': 'hold'}
 
-        # 지표 계산 (캐싱)
         if self._cached_df is None or len(df) != len(self._cached_df):
-            self._cached_df = self.add_indicators(df)
+            self._cached_df = self.strategy.add_indicators(df)
 
-        row = self._cached_df.iloc[i]
-
-        # 시장 상태 분류
-        self.market_state = self.classify_market(row)
-
-        # 청산 확인
-        exit_signal = self.check_exit(row)
-        if exit_signal:
-            if exit_signal['fraction'] >= 1.0:
-                self.in_position = False
-                self.entry_price = 0
-                self.partial_exits = 0
-            else:
-                self.partial_exits += 1
-            return exit_signal
-
-        # 진입 확인
-        entry_signal = self.check_entry(row)
-        if entry_signal:
-            self.in_position = True
-            self.entry_price = row['close']
-            self.entry_time = row['timestamp']
-            self.partial_exits = 0
-            return entry_signal
-
-        return {'action': 'hold'}
+        signal = self.strategy.generate_signal(self._cached_df, i)
+        return signal or {'action': 'hold'}
 
 
 # =============================================================================
@@ -497,18 +297,23 @@ class RegimeRouterV1Adapter:
 
         self.v35 = V35StrategyAdapter()
         self.sideways_v2 = SideWaysV2StrategyAdapter(timeframe=timeframe)
+        self.router = LiveRegimeRouter()  # Use live router for classification
 
         self._active_strategy: Optional[str] = None  # 'v35' | 'sideways_v2' | None
-
-        # 레짐 판단을 위한 지표 캐시 (V35와 동일 계산 사용)
         self._cached_df: Optional[pd.DataFrame] = None
 
     def _classify_market_state(self, df: pd.DataFrame, i: int) -> str:
-        """V35 방식(MFI+ADX)으로 market_state 분류."""
+        """Use live router for market state classification."""
         if self._cached_df is None or len(df) != len(self._cached_df):
-            self._cached_df = self.v35.add_indicators(df)
+            cached = df.copy()
+            cached["mfi"] = _live_calc_mfi(cached, period=self.router.mfi_period)
+            cached["adx"] = _live_calc_adx(cached, period=self.router.adx_period)
+            self._cached_df = cached
         row = self._cached_df.iloc[i]
-        return self.v35.classify_market(row)
+        return self.router.classify_from_values(
+            mfi=float(row.get("mfi", np.nan)),
+            adx=float(row.get("adx", np.nan))
+        )
 
     def _pick_strategy_for_regime(self, regime: str) -> Optional[str]:
         if regime == "BULL":

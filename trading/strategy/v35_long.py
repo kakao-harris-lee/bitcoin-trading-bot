@@ -341,19 +341,20 @@ class V35LongStrategy(BaseStrategy):
         # 시장 상태 분류
         market_state = self.classifier.classify(row, prev_row)
 
-        # BEAR 감지 시 즉시 청산 (단, BEAR에서 진입한 보수적 포지션은 제외)
-        # Conservative entries in BEAR are intentional and shouldn't trigger protection exit
-        if self.in_position and market_state in ['BEAR_MODERATE', 'BEAR_STRONG']:
-            if self.entry_strategy != 'conservative':
-                self.clear_position()
-                self.exit_manager.reset()
-                return {
-                    'action': 'sell',
-                    'fraction': 1.0,
-                    'reason': f'BEAR_PROTECTION_{market_state}',
-                    'confidence': 0.95,
-                    'metadata': {'market_state': market_state}
-                }
+        # BEAR_PROTECTION disabled - analysis showed it was cutting profitable trades short
+        # (278 trades forced exit at 14% win rate, -87% total loss)
+        # Trades perform better when allowed to run to TP or MACD exit
+        # if self.in_position and market_state in ['BEAR_MODERATE', 'BEAR_STRONG']:
+        #     if self.entry_strategy != 'conservative':
+        #         self.clear_position()
+        #         self.exit_manager.reset()
+        #         return {
+        #             'action': 'sell',
+        #             'fraction': 1.0,
+        #             'reason': f'BEAR_PROTECTION_{market_state}',
+        #             'confidence': 0.95,
+        #             'metadata': {'market_state': market_state}
+        #         }
 
         # 포지션 있을 때: Exit 조건
         if self.in_position:

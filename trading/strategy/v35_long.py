@@ -74,32 +74,41 @@ class MarketClassifier:
 # ========== 동적 Exit 관리자 ==========
 
 class DynamicExitManager:
-    """동적 익절/손절 관리"""
+    """동적 익절/손절 관리 with trailing stop"""
 
     def __init__(self, config: Dict):
         self.config = config
         self.entry_price = 0.0
         self.market_state = 'UNKNOWN'
         self.partial_exits = 0
+        # Trailing stop state
+        self.high_water_mark = 0.0
+        self.trailing_active = False
 
     def set_entry(self, price: float, market_state: str):
         """진입 설정"""
         self.entry_price = price
         self.market_state = market_state
         self.partial_exits = 0
+        # Initialize trailing stop tracking
+        self.high_water_mark = price
+        self.trailing_active = False
 
     def reset(self):
         """리셋"""
         self.entry_price = 0.0
         self.market_state = 'UNKNOWN'
         self.partial_exits = 0
+        self.high_water_mark = 0.0
+        self.trailing_active = False
 
     def check_exit(
         self,
         current_price: float,
         current_market_state: str,
         macd: float = 0,
-        macd_signal: float = 0
+        macd_signal: float = 0,
+        high_price: float = None
     ) -> Optional[Dict]:
         """
         Exit 조건 확인
@@ -112,7 +121,12 @@ class DynamicExitManager:
 
         pnl_pct = (current_price - self.entry_price) / self.entry_price
 
-        # 손절
+        # Update high water mark for trailing stop using HIGH price (true peak)
+        check_price = high_price if high_price is not None else current_price
+        if check_price > self.high_water_mark:
+            self.high_water_mark = check_price
+
+        # 손절 (fixed stop loss)
         stop_loss = self.config.get('stop_loss', -0.015)
         if pnl_pct <= stop_loss:
             return {
@@ -120,6 +134,26 @@ class DynamicExitManager:
                 'fraction': 1.0,
                 'reason': f'STOP_LOSS_{pnl_pct*100:.2f}%'
             }
+
+        # Trailing stop logic
+        trailing_activation = self.config.get('trailing_activation', 0.02)  # Activate at +2%
+        trailing_distance = self.config.get('trailing_distance', 0.015)     # Trail by 1.5%
+
+        # Check if trailing stop should activate
+        hwm_pnl = (self.high_water_mark - self.entry_price) / self.entry_price
+        if hwm_pnl >= trailing_activation:
+            self.trailing_active = True
+
+        # Check trailing stop trigger
+        if self.trailing_active:
+            trailing_stop_price = self.high_water_mark * (1 - trailing_distance)
+            if current_price <= trailing_stop_price:
+                locked_gain = (trailing_stop_price - self.entry_price) / self.entry_price
+                return {
+                    'action': 'sell',
+                    'fraction': 1.0,
+                    'reason': f'TRAILING_STOP_{pnl_pct*100:.2f}%_locked_{locked_gain*100:.2f}%'
+                }
 
         # 시장 상태별 익절
         tp_levels = self._get_tp_levels()
@@ -209,6 +243,10 @@ class V35LongStrategy(BaseStrategy):
         'tp_sideways_1': 0.02,
         'tp_sideways_2': 0.04,
         'tp_sideways_3': 0.06,
+
+        # Trailing stop - protects gains when price reverses
+        'trailing_activation': 0.03,   # Activate trailing stop at +3% profit
+        'trailing_distance': 0.02,     # Exit when price drops 2% from high water mark
 
         # Position
         'position_size': 0.5,
@@ -362,7 +400,8 @@ class V35LongStrategy(BaseStrategy):
                 current_price=row['close'],
                 current_market_state=market_state,
                 macd=row.get('macd', 0),
-                macd_signal=row.get('macd_signal', 0)
+                macd_signal=row.get('macd_signal', 0),
+                high_price=row.get('high', row['close'])
             )
 
             if exit_signal:

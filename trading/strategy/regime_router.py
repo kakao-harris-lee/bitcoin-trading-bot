@@ -18,6 +18,7 @@ from typing import Literal, Optional, TYPE_CHECKING
 import pandas as pd
 
 from core.data_loader import DataLoader
+from trading.indicators import technical as ta
 
 if TYPE_CHECKING:
     from trading.data.data_cache import DataCache
@@ -250,48 +251,16 @@ class RegimeRouter:
 
 
 def _calc_mfi(df: pd.DataFrame, period: int) -> pd.Series:
-    tp = (df["high"] + df["low"] + df["close"]) / 3.0
-    raw_mf = tp * df["volume"]
-
-    direction = tp.diff()
-    pos_mf = raw_mf.where(direction > 0, 0.0)
-    neg_mf = raw_mf.where(direction < 0, 0.0).abs()
-
-    pos_sum = pos_mf.rolling(period).sum()
-    neg_sum = neg_mf.rolling(period).sum()
-
-    # Avoid division by zero; when neg_sum=0, MFI should be 100
-    mf_ratio = pos_sum / neg_sum.replace(0, pd.NA)
-    mfi = 100.0 - (100.0 / (1.0 + mf_ratio))
-    return mfi.fillna(100.0)
+    """Calculate MFI using talib."""
+    return ta.mfi(df["high"], df["low"], df["close"], df["volume"], period=period)
 
 
 def _calc_adx(df: pd.DataFrame, period: int) -> pd.Series:
-    high = df["high"]
-    low = df["low"]
-    close = df["close"]
+    """Calculate ADX using talib.
 
-    prev_close = close.shift(1)
-
-    tr = pd.concat(
-        [
-            (high - low),
-            (high - prev_close).abs(),
-            (low - prev_close).abs(),
-        ],
-        axis=1,
-    ).max(axis=1)
-
-    up_move = high.diff()
-    down_move = -low.diff()
-
-    plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
-    minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
-
-    atr = tr.rolling(period).mean()
-    plus_di = 100.0 * (plus_dm.rolling(period).mean() / atr.replace(0, pd.NA))
-    minus_di = 100.0 * (minus_dm.rolling(period).mean() / atr.replace(0, pd.NA))
-
-    dx = 100.0 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, pd.NA)
-    adx = dx.rolling(period).mean()
-    return adx.fillna(0.0)
+    Note: talib uses EMA smoothing (more accurate) vs the previous
+    rolling mean implementation. This may result in slightly different
+    values but is the industry-standard calculation.
+    """
+    adx_val, _, _ = ta.adx(df["high"], df["low"], df["close"], period=period)
+    return adx_val.fillna(0.0)

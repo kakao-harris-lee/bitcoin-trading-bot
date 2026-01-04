@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 
 from trading.strategy.base import BaseStrategy
+from trading.indicators import add_all_indicators
 from trading.core.config import Config
 from core.types import Exchange, Direction
 
@@ -88,8 +89,19 @@ class SideWaysV2Strategy(BaseStrategy):
         return 30
 
     def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = df.copy()
+        """Add indicators using shared library + custom OBV filter."""
+        # Use shared indicator library for common indicators
+        if len(df) >= 200:
+            add_all_indicators(df)
+        else:
+            self._add_indicators_legacy(df)
 
+        # Custom indicators for sideways_v2
+        self._add_custom_indicators(df)
+        return df
+
+    def _add_indicators_legacy(self, df: pd.DataFrame) -> None:
+        """Legacy indicator calculation for small DataFrames (<200 rows)."""
         # RSI
         delta = df["close"].diff()
         gain = delta.where(delta > 0, 0).rolling(window=14).mean()
@@ -103,14 +115,18 @@ class SideWaysV2Strategy(BaseStrategy):
         df["bb_middle"] = bb_middle
         df["bb_upper"] = bb_middle + 2 * bb_std
         df["bb_lower"] = bb_middle - 2 * bb_std
-        bb_range = (df["bb_upper"] - df["bb_lower"]).replace(0, np.nan)
-        df["bb_position"] = (df["close"] - df["bb_lower"]) / bb_range
 
         # Stochastic
         low_14 = df["low"].rolling(window=14).min()
         high_14 = df["high"].rolling(window=14).max()
         df["stoch_k"] = 100 * (df["close"] - low_14) / (high_14 - low_14).replace(0, np.nan)
         df["stoch_d"] = df["stoch_k"].rolling(window=3).mean()
+
+    def _add_custom_indicators(self, df: pd.DataFrame) -> None:
+        """Custom indicators specific to sideways_v2 (OBV filter, bb_position)."""
+        # BB position (derived from Bollinger Bands)
+        bb_range = (df["bb_upper"] - df["bb_lower"]).replace(0, np.nan)
+        df["bb_position"] = (df["close"] - df["bb_lower"]) / bb_range
 
         # Avg volume for breakout
         df["avg_volume_20"] = df["volume"].rolling(window=20).mean()
@@ -127,8 +143,6 @@ class SideWaysV2Strategy(BaseStrategy):
         df["obv_ma"] = obv_ma
         denom = obv_ma.shift(slope_lookback).replace(0, np.nan).abs()
         df["obv_slope"] = (obv_ma - obv_ma.shift(slope_lookback)) / denom
-
-        return df
 
     def generate_signal(self, df: pd.DataFrame, i: int) -> Optional[Dict]:
         if i < self._min_buffer_size():

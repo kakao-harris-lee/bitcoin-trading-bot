@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 
 from .base import BaseStrategy
+from trading.indicators import add_all_indicators, technical as ta
 from ..core.config import Config
 from core.types import Exchange, Direction
 
@@ -94,8 +95,19 @@ class SideWaysV1Strategy(BaseStrategy):
         return 30
 
     def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = df.copy()
+        """Add indicators using shared library + custom v-a-08 filters."""
+        # Use shared indicator library for common indicators
+        if len(df) >= 200:
+            add_all_indicators(df)
+        else:
+            self._add_indicators_legacy(df)
 
+        # Custom indicators for sideways_v1
+        self._add_custom_indicators(df)
+        return df
+
+    def _add_indicators_legacy(self, df: pd.DataFrame) -> None:
+        """Legacy indicator calculation for small DataFrames (<200 rows)."""
         # RSI
         delta = df["close"].diff()
         gain = delta.where(delta > 0, 0).rolling(window=14).mean()
@@ -110,35 +122,29 @@ class SideWaysV1Strategy(BaseStrategy):
         df["bb_upper"] = bb_middle + 2 * bb_std
         df["bb_lower"] = bb_middle - 2 * bb_std
 
-        # bb_position: 0(하단) ~ 1(상단)
-        bb_range = (df["bb_upper"] - df["bb_lower"]).replace(0, np.nan)
-        df["bb_position"] = (df["close"] - df["bb_lower"]) / bb_range
-
         # Stochastic
         low_14 = df["low"].rolling(window=14).min()
         high_14 = df["high"].rolling(window=14).max()
         df["stoch_k"] = 100 * (df["close"] - low_14) / (high_14 - low_14).replace(0, np.nan)
         df["stoch_d"] = df["stoch_k"].rolling(window=3).mean()
 
-        # ATR (for v-a-08 filters)
-        tr = np.maximum(
-            df["high"] - df["low"],
-            np.maximum(
-                (df["high"] - df["close"].shift(1)).abs(),
-                (df["low"] - df["close"].shift(1)).abs(),
-            ),
-        )
-        df["tr"] = tr
-        df["atr"] = df["tr"].rolling(window=14).mean()
+        # ATR (using talib)
+        df["atr"] = ta.atr(df["high"], df["low"], df["close"], period=14)
+
+    def _add_custom_indicators(self, df: pd.DataFrame) -> None:
+        """Custom indicators specific to sideways_v1 (v-a-08 filters)."""
+        # bb_position: 0(하단) ~ 1(상단)
+        bb_range = (df["bb_upper"] - df["bb_lower"]).replace(0, np.nan)
+        df["bb_position"] = (df["close"] - df["bb_lower"]) / bb_range
+
+        # ATR MA for spike detection
         df["atr_ma14"] = df["atr"].rolling(window=14).mean()
 
-        # Volatility ratio
+        # Volatility ratio (for v-a-08 filter)
         df["volatility_ratio_20"] = df["close"].rolling(window=20).std() / df["close"].replace(0, np.nan)
 
         # Rolling avg volume (for breakout)
         df["avg_volume_20"] = df["volume"].rolling(window=20).mean()
-
-        return df
 
     def generate_signal(self, df: pd.DataFrame, i: int) -> Optional[Dict]:
         if i < self._min_buffer_size():

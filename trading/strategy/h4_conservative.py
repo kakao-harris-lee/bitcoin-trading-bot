@@ -27,6 +27,8 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
 from datetime import datetime
 
+from trading.indicators import technical as ta
+
 
 @dataclass
 class H4ConservativeConfig:
@@ -77,26 +79,21 @@ class H4ConservativeStrategy:
         self._last_signal: Optional[Dict[str, Any]] = None
 
     def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """지표 계산"""
+        """지표 계산 (using talib via shared library)"""
         df = df.copy()
 
-        # RSI
-        delta = df['close'].diff()
-        gain = delta.where(delta > 0, 0).rolling(self.cfg.rsi_period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(self.cfg.rsi_period).mean()
-        rs = gain / (loss + 1e-10)
-        df['rsi'] = 100 - (100 / (1 + rs))
+        # RSI (using talib)
+        df['rsi'] = ta.rsi(df['close'], period=self.cfg.rsi_period)
 
-        # Bollinger Bands
-        df['bb_mid'] = df['close'].rolling(self.cfg.bb_period).mean()
-        df['bb_std'] = df['close'].rolling(self.cfg.bb_period).std()
-        df['bb_upper'] = df['bb_mid'] + 2 * df['bb_std']
-        df['bb_lower'] = df['bb_mid'] - 2 * df['bb_std']
+        # Bollinger Bands (using talib)
+        df['bb_upper'], df['bb_mid'], df['bb_lower'] = ta.bbands(
+            df['close'], period=self.cfg.bb_period, std=2.0
+        )
         df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'] + 1e-10)
 
-        # EMA Trend
-        df['ema_short'] = df['close'].ewm(span=self.cfg.ema_short).mean()
-        df['ema_long'] = df['close'].ewm(span=self.cfg.ema_long).mean()
+        # EMA Trend (using talib)
+        df['ema_short'] = ta.ema(df['close'], period=self.cfg.ema_short)
+        df['ema_long'] = ta.ema(df['close'], period=self.cfg.ema_long)
         df['uptrend'] = (df['ema_short'] > df['ema_long']).astype(int)
 
         # Volume ratio

@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 
 from .base import BaseStrategy
+from ..indicators import technical as ta
 from ..core.config import Config
 from core.types import Exchange, Direction
 
@@ -83,86 +84,44 @@ class ShortV1Strategy(BaseStrategy):
         return 200
 
     def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """EMA, ADX, DI 지표 추가"""
-        # EMA
-        df['ema_fast'] = df['close'].ewm(
-            span=self.strategy_config['ema_fast'], adjust=False
-        ).mean()
-        df['ema_slow'] = df['close'].ewm(
-            span=self.strategy_config['ema_slow'], adjust=False
-        ).mean()
+        """EMA, ADX, DI indicators using shared library."""
+        # EMA (using talib via shared library)
+        df['ema_fast'] = ta.ema(df['close'], period=self.strategy_config['ema_fast'])
+        df['ema_slow'] = ta.ema(df['close'], period=self.strategy_config['ema_slow'])
 
-        # ADX, +DI, -DI
-        df = self._calculate_adx_di(df)
+        # ADX, +DI, -DI (using talib via shared library)
+        period = self.strategy_config['adx_period']
+        df['adx'], df['plus_di'], df['minus_di'] = ta.adx(
+            df['high'], df['low'], df['close'], period=period
+        )
 
-        # EMA 크로스오버
+        # EMA crossover signals
         ema_fast = df['ema_fast']
         ema_slow = df['ema_slow']
         prev_fast = ema_fast.shift(1)
         prev_slow = ema_slow.shift(1)
 
-        # 데드크로스: fast가 slow 아래로 하향 돌파
+        # Death cross: fast crosses below slow
         df['death_cross'] = (ema_fast < ema_slow) & (prev_fast >= prev_slow)
 
-        # 골든크로스: fast가 slow 위로 상향 돌파
+        # Golden cross: fast crosses above slow
         df['golden_cross'] = (ema_fast > ema_slow) & (prev_fast <= prev_slow)
 
-        # 추세 상태
+        # Trend state
         df['trend'] = np.where(
             ema_fast > ema_slow, 'BULL',
             np.where(ema_fast < ema_slow, 'BEAR', 'NEUTRAL')
         )
 
-        # DI 우위
+        # DI dominance
         df['di_dominant'] = np.where(
             df['minus_di'] > df['plus_di'], 'BEAR',
             np.where(df['plus_di'] > df['minus_di'], 'BULL', 'NEUTRAL')
         )
 
-        # 스윙 하이/로우
+        # Swing high/low
         df['swing_high'] = df['high'].rolling(window=10).max()
         df['swing_low'] = df['low'].rolling(window=10).min()
-
-        return df
-
-    def _calculate_adx_di(self, df: pd.DataFrame) -> pd.DataFrame:
-        """ADX, +DI, -DI 계산"""
-        period = self.strategy_config['adx_period']
-
-        high = df['high']
-        low = df['low']
-        close = df['close']
-
-        # True Range
-        tr1 = high - low
-        tr2 = abs(high - close.shift(1))
-        tr3 = abs(low - close.shift(1))
-        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-
-        # Directional Movement
-        up_move = high - high.shift(1)
-        down_move = low.shift(1) - low
-
-        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
-        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
-
-        plus_dm = pd.Series(plus_dm, index=df.index)
-        minus_dm = pd.Series(minus_dm, index=df.index)
-
-        # Smoothed
-        atr = tr.ewm(alpha=1/period, adjust=False).mean()
-        smooth_plus = plus_dm.ewm(alpha=1/period, adjust=False).mean()
-        smooth_minus = minus_dm.ewm(alpha=1/period, adjust=False).mean()
-
-        # DI
-        df['plus_di'] = 100 * smooth_plus / atr.replace(0, np.nan)
-        df['minus_di'] = 100 * smooth_minus / atr.replace(0, np.nan)
-
-        # DX, ADX
-        di_sum = df['plus_di'] + df['minus_di']
-        di_diff = abs(df['plus_di'] - df['minus_di'])
-        dx = 100 * di_diff / di_sum.replace(0, np.nan)
-        df['adx'] = dx.ewm(alpha=1/period, adjust=False).mean()
 
         return df
 

@@ -16,7 +16,7 @@ import numpy as np
 from typing import Dict, Any, Optional
 
 # 경로 설정
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.data_loader import DataLoader

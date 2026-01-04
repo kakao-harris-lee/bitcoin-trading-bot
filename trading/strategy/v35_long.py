@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 
 from .base import BaseStrategy
+from ..indicators import add_all_indicators
 from ..core.config import Config
 from core.types import Exchange, Direction, MarketState
 
@@ -244,7 +245,17 @@ class V35LongStrategy(BaseStrategy):
         return 30
 
     def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        """기술적 지표 추가"""
+        """기술적 지표 추가 (using shared indicator library)"""
+        # Use shared indicator library
+        if len(df) >= 200:
+            add_all_indicators(df)
+        else:
+            # Fallback for small DataFrames (library requires 200+ rows)
+            self._add_indicators_legacy(df)
+        return df
+
+    def _add_indicators_legacy(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Legacy indicator calculation for small DataFrames (<200 rows)"""
         # RSI
         delta = df['close'].diff()
         gain = delta.where(delta > 0, 0).rolling(window=14).mean()

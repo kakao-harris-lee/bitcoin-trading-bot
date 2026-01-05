@@ -635,6 +635,8 @@ def get_exchange_balances():
     # Fetch Upbit balance
     try:
         from trading.adapters.upbit import UpbitTrader
+        import pyupbit
+
         upbit = UpbitTrader()
         krw_balance, btc_balance = upbit.get_balance()
         btc_price = upbit.get_current_price() or 0
@@ -642,12 +644,49 @@ def get_exchange_balances():
         btc_value = btc_balance * btc_price if btc_price else 0
         total_krw = krw_balance + btc_value
 
+        # Get all coin balances from Upbit
+        positions = []
+        try:
+            upbit_client = pyupbit.Upbit(
+                os.getenv('UPBIT_ACCESS_KEY'),
+                os.getenv('UPBIT_SECRET_KEY')
+            )
+            balances = upbit_client.get_balances()
+            for bal in balances:
+                currency = bal.get('currency', '')
+                if currency == 'KRW':
+                    continue
+                balance = float(bal.get('balance', 0))
+                avg_price = float(bal.get('avg_buy_price', 0))
+                if balance > 0 and avg_price > 0:
+                    # Get current price
+                    ticker = f"KRW-{currency}"
+                    current_price = pyupbit.get_current_price(ticker) or avg_price
+                    value_krw = balance * current_price
+                    cost_krw = balance * avg_price
+                    pnl_krw = value_krw - cost_krw
+                    pnl_pct = ((current_price / avg_price) - 1) * 100 if avg_price > 0 else 0
+
+                    positions.append({
+                        'symbol': currency,
+                        'quantity': balance,
+                        'avg_price': avg_price,
+                        'current_price': current_price,
+                        'value_krw': value_krw,
+                        'cost_krw': cost_krw,
+                        'pnl_krw': pnl_krw,
+                        'pnl_pct': pnl_pct,
+                    })
+        except Exception as e:
+            result['errors'].append(f'Upbit positions: {str(e)}')
+
         result['upbit'] = {
             'krw_balance': krw_balance,
             'btc_balance': btc_balance,
             'btc_price': btc_price,
             'btc_value_krw': btc_value,
             'total_krw': total_krw,
+            'positions': positions,
         }
     except Exception as e:
         result['errors'].append(f'Upbit: {str(e)}')

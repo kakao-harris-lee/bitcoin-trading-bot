@@ -351,9 +351,47 @@ function updateExchangeBalances(data) {
         document.getElementById('upbit-status').textContent = 'Connected';
         document.getElementById('upbit-status').className = 'exchange-status connected';
         document.getElementById('upbit-krw').textContent = formatKRW(data.upbit.krw_balance);
-        document.getElementById('upbit-btc').textContent = data.upbit.btc_balance.toFixed(8) + ' BTC';
-        document.getElementById('upbit-btc-value').textContent = formatKRW(data.upbit.btc_value_krw);
         document.getElementById('upbit-total').textContent = formatKRW(data.upbit.total_krw);
+
+        // Update Upbit positions
+        const upbitPositions = data.upbit.positions || [];
+        const upbitPosList = document.getElementById('upbit-positions-list');
+        if (upbitPositions.length > 0) {
+            let html = '';
+            for (const pos of upbitPositions) {
+                const pnlClass = pos.pnl_krw >= 0 ? 'positive' : 'negative';
+                const pnlPctClass = pos.pnl_pct >= 0 ? 'positive' : 'negative';
+                html += `
+                    <div class="position-item">
+                        <div class="position-header">
+                            <span class="position-symbol">${pos.symbol}</span>
+                            <span class="position-side long">LONG</span>
+                        </div>
+                        <div class="position-details">
+                            <div class="detail-row">
+                                <span class="label">Qty</span>
+                                <span class="value">${pos.quantity.toFixed(8)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Avg Price</span>
+                                <span class="value">${formatPrice(pos.avg_price, true)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Value</span>
+                                <span class="value">${formatKRW(pos.value_krw)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">PnL</span>
+                                <span class="value ${pnlClass}">${formatKRW(pos.pnl_krw)} (${pos.pnl_pct >= 0 ? '+' : ''}${pos.pnl_pct.toFixed(2)}%)</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            upbitPosList.innerHTML = html;
+        } else {
+            upbitPosList.innerHTML = '<span class="no-positions">No positions</span>';
+        }
     } else {
         document.getElementById('upbit-status').textContent = 'Error';
         document.getElementById('upbit-status').className = 'exchange-status error';
@@ -364,19 +402,43 @@ function updateExchangeBalances(data) {
         document.getElementById('binance-status').textContent = 'Connected';
         document.getElementById('binance-status').className = 'exchange-status connected';
         document.getElementById('binance-usdt').textContent = formatUSD(data.binance.usdt_balance);
-
-        const pnlEl = document.getElementById('binance-pnl');
-        pnlEl.textContent = formatUSD(data.binance.unrealized_pnl);
-        pnlEl.className = `value ${data.binance.unrealized_pnl >= 0 ? 'positive' : 'negative'}`;
-
         document.getElementById('binance-total').textContent = formatUSD(data.binance.total_equity);
 
-        const positions = data.binance.positions || [];
-        if (positions.length > 0) {
-            const posText = positions.map(p => `${p.symbol}: ${p.size}`).join(', ');
-            document.getElementById('binance-positions').textContent = posText;
+        // Update Binance positions
+        const binancePositions = data.binance.positions || [];
+        const binancePosList = document.getElementById('binance-positions-list');
+        if (binancePositions.length > 0) {
+            let html = '';
+            for (const pos of binancePositions) {
+                const side = pos.size > 0 ? 'LONG' : 'SHORT';
+                const sideClass = pos.size > 0 ? 'long' : 'short';
+                const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
+                html += `
+                    <div class="position-item">
+                        <div class="position-header">
+                            <span class="position-symbol">${pos.symbol}</span>
+                            <span class="position-side ${sideClass}">${side}</span>
+                        </div>
+                        <div class="position-details">
+                            <div class="detail-row">
+                                <span class="label">Size</span>
+                                <span class="value">${Math.abs(pos.size).toFixed(4)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Entry</span>
+                                <span class="value">$${formatPrice(pos.entry_price, false)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">PnL</span>
+                                <span class="value ${pnlClass}">${formatUSD(pos.unrealized_pnl)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            binancePosList.innerHTML = html;
         } else {
-            document.getElementById('binance-positions').textContent = 'None';
+            binancePosList.innerHTML = '<span class="no-positions">No positions</span>';
         }
     } else {
         document.getElementById('binance-status').textContent = 'Error';

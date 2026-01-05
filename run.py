@@ -4,10 +4,9 @@ Bitcoin Trading Bot - Entry Point
 비트코인 트레이딩 봇 진입점
 
 Usage:
-    python run.py --trend paper --premium paper  # Both paper (default)
-    python run.py --trend live --premium paper   # Trend live, premium paper
-    python run.py --trend live --premium live    # Both live
-    python run.py --help                         # Help
+    python run.py --trend paper  # Paper trading (default)
+    python run.py --trend live   # Live trading
+    python run.py --help         # Help
 
 Coins are controlled via config/strategies/allocation.json
 """
@@ -31,7 +30,7 @@ logging.basicConfig(
 )
 
 
-def format_info_message(engine, trend_mode: str = "live", premium_mode: str = "paper") -> str:
+def format_info_message(engine, trend_mode: str = "live") -> str:
     """Format engine stats for /info command with live exchange balances."""
     from datetime import datetime
 
@@ -66,7 +65,6 @@ def format_info_message(engine, trend_mode: str = "live", premium_mode: str = "p
         f"",
         f"*Mode*",
         f"  • Trend: *{trend_mode.upper()}*",
-        f"  • Premium: *{premium_mode.upper()}*",
     ]
 
     # === UPBIT ACCOUNT ===
@@ -193,14 +191,11 @@ def format_info_message(engine, trend_mode: str = "live", premium_mode: str = "p
     lines.append("")
     lines.append("📈 *Market Information*")
 
-    # Premium for each asset
-    lines.append(f"  *Premium:*")
+    # Regime for each asset
+    lines.append(f"  *Regime:*")
     for symbol in assets:
-        data = assets.get(symbol, {})
-        premium = data.get("premium_pct", 0)
         regime = regimes.get(symbol, "UNKNOWN")
-        premium_emoji = "🔴" if premium > 3 else "🟢" if premium < 1 else "🟡"
-        lines.append(f"    {premium_emoji} {symbol}: {premium:+.2f}% ({regime})")
+        lines.append(f"    {symbol}: {regime}")
 
     # FX Rate
     lines.append(f"  *FX Rate:*")
@@ -282,10 +277,9 @@ async def main(args):
 
             # Register /info command (capture args for mode info)
             trend_mode = args.trend
-            premium_mode = args.premium
 
             def handle_info(cmd_args: str):
-                msg = format_info_message(engine, trend_mode, premium_mode)
+                msg = format_info_message(engine, trend_mode)
                 engine._telegram.send_message(msg)
 
             cmd_handler.register_command("info", handle_info)
@@ -342,10 +336,9 @@ def run():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run.py --trend paper --premium paper  # Both paper (default)
-  python run.py --trend live --premium paper   # Trend live, premium paper
-  python run.py --trend live --premium live    # Both live
-  python run.py --no-telegram                  # Without telegram notifications
+  python run.py --trend paper  # Paper trading (default)
+  python run.py --trend live   # Live trading
+  python run.py --no-telegram  # Without telegram notifications
 
 Coins are controlled via config/strategies/allocation.json
         """
@@ -357,13 +350,6 @@ Coins are controlled via config/strategies/allocation.json
         choices=['paper', 'live'],
         default='paper',
         help='Trend/directional trading mode (default: paper)'
-    )
-
-    parser.add_argument(
-        '--premium',
-        choices=['paper', 'live'],
-        default='paper',
-        help='Kimchi premium hedge mode (default: paper)'
     )
 
     # Legacy --mode argument (maps to --trend)
@@ -419,7 +405,7 @@ Coins are controlled via config/strategies/allocation.json
         args.trend = args.mode
         print(f"Warning: --mode is deprecated. Use --trend instead.")
 
-    print(f"Starting MultiAssetTradingEngine (Trend={args.trend.upper()}, Premium={args.premium.upper()})...")
+    print(f"Starting MultiAssetTradingEngine (Mode={args.trend.upper()})...")
     print(f"  Assets from config/strategies/allocation.json")
 
     asyncio.run(main(args))

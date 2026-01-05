@@ -5,8 +5,6 @@ Orchestrates all multi-asset components:
 - MultiAssetPriceHub: Per-symbol price tracking
 - MultiAssetDataCache: Per-symbol OHLCV data
 - MultiAssetAlphaManager: Per-symbol strategy evaluation
-- MultiAssetHedgeManager: Per-symbol hedging
-- MultiAssetDeltaRebalancer: Per-symbol delta tracking
 - PortfolioManager: Capital allocation
 """
 
@@ -25,11 +23,8 @@ from .core.health_monitor import HealthMonitor
 from .data.simple_feed_handler import SimpleFeedHandler
 from .execution.portfolio_manager import PortfolioManager
 from .execution.multi_asset_alpha_manager import MultiAssetAlphaManager
-from .execution.multi_asset_hedge_manager import MultiAssetHedgeManager
-from .execution.multi_asset_delta_rebalancer import MultiAssetDeltaRebalancer
 from .execution.paper_account import PaperTradingAccount
 from .risk.risk_controls import kill_switch_active, RiskConfig
-from .risk.premium_tracker import PremiumTracker
 from .strategy.regime_router import RegimeRouter
 
 logger = logging.getLogger(__name__)
@@ -40,7 +35,6 @@ class MultiAssetEngineConfig:
     """Configuration for MultiAssetTradingEngine."""
     execution_mode: str = "paper"
     total_capital_krw: float = 10_000_000
-    hedge_capital_usdt: float = 5_000
     telegram_enabled: bool = True
     kill_switch_file: str = "analysis/KILL_SWITCH"
     price_change_threshold: float = 0.001
@@ -81,10 +75,8 @@ class MultiAssetTradingEngine:
 
         # Extract enabled symbols
         self._symbols = self._get_enabled_symbols()
-        self._hedgeable = self._get_hedgeable_symbols()
 
         logger.info(f"Enabled symbols: {self._symbols}")
-        logger.info(f"Hedgeable symbols: {self._hedgeable}")
 
         # Telegram (initialize before components that may use it)
         self._telegram = None
@@ -101,15 +93,6 @@ class MultiAssetTradingEngine:
         # Load and wire strategies, accounts, and routers
         self._setup_strategies_and_accounts()
 
-        # Premium tracker for each symbol (with symbol-specific history files)
-        self.premium_trackers: Dict[str, PremiumTracker] = {
-            sym: PremiumTracker(config={
-                "history_file": f"logs/premium_history_{sym}.json",
-                "max_history_hours": 168,  # 7 days
-            })
-            for sym in self._symbols
-        }
-
         # Regime cache per symbol
         self._regime_cache: Dict[str, str] = {sym: "SIDEWAYS_NEUTRAL" for sym in self._symbols}
 
@@ -121,14 +104,6 @@ class MultiAssetTradingEngine:
         """Get list of enabled symbols from config."""
         assets = self.allocation_config.get("assets", {})
         return [sym for sym, cfg in assets.items() if cfg.get("enabled", False)]
-
-    def _get_hedgeable_symbols(self) -> List[str]:
-        """Get list of hedgeable symbols from config."""
-        assets = self.allocation_config.get("assets", {})
-        return [
-            sym for sym, cfg in assets.items()
-            if cfg.get("enabled", False) and cfg.get("hedge_enabled", False)
-        ]
 
     def _init_components(self) -> None:
         """Initialize all multi-asset components."""
@@ -152,32 +127,11 @@ class MultiAssetTradingEngine:
             total_capital_krw=self.config.total_capital_krw,
         )
 
-        # Hedge Manager (empty accounts for now - will be set externally)
-        # Override hedge capital from engine config (allows live balance to be used)
-        hedge_allocation = self.allocation_config.copy()
-        if "hedge" not in hedge_allocation:
-            hedge_allocation["hedge"] = {}
-        hedge_allocation["hedge"]["total_capital_usdt"] = self.config.hedge_capital_usdt
-
-        self.hedge_manager = MultiAssetHedgeManager.from_config(
-            hedge_allocation,
-            binance_accounts={},
-            telegram_notifier=self._telegram,
-            execution_mode=self.execution_mode,
-        )
-
-        # Delta Rebalancer
-        self.delta_rebalancer = MultiAssetDeltaRebalancer.from_config(
-            self.allocation_config,
-            hedge_manager=self.hedge_manager,
-        )
-
         # Alpha Manager
         self.alpha_manager = MultiAssetAlphaManager.from_config(
             self.allocation_config,
             portfolio=self.portfolio,
             data_cache=self.data_cache,
-            delta_rebalancer=self.delta_rebalancer,
             telegram_notifier=self._telegram,
             execution_mode=self.execution_mode,
         )
@@ -195,21 +149,12 @@ class MultiAssetTradingEngine:
         for symbol in self._symbols:
             asset_cfg = self.allocation_config["assets"].get(symbol, {})
 
-            # 1. Create paper account for this symbol
-            # Upbit account (spot long)
+            # 1. Create paper account for this symbol (Upbit spot long)
             upbit_account = PaperTradingAccount(
                 initial_capital=self.config.total_capital_krw * asset_cfg.get("alpha_ratio", 0.3),
                 exchange="upbit"
             )
             self.alpha_manager.set_account(symbol, upbit_account)
-
-            # Binance account (futures short) for hedgeable assets
-            if symbol in self._hedgeable:
-                binance_account = PaperTradingAccount(
-                    initial_capital=self.config.hedge_capital_usdt * asset_cfg.get("alpha_ratio", 0.3),
-                    exchange="binance"
-                )
-                self.hedge_manager.set_account(symbol, binance_account)
 
             # 2. Create regime router for this symbol
             router = RegimeRouter()
@@ -416,17 +361,6 @@ class MultiAssetTradingEngine:
             for trade in trades:
                 logger.info(f"Trade: {trade['symbol']} {trade['type']} @ {trade['price']:,.0f}")
 
-        # Flush delta rebalancing
-        positions = {
-            sym: self.alpha_manager.get_exposure_by_symbol(sym)
-            for sym in self._hedgeable
-        }
-        binance_prices = {
-            sym: self.price_hub.get_price(sym, "binance") or 0
-            for sym in self._hedgeable
-        }
-        await self.delta_rebalancer.flush_rebalance(positions, binance_prices)
-
         # Write status
         await self._write_status()
 
@@ -499,7 +433,6 @@ class MultiAssetTradingEngine:
                 f"🚀 MultiAssetTradingEngine [{self.execution_mode.upper()}]\n"
                 f"{'=' * 30}\n\n"
                 f"Assets: {', '.join(self._symbols)}\n"
-                f"Hedgeable: {', '.join(self._hedgeable)}\n"
                 f"Capital: {self.config.total_capital_krw:,.0f} KRW\n"
                 f"FX Rate: {self.fx_cache.rate:.0f} KRW/USD"
             )
@@ -516,7 +449,6 @@ class MultiAssetTradingEngine:
             print(f"{'='*70}")
 
             for symbol in self._symbols:
-                premium = self.price_hub.get_premium(symbol)
                 state = self.alpha_manager.get_state(symbol)
                 regime = self._regime_cache.get(symbol, "UNKNOWN")
 
@@ -526,8 +458,6 @@ class MultiAssetTradingEngine:
                 print(f"\n[{symbol}]")
                 print(f"  Regime: {regime}")
                 print(f"  Upbit: {upbit_price:,.0f} | Binance: ${binance_price:,.2f}")
-                if premium:
-                    print(f"  Premium: {premium.premium_pct:+.2f}%")
                 if state:
                     pos_str = "🟢 Active" if state.active else "⚪ None"
                     print(f"  Position: {pos_str}")

@@ -210,6 +210,104 @@ header h1 {
     color: #aaa;
 }
 
+/* Exchange Positions */
+.exchange-positions {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.positions-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #aaa;
+    margin-bottom: 10px;
+}
+
+.positions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.no-positions {
+    font-size: 0.85rem;
+    color: #666;
+    font-style: italic;
+}
+
+.position-item {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.position-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.position-symbol {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.position-side {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.position-side.long {
+    background: rgba(46, 204, 113, 0.2);
+    color: #2ecc71;
+    border: 1px solid #2ecc71;
+}
+
+.position-side.short {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+.position-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detail-row .label {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+.detail-row .value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    font-family: monospace;
+}
+
+.detail-row .value.positive {
+    color: #2ecc71;
+}
+
+.detail-row .value.negative {
+    color: #e74c3c;
+}
+
 /* Portfolio Section */
 .portfolio-section {
     background: rgba(255, 255, 255, 0.05);

@@ -35,6 +35,7 @@ class MultiAssetEngineConfig:
     """Configuration for MultiAssetTradingEngine."""
     execution_mode: str = "paper"
     total_capital_krw: float = 10_000_000
+    hedge_capital_usdt: float = 5_000
     telegram_enabled: bool = True
     kill_switch_file: str = "analysis/KILL_SWITCH"
     price_change_threshold: float = 0.001

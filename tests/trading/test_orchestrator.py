@@ -51,18 +51,16 @@ class TestOrchestratorComponents:
     """Test that all components can be instantiated."""
 
     def test_all_strategy_imports(self):
-        from trading.strategies import (
+        from trading.strategy_runners import (
             V35Strategy,
             ShortV1Strategy,
             SidewaysV2Strategy,
             H4Strategy,
-            PremiumStrategy,
         )
         assert V35Strategy is not None
         assert ShortV1Strategy is not None
         assert SidewaysV2Strategy is not None
         assert H4Strategy is not None
-        assert PremiumStrategy is not None
 
     def test_publisher_imports(self):
         from trading.publishers import FeedPublisher, RegimePublisher

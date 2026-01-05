@@ -19,12 +19,11 @@ from trading.core.redis_client import RedisClient
 from trading.core.config import Config
 from trading.publishers.feed_publisher import FeedPublisher
 from trading.publishers.regime_publisher import RegimePublisher
-from trading.strategies import (
+from trading.strategy_runners import (
     V35Strategy,
     ShortV1Strategy,
     SidewaysV2Strategy,
     H4Strategy,
-    PremiumStrategy,
 )
 from trading.executor.trade_executor import TradeExecutor
 from trading.adapters import UpbitTrader, BinanceFuturesTrader
@@ -98,7 +97,6 @@ class TradingOrchestrator:
             "strategy:short_v1": ShortV1Strategy(self.redis, self.config),
             "strategy:sideways_v2": SidewaysV2Strategy(self.redis, self.config),
             "strategy:h4": H4Strategy(self.redis, self.config),
-            "strategy:premium": PremiumStrategy(self.redis, self.config),
 
             # Executor
             "executor": self.executor,

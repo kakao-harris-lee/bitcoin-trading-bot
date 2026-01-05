@@ -1,7 +1,7 @@
-# tests/trading/strategies/test_base.py
+# tests/trading/strategy_runners/test_base.py
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from trading.strategies.base import StandaloneStrategy, Signal
+from trading.strategy_runners.base import StandaloneStrategy, Signal
 
 
 class TestSignal:

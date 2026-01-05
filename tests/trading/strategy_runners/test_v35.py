@@ -1,9 +1,9 @@
-# tests/trading/strategies/test_v35.py
+# tests/trading/strategy_runners/test_v35.py
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 import pandas as pd
 import numpy as np
-from trading.strategies.v35 import V35Strategy
+from trading.strategy_runners.v35 import V35Strategy
 
 
 class TestV35Strategy:

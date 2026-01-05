@@ -5,7 +5,6 @@ from .v35 import V35Strategy
 from .short_v1 import ShortV1Strategy
 from .sideways_v2 import SidewaysV2Strategy
 from .h4 import H4Strategy
-from .premium import PremiumStrategy
 
 __all__ = [
     "StandaloneStrategy",
@@ -14,5 +13,4 @@ __all__ = [
     "ShortV1Strategy",
     "SidewaysV2Strategy",
     "H4Strategy",
-    "PremiumStrategy",
 ]

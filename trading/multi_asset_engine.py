@@ -493,15 +493,6 @@ class MultiAssetTradingEngine:
                 premium = self.price_hub.get_premium(symbol)
                 state = self.alpha_manager.get_state(symbol)
 
-                # Record premium history for this symbol
-                if premium and symbol in self.premium_trackers:
-                    self.premium_trackers[symbol].record({
-                        "premium_pct": premium.premium_pct,
-                        "upbit_usd": premium.upbit_usd,
-                        "binance_usd": premium.binance_usd,
-                        "usd_krw_rate": fx_rate,
-                    })
-
                 status["assets"][symbol] = {
                     "regime": self._regime_cache.get(symbol),
                     "upbit_price": self.price_hub.get_price(symbol, "upbit"),
@@ -512,8 +503,6 @@ class MultiAssetTradingEngine:
                 }
 
             status["portfolio"] = self.portfolio.get_stats()
-            status["hedge"] = self.hedge_manager.get_stats()
-            status["delta"] = self.delta_rebalancer.get_stats()
 
             status_file = self.log_dir / "multi_asset_engine_status.json"
             await asyncio.to_thread(self._write_json, status_file, status)
@@ -533,15 +522,12 @@ class MultiAssetTradingEngine:
             "started_at": self._started_at.isoformat() if self._started_at else None,
             "execution_mode": self.execution_mode,
             "symbols": self._symbols,
-            "hedgeable": self._hedgeable,
             "iteration_count": self._iteration_count,
             "signal_count": self._signal_count,
             "regimes": self._regime_cache,
             "price_hub": self.price_hub.get_stats(),
             "portfolio": self.portfolio.get_stats(),
             "alpha": self.alpha_manager.get_statistics(),
-            "hedge": self.hedge_manager.get_stats(),
-            "delta": self.delta_rebalancer.get_stats(),
         }
 
 

@@ -397,7 +397,9 @@ class ShortMarginBacktester:
         if self.in_short:
             return
 
-        margin = self.cash * fraction
+        # Account for fee in margin calculation to prevent total_cost > cash
+        # margin + margin * fee_rate = margin * (1 + fee_rate) <= cash * fraction
+        margin = self.cash * fraction / (1 + self.fee_rate)
         if margin < self.min_order_amount:
             return
 
@@ -406,7 +408,8 @@ class ShortMarginBacktester:
         entry_fee = (size * entry_exec) * self.fee_rate
         total_cost = margin + entry_fee
 
-        if total_cost > self.cash:
+        # Use tolerance for floating point comparison
+        if total_cost > self.cash + 0.01:
             return
 
         self.cash -= total_cost

@@ -336,13 +336,14 @@ class TestShortV1Strategy:
 
     def test_death_cross_detection(self, strategy):
         """데드크로스 감지 테스트"""
-        # 데드크로스 시나리오: EMA50이 EMA200 아래로
-        n = 250
+        # 데드크로스 시나리오: EMA50이 EMA200 아래로 교차
+        # EMA200 워밍업 + 상승(EMA50>EMA200) + 하락(EMA50<EMA200) 필요
+        n = 450
         df = pd.DataFrame({
             'timestamp': pd.date_range('2024-01-01', periods=n, freq='1h'),
             'close': np.concatenate([
-                np.linspace(55000, 52000, 125),  # 전반: 약간 하락
-                np.linspace(52000, 45000, 125),  # 후반: 급락
+                np.linspace(40000, 55000, 250),  # 전반: 상승 (EMA50 > EMA200)
+                np.linspace(55000, 40000, 200),  # 후반: 하락 (EMA50 crosses below EMA200)
             ]),
         })
         df['high'] = df['close'] * 1.01

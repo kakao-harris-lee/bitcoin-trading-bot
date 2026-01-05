@@ -349,21 +349,23 @@ class MultiAssetAlphaManager:
                     regime = decision.regime
             state.regime = regime
 
-            # Check if strategy is allowed in regime
-            asset_config = self._portfolio.get_asset_config(symbol)
-            if asset_config:
-                allowed_strategy = asset_config.strategies.get(regime)
-                if not allowed_strategy:
-                    # No strategy for this regime - check for exit
-                    if state.active:
-                        return MultiAssetSignal(
-                            symbol=symbol,
-                            strategy=state.strategy or "none",
-                            action="sell",
-                            reason=f"REGIME_EXIT_{regime}",
-                            regime=regime,
-                        )
-                    return None
+            # Check if strategy is allowed in regime (unless bypassed)
+            bypass_regime = self._config.get("bypass_regime_gating", False)
+            if not bypass_regime:
+                asset_config = self._portfolio.get_asset_config(symbol)
+                if asset_config:
+                    allowed_strategy = asset_config.strategies.get(regime)
+                    if not allowed_strategy:
+                        # No strategy for this regime - check for exit
+                        if state.active:
+                            return MultiAssetSignal(
+                                symbol=symbol,
+                                strategy=state.strategy or "none",
+                                action="sell",
+                                reason=f"REGIME_EXIT_{regime}",
+                                regime=regime,
+                            )
+                        return None
 
             # Get data for strategy
             df = self._get_daily_df(symbol)
@@ -662,6 +664,33 @@ class MultiAssetAlphaManager:
         if state and state.active:
             return state.quantity
         return 0.0
+
+    def get_long_exposure_krw(self, symbol: str = "BTC") -> float:
+        """
+        Get long exposure value in KRW for hedge sizing.
+
+        Args:
+            symbol: Asset symbol (default BTC)
+
+        Returns:
+            Position value in KRW (quantity * current_price)
+        """
+        state = self._states.get(symbol)
+        if state and state.active and state.quantity > 0:
+            return state.quantity * state.current_price
+        return 0.0
+
+    def get_total_long_exposure_krw(self) -> float:
+        """
+        Get total long exposure across all assets in KRW.
+
+        Returns:
+            Total position value in KRW
+        """
+        return sum(
+            self.get_long_exposure_krw(symbol)
+            for symbol in self._states.keys()
+        )
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get trading statistics."""

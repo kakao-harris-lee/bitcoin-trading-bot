@@ -1,0 +1,34 @@
+{
+  "strategy_name": "SHORT_V2",
+  "description": "BEAR_STRONG hedge strategy - offsets long position losses",
+  "symbol": "BTCUSDT",
+  "timeframe": "4h",
+  "indicators": {
+    "ema_fast": 30,
+    "ema_slow": 100,
+    "adx_period": 14
+  },
+  "entry": {
+    "regime_required": "BEAR_STRONG",
+    "adx_min": 20,
+    "di_negative_dominant": true
+  },
+  "exit": {
+    "stop_loss_pct": 5.0,
+    "exit_on_regime_change": true,
+    "exit_on_long_close": true
+  },
+  "sizing": {
+    "mode": "match_long_exposure"
+  },
+  "risk_management": {
+    "margin_type": "ISOLATED",
+    "leverage": 2,
+    "no_reentry_after_stop": true
+  },
+  "backtest": {
+    "initial_capital": 10000,
+    "fee_rate": 0.0004,
+    "slippage": 0.0005
+  }
+}

@@ -201,6 +201,8 @@ class RegimeRouter:
                 binance_strategy = None
             elif self.binance_policy == "h4_short":
                 binance_strategy = "h4_short"
+            elif self.binance_policy == "short_v2":
+                binance_strategy = "short_v2"
             else:
                 binance_strategy = "short_v1"
 

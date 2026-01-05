@@ -96,3 +96,32 @@ def test_router_holds_on_bear_regime(monkeypatch):
     # ensure neither strategy called
     assert router.v35.calls == []
     assert router.sideways_v2.calls == []
+
+
+def test_router_selects_short_v2_on_bear_strong():
+    """Test that router selects short_v2 for BEAR_STRONG with correct gate mode."""
+    from trading.strategy.regime_router import RegimeRouter
+
+    router = RegimeRouter(
+        binance_gate_mode="bear_strong_only",
+        binance_policy="short_v2",
+    )
+
+    decision = router.decide_from_market_state("BEAR_STRONG")
+
+    assert decision.binance_strategy == "short_v2"
+    assert decision.regime == "BEAR"
+
+
+def test_router_no_short_v2_on_bear_moderate():
+    """Test that short_v2 does NOT activate on BEAR_MODERATE."""
+    from trading.strategy.regime_router import RegimeRouter
+
+    router = RegimeRouter(
+        binance_gate_mode="bear_strong_only",
+        binance_policy="short_v2",
+    )
+
+    decision = router.decide_from_market_state("BEAR_MODERATE")
+
+    assert decision.binance_strategy is None

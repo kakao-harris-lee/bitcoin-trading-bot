@@ -1,4 +1,5 @@
 {
+  "bypass_regime_gating": true,
   "assets": {
     "BTC": {
       "enabled": true,
@@ -99,7 +100,8 @@
       "va02": { "ratio": 0.5, "enabled": true, "regimes": ["BULL", "SIDEWAYS"] }
     },
     "binance": {
-      "short_v1": { "ratio": 1.0, "enabled": true, "regimes": ["SIDEWAYS", "BEAR"], "hedge_mode": true }
+      "short_v1": { "ratio": 1.0, "enabled": false, "regimes": ["SIDEWAYS", "BEAR"], "hedge_mode": true },
+      "short_v2": { "ratio": 1.0, "enabled": true, "regimes": ["BEAR"], "hedge_mode": true, "regime_required": "BEAR_STRONG" }
     }
   },
   "future_v007": {

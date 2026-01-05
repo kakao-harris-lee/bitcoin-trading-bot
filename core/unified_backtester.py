@@ -6,7 +6,6 @@ the complete trading system including:
 - RegimeRouter for market state classification (BULL/SIDEWAYS/BEAR)
 - Strategy selection based on regime (V35 for BULL, VA02 for SIDEWAYS, Short_V1 for BEAR)
 - Position management with realistic costs (fees, slippage)
-- Premium arbitrage overlay (Kimchi premium hedging)
 - Combined P&L calculation in KRW
 """
 
@@ -40,12 +39,9 @@ class BacktestConfig:
     assets: List[str] = field(default_factory=lambda: ["BTC"])
     enable_long: bool = True
     enable_short: bool = True
-    enable_premium_arb: bool = True
     upbit_fee: float = 0.0005  # 0.05%
     binance_fee: float = 0.0004  # 0.04%
     slippage: float = 0.0002  # 0.02%
-    premium_entry_threshold: float = 5.0
-    premium_exit_threshold: float = 2.0
     timeframe: str = "day"
 
     # Strategy parameters
@@ -90,7 +86,6 @@ class UnifiedBacktester:
     Features:
     - Regime-based strategy selection (BULL -> long, BEAR -> short)
     - Realistic cost modeling (fees + slippage)
-    - Premium arbitrage overlay
     - Multi-asset support
     - KRW-denominated results
     """
@@ -118,7 +113,6 @@ class UnifiedBacktester:
         self.upbit_data: Dict[str, pd.DataFrame] = {}
         self.binance_data: Dict[str, pd.DataFrame] = {}
         self.fx_rates: pd.DataFrame = pd.DataFrame()
-        self.premium_data: Dict[str, pd.DataFrame] = {}
 
         # Equity curve tracking
         self.equity_history: List[Dict[str, Any]] = []
@@ -155,9 +149,6 @@ class UnifiedBacktester:
                 self.binance_data[asset] = self._load_binance_data(
                     binance_db, timeframe, start, end
                 )
-
-            # Load premium data
-            self.premium_data[asset] = self._load_premium_data(asset, start, end)
 
         # Load FX rates
         self.fx_rates = self._load_fx_rates(start, end)
@@ -264,40 +255,6 @@ class UnifiedBacktester:
             df = pd.read_sql_query(query, conn)
             df["date"] = pd.to_datetime(df["date"])
             return df
-        finally:
-            conn.close()
-
-    def _load_premium_data(self, asset: str, start: str, end: str) -> pd.DataFrame:
-        """Load premium history data."""
-        premium_db = _DATA_DIR / "premium_history.db"
-        if not premium_db.exists():
-            return pd.DataFrame(columns=["date", "premium_pct"])
-
-        # Map asset to table name
-        table_map = {
-            "BTC": "btc_premium",
-            "ETH": "eth_premium",
-            "SOL": "sol_premium",
-            "XRP": "xrp_premium",
-        }
-
-        table_name = table_map.get(asset, f"{asset.lower()}_premium")
-
-        query = f"""
-            SELECT date, upbit_krw, binance_usd, fx_rate, premium_pct
-            FROM {table_name}
-            WHERE date >= '{start}' AND date <= '{end}'
-            ORDER BY date ASC
-        """
-
-        conn = sqlite3.connect(str(premium_db))
-        try:
-            df = pd.read_sql_query(query, conn)
-            df["date"] = pd.to_datetime(df["date"])
-            return df
-        except Exception:
-            # Table might not exist for some assets
-            return pd.DataFrame(columns=["date", "premium_pct"])
         finally:
             conn.close()
 
@@ -599,18 +556,6 @@ class UnifiedBacktester:
             pnl_pct = (position.entry_price / current_price - 1) * 100
             return pnl_pct <= -self.config.stop_loss_pct
 
-    def _check_premium_entry(self, asset: str, premium_pct: float) -> bool:
-        """Check if premium arbitrage entry condition is met."""
-        if not self.config.enable_premium_arb:
-            return False
-        return premium_pct >= self.config.premium_entry_threshold
-
-    def _check_premium_exit(self, asset: str, premium_pct: float) -> bool:
-        """Check if premium arbitrage exit condition is met."""
-        if not self.config.enable_premium_arb:
-            return False
-        return premium_pct < self.config.premium_exit_threshold
-
     def _get_current_fx_rate(self, date: datetime) -> float:
         """Get FX rate for a given date."""
         if self.fx_rates.empty:
@@ -763,17 +708,6 @@ class UnifiedBacktester:
                 if binance_mask.any():
                     price_usdt = float(
                         binance_df.loc[binance_mask, "close"].iloc[-1]
-                    )
-
-            # Get premium if available
-            premium_pct = None
-            if primary_asset in self.premium_data and not self.premium_data[primary_asset].empty:
-                premium_df = self.premium_data[primary_asset]
-                date_str = timestamp.strftime("%Y-%m-%d") if hasattr(timestamp, 'strftime') else str(timestamp)[:10]
-                premium_mask = premium_df["date"].astype(str).str[:10] <= date_str
-                if premium_mask.any():
-                    premium_pct = float(
-                        premium_df.loc[premium_mask, "premium_pct"].iloc[-1]
                     )
 
             # Classify regime

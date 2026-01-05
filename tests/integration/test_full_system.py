@@ -49,7 +49,6 @@ class TestFullSystemIntegration:
             binance_capital_usdt=10_000,
             assets=["BTC"],
             enable_short=False,
-            enable_premium_arb=False,
         )
 
         backtester = UnifiedBacktester(bull_config)
@@ -103,14 +102,13 @@ class TestFullSystemIntegration:
 
     def test_premium_arb_config_respected(self):
         """Premium arbitrage can be enabled/disabled."""
-        # With premium arb disabled
+        # Long + short only
         config_no_arb = BacktestConfig(
             start_date="2024-01-01",
             end_date="2024-06-30",
             upbit_capital_krw=10_000_000,
             binance_capital_usdt=10_000,
             assets=["BTC"],
-            enable_premium_arb=False,
         )
 
         backtester = UnifiedBacktester(config_no_arb)
@@ -226,7 +224,6 @@ class TestRegimeIntegration:
             assets=["BTC"],
             enable_long=True,
             enable_short=False,
-            enable_premium_arb=False,
         )
 
         backtester = UnifiedBacktester(config)
@@ -246,7 +243,6 @@ class TestRegimeIntegration:
             assets=["BTC"],
             enable_long=False,
             enable_short=True,
-            enable_premium_arb=False,
         )
 
         backtester = UnifiedBacktester(config)

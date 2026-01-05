@@ -20,7 +20,7 @@ from core.unified_backtester import UnifiedBacktester, BacktestConfig
 import pandas as pd
 
 
-def run_training_test(assets: list, enable_arb: bool = True):
+def run_training_test(assets: list):
     """Run backtest on training period (2020-2024)."""
     print("\n" + "=" * 70)
     print("TRAINING PERIOD: 2020-01-01 to 2024-12-31")
@@ -32,7 +32,6 @@ def run_training_test(assets: list, enable_arb: bool = True):
         upbit_capital_krw=10_000_000,
         binance_capital_usdt=10_000,
         assets=assets,
-        enable_premium_arb=enable_arb,
     )
 
     backtester = UnifiedBacktester(config)
@@ -42,7 +41,7 @@ def run_training_test(assets: list, enable_arb: bool = True):
     return result
 
 
-def run_validation_test(assets: list, enable_arb: bool = True):
+def run_validation_test(assets: list):
     """Run backtest on validation period (2025)."""
     print("\n" + "=" * 70)
     print("VALIDATION PERIOD (OOS): 2025-01-01 to 2025-12-31")
@@ -54,7 +53,6 @@ def run_validation_test(assets: list, enable_arb: bool = True):
         upbit_capital_krw=10_000_000,
         binance_capital_usdt=10_000,
         assets=assets,
-        enable_premium_arb=enable_arb,
     )
 
     backtester = UnifiedBacktester(config)
@@ -64,7 +62,7 @@ def run_validation_test(assets: list, enable_arb: bool = True):
     return result
 
 
-def run_yearly_breakdown(assets: list, enable_arb: bool = True):
+def run_yearly_breakdown(assets: list):
     """Run year-by-year backtest."""
     print("\n" + "=" * 70)
     print("YEARLY BREAKDOWN")
@@ -80,7 +78,6 @@ def run_yearly_breakdown(assets: list, enable_arb: bool = True):
             upbit_capital_krw=10_000_000,
             binance_capital_usdt=10_000,
             assets=assets,
-            enable_premium_arb=enable_arb,
         )
 
         try:
@@ -118,15 +115,13 @@ def run_component_comparison():
     print("=" * 70)
 
     components = [
-        ("Long Only", True, False, False),
-        ("Short Only", False, True, False),
-        ("Long + Short", True, True, False),
-        ("Long + Premium Arb", True, False, True),
-        ("Full System", True, True, True),
+        ("Long Only", True, False),
+        ("Short Only", False, True),
+        ("Long + Short", True, True),
     ]
 
     results = []
-    for name, enable_long, enable_short, enable_arb in components:
+    for name, enable_long, enable_short in components:
         config = BacktestConfig(
             start_date="2024-01-01",
             end_date="2024-12-31",
@@ -135,7 +130,6 @@ def run_component_comparison():
             assets=["BTC"],
             enable_long=enable_long,
             enable_short=enable_short,
-            enable_premium_arb=enable_arb,
         )
 
         try:
@@ -193,18 +187,13 @@ def main():
                         help="Assets to backtest")
     parser.add_argument("--start", type=str, help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", type=str, help="End date (YYYY-MM-DD)")
-    parser.add_argument("--no-arb", action="store_true",
-                        help="Disable premium arbitrage")
 
     args = parser.parse_args()
 
     print("=" * 70)
     print("UNIFIED BACKTESTING FRAMEWORK")
     print(f"Mode: {args.mode} | Assets: {', '.join(args.assets)}")
-    print(f"Premium Arbitrage: {'Disabled' if args.no_arb else 'Enabled'}")
     print("=" * 70)
-
-    enable_arb = not args.no_arb
 
     if args.mode == "quick":
         # Quick test on 2024 only
@@ -214,18 +203,17 @@ def main():
             upbit_capital_krw=10_000_000,
             binance_capital_usdt=10_000,
             assets=args.assets,
-            enable_premium_arb=enable_arb,
         )
         backtester = UnifiedBacktester(config)
         result = backtester.run()
         print_results(result, "Quick Test")
 
     elif args.mode == "full":
-        run_training_test(args.assets, enable_arb)
-        run_validation_test(args.assets, enable_arb)
+        run_training_test(args.assets)
+        run_validation_test(args.assets)
 
     elif args.mode == "yearly":
-        run_yearly_breakdown(args.assets, enable_arb)
+        run_yearly_breakdown(args.assets)
 
     elif args.mode == "compare":
         run_component_comparison()

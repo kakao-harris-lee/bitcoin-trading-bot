@@ -41,12 +41,9 @@ class TestBacktestConfig:
         assert config.assets == ["BTC"]
         assert config.enable_long is True
         assert config.enable_short is True
-        assert config.enable_premium_arb is True
         assert config.upbit_fee == 0.0005
         assert config.binance_fee == 0.0004
         assert config.slippage == 0.0002
-        assert config.premium_entry_threshold == 5.0
-        assert config.premium_exit_threshold == 2.0
         assert config.timeframe == "day"
 
     def test_custom_values(self):
@@ -59,12 +56,9 @@ class TestBacktestConfig:
             assets=["BTC", "ETH"],
             enable_long=True,
             enable_short=False,
-            enable_premium_arb=False,
             upbit_fee=0.001,
             binance_fee=0.0005,
             slippage=0.0005,
-            premium_entry_threshold=7.0,
-            premium_exit_threshold=3.0,
             timeframe="minute60",
         )
 
@@ -75,12 +69,9 @@ class TestBacktestConfig:
         assert config.assets == ["BTC", "ETH"]
         assert config.enable_long is True
         assert config.enable_short is False
-        assert config.enable_premium_arb is False
         assert config.upbit_fee == 0.001
         assert config.binance_fee == 0.0005
         assert config.slippage == 0.0005
-        assert config.premium_entry_threshold == 7.0
-        assert config.premium_exit_threshold == 3.0
         assert config.timeframe == "minute60"
 
 
@@ -157,20 +148,6 @@ class TestUnifiedBacktesterDataLoading:
 
         assert backtester.fx_rates is not None
         assert len(backtester.fx_rates) > 0
-
-    def test_loads_premium_data(self):
-        """Backtester loads premium history data."""
-        config = BacktestConfig(
-            start_date="2024-01-01",
-            end_date="2024-01-31",
-            assets=["BTC"],
-        )
-
-        backtester = UnifiedBacktester(config)
-        backtester._load_data()
-
-        assert "BTC" in backtester.premium_data
-        assert len(backtester.premium_data["BTC"]) > 0
 
 
 class TestRegimeClassification:
@@ -452,7 +429,6 @@ class TestBacktestRun:
             assets=["BTC"],
             enable_long=True,
             enable_short=False,
-            enable_premium_arb=False,
         )
 
         backtester = UnifiedBacktester(config)
@@ -469,7 +445,6 @@ class TestBacktestRun:
             assets=["BTC"],
             enable_long=False,
             enable_short=True,
-            enable_premium_arb=False,
         )
 
         backtester = UnifiedBacktester(config)
@@ -477,48 +452,6 @@ class TestBacktestRun:
 
         assert isinstance(results, dict)
         assert "total_return_pct" in results
-
-
-class TestPremiumArbitrage:
-    """Tests for premium arbitrage overlay."""
-
-    def test_premium_arb_entry_threshold(self):
-        """Premium arb enters when premium > threshold."""
-        config = BacktestConfig(
-            start_date="2024-01-01",
-            end_date="2024-01-31",
-            enable_premium_arb=True,
-            premium_entry_threshold=5.0,
-        )
-
-        backtester = UnifiedBacktester(config)
-
-        # Should enter when premium > 5%
-        should_enter = backtester._check_premium_entry("BTC", premium_pct=6.0)
-        assert should_enter is True
-
-        # Should not enter when premium < 5%
-        should_not_enter = backtester._check_premium_entry("BTC", premium_pct=4.0)
-        assert should_not_enter is False
-
-    def test_premium_arb_exit_threshold(self):
-        """Premium arb exits when premium < exit threshold."""
-        config = BacktestConfig(
-            start_date="2024-01-01",
-            end_date="2024-01-31",
-            enable_premium_arb=True,
-            premium_exit_threshold=2.0,
-        )
-
-        backtester = UnifiedBacktester(config)
-
-        # Should exit when premium < 2%
-        should_exit = backtester._check_premium_exit("BTC", premium_pct=1.5)
-        assert should_exit is True
-
-        # Should not exit when premium > 2%
-        should_not_exit = backtester._check_premium_exit("BTC", premium_pct=3.0)
-        assert should_not_exit is False
 
 
 class TestTradeRecording:
@@ -604,7 +537,6 @@ class TestEdgeCases:
             assets=["BTC"],
             enable_long=False,
             enable_short=False,
-            enable_premium_arb=False,
         )
 
         backtester = UnifiedBacktester(config)

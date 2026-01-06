@@ -3,12 +3,12 @@
 # Bitcoin Trading Bot - 시작/종료 스크립트
 #
 # Usage:
-#   ./bot.sh start --trend=live --premium=paper   # Start with specific modes
+#   ./bot.sh start --trend=live   # Start with specific modes
 #   ./bot.sh start                                # Start with defaults (both paper)
 #   ./bot.sh stop
 #   ./bot.sh status
 #   ./bot.sh logs
-#   ./bot.sh restart --trend=live --premium=paper
+#   ./bot.sh restart --trend=live
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,15 +24,11 @@ mkdir -p "$LOG_DIR"
 # Parse mode arguments
 parse_modes() {
     TREND_MODE="paper"
-    PREMIUM_MODE="paper"
 
     for arg in "$@"; do
         case $arg in
             --trend=*)
                 TREND_MODE="${arg#*=}"
-                ;;
-            --premium=*)
-                PREMIUM_MODE="${arg#*=}"
                 ;;
             paper|live)
                 # Legacy: single mode applies to trend only
@@ -44,10 +40,6 @@ parse_modes() {
     # Validate modes
     if [[ ! "$TREND_MODE" =~ ^(paper|live)$ ]]; then
         echo "❌ Invalid trend mode: $TREND_MODE (must be paper or live)"
-        exit 1
-    fi
-    if [[ ! "$PREMIUM_MODE" =~ ^(paper|live)$ ]]; then
-        echo "❌ Invalid premium mode: $PREMIUM_MODE (must be paper or live)"
         exit 1
     fi
 }
@@ -66,7 +58,6 @@ start() {
 
     echo "🚀 MultiAssetTradingEngine 시작"
     echo "   Trend:   $TREND_MODE"
-    echo "   Premium: $PREMIUM_MODE"
     echo "   로그: $LOG_FILE"
 
     # Find venv python
@@ -79,19 +70,14 @@ start() {
         echo "   ⚠️  venv not found, using system python"
     fi
 
-    # Live 모드 환경변수 (Trend 또는 Premium 중 하나라도 live면 설정)
-    if [ "$TREND_MODE" = "live" ] || [ "$PREMIUM_MODE" = "live" ]; then
+    # Live 모드 환경변수
+    if [ "$TREND_MODE" = "live" ]; then
         export ENABLE_LIVE_TRADING=1
-        if [ "$TREND_MODE" = "live" ]; then
-            echo "   ⚠️  TREND LIVE - 실제 추세매매가 실행됩니다!"
-        fi
-        if [ "$PREMIUM_MODE" = "live" ]; then
-            echo "   ⚠️  PREMIUM LIVE - 실제 김프 헷지가 실행됩니다!"
-        fi
+        echo "   ⚠️  TREND LIVE - 실제 추세매매가 실행됩니다!"
     fi
 
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
-    nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" --premium "$PREMIUM_MODE" --telegram-commands >> "$LOG_FILE" 2>&1 &
+    nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" --telegram-commands >> "$LOG_FILE" 2>&1 &
 
     PID=$!
     echo $PID > "$PID_FILE"
@@ -215,12 +201,10 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  --trend=MODE     Trend trading mode (paper|live, default: paper)"
-    echo "  --premium=MODE   Premium hedge mode (paper|live, default: paper)"
     echo ""
     echo "Examples:"
-    echo "  $0 start                              # Both paper (default)"
-    echo "  $0 start --trend=live                 # Trend live, premium paper"
-    echo "  $0 start --trend=live --premium=live  # Both live"
+    echo "  $0 start                              # paper (default)"
+    echo "  $0 start --trend=live                 # Trend live"
     echo "  $0 restart --trend=live               # Restart with trend live"
     echo "  $0 stop                               # Stop bot"
     echo "  $0 status                             # Check status"

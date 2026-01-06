@@ -204,18 +204,6 @@ def load_multi_asset_status() -> dict:
     return None
 
 
-def load_premium_history(symbol: str) -> dict:
-    """Load premium history for a symbol."""
-    history_file = LOG_DIR / f"premium_history_{symbol}.json"
-    if history_file.exists():
-        try:
-            with open(history_file, 'r') as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Premium history load failed ({symbol}): {e}")
-    return None
-
-
 def _require_admin_token() -> bool:
     """Very small guard for mutating endpoints."""
     token = os.getenv("WEB_ADMIN_TOKEN")
@@ -322,7 +310,6 @@ def get_status():
             'regime': data.get('regime', 'UNKNOWN'),
             'upbit_price': data.get('upbit_price', 0),
             'binance_price': data.get('binance_price', 0),
-            'premium_pct': data.get('premium_pct', 0),
             'position_active': data.get('position_active', False),
             'position_qty': data.get('position_qty', 0),
             # Portfolio allocation
@@ -572,34 +559,8 @@ def get_hedge_info():
         return jsonify({'error': 'No hedge data available'}), 404
 
     try:
-        assets_data = ma_status.get('assets', {})
         hedge = ma_status.get('hedge', {})
         delta = ma_status.get('delta', {})
-
-        # Build per-asset premium data
-        premiums = {}
-        for symbol, data in assets_data.items():
-            # Load premium history for stats
-            history = load_premium_history(symbol)
-            premium_stats = {}
-            if history and 'history' in history:
-                recent = history['history'][-24:]  # Last 24 entries (hourly)
-                if recent:
-                    pct_values = [h.get('premium_pct', 0) for h in recent]
-                    import statistics
-                    premium_stats = {
-                        'mean_24h': statistics.mean(pct_values) if pct_values else 0,
-                        'std_24h': statistics.stdev(pct_values) if len(pct_values) > 1 else 0,
-                        'volatility_state': 'high' if len(pct_values) > 1 and statistics.stdev(pct_values) > 1.5 else 'normal',
-                    }
-
-            premiums[symbol] = {
-                'premium_pct': data.get('premium_pct', 0),
-                'upbit_price': data.get('upbit_price', 0),
-                'binance_price': data.get('binance_price', 0),
-                'regime': data.get('regime', 'UNKNOWN'),
-                'stats': premium_stats,
-            }
 
         # Build hedge/delta info
         delta_states = delta.get('states', {})
@@ -608,7 +569,6 @@ def get_hedge_info():
         return jsonify({
             'generated_at': ma_status.get('timestamp'),
             'mode': ma_status.get('mode'),
-            'premiums': premiums,
             'hedge': {
                 'symbols': hedge_symbols,
                 'total_capital_usdt': hedge.get('total_capital', 0),

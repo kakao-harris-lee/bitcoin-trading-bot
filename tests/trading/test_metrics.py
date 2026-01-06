@@ -159,15 +159,6 @@ class TestMetricsCollector:
         assert metrics["gauges"]["current_exposure_krw"] == 1000000
         assert metrics["gauges"]["current_hedge_usd"] == 500
 
-    def test_set_premium(self):
-        """Premium gauge is set correctly."""
-        collector = MetricsCollector()
-
-        collector.set_premium("BTC", 3.5)
-
-        metrics = collector.get_metrics()
-        assert metrics["gauges"]["premium_pct"]["BTC"] == 3.5
-
     def test_time_evaluation_context_manager(self):
         """time_evaluation context manager records latency."""
         collector = MetricsCollector()

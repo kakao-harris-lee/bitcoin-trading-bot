@@ -65,7 +65,6 @@ class TestTradeExecutor:
     def test_strategy_exchange_mapping(self, executor):
         assert executor.STRATEGY_EXCHANGE["v35"] == "upbit"
         assert executor.STRATEGY_EXCHANGE["short_v1"] == "binance"
-        assert executor.STRATEGY_EXCHANGE["premium"] == "both"
 
     @pytest.mark.asyncio
     async def test_process_signal_paper_mode(self, executor):

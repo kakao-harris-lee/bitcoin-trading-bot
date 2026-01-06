@@ -487,18 +487,13 @@ class MultiAssetTradingEngine:
                 "assets": {},
             }
 
-            # Get current FX rate for premium recording
-            fx_rate = self.fx_cache.rate or 1450.0
-
             for symbol in self._symbols:
-                premium = self.price_hub.get_premium(symbol)
                 state = self.alpha_manager.get_state(symbol)
 
                 status["assets"][symbol] = {
                     "regime": self._regime_cache.get(symbol),
                     "upbit_price": self.price_hub.get_price(symbol, "upbit"),
                     "binance_price": self.price_hub.get_price(symbol, "binance"),
-                    "premium_pct": premium.premium_pct if premium else None,
                     "position_active": state.active if state else False,
                     "position_qty": state.quantity if state else 0,
                 }

@@ -1,7 +1,5 @@
 """
 MultiAssetPriceHub - Central price cache for multiple assets.
-
-Tracks prices and calculates Kimchi Premium per asset.
 """
 
 import asyncio
@@ -24,24 +22,12 @@ class PriceEvent:
 
 
 @dataclass
-class SymbolPremium:
-    """Premium info for a single symbol."""
-    symbol: str
-    premium_pct: float
-    upbit_krw: float
-    upbit_usd: float
-    binance_usd: float
-    timestamp: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
 class SymbolPriceState:
     """Price state for a single symbol across exchanges."""
     symbol: str
     upbit_krw: float = 0.0
     upbit_usd: float = 0.0
     binance_usd: float = 0.0
-    premium_pct: float = 0.0
     last_upbit_update: Optional[datetime] = None
     last_binance_update: Optional[datetime] = None
     last_notified_upbit: float = 0.0
@@ -50,11 +36,10 @@ class SymbolPriceState:
 
 class MultiAssetPriceHub:
     """
-    Central price cache for multiple assets with premium calculation.
+    Central price cache for multiple assets.
 
     Features:
     - Per-symbol price tracking
-    - Per-symbol Kimchi Premium calculation
     - Per-symbol subscriber notification
     - Configurable price change threshold
     """
@@ -112,9 +97,7 @@ class MultiAssetPriceHub:
             if cfg.get("enabled", False)
         ]
 
-        fx_rate = config.get("premium_tracking", {}).get("usd_krw_rate", 1450)
-
-        return cls(symbols=symbols, default_fx_rate=fx_rate)
+        return cls(symbols=symbols)
 
     def add_symbol(self, symbol: str) -> None:
         """Add a new symbol to track."""
@@ -165,9 +148,6 @@ class MultiAssetPriceHub:
         # Update statistics
         self._update_counts[symbol][exchange] += 1
 
-        # Recalculate premium
-        self._recalculate_premium(symbol)
-
         # Check if change is significant
         if old_notified > 0:
             change_pct = abs(price - old_notified) / old_notified
@@ -188,17 +168,6 @@ class MultiAssetPriceHub:
             return True
 
         return False
-
-    def _recalculate_premium(self, symbol: str) -> None:
-        """Recalculate premium for a symbol."""
-        state = self._prices[symbol]
-
-        if state.binance_usd > 0 and state.upbit_usd > 0:
-            state.premium_pct = (
-                (state.upbit_usd - state.binance_usd) / state.binance_usd * 100
-            )
-        else:
-            state.premium_pct = 0.0
 
     async def _notify_subscribers(
         self,
@@ -235,12 +204,11 @@ class MultiAssetPriceHub:
     def update_fx_rate(self, rate: float) -> None:
         """Update USD/KRW exchange rate."""
         self._fx_rate = rate
-        # Recalculate all premiums
+        # Update USD conversions
         for symbol in self._prices:
             state = self._prices[symbol]
             if state.upbit_krw > 0:
                 state.upbit_usd = state.upbit_krw / rate
-            self._recalculate_premium(symbol)
 
     def subscribe(self, symbol: str, maxsize: int = 100) -> asyncio.Queue:
         """Subscribe to price events for a specific symbol."""
@@ -285,38 +253,6 @@ class MultiAssetPriceHub:
             "upbit_usd": state.upbit_usd,
             "binance_usd": state.binance_usd,
         }
-
-    def get_premium(self, symbol: str) -> Optional[SymbolPremium]:
-        """Get premium info for a symbol."""
-        state = self._prices.get(symbol)
-        if not state:
-            return None
-
-        return SymbolPremium(
-            symbol=symbol,
-            premium_pct=round(state.premium_pct, 4),
-            upbit_krw=state.upbit_krw,
-            upbit_usd=round(state.upbit_usd, 2),
-            binance_usd=round(state.binance_usd, 2),
-        )
-
-    def get_all_premiums(self) -> Dict[str, float]:
-        """Get premium percentage for all symbols."""
-        return {
-            symbol: state.premium_pct
-            for symbol, state in self._prices.items()
-        }
-
-    def get_best_premium(self) -> Optional[tuple]:
-        """Get symbol with highest premium."""
-        if not self._prices:
-            return None
-
-        best_symbol = max(
-            self._prices.keys(),
-            key=lambda s: self._prices[s].premium_pct
-        )
-        return (best_symbol, self._prices[best_symbol].premium_pct)
 
     def get_price_age(self, exchange: str, symbol: str = "BTC") -> Optional[float]:
         """Get age of price in seconds (for HealthMonitor compatibility)."""
@@ -388,7 +324,6 @@ class MultiAssetPriceHub:
                 symbol: {
                     "upbit_krw": state.upbit_krw,
                     "binance_usd": state.binance_usd,
-                    "premium_pct": round(state.premium_pct, 4),
                     "upbit_fresh": self.is_price_fresh(symbol, "upbit"),
                     "binance_fresh": self.is_price_fresh(symbol, "binance"),
                     "updates": self._update_counts.get(symbol, {}),

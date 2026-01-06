@@ -39,7 +39,6 @@ def mock_multi_asset_status():
                 'regime': 'BULL',
                 'upbit_price': 150000000,
                 'binance_price': 100000,
-                'premium_pct': 3.5,
                 'position_active': True,
                 'position_qty': 0.1,
             },
@@ -47,7 +46,6 @@ def mock_multi_asset_status():
                 'regime': 'SIDEWAYS',
                 'upbit_price': 5000000,
                 'binance_price': 3500,
-                'premium_pct': 2.8,
                 'position_active': False,
                 'position_qty': 0,
             },
@@ -206,7 +204,6 @@ class TestStatusAPI:
         # Check assets
         assert 'BTC' in data['assets']
         assert data['assets']['BTC']['regime'] == 'BULL'
-        assert data['assets']['BTC']['premium_pct'] == 3.5
 
 
 class TestKillSwitchAPI:
@@ -328,24 +325,19 @@ class TestHedgeAPI:
         response = client.get('/api/hedge')
         assert response.status_code == 404
 
-    @patch('web.app.load_premium_history')
     @patch('web.app.load_multi_asset_status')
     @patch('web.app.load_allocation_config')
-    def test_hedge_with_data(self, mock_alloc, mock_status, mock_history, client, mock_multi_asset_status):
-        """Hedge should return premium and delta data."""
+    def test_hedge_with_data(self, mock_alloc, mock_status, client, mock_multi_asset_status):
+        """Hedge should return hedge and delta data."""
         mock_status.return_value = mock_multi_asset_status
         mock_alloc.return_value = {}
-        mock_history.return_value = None
 
         response = client.get('/api/hedge')
         assert response.status_code == 200
         data = json.loads(response.data)
 
-        assert 'premiums' in data
         assert 'hedge' in data
         assert 'delta' in data
-        assert 'BTC' in data['premiums']
-        assert data['premiums']['BTC']['premium_pct'] == 3.5
 
 
 if __name__ == '__main__':

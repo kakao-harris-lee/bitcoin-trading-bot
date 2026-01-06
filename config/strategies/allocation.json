@@ -78,12 +78,6 @@
     "min_hold_minutes": 30,
     "max_capital_usage_pct": 0.8
   },
-  "premium_tracking": {
-    "enabled": true,
-    "log_interval_minutes": 60,
-    "alert_threshold_pct": 5.0,
-    "usd_krw_rate": 1450
-  },
   "legacy": {
     "_comment": "Legacy fields kept for backward compatibility during migration",
     "capital_split": {

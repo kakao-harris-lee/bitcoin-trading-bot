@@ -107,7 +107,6 @@ class TestConfigValidator:
                 }
             },
             "hedge": {},
-            "premium": {},
             "risk": {},
             "notification": {},
         }

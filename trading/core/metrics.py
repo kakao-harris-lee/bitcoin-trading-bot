@@ -66,7 +66,7 @@ class TradingMetrics:
 
     Tracks:
     - Counters: signals, trades, errors (monotonic)
-    - Gauges: current exposure, positions, premium (point-in-time)
+    - Gauges: current exposure, positions (point-in-time)
     - Histograms: latencies (distributions)
     """
     # Counters (monotonically increasing)
@@ -79,7 +79,6 @@ class TradingMetrics:
     # Gauges (current values)
     current_exposure_krw: float = 0.0
     current_hedge_usd: float = 0.0
-    premium_pct: Dict[str, float] = field(default_factory=dict)
     position_values: Dict[str, float] = field(default_factory=dict)
 
     # Histograms (distributions)
@@ -104,7 +103,6 @@ class TradingMetrics:
             "gauges": {
                 "current_exposure_krw": self.current_exposure_krw,
                 "current_hedge_usd": self.current_hedge_usd,
-                "premium_pct": self.premium_pct,
                 "position_values": self.position_values,
             },
             "histograms": {
@@ -209,11 +207,6 @@ class MetricsCollector:
         with self._metrics_lock:
             self._metrics.current_exposure_krw = krw
             self._metrics.current_hedge_usd = usd
-
-    def set_premium(self, symbol: str, premium_pct: float) -> None:
-        """Set current premium percentage for a symbol."""
-        with self._metrics_lock:
-            self._metrics.premium_pct[symbol] = premium_pct
 
     def set_position_value(self, symbol: str, value: float) -> None:
         """Set current position value for a symbol."""

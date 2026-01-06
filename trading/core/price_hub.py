@@ -24,17 +24,6 @@ class PriceEvent:
 
 
 @dataclass
-class PremiumInfo:
-    """Kimchi Premium calculation result."""
-    premium_pct: float
-    upbit_krw: float
-    upbit_usd: float
-    binance_usd: float
-    usd_krw_rate: float
-    timestamp: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
 class PriceMessage:
     """Price message from WebSocket."""
     exchange: str
@@ -47,7 +36,7 @@ class PriceMessage:
 
 class PriceHub:
     """
-    Central price cache with real-time updates and premium calculation.
+    Central price cache with real-time updates.
 
     Thread-safe with asyncio - all updates happen in event loop.
     Notifies subscribers only on significant price changes (>0.1%).
@@ -66,7 +55,6 @@ class PriceHub:
         self._prices: Dict[str, PriceMessage] = {}
         self._last_notified_prices: Dict[str, float] = {}
         self._fx_rate: float = default_fx_rate
-        self._cached_premium: Optional[PremiumInfo] = None
         self._subscribers: List[asyncio.Queue] = []
         self._subscriber_failures: Dict[int, int] = {}  # queue id -> consecutive failures
         self._max_failures = 10  # Remove after 10 consecutive failures
@@ -95,9 +83,6 @@ class PriceHub:
         self._prices[exchange] = msg
         self._update_count[exchange] = self._update_count.get(exchange, 0) + 1
 
-        # Recalculate premium
-        self._recalculate_premium()
-
         # Check if change is significant
         if old_price > 0:
             change_pct = abs(new_price - old_price) / old_price
@@ -116,36 +101,6 @@ class PriceHub:
     def update_fx_rate(self, rate: float) -> None:
         """Update USD/KRW exchange rate (called by FXRateCache)."""
         self._fx_rate = rate
-        self._recalculate_premium()
-
-    def _recalculate_premium(self) -> None:
-        """Recalculate Kimchi Premium from current prices."""
-        upbit_msg = self._prices.get("upbit")
-        binance_msg = self._prices.get("binance")
-
-        if not upbit_msg or not binance_msg:
-            return
-
-        upbit_krw = upbit_msg.price
-        binance_usd = binance_msg.price
-
-        if binance_usd <= 0 or self._fx_rate <= 0:
-            return
-
-        # Convert Upbit KRW to USD
-        upbit_usd = upbit_krw / self._fx_rate
-
-        # Premium = (Upbit - Binance) / Binance * 100
-        premium_pct = ((upbit_usd - binance_usd) / binance_usd) * 100
-
-        self._cached_premium = PremiumInfo(
-            premium_pct=round(premium_pct, 4),
-            upbit_krw=upbit_krw,
-            upbit_usd=round(upbit_usd, 2),
-            binance_usd=round(binance_usd, 2),
-            usd_krw_rate=self._fx_rate,
-            timestamp=datetime.now(),
-        )
 
     async def _notify_subscribers(
         self,
@@ -220,10 +175,6 @@ class PriceHub:
         msg = self._prices.get(exchange)
         return msg.price if msg else None
 
-    def get_premium(self) -> Optional[PremiumInfo]:
-        """Get pre-calculated Kimchi Premium."""
-        return self._cached_premium
-
     def get_price_age(self, exchange: str) -> Optional[float]:
         """Get age of price in seconds."""
         msg = self._prices.get(exchange)
@@ -257,10 +208,7 @@ class PriceHub:
                 }
                 for exchange, msg in self._prices.items()
             },
-            "premium": {
-                "premium_pct": self._cached_premium.premium_pct if self._cached_premium else None,
-                "fx_rate": self._fx_rate,
-            },
+            "fx_rate": self._fx_rate,
             "subscribers": len(self._subscribers),
             "notification_count": self._notification_count,
             "price_change_threshold": self._price_change_threshold,

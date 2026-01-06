@@ -27,7 +27,6 @@ class TradeExecutor:
         "signals:short_v1",
         "signals:sideways_v2",
         "signals:h4",
-        "signals:premium",
     ]
 
     # Strategy to exchange mapping
@@ -36,7 +35,6 @@ class TradeExecutor:
         "sideways_v2": "upbit",
         "h4": "upbit",
         "short_v1": "binance",
-        "premium": "both",  # Special case
     }
 
     def __init__(
@@ -132,8 +130,6 @@ class TradeExecutor:
                 await self._execute_upbit(strategy, signal)
             elif exchange == "binance":
                 await self._execute_binance(strategy, signal)
-            elif exchange == "both":
-                await self._execute_premium(strategy, signal)
 
             # Notify
             if self.notifier:
@@ -161,7 +157,7 @@ class TradeExecutor:
 
     def _has_active_binance_position(self, exclude_strategy: str) -> bool:
         """Check if any other strategy has an active Binance position."""
-        binance_strategies = ["short_v1", "premium"]
+        binance_strategies = ["short_v1"]
         for strat in binance_strategies:
             if strat == exclude_strategy:
                 continue
@@ -176,11 +172,11 @@ class TradeExecutor:
         price = signal.get("price", 0)
         size = signal.get("size", 0)
 
-        # Guard: Prevent conflicting positions between SHORT_V1 and Premium
+        # Guard: Prevent conflicting positions
         # Only check for entry actions (short), not exits (close/cover)
         if action in ["short", "buy"]:
             if self._has_active_binance_position(exclude_strategy=strategy):
-                conflicting = [s for s in ["short_v1", "premium"]
+                conflicting = [s for s in ["short_v1"]
                               if s != strategy and self._positions.get(s, {}).get("active")]
                 self.logger.warning(
                     f"[GUARD] {strategy} entry blocked: {conflicting} has active Binance position"
@@ -196,20 +192,6 @@ class TradeExecutor:
                 await self.binance.open_short(size=size, price=price)
             elif action in ["close", "cover"]:
                 await self.binance.close_short(size=size, price=price)
-
-    async def _execute_premium(self, strategy: str, signal: Dict):
-        """Execute premium arbitrage (both exchanges)."""
-        action = signal.get("action")
-        exchange = signal.get("exchange")
-        price = signal.get("price", 0)
-        size = signal.get("size", 0)
-
-        self.logger.info(f"[PREMIUM] {action} on {exchange}: {size} @ {price}")
-
-        if exchange == "upbit":
-            await self._execute_upbit(strategy, signal)
-        elif exchange == "binance":
-            await self._execute_binance(strategy, signal)
 
     def _update_paper_position(self, strategy: str, action: str, price: float, size: float):
         """Update paper trading position."""

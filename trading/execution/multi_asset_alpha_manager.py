@@ -16,6 +16,7 @@ from core.types import AssetConfig, current_timestamp
 from trading.execution.portfolio_manager import PortfolioManager
 from trading.core.multi_asset_data_cache import MultiAssetDataCache
 from trading.core.asset_health import AssetHealthTracker
+from trading.indicators import technical as ta
 
 logger = logging.getLogger(__name__)
 
@@ -342,11 +343,38 @@ class MultiAssetAlphaManager:
         try:
             # Get regime
             regime = "BULL"  # Default
+            mfi_val, adx_val = None, None
+            upbit_strategy = None
             if router:
                 df_day = self._get_daily_df(symbol)
                 if df_day is not None and len(df_day) > 0:
                     decision = router.recommend(df_day)
                     regime = decision.regime
+                    upbit_strategy = decision.upbit_strategy
+                    # Calculate MFI/ADX for logging
+                    try:
+                        mfi_series = ta.mfi(
+                            df_day["high"], df_day["low"],
+                            df_day["close"], df_day["volume"], period=14
+                        )
+                        adx_series, _, _ = ta.adx(
+                            df_day["high"], df_day["low"], df_day["close"], period=14
+                        )
+                        mfi_val = mfi_series.iloc[-1] if mfi_series is not None else None
+                        adx_val = adx_series.iloc[-1] if adx_series is not None else None
+                    except Exception:
+                        pass  # Keep None if calculation fails
+
+            # Log only when regime changes
+            prev_regime = state.regime
+            if regime != prev_regime:
+                mfi_str = f"{mfi_val:.1f}" if mfi_val is not None else "N/A"
+                adx_str = f"{adx_val:.1f}" if adx_val is not None else "N/A"
+                logger.info(
+                    f"[{symbol}] Regime: {prev_regime} -> {regime} | "
+                    f"MFI: {mfi_str} | ADX: {adx_str} | "
+                    f"Strategy: {upbit_strategy or 'none'}"
+                )
             state.regime = regime
 
             # Check if strategy is allowed in regime (unless bypassed)
@@ -411,19 +439,35 @@ class MultiAssetAlphaManager:
                 raw_signal = {"action": "hold"}
 
             action = raw_signal.get("action", "hold")
+            reason = raw_signal.get("reason", "")
+            strategy_name = type(strategy).__name__
+
             if action == "hold":
                 return None
 
+            # Log strategy decision
+            metadata = raw_signal.get("metadata", {})
+            market_state = metadata.get("market_state", "")
+            score = raw_signal.get("score", "")
+            tier = raw_signal.get("tier", "")
+            logger.info(
+                f"[{symbol}] Signal: {action.upper()} | "
+                f"Strategy: {strategy_name} | "
+                f"Reason: {reason} | "
+                f"MarketState: {market_state} | "
+                f"Score: {score} | Tier: {tier}"
+            )
+
             return MultiAssetSignal(
                 symbol=symbol,
-                strategy=type(strategy).__name__,
+                strategy=strategy_name,
                 action=action,
                 fraction=raw_signal.get("fraction", 0.5),
-                reason=raw_signal.get("reason", ""),
+                reason=reason,
                 regime=regime,
                 indicators={
-                    "score": raw_signal.get("score"),
-                    "tier": raw_signal.get("tier"),
+                    "score": score,
+                    "tier": tier,
                 },
             )
 

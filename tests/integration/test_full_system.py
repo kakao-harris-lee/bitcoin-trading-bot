@@ -100,24 +100,6 @@ class TestFullSystemIntegration:
         assert not equity_curve['total_equity_krw'].isna().any()
         assert equity_curve['total_equity_krw'].min() > 0
 
-    def test_premium_arb_config_respected(self):
-        """Premium arbitrage can be enabled/disabled."""
-        # Long + short only
-        config_no_arb = BacktestConfig(
-            start_date="2024-01-01",
-            end_date="2024-06-30",
-            upbit_capital_krw=10_000_000,
-            binance_capital_usdt=10_000,
-            assets=["BTC"],
-        )
-
-        backtester = UnifiedBacktester(config_no_arb)
-        result = backtester.run()
-
-        # Should complete without error
-        assert result is not None
-        assert 'total_return_pct' in result
-
 
 class TestTradeFrequency:
     """Test trade frequency meets requirements."""

@@ -103,7 +103,7 @@ class ConfigValidator:
                 result.add_error(f"Missing required section: '{section}'")
 
         # Check for common config sections
-        optional_sections = ["hedge", "premium", "risk", "notification"]
+        optional_sections = ["hedge", "risk", "notification"]
         for section in optional_sections:
             if section not in config:
                 result.add_warning(f"Missing optional section: '{section}'")

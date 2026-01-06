@@ -220,12 +220,15 @@ class AlphaManager:
 
         signals = []
 
+        # Check if regime gating is bypassed
+        bypass_regime = self.allocation.get("bypass_regime_gating", False)
+
         for name, pos in self.positions.items():
             if not pos.enabled:
                 continue
 
-            # Check regime gating
-            if not self.is_strategy_allowed_in_regime(name, regime):
+            # Check regime gating (unless bypassed)
+            if not bypass_regime and not self.is_strategy_allowed_in_regime(name, regime):
                 if not pos.active:
                     continue  # Skip if not in position
 

@@ -18,8 +18,8 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 
 # DB 경로
-DB_DIR = Path(__file__).parent
-DB_PATH = DB_DIR / "binance_bitcoin.db"
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+DB_PATH = PROJECT_ROOT / "data" / "binance_bitcoin.db"
 
 # 테이블 정의
 TIMEFRAMES = {

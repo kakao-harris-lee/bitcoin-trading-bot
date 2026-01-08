@@ -30,34 +30,17 @@ echo "  데이터베이스 준비"
 echo "======================================"
 
 # 1. upbit_bitcoin.db 확인
-if [ -f "upbit_bitcoin.db" ]; then
-    SIZE=$(ls -lh upbit_bitcoin.db | awk '{print $5}')
+if [ -f "data/upbit_bitcoin.db" ]; then
+    SIZE=$(ls -lh data/upbit_bitcoin.db | awk '{print $5}')
     print_step "upbit_bitcoin.db 존재 (크기: $SIZE)"
 else
     print_warning "upbit_bitcoin.db 없음 - 데이터 수집 시작"
 
-    # upbit_history_db 디렉토리로 이동
-    if [ -d "upbit_history_db" ]; then
-        cd upbit_history_db
+    # Python 스크립트로 데이터 수집
+    print_step "Upbit 데이터 수집 중..."
+    python scripts/collect_data.py
 
-        # 가상환경 활성화
-        if [ -d "venv" ]; then
-            source venv/bin/activate
-        else
-            print_error "가상환경 없음. python -m venv venv 실행 필요"
-            exit 1
-        fi
-
-        # 데이터 수집 (최근 1년)
-        print_step "Upbit 데이터 수집 중 (1년)..."
-        python collect_upbit_data.py --days 365
-
-        cd ..
-        print_step "upbit_bitcoin.db 생성 완료"
-    else
-        print_error "upbit_history_db 디렉토리 없음"
-        exit 1
-    fi
+    print_step "upbit_bitcoin.db 생성 완료"
 fi
 
 # 2. Binance 데이터 수집
@@ -84,8 +67,8 @@ echo "  데이터 검증"
 echo "======================================"
 
 # Upbit DB
-if [ -f "upbit_bitcoin.db" ]; then
-    COUNT=$(sqlite3 upbit_bitcoin.db "SELECT COUNT(*) FROM bitcoin_day" 2>/dev/null || echo "0")
+if [ -f "data/upbit_bitcoin.db" ]; then
+    COUNT=$(sqlite3 data/upbit_bitcoin.db "SELECT COUNT(*) FROM bitcoin_day" 2>/dev/null || echo "0")
     print_step "Upbit 일봉 데이터: $COUNT개"
 fi
 

@@ -59,6 +59,10 @@ bitcoin-trading-bot/
 │   └── tuned/                      # Tuned operational settings
 │       └── selected_candidate.json
 ├── scripts/                        # CLI tools
+│   ├── collectors/                 # Data collector modules
+│   │   ├── upbit_collector.py      # Upbit API collector
+│   │   ├── binance_collector.py    # Binance API collector
+│   │   └── bin/                    # Go binaries
 │   ├── backtest.py                 # Unified backtesting
 │   ├── optimize.py                 # Parameter optimization
 │   ├── collect_data.py             # Data collection
@@ -68,7 +72,6 @@ bitcoin-trading-bot/
 │   └── binance_bitcoin.db          # Binance data
 ├── tests/                          # Test suite
 ├── web/                            # Dashboard (Flask)
-├── upbit_history_db/               # Data collector tools
 └── docs/                           # Documentation
     └── plans/                      # Design & plan documents
 ```

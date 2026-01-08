@@ -169,3 +169,10 @@ pip install -r requirements.txt
 - **Upbit**: Spot trading (v35 for BULL, sideways_v2 for SIDEWAYS)
 - **Binance**: Futures short (SHORT_V1 for BEAR_STRONG only)
 - **Risk**: Kill-switch via Telegram (`/kill_on`, `/kill_off`), 5% daily loss limit
+
+## Active Technologies
+- Python 3.10+ with type hints + pandas, sqlite3, existing Backtester class, TelegramNotifier (001-daily-backtest-comparison)
+- SQLite (`trading_results.db` for trades, new table for reports) (001-daily-backtest-comparison)
+
+## Recent Changes
+- 001-daily-backtest-comparison: Added Python 3.10+ with type hints + pandas, sqlite3, existing Backtester class, TelegramNotifier

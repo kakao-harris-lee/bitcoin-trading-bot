@@ -4,9 +4,9 @@
 """
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 
 class TradeLogger:
@@ -187,6 +187,148 @@ class TradeLogger:
 
         except Exception as e:
             print(f"❌ 최근 거래 조회 실패: {e}")
+            return []
+
+    def get_trades_for_date(
+        self,
+        target_date: date,
+        strategy_name: Optional[str] = None,
+        exchange: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        특정 날짜의 거래 내역 조회 (비교 리포트용)
+
+        Args:
+            target_date: 조회할 날짜
+            strategy_name: 전략 이름 필터 (None이면 현재 strategy_id 사용)
+            exchange: 거래소 필터 ('upbit' 또는 'binance', None이면 전체)
+
+        Returns:
+            List of dicts with trade info including timestamp, action, price, volume, profit, profit_pct, exchange
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            date_str = target_date.strftime('%Y-%m-%d')
+
+            # Build query based on filters
+            base_query = """
+                SELECT action, price, volume, profit, profit_pct, exchange, timestamp
+                FROM trades
+                WHERE date(timestamp) = ?
+            """
+            params: List[Any] = [date_str]
+
+            # Filter by strategy
+            if strategy_name:
+                base_query += """
+                    AND strategy_id IN (
+                        SELECT strategy_id FROM strategies WHERE name = ? OR version = ?
+                    )
+                """
+                params.extend([strategy_name, strategy_name])
+            else:
+                base_query += " AND strategy_id = ?"
+                params.append(self.strategy_id)
+
+            # Filter by exchange
+            if exchange:
+                base_query += " AND exchange = ?"
+                params.append(exchange)
+
+            base_query += " ORDER BY timestamp ASC"
+
+            cursor.execute(base_query, params)
+            rows = cursor.fetchall()
+            conn.close()
+
+            trades = []
+            for row in rows:
+                trades.append({
+                    'action': row[0],
+                    'price': row[1],
+                    'volume': row[2],
+                    'profit': row[3],
+                    'profit_pct': row[4],
+                    'exchange': row[5],
+                    'timestamp': datetime.strptime(row[6], '%Y-%m-%d %H:%M:%S')
+                })
+            return trades
+
+        except Exception as e:
+            print(f"❌ 날짜별 거래 조회 실패: {e}")
+            return []
+
+    def get_trades_for_date_range(
+        self,
+        start_date: date,
+        end_date: date,
+        strategy_name: Optional[str] = None,
+        exchange: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        날짜 범위의 거래 내역 조회
+
+        Args:
+            start_date: 시작 날짜 (포함)
+            end_date: 종료 날짜 (포함)
+            strategy_name: 전략 이름 필터
+            exchange: 거래소 필터
+
+        Returns:
+            List of dicts with trade info
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            start_str = start_date.strftime('%Y-%m-%d')
+            end_str = end_date.strftime('%Y-%m-%d')
+
+            base_query = """
+                SELECT action, price, volume, profit, profit_pct, exchange, timestamp
+                FROM trades
+                WHERE date(timestamp) >= ? AND date(timestamp) <= ?
+            """
+            params: List[Any] = [start_str, end_str]
+
+            if strategy_name:
+                base_query += """
+                    AND strategy_id IN (
+                        SELECT strategy_id FROM strategies WHERE name = ? OR version = ?
+                    )
+                """
+                params.extend([strategy_name, strategy_name])
+            else:
+                base_query += " AND strategy_id = ?"
+                params.append(self.strategy_id)
+
+            if exchange:
+                base_query += " AND exchange = ?"
+                params.append(exchange)
+
+            base_query += " ORDER BY timestamp ASC"
+
+            cursor.execute(base_query, params)
+            rows = cursor.fetchall()
+            conn.close()
+
+            trades = []
+            for row in rows:
+                trades.append({
+                    'action': row[0],
+                    'price': row[1],
+                    'volume': row[2],
+                    'profit': row[3],
+                    'profit_pct': row[4],
+                    'exchange': row[5],
+                    'timestamp': datetime.strptime(row[6], '%Y-%m-%d %H:%M:%S')
+                })
+            return trades
+
+        except Exception as e:
+            print(f"❌ 날짜 범위 거래 조회 실패: {e}")
             return []
 
     def get_statistics(self):

@@ -6,7 +6,6 @@ trading system including:
 - RegimeRouter for market state classification
 - Strategy selection based on regime
 - Position management with realistic costs
-- Premium arbitrage overlay
 - Combined P&L calculation
 """
 

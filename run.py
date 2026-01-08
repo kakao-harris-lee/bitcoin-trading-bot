@@ -249,19 +249,19 @@ async def main(args):
             binance = BinanceFuturesTrader()
             account_info = binance.get_account_info()
             usdt_balance = account_info.get('total_balance', 0)
-            hedge_capital_usdt = usdt_balance
+            binance_capital_usdt = usdt_balance
             print(f"Live Binance balance: ${usdt_balance:,.2f}")
         except Exception as e:
             print(f"Warning: Failed to fetch Binance balance: {e}")
-            hedge_capital_usdt = float(args.paper_binance_capital)
+            binance_capital_usdt = float(args.paper_binance_capital)
     else:
         total_capital_krw = float(args.paper_upbit_capital)
-        hedge_capital_usdt = float(args.paper_binance_capital)
+        binance_capital_usdt = float(args.paper_binance_capital)
 
     config = MultiAssetEngineConfig(
         execution_mode=execution_mode,
         total_capital_krw=total_capital_krw,
-        hedge_capital_usdt=hedge_capital_usdt,
+        binance_capital_usdt=binance_capital_usdt,
         telegram_enabled=not bool(args.no_telegram),
     )
 

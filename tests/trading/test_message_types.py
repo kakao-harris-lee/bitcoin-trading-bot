@@ -302,13 +302,12 @@ class TestPositionMessage:
             timestamp=1702345678901,
             total_equity_krw=15000000,
             positions={"upbit": upbit_pos},
-            hedge_ratio=0.5,
             total_pnl_pct=5.0,
         )
 
         assert msg.total_equity_krw == 15000000
         assert "upbit" in msg.positions
-        assert msg.hedge_ratio == 0.5
+        assert msg.total_pnl_pct == 5.0
 
 
 # ========== SystemEvent Tests ==========

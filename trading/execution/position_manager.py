@@ -494,9 +494,6 @@ class PositionManager(BaseModule):
                 if p.direction == Direction.SHORT
             )
 
-            # 헤지 비율
-            hedge_ratio = short_exposure / long_exposure if long_exposure > 0 else 0
-
             position_data = {
                 "timestamp": current_timestamp(),
                 "total_equity": self.total_equity + total_unrealized_pnl,
@@ -505,7 +502,6 @@ class PositionManager(BaseModule):
                 "realized_pnl": self._total_pnl,
                 "long_exposure": long_exposure,
                 "short_exposure": short_exposure,
-                "hedge_ratio": hedge_ratio,
                 "positions": [p.to_dict() for p in self.positions.values()],
                 "position_count": len(self.positions),
             }
@@ -657,7 +653,6 @@ class PositionManager(BaseModule):
             "total_return_pct": (self.total_equity + total_unrealized - self.initial_capital) / self.initial_capital * 100,
             "long_exposure": long_exposure,
             "short_exposure": short_exposure,
-            "hedge_ratio": short_exposure / long_exposure if long_exposure > 0 else 0,
             "position_count": len(self.positions),
         }
 

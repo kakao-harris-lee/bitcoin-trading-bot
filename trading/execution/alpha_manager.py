@@ -2,7 +2,6 @@
 AlphaManager - Directional Alpha strategy manager for Upbit.
 
 Manages v35, va02, sideways_v2 strategies with regime-based gating.
-Completely separate from Hedge strategies.
 """
 
 import logging
@@ -92,7 +91,6 @@ class AlphaManager:
     Responsibilities:
     - Uses RegimeRouter for strategy selection (MFI/ADX based)
     - Manages Upbit spot positions only
-    - No awareness of premium or hedge logic
     - Tracks per-strategy positions and P&L
     """
 
@@ -105,7 +103,6 @@ class AlphaManager:
         execution_mode: str = "paper",
         risk_config: Optional[Any] = None,
         telegram_notifier: Optional[Any] = None,
-        delta_rebalancer: Optional[Any] = None,
         data_cache: Optional["DataCache"] = None,
     ):
         """
@@ -119,7 +116,6 @@ class AlphaManager:
             execution_mode: "paper" or "live"
             risk_config: Risk configuration
             telegram_notifier: Optional telegram notifier
-            delta_rebalancer: Optional DeltaRebalancer for hedge notifications
             data_cache: Optional DataCache for efficient data loading
         """
         self.account = upbit_account
@@ -129,7 +125,6 @@ class AlphaManager:
         self.execution_mode = execution_mode
         self.risk_config = risk_config
         self.telegram = telegram_notifier
-        self.delta_rebalancer = delta_rebalancer
         self.data_cache = data_cache
 
         # Per-strategy position tracking
@@ -185,10 +180,7 @@ class AlphaManager:
         return self._last_decision.market_state if self._last_decision else "UNKNOWN"
 
     def get_total_btc_exposure(self) -> float:
-        """
-        Get total BTC held across all Alpha strategies.
-        Used by HedgeManager to calculate hedge size.
-        """
+        """Get total BTC held across all Alpha strategies."""
         _, btc_balance = self.account.get_balance()
         return btc_balance
 
@@ -373,10 +365,6 @@ class AlphaManager:
             pos.btc = btc_amount
             pos.entry_price = actual_price
 
-            # Notify DeltaRebalancer of position change
-            if self.delta_rebalancer:
-                self.delta_rebalancer.on_alpha_trade(btc_amount, "buy")
-
             # Record trade
             trade = {
                 "timestamp": datetime.now().isoformat(),
@@ -428,9 +416,6 @@ class AlphaManager:
             pnl = (actual_price - pos.entry_price) * pos.btc
             pnl_pct = ((actual_price / pos.entry_price) - 1) * 100
 
-            # Capture btc before clearing for rebalancer notification
-            sold_btc = pos.btc
-
             # Record trade
             trade = {
                 "timestamp": datetime.now().isoformat(),
@@ -449,10 +434,6 @@ class AlphaManager:
             pos.active = False
             pos.btc = 0.0
             pos.entry_price = 0.0
-
-            # Notify DeltaRebalancer of position change
-            if self.delta_rebalancer:
-                self.delta_rebalancer.on_alpha_trade(sold_btc, "sell")
 
             msg = f"🔴 [{pos.name}] SELL @ {actual_price:,.0f}원 | PnL: {pnl:+,.0f}원 ({pnl_pct:+.2f}%)"
             logger.info(msg)

@@ -4,7 +4,7 @@ Trading Orchestrator - Single entry point for all trading coroutines
 Spawns and monitors:
 - Feed publishers (Upbit, Binance)
 - Regime publisher
-- Strategy coroutines (V35, SHORT_V1, SIDEWAYS_V2, H4, PREMIUM)
+- Strategy coroutines (V35, SHORT_V1, SIDEWAYS_V2, H4)
 - Trade executor
 - Telegram command handler (kill switch control)
 """

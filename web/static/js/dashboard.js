@@ -96,7 +96,6 @@ function renderAssetCards(assets) {
         const regimeLabel = getRegimeLabel(data.regime);
         const positionStatus = data.position_active ? 'Active' : 'None';
         const positionClass = data.position_active ? 'has-position' : '';
-        const hedgeIcon = data.hedge_enabled ? '(H)' : '';
 
         // Get active strategy from strategies config
         let activeStrategy = '-';
@@ -109,7 +108,6 @@ function renderAssetCards(assets) {
             <div class="asset-card ${regimeClass} ${positionClass}">
                 <div class="asset-header">
                     <span class="asset-symbol">${symbol}</span>
-                    <span class="asset-hedge">${hedgeIcon}</span>
                     <span class="asset-regime ${regimeClass}">${regimeLabel}</span>
                 </div>
                 <div class="asset-prices">
@@ -121,9 +119,6 @@ function renderAssetCards(assets) {
                         <span class="label">Binance</span>
                         <span class="value">$${formatPrice(data.binance_price, false)}</span>
                     </div>
-                </div>
-                <div class="asset-premium ${data.premium_pct >= 0 ? 'positive' : 'negative'}">
-                    Premium: ${formatPercent(data.premium_pct)}
                 </div>
                 <div class="asset-allocation">
                     <div class="info-row">
@@ -161,86 +156,6 @@ function renderAssetCards(assets) {
     container.innerHTML = html;
 }
 
-// Render premium cards
-function renderPremiumCards(premiums) {
-    const container = document.getElementById('premium-grid');
-    if (!premiums || Object.keys(premiums).length === 0) {
-        container.innerHTML = '<p class="no-data">No premium data available</p>';
-        return;
-    }
-
-    let html = '';
-    for (const [symbol, data] of Object.entries(premiums)) {
-        const premiumClass = data.premium_pct >= 0 ? 'positive' : 'negative';
-        const stats = data.stats || {};
-
-        html += `
-            <div class="premium-card">
-                <div class="premium-header">
-                    <span class="symbol">${symbol}</span>
-                    <span class="premium-value ${premiumClass}">${formatPercent(data.premium_pct)}</span>
-                </div>
-                <div class="premium-prices">
-                    <span>Upbit: ${formatPrice(data.upbit_price, true)}</span>
-                    <span>Binance: $${formatPrice(data.binance_price, false)}</span>
-                </div>
-                ${stats.mean_24h !== undefined ? `
-                <div class="premium-stats">
-                    <span>24h Mean: ${formatPercent(stats.mean_24h)}</span>
-                    <span>Std: ${stats.std_24h?.toFixed(2) || '-'}%</span>
-                    <span class="volatility-${stats.volatility_state || 'normal'}">${stats.volatility_state || 'normal'}</span>
-                </div>
-                ` : ''}
-            </div>
-        `;
-    }
-    container.innerHTML = html;
-}
-
-// Render delta grid
-function renderDeltaGrid(deltaStates, hedgeSymbols) {
-    const container = document.getElementById('delta-grid');
-    if (!deltaStates || Object.keys(deltaStates).length === 0) {
-        container.innerHTML = '<p class="no-data">No hedge positions</p>';
-        return;
-    }
-
-    let html = '';
-    for (const [symbol, state] of Object.entries(deltaStates)) {
-        if (!hedgeSymbols.includes(symbol)) continue;
-
-        const netDelta = state.net_delta || 0;
-        const deltaClass = netDelta > 0 ? 'positive' : netDelta < 0 ? 'negative' : '';
-
-        html += `
-            <div class="delta-card">
-                <div class="delta-header">
-                    <span class="symbol">${symbol}</span>
-                </div>
-                <div class="delta-info">
-                    <div class="delta-row">
-                        <span class="label">Long</span>
-                        <span class="value">${state.long_qty?.toFixed(6) || '0'}</span>
-                    </div>
-                    <div class="delta-row">
-                        <span class="label">Short</span>
-                        <span class="value">${state.short_qty?.toFixed(6) || '0'}</span>
-                    </div>
-                    <div class="delta-row">
-                        <span class="label">Net Delta</span>
-                        <span class="value ${deltaClass}">${netDelta.toFixed(6)}</span>
-                    </div>
-                    <div class="delta-row">
-                        <span class="label">Drift</span>
-                        <span class="value">${formatPercent(state.drift_pct || 0)}</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    container.innerHTML = html || '<p class="no-data">No hedgeable assets</p>';
-}
-
 // Update portfolio summary
 function updatePortfolio(portfolio) {
     if (!portfolio) return;
@@ -271,11 +186,6 @@ function updateStatus(data) {
 
     // Render asset cards
     renderAssetCards(data.assets);
-
-    // Update hedge section
-    const hedge = data.hedge || {};
-    document.getElementById('hedge-symbols').textContent = (hedge.symbols || []).join(', ') || '-';
-    document.getElementById('hedge-capital').textContent = formatUSD(hedge.total_capital_usdt);
 }
 
 // Update kill switch status
@@ -292,20 +202,6 @@ function updateKillSwitch(data) {
         text.textContent = 'Trading Active';
         text.style.color = '#2ecc71';
     }
-}
-
-// Update hedge info display
-function updateHedgeInfo(data) {
-    if (!data || data.error) {
-        return;
-    }
-
-    // Render premium cards
-    renderPremiumCards(data.premiums);
-
-    // Render delta grid
-    const hedgeSymbols = data.hedge?.symbols || [];
-    renderDeltaGrid(data.delta?.states, hedgeSymbols);
 }
 
 // Fetch and update status
@@ -329,18 +225,6 @@ async function fetchKillSwitch() {
         updateKillSwitch(data);
     } catch (err) {
         console.error('Kill switch fetch error:', err);
-    }
-}
-
-// Fetch hedge info
-async function fetchHedgeInfo() {
-    try {
-        const response = await fetch('/api/hedge', { credentials: 'include' });
-        if (!response.ok) return;
-        const data = await response.json();
-        updateHedgeInfo(data);
-    } catch (err) {
-        console.error('Hedge info fetch error:', err);
     }
 }
 
@@ -472,7 +356,6 @@ async function fetchAll() {
     await Promise.all([
         fetchStatus(),
         fetchKillSwitch(),
-        fetchHedgeInfo(),
         fetchExchangeBalances(),
     ]);
 }

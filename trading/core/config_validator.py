@@ -103,7 +103,7 @@ class ConfigValidator:
                 result.add_error(f"Missing required section: '{section}'")
 
         # Check for common config sections
-        optional_sections = ["hedge", "risk", "notification"]
+        optional_sections = ["risk", "notification"]
         for section in optional_sections:
             if section not in config:
                 result.add_warning(f"Missing optional section: '{section}'")
@@ -168,11 +168,6 @@ class ConfigValidator:
         if strategy:
             strategy_result = self._validate_strategy_exists(symbol, strategy)
             result.merge(strategy_result)
-
-        # Validate hedge configuration if enabled
-        if config.get("hedge_enabled"):
-            if not config.get("binance_symbol"):
-                result.add_error(f"{symbol}: hedge_enabled but missing binance_symbol")
 
         return result
 

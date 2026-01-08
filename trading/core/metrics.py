@@ -78,7 +78,6 @@ class TradingMetrics:
 
     # Gauges (current values)
     current_exposure_krw: float = 0.0
-    current_hedge_usd: float = 0.0
     position_values: Dict[str, float] = field(default_factory=dict)
 
     # Histograms (distributions)
@@ -102,7 +101,6 @@ class TradingMetrics:
             },
             "gauges": {
                 "current_exposure_krw": self.current_exposure_krw,
-                "current_hedge_usd": self.current_hedge_usd,
                 "position_values": self.position_values,
             },
             "histograms": {
@@ -202,11 +200,10 @@ class MetricsCollector:
             self._metrics.circuit_breaker_trips[breaker_name] += 1
 
     # Gauge methods
-    def set_exposure(self, krw: float, usd: float = 0) -> None:
+    def set_exposure(self, krw: float) -> None:
         """Set current exposure values."""
         with self._metrics_lock:
             self._metrics.current_exposure_krw = krw
-            self._metrics.current_hedge_usd = usd
 
     def set_position_value(self, symbol: str, value: float) -> None:
         """Set current position value for a symbol."""
@@ -277,7 +274,6 @@ class MetricsCollector:
                 "total_trades": sum(m.trades_executed.values()),
                 "total_errors": sum(m.errors_by_type.values()),
                 "exposure_krw": m.current_exposure_krw,
-                "hedge_usd": m.current_hedge_usd,
                 "eval_latency_p50": m.evaluation_latency_ms.percentile(50),
                 "exec_latency_p50": m.execution_latency_ms.percentile(50),
             }

@@ -153,11 +153,10 @@ class TestMetricsCollector:
         """Exposure gauges are set correctly."""
         collector = MetricsCollector()
 
-        collector.set_exposure(1000000, 500)
+        collector.set_exposure(1000000)
 
         metrics = collector.get_metrics()
         assert metrics["gauges"]["current_exposure_krw"] == 1000000
-        assert metrics["gauges"]["current_hedge_usd"] == 500
 
     def test_time_evaluation_context_manager(self):
         """time_evaluation context manager records latency."""

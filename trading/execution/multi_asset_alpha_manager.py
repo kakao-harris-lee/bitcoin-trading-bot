@@ -71,7 +71,6 @@ class MultiAssetAlphaManager:
     - Concurrent strategy evaluation via asyncio.gather
     - Per-asset regime tracking
     - Integration with PortfolioManager for capital allocation
-    - Notification to DeltaRebalancer on trades
     """
 
     def __init__(
@@ -79,7 +78,6 @@ class MultiAssetAlphaManager:
         portfolio: PortfolioManager,
         config: Dict[str, Any],
         data_cache: Optional[MultiAssetDataCache] = None,
-        delta_rebalancer: Optional[Any] = None,
         telegram_notifier: Optional[Any] = None,
         execution_mode: str = "paper",
         state_file: Optional[Path] = None,
@@ -89,7 +87,6 @@ class MultiAssetAlphaManager:
             portfolio: PortfolioManager for capital allocation
             config: Allocation config with "assets" section
             data_cache: MultiAssetDataCache for OHLCV data
-            delta_rebalancer: Optional DeltaRebalancer for hedge notifications
             telegram_notifier: Optional telegram notifier
             execution_mode: "paper" or "live"
             state_file: Path to state persistence file
@@ -97,7 +94,6 @@ class MultiAssetAlphaManager:
         self._portfolio = portfolio
         self._config = config
         self._data_cache = data_cache
-        self._delta_rebalancer = delta_rebalancer
         self._telegram = telegram_notifier
         self._execution_mode = execution_mode
 
@@ -577,10 +573,6 @@ class MultiAssetAlphaManager:
             )
             self._portfolio.adjust_cash(-buy_amount)
 
-            # Notify delta rebalancer
-            if self._delta_rebalancer:
-                self._delta_rebalancer.on_alpha_trade(symbol, qty, "buy")
-
             trade = {
                 "timestamp": datetime.now().isoformat(),
                 "symbol": symbol,
@@ -647,10 +639,6 @@ class MultiAssetAlphaManager:
             # Update portfolio
             self._portfolio.update_position(symbol, 0, 0, actual_price, None)
             self._portfolio.adjust_cash(proceeds)
-
-            # Notify delta rebalancer
-            if self._delta_rebalancer:
-                self._delta_rebalancer.on_alpha_trade(symbol, sold_qty, "sell")
 
             trade = {
                 "timestamp": datetime.now().isoformat(),

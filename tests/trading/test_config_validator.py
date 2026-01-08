@@ -106,7 +106,6 @@ class TestConfigValidator:
                     "strategy": "v35_long",
                 }
             },
-            "hedge": {},
             "risk": {},
             "notification": {},
         }
@@ -169,26 +168,6 @@ class TestConfigValidator:
 
         assert not result.valid
         assert any("strategy config not found" in e for e in result.errors)
-
-    def test_validate_hedge_without_binance_symbol(self, temp_config_dir, temp_data_dir):
-        """Hedge enabled without binance_symbol is an error."""
-        config = {
-            "assets": {
-                "BTC": {
-                    "enabled": True,
-                    "upbit_symbol": "KRW-BTC",
-                    "db_path": str(temp_data_dir / "btc_data.db"),
-                    "hedge_enabled": True,
-                    # Missing binance_symbol
-                }
-            }
-        }
-
-        validator = ConfigValidator(temp_config_dir, temp_data_dir)
-        result = validator.validate_assets(config)
-
-        assert not result.valid
-        assert any("binance_symbol" in e for e in result.errors)
 
     def test_validate_environment_missing_keys(self, temp_config_dir, temp_data_dir):
         """Missing API keys are errors."""

@@ -743,40 +743,6 @@ class TestPhase4Integration:
         pos = pm.get_position(Exchange.UPBIT, "KRW-BTC", Direction.LONG)
         assert pos.unrealized_pnl > 0
 
-    @pytest.mark.asyncio
-    async def test_hedge_position_management(self, full_pipeline):
-        """헤지 포지션 관리"""
-        pm = full_pipeline["position"]
-
-        # Long 포지션 (Upbit)
-        pm.add_position(
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
-            direction=Direction.LONG,
-            quantity=1.0,
-            entry_price=50000000,
-        )
-
-        # Short 포지션 (Binance)
-        pm.add_position(
-            exchange=Exchange.BINANCE,
-            symbol="BTCUSDT",
-            direction=Direction.SHORT,
-            quantity=0.5,
-            entry_price=50000,
-            leverage=2,
-        )
-
-        pm.update_price("upbit", "KRW-BTC", 50000000)
-        pm.update_price("binance", "BTCUSDT", 50000)
-
-        summary = pm.get_portfolio_summary()
-
-        # 헤지 비율 확인 (Short / Long)
-        # Short: 0.5 * 50000 = 25000 USDT
-        # Long: 1.0 * 50000000 = 50M KRW
-        assert summary["hedge_ratio"] > 0
-        assert summary["position_count"] == 2
 
 
 # =============================================================================

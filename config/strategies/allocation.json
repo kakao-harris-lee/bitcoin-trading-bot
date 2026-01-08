@@ -4,7 +4,6 @@
     "BTC": {
       "enabled": true,
       "alpha_ratio": 0.4,
-      "hedge_enabled": true,
       "upbit_symbol": "KRW-BTC",
       "binance_symbol": "BTCUSDT",
       "db_path": "data/upbit_bitcoin.db",
@@ -18,7 +17,6 @@
     "ETH": {
       "enabled": true,
       "alpha_ratio": 0.3,
-      "hedge_enabled": true,
       "upbit_symbol": "KRW-ETH",
       "binance_symbol": "ETHUSDT",
       "db_path": "data/upbit_ethereum.db",
@@ -35,7 +33,6 @@
     "SOL": {
       "enabled": true,
       "alpha_ratio": 0.2,
-      "hedge_enabled": false,
       "upbit_symbol": "KRW-SOL",
       "binance_symbol": "SOLUSDT",
       "db_path": "data/upbit_solana.db",
@@ -52,7 +49,6 @@
     "XRP": {
       "enabled": false,
       "alpha_ratio": 0.1,
-      "hedge_enabled": false,
       "upbit_symbol": "KRW-XRP",
       "binance_symbol": "XRPUSDT",
       "db_path": "data/upbit_xrp.db",
@@ -68,26 +64,11 @@
       "_note": "XRP V35 disabled: improved win rate (35%→59%) but still -5.35% OOS return. V35 strategy unsuitable for XRP."
     }
   },
-  "hedge": {
-    "enabled": true,
-    "capital_usdt": 5000,
-    "entry_threshold_pct": 1.2,
-    "entry_sigma": 1.5,
-    "volatility_block_threshold": 2.0,
-    "negative_funding_exit": -0.05,
-    "min_hold_minutes": 30,
-    "max_capital_usage_pct": 0.8
-  },
   "legacy": {
     "_comment": "Legacy fields kept for backward compatibility during migration",
     "capital_split": {
       "upbit_ratio": 0.6,
       "binance_ratio": 0.4
-    },
-    "hedge_ratio_targets": {
-      "BULL": { "min": 0.3, "max": 0.5, "target": 0.4 },
-      "SIDEWAYS": { "min": 0.7, "max": 1.0, "target": 0.85 },
-      "BEAR": { "min": 0.5, "max": 0.8, "target": 0.7 }
     },
     "upbit": {
       "v35": { "ratio": 0.5, "enabled": true, "regimes": ["BULL"] },

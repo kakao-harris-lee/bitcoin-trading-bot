@@ -35,7 +35,7 @@ class TradeLogger:
         # v35-dual 전략 조회
         cursor.execute("""
             SELECT strategy_id FROM strategies
-            WHERE version = 'v35-dual' AND name = 'upbit_binance_hedge'
+            WHERE version = 'v35-dual' AND name = 'v35_multi_exchange'
         """)
 
         result = cursor.fetchone()
@@ -46,8 +46,8 @@ class TradeLogger:
             # 전략 생성
             cursor.execute("""
                 INSERT INTO strategies (version, name, description, timeframe)
-                VALUES ('v35-dual', 'upbit_binance_hedge',
-                        'v35 Optimized + 바이넨스 선물 헤지 (실시간)', 'day')
+                VALUES ('v35-dual', 'v35_multi_exchange',
+                        'v35 Optimized + Binance Futures (실시간)', 'day')
             """)
             self.strategy_id = cursor.lastrowid
             conn.commit()

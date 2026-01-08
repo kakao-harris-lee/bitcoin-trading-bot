@@ -294,16 +294,12 @@ def get_status():
     # Build response
     assets_data = ma_status.get('assets', {})
     portfolio = ma_status.get('portfolio', {})
-    hedge = ma_status.get('hedge', {})
-    delta = ma_status.get('delta', {})
 
     # Build per-asset response
     assets = {}
     for symbol, data in assets_data.items():
         asset_config = allocation.get('assets', {}).get(symbol, {})
         portfolio_asset = portfolio.get('assets', {}).get(symbol, {})
-        hedge_stats = hedge.get('statistics', {}).get(symbol, {})
-        delta_state = delta.get('states', {}).get(symbol, {})
 
         assets[symbol] = {
             'enabled': asset_config.get('enabled', False),
@@ -316,11 +312,6 @@ def get_status():
             'alpha_ratio': asset_config.get('alpha_ratio', 0),
             'allocated_krw': portfolio_asset.get('allocated_krw', 0),
             'position_value_krw': portfolio_asset.get('position_value_krw', 0),
-            # Hedge info
-            'hedge_enabled': asset_config.get('hedge_enabled', False),
-            'long_qty': delta_state.get('long_qty', 0),
-            'short_qty': delta_state.get('short_qty', 0),
-            'net_delta': delta_state.get('net_delta', 0),
             # Strategy config
             'strategies': asset_config.get('strategies', {}),
         }
@@ -338,12 +329,7 @@ def get_status():
             'cash_krw': portfolio.get('cash_krw', 0),
             'exposure_pct': portfolio.get('exposure_pct', 0),
             'unrealized_pnl': portfolio.get('total_unrealized_pnl', 0),
-        },
-        'hedge': {
-            'symbols': hedge.get('symbols', []),
-            'total_capital_usdt': hedge.get('total_capital', 0),
-            'positions': hedge.get('positions', {}),
-        },
+        }
     }
 
     return jsonify(status)
@@ -547,39 +533,6 @@ def get_statistics():
         }
 
     return jsonify(statistics)
-
-
-@app.route("/api/hedge")
-def get_hedge_info():
-    """Kimchi Premium and Hedge Ratio API - Multi-asset support"""
-    ma_status = load_multi_asset_status()
-    allocation = load_allocation_config()
-
-    if not ma_status:
-        return jsonify({'error': 'No hedge data available'}), 404
-
-    try:
-        hedge = ma_status.get('hedge', {})
-        delta = ma_status.get('delta', {})
-
-        # Build hedge/delta info
-        delta_states = delta.get('states', {})
-        hedge_symbols = hedge.get('symbols', [])
-
-        return jsonify({
-            'generated_at': ma_status.get('timestamp'),
-            'mode': ma_status.get('mode'),
-            'hedge': {
-                'symbols': hedge_symbols,
-                'total_capital_usdt': hedge.get('total_capital', 0),
-                'positions': hedge.get('positions', {}),
-            },
-            'delta': {
-                'states': delta_states,
-            },
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 
 @app.route("/api/exchange_balances")

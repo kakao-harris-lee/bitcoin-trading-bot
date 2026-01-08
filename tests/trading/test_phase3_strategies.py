@@ -500,31 +500,6 @@ class TestRiskManager:
         assert len(risk_manager.state.positions) == 1
         assert risk_manager.state.long_exposure > 0
 
-    def test_hedge_ratio_calculation(self, risk_manager):
-        """헤지 비율 계산 테스트"""
-        # Long 포지션
-        risk_manager.update_position(
-            exchange='upbit',
-            symbol='KRW-BTC',
-            quantity=0.1,
-            entry_price=50000000,
-            current_price=50000000,
-            direction='long'
-        )
-
-        # Short 포지션
-        risk_manager.update_position(
-            exchange='binance',
-            symbol='BTCUSDT',
-            quantity=0.05,
-            entry_price=50000,
-            current_price=50000,
-            direction='short'
-        )
-
-        # 헤지 비율 = short / long
-        assert risk_manager.state.hedge_ratio > 0
-
     def test_create_order(self, risk_manager):
         """주문 생성 테스트"""
         signal = {
@@ -628,36 +603,6 @@ class TestPhase3Integration:
         assert 'adjusted_fraction' in result
         assert 'reason' in result
 
-    def test_multiple_strategies_hedge(self, full_pipeline):
-        """다중 전략 헤지 비율"""
-        risk_mgr = full_pipeline['risk_manager']
-
-        # Long 진입
-        risk_mgr.update_position(
-            exchange='upbit',
-            symbol='KRW-BTC',
-            quantity=1.0,
-            entry_price=50000000,
-            current_price=50000000,
-            direction='long'
-        )
-
-        # Short 진입
-        risk_mgr.update_position(
-            exchange='binance',
-            symbol='BTCUSDT',
-            quantity=0.4,
-            entry_price=50000,
-            current_price=50000,
-            direction='short'
-        )
-
-        state = risk_mgr.get_risk_state()
-
-        # Long + Short 모두 존재
-        assert state['long_exposure'] > 0
-        assert state['short_exposure'] > 0
-        assert 0 < state['hedge_ratio'] < 1
 
 
 # =============================================================================

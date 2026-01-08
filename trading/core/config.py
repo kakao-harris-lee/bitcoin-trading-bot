@@ -83,8 +83,6 @@ class TradingConfig:
     max_drawdown_pct: float = 20.0
     max_position_pct: float = 50.0
     daily_loss_limit_pct: float = 5.0
-    min_hedge_ratio: float = 0.3
-    max_hedge_ratio: float = 0.7
     max_leverage: int = 3
 
     # 실행 간격 (초)

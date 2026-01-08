@@ -81,7 +81,6 @@ class PortfolioManager:
                     symbol=symbol,
                     enabled=cfg.get("enabled", True),
                     alpha_ratio=cfg.get("alpha_ratio", 0.0),
-                    hedge_enabled=cfg.get("hedge_enabled", False),
                     upbit_symbol=cfg.get("upbit_symbol", f"KRW-{symbol}"),
                     binance_symbol=cfg.get("binance_symbol", f"{symbol}USDT"),
                     db_path=cfg.get("db_path", f"data/upbit_{symbol.lower()}.db"),

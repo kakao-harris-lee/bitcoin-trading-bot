@@ -44,7 +44,6 @@ class RiskState:
     peak_equity: float = 0.0
     long_exposure: float = 0.0
     short_exposure: float = 0.0
-    hedge_ratio: float = 0.5
     positions: Dict[str, PositionState] = field(default_factory=dict)
     daily_trades: int = 0
     last_reset: datetime = field(default_factory=datetime.now)
@@ -57,7 +56,6 @@ class RiskManager(BaseModule):
     기능:
     - 모든 전략 신호 검증
     - 포지션 크기 조정
-    - Long/Short 헤지 비율 관리
     - 최대 손실 한도 체크
     - 승인된 주문만 실행기로 전달
     """
@@ -67,8 +65,6 @@ class RiskManager(BaseModule):
         'max_drawdown_pct': 20.0,
         'max_position_pct': 50.0,
         'daily_loss_limit_pct': 5.0,
-        'min_hedge_ratio': 0.3,
-        'max_hedge_ratio': 0.7,
         'max_leverage': 3,
         'volatility_threshold': 0.05,
         'max_daily_trades': 10,
@@ -105,8 +101,6 @@ class RiskManager(BaseModule):
         self.logger.info("⚠️ Risk Manager 시작")
         self.logger.info(f"   초기 자본: {self.initial_capital:,.0f}")
         self.logger.info(f"   최대 낙폭: {self.risk_params['max_drawdown_pct']}%")
-        self.logger.info(f"   헤지 범위: {self.risk_params['min_hedge_ratio']:.1%} ~ "
-                        f"{self.risk_params['max_hedge_ratio']:.1%}")
 
     async def on_stop(self):
         """정지"""
@@ -211,21 +205,9 @@ class RiskManager(BaseModule):
                     'adjusted_fraction': 0,
                 }
 
-        # 5. 헤지 비율 조정
-        adjusted_fraction = self._adjust_for_hedge_ratio(
-            exchange=exchange,
-            action=action,
-            fraction=fraction
-        )
+        adjusted_fraction = fraction
 
-        if adjusted_fraction <= 0:
-            return {
-                'approved': False,
-                'reason': 'HEDGE_RATIO_LIMIT',
-                'adjusted_fraction': 0,
-            }
-
-        # 6. 포지션 크기 제한
+        # 5. 포지션 크기 제한
         max_position_pct = self.risk_params['max_position_pct']
         if adjusted_fraction > max_position_pct / 100:
             adjusted_fraction = max_position_pct / 100
@@ -239,52 +221,6 @@ class RiskManager(BaseModule):
             'reason': 'APPROVED',
             'adjusted_fraction': adjusted_fraction,
         }
-
-    def _adjust_for_hedge_ratio(
-        self,
-        exchange: str,
-        action: str,
-        fraction: float
-    ) -> float:
-        """
-        헤지 비율에 따른 포지션 조정
-
-        상승장: Long 비중 ↑, Short 비중 ↓
-        하락장: Long 비중 ↓, Short 비중 ↑
-        횡보장: 50:50
-        """
-        current_long = self.state.long_exposure
-        current_short = self.state.short_exposure
-        total_exposure = current_long + current_short
-
-        # 신규 포지션인 경우
-        if total_exposure == 0:
-            return fraction
-
-        # 현재 헤지 비율
-        if current_long > 0:
-            current_hedge = current_short / current_long
-        else:
-            current_hedge = 1.0
-
-        min_hedge = self.risk_params['min_hedge_ratio']
-        max_hedge = self.risk_params['max_hedge_ratio']
-
-        # Long 진입 시
-        if exchange == 'upbit' and action in ['buy']:
-            # 헤지 비율이 너무 낮으면 Long 제한
-            if current_hedge < min_hedge and current_short > 0:
-                return fraction * 0.5
-            return fraction
-
-        # Short 진입 시
-        elif exchange == 'binance' and action in ['open_short']:
-            # 헤지 비율이 너무 높으면 Short 제한
-            if current_hedge > max_hedge and current_long > 0:
-                return fraction * 0.5
-            return fraction
-
-        return fraction
 
     def _create_order(self, signal: Dict, validation: Dict) -> Dict:
         """승인된 신호로 주문 생성"""
@@ -373,11 +309,6 @@ class RiskManager(BaseModule):
         self.state.long_exposure = long_total
         self.state.short_exposure = short_total
 
-        if long_total > 0:
-            self.state.hedge_ratio = short_total / long_total
-        else:
-            self.state.hedge_ratio = 0.0
-
     def update_equity(self, total_equity: float):
         """자산 업데이트"""
         self.state.total_equity = total_equity
@@ -410,7 +341,6 @@ class RiskManager(BaseModule):
             'max_drawdown': self.state.max_drawdown,
             'long_exposure': self.state.long_exposure,
             'short_exposure': self.state.short_exposure,
-            'hedge_ratio': self.state.hedge_ratio,
             'daily_trades': self.state.daily_trades,
             'positions': len(self.state.positions),
         }

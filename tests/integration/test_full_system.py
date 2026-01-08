@@ -5,7 +5,6 @@ Tests the interaction between:
 - RegimeRouter
 - Strategy selection (V35, VA02, Short_V1)
 - Position management
-- Premium arbitrage
 - Cost calculation
 """
 

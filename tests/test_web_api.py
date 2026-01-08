@@ -67,29 +67,6 @@ def mock_multi_asset_status():
                 },
             },
         },
-        'hedge': {
-            'symbols': ['BTC', 'ETH'],
-            'total_capital': 10000,
-            'positions': {},
-            'statistics': {
-                'BTC': {'hedge_ratio': 0.5},
-                'ETH': {'hedge_ratio': 0.3},
-            },
-        },
-        'delta': {
-            'states': {
-                'BTC': {
-                    'long_qty': 0.1,
-                    'short_qty': 0.05,
-                    'net_delta': 0.05,
-                },
-                'ETH': {
-                    'long_qty': 0,
-                    'short_qty': 0,
-                    'net_delta': 0,
-                },
-            },
-        },
     }
 
 
@@ -185,8 +162,8 @@ class TestStatusAPI:
         mock_status.return_value = mock_multi_asset_status
         mock_alloc.return_value = {
             'assets': {
-                'BTC': {'enabled': True, 'alpha_ratio': 0.7, 'hedge_enabled': True},
-                'ETH': {'enabled': True, 'alpha_ratio': 0.3, 'hedge_enabled': False},
+                'BTC': {'enabled': True, 'alpha_ratio': 0.7},
+                'ETH': {'enabled': True, 'alpha_ratio': 0.3},
             }
         }
 
@@ -199,7 +176,6 @@ class TestStatusAPI:
         assert 'mode' in data
         assert 'assets' in data
         assert 'portfolio' in data
-        assert 'hedge' in data
 
         # Check assets
         assert 'BTC' in data['assets']
@@ -310,34 +286,6 @@ class TestStatisticsAPI:
         assert 'upbit' in data
         assert 'binance' in data
         assert data['upbit']['return_pct'] == 5.2
-
-
-class TestHedgeAPI:
-    """Test /api/hedge endpoint."""
-
-    @patch('web.app.load_multi_asset_status')
-    @patch('web.app.load_allocation_config')
-    def test_hedge_no_data(self, mock_alloc, mock_status, client):
-        """Hedge should return 404 when no status."""
-        mock_status.return_value = None
-        mock_alloc.return_value = {}
-
-        response = client.get('/api/hedge')
-        assert response.status_code == 404
-
-    @patch('web.app.load_multi_asset_status')
-    @patch('web.app.load_allocation_config')
-    def test_hedge_with_data(self, mock_alloc, mock_status, client, mock_multi_asset_status):
-        """Hedge should return hedge and delta data."""
-        mock_status.return_value = mock_multi_asset_status
-        mock_alloc.return_value = {}
-
-        response = client.get('/api/hedge')
-        assert response.status_code == 200
-        data = json.loads(response.data)
-
-        assert 'hedge' in data
-        assert 'delta' in data
 
 
 if __name__ == '__main__':

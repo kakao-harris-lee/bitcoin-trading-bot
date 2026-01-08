@@ -160,7 +160,6 @@ class PositionMessage(BaseModel):
     timestamp: int
     total_equity_krw: float = Field(description="총 자산 (KRW 환산)")
     positions: Dict[str, Position] = Field(description="거래소별 포지션")
-    hedge_ratio: float = Field(description="헤지 비율 (Short/Long)")
     total_pnl_pct: float = Field(description="총 수익률")
 
     def to_dict(self) -> Dict[str, Any]:
@@ -218,7 +217,6 @@ class AssetConfig(BaseModel):
     symbol: str = Field(description="Asset symbol (e.g., BTC, ETH, SOL)")
     enabled: bool = Field(default=True, description="Whether this asset is active")
     alpha_ratio: float = Field(ge=0.0, le=1.0, description="Capital allocation ratio")
-    hedge_enabled: bool = Field(default=False, description="Whether hedging is enabled")
     upbit_symbol: str = Field(description="Upbit trading pair (e.g., KRW-BTC)")
     binance_symbol: str = Field(description="Binance trading pair (e.g., BTCUSDT)")
     db_path: str = Field(description="Path to historical data DB")

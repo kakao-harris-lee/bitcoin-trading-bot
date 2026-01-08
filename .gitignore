@@ -60,3 +60,5 @@ venv/
 *.swp
 .worktrees/
 .bot.pid
+.coverage
+.venv/

@@ -4,6 +4,130 @@
  */
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
+const STALE_THRESHOLD = 60000; // 60 seconds - data considered stale
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000; // 2 seconds
+
+// Track last successful fetch times
+let lastFetchTimes = {};
+
+// API Fetch Utility with Error Handling and Retry
+async function apiFetch(endpoint, options = {}, retryCount = 0) {
+    const defaultOptions = {
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    };
+
+    const mergedOptions = { ...defaultOptions, ...options };
+
+    try {
+        const response = await fetch(endpoint, mergedOptions);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        // Track successful fetch time
+        lastFetchTimes[endpoint] = Date.now();
+
+        return await response.json();
+    } catch (error) {
+        console.error(`API fetch error (${endpoint}):`, error);
+
+        // Retry for GET requests on network errors
+        if (retryCount < MAX_RETRIES && !options.method) {
+            console.log(`Retrying ${endpoint} (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+            await sleep(RETRY_DELAY);
+            return apiFetch(endpoint, options, retryCount + 1);
+        }
+
+        throw error;
+    }
+}
+
+// Helper: sleep function
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Helper: HTML escape to prevent XSS
+function escapeHtml(unsafe) {
+    if (unsafe === null || unsafe === undefined) return '';
+    return String(unsafe)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Check if data is stale
+function isDataStale(endpoint) {
+    const lastFetch = lastFetchTimes[endpoint];
+    if (!lastFetch) return true;
+    return (Date.now() - lastFetch) > STALE_THRESHOLD;
+}
+
+// Update staleness indicator
+function updateStalenessIndicator() {
+    const lastUpdateEl = document.getElementById('last-update-time');
+    if (!lastUpdateEl) return;
+
+    const statusFetchTime = lastFetchTimes['/api/status'];
+    if (!statusFetchTime) return;
+
+    const age = Date.now() - statusFetchTime;
+    if (age > STALE_THRESHOLD) {
+        lastUpdateEl.parentElement.classList.add('stale');
+        lastUpdateEl.title = 'Data may be outdated';
+    } else {
+        lastUpdateEl.parentElement.classList.remove('stale');
+        lastUpdateEl.title = '';
+    }
+}
+
+// Render loading state
+function renderLoading(containerId) {
+    const container = document.getElementById(containerId);
+    if (container) {
+        container.innerHTML = `
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <span>Loading...</span>
+            </div>
+        `;
+    }
+}
+
+// Render error state
+function renderError(containerId, message, retryFn = null) {
+    const container = document.getElementById(containerId);
+    if (container) {
+        container.innerHTML = `
+            <div class="error-state">
+                <span class="error-icon">!</span>
+                <span class="error-message">${message}</span>
+                ${retryFn ? '<button class="retry-btn" onclick="' + retryFn + '()">Retry</button>' : ''}
+            </div>
+        `;
+    }
+}
+
+// Render empty state
+function renderEmpty(containerId, message = 'No data available') {
+    const container = document.getElementById(containerId);
+    if (container) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <span class="empty-icon">-</span>
+                <span>${message}</span>
+            </div>
+        `;
+    }
+}
 
 // Format numbers
 function formatKRW(value) {
@@ -62,6 +186,38 @@ function formatPrice(price, isKRW = true) {
     }).format(price);
 }
 
+// Format date for display (YYYY-MM-DD)
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+}
+
+// Format number with commas
+function formatNumber(value, decimals = 0) {
+    if (value === null || value === undefined) return '-';
+    return new Intl.NumberFormat('ko-KR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    }).format(value);
+}
+
+// Format quantity (crypto amounts)
+function formatQuantity(value, decimals = 6) {
+    if (value === null || value === undefined) return '-';
+    return Number(value).toFixed(decimals);
+}
+
+// Get CSS class for P&L value
+function getPnLClass(value) {
+    if (value === null || value === undefined) return '';
+    return value >= 0 ? 'positive' : 'negative';
+}
+
 // Get regime class for styling
 function getRegimeClass(regime) {
     if (!regime) return '';
@@ -107,8 +263,8 @@ function renderAssetCards(assets) {
         html += `
             <div class="asset-card ${regimeClass} ${positionClass}">
                 <div class="asset-header">
-                    <span class="asset-symbol">${symbol}</span>
-                    <span class="asset-regime ${regimeClass}">${regimeLabel}</span>
+                    <span class="asset-symbol">${escapeHtml(symbol)}</span>
+                    <span class="asset-regime ${regimeClass}">${escapeHtml(regimeLabel)}</span>
                 </div>
                 <div class="asset-prices">
                     <div class="price-row">
@@ -137,7 +293,7 @@ function renderAssetCards(assets) {
                 <div class="asset-position">
                     <div class="info-row">
                         <span class="label">Strategy</span>
-                        <span class="value">${activeStrategy}</span>
+                        <span class="value">${escapeHtml(activeStrategy)}</span>
                     </div>
                     <div class="info-row">
                         <span class="label">Position</span>
@@ -362,10 +518,1478 @@ async function fetchAll() {
 
 // Initial load
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize tab navigation
+    initTabNavigation();
+
+    // Initialize keyboard shortcuts
+    initKeyboardShortcuts();
+
+    // Initialize history filters
+    initHistoryFilters();
+
+    // Initialize signals filters
+    initSignalsFilters();
+
+    // Initialize analytics period selector
+    initAnalyticsPeriodSelector();
+
+    // Initialize backtest
+    initBacktest();
+
+    // Fetch initial data
     fetchAll();
 
+    // Load initial positions data (default tab)
+    fetchPositions();
+
     // Auto refresh
-    setInterval(fetchAll, REFRESH_INTERVAL);
+    setInterval(() => {
+        fetchAll();
+        // Also refresh active tab data
+        if (isTabActive('positions')) {
+            fetchPositions();
+        } else if (isTabActive('signals')) {
+            fetchSignals();
+        }
+        // Update staleness indicator
+        updateStalenessIndicator();
+    }, REFRESH_INTERVAL);
+
+    // Initial staleness check interval (more frequent)
+    setInterval(updateStalenessIndicator, 10000);
 });
+
+// Keyboard Shortcuts
+function initKeyboardShortcuts() {
+    const TAB_KEYS = {
+        '1': 'positions',
+        '2': 'history',
+        '3': 'signals',
+        '4': 'analytics',
+        '5': 'backtest'
+    };
+
+    document.addEventListener('keydown', (e) => {
+        // Don't trigger shortcuts when typing in input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        // Tab navigation with number keys (1-5)
+        if (TAB_KEYS[e.key]) {
+            e.preventDefault();
+            switchToTab(TAB_KEYS[e.key]);
+            return;
+        }
+
+        // Refresh with 'r' key
+        if (e.key === 'r' || e.key === 'R') {
+            e.preventDefault();
+            console.log('Manual refresh triggered');
+            fetchAll();
+            // Refresh current tab data
+            const activeTab = getActiveTabId();
+            if (activeTab) {
+                onTabActivated(activeTab);
+            }
+            return;
+        }
+    });
+
+    // Log keyboard shortcuts availability
+    console.log('Keyboard shortcuts enabled: 1-5 for tabs, R for refresh');
+}
+
+// Switch to a specific tab programmatically
+function switchToTab(tabId) {
+    const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+    if (tabBtn) {
+        tabBtn.click();
+    }
+}
+
+// Get currently active tab ID
+function getActiveTabId() {
+    const activeTab = document.querySelector('.tab-content.active');
+    return activeTab ? activeTab.id : null;
+}
+
+// Check if a tab is currently active
+function isTabActive(tabId) {
+    const tabContent = document.getElementById(tabId);
+    return tabContent && tabContent.classList.contains('active');
+}
+
+// Tab Navigation
+function initTabNavigation() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabId = btn.dataset.tab;
+
+            // Remove active from all buttons and contents
+            tabButtons.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            // Activate clicked tab
+            btn.classList.add('active');
+            const tabContent = document.getElementById(tabId);
+            if (tabContent) {
+                tabContent.classList.add('active');
+            }
+
+            // Trigger tab-specific data loading
+            onTabActivated(tabId);
+        });
+    });
+}
+
+// Handle tab activation - load data for specific tab
+function onTabActivated(tabId) {
+    console.log(`Tab activated: ${tabId}`);
+
+    switch (tabId) {
+        case 'positions':
+            fetchPositions();
+            break;
+        case 'history':
+            fetchTrades();
+            break;
+        case 'signals':
+            fetchSignals();
+            break;
+        case 'analytics':
+            fetchAnalytics(analyticsState.period);
+            break;
+        case 'backtest':
+            // Strategies are loaded on init, but refresh if empty
+            if (backtestState.strategies.length === 0) {
+                fetchStrategies();
+            }
+            break;
+    }
+}
+
+// =====================
+// Positions Tab (US1)
+// =====================
+
+let positionsData = null;
+
+async function fetchPositions() {
+    const containerId = 'positions-container';
+
+    try {
+        renderLoading(containerId);
+        const data = await apiFetch('/api/positions');
+        positionsData = data;
+        renderPositions(data);
+        updatePositionsSummary(data);
+    } catch (error) {
+        renderError(containerId, 'Failed to load positions', 'fetchPositions');
+    }
+}
+
+function renderPositions(data) {
+    const container = document.getElementById('positions-container');
+
+    if (!data.positions || data.positions.length === 0) {
+        renderEmpty('positions-container', 'No open positions');
+        return;
+    }
+
+    // Group positions by exchange
+    const upbitPositions = data.positions.filter(p => p.exchange === 'upbit');
+    const binancePositions = data.positions.filter(p => p.exchange === 'binance');
+
+    let html = '';
+
+    // Render all positions
+    const allPositions = [...upbitPositions, ...binancePositions];
+    for (const pos of allPositions) {
+        const isKRW = pos.exchange === 'upbit';
+        const pnlClass = getPnLClass(pos.unrealized_pnl);
+        const sideClass = pos.side.toLowerCase();
+
+        html += `
+            <div class="position-card ${pos.exchange}">
+                <div class="card-header">
+                    <div>
+                        <span class="symbol">${pos.symbol}</span>
+                        <span class="side-badge ${sideClass}">${pos.side}</span>
+                    </div>
+                    <span class="exchange-badge ${pos.exchange}">${pos.exchange}</span>
+                </div>
+                <div class="card-body">
+                    <div class="stat-row">
+                        <span class="label">Quantity</span>
+                        <span class="value">${formatQuantity(pos.quantity, isKRW ? 8 : 4)}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Entry Price</span>
+                        <span class="value">${isKRW ? formatPrice(pos.entry_price, true) : '$' + formatPrice(pos.entry_price, false)}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Current Price</span>
+                        <span class="value">${isKRW ? formatPrice(pos.current_price, true) : '$' + formatPrice(pos.current_price, false)}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Value</span>
+                        <span class="value">${isKRW ? formatKRW(pos.value) : formatUSD(pos.value)}</span>
+                    </div>
+                    ${pos.leverage ? `
+                    <div class="stat-row">
+                        <span class="label">Leverage</span>
+                        <span class="value">${pos.leverage}x</span>
+                    </div>
+                    ` : ''}
+                    ${pos.liquidation_price ? `
+                    <div class="stat-row">
+                        <span class="label">Liquidation</span>
+                        <span class="value">$${formatPrice(pos.liquidation_price, false)}</span>
+                    </div>
+                    ` : ''}
+                    <div class="stat-row pnl-row">
+                        <span class="label">Unrealized P&L</span>
+                        <span class="pnl-value ${pnlClass}">
+                            ${isKRW ? formatKRW(pos.unrealized_pnl) : formatUSD(pos.unrealized_pnl)}
+                            (${formatPercent(pos.unrealized_pnl_pct)})
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+function updatePositionsSummary(data) {
+    const totalValueEl = document.getElementById('positions-total-value');
+    const totalPnlEl = document.getElementById('positions-total-pnl');
+
+    if (totalValueEl) {
+        // Mix of KRW and USD - show as approximate
+        totalValueEl.textContent = formatKRW(data.total_value) + ' (approx)';
+    }
+
+    if (totalPnlEl) {
+        totalPnlEl.textContent = formatKRW(data.total_unrealized_pnl);
+        totalPnlEl.className = `value ${getPnLClass(data.total_unrealized_pnl)}`;
+    }
+}
+
+// =====================
+// History Tab (US2)
+// =====================
+
+let historyState = {
+    page: 1,
+    limit: 50,
+    exchange: '',
+    startDate: '',
+    endDate: '',
+    totalCount: 0
+};
+
+function initHistoryFilters() {
+    const applyBtn = document.getElementById('history-apply-filters');
+    const clearBtn = document.getElementById('history-clear-filters');
+
+    if (applyBtn) {
+        applyBtn.addEventListener('click', () => {
+            historyState.exchange = document.getElementById('history-exchange-filter').value;
+            historyState.startDate = document.getElementById('history-start-date').value;
+            historyState.endDate = document.getElementById('history-end-date').value;
+            historyState.page = 1;
+            fetchTrades();
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            document.getElementById('history-exchange-filter').value = '';
+            document.getElementById('history-start-date').value = '';
+            document.getElementById('history-end-date').value = '';
+            historyState.exchange = '';
+            historyState.startDate = '';
+            historyState.endDate = '';
+            historyState.page = 1;
+            fetchTrades();
+        });
+    }
+}
+
+async function fetchTrades() {
+    const containerId = 'history-container';
+
+    try {
+        renderLoading(containerId);
+
+        // Build query string
+        const params = new URLSearchParams({
+            page: historyState.page,
+            limit: historyState.limit
+        });
+
+        if (historyState.exchange) params.append('exchange', historyState.exchange);
+        if (historyState.startDate) params.append('start_date', historyState.startDate);
+        if (historyState.endDate) params.append('end_date', historyState.endDate);
+
+        const data = await apiFetch(`/api/trades?${params.toString()}`);
+        historyState.totalCount = data.total_count;
+
+        renderTradeTable(data);
+        renderPagination(data);
+    } catch (error) {
+        renderError(containerId, 'Failed to load trade history', 'fetchTrades');
+    }
+}
+
+function renderTradeTable(data) {
+    const container = document.getElementById('history-container');
+
+    if (!data.trades || data.trades.length === 0) {
+        renderEmpty('history-container', 'No trades found');
+        return;
+    }
+
+    let html = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Exchange</th>
+                    <th>Action</th>
+                    <th class="text-right">Price</th>
+                    <th class="text-right">Volume</th>
+                    <th class="text-right">P&L</th>
+                    <th>Strategy</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    for (const trade of data.trades) {
+        const isKRW = trade.exchange === 'upbit';
+        const actionClass = trade.action.toLowerCase();
+        const pnlClass = getPnLClass(trade.profit);
+
+        html += `
+            <tr>
+                <td>${formatDateTime(trade.timestamp)}</td>
+                <td><span class="exchange-badge ${trade.exchange}">${trade.exchange}</span></td>
+                <td><span class="action-badge ${actionClass}">${trade.action}</span></td>
+                <td class="text-right">${isKRW ? formatPrice(trade.price, true) : '$' + formatPrice(trade.price, false)}</td>
+                <td class="text-right">${formatQuantity(trade.volume, isKRW ? 8 : 4)}</td>
+                <td class="text-right ${pnlClass}">
+                    ${trade.profit !== null ? (isKRW ? formatKRW(trade.profit) : formatUSD(trade.profit)) : '-'}
+                    ${trade.profit_pct !== null ? `(${formatPercent(trade.profit_pct)})` : ''}
+                </td>
+                <td>${escapeHtml(trade.strategy) || '-'}</td>
+                <td>${escapeHtml(trade.reason) || '-'}</td>
+            </tr>
+        `;
+    }
+
+    html += `
+            </tbody>
+        </table>
+    `;
+
+    container.innerHTML = html;
+}
+
+function renderPagination(data) {
+    const container = document.getElementById('history-pagination');
+    if (!container) return;
+
+    const totalPages = Math.ceil(data.total_count / historyState.limit);
+    const currentPage = historyState.page;
+
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    html = `
+        <button class="pagination-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>First</button>
+        <button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Prev</button>
+        <span class="pagination-info">Page ${currentPage} of ${totalPages} (${data.total_count} trades)</span>
+        <button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+        <button class="pagination-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>Last</button>
+    `;
+
+    container.innerHTML = html;
+}
+
+function goToPage(page) {
+    historyState.page = page;
+    fetchTrades();
+}
+
+// =====================
+// Signals Tab (US3)
+// =====================
+
+let signalsState = {
+    exchange: '',
+    action: ''
+};
+
+function initSignalsFilters() {
+    const applyBtn = document.getElementById('signals-apply-filters');
+
+    if (applyBtn) {
+        applyBtn.addEventListener('click', () => {
+            signalsState.exchange = document.getElementById('signals-exchange-filter').value;
+            signalsState.action = document.getElementById('signals-action-filter').value;
+            fetchSignals();
+        });
+    }
+}
+
+async function fetchSignals() {
+    const containerId = 'signals-container';
+
+    try {
+        renderLoading(containerId);
+
+        // Build query string
+        const params = new URLSearchParams({ limit: 50 });
+
+        if (signalsState.exchange) params.append('exchange', signalsState.exchange);
+        if (signalsState.action) params.append('action', signalsState.action);
+
+        const data = await apiFetch(`/api/signals?${params.toString()}`);
+        renderSignals(data);
+    } catch (error) {
+        renderError(containerId, 'Failed to load signals', 'fetchSignals');
+    }
+}
+
+function renderSignals(data) {
+    const container = document.getElementById('signals-container');
+
+    if (!data.signals || data.signals.length === 0) {
+        renderEmpty('signals-container', 'No signals found');
+        return;
+    }
+
+    let html = '';
+
+    for (const signal of data.signals) {
+        const actionClass = signal.action.toLowerCase();
+        const actedClass = signal.acted ? 'yes' : 'no';
+        const indicators = signal.indicators || {};
+
+        html += `
+            <div class="signal-card ${actionClass}">
+                <div class="signal-header">
+                    <span class="signal-time">${formatDateTime(signal.timestamp)}</span>
+                    <div class="signal-badges">
+                        <span class="exchange-badge ${signal.exchange}">${signal.exchange}</span>
+                        <span class="signal-action ${actionClass}">${signal.action}</span>
+                        <span class="acted-badge ${actedClass}">${signal.acted ? 'Executed' : 'Not Acted'}</span>
+                    </div>
+                </div>
+                <div class="signal-body">
+                    <div class="signal-info">
+                        <span class="label">Strategy</span>
+                        <span class="value">${escapeHtml(signal.strategy) || '-'}</span>
+                    </div>
+                    <div class="signal-info">
+                        <span class="label">Regime</span>
+                        <span class="value">${escapeHtml(signal.regime) || '-'}</span>
+                    </div>
+                    <div class="signal-info">
+                        <span class="label">Reason</span>
+                        <span class="value">${escapeHtml(signal.reason) || '-'}</span>
+                    </div>
+                    <div class="signal-info">
+                        <span class="label">Market State</span>
+                        <span class="value">${escapeHtml(signal.market_state) || '-'}</span>
+                    </div>
+                </div>
+                ${Object.keys(indicators).length > 0 ? `
+                <div class="signal-indicators">
+                    ${indicators.rsi !== undefined ? `
+                    <div class="indicator-item">
+                        <span class="label">RSI</span>
+                        <span class="value">${formatNumber(indicators.rsi, 1)}</span>
+                    </div>
+                    ` : ''}
+                    ${indicators.mfi !== undefined ? `
+                    <div class="indicator-item">
+                        <span class="label">MFI</span>
+                        <span class="value">${formatNumber(indicators.mfi, 1)}</span>
+                    </div>
+                    ` : ''}
+                    ${indicators.adx !== undefined ? `
+                    <div class="indicator-item">
+                        <span class="label">ADX</span>
+                        <span class="value">${formatNumber(indicators.adx, 1)}</span>
+                    </div>
+                    ` : ''}
+                    ${indicators.close !== undefined ? `
+                    <div class="indicator-item">
+                        <span class="label">Close</span>
+                        <span class="value">${formatPrice(indicators.close, true)}</span>
+                    </div>
+                    ` : ''}
+                    ${indicators.score !== undefined ? `
+                    <div class="indicator-item">
+                        <span class="label">Score</span>
+                        <span class="value">${indicators.score}</span>
+                    </div>
+                    ` : ''}
+                    ${indicators.tier !== undefined ? `
+                    <div class="indicator-item">
+                        <span class="label">Tier</span>
+                        <span class="value">${indicators.tier}</span>
+                    </div>
+                    ` : ''}
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+// =====================
+// Analytics Tab (US4)
+// =====================
+
+let analyticsState = {
+    period: '30d',
+    view: 'summary',  // 'summary' or 'daily'
+    chart: null,
+    dailyChart: null
+};
+
+function initAnalyticsPeriodSelector() {
+    const periodBtns = document.querySelectorAll('.period-btn');
+
+    periodBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const period = btn.dataset.period;
+
+            // Update active state
+            periodBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update state and fetch
+            analyticsState.period = period;
+
+            // Fetch based on current view
+            if (analyticsState.view === 'summary') {
+                fetchAnalytics(period);
+            } else {
+                fetchDailyAnalytics(period);
+            }
+        });
+    });
+
+    // Initialize view toggle
+    initViewToggle();
+}
+
+function initViewToggle() {
+    const viewBtns = document.querySelectorAll('.view-btn');
+    const summaryView = document.getElementById('analytics-summary-view');
+    const dailyView = document.getElementById('analytics-daily-view');
+
+    viewBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const view = btn.dataset.view;
+
+            // Update active state
+            viewBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update state
+            analyticsState.view = view;
+
+            // Toggle views
+            if (view === 'summary') {
+                summaryView.style.display = 'block';
+                dailyView.style.display = 'none';
+                fetchAnalytics(analyticsState.period);
+            } else {
+                summaryView.style.display = 'none';
+                dailyView.style.display = 'block';
+                fetchDailyAnalytics(analyticsState.period);
+            }
+        });
+    });
+}
+
+async function fetchAnalytics(period = '30d') {
+    const metricsContainerId = 'analytics-metrics';
+    const breakdownContainerId = 'analytics-strategy-breakdown';
+
+    try {
+        renderLoading(metricsContainerId);
+
+        // Fetch both metrics and equity curve in parallel
+        const [metricsData, equityData] = await Promise.all([
+            apiFetch(`/api/analytics?period=${period}`),
+            apiFetch(`/api/analytics/equity-curve?period=${period}`)
+        ]);
+
+        renderMetricsCards(metricsData);
+        renderEquityCurve(equityData);
+        renderStrategyBreakdown(metricsData.by_strategy || {});
+    } catch (error) {
+        renderError(metricsContainerId, 'Failed to load analytics', 'fetchAnalytics');
+    }
+}
+
+function renderMetricsCards(data) {
+    const container = document.getElementById('analytics-metrics');
+
+    if (!data || data.closed_trades === 0) {
+        renderEmpty('analytics-metrics', 'No trading data available for this period');
+        return;
+    }
+
+    const returnClass = getPnLClass(data.total_return);
+    const profitClass = getPnLClass(data.total_return_krw);
+
+    let html = `
+        <div class="metric-card highlight">
+            <div class="metric-value ${returnClass}">${formatPercent(data.total_return)}</div>
+            <div class="metric-label">Total Return</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value ${profitClass}">${formatKRW(data.total_return_krw)}</div>
+            <div class="metric-label">Profit (KRW)</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">${data.win_rate.toFixed(1)}%</div>
+            <div class="metric-label">Win Rate</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">${data.profit_factor}</div>
+            <div class="metric-label">Profit Factor</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">${data.closed_trades}</div>
+            <div class="metric-label">Closed Trades</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">${data.winning_trades} / ${data.losing_trades}</div>
+            <div class="metric-label">Wins / Losses</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value ${getPnLClass(data.avg_trade)}">${formatKRW(data.avg_trade)}</div>
+            <div class="metric-label">Avg Trade</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value positive">${formatKRW(data.avg_win)}</div>
+            <div class="metric-label">Avg Win</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value negative">${formatKRW(data.avg_loss)}</div>
+            <div class="metric-label">Avg Loss</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">${data.sharpe_ratio}</div>
+            <div class="metric-label">Sharpe Ratio</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value negative">${data.max_drawdown.toFixed(1)}%</div>
+            <div class="metric-label">Max Drawdown</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">${data.start_date || '-'} ~ ${data.end_date || '-'}</div>
+            <div class="metric-label">Period</div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+function renderEquityCurve(data) {
+    const canvas = document.getElementById('equity-chart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // Destroy existing chart if any
+    if (analyticsState.chart) {
+        analyticsState.chart.destroy();
+        analyticsState.chart = null;
+    }
+
+    if (!data.points || data.points.length === 0) {
+        // Draw empty state on canvas
+        ctx.fillStyle = '#888';
+        ctx.font = '14px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No equity data available', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    // Prepare data
+    const labels = data.points.map(p => {
+        const date = new Date(p.timestamp);
+        return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+    });
+
+    const equityValues = data.points.map(p => p.equity);
+    const drawdownValues = data.points.map(p => p.drawdown_pct);
+
+    // Create chart
+    analyticsState.chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Equity (KRW)',
+                    data: equityValues,
+                    borderColor: '#f39c12',
+                    backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                    fill: true,
+                    tension: 0.2,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Drawdown (%)',
+                    data: drawdownValues,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    fill: true,
+                    tension: 0.2,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: '#888',
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    callbacks: {
+                        label: function(context) {
+                            if (context.datasetIndex === 0) {
+                                return `Equity: ${formatKRW(context.raw)}`;
+                            } else {
+                                return `Drawdown: ${context.raw.toFixed(1)}%`;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.05)'
+                    },
+                    ticks: {
+                        color: '#888',
+                        maxTicksLimit: 10
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.05)'
+                    },
+                    ticks: {
+                        color: '#f39c12',
+                        callback: function(value) {
+                            return (value / 1000000).toFixed(1) + 'M';
+                        }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    ticks: {
+                        color: '#e74c3c',
+                        callback: function(value) {
+                            return value.toFixed(0) + '%';
+                        }
+                    },
+                    reverse: true,
+                    min: 0
+                }
+            }
+        }
+    });
+}
+
+function renderStrategyBreakdown(strategies) {
+    const container = document.getElementById('analytics-strategy-breakdown');
+    if (!container) return;
+
+    const strategyEntries = Object.entries(strategies);
+
+    if (strategyEntries.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = '<h4>Strategy Breakdown</h4><div class="strategy-grid">';
+
+    for (const [name, stats] of strategyEntries) {
+        const returnClass = getPnLClass(stats.total_return);
+
+        html += `
+            <div class="strategy-card">
+                <div class="strategy-name">${escapeHtml(name)}</div>
+                <div class="strategy-stats">
+                    <div class="stat-item">
+                        <span class="label">Trades</span>
+                        <span class="value">${stats.total_trades}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="label">Win Rate</span>
+                        <span class="value">${stats.win_rate}%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="label">Return</span>
+                        <span class="value ${returnClass}">${formatKRW(stats.total_return)}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="label">Profit Factor</span>
+                        <span class="value">${stats.profit_factor}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// =====================
+// Daily Analytics (US6)
+// =====================
+
+async function fetchDailyAnalytics(period = '30d') {
+    const summaryContainer = document.getElementById('daily-summary');
+    const breakdownContainer = document.getElementById('daily-breakdown');
+
+    try {
+        if (summaryContainer) {
+            summaryContainer.innerHTML = '<p class="loading">Loading daily data...</p>';
+        }
+
+        const data = await apiFetch(`/api/analytics/daily?period=${period}`);
+
+        renderDailySummary(data.summary);
+        renderDailyChart(data.days);
+        renderDailyBreakdown(data.days);
+    } catch (error) {
+        if (summaryContainer) {
+            summaryContainer.innerHTML = `<p class="error-state">Failed to load daily analytics</p>`;
+        }
+    }
+}
+
+function renderDailySummary(summary) {
+    const container = document.getElementById('daily-summary');
+    if (!container || !summary) return;
+
+    const profitClass = getPnLClass(summary.total_profit);
+
+    container.innerHTML = `
+        <div class="summary-card">
+            <div class="value">${summary.total_days}</div>
+            <div class="label">Trading Days</div>
+        </div>
+        <div class="summary-card">
+            <div class="value ${profitClass}">${formatKRW(summary.total_profit)}</div>
+            <div class="label">Total Profit</div>
+        </div>
+        <div class="summary-card">
+            <div class="value">${summary.total_trades}</div>
+            <div class="label">Total Trades</div>
+        </div>
+        <div class="summary-card">
+            <div class="value positive">${summary.profitable_days}</div>
+            <div class="label">Profitable Days</div>
+        </div>
+        <div class="summary-card">
+            <div class="value negative">${summary.losing_days}</div>
+            <div class="label">Losing Days</div>
+        </div>
+        <div class="summary-card">
+            <div class="value">${summary.total_wins} / ${summary.total_losses}</div>
+            <div class="label">Wins / Losses</div>
+        </div>
+    `;
+}
+
+function renderDailyChart(days) {
+    const canvas = document.getElementById('daily-pnl-chart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // Destroy existing chart
+    if (analyticsState.dailyChart) {
+        analyticsState.dailyChart.destroy();
+        analyticsState.dailyChart = null;
+    }
+
+    if (!days || days.length === 0) {
+        ctx.fillStyle = '#888';
+        ctx.font = '14px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No daily data available', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    const labels = days.map(d => d.date.substring(5)); // MM-DD
+    const profits = days.map(d => d.profit);
+
+    // Colors based on profit/loss
+    const colors = profits.map(p => p >= 0 ? 'rgba(46, 204, 113, 0.8)' : 'rgba(231, 76, 60, 0.8)');
+
+    analyticsState.dailyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Daily P&L',
+                data: profits,
+                backgroundColor: colors,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    callbacks: {
+                        label: function(context) {
+                            return `P&L: ${formatKRW(context.raw)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#888', maxTicksLimit: 15 }
+                },
+                y: {
+                    display: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: {
+                        color: '#888',
+                        callback: value => (value / 1000000).toFixed(1) + 'M'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderDailyBreakdown(days) {
+    const container = document.getElementById('daily-breakdown');
+    if (!container) return;
+
+    if (!days || days.length === 0) {
+        container.innerHTML = '<p class="no-data">No daily data to display</p>';
+        return;
+    }
+
+    // Find max profit for bar scaling
+    const maxProfit = Math.max(...days.map(d => Math.abs(d.profit)), 1);
+
+    let html = `
+        <h4>Daily Breakdown</h4>
+        <table class="daily-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th class="text-right">Trades</th>
+                    <th class="text-right">Wins/Losses</th>
+                    <th class="text-right">Win Rate</th>
+                    <th class="text-right">P&L</th>
+                    <th style="width: 100px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    // Show most recent first
+    const sortedDays = [...days].reverse();
+
+    for (const day of sortedDays) {
+        const profitClass = getPnLClass(day.profit);
+        const barWidth = Math.max(4, (Math.abs(day.profit) / maxProfit) * 80);
+        const barClass = day.profit >= 0 ? '' : 'negative';
+
+        html += `
+            <tr data-date="${day.date}">
+                <td>${day.date}</td>
+                <td class="text-right">${day.trades}</td>
+                <td class="text-right">${day.wins} / ${day.losses}</td>
+                <td class="text-right">${day.win_rate}%</td>
+                <td class="text-right profit-cell ${profitClass}">${formatKRW(day.profit)}</td>
+                <td>
+                    <div class="daily-bar">
+                        <div class="bar ${barClass}" style="width: ${barWidth}px;"></div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    html += `
+            </tbody>
+        </table>
+    `;
+
+    container.innerHTML = html;
+
+    // Add click handlers for drill-down (optional)
+    const rows = container.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        row.addEventListener('click', () => {
+            const date = row.dataset.date;
+            if (date) {
+                showDayDetail(date);
+            }
+        });
+    });
+}
+
+function showDayDetail(date) {
+    // Could expand to show trades/signals for that day
+    // For now, just log it
+    console.log(`Day detail requested: ${date}`);
+    // Future: Could filter history tab or show modal with day's trades
+}
+
+// =====================
+// Backtest Tab (US5)
+// =====================
+
+let backtestState = {
+    strategies: [],
+    currentJobId: null,
+    pollInterval: null,
+    chart: null
+};
+
+function initBacktest() {
+    // Load available strategies
+    fetchStrategies();
+
+    // Set up form handlers
+    const runBtn = document.getElementById('backtest-run-btn');
+    const cancelBtn = document.getElementById('backtest-cancel-btn');
+
+    if (runBtn) {
+        runBtn.addEventListener('click', startBacktest);
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', cancelBacktest);
+    }
+}
+
+async function fetchStrategies() {
+    const selectEl = document.getElementById('backtest-strategy');
+    if (!selectEl) return;
+
+    try {
+        const data = await apiFetch('/api/backtest/strategies');
+        backtestState.strategies = data.strategies || [];
+
+        // Populate select
+        let html = '<option value="">Select strategy...</option>';
+        for (const strategy of backtestState.strategies) {
+            html += `<option value="${strategy.id}" title="${strategy.description}">${strategy.name}</option>`;
+        }
+        selectEl.innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load strategies:', error);
+        selectEl.innerHTML = '<option value="">Error loading strategies</option>';
+    }
+}
+
+async function startBacktest() {
+    const strategySelect = document.getElementById('backtest-strategy');
+    const startDateInput = document.getElementById('backtest-start-date');
+    const endDateInput = document.getElementById('backtest-end-date');
+    const capitalInput = document.getElementById('backtest-capital');
+    const runBtn = document.getElementById('backtest-run-btn');
+    const cancelBtn = document.getElementById('backtest-cancel-btn');
+    const progressDiv = document.getElementById('backtest-progress');
+    const resultsDiv = document.getElementById('backtest-results');
+
+    // Validate
+    const strategy = strategySelect.value;
+    if (!strategy) {
+        alert('Please select a strategy');
+        return;
+    }
+
+    const config = {
+        strategy: strategy,
+        start_date: startDateInput.value,
+        end_date: endDateInput.value,
+        initial_capital: parseInt(capitalInput.value) || 10000000
+    };
+
+    // Update UI
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running...';
+    cancelBtn.style.display = 'inline-block';
+    progressDiv.style.display = 'block';
+    resultsDiv.style.display = 'none';
+
+    updateBacktestProgress(0, 'Starting backtest...');
+
+    try {
+        const data = await apiFetch('/api/backtest/run', {
+            method: 'POST',
+            body: JSON.stringify(config)
+        });
+
+        backtestState.currentJobId = data.job_id;
+        pollBacktestStatus(data.job_id);
+    } catch (error) {
+        console.error('Failed to start backtest:', error);
+        resetBacktestUI();
+        alert('Failed to start backtest: ' + error.message);
+    }
+}
+
+function pollBacktestStatus(jobId) {
+    // Clear existing interval
+    if (backtestState.pollInterval) {
+        clearInterval(backtestState.pollInterval);
+    }
+
+    const poll = async () => {
+        try {
+            const data = await apiFetch(`/api/backtest/status/${jobId}`);
+
+            updateBacktestProgress(data.progress, getStatusMessage(data.status, data.progress));
+
+            if (data.status === 'completed') {
+                clearInterval(backtestState.pollInterval);
+                backtestState.pollInterval = null;
+                renderBacktestResults(data.result);
+                resetBacktestUI();
+            } else if (data.status === 'failed') {
+                clearInterval(backtestState.pollInterval);
+                backtestState.pollInterval = null;
+                resetBacktestUI();
+                alert('Backtest failed: ' + (data.error || 'Unknown error'));
+            } else if (data.status === 'cancelled') {
+                clearInterval(backtestState.pollInterval);
+                backtestState.pollInterval = null;
+                resetBacktestUI();
+            }
+        } catch (error) {
+            console.error('Poll error:', error);
+            clearInterval(backtestState.pollInterval);
+            backtestState.pollInterval = null;
+            resetBacktestUI();
+        }
+    };
+
+    // Initial poll
+    poll();
+
+    // Poll every 2 seconds
+    backtestState.pollInterval = setInterval(poll, 2000);
+}
+
+function getStatusMessage(status, progress) {
+    switch (status) {
+        case 'pending':
+            return 'Queued...';
+        case 'running':
+            if (progress < 30) return 'Loading data...';
+            if (progress < 90) return 'Running backtest...';
+            return 'Processing results...';
+        case 'completed':
+            return 'Complete!';
+        case 'failed':
+            return 'Failed';
+        case 'cancelled':
+            return 'Cancelled';
+        default:
+            return status;
+    }
+}
+
+function updateBacktestProgress(progress, text) {
+    const fillEl = document.getElementById('backtest-progress-fill');
+    const textEl = document.getElementById('backtest-progress-text');
+
+    if (fillEl) {
+        fillEl.style.width = `${progress}%`;
+    }
+    if (textEl) {
+        textEl.textContent = text;
+    }
+}
+
+async function cancelBacktest() {
+    if (!backtestState.currentJobId) return;
+
+    try {
+        await apiFetch(`/api/backtest/cancel/${backtestState.currentJobId}`, {
+            method: 'POST'
+        });
+    } catch (error) {
+        console.error('Failed to cancel:', error);
+    }
+
+    resetBacktestUI();
+}
+
+function resetBacktestUI() {
+    const runBtn = document.getElementById('backtest-run-btn');
+    const cancelBtn = document.getElementById('backtest-cancel-btn');
+    const progressDiv = document.getElementById('backtest-progress');
+
+    if (runBtn) {
+        runBtn.disabled = false;
+        runBtn.textContent = 'Run Backtest';
+    }
+    if (cancelBtn) {
+        cancelBtn.style.display = 'none';
+    }
+    if (progressDiv) {
+        progressDiv.style.display = 'none';
+    }
+
+    backtestState.currentJobId = null;
+}
+
+function renderBacktestResults(result) {
+    const resultsDiv = document.getElementById('backtest-results');
+    const metricsDiv = document.getElementById('backtest-metrics');
+    const tradesDiv = document.getElementById('backtest-trades');
+
+    if (!result || !resultsDiv) return;
+
+    resultsDiv.style.display = 'block';
+
+    // Render metrics
+    if (metricsDiv) {
+        const returnClass = getPnLClass(result.total_return_pct);
+
+        metricsDiv.innerHTML = `
+            <div class="backtest-metric highlight">
+                <div class="value ${returnClass}">${formatPercent(result.total_return_pct)}</div>
+                <div class="label">Total Return</div>
+            </div>
+            <div class="backtest-metric">
+                <div class="value ${getPnLClass(result.total_return)}">${formatKRW(result.total_return)}</div>
+                <div class="label">Profit (KRW)</div>
+            </div>
+            <div class="backtest-metric">
+                <div class="value">${formatKRW(result.final_capital)}</div>
+                <div class="label">Final Capital</div>
+            </div>
+            <div class="backtest-metric">
+                <div class="value">${result.total_trades}</div>
+                <div class="label">Total Trades</div>
+            </div>
+            <div class="backtest-metric">
+                <div class="value">${(result.win_rate || 0).toFixed(1)}%</div>
+                <div class="label">Win Rate</div>
+            </div>
+            <div class="backtest-metric">
+                <div class="value">${result.winning_trades} / ${result.losing_trades}</div>
+                <div class="label">Wins / Losses</div>
+            </div>
+            <div class="backtest-metric">
+                <div class="value">${result.profit_factor || 0}</div>
+                <div class="label">Profit Factor</div>
+            </div>
+            <div class="backtest-metric">
+                <div class="value">${result.sharpe_ratio || 0}</div>
+                <div class="label">Sharpe Ratio</div>
+            </div>
+            <div class="backtest-metric">
+                <div class="value negative">${(result.max_drawdown_pct || 0).toFixed(1)}%</div>
+                <div class="label">Max Drawdown</div>
+            </div>
+        `;
+    }
+
+    // Render equity curve
+    renderBacktestEquityCurve(result.equity_curve || []);
+
+    // Render sample trades
+    if (tradesDiv && result.trades) {
+        renderBacktestTrades(result.trades);
+    }
+}
+
+function renderBacktestEquityCurve(equityData) {
+    const canvas = document.getElementById('backtest-equity-chart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // Destroy existing chart
+    if (backtestState.chart) {
+        backtestState.chart.destroy();
+        backtestState.chart = null;
+    }
+
+    if (!equityData || equityData.length === 0) {
+        ctx.fillStyle = '#888';
+        ctx.font = '14px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No equity data available', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    const labels = equityData.map((p, i) => {
+        if (p.date) {
+            return p.date.substring(5); // MM-DD
+        }
+        return i.toString();
+    });
+
+    const values = equityData.map(p => p.equity || p.value || p);
+
+    backtestState.chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Equity',
+                data: values,
+                borderColor: '#2ecc71',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                fill: true,
+                tension: 0.2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    callbacks: {
+                        label: function(context) {
+                            return `Equity: ${formatKRW(context.raw)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#888', maxTicksLimit: 10 }
+                },
+                y: {
+                    display: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: {
+                        color: '#2ecc71',
+                        callback: value => (value / 1000000).toFixed(1) + 'M'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderBacktestTrades(trades) {
+    const container = document.getElementById('backtest-trades');
+    if (!container) return;
+
+    if (!trades || trades.length === 0) {
+        container.innerHTML = '<p class="no-data">No trades to display</p>';
+        return;
+    }
+
+    let html = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Action</th>
+                    <th class="text-right">Price</th>
+                    <th class="text-right">P&L</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    // Show first 20 trades
+    const displayTrades = trades.slice(0, 20);
+    for (const trade of displayTrades) {
+        const actionClass = (trade.action || '').toLowerCase();
+        const pnlClass = getPnLClass(trade.profit);
+
+        html += `
+            <tr>
+                <td>${formatDate(trade.timestamp || trade.date)}</td>
+                <td><span class="action-badge ${actionClass}">${escapeHtml(trade.action) || '-'}</span></td>
+                <td class="text-right">${formatPrice(trade.price, true)}</td>
+                <td class="text-right ${pnlClass}">
+                    ${trade.profit !== undefined && trade.profit !== null ? formatKRW(trade.profit) : '-'}
+                </td>
+            </tr>
+        `;
+    }
+
+    html += `
+            </tbody>
+        </table>
+    `;
+
+    if (trades.length > 20) {
+        html += `<p class="no-data" style="margin-top: 10px;">Showing 20 of ${trades.length} trades</p>`;
+    }
+
+    container.innerHTML = html;
+}
 
 console.log('Multi-Asset Dashboard initialized');

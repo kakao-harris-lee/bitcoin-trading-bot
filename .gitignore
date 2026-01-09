@@ -68,3 +68,5 @@ venv/
 .specify/scripts/
 .specify/templates/
 data/processed/
+# Test artifacts
+MagicMock/

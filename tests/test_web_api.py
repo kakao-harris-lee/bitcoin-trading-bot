@@ -177,9 +177,10 @@ class TestStatusAPI:
         assert 'assets' in data
         assert 'portfolio' in data
 
-        # Check assets
-        assert 'BTC' in data['assets']
-        assert data['assets']['BTC']['regime'] == 'BULL'
+        # Check assets (API returns keys like "BTC_upbit", "BTC_binance")
+        assert 'BTC_upbit' in data['assets']
+        assert data['assets']['BTC_upbit']['regime'] == 'BULL'
+        assert data['assets']['BTC_upbit']['exchange'] == 'upbit'
 
 
 class TestKillSwitchAPI:

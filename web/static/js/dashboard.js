@@ -82,7 +82,7 @@ function getRegimeLabel(regime) {
     return regime.substring(0, 4).toUpperCase();
 }
 
-// Render asset cards
+// Render asset cards (exchange-aware)
 function renderAssetCards(assets) {
     const container = document.getElementById('assets-grid');
     if (!assets || Object.keys(assets).length === 0) {
@@ -91,48 +91,77 @@ function renderAssetCards(assets) {
     }
 
     let html = '';
-    for (const [symbol, data] of Object.entries(assets)) {
+    for (const [key, data] of Object.entries(assets)) {
         const regimeClass = getRegimeClass(data.regime);
         const regimeLabel = getRegimeLabel(data.regime);
-        const positionStatus = data.position_active ? 'Active' : 'None';
-        const positionClass = data.position_active ? 'has-position' : '';
+        const exchangeClass = `exchange-${data.exchange}`;
+        const isUpbit = data.exchange === 'upbit';
+        const isBinance = data.exchange === 'binance';
 
-        // Get active strategy from strategies config
-        let activeStrategy = '-';
-        if (data.strategies) {
-            const regimeKey = data.regime?.split('_')[0] || 'BULL';
-            activeStrategy = data.strategies[regimeKey] || data.strategies['BULL'] || '-';
+        // Position status
+        let positionStatus = 'None';
+        let positionClass = '';
+        if (data.position_active) {
+            positionClass = 'has-position';
+            if (isBinance) {
+                positionStatus = data.direction === 'short' ? 'SHORT' : 'LONG';
+            } else {
+                positionStatus = 'LONG';
+            }
         }
 
+        // Get active strategy from strategies config
+        let activeStrategy = data.strategy || '-';
+        if (!activeStrategy || activeStrategy === '-') {
+            if (data.strategies) {
+                const regimeKey = data.regime?.split('_')[0] || 'BULL';
+                activeStrategy = data.strategies[regimeKey] || '-';
+            }
+        }
+
+        // Format price based on exchange
+        const priceDisplay = isUpbit
+            ? formatPrice(data.price, true)
+            : `$${formatPrice(data.price, false)}`;
+
+        // Direction indicator for Binance
+        const directionClass = isBinance && data.direction === 'short' ? 'direction-short' : 'direction-long';
+
         html += `
-            <div class="asset-card ${regimeClass} ${positionClass}">
+            <div class="asset-card ${regimeClass} ${positionClass} ${exchangeClass}">
                 <div class="asset-header">
-                    <span class="asset-symbol">${symbol}</span>
+                    <span class="asset-symbol">${data.symbol}</span>
+                    <span class="asset-exchange">${data.exchange.toUpperCase()}</span>
                     <span class="asset-regime ${regimeClass}">${regimeLabel}</span>
                 </div>
                 <div class="asset-prices">
                     <div class="price-row">
-                        <span class="label">Upbit</span>
-                        <span class="value">${formatPrice(data.upbit_price, true)}</span>
+                        <span class="label">Price</span>
+                        <span class="value">${priceDisplay}</span>
                     </div>
+                    ${isBinance ? `
                     <div class="price-row">
-                        <span class="label">Binance</span>
-                        <span class="value">$${formatPrice(data.binance_price, false)}</span>
+                        <span class="label">Leverage</span>
+                        <span class="value">${data.leverage || 1}x</span>
                     </div>
+                    ` : ''}
                 </div>
                 <div class="asset-allocation">
                     <div class="info-row">
                         <span class="label">Allocation</span>
                         <span class="value">${(data.alpha_ratio * 100).toFixed(0)}%</span>
                     </div>
+                    ${isUpbit ? `
                     <div class="info-row">
                         <span class="label">Allocated</span>
                         <span class="value">${formatKRW(data.allocated_krw)}</span>
                     </div>
+                    ` : `
                     <div class="info-row">
-                        <span class="label">Position Value</span>
-                        <span class="value">${formatKRW(data.position_value_krw)}</span>
+                        <span class="label">Capital</span>
+                        <span class="value">${formatUSD(data.capital_usdt)}</span>
                     </div>
+                    `}
                 </div>
                 <div class="asset-position">
                     <div class="info-row">
@@ -141,7 +170,7 @@ function renderAssetCards(assets) {
                     </div>
                     <div class="info-row">
                         <span class="label">Position</span>
-                        <span class="value ${positionClass}">${positionStatus}</span>
+                        <span class="value ${positionClass} ${directionClass}">${positionStatus}</span>
                     </div>
                     ${data.position_active ? `
                     <div class="info-row">

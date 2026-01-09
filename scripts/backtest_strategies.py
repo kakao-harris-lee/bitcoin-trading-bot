@@ -432,14 +432,13 @@ class RegimeRouterLiveAdapter:
         return self._cached_df
 
     def _pick_strategy(self, market_state: str) -> Optional[str]:
-        decision = self.router.decide_from_market_state(market_state)  # default Upbit policy embedded
-
+        """Select strategy based on market state and configured policies."""
         if market_state.startswith("BULL"):
             if self.bull_policy == "hold_long":
                 return "bull_hold"
             return "v35"
 
-        # Override only SIDEWAYS behavior when requested
+        # SIDEWAYS behavior based on policy
         if market_state.startswith("SIDEWAYS"):
             policy = self.sideways_policy
             if market_state == "SIDEWAYS_BEAR" and self.sideways_bear_policy is not None:
@@ -451,8 +450,9 @@ class RegimeRouterLiveAdapter:
                 return "v35"
             if policy == "hold":
                 return None
+            return "sideways_v2"  # default
 
-        # Override BEAR behavior when requested (lets tuner decide whether to trade in BEAR)
+        # BEAR behavior based on policy (default: hold)
         if market_state.startswith("BEAR"):
             policy: Optional[str] = None
             if market_state == "BEAR_STRONG":
@@ -464,9 +464,10 @@ class RegimeRouterLiveAdapter:
                 return "sideways_v2"
             if policy == "v35":
                 return "v35"
-            if policy == "hold":
-                return None
-        return decision.upbit_strategy
+            # Default: hold in BEAR
+            return None
+
+        return None
 
     def _delegate(self, strategy_key: str, df: pd.DataFrame, i: int, params: Dict) -> Dict:
         if strategy_key == "v35":

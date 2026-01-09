@@ -1,0 +1,21 @@
+{
+  "strategy_name": "SHORT_V1_OPTIMIZED",
+  "indicators": {
+    "ema_fast": 50,
+    "ema_slow": 150
+  },
+  "entry": {
+    "adx_min": 25,
+    "require_death_cross": true
+  },
+  "exit": {
+    "risk_reward_ratio": 2.0
+  },
+  "stop_loss": {
+    "atr_buffer_multiplier": 1.5
+  },
+  "performance": {
+    "train_return": 352.7155124042295,
+    "oos_return": -18.448510693692416
+  }
+}

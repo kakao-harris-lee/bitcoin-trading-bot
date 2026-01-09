@@ -16,7 +16,6 @@ from core.types import AssetConfig, current_timestamp
 from trading.execution.portfolio_manager import PortfolioManager
 from trading.core.multi_asset_data_cache import MultiAssetDataCache
 from trading.core.asset_health import AssetHealthTracker
-from trading.indicators import technical as ta
 
 logger = logging.getLogger(__name__)
 
@@ -379,27 +378,16 @@ class MultiAssetAlphaManager:
             return None
 
         try:
-            # Get regime
+            # Get regime context (includes market_state, regime, mfi, adx)
             regime = "BULL"  # Default
             mfi_val, adx_val = None, None
             if router:
                 df_day = self._get_daily_df(symbol)
                 if df_day is not None and len(df_day) > 0:
-                    decision = router.recommend(df_day)
-                    regime = decision.regime
-                    # Calculate MFI/ADX for logging
-                    try:
-                        mfi_series = ta.mfi(
-                            df_day["high"], df_day["low"],
-                            df_day["close"], df_day["volume"], period=14
-                        )
-                        adx_series, _, _ = ta.adx(
-                            df_day["high"], df_day["low"], df_day["close"], period=14
-                        )
-                        mfi_val = mfi_series.iloc[-1] if mfi_series is not None else None
-                        adx_val = adx_series.iloc[-1] if adx_series is not None else None
-                    except Exception:
-                        pass  # Keep None if calculation fails
+                    context = router.recommend(df_day)
+                    regime = context.regime
+                    mfi_val = context.mfi
+                    adx_val = context.adx
 
             # Log only when regime changes
             prev_regime = state.regime
@@ -582,6 +570,8 @@ class MultiAssetAlphaManager:
             return await self._execute_short(symbol, exchange, signal, price, account)
         elif signal.action == "close_short" and state.active and state.direction == "short":
             return await self._execute_close_short(symbol, exchange, signal, price, account)
+        elif signal.action == "partial_close" and state.active:
+            return await self._execute_partial_close(symbol, exchange, signal, price, account)
 
         return None
 
@@ -882,6 +872,96 @@ class MultiAssetAlphaManager:
 
         except Exception as e:
             logger.error(f"[{symbol}/{exchange}] Close short execution failed: {e}")
+            return None
+
+    async def _execute_partial_close(
+        self,
+        symbol: str,
+        exchange: str,
+        signal: MultiAssetSignal,
+        price: float,
+        account: Optional[Any],
+    ) -> Optional[Dict]:
+        """Execute partial position close (for two-tier exits).
+
+        Closes a fraction of the position while keeping the rest open.
+        Works for both long and short positions.
+        """
+        state = self._states[(symbol, exchange)]
+
+        if state.quantity <= 0:
+            return None
+
+        # Calculate quantity to close
+        close_fraction = min(signal.fraction, 1.0)
+        close_qty = state.quantity * close_fraction
+        remaining_qty = state.quantity - close_qty
+
+        if close_qty <= 0:
+            return None
+
+        try:
+            if self._execution_mode == "live" and account:
+                if state.direction == "short":
+                    result = account.close_short(close_qty, price)
+                else:
+                    result = account.sell(close_qty, price)
+
+                if not result or not result.get("success"):
+                    logger.error(f"[{symbol}/{exchange}] Partial close failed: {result}")
+                    return None
+                actual_price = float(result.get("executed_price", price))
+            else:
+                # Paper mode
+                actual_price = price
+
+            # Calculate P&L for closed portion
+            if state.direction == "short":
+                pnl = (state.entry_price - actual_price) * close_qty
+                pnl_pct = ((state.entry_price - actual_price) / state.entry_price) * 100 if state.entry_price > 0 else 0
+            else:
+                pnl = (actual_price - state.entry_price) * close_qty
+                pnl_pct = ((actual_price / state.entry_price) - 1) * 100 if state.entry_price > 0 else 0
+
+            leverage = state.leverage
+
+            # Update state - keep position active with remaining quantity
+            state.quantity = remaining_qty
+            # state.active remains True since we still have a position
+
+            trade = {
+                "timestamp": datetime.now().isoformat(),
+                "symbol": symbol,
+                "exchange": exchange,
+                "type": "partial_close",
+                "direction": state.direction,
+                "price": actual_price,
+                "quantity": close_qty,
+                "remaining_quantity": remaining_qty,
+                "fraction": close_fraction,
+                "pnl": pnl,
+                "pnl_pct": pnl_pct,
+                "leverage": leverage,
+                "reason": signal.reason,
+                "strategy": signal.strategy,
+            }
+
+            direction_emoji = "🔻" if state.direction == "short" else "🔸"
+            msg = (
+                f"{direction_emoji} [{symbol}/{exchange}] PARTIAL CLOSE ({close_fraction:.0%}) "
+                f"@ ${actual_price:,.2f} | PnL: ${pnl:+,.2f} ({pnl_pct:+.2f}%) | "
+                f"Remaining: {remaining_qty:.6f}"
+            )
+            logger.info(msg)
+            self._notify(msg)
+
+            # Persist state after successful trade
+            self._save_state()
+
+            return trade
+
+        except Exception as e:
+            logger.error(f"[{symbol}/{exchange}] Partial close execution failed: {e}")
             return None
 
     def _notify(self, message: str) -> None:

@@ -76,9 +76,29 @@ def _scale_sideways_config_for_timeframe(config: Dict, timeframe: str) -> Dict:
 class V35StrategyAdapter:
     """V35 Long 전략 어댑터 - wraps actual V35LongStrategy for backtester compatibility."""
 
-    def __init__(self, config: Dict = None):
+    def __init__(self, config: Dict = None, load_optimized: bool = True):
+        # Load optimized config from file if not provided
+        if config is None and load_optimized:
+            config = self._load_optimized_config()
         self.strategy = V35LongStrategy(strategy_config=config)
         self._cached_df: Optional[pd.DataFrame] = None
+
+    @staticmethod
+    def _load_optimized_config() -> Dict:
+        """Load Optuna-optimized config from v35_long.json."""
+        import json
+        config_path = PROJECT_ROOT / 'config' / 'strategies' / 'v35_long.json'
+        if config_path.exists():
+            with open(config_path) as f:
+                full_config = json.load(f)
+            # Flatten nested config for strategy consumption
+            flat_config = {}
+            for section in ['market_classifier', 'entry_conditions', 'exit_conditions',
+                          'position_sizing', 'sideways_strategies']:
+                if section in full_config:
+                    flat_config.update(full_config[section])
+            return flat_config
+        return {}
 
     @property
     def in_position(self) -> bool:

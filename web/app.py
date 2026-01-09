@@ -49,6 +49,12 @@ try:
 except ImportError:
     backtest_runner = None
 
+# Import metrics service for real-time dashboard
+try:
+    from web.services.metrics_service import metrics_service
+except ImportError:
+    metrics_service = None
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
 CORS(app)
@@ -1265,6 +1271,84 @@ def get_exchange_balances():
         result['errors'].append(f'Binance: {str(e)}')
 
     return jsonify(result)
+
+
+# =============================================================================
+# Real-Time Metrics Dashboard Endpoints
+# =============================================================================
+
+@app.route("/metrics")
+@requires_auth
+def metrics_page():
+    """Render the real-time metrics dashboard page."""
+    return render_template("metrics.html")
+
+
+@app.route("/api/metrics/realtime")
+def get_realtime_metrics():
+    """
+    Get real-time trading metrics for the dashboard.
+
+    Returns DashboardState JSON per contracts/api.yaml with:
+    - Current strategy decisions for each exchange
+    - Position and P&L information
+    - Market regime classification
+    - Connection status
+    """
+    if not metrics_service:
+        return jsonify({'error': 'Metrics service not available'}), 500
+
+    try:
+        dashboard_state = metrics_service.get_dashboard_state()
+
+        # Check if any data is available
+        if not dashboard_state.get('upbit') and not dashboard_state.get('binance'):
+            return jsonify({
+                'error': 'No trading data available',
+                'message': 'Trading bot may not be running or no log files found'
+            }), 404
+
+        return jsonify(dashboard_state)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/metrics/decisions")
+def get_decision_history():
+    """
+    Get strategy decision history with optional filtering.
+
+    Query parameters:
+    - exchange: Filter by exchange (upbit, binance)
+    - hours: Hours of history to return (default 24, max 72)
+    - limit: Maximum number of decisions (default 50, max 200)
+    """
+    if not metrics_service:
+        return jsonify({'error': 'Metrics service not available'}), 500
+
+    try:
+        # Parse query parameters
+        exchange = request.args.get('exchange')
+        if exchange and exchange not in ['upbit', 'binance']:
+            return jsonify({'error': 'Invalid exchange. Use upbit or binance'}), 400
+
+        hours = max(1, min(int(request.args.get('hours', 24)), 72))
+        limit = max(1, min(int(request.args.get('limit', 50)), 200))
+
+        decisions = metrics_service.get_recent_decisions(
+            hours=hours,
+            limit=limit,
+            exchange=exchange
+        )
+
+        return jsonify({
+            'decisions': decisions,
+            'total_count': len(decisions)
+        })
+    except ValueError:
+        return jsonify({'error': 'Invalid parameter values'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == "__main__":

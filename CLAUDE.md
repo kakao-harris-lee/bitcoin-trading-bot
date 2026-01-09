@@ -175,6 +175,8 @@ pip install -r requirements.txt
 ## Active Technologies
 - Python 3.10+ with type hints + pandas, sqlite3, existing Backtester class, TelegramNotifier (001-daily-backtest-comparison)
 - SQLite (`trading_results.db` for trades, new table for reports) (001-daily-backtest-comparison)
+- Python 3.9+ with type hints + Flask, Jinja2, vanilla JavaScript (existing stack) (001-dashboard-upgrade)
+- SQLite (`data/*.db` for market data), JSON files (`logs/*.json` for trading logs) (001-dashboard-upgrade)
 
 ## Recent Changes
 - 001-daily-backtest-comparison: Added Python 3.10+ with type hints + pandas, sqlite3, existing Backtester class, TelegramNotifier

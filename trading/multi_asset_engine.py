@@ -104,7 +104,11 @@ class MultiAssetTradingEngine:
     def _get_enabled_symbols(self) -> List[str]:
         """Get list of enabled symbols from config."""
         assets = self.allocation_config.get("assets", {})
-        return [sym for sym, cfg in assets.items() if cfg.get("enabled", False)]
+        # Check if any exchange is enabled for this symbol
+        return [
+            sym for sym, cfg in assets.items()
+            if cfg.get("upbit_enabled", False) or cfg.get("binance_enabled", False)
+        ]
 
     def _init_components(self) -> None:
         """Initialize all multi-asset components."""
@@ -197,16 +201,23 @@ class MultiAssetTradingEngine:
         strategy_configs = asset_cfg.get("strategy_configs", {})
         params_override = asset_cfg.get("params_override", {})
 
-        # For now, load the BULL strategy as the main strategy
-        # The regime router will determine when to use it
-        # For Binance, we may also need to load short strategy for BEAR
+        # Load primary strategy for this exchange
+        # Priority: BULL strategy for long positions, then BEAR for short-only setups
         bull_strategy = strategies_cfg.get("BULL")
         bear_strategy = strategies_cfg.get("BEAR")
 
-        # For Binance, if there's a short strategy for BEAR, load it
-        if exchange == "binance" and bear_strategy == "short_v1":
-            return self._load_short_v1_strategy(params_override, symbol)
+        # For Binance: prefer BULL strategy (v35) if available, else BEAR strategy
+        if exchange == "binance":
+            if bull_strategy and bull_strategy.startswith("v35"):
+                # Load v35 for Binance long positions
+                config_file = strategy_configs.get(bull_strategy)
+                return self._load_v35_strategy(params_override, config_file, symbol)
+            elif bear_strategy == "short_v1":
+                # Fallback to short strategy if no BULL strategy
+                return self._load_short_v1_strategy(params_override, symbol)
+            return None
 
+        # For Upbit: load BULL strategy
         if not bull_strategy:
             return None
 

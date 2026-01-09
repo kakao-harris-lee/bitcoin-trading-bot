@@ -844,7 +844,7 @@ class MultiAssetAlphaManager:
 
             # Calculate P&L (short: profit when price goes down)
             pnl = (state.entry_price - actual_price) * state.quantity
-            pnl_pct = ((state.entry_price / actual_price) - 1) * 100 if actual_price > 0 else 0
+            pnl_pct = ((state.entry_price - actual_price) / state.entry_price) * 100 if state.entry_price > 0 else 0
 
             closed_qty = state.quantity
             leverage = state.leverage
@@ -916,25 +916,26 @@ class MultiAssetAlphaManager:
             if s.active
         )
 
-    def get_exposure_by_symbol(self, symbol: str) -> float:
-        """Get exposure for a specific symbol."""
-        state = self._states.get(symbol)
+    def get_exposure_by_symbol(self, symbol: str, exchange: str = "upbit") -> float:
+        """Get exposure for a specific symbol on an exchange."""
+        state = self._states.get((symbol, exchange))
         if state and state.active:
             return state.quantity
         return 0.0
 
-    def get_long_exposure_krw(self, symbol: str = "BTC") -> float:
+    def get_long_exposure_krw(self, symbol: str = "BTC", exchange: str = "upbit") -> float:
         """
         Get long exposure value in KRW for hedge sizing.
 
         Args:
             symbol: Asset symbol (default BTC)
+            exchange: Exchange name (default upbit)
 
         Returns:
             Position value in KRW (quantity * current_price)
         """
-        state = self._states.get(symbol)
-        if state and state.active and state.quantity > 0:
+        state = self._states.get((symbol, exchange))
+        if state and state.active and state.direction == "long" and state.quantity > 0:
             return state.quantity * state.current_price
         return 0.0
 
@@ -945,10 +946,11 @@ class MultiAssetAlphaManager:
         Returns:
             Total position value in KRW
         """
-        return sum(
-            self.get_long_exposure_krw(symbol)
-            for symbol in self._states.keys()
-        )
+        total = 0.0
+        for (symbol, exchange), state in self._states.items():
+            if state.active and state.direction == "long" and state.quantity > 0:
+                total += state.quantity * state.current_price
+        return total
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get trading statistics."""

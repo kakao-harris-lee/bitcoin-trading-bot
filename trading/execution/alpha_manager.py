@@ -413,7 +413,8 @@ class AlphaManager:
                 pos.cash += proceeds
 
             # Calculate P&L
-            pnl = (actual_price - pos.entry_price) * pos.btc
+            sold_btc = pos.btc
+            pnl = (actual_price - pos.entry_price) * sold_btc
             pnl_pct = ((actual_price / pos.entry_price) - 1) * 100
 
             # Record trade

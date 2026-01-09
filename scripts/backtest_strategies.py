@@ -32,25 +32,13 @@ from trading.strategy.regime_router import _calc_mfi as _live_calc_mfi
 
 
 def _market_state_to_regime(market_state: str) -> str:
-    """Map V35-style market_state to coarse regime labels."""
-    if market_state in {"BULL_STRONG", "BULL_MODERATE"}:
-        return "BULL"
-    if market_state in {"SIDEWAYS_UP", "SIDEWAYS_FLAT", "SIDEWAYS_DOWN"}:
-        return "SIDEWAYS"
-    if market_state in {"BEAR_MODERATE", "BEAR_STRONG"}:
-        return "BEAR"
-    return "UNKNOWN"
+    """Map market_state to coarse regime labels.
 
-
-def _live_market_state_to_regime(market_state: str) -> str:
-    """Map live RegimeRouter's market_state to coarse regime labels."""
-    if market_state.startswith("BULL"):
-        return "BULL"
-    if market_state.startswith("SIDEWAYS"):
-        return "SIDEWAYS"
-    if market_state.startswith("BEAR"):
-        return "BEAR"
-    return "UNKNOWN"
+    Uses RegimeRouter.market_state_to_regime for consistency.
+    Works for both V35-style (SIDEWAYS_UP, etc.) and live router
+    (SIDEWAYS_BULL, etc.) market states.
+    """
+    return LiveRegimeRouter.market_state_to_regime(market_state)
 
 
 def _bars_per_day(timeframe: str) -> int:
@@ -495,7 +483,7 @@ class RegimeRouterLiveAdapter:
                 cached = self._ensure_indicators(df)
                 row = cached.iloc[i]
                 market_state = self.router.classify_from_values(mfi=float(row.get("mfi", np.nan)), adx=float(row.get("adx", np.nan)))
-                regime = _live_market_state_to_regime(market_state)
+                regime = _market_state_to_regime(market_state)
 
                 if regime != "BULL":
                     self._active_strategy = None
@@ -520,7 +508,7 @@ class RegimeRouterLiveAdapter:
         cached = self._ensure_indicators(df)
         row = cached.iloc[i]
         market_state = self.router.classify_from_values(mfi=float(row.get("mfi", np.nan)), adx=float(row.get("adx", np.nan)))
-        regime = _live_market_state_to_regime(market_state)
+        regime = _market_state_to_regime(market_state)
         picked = self._pick_strategy(market_state)
 
         if picked is None:

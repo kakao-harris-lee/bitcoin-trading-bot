@@ -92,24 +92,24 @@ class TestShortV2Integration:
             if signal and signal.get("action") == "open_short":
                 pytest.fail("Should not enter hedge without long exposure")
 
-    def test_router_integration(self):
-        """Test RegimeRouter correctly routes to short_v2."""
-        router = RegimeRouter(
-            binance_gate_mode="bear_strong_only",
-            binance_policy="short_v2",
-        )
+    def test_router_classification(self):
+        """Test RegimeRouter correctly classifies market states."""
+        router = RegimeRouter()
 
-        # BEAR_STRONG should activate short_v2
-        decision = router.decide_from_market_state("BEAR_STRONG")
-        assert decision.binance_strategy == "short_v2"
+        # BEAR_STRONG classification
+        market_state = router.classify_from_values(mfi=40.0, adx=25.0)
+        assert market_state == "BEAR_STRONG"
+        assert router.market_state_to_regime(market_state) == "BEAR"
 
-        # BEAR_MODERATE should NOT activate
-        decision = router.decide_from_market_state("BEAR_MODERATE")
-        assert decision.binance_strategy is None
+        # BEAR_MODERATE classification
+        market_state = router.classify_from_values(mfi=40.0, adx=17.0)
+        assert market_state == "BEAR_MODERATE"
+        assert router.market_state_to_regime(market_state) == "BEAR"
 
-        # BULL should NOT activate
-        decision = router.decide_from_market_state("BULL_STRONG")
-        assert decision.binance_strategy is None
+        # BULL_STRONG classification
+        market_state = router.classify_from_values(mfi=60.0, adx=30.0)
+        assert market_state == "BULL_STRONG"
+        assert router.market_state_to_regime(market_state) == "BULL"
 
     def test_stop_loss_prevents_reentry(self):
         """Test that stop-loss in same regime prevents re-entry."""

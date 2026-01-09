@@ -26,50 +26,26 @@ def test_classify_from_values_thresholds(mfi, adx, expected):
     assert router.classify_from_values(mfi=mfi, adx=adx) == expected
 
 
-def test_decide_from_market_state_routes_correct_strategies():
+def test_market_state_to_regime():
+    """Test that market_state_to_regime correctly maps states to regimes."""
     router = RegimeRouter()
 
-    bull = router.decide_from_market_state("BULL_MODERATE")
-    assert bull.regime == "BULL"
-    assert bull.upbit_strategy == "v35"
-    assert bull.binance_strategy is None
-
-    sideways = router.decide_from_market_state("SIDEWAYS_NEUTRAL")
-    assert sideways.regime == "SIDEWAYS"
-    assert sideways.upbit_strategy == "sideways_v2"
-    assert sideways.binance_strategy is None
-
-    bear = router.decide_from_market_state("BEAR_STRONG")
-    assert bear.regime == "BEAR"
-    assert bear.upbit_strategy is None
-    assert bear.binance_strategy == "short_v1"
+    assert router.market_state_to_regime("BULL_STRONG") == "BULL"
+    assert router.market_state_to_regime("BULL_MODERATE") == "BULL"
+    assert router.market_state_to_regime("SIDEWAYS_BULL") == "SIDEWAYS"
+    assert router.market_state_to_regime("SIDEWAYS_NEUTRAL") == "SIDEWAYS"
+    assert router.market_state_to_regime("SIDEWAYS_BEAR") == "SIDEWAYS"
+    assert router.market_state_to_regime("BEAR_MODERATE") == "BEAR"
+    assert router.market_state_to_regime("BEAR_STRONG") == "BEAR"
 
 
-def test_decide_from_market_state_supports_hold_long_policy_and_binance_gate_modes():
+def test_deprecated_params_ignored():
+    """Test that deprecated policy parameters are silently ignored."""
+    # Should not raise, deprecated params absorbed by **kwargs
     router = RegimeRouter(
         bull_policy="hold_long",
         sideways_policy="v35",
-        sideways_bear_policy="sideways_v2",
-        bear_moderate_policy="hold",
-        bear_strong_policy="hold",
         binance_gate_mode="bear_strong_only",
     )
-
-    bull = router.decide_from_market_state("BULL_STRONG")
-    assert bull.upbit_strategy == "bull_hold"
-    assert bull.binance_strategy is None
-
-    # SIDEWAYS_BEAR uses override (sideways_v2)
-    swb = router.decide_from_market_state("SIDEWAYS_BEAR")
-    assert swb.upbit_strategy == "sideways_v2"
-    # gate is bear_strong_only -> no Binance
-    assert swb.binance_strategy is None
-
-    # BEAR_MODERATE: Binance gate requires BEAR_STRONG
-    bm = router.decide_from_market_state("BEAR_MODERATE")
-    assert bm.upbit_strategy is None
-    assert bm.binance_strategy is None
-
-    bs = router.decide_from_market_state("BEAR_STRONG")
-    assert bs.upbit_strategy is None
-    assert bs.binance_strategy == "short_v1"
+    # Router should still work for classification
+    assert router.classify_from_values(mfi=60.0, adx=30.0) == "BULL_STRONG"

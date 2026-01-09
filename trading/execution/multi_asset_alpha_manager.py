@@ -16,7 +16,6 @@ from core.types import AssetConfig, current_timestamp
 from trading.execution.portfolio_manager import PortfolioManager
 from trading.core.multi_asset_data_cache import MultiAssetDataCache
 from trading.core.asset_health import AssetHealthTracker
-from trading.indicators import technical as ta
 
 logger = logging.getLogger(__name__)
 
@@ -379,27 +378,16 @@ class MultiAssetAlphaManager:
             return None
 
         try:
-            # Get regime
+            # Get regime context (includes market_state, regime, mfi, adx)
             regime = "BULL"  # Default
             mfi_val, adx_val = None, None
             if router:
                 df_day = self._get_daily_df(symbol)
                 if df_day is not None and len(df_day) > 0:
-                    decision = router.recommend(df_day)
-                    regime = decision.regime
-                    # Calculate MFI/ADX for logging
-                    try:
-                        mfi_series = ta.mfi(
-                            df_day["high"], df_day["low"],
-                            df_day["close"], df_day["volume"], period=14
-                        )
-                        adx_series, _, _ = ta.adx(
-                            df_day["high"], df_day["low"], df_day["close"], period=14
-                        )
-                        mfi_val = mfi_series.iloc[-1] if mfi_series is not None else None
-                        adx_val = adx_series.iloc[-1] if adx_series is not None else None
-                    except Exception:
-                        pass  # Keep None if calculation fails
+                    context = router.recommend(df_day)
+                    regime = context.regime
+                    mfi_val = context.mfi
+                    adx_val = context.adx
 
             # Log only when regime changes
             prev_regime = state.regime

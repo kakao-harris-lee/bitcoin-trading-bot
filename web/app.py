@@ -27,6 +27,28 @@ try:
 except ImportError:
     metrics_collector = None
 
+# Import trade logger for database access
+try:
+    from trading.risk.trade_logger import TradeLogger
+    # Use project root trading_results.db
+    project_root = Path(__file__).parent.parent
+    trade_logger = TradeLogger(db_path=str(project_root / "trading_results.db"))
+except ImportError:
+    trade_logger = None
+
+# Import analytics service
+try:
+    from web.services.analytics import calculate_metrics, calculate_equity_curve
+except ImportError:
+    calculate_metrics = None
+    calculate_equity_curve = None
+
+# Import backtest runner service
+try:
+    from web.services import backtest_runner
+except ImportError:
+    backtest_runner = None
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
 CORS(app)
@@ -190,6 +212,35 @@ def load_trading_log(exchange: str):
                 print(f"로그 로드 실패 ({exchange}): {e}")
                 return None
     return None
+
+
+def read_json_logs(log_type: str = 'signals', exchanges: list = None) -> list:
+    """
+    Read JSON log files and aggregate data.
+
+    Args:
+        log_type: 'signals' or 'trades'
+        exchanges: List of exchanges to read from (default: ['upbit', 'binance'])
+
+    Returns:
+        List of entries with exchange field added
+    """
+    if exchanges is None:
+        exchanges = ['upbit', 'binance']
+
+    all_entries = []
+    for exchange in exchanges:
+        log = load_trading_log(exchange)
+        if log:
+            entries = log.get(log_type, [])
+            for entry in entries:
+                entry_copy = entry.copy()
+                entry_copy['exchange'] = exchange
+                all_entries.append(entry_copy)
+
+    # Sort by timestamp descending
+    all_entries.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+    return all_entries
 
 
 def load_multi_asset_status() -> dict:
@@ -496,8 +547,8 @@ def kill_switch_off():
 
 
 @app.route("/api/trades/<exchange>")
-def get_trades(exchange: str):
-    """거래 기록 API"""
+def get_trades_by_exchange(exchange: str):
+    """거래 기록 API (legacy - by exchange)"""
 
     log = load_trading_log(exchange)
 
@@ -516,9 +567,120 @@ def get_trades(exchange: str):
     })
 
 
+@app.route("/api/trades")
+def get_trades():
+    """
+    Get paginated trade history with filters.
+    Query params: page, limit, exchange, start_date, end_date, symbol
+    """
+    # Parse query parameters
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 100, type=int)
+    exchange_filter = request.args.get('exchange')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    symbol_filter = request.args.get('symbol')
+
+    # Clamp limit
+    limit = min(max(1, limit), 500)
+
+    # Try to use TradeLogger for database trades first
+    db_trades = []
+    if trade_logger:
+        try:
+            # Get trades from database
+            if start_date and end_date:
+                db_trades = trade_logger.get_trades_for_date_range(start_date, end_date)
+            else:
+                db_trades = trade_logger.get_recent_trades(limit=1000)
+        except Exception as e:
+            print(f"TradeLogger error: {e}")
+
+    # Also get trades from JSON logs for richer data
+    json_trades = read_json_logs('trades')
+
+    # Merge and dedupe trades (prefer JSON for detail, DB for completeness)
+    all_trades = []
+
+    # Add JSON trades first (have more detail)
+    for t in json_trades:
+        all_trades.append({
+            'id': t.get('id', len(all_trades)),
+            'timestamp': t.get('timestamp', ''),
+            'action': t.get('action', '').upper(),
+            'price': t.get('price', 0),
+            'volume': t.get('volume', 0),
+            'profit': t.get('profit'),
+            'profit_pct': t.get('profit_pct'),
+            'exchange': t.get('exchange', 'unknown'),
+            'strategy': t.get('strategy', ''),
+            'reason': t.get('reason', ''),
+            'regime': t.get('regime', ''),
+        })
+
+    # Apply filters
+    filtered_trades = all_trades
+
+    if exchange_filter:
+        filtered_trades = [t for t in filtered_trades if t['exchange'] == exchange_filter]
+
+    if symbol_filter:
+        filtered_trades = [t for t in filtered_trades if symbol_filter.upper() in t.get('symbol', 'BTC').upper()]
+
+    if start_date:
+        filtered_trades = [t for t in filtered_trades if t['timestamp'] >= start_date]
+
+    if end_date:
+        filtered_trades = [t for t in filtered_trades if t['timestamp'] <= end_date + 'T23:59:59']
+
+    # Sort by timestamp descending
+    filtered_trades.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+
+    # Calculate pagination
+    total_count = len(filtered_trades)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_trades = filtered_trades[start_idx:end_idx]
+
+    return jsonify({
+        'trades': paginated_trades,
+        'total_count': total_count,
+        'page': page,
+        'limit': limit,
+        'has_more': end_idx < total_count
+    })
+
+
+@app.route("/api/trades/<int:trade_id>")
+def get_trade_detail(trade_id: int):
+    """Get detailed information for a specific trade."""
+    # Search in JSON logs for trade detail
+    json_trades = read_json_logs('trades')
+
+    for t in json_trades:
+        if t.get('id') == trade_id:
+            return jsonify({
+                'id': trade_id,
+                'timestamp': t.get('timestamp', ''),
+                'action': t.get('action', '').upper(),
+                'price': t.get('price', 0),
+                'volume': t.get('volume', 0),
+                'profit': t.get('profit'),
+                'profit_pct': t.get('profit_pct'),
+                'exchange': t.get('exchange', 'unknown'),
+                'strategy': t.get('strategy', ''),
+                'reason': t.get('reason', ''),
+                'regime': t.get('regime', ''),
+                'market_state': t.get('market_state', ''),
+                'indicators': t.get('indicators', {}),
+            })
+
+    return jsonify({'error': 'Trade not found'}), 404
+
+
 @app.route("/api/signals/<exchange>")
-def get_signals(exchange: str):
-    """전략 신호 기록 API"""
+def get_signals_by_exchange(exchange: str):
+    """전략 신호 기록 API (legacy - by exchange)"""
 
     log = load_trading_log(exchange)
 
@@ -533,6 +695,53 @@ def get_signals(exchange: str):
     return jsonify({
         'exchange': exchange,
         'signals': recent_signals,
+        'total_count': len(signals)
+    })
+
+
+@app.route("/api/signals")
+def get_signals():
+    """
+    Get recent trading signals with optional filters.
+    Query params: limit, exchange, action
+    """
+    limit = request.args.get('limit', 50, type=int)
+    exchange_filter = request.args.get('exchange')
+    action_filter = request.args.get('action')
+
+    # Clamp limit
+    limit = min(max(1, limit), 200)
+
+    # Read signals from JSON logs
+    all_signals = read_json_logs('signals')
+
+    # Transform to standard format
+    signals = []
+    for s in all_signals:
+        signals.append({
+            'timestamp': s.get('timestamp', ''),
+            'exchange': s.get('exchange', 'unknown'),
+            'strategy': s.get('strategy', ''),
+            'action': s.get('action', 'hold'),
+            'reason': s.get('reason', ''),
+            'regime': s.get('regime', ''),
+            'market_state': s.get('market_state', ''),
+            'acted': s.get('acted', False),
+            'indicators': s.get('indicators', {}),
+        })
+
+    # Apply filters
+    if exchange_filter:
+        signals = [s for s in signals if s['exchange'] == exchange_filter]
+
+    if action_filter:
+        signals = [s for s in signals if s['action'] == action_filter]
+
+    # Limit results
+    signals = signals[:limit]
+
+    return jsonify({
+        'signals': signals,
         'total_count': len(signals)
     })
 
@@ -563,6 +772,380 @@ def get_statistics():
         }
 
     return jsonify(statistics)
+
+
+@app.route("/api/analytics")
+def get_analytics():
+    """
+    Get performance analytics for specified period.
+    Query params: period (7d, 30d, 90d, all), strategy
+    """
+    period = request.args.get('period', '30d')
+    strategy_filter = request.args.get('strategy')
+
+    # Validate period
+    valid_periods = ['7d', '30d', '90d', 'all']
+    if period not in valid_periods:
+        period = '30d'
+
+    # Get trades from JSON logs
+    all_trades = read_json_logs('trades')
+
+    # Filter by strategy if specified
+    if strategy_filter:
+        all_trades = [t for t in all_trades if t.get('strategy') == strategy_filter]
+
+    # Calculate metrics
+    if calculate_metrics:
+        metrics = calculate_metrics(all_trades, period)
+    else:
+        metrics = {'error': 'Analytics service not available'}
+
+    return jsonify(metrics)
+
+
+@app.route("/api/analytics/equity-curve")
+def get_equity_curve():
+    """
+    Get equity curve data for charting.
+    Query params: period (7d, 30d, 90d, all), points (max data points)
+    """
+    period = request.args.get('period', '30d')
+    max_points = request.args.get('points', 100, type=int)
+
+    # Validate
+    valid_periods = ['7d', '30d', '90d', 'all']
+    if period not in valid_periods:
+        period = '30d'
+
+    max_points = min(max(1, max_points), 500)
+
+    # Get trades from JSON logs
+    all_trades = read_json_logs('trades')
+
+    # Calculate equity curve
+    if calculate_equity_curve:
+        curve_data = calculate_equity_curve(all_trades, period)
+
+        # Downsample if needed
+        points = curve_data.get('points', [])
+        if len(points) > max_points:
+            step = len(points) // max_points
+            curve_data['points'] = points[::step][:max_points]
+
+        return jsonify(curve_data)
+    else:
+        return jsonify({'error': 'Analytics service not available'}), 503
+
+
+@app.route("/api/analytics/daily")
+def get_daily_analytics():
+    """
+    Get daily breakdown of trading performance.
+    Query params: period (7d, 30d, 90d, all)
+    """
+    from datetime import timedelta
+    from collections import defaultdict
+
+    period = request.args.get('period', '30d')
+
+    # Validate period
+    valid_periods = ['7d', '30d', '90d', 'all']
+    if period not in valid_periods:
+        period = '30d'
+
+    # Get trades from JSON logs
+    all_trades = read_json_logs('trades')
+
+    # Filter by period
+    now = datetime.now()
+    if period != 'all':
+        days = int(period.replace('d', ''))
+        cutoff = now - timedelta(days=days)
+        cutoff_str = cutoff.isoformat()
+        all_trades = [t for t in all_trades if t.get('timestamp', '') >= cutoff_str]
+
+    # Group by date
+    daily_data = defaultdict(lambda: {
+        'trades': 0,
+        'buys': 0,
+        'sells': 0,
+        'profit': 0,
+        'wins': 0,
+        'losses': 0
+    })
+
+    for trade in all_trades:
+        timestamp = trade.get('timestamp', '')
+        if not timestamp:
+            continue
+
+        # Extract date part
+        date_str = timestamp[:10]  # YYYY-MM-DD
+        action = trade.get('action', '').upper()
+        profit = trade.get('profit')
+
+        daily_data[date_str]['trades'] += 1
+
+        if action == 'BUY':
+            daily_data[date_str]['buys'] += 1
+        elif action == 'SELL':
+            daily_data[date_str]['sells'] += 1
+            if profit is not None:
+                daily_data[date_str]['profit'] += profit
+                if profit > 0:
+                    daily_data[date_str]['wins'] += 1
+                else:
+                    daily_data[date_str]['losses'] += 1
+
+    # Convert to sorted list
+    daily_list = []
+    for date_str, stats in sorted(daily_data.items()):
+        total_closed = stats['wins'] + stats['losses']
+        win_rate = (stats['wins'] / total_closed * 100) if total_closed > 0 else 0
+
+        daily_list.append({
+            'date': date_str,
+            'trades': stats['trades'],
+            'buys': stats['buys'],
+            'sells': stats['sells'],
+            'profit': stats['profit'],
+            'wins': stats['wins'],
+            'losses': stats['losses'],
+            'win_rate': round(win_rate, 1)
+        })
+
+    # Calculate totals
+    total_profit = sum(d['profit'] for d in daily_list)
+    total_trades = sum(d['trades'] for d in daily_list)
+    total_wins = sum(d['wins'] for d in daily_list)
+    total_losses = sum(d['losses'] for d in daily_list)
+
+    return jsonify({
+        'period': period,
+        'days': daily_list,
+        'summary': {
+            'total_days': len(daily_list),
+            'total_trades': total_trades,
+            'total_profit': total_profit,
+            'total_wins': total_wins,
+            'total_losses': total_losses,
+            'profitable_days': sum(1 for d in daily_list if d['profit'] > 0),
+            'losing_days': sum(1 for d in daily_list if d['profit'] < 0)
+        }
+    })
+
+
+@app.route("/api/positions")
+def get_positions():
+    """
+    Get consolidated positions from both exchanges.
+    Returns positions with unrealized P&L.
+    """
+    result = {
+        'timestamp': datetime.now().isoformat(),
+        'total_value': 0,
+        'total_unrealized_pnl': 0,
+        'positions': [],
+        'errors': []
+    }
+
+    # Fetch Upbit positions
+    try:
+        import pyupbit
+
+        upbit_client = pyupbit.Upbit(
+            os.getenv('UPBIT_ACCESS_KEY'),
+            os.getenv('UPBIT_SECRET_KEY')
+        )
+        balances = upbit_client.get_balances()
+
+        for bal in balances:
+            currency = bal.get('currency', '')
+            if currency == 'KRW':
+                continue
+
+            balance = float(bal.get('balance', 0))
+            avg_price = float(bal.get('avg_buy_price', 0))
+
+            if balance > 0 and avg_price > 0:
+                ticker = f"KRW-{currency}"
+                current_price = pyupbit.get_current_price(ticker) or avg_price
+                value = balance * current_price
+                cost = balance * avg_price
+                unrealized_pnl = value - cost
+                unrealized_pnl_pct = ((current_price / avg_price) - 1) * 100 if avg_price > 0 else 0
+
+                result['positions'].append({
+                    'symbol': currency,
+                    'exchange': 'upbit',
+                    'side': 'LONG',
+                    'quantity': balance,
+                    'entry_price': avg_price,
+                    'current_price': current_price,
+                    'value': value,
+                    'unrealized_pnl': unrealized_pnl,
+                    'unrealized_pnl_pct': unrealized_pnl_pct,
+                    'liquidation_price': None,
+                    'leverage': None
+                })
+                result['total_value'] += value
+                result['total_unrealized_pnl'] += unrealized_pnl
+
+    except Exception as e:
+        result['errors'].append(f'Upbit: {str(e)}')
+
+    # Fetch Binance Futures positions
+    try:
+        from binance.client import Client
+        import time
+
+        api_key = os.getenv('BINANCE_API_KEY')
+        api_secret = os.getenv('BINANCE_API_SECRET')
+
+        if api_key and api_secret:
+            client = Client(api_key, api_secret)
+            server_time = client.get_server_time()
+            local_time = int(time.time() * 1000)
+            client.timestamp_offset = server_time['serverTime'] - local_time
+
+            account = client.futures_account(recvWindow=60000)
+
+            for pos in account['positions']:
+                size = float(pos['positionAmt'])
+                if size != 0:
+                    entry_price = float(pos['entryPrice'])
+                    unrealized_pnl = float(pos['unrealizedProfit'])
+                    mark_price = float(pos.get('markPrice', entry_price))
+                    liquidation_price = float(pos.get('liquidationPrice', 0))
+                    leverage = int(pos.get('leverage', 1))
+
+                    side = 'LONG' if size > 0 else 'SHORT'
+                    abs_size = abs(size)
+                    value = abs_size * mark_price
+
+                    # Calculate P&L percentage
+                    if entry_price > 0:
+                        if side == 'LONG':
+                            unrealized_pnl_pct = ((mark_price / entry_price) - 1) * 100 * leverage
+                        else:
+                            unrealized_pnl_pct = ((entry_price / mark_price) - 1) * 100 * leverage
+                    else:
+                        unrealized_pnl_pct = 0
+
+                    result['positions'].append({
+                        'symbol': pos['symbol'],
+                        'exchange': 'binance',
+                        'side': side,
+                        'quantity': abs_size,
+                        'entry_price': entry_price,
+                        'current_price': mark_price,
+                        'value': value,
+                        'unrealized_pnl': unrealized_pnl,
+                        'unrealized_pnl_pct': unrealized_pnl_pct,
+                        'liquidation_price': liquidation_price if liquidation_price > 0 else None,
+                        'leverage': leverage
+                    })
+                    result['total_value'] += value
+                    result['total_unrealized_pnl'] += unrealized_pnl
+        else:
+            result['errors'].append('Binance: API credentials not configured')
+
+    except Exception as e:
+        result['errors'].append(f'Binance: {str(e)}')
+
+    return jsonify(result)
+
+
+# =====================
+# Backtest API Endpoints
+# =====================
+
+@app.route("/api/backtest/strategies")
+@requires_totp
+def get_backtest_strategies():
+    """Get list of available strategies for backtesting."""
+    if not backtest_runner:
+        return jsonify({'error': 'Backtest service not available'}), 503
+
+    strategies = backtest_runner.get_available_strategies()
+    return jsonify({
+        'strategies': strategies
+    })
+
+
+@app.route("/api/backtest/run", methods=["POST"])
+@requires_totp
+def run_backtest():
+    """
+    Start a new backtest job.
+    Request body: { strategy, start_date, end_date, initial_capital }
+    """
+    if not backtest_runner:
+        return jsonify({'error': 'Backtest service not available'}), 503
+
+    data = request.get_json() or {}
+
+    # Validate required fields
+    strategy = data.get('strategy')
+    if not strategy:
+        return jsonify({'error': 'Strategy is required'}), 400
+
+    # Validate strategy exists
+    strategies = backtest_runner.get_available_strategies()
+    valid_ids = [s['id'] for s in strategies]
+    if strategy not in valid_ids:
+        return jsonify({'error': f'Invalid strategy: {strategy}'}), 400
+
+    # Build config
+    config = {
+        'strategy': strategy,
+        'start_date': data.get('start_date', '2024-01-01'),
+        'end_date': data.get('end_date', '2024-12-31'),
+        'initial_capital': data.get('initial_capital', 10000000),
+    }
+
+    # Start backtest (with rate limiting)
+    try:
+        job = backtest_runner.start_backtest(config)
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 429  # Too Many Requests
+
+    return jsonify({
+        'job_id': job.job_id,
+        'status': job.status,
+        'config': job.config,
+        'created_at': job.created_at
+    })
+
+
+@app.route("/api/backtest/status/<job_id>")
+@requires_totp
+def get_backtest_status(job_id: str):
+    """Get status and results of a backtest job."""
+    if not backtest_runner:
+        return jsonify({'error': 'Backtest service not available'}), 503
+
+    job = backtest_runner.get_job(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    return jsonify(job.to_dict())
+
+
+@app.route("/api/backtest/cancel/<job_id>", methods=["POST"])
+@requires_totp
+def cancel_backtest(job_id: str):
+    """Cancel a running backtest job."""
+    if not backtest_runner:
+        return jsonify({'error': 'Backtest service not available'}), 503
+
+    success = backtest_runner.cancel_job(job_id)
+    if success:
+        job = backtest_runner.get_job(job_id)
+        return jsonify(job.to_dict())
+    else:
+        return jsonify({'error': 'Job not found or cannot be cancelled'}), 404
 
 
 @app.route("/api/exchange_balances")

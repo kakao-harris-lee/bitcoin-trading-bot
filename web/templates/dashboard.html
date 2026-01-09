@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Asset Trading Bot - Live Dashboard</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -109,8 +110,223 @@
             </div>
         </section>
 
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="positions">Positions</button>
+            <button class="tab-btn" data-tab="history">History</button>
+            <button class="tab-btn" data-tab="signals">Signals</button>
+            <button class="tab-btn" data-tab="analytics">Analytics</button>
+            <button class="tab-btn" data-tab="backtest">Backtest</button>
+        </nav>
+
+        <!-- Tab Content: Positions -->
+        <div id="positions" class="tab-content active">
+            <div class="tab-panel">
+                <h3>Open Positions</h3>
+                <!-- Portfolio Summary -->
+                <div id="positions-summary" class="positions-summary">
+                    <div class="summary-stat">
+                        <span class="label">Total Value</span>
+                        <span id="positions-total-value" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Total P&L</span>
+                        <span id="positions-total-pnl" class="value">-</span>
+                    </div>
+                </div>
+                <!-- Positions Grid -->
+                <div id="positions-container" class="positions-grid">
+                    <p class="loading">Loading positions...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: History -->
+        <div id="history" class="tab-content">
+            <div class="tab-panel">
+                <h3>Trade History</h3>
+                <!-- Filters -->
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label>Exchange</label>
+                        <select id="history-exchange-filter" class="filter-select">
+                            <option value="">All</option>
+                            <option value="upbit">Upbit</option>
+                            <option value="binance">Binance</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Start Date</label>
+                        <input type="date" id="history-start-date" class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <label>End Date</label>
+                        <input type="date" id="history-end-date" class="filter-input">
+                    </div>
+                    <button id="history-apply-filters" class="filter-btn">Apply</button>
+                    <button id="history-clear-filters" class="filter-btn secondary">Clear</button>
+                </div>
+                <!-- Trade Table -->
+                <div id="history-container" class="history-container">
+                    <p class="loading">Loading trade history...</p>
+                </div>
+                <!-- Pagination -->
+                <div id="history-pagination" class="pagination-row">
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Signals -->
+        <div id="signals" class="tab-content">
+            <div class="tab-panel">
+                <h3>Trading Signals</h3>
+                <!-- Signal Filters -->
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label>Exchange</label>
+                        <select id="signals-exchange-filter" class="filter-select">
+                            <option value="">All</option>
+                            <option value="upbit">Upbit</option>
+                            <option value="binance">Binance</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Action</label>
+                        <select id="signals-action-filter" class="filter-select">
+                            <option value="">All</option>
+                            <option value="buy">Buy</option>
+                            <option value="sell">Sell</option>
+                            <option value="hold">Hold</option>
+                        </select>
+                    </div>
+                    <button id="signals-apply-filters" class="filter-btn">Apply</button>
+                </div>
+                <!-- Signal List -->
+                <div id="signals-container" class="signals-list">
+                    <p class="loading">Loading signals...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Analytics -->
+        <div id="analytics" class="tab-content">
+            <div class="tab-panel">
+                <h3>Performance Analytics</h3>
+                <!-- View Toggle -->
+                <div class="view-toggle">
+                    <button class="view-btn active" data-view="summary">Summary</button>
+                    <button class="view-btn" data-view="daily">Daily</button>
+                </div>
+                <!-- Period Selector -->
+                <div class="period-selector">
+                    <button class="period-btn active" data-period="7d">7 Days</button>
+                    <button class="period-btn" data-period="30d">30 Days</button>
+                    <button class="period-btn" data-period="90d">90 Days</button>
+                    <button class="period-btn" data-period="all">All Time</button>
+                </div>
+
+                <!-- Summary View (default) -->
+                <div id="analytics-summary-view">
+                    <!-- Metrics Cards -->
+                    <div id="analytics-metrics" class="metrics-grid">
+                        <p class="loading">Loading metrics...</p>
+                    </div>
+                    <!-- Equity Curve Chart -->
+                    <div class="chart-section">
+                        <h4>Equity Curve</h4>
+                        <div class="chart-container">
+                            <canvas id="equity-chart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Strategy Breakdown -->
+                    <div id="analytics-strategy-breakdown" class="strategy-breakdown">
+                    </div>
+                </div>
+
+                <!-- Daily View -->
+                <div id="analytics-daily-view" style="display: none;">
+                    <!-- Daily Summary -->
+                    <div id="daily-summary" class="daily-summary">
+                    </div>
+                    <!-- Daily Chart -->
+                    <div class="chart-section">
+                        <h4>Daily P&L</h4>
+                        <div class="chart-container">
+                            <canvas id="daily-pnl-chart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Daily Table -->
+                    <div id="daily-breakdown" class="daily-breakdown">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Backtest -->
+        <div id="backtest" class="tab-content">
+            <div class="tab-panel">
+                <h3>Backtesting</h3>
+                <!-- Backtest Form -->
+                <div id="backtest-form-container" class="backtest-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="backtest-strategy">Strategy</label>
+                            <select id="backtest-strategy" class="form-select">
+                                <option value="">Select strategy...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="backtest-start-date">Start Date</label>
+                            <input type="date" id="backtest-start-date" class="form-input" value="2024-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label for="backtest-end-date">End Date</label>
+                            <input type="date" id="backtest-end-date" class="form-input" value="2024-12-31">
+                        </div>
+                        <div class="form-group">
+                            <label for="backtest-capital">Initial Capital (KRW)</label>
+                            <input type="number" id="backtest-capital" class="form-input" value="10000000" step="1000000">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button id="backtest-run-btn" class="btn-primary">Run Backtest</button>
+                        <button id="backtest-cancel-btn" class="btn-secondary" style="display: none;">Cancel</button>
+                    </div>
+                </div>
+
+                <!-- Progress Indicator -->
+                <div id="backtest-progress" class="backtest-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div id="backtest-progress-fill" class="progress-fill"></div>
+                    </div>
+                    <span id="backtest-progress-text" class="progress-text">Starting...</span>
+                </div>
+
+                <!-- Results Container -->
+                <div id="backtest-results" class="backtest-results" style="display: none;">
+                    <h4>Backtest Results</h4>
+                    <!-- Metrics Summary -->
+                    <div id="backtest-metrics" class="backtest-metrics-grid">
+                    </div>
+                    <!-- Equity Curve Chart -->
+                    <div class="chart-section">
+                        <h4>Backtest Equity Curve</h4>
+                        <div class="chart-container">
+                            <canvas id="backtest-equity-chart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Trades Table -->
+                    <div class="backtest-trades-section">
+                        <h4>Sample Trades</h4>
+                        <div id="backtest-trades" class="backtest-trades-container">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <footer>
-            <p>Auto-refresh every 30 seconds</p>
+            <p>Auto-refresh every 30 seconds | Keys: 1-5 tabs, R refresh</p>
         </footer>
     </div>
 

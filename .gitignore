@@ -62,3 +62,9 @@ venv/
 .bot.pid
 .coverage
 .venv/
+
+.claude/
+.playwright-mcp/*
+.specify/scripts/
+.specify/templates/
+data/processed/

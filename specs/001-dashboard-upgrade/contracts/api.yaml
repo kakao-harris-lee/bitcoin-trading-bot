@@ -1,0 +1,678 @@
+openapi: 3.0.3
+info:
+  title: Bitcoin Trading Bot Dashboard API
+  description: API endpoints for the upgraded trading dashboard
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: Dashboard API
+
+paths:
+  /positions:
+    get:
+      summary: Get all open positions
+      description: Returns consolidated positions from both Upbit and Binance exchanges
+      operationId: getPositions
+      tags:
+        - Positions
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionsResponse'
+        '503':
+          description: Exchange API unavailable
+
+  /trades:
+    get:
+      summary: Get trade history
+      description: Returns paginated trade history with optional filters
+      operationId: getTrades
+      tags:
+        - History
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 500
+        - name: exchange
+          in: query
+          schema:
+            type: string
+            enum: [upbit, binance]
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: symbol
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradesResponse'
+
+  /trades/{trade_id}:
+    get:
+      summary: Get trade details
+      description: Returns detailed information for a specific trade including signal context
+      operationId: getTradeDetail
+      tags:
+        - History
+      parameters:
+        - name: trade_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeDetail'
+        '404':
+          description: Trade not found
+
+  /signals:
+    get:
+      summary: Get recent trading signals
+      description: Returns recent signals from trading engine
+      operationId: getSignals
+      tags:
+        - Signals
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - name: exchange
+          in: query
+          schema:
+            type: string
+            enum: [upbit, binance]
+        - name: action
+          in: query
+          schema:
+            type: string
+            enum: [buy, sell, hold]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalsResponse'
+
+  /analytics:
+    get:
+      summary: Get performance analytics
+      description: Returns calculated performance metrics for specified period
+      operationId: getAnalytics
+      tags:
+        - Analytics
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, all]
+            default: 30d
+        - name: strategy
+          in: query
+          schema:
+            type: string
+          description: Filter by strategy name (optional)
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResponse'
+
+  /analytics/equity-curve:
+    get:
+      summary: Get equity curve data
+      description: Returns equity curve data points for charting
+      operationId: getEquityCurve
+      tags:
+        - Analytics
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, all]
+            default: 30d
+        - name: points
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 500
+          description: Maximum number of data points (will downsample if needed)
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquityCurveResponse'
+
+  /analytics/daily:
+    get:
+      summary: Get daily performance breakdown
+      description: Returns day-by-day P&L and metrics
+      operationId: getDailyAnalytics
+      tags:
+        - Analytics
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d]
+            default: 30d
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyAnalyticsResponse'
+
+  /backtest/run:
+    post:
+      summary: Start a backtest
+      description: Initiates a backtest job with specified parameters
+      operationId: runBacktest
+      tags:
+        - Backtest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestRequest'
+      responses:
+        '202':
+          description: Backtest job started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestJobStatus'
+        '400':
+          description: Invalid parameters
+
+  /backtest/status/{job_id}:
+    get:
+      summary: Get backtest status
+      description: Returns current status and results of a backtest job
+      operationId: getBacktestStatus
+      tags:
+        - Backtest
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestJobStatus'
+        '404':
+          description: Job not found
+
+  /backtest/strategies:
+    get:
+      summary: List available strategies
+      description: Returns list of strategies available for backtesting
+      operationId: listBacktestStrategies
+      tags:
+        - Backtest
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  strategies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        timeframe:
+                          type: string
+
+components:
+  schemas:
+    Position:
+      type: object
+      required:
+        - symbol
+        - exchange
+        - side
+        - quantity
+        - entry_price
+        - current_price
+        - unrealized_pnl
+      properties:
+        symbol:
+          type: string
+          example: "BTC"
+        exchange:
+          type: string
+          enum: [upbit, binance]
+        side:
+          type: string
+          enum: [LONG, SHORT]
+        quantity:
+          type: number
+          format: float
+        entry_price:
+          type: number
+          format: float
+        current_price:
+          type: number
+          format: float
+        value:
+          type: number
+          format: float
+        unrealized_pnl:
+          type: number
+          format: float
+        unrealized_pnl_pct:
+          type: number
+          format: float
+        liquidation_price:
+          type: number
+          format: float
+          nullable: true
+        leverage:
+          type: integer
+          nullable: true
+
+    PositionsResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        total_value:
+          type: number
+          format: float
+        total_unrealized_pnl:
+          type: number
+          format: float
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+        errors:
+          type: array
+          items:
+            type: string
+
+    Trade:
+      type: object
+      required:
+        - id
+        - action
+        - price
+        - volume
+        - exchange
+        - timestamp
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+          enum: [BUY, SELL]
+        price:
+          type: number
+          format: float
+        volume:
+          type: number
+          format: float
+        profit:
+          type: number
+          format: float
+          nullable: true
+        profit_pct:
+          type: number
+          format: float
+          nullable: true
+        exchange:
+          type: string
+          enum: [upbit, binance]
+        timestamp:
+          type: string
+          format: date-time
+        strategy:
+          type: string
+        reason:
+          type: string
+
+    TradeDetail:
+      allOf:
+        - $ref: '#/components/schemas/Trade'
+        - type: object
+          properties:
+            regime:
+              type: string
+            market_state:
+              type: string
+            indicators:
+              type: object
+              properties:
+                rsi:
+                  type: number
+                mfi:
+                  type: number
+                adx:
+                  type: number
+                close:
+                  type: number
+
+    TradesResponse:
+      type: object
+      properties:
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/Trade'
+        total_count:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        has_more:
+          type: boolean
+
+    Signal:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        strategy:
+          type: string
+        action:
+          type: string
+          enum: [buy, sell, hold]
+        reason:
+          type: string
+        regime:
+          type: string
+        market_state:
+          type: string
+        acted:
+          type: boolean
+        outcome:
+          type: string
+          nullable: true
+        indicators:
+          type: object
+          properties:
+            rsi:
+              type: number
+            mfi:
+              type: number
+            adx:
+              type: number
+            close:
+              type: number
+            score:
+              type: integer
+            tier:
+              type: string
+
+    SignalsResponse:
+      type: object
+      properties:
+        signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Signal'
+        total_count:
+          type: integer
+
+    AnalyticsResponse:
+      type: object
+      properties:
+        period:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        total_return:
+          type: number
+          format: float
+        total_return_krw:
+          type: number
+          format: float
+        win_rate:
+          type: number
+          format: float
+        total_trades:
+          type: integer
+        winning_trades:
+          type: integer
+        losing_trades:
+          type: integer
+        profit_factor:
+          type: number
+          format: float
+        avg_trade:
+          type: number
+          format: float
+        avg_win:
+          type: number
+          format: float
+        avg_loss:
+          type: number
+          format: float
+        sharpe_ratio:
+          type: number
+          format: float
+        max_drawdown:
+          type: number
+          format: float
+        max_drawdown_krw:
+          type: number
+          format: float
+        by_strategy:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/StrategyMetrics'
+
+    StrategyMetrics:
+      type: object
+      properties:
+        total_trades:
+          type: integer
+        win_rate:
+          type: number
+        total_return:
+          type: number
+        profit_factor:
+          type: number
+
+    EquityPoint:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        equity:
+          type: number
+          format: float
+        drawdown:
+          type: number
+          format: float
+        drawdown_pct:
+          type: number
+          format: float
+
+    EquityCurveResponse:
+      type: object
+      properties:
+        period:
+          type: string
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquityPoint'
+        peak_equity:
+          type: number
+        min_equity:
+          type: number
+
+    DailyPnL:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        pnl:
+          type: number
+          format: float
+        pnl_pct:
+          type: number
+          format: float
+        trade_count:
+          type: integer
+        win_count:
+          type: integer
+
+    DailyAnalyticsResponse:
+      type: object
+      properties:
+        period:
+          type: string
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyPnL'
+
+    BacktestRequest:
+      type: object
+      required:
+        - strategy
+        - start_date
+        - end_date
+      properties:
+        strategy:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        initial_capital:
+          type: number
+          format: float
+          default: 10000000
+
+    BacktestJobStatus:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        progress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        result:
+          $ref: '#/components/schemas/BacktestResult'
+          nullable: true
+
+    BacktestResult:
+      type: object
+      properties:
+        initial_capital:
+          type: number
+        final_capital:
+          type: number
+        total_return:
+          type: number
+        total_trades:
+          type: integer
+        winning_trades:
+          type: integer
+        losing_trades:
+          type: integer
+        win_rate:
+          type: number
+        profit_factor:
+          type: number
+        sharpe_ratio:
+          type: number
+        max_drawdown:
+          type: number
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/Trade'
+        equity_curve:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquityPoint'

@@ -308,8 +308,9 @@ class SimpleFeedHandler:
         binance_symbols = []
 
         for symbol, asset_config in assets.items():
-            if asset_config.get("enabled", False):
+            if asset_config.get("upbit_enabled", False):
                 upbit_symbols.append(asset_config.get("upbit_symbol", f"KRW-{symbol}"))
+            if asset_config.get("binance_enabled", False):
                 binance_symbols.append(asset_config.get("binance_symbol", f"{symbol}USDT"))
 
         return cls(

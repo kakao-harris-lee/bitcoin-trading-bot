@@ -99,7 +99,7 @@ class TestConfigValidator:
         config = {
             "assets": {
                 "BTC": {
-                    "enabled": True,
+                    "upbit_enabled": True,
                     "upbit_symbol": "KRW-BTC",
                     "db_path": str(temp_data_dir / "btc_data.db"),
                     "capital_krw": 100000,
@@ -120,7 +120,7 @@ class TestConfigValidator:
         config = {
             "assets": {
                 "BTC": {
-                    "enabled": True,
+                    "upbit_enabled": True,
                     "db_path": str(temp_data_dir / "btc_data.db"),
                 }
             }
@@ -137,7 +137,7 @@ class TestConfigValidator:
         config = {
             "assets": {
                 "BTC": {
-                    "enabled": True,
+                    "upbit_enabled": True,
                     "upbit_symbol": "KRW-BTC",
                     "db_path": "/nonexistent/path.db",
                 }
@@ -155,7 +155,7 @@ class TestConfigValidator:
         config = {
             "assets": {
                 "BTC": {
-                    "enabled": True,
+                    "upbit_enabled": True,
                     "upbit_symbol": "KRW-BTC",
                     "db_path": str(temp_data_dir / "btc_data.db"),
                     "strategy": "nonexistent_strategy",

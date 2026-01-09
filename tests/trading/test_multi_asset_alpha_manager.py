@@ -16,7 +16,7 @@ def mock_portfolio():
 @pytest.fixture
 def mock_config():
     """Create a basic config for testing."""
-    return {"assets": {"BTC": {"enabled": True}}}
+    return {"assets": {"BTC": {"upbit_enabled": True, "binance_enabled": True}}}
 
 
 class TestGetLongExposureKrw:
@@ -35,9 +35,9 @@ class TestGetLongExposureKrw:
             )
 
             # Set up state with active position
-            manager._states["BTC"].active = True
-            manager._states["BTC"].quantity = 0.1
-            manager._states["BTC"].current_price = 100_000_000  # 100M KRW
+            manager._states[("BTC", "upbit")].active = True
+            manager._states[("BTC", "upbit")].quantity = 0.1
+            manager._states[("BTC", "upbit")].current_price = 100_000_000  # 100M KRW
 
             exposure = manager.get_long_exposure_krw("BTC")
             assert exposure == 10_000_000  # 0.1 * 100M = 10M KRW
@@ -68,9 +68,9 @@ class TestGetLongExposureKrw:
             )
 
             # Set up state with inactive position (default)
-            manager._states["BTC"].active = False
-            manager._states["BTC"].quantity = 0.1  # Has quantity but inactive
-            manager._states["BTC"].current_price = 100_000_000
+            manager._states[("BTC", "upbit")].active = False
+            manager._states[("BTC", "upbit")].quantity = 0.1  # Has quantity but inactive
+            manager._states[("BTC", "upbit")].current_price = 100_000_000
 
             exposure = manager.get_long_exposure_krw("BTC")
             assert exposure == 0.0
@@ -87,9 +87,9 @@ class TestGetLongExposureKrw:
             )
 
             # Set up state with zero quantity
-            manager._states["BTC"].active = True
-            manager._states["BTC"].quantity = 0.0
-            manager._states["BTC"].current_price = 100_000_000
+            manager._states[("BTC", "upbit")].active = True
+            manager._states[("BTC", "upbit")].quantity = 0.0
+            manager._states[("BTC", "upbit")].current_price = 100_000_000
 
             exposure = manager.get_long_exposure_krw("BTC")
             assert exposure == 0.0
@@ -120,9 +120,9 @@ class TestGetLongExposureKrw:
             )
 
             # Set up BTC position
-            manager._states["BTC"].active = True
-            manager._states["BTC"].quantity = 0.05
-            manager._states["BTC"].current_price = 200_000_000
+            manager._states[("BTC", "upbit")].active = True
+            manager._states[("BTC", "upbit")].quantity = 0.05
+            manager._states[("BTC", "upbit")].current_price = 200_000_000
 
             # Call without symbol argument
             exposure = manager.get_long_exposure_krw()
@@ -139,8 +139,8 @@ class TestGetTotalLongExposureKrw:
         mock_portfolio.get_symbols.return_value = ["BTC", "ETH"]
         config = {
             "assets": {
-                "BTC": {"enabled": True},
-                "ETH": {"enabled": True},
+                "BTC": {"upbit_enabled": True, "binance_enabled": True},
+                "ETH": {"upbit_enabled": True, "binance_enabled": True},
             }
         }
 
@@ -154,14 +154,14 @@ class TestGetTotalLongExposureKrw:
             )
 
             # Set up BTC position
-            manager._states["BTC"].active = True
-            manager._states["BTC"].quantity = 0.1
-            manager._states["BTC"].current_price = 100_000_000  # 10M KRW
+            manager._states[("BTC", "upbit")].active = True
+            manager._states[("BTC", "upbit")].quantity = 0.1
+            manager._states[("BTC", "upbit")].current_price = 100_000_000  # 10M KRW
 
             # Set up ETH position
-            manager._states["ETH"].active = True
-            manager._states["ETH"].quantity = 2.0
-            manager._states["ETH"].current_price = 5_000_000  # 10M KRW
+            manager._states[("ETH", "upbit")].active = True
+            manager._states[("ETH", "upbit")].quantity = 2.0
+            manager._states[("ETH", "upbit")].current_price = 5_000_000  # 10M KRW
 
             total_exposure = manager.get_total_long_exposure_krw()
             assert total_exposure == 20_000_000  # 10M + 10M = 20M KRW
@@ -186,8 +186,8 @@ class TestGetTotalLongExposureKrw:
         mock_portfolio.get_symbols.return_value = ["BTC", "ETH"]
         config = {
             "assets": {
-                "BTC": {"enabled": True},
-                "ETH": {"enabled": True},
+                "BTC": {"upbit_enabled": True, "binance_enabled": True},
+                "ETH": {"upbit_enabled": True, "binance_enabled": True},
             }
         }
 
@@ -201,14 +201,14 @@ class TestGetTotalLongExposureKrw:
             )
 
             # BTC is active
-            manager._states["BTC"].active = True
-            manager._states["BTC"].quantity = 0.1
-            manager._states["BTC"].current_price = 100_000_000  # 10M KRW
+            manager._states[("BTC", "upbit")].active = True
+            manager._states[("BTC", "upbit")].quantity = 0.1
+            manager._states[("BTC", "upbit")].current_price = 100_000_000  # 10M KRW
 
             # ETH is inactive
-            manager._states["ETH"].active = False
-            manager._states["ETH"].quantity = 2.0
-            manager._states["ETH"].current_price = 5_000_000
+            manager._states[("ETH", "upbit")].active = False
+            manager._states[("ETH", "upbit")].quantity = 2.0
+            manager._states[("ETH", "upbit")].current_price = 5_000_000
 
             total_exposure = manager.get_total_long_exposure_krw()
             assert total_exposure == 10_000_000  # Only BTC counted

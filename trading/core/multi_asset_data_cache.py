@@ -79,7 +79,7 @@ class MultiAssetDataCache:
         db_paths = {}
 
         for symbol, asset_config in assets.items():
-            if asset_config.get("enabled", False):
+            if asset_config.get("upbit_enabled", False) or asset_config.get("binance_enabled", False):
                 symbols.append(symbol)
                 db_paths[symbol] = asset_config.get("db_path", f"data/upbit_{symbol.lower()}.db")
 

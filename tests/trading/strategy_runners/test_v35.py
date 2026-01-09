@@ -1,6 +1,6 @@
 # tests/trading/strategy_runners/test_v35.py
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 import pandas as pd
 import numpy as np
 from trading.strategy_runners.v35 import V35Strategy
@@ -42,8 +42,16 @@ class TestV35Strategy:
     @pytest.mark.asyncio
     async def test_on_price_no_signal_without_data(self, strategy):
         # Without enough data, should return None
-        signal = await strategy.on_price({"price": 50000, "volume": 100})
-        assert signal is None
+        # Mock DataLoader to return empty DataFrame
+        with patch('trading.strategy_runners.v35.DataLoader') as mock_loader:
+            mock_instance = MagicMock()
+            mock_instance.load_timeframe.return_value = pd.DataFrame()
+            mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+            mock_instance.__exit__ = MagicMock(return_value=False)
+            mock_loader.return_value = mock_instance
+
+            signal = await strategy.on_price({"price": 50000, "volume": 100})
+            assert signal is None
 
     @pytest.mark.asyncio
     async def test_on_regime_updates_market_state(self, strategy):

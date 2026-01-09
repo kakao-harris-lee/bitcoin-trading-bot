@@ -94,7 +94,7 @@ class MultiAssetPriceHub:
         assets = config.get("assets", {})
         symbols = [
             symbol for symbol, cfg in assets.items()
-            if cfg.get("enabled", False)
+            if cfg.get("upbit_enabled", False) or cfg.get("binance_enabled", False)
         ]
 
         return cls(symbols=symbols)

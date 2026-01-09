@@ -125,7 +125,7 @@ class ConfigValidator:
                 result.add_error(f"{symbol}: asset config must be a dictionary")
                 continue
 
-            if not asset_config.get("enabled"):
+            if not (asset_config.get("upbit_enabled") or asset_config.get("binance_enabled")):
                 continue
 
             enabled_count += 1
@@ -195,7 +195,8 @@ class ConfigValidator:
         # Collect strategies referenced by enabled assets
         referenced_strategies = set()
         for symbol, asset_config in config.get("assets", {}).items():
-            if asset_config.get("enabled") and asset_config.get("strategy"):
+            is_enabled = asset_config.get("upbit_enabled") or asset_config.get("binance_enabled")
+            if is_enabled and asset_config.get("strategy"):
                 referenced_strategies.add(asset_config["strategy"])
 
         # Validate each referenced strategy

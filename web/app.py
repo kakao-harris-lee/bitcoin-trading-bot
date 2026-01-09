@@ -333,7 +333,7 @@ def dashboard():
 
 @app.route("/api/status")
 def get_status():
-    """현재 상태 API - Multi-asset support"""
+    """현재 상태 API - Multi-asset support with exchange separation"""
 
     # Load multi-asset engine status
     ma_status = load_multi_asset_status()
@@ -345,27 +345,56 @@ def get_status():
     # Build response
     assets_data = ma_status.get('assets', {})
     portfolio = ma_status.get('portfolio', {})
+    capital_cfg = allocation.get('capital', {})
 
-    # Build per-asset response
+    # Build per-asset-per-exchange response
     assets = {}
     for symbol, data in assets_data.items():
         asset_config = allocation.get('assets', {}).get(symbol, {})
         portfolio_asset = portfolio.get('assets', {}).get(symbol, {})
+        regime = data.get('regime', 'UNKNOWN')
 
-        assets[symbol] = {
-            'enabled': asset_config.get('enabled', False),
-            'regime': data.get('regime', 'UNKNOWN'),
-            'upbit_price': data.get('upbit_price', 0),
-            'binance_price': data.get('binance_price', 0),
-            'position_active': data.get('position_active', False),
-            'position_qty': data.get('position_qty', 0),
-            # Portfolio allocation
-            'alpha_ratio': asset_config.get('alpha_ratio', 0),
-            'allocated_krw': portfolio_asset.get('allocated_krw', 0),
-            'position_value_krw': portfolio_asset.get('position_value_krw', 0),
-            # Strategy config
-            'strategies': asset_config.get('strategies', {}),
-        }
+        # Upbit card (if enabled)
+        if asset_config.get('upbit_enabled', True) or data.get('upbit_enabled', True):
+            upbit_key = f"{symbol}_upbit"
+            assets[upbit_key] = {
+                'symbol': symbol,
+                'exchange': 'upbit',
+                'enabled': asset_config.get('upbit_enabled', True),
+                'regime': regime,
+                'price': data.get('upbit_price', 0),
+                'position_active': data.get('upbit_position_active', data.get('position_active', False)),
+                'position_qty': data.get('upbit_position_qty', data.get('position_qty', 0)),
+                'direction': 'long',
+                'strategy': data.get('upbit_strategy'),
+                # Portfolio allocation
+                'alpha_ratio': asset_config.get('alpha_ratio', 0),
+                'allocated_krw': portfolio_asset.get('allocated_krw', 0),
+                'position_value_krw': portfolio_asset.get('position_value_krw', 0),
+                # Strategy config
+                'strategies': asset_config.get('upbit_strategies', asset_config.get('strategies', {})),
+            }
+
+        # Binance card (if enabled)
+        if asset_config.get('binance_enabled', False) or data.get('binance_enabled', False):
+            binance_key = f"{symbol}_binance"
+            assets[binance_key] = {
+                'symbol': symbol,
+                'exchange': 'binance',
+                'enabled': asset_config.get('binance_enabled', False),
+                'regime': regime,
+                'price': data.get('binance_price', 0),
+                'position_active': data.get('binance_position_active', False),
+                'position_qty': data.get('binance_position_qty', 0),
+                'direction': data.get('binance_direction', 'long'),
+                'strategy': data.get('binance_strategy'),
+                'leverage': data.get('binance_leverage', asset_config.get('binance_leverage', 1)),
+                # Capital allocation
+                'alpha_ratio': asset_config.get('alpha_ratio', 0),
+                'capital_usdt': capital_cfg.get('binance_usdt', 5000) * asset_config.get('alpha_ratio', 0),
+                # Strategy config
+                'strategies': asset_config.get('binance_strategies', {}),
+            }
 
     status = {
         'timestamp': ma_status.get('timestamp', datetime.now().isoformat()),
@@ -380,7 +409,8 @@ def get_status():
             'cash_krw': portfolio.get('cash_krw', 0),
             'exposure_pct': portfolio.get('exposure_pct', 0),
             'unrealized_pnl': portfolio.get('total_unrealized_pnl', 0),
-        }
+        },
+        'capital': capital_cfg,
     }
 
     return jsonify(status)

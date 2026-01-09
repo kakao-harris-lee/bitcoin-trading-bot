@@ -33,6 +33,7 @@ class MultiAssetSignal:
     fraction: float = 0.5
     reason: str = ""
     regime: str = ""
+    exchange: str = "upbit"  # "upbit" or "binance"
     indicators: Dict[str, Any] = field(default_factory=dict)
     timestamp: int = field(default_factory=current_timestamp)
 
@@ -44,6 +45,7 @@ class MultiAssetSignal:
             "fraction": self.fraction,
             "reason": self.reason,
             "regime": self.regime,
+            "exchange": self.exchange,
             "indicators": self.indicators,
             "timestamp": self.timestamp,
         }
@@ -51,14 +53,17 @@ class MultiAssetSignal:
 
 @dataclass
 class AssetState:
-    """Trading state for a single asset."""
+    """Trading state for a single asset on a specific exchange."""
     symbol: str
+    exchange: str = "upbit"  # "upbit" or "binance"
     active: bool = False
     quantity: float = 0.0
     entry_price: float = 0.0
     current_price: float = 0.0
     strategy: Optional[str] = None
     regime: str = "UNKNOWN"
+    leverage: int = 1  # For Binance futures
+    direction: str = "long"  # "long" or "short"
     last_signal: Optional[MultiAssetSignal] = None
     last_evaluation: Optional[int] = None
 
@@ -101,11 +106,11 @@ class MultiAssetAlphaManager:
         self._state_file = state_file or DEFAULT_ALPHA_STATE_FILE
         self._state_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Per-asset state
-        self._states: Dict[str, AssetState] = {}
-        self._strategies: Dict[str, Any] = {}  # symbol -> strategy instance
-        self._regime_routers: Dict[str, Any] = {}  # symbol -> regime router
-        self._accounts: Dict[str, Any] = {}  # symbol -> account/executor
+        # Per-asset state - keyed by (symbol, exchange) tuple
+        self._states: Dict[tuple, AssetState] = {}
+        self._strategies: Dict[tuple, Any] = {}  # (symbol, exchange) -> strategy instance
+        self._regime_routers: Dict[str, Any] = {}  # symbol -> regime router (shared)
+        self._accounts: Dict[tuple, Any] = {}  # (symbol, exchange) -> account/executor
 
         # Signal and trade history
         self._signal_history: List[Dict] = []
@@ -145,9 +150,23 @@ class MultiAssetAlphaManager:
         )
 
     def _init_states(self) -> None:
-        """Initialize per-asset state."""
+        """Initialize per-asset state for both exchanges."""
+        assets_config = self._config.get("assets", {})
         for symbol in self._portfolio.get_symbols():
-            self._states[symbol] = AssetState(symbol=symbol)
+            asset_cfg = assets_config.get(symbol, {})
+
+            # Initialize Upbit state if enabled
+            if asset_cfg.get("upbit_enabled", True):  # Default to True for backward compat
+                self._states[(symbol, "upbit")] = AssetState(
+                    symbol=symbol, exchange="upbit", direction="long"
+                )
+
+            # Initialize Binance state if enabled
+            if asset_cfg.get("binance_enabled", False):
+                self._states[(symbol, "binance")] = AssetState(
+                    symbol=symbol, exchange="binance",
+                    leverage=asset_cfg.get("binance_leverage", 1)
+                )
 
     def _on_asset_disabled(self, symbol: str, reason: str) -> None:
         """Callback when an asset is disabled due to failures."""
@@ -161,20 +180,25 @@ class MultiAssetAlphaManager:
         """Persist current state to file."""
         try:
             state_data = {
-                "version": 1,
+                "version": 2,  # Version 2 for exchange-aware state
                 "saved_at": datetime.now().isoformat(),
                 "execution_mode": self._execution_mode,
                 "states": {},
             }
 
-            for symbol, state in self._states.items():
-                state_data["states"][symbol] = {
+            for (symbol, exchange), state in self._states.items():
+                key = f"{symbol}_{exchange}"
+                state_data["states"][key] = {
+                    "symbol": symbol,
+                    "exchange": exchange,
                     "active": state.active,
                     "quantity": state.quantity,
                     "entry_price": state.entry_price,
                     "current_price": state.current_price,
                     "strategy": state.strategy,
                     "regime": state.regime,
+                    "direction": state.direction,
+                    "leverage": state.leverage,
                 }
 
             # Write atomically (write to temp, then rename)
@@ -198,7 +222,7 @@ class MultiAssetAlphaManager:
 
             # Version check
             version = state_data.get("version", 0)
-            if version != 1:
+            if version not in (1, 2):
                 logger.warning(f"Unknown state version {version}, ignoring")
                 return
 
@@ -211,21 +235,32 @@ class MultiAssetAlphaManager:
             states = state_data.get("states", {})
             restored_count = 0
 
-            for symbol, saved_state in states.items():
-                if symbol in self._states:
-                    state = self._states[symbol]
+            for key, saved_state in states.items():
+                # Handle both v1 (symbol only) and v2 (symbol_exchange) keys
+                if version == 1:
+                    symbol = key
+                    exchange = "upbit"  # v1 was upbit-only
+                else:
+                    symbol = saved_state.get("symbol", key.split("_")[0])
+                    exchange = saved_state.get("exchange", "upbit")
+
+                state_key = (symbol, exchange)
+                if state_key in self._states:
+                    state = self._states[state_key]
                     state.active = saved_state.get("active", False)
                     state.quantity = saved_state.get("quantity", 0.0)
                     state.entry_price = saved_state.get("entry_price", 0.0)
                     state.current_price = saved_state.get("current_price", 0.0)
                     state.strategy = saved_state.get("strategy")
                     state.regime = saved_state.get("regime", "UNKNOWN")
+                    state.direction = saved_state.get("direction", "long")
+                    state.leverage = saved_state.get("leverage", 1)
 
                     if state.active:
                         restored_count += 1
                         logger.info(
-                            f"Restored {symbol}: {state.quantity:.6f} @ "
-                            f"{state.entry_price:,.0f} ({state.strategy})"
+                            f"Restored {symbol}/{exchange}: {state.quantity:.6f} @ "
+                            f"{state.entry_price:,.0f} ({state.strategy}, {state.direction})"
                         )
 
             logger.info(f"State loaded: {restored_count} active positions restored")
@@ -235,18 +270,18 @@ class MultiAssetAlphaManager:
         except Exception as e:
             logger.error(f"Failed to load state: {e}")
 
-    def set_strategy(self, symbol: str, strategy: Any) -> None:
-        """Set strategy instance for an asset."""
-        self._strategies[symbol] = strategy
-        logger.info(f"Strategy set for {symbol}: {type(strategy).__name__}")
+    def set_strategy(self, symbol: str, exchange: str, strategy: Any) -> None:
+        """Set strategy instance for an asset on a specific exchange."""
+        self._strategies[(symbol, exchange)] = strategy
+        logger.info(f"Strategy set for {symbol}/{exchange}: {type(strategy).__name__}")
 
     def set_regime_router(self, symbol: str, router: Any) -> None:
-        """Set regime router for an asset."""
+        """Set regime router for an asset (shared across exchanges)."""
         self._regime_routers[symbol] = router
 
-    def set_account(self, symbol: str, account: Any) -> None:
-        """Set account/executor for an asset."""
-        self._accounts[symbol] = account
+    def set_account(self, symbol: str, exchange: str, account: Any) -> None:
+        """Set account/executor for an asset on a specific exchange."""
+        self._accounts[(symbol, exchange)] = account
 
     def set_block_entries(self, block: bool) -> None:
         """Set whether new entries are blocked."""
@@ -257,7 +292,7 @@ class MultiAssetAlphaManager:
         prices: Dict[str, float],
     ) -> List[MultiAssetSignal]:
         """
-        Evaluate all healthy assets concurrently.
+        Evaluate all healthy assets concurrently across all exchanges.
 
         Unhealthy assets are skipped until they recover after
         the disable timeout period.
@@ -266,40 +301,45 @@ class MultiAssetAlphaManager:
             prices: Dict of symbol -> current price
 
         Returns:
-            List of signals from all assets
+            List of signals from all assets/exchanges
         """
         # Update portfolio prices
         self._portfolio.update_prices(prices)
 
         # Only evaluate healthy assets
         healthy_symbols = self._health_tracker.get_healthy_symbols()
-        skipped = set(self._states.keys()) - set(healthy_symbols)
-        if skipped:
-            logger.debug(f"Skipping unhealthy assets: {skipped}")
 
-        # Evaluate healthy assets in parallel
+        # Evaluate all (symbol, exchange) pairs in parallel
         tasks = []
-        task_symbols = []
-        for symbol in healthy_symbols:
+        task_keys = []
+        for (symbol, exchange), state in self._states.items():
+            if symbol not in healthy_symbols:
+                continue
+
             # Check if this is a recovery attempt
             if self._health_tracker.check_recovery(symbol):
-                logger.info(f"[{symbol}] Attempting recovery evaluation")
+                logger.info(f"[{symbol}/{exchange}] Attempting recovery evaluation")
 
-            tasks.append(self._evaluate_asset(symbol, prices.get(symbol, 0)))
-            task_symbols.append(symbol)
+            tasks.append(self._evaluate_asset(symbol, exchange, prices.get(symbol, 0)))
+            task_keys.append((symbol, exchange))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Collect valid signals and track health
         signals = []
-        for symbol, result in zip(task_symbols, results):
+        for (symbol, exchange), result in zip(task_keys, results):
             if isinstance(result, Exception):
-                logger.error(f"[{symbol}] Evaluation error: {result}")
+                logger.error(f"[{symbol}/{exchange}] Evaluation error: {result}")
                 self._health_tracker.record_failure(symbol, result)
             elif result is not None:
+                if isinstance(result, list):
+                    for sig in result:
+                        signals.append(sig)
+                        self._signal_history.append(sig.to_dict())
+                else:
+                    signals.append(result)
+                    self._signal_history.append(result.to_dict())
                 self._health_tracker.record_success(symbol)
-                signals.append(result)
-                self._signal_history.append(result.to_dict())
             else:
                 # None result means no signal, but still healthy
                 self._health_tracker.record_success(symbol)
@@ -309,44 +349,44 @@ class MultiAssetAlphaManager:
     async def _evaluate_asset(
         self,
         symbol: str,
+        exchange: str,
         current_price: float,
     ) -> Optional[MultiAssetSignal]:
         """
-        Evaluate a single asset.
+        Evaluate a single asset on a specific exchange.
 
         Args:
             symbol: Asset symbol
+            exchange: Exchange ("upbit" or "binance")
             current_price: Current price
 
         Returns:
             Signal if action needed, None otherwise
         """
-        state = self._states.get(symbol)
+        state = self._states.get((symbol, exchange))
         if not state:
             return None
 
         state.current_price = current_price
         state.last_evaluation = current_timestamp()
 
-        # Get strategy and router
-        strategy = self._strategies.get(symbol)
+        # Get strategy for this symbol/exchange and router
+        strategy = self._strategies.get((symbol, exchange))
         router = self._regime_routers.get(symbol)
 
         if not strategy:
-            logger.debug(f"No strategy configured for {symbol}")
+            logger.debug(f"No strategy configured for {symbol}/{exchange}")
             return None
 
         try:
             # Get regime
             regime = "BULL"  # Default
             mfi_val, adx_val = None, None
-            upbit_strategy = None
             if router:
                 df_day = self._get_daily_df(symbol)
                 if df_day is not None and len(df_day) > 0:
                     decision = router.recommend(df_day)
                     regime = decision.regime
-                    upbit_strategy = decision.upbit_strategy
                     # Calculate MFI/ADX for logging
                     try:
                         mfi_series = ta.mfi(
@@ -367,29 +407,41 @@ class MultiAssetAlphaManager:
                 mfi_str = f"{mfi_val:.1f}" if mfi_val is not None else "N/A"
                 adx_str = f"{adx_val:.1f}" if adx_val is not None else "N/A"
                 logger.info(
-                    f"[{symbol}] Regime: {prev_regime} -> {regime} | "
-                    f"MFI: {mfi_str} | ADX: {adx_str} | "
-                    f"Strategy: {upbit_strategy or 'none'}"
+                    f"[{symbol}/{exchange}] Regime: {prev_regime} -> {regime} | "
+                    f"MFI: {mfi_str} | ADX: {adx_str}"
                 )
             state.regime = regime
 
+            # Get strategies config for this exchange
+            asset_cfg = self._config.get("assets", {}).get(symbol, {})
+            strategies_key = "upbit_strategies" if exchange == "upbit" else "binance_strategies"
+            strategies_cfg = asset_cfg.get(strategies_key, asset_cfg.get("strategies", {}))
+
             # Check if strategy is allowed in regime (unless bypassed)
             bypass_regime = self._config.get("bypass_regime_gating", False)
-            if not bypass_regime:
-                asset_config = self._portfolio.get_asset_config(symbol)
-                if asset_config:
-                    allowed_strategy = asset_config.strategies.get(regime)
-                    if not allowed_strategy:
-                        # No strategy for this regime - check for exit
-                        if state.active:
-                            return MultiAssetSignal(
-                                symbol=symbol,
-                                strategy=state.strategy or "none",
-                                action="sell",
-                                reason=f"REGIME_EXIT_{regime}",
-                                regime=regime,
-                            )
-                        return None
+            regime_key = regime.split("_")[0]  # e.g., "BEAR_STRONG" -> "BEAR"
+            allowed_strategy = strategies_cfg.get(regime_key) or strategies_cfg.get(regime)
+
+            if not bypass_regime and not allowed_strategy:
+                # No strategy for this regime - check for exit
+                if state.active:
+                    action = "sell" if state.direction == "long" else "close_short"
+                    return MultiAssetSignal(
+                        symbol=symbol,
+                        strategy=state.strategy or "none",
+                        action=action,
+                        reason=f"REGIME_EXIT_{regime}",
+                        regime=regime,
+                        exchange=exchange,
+                    )
+                return None
+
+            # Determine direction for Binance based on regime
+            if exchange == "binance":
+                if regime_key == "BEAR" and strategies_cfg.get("BEAR"):
+                    state.direction = "short"
+                else:
+                    state.direction = "long"
 
             # Get data for strategy
             df = self._get_daily_df(symbol)
@@ -399,7 +451,7 @@ class MultiAssetAlphaManager:
 
             # Run strategy evaluation in thread pool (strategies are sync)
             signal = await asyncio.to_thread(
-                self._run_strategy_sync, symbol, strategy, df, current_price, regime
+                self._run_strategy_sync, symbol, exchange, strategy, df, current_price, regime
             )
 
             if signal:
@@ -408,12 +460,13 @@ class MultiAssetAlphaManager:
             return signal
 
         except Exception as e:
-            logger.error(f"Error evaluating {symbol}: {e}")
+            logger.error(f"Error evaluating {symbol}/{exchange}: {e}")
             return None
 
     def _run_strategy_sync(
         self,
         symbol: str,
+        exchange: str,
         strategy: Any,
         df: Any,
         current_price: float,
@@ -447,7 +500,7 @@ class MultiAssetAlphaManager:
             score = raw_signal.get("score", "")
             tier = raw_signal.get("tier", "")
             logger.info(
-                f"[{symbol}] Signal: {action.upper()} | "
+                f"[{symbol}/{exchange}] Signal: {action.upper()} | "
                 f"Strategy: {strategy_name} | "
                 f"Reason: {reason} | "
                 f"MarketState: {market_state} | "
@@ -461,6 +514,7 @@ class MultiAssetAlphaManager:
                 fraction=raw_signal.get("fraction", 0.5),
                 reason=reason,
                 regime=regime,
+                exchange=exchange,
                 indicators={
                     "score": score,
                     "tier": tier,
@@ -468,7 +522,7 @@ class MultiAssetAlphaManager:
             )
 
         except Exception as e:
-            logger.error(f"Strategy execution error for {symbol}: {e}")
+            logger.error(f"Strategy execution error for {symbol}/{exchange}: {e}")
             return None
 
     def _get_daily_df(self, symbol: str):
@@ -512,45 +566,52 @@ class MultiAssetAlphaManager:
     ) -> Optional[Dict]:
         """Execute a single signal."""
         symbol = signal.symbol
-        state = self._states.get(symbol)
-        account = self._accounts.get(symbol)
+        exchange = signal.exchange
+        state = self._states.get((symbol, exchange))
+        account = self._accounts.get((symbol, exchange))
 
         if not state:
             return None
 
-        if signal.action == "buy" and not state.active:
-            return await self._execute_buy(symbol, signal, price, account)
-        elif signal.action == "sell" and state.active:
-            return await self._execute_sell(symbol, signal, price, account)
+        # Handle different action types based on exchange/direction
+        if signal.action in ("buy", "open_long") and not state.active:
+            return await self._execute_buy(symbol, exchange, signal, price, account)
+        elif signal.action in ("sell", "close_long") and state.active and state.direction == "long":
+            return await self._execute_sell(symbol, exchange, signal, price, account)
+        elif signal.action == "open_short" and not state.active:
+            return await self._execute_short(symbol, exchange, signal, price, account)
+        elif signal.action == "close_short" and state.active and state.direction == "short":
+            return await self._execute_close_short(symbol, exchange, signal, price, account)
 
         return None
 
     async def _execute_buy(
         self,
         symbol: str,
+        exchange: str,
         signal: MultiAssetSignal,
         price: float,
         account: Optional[Any],
     ) -> Optional[Dict]:
-        """Execute buy for an asset."""
+        """Execute buy (long) for an asset."""
         if self._block_new_entries:
-            logger.info(f"[{symbol}] Entry blocked by risk guard")
+            logger.info(f"[{symbol}/{exchange}] Entry blocked by risk guard")
             return None
 
-        state = self._states[symbol]
+        state = self._states[(symbol, exchange)]
         available_capital = self._portfolio.get_available_capital(symbol)
         buy_amount = available_capital * min(signal.fraction, 0.9)
 
-        min_order = 10000  # 10,000 KRW minimum
+        min_order = 10000 if exchange == "upbit" else 10  # KRW or USDT
         if buy_amount < min_order:
-            logger.info(f"[{symbol}] Buy amount too small: {buy_amount:,.0f}")
+            logger.info(f"[{symbol}/{exchange}] Buy amount too small: {buy_amount:,.0f}")
             return None
 
         try:
             if self._execution_mode == "live" and account:
                 result = account.buy(buy_amount, price)
                 if not result or not result.get("success"):
-                    logger.error(f"[{symbol}] Buy failed: {result}")
+                    logger.error(f"[{symbol}/{exchange}] Buy failed: {result}")
                     return None
                 qty = float(result.get("executed_volume", 0))
                 actual_price = float(result.get("executed_price", price))
@@ -566,25 +627,30 @@ class MultiAssetAlphaManager:
             state.entry_price = actual_price
             state.current_price = actual_price
             state.strategy = signal.strategy
+            state.direction = "long"
 
-            # Update portfolio
-            self._portfolio.update_position(
-                symbol, qty, actual_price, actual_price, signal.strategy
-            )
-            self._portfolio.adjust_cash(-buy_amount)
+            # Update portfolio (only for upbit)
+            if exchange == "upbit":
+                self._portfolio.update_position(
+                    symbol, qty, actual_price, actual_price, signal.strategy
+                )
+                self._portfolio.adjust_cash(-buy_amount)
 
             trade = {
                 "timestamp": datetime.now().isoformat(),
                 "symbol": symbol,
+                "exchange": exchange,
                 "type": "buy",
+                "direction": "long",
                 "price": actual_price,
                 "quantity": qty,
-                "amount_krw": buy_amount,
+                "amount": buy_amount,
                 "reason": signal.reason,
                 "strategy": signal.strategy,
             }
 
-            msg = f"🟢 [{symbol}] BUY {qty:.6f} @ {actual_price:,.0f}"
+            currency = "KRW" if exchange == "upbit" else "USDT"
+            msg = f"🟢 [{symbol}/{exchange}] BUY {qty:.6f} @ {actual_price:,.0f} {currency}"
             logger.info(msg)
             self._notify(msg)
 
@@ -594,18 +660,19 @@ class MultiAssetAlphaManager:
             return trade
 
         except Exception as e:
-            logger.error(f"[{symbol}] Buy execution failed: {e}")
+            logger.error(f"[{symbol}/{exchange}] Buy execution failed: {e}")
             return None
 
     async def _execute_sell(
         self,
         symbol: str,
+        exchange: str,
         signal: MultiAssetSignal,
         price: float,
         account: Optional[Any],
     ) -> Optional[Dict]:
-        """Execute sell for an asset."""
-        state = self._states[symbol]
+        """Execute sell (close long) for an asset."""
+        state = self._states[(symbol, exchange)]
 
         if state.quantity <= 0:
             return None
@@ -614,7 +681,7 @@ class MultiAssetAlphaManager:
             if self._execution_mode == "live" and account:
                 result = account.sell(state.quantity, price)
                 if not result or not result.get("success"):
-                    logger.error(f"[{symbol}] Sell failed: {result}")
+                    logger.error(f"[{symbol}/{exchange}] Sell failed: {result}")
                     return None
                 actual_price = float(result.get("executed_price", price))
                 proceeds = float(result.get("executed_value", state.quantity * price))
@@ -636,24 +703,28 @@ class MultiAssetAlphaManager:
             state.entry_price = 0.0
             state.strategy = None
 
-            # Update portfolio
-            self._portfolio.update_position(symbol, 0, 0, actual_price, None)
-            self._portfolio.adjust_cash(proceeds)
+            # Update portfolio (only for upbit)
+            if exchange == "upbit":
+                self._portfolio.update_position(symbol, 0, 0, actual_price, None)
+                self._portfolio.adjust_cash(proceeds)
 
             trade = {
                 "timestamp": datetime.now().isoformat(),
                 "symbol": symbol,
+                "exchange": exchange,
                 "type": "sell",
+                "direction": "long",
                 "price": actual_price,
                 "quantity": sold_qty,
-                "proceeds_krw": proceeds,
+                "proceeds": proceeds,
                 "pnl": pnl,
                 "pnl_pct": pnl_pct,
                 "reason": signal.reason,
                 "strategy": signal.strategy,
             }
 
-            msg = f"🔴 [{symbol}] SELL @ {actual_price:,.0f} | PnL: {pnl:+,.0f} ({pnl_pct:+.2f}%)"
+            currency = "KRW" if exchange == "upbit" else "USDT"
+            msg = f"🔴 [{symbol}/{exchange}] SELL @ {actual_price:,.0f} {currency} | PnL: {pnl:+,.0f} ({pnl_pct:+.2f}%)"
             logger.info(msg)
             self._notify(msg)
 
@@ -663,7 +734,154 @@ class MultiAssetAlphaManager:
             return trade
 
         except Exception as e:
-            logger.error(f"[{symbol}] Sell execution failed: {e}")
+            logger.error(f"[{symbol}/{exchange}] Sell execution failed: {e}")
+            return None
+
+    async def _execute_short(
+        self,
+        symbol: str,
+        exchange: str,
+        signal: MultiAssetSignal,
+        price: float,
+        account: Optional[Any],
+    ) -> Optional[Dict]:
+        """Execute open short for Binance futures."""
+        if self._block_new_entries:
+            logger.info(f"[{symbol}/{exchange}] Entry blocked by risk guard")
+            return None
+
+        state = self._states[(symbol, exchange)]
+
+        # Get Binance capital from config
+        capital_cfg = self._config.get("capital", {})
+        binance_capital = capital_cfg.get("binance_usdt", 5000)
+        asset_cfg = self._config.get("assets", {}).get(symbol, {})
+        alpha_ratio = asset_cfg.get("alpha_ratio", 0.3)
+        leverage = state.leverage or asset_cfg.get("binance_leverage", 3)
+
+        available_capital = binance_capital * alpha_ratio
+        position_size = available_capital * min(signal.fraction, 0.9) * leverage
+
+        min_order = 10  # 10 USDT minimum
+        if position_size < min_order:
+            logger.info(f"[{symbol}/{exchange}] Short size too small: ${position_size:.2f}")
+            return None
+
+        try:
+            if self._execution_mode == "live" and account:
+                result = account.open_short(position_size, price, leverage)
+                if not result or not result.get("success"):
+                    logger.error(f"[{symbol}/{exchange}] Short failed: {result}")
+                    return None
+                qty = float(result.get("executed_volume", 0))
+                actual_price = float(result.get("executed_price", price))
+            else:
+                # Paper mode
+                fee_rate = 0.0004  # Binance futures fee
+                qty = (position_size * (1 - fee_rate)) / price
+                actual_price = price
+
+            # Update state
+            state.active = True
+            state.quantity = qty
+            state.entry_price = actual_price
+            state.current_price = actual_price
+            state.strategy = signal.strategy
+            state.direction = "short"
+            state.leverage = leverage
+
+            trade = {
+                "timestamp": datetime.now().isoformat(),
+                "symbol": symbol,
+                "exchange": exchange,
+                "type": "open_short",
+                "direction": "short",
+                "price": actual_price,
+                "quantity": qty,
+                "notional": position_size,
+                "leverage": leverage,
+                "reason": signal.reason,
+                "strategy": signal.strategy,
+            }
+
+            msg = f"🔻 [{symbol}/{exchange}] SHORT {qty:.6f} @ ${actual_price:,.2f} ({leverage}x)"
+            logger.info(msg)
+            self._notify(msg)
+
+            # Persist state after successful trade
+            self._save_state()
+
+            return trade
+
+        except Exception as e:
+            logger.error(f"[{symbol}/{exchange}] Short execution failed: {e}")
+            return None
+
+    async def _execute_close_short(
+        self,
+        symbol: str,
+        exchange: str,
+        signal: MultiAssetSignal,
+        price: float,
+        account: Optional[Any],
+    ) -> Optional[Dict]:
+        """Execute close short for Binance futures."""
+        state = self._states[(symbol, exchange)]
+
+        if state.quantity <= 0:
+            return None
+
+        try:
+            if self._execution_mode == "live" and account:
+                result = account.close_short(state.quantity, price)
+                if not result or not result.get("success"):
+                    logger.error(f"[{symbol}/{exchange}] Close short failed: {result}")
+                    return None
+                actual_price = float(result.get("executed_price", price))
+            else:
+                # Paper mode
+                actual_price = price
+
+            # Calculate P&L (short: profit when price goes down)
+            pnl = (state.entry_price - actual_price) * state.quantity
+            pnl_pct = ((state.entry_price - actual_price) / state.entry_price) * 100 if state.entry_price > 0 else 0
+
+            closed_qty = state.quantity
+            leverage = state.leverage
+
+            # Clear state
+            state.active = False
+            state.quantity = 0.0
+            state.entry_price = 0.0
+            state.strategy = None
+            state.direction = "long"  # Reset to default
+
+            trade = {
+                "timestamp": datetime.now().isoformat(),
+                "symbol": symbol,
+                "exchange": exchange,
+                "type": "close_short",
+                "direction": "short",
+                "price": actual_price,
+                "quantity": closed_qty,
+                "pnl": pnl,
+                "pnl_pct": pnl_pct,
+                "leverage": leverage,
+                "reason": signal.reason,
+                "strategy": signal.strategy,
+            }
+
+            msg = f"🔺 [{symbol}/{exchange}] CLOSE SHORT @ ${actual_price:,.2f} | PnL: ${pnl:+,.2f} ({pnl_pct:+.2f}%)"
+            logger.info(msg)
+            self._notify(msg)
+
+            # Persist state after successful trade
+            self._save_state()
+
+            return trade
+
+        except Exception as e:
+            logger.error(f"[{symbol}/{exchange}] Close short execution failed: {e}")
             return None
 
     def _notify(self, message: str) -> None:
@@ -674,13 +892,21 @@ class MultiAssetAlphaManager:
             except Exception as e:
                 logger.warning(f"Telegram notification failed: {e}")
 
-    def get_state(self, symbol: str) -> Optional[AssetState]:
-        """Get state for a specific asset."""
-        return self._states.get(symbol)
+    def get_state(self, symbol: str, exchange: str = "upbit") -> Optional[AssetState]:
+        """Get state for a specific asset/exchange."""
+        return self._states.get((symbol, exchange))
 
-    def get_all_states(self) -> Dict[str, AssetState]:
-        """Get all asset states."""
+    def get_all_states(self) -> Dict[tuple, AssetState]:
+        """Get all asset states keyed by (symbol, exchange)."""
         return self._states.copy()
+
+    def get_states_by_symbol(self, symbol: str) -> Dict[str, AssetState]:
+        """Get all states for a symbol across exchanges."""
+        return {
+            exchange: state
+            for (sym, exchange), state in self._states.items()
+            if sym == symbol
+        }
 
     def get_total_exposure(self) -> float:
         """Get total exposure across all assets (in asset units * price)."""
@@ -690,25 +916,26 @@ class MultiAssetAlphaManager:
             if s.active
         )
 
-    def get_exposure_by_symbol(self, symbol: str) -> float:
-        """Get exposure for a specific symbol."""
-        state = self._states.get(symbol)
+    def get_exposure_by_symbol(self, symbol: str, exchange: str = "upbit") -> float:
+        """Get exposure for a specific symbol on an exchange."""
+        state = self._states.get((symbol, exchange))
         if state and state.active:
             return state.quantity
         return 0.0
 
-    def get_long_exposure_krw(self, symbol: str = "BTC") -> float:
+    def get_long_exposure_krw(self, symbol: str = "BTC", exchange: str = "upbit") -> float:
         """
         Get long exposure value in KRW for hedge sizing.
 
         Args:
             symbol: Asset symbol (default BTC)
+            exchange: Exchange name (default upbit)
 
         Returns:
             Position value in KRW (quantity * current_price)
         """
-        state = self._states.get(symbol)
-        if state and state.active and state.quantity > 0:
+        state = self._states.get((symbol, exchange))
+        if state and state.active and state.direction == "long" and state.quantity > 0:
             return state.quantity * state.current_price
         return 0.0
 
@@ -719,10 +946,11 @@ class MultiAssetAlphaManager:
         Returns:
             Total position value in KRW
         """
-        return sum(
-            self.get_long_exposure_krw(symbol)
-            for symbol in self._states.keys()
-        )
+        total = 0.0
+        for (symbol, exchange), state in self._states.items():
+            if state.active and state.direction == "long" and state.quantity > 0:
+                total += state.quantity * state.current_price
+        return total
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get trading statistics."""
@@ -759,18 +987,23 @@ class MultiAssetAlphaManager:
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize for logging."""
+        assets = {}
+        for (symbol, exchange), state in self._states.items():
+            key = f"{symbol}_{exchange}"
+            assets[key] = {
+                "symbol": symbol,
+                "exchange": exchange,
+                "active": state.active,
+                "quantity": state.quantity,
+                "entry_price": state.entry_price,
+                "current_price": state.current_price,
+                "regime": state.regime,
+                "strategy": state.strategy,
+                "direction": state.direction,
+                "leverage": state.leverage,
+            }
         return {
-            "assets": {
-                symbol: {
-                    "active": state.active,
-                    "quantity": state.quantity,
-                    "entry_price": state.entry_price,
-                    "current_price": state.current_price,
-                    "regime": state.regime,
-                    "strategy": state.strategy,
-                }
-                for symbol, state in self._states.items()
-            },
+            "assets": assets,
             "statistics": self.get_statistics(),
             "portfolio": self._portfolio.get_stats(),
             "health": self._health_tracker.get_summary(),

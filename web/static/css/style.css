@@ -398,6 +398,80 @@ header h1 {
     background: rgba(46, 204, 113, 0.1);
 }
 
+/* Exchange-specific asset card styles */
+.asset-card.exchange-upbit {
+    border-left-color: #3498db;
+}
+
+.asset-card.exchange-binance {
+    border-left-color: #f0b90b;
+}
+
+.asset-card.exchange-upbit.regime-bull {
+    border-left: 4px solid #2ecc71;
+    border-right: 2px solid #3498db;
+}
+
+.asset-card.exchange-binance.regime-bull {
+    border-left: 4px solid #2ecc71;
+    border-right: 2px solid #f0b90b;
+}
+
+.asset-card.exchange-upbit.regime-bear {
+    border-left: 4px solid #e74c3c;
+    border-right: 2px solid #3498db;
+}
+
+.asset-card.exchange-binance.regime-bear {
+    border-left: 4px solid #e74c3c;
+    border-right: 2px solid #f0b90b;
+}
+
+.asset-card.exchange-upbit.regime-sideways {
+    border-left: 4px solid #f1c40f;
+    border-right: 2px solid #3498db;
+}
+
+.asset-card.exchange-binance.regime-sideways {
+    border-left: 4px solid #f1c40f;
+    border-right: 2px solid #f0b90b;
+}
+
+/* Exchange badge in header */
+.asset-exchange {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.exchange-upbit .asset-exchange {
+    background: rgba(52, 152, 219, 0.2);
+    color: #3498db;
+    border: 1px solid #3498db;
+}
+
+.exchange-binance .asset-exchange {
+    background: rgba(240, 185, 11, 0.2);
+    color: #f0b90b;
+    border: 1px solid #f0b90b;
+}
+
+/* Direction indicators for position */
+.direction-long {
+    color: #2ecc71 !important;
+}
+
+.direction-short {
+    color: #e74c3c !important;
+}
+
+/* Short position card styling */
+.asset-card.exchange-binance.has-position .direction-short {
+    background: rgba(231, 76, 60, 0.15);
+}
+
 .asset-header {
     display: flex;
     align-items: center;

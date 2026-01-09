@@ -104,7 +104,11 @@ class MultiAssetTradingEngine:
     def _get_enabled_symbols(self) -> List[str]:
         """Get list of enabled symbols from config."""
         assets = self.allocation_config.get("assets", {})
-        return [sym for sym, cfg in assets.items() if cfg.get("enabled", False)]
+        # Check if any exchange is enabled for this symbol
+        return [
+            sym for sym, cfg in assets.items()
+            if cfg.get("upbit_enabled", False) or cfg.get("binance_enabled", False)
+        ]
 
     def _init_components(self) -> None:
         """Initialize all multi-asset components."""
@@ -147,38 +151,73 @@ class MultiAssetTradingEngine:
         """Load strategies, create accounts, and wire up all components."""
         import json as json_module
 
+        # Get capital config
+        capital_cfg = self.allocation_config.get("capital", {})
+        upbit_capital = capital_cfg.get("upbit_krw", self.config.total_capital_krw)
+        binance_capital = capital_cfg.get("binance_usdt", self.config.binance_capital_usdt)
+
         for symbol in self._symbols:
             asset_cfg = self.allocation_config["assets"].get(symbol, {})
+            alpha_ratio = asset_cfg.get("alpha_ratio", 0.3)
 
-            # 1. Create paper account for this symbol (Upbit spot long)
-            upbit_account = PaperTradingAccount(
-                initial_capital=self.config.total_capital_krw * asset_cfg.get("alpha_ratio", 0.3),
-                exchange="upbit"
-            )
-            self.alpha_manager.set_account(symbol, upbit_account)
-
-            # 2. Create regime router for this symbol
+            # Create regime router for this symbol (shared across exchanges)
             router = RegimeRouter()
             self.alpha_manager.set_regime_router(symbol, router)
 
-            # 3. Load strategy based on config
-            strategy = self._load_strategy_for_asset(symbol, asset_cfg)
-            if strategy:
-                self.alpha_manager.set_strategy(symbol, strategy)
-                logger.info(f"[{symbol}] Strategy loaded: {type(strategy).__name__}")
-            else:
-                logger.warning(f"[{symbol}] No strategy loaded")
+            # Setup Upbit (if enabled)
+            if asset_cfg.get("upbit_enabled", True):  # Default True for backward compat
+                upbit_account = PaperTradingAccount(
+                    initial_capital=upbit_capital * alpha_ratio,
+                    exchange="upbit"
+                )
+                self.alpha_manager.set_account(symbol, "upbit", upbit_account)
 
-    def _load_strategy_for_asset(self, symbol: str, asset_cfg: Dict) -> Optional[Any]:
-        """Load the appropriate strategy for an asset based on config."""
-        strategies_cfg = asset_cfg.get("strategies", {})
+                upbit_strategy = self._load_strategy_for_exchange(symbol, asset_cfg, "upbit")
+                if upbit_strategy:
+                    self.alpha_manager.set_strategy(symbol, "upbit", upbit_strategy)
+                    logger.info(f"[{symbol}/upbit] Strategy loaded: {type(upbit_strategy).__name__}")
+
+            # Setup Binance (if enabled)
+            if asset_cfg.get("binance_enabled", False):
+                binance_account = PaperTradingAccount(
+                    initial_capital=binance_capital * alpha_ratio,
+                    exchange="binance"
+                )
+                self.alpha_manager.set_account(symbol, "binance", binance_account)
+
+                binance_strategy = self._load_strategy_for_exchange(symbol, asset_cfg, "binance")
+                if binance_strategy:
+                    self.alpha_manager.set_strategy(symbol, "binance", binance_strategy)
+                    logger.info(f"[{symbol}/binance] Strategy loaded: {type(binance_strategy).__name__}")
+
+    def _load_strategy_for_exchange(self, symbol: str, asset_cfg: Dict, exchange: str) -> Optional[Any]:
+        """Load the appropriate strategy for an asset on a specific exchange."""
+        # Get strategies config for this exchange
+        if exchange == "upbit":
+            strategies_cfg = asset_cfg.get("upbit_strategies", asset_cfg.get("strategies", {}))
+        else:
+            strategies_cfg = asset_cfg.get("binance_strategies", {})
+
         strategy_configs = asset_cfg.get("strategy_configs", {})
         params_override = asset_cfg.get("params_override", {})
 
-        # For now, load the BULL strategy as the main strategy
-        # The regime router will determine when to use it
+        # Load primary strategy for this exchange
+        # Priority: BULL strategy for long positions, then BEAR for short-only setups
         bull_strategy = strategies_cfg.get("BULL")
+        bear_strategy = strategies_cfg.get("BEAR")
 
+        # For Binance: prefer BULL strategy (v35) if available, else BEAR strategy
+        if exchange == "binance":
+            if bull_strategy and bull_strategy.startswith("v35"):
+                # Load v35 for Binance long positions
+                config_file = strategy_configs.get(bull_strategy)
+                return self._load_v35_strategy(params_override, config_file, symbol)
+            elif bear_strategy == "short_v1":
+                # Fallback to short strategy if no BULL strategy
+                return self._load_short_v1_strategy(params_override, symbol)
+            return None
+
+        # For Upbit: load BULL strategy
         if not bull_strategy:
             return None
 
@@ -223,6 +262,15 @@ class MultiAssetTradingEngine:
             return SideWaysV2Strategy()
         except Exception as e:
             logger.warning(f"Failed to load SideWays_v2: {e}")
+        return None
+
+    def _load_short_v1_strategy(self, params_override: Dict, symbol: str = "BTC") -> Optional[Any]:
+        """Load Short V1 Strategy for Binance futures."""
+        try:
+            from .strategy.short_v1 import ShortV1Strategy
+            return ShortV1Strategy(strategy_config=params_override)
+        except Exception as e:
+            logger.warning(f"[{symbol}] Failed to load Short_v1: {e}")
         return None
 
     async def start(self) -> None:
@@ -450,20 +498,40 @@ class MultiAssetTradingEngine:
             print(f"{'='*70}")
 
             for symbol in self._symbols:
-                state = self.alpha_manager.get_state(symbol)
+                asset_cfg = self.allocation_config["assets"].get(symbol, {})
                 regime = self._regime_cache.get(symbol, "UNKNOWN")
 
                 upbit_price = self.price_hub.get_price(symbol, "upbit") or 0
                 binance_price = self.price_hub.get_price(symbol, "binance") or 0
 
-                print(f"\n[{symbol}]")
-                print(f"  Regime: {regime}")
-                print(f"  Upbit: {upbit_price:,.0f} | Binance: ${binance_price:,.2f}")
-                if state:
-                    pos_str = "🟢 Active" if state.active else "⚪ None"
-                    print(f"  Position: {pos_str}")
-                    if state.active:
-                        print(f"  Qty: {state.quantity:.6f} @ {state.entry_price:,.0f}")
+                print(f"\n[{symbol}] Regime: {regime}")
+                print(f"  Prices: Upbit {upbit_price:,.0f} | Binance ${binance_price:,.2f}")
+
+                # Upbit state
+                if asset_cfg.get("upbit_enabled", True):
+                    upbit_state = self.alpha_manager.get_state(symbol, "upbit")
+                    if upbit_state:
+                        pos_str = "🟢 LONG" if upbit_state.active else "⚪ None"
+                        print(f"  Upbit: {pos_str}", end="")
+                        if upbit_state.active:
+                            print(f" | {upbit_state.quantity:.6f} @ {upbit_state.entry_price:,.0f}")
+                        else:
+                            print()
+
+                # Binance state
+                if asset_cfg.get("binance_enabled", False):
+                    binance_state = self.alpha_manager.get_state(symbol, "binance")
+                    if binance_state:
+                        if binance_state.active:
+                            dir_emoji = "🔻" if binance_state.direction == "short" else "🟢"
+                            pos_str = f"{dir_emoji} {binance_state.direction.upper()}"
+                        else:
+                            pos_str = "⚪ None"
+                        print(f"  Binance: {pos_str}", end="")
+                        if binance_state.active:
+                            print(f" | {binance_state.quantity:.6f} @ ${binance_state.entry_price:,.2f} ({binance_state.leverage}x)")
+                        else:
+                            print()
 
             # Portfolio summary
             portfolio_state = self.portfolio.get_portfolio_state()
@@ -488,14 +556,29 @@ class MultiAssetTradingEngine:
             }
 
             for symbol in self._symbols:
-                state = self.alpha_manager.get_state(symbol)
+                asset_cfg = self.allocation_config["assets"].get(symbol, {})
+                regime = self._regime_cache.get(symbol)
+
+                # Get states for both exchanges
+                upbit_state = self.alpha_manager.get_state(symbol, "upbit")
+                binance_state = self.alpha_manager.get_state(symbol, "binance")
 
                 status["assets"][symbol] = {
-                    "regime": self._regime_cache.get(symbol),
+                    "regime": regime,
                     "upbit_price": self.price_hub.get_price(symbol, "upbit"),
                     "binance_price": self.price_hub.get_price(symbol, "binance"),
-                    "position_active": state.active if state else False,
-                    "position_qty": state.quantity if state else 0,
+                    # Upbit state
+                    "upbit_enabled": asset_cfg.get("upbit_enabled", True),
+                    "upbit_position_active": upbit_state.active if upbit_state else False,
+                    "upbit_position_qty": upbit_state.quantity if upbit_state else 0,
+                    "upbit_strategy": upbit_state.strategy if upbit_state else None,
+                    # Binance state
+                    "binance_enabled": asset_cfg.get("binance_enabled", False),
+                    "binance_position_active": binance_state.active if binance_state else False,
+                    "binance_position_qty": binance_state.quantity if binance_state else 0,
+                    "binance_direction": binance_state.direction if binance_state else "long",
+                    "binance_strategy": binance_state.strategy if binance_state else None,
+                    "binance_leverage": binance_state.leverage if binance_state else 1,
                 }
 
             status["portfolio"] = self.portfolio.get_stats()

@@ -177,6 +177,8 @@ pip install -r requirements.txt
 - SQLite (`trading_results.db` for trades, new table for reports) (001-daily-backtest-comparison)
 - Python 3.9+ with type hints + Flask, Jinja2, vanilla JavaScript (existing stack) (001-dashboard-upgrade)
 - SQLite (`data/*.db` for market data), JSON files (`logs/*.json` for trading logs) (001-dashboard-upgrade)
+- Python 3.10+ with type hints + pandas, numpy, talib (via trading.indicators.technical) (001-improve-short-v1)
+- SQLite (data/*.db for market data), JSON (config/strategies/*.json) (001-improve-short-v1)
 
 ## Recent Changes
 - 001-daily-backtest-comparison: Added Python 3.10+ with type hints + pandas, sqlite3, existing Backtester class, TelegramNotifier

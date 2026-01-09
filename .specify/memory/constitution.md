@@ -1,18 +1,23 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 0.0.0 → 1.0.0 (MAJOR - initial adoption)
+Version change: 0.0.0 → 1.0.0 (MAJOR: Initial constitution adoption)
+
 Modified principles: N/A (initial version)
+
 Added sections:
-  - Core Principles (5 principles)
-  - Development Constraints
-  - Quality Gates
-  - Governance
-Removed sections: N/A
+- Core Principles (5 principles)
+- Trading Constraints
+- Development Workflow
+- Governance
+
+Removed sections: N/A (initial version)
+
 Templates requiring updates:
-  - .specify/templates/plan-template.md ✅ (Constitution Check section already present)
-  - .specify/templates/spec-template.md ✅ (Requirements section compatible)
-  - .specify/templates/tasks-template.md ✅ (Checkpoint structure compatible)
+- .specify/templates/plan-template.md ✅ Compatible (Constitution Check section exists)
+- .specify/templates/spec-template.md ✅ Compatible (requirements structure aligns)
+- .specify/templates/tasks-template.md ✅ Compatible (phased approach aligns)
+
 Follow-up TODOs: None
 -->
 
@@ -20,136 +25,103 @@ Follow-up TODOs: None
 
 ## Core Principles
 
-### I. Git-First Development (NON-NEGOTIABLE)
+### I. Backtesting-First Development
 
-All code changes MUST flow through git version control with proper branch management:
-
-- New features MUST be developed on feature branches (`feature/{name}`)
-- Direct commits to `main` are PROHIBITED for new features
-- Deployment MUST use `git pull` only—SSH/rsync bulk transfers are PROHIBITED
-- Every feature requires a PR before merging to main
-
-**Rationale**: Enforces traceability, enables code review, and prevents deployment drift between environments.
-
-### II. Backtesting-Validated Strategies
-
-Every trading strategy MUST pass rigorous backtesting before live deployment:
+Every strategy MUST be validated through backtesting before deployment.
 
 - **Training period**: 2020-01-01 to 2024-12-31
 - **Validation period**: 2025-01-01 to present (out-of-sample)
-- **Success criteria**:
-  - OOS return ≥ 15%
-  - Sharpe ratio ≥ 1.5
-  - Maximum drawdown ≤ 20%
+- **Success criteria**: OOS return ≥15%, Sharpe ratio ≥1.5, Maximum drawdown ≤20%
+- All strategy changes require backtesting validation before PR merge
 
-Strategies failing validation MUST NOT be deployed to live trading.
+**Rationale**: Historical validation prevents deploying untested strategies to live markets where real capital is at risk.
 
-**Rationale**: Prevents deploying strategies that only work on historical data (overfitting) and ensures statistical robustness.
+### II. Git-Based Development Workflow
 
-### III. Fee-Aware Position Sizing
+All code changes MUST follow the branch-and-PR workflow.
 
-All strategies MUST account for real trading costs:
+- New features require feature branches: `feature/{name}`
+- Direct commits to main are prohibited
+- Deployment happens only via `git pull` on target servers
+- SSH/rsync bulk transfers and direct file uploads are prohibited
 
-- **Cost per trade**: 0.05% (entry) + 0.05% (exit) + 0.04% (slippage) = **0.14% total**
-- **Minimum profit target**: 1.4% (10× fees)
-- Split trading (multiple small trades) is PROHIBITED due to fee multiplication
+**Rationale**: Version control discipline ensures traceability, enables rollback, and prevents deployment of untested code.
 
-**Rationale**: Many strategies appear profitable in backtests but fail live due to underestimated transaction costs.
+### III. Risk-Aware Trading Design
 
-### IV. Regime-Aware Trading
+All strategies MUST account for real-world trading costs and risk limits.
 
-Strategies MUST respect market regime classification:
+- **Fee calculation**: Entry (0.05%) + Exit (0.05%) + Slippage (0.04%) = 0.14% per trade
+- **Minimum profit target**: 1.4% (10x fees) to ensure profitability
+- **Daily loss limit**: 5% maximum
+- Kill-switch capability MUST be maintained for emergency stops
+- Prefer larger, less frequent trades over many small trades
 
-- **BULL regime**: Long strategies only (v35_long on Upbit)
-- **SIDEWAYS regime**: Sideways strategies (sideways_v2, h4_conservative)
-- **BEAR regime**: Short strategies only (short_v1, h4_short on Binance)
+**Rationale**: Transaction costs compound rapidly; strategies that ignore fees appear profitable in backtests but fail in production.
 
-Trading against the classified regime is PROHIBITED without explicit override.
+### IV. Reactive Strategies Only
 
-**Rationale**: Different market conditions require fundamentally different approaches; trend-following fails in ranging markets and vice versa.
+Strategies MUST follow market momentum, not predict reversals.
 
-### V. Simplicity Over Complexity
+- **Allowed**: Momentum-following, trend-continuation, breakout strategies
+- **Prohibited**: Mean-reversion, RSI-based reversal predictions, counter-trend entries
+- Simple conditions only (2-3 maximum per strategy)
+- Use minute60+ timeframes to reduce noise and fees
 
-Strategy design MUST favor simplicity:
+**Rationale**: Predictive strategies underperform in crypto markets; reactive approaches align with proven momentum effects.
 
-**DO**:
-- Reactive strategies (momentum-following)
-- Simple conditions (2-3 max)
-- Market filtering (trade aligned with regime)
-- Large targets (1.5%+ to overcome fees)
-- Timeframes of minute60 or higher
+### V. Simplicity and Anti-Over-Optimization
 
-**DO NOT**:
-- Predictive strategies (e.g., RSI < 30 → buy)
-- Complex indicator combinations (3+ indicators)
-- Over-optimization (overfitting to historical data)
-- Day-level active trading
+Strategies MUST remain simple and avoid overfitting.
 
-**Rationale**: Complex strategies overfit to noise; simple, robust strategies generalize better to unseen market conditions.
+- Maximum 3 indicators per strategy
+- No complex indicator combinations (3+ indicators prohibited)
+- Avoid parameter optimization beyond essential values
+- Market regime filtering preferred (trade BULL conditions only)
+- Split trading (fee explosion) is prohibited
 
-## Development Constraints
+**Rationale**: Overfitted strategies perform well in backtests but fail out-of-sample; simplicity improves robustness.
 
-### Strategy Development Workflow
+## Trading Constraints
 
-1. Create design plan: `docs/plans/{DATE}-{name}-design.md`
-2. Wait for user approval before implementation
-3. Create feature branch: `git checkout -b feature/{strategy-name}`
-4. Implement in `trading/strategy/{name}.py`
-5. Add configuration in `config/strategies/{name}.json`
-6. Run backtesting with training/validation split
-7. Document results with metrics
-8. Create PR and merge after review
+Technical and operational boundaries for all trading activities:
 
-### Technology Stack
+- **Upbit**: Spot trading only (v35 for BULL, sideways_v2 for SIDEWAYS regimes)
+- **Binance**: Futures short positions only (SHORT_V1 for BEAR_STRONG regime)
+- **RegimeRouter**: Market classification via MFI and ADX indicators
+- **Paper trading**: Default mode; live trading requires explicit `ENABLE_LIVE_TRADING=1`
+- **Notifications**: All critical events MUST be sent via Telegram
 
-- **Language**: Python 3.x with type hints
-- **Data**: SQLite databases (`data/*.db`)
-- **Configuration**: JSON files in `config/`
-- **Testing**: pytest
-- **Dependencies**: TA-Lib for technical indicators
+## Development Workflow
 
-### Prohibited Practices
+Required process for strategy and feature development:
 
-- Committing API keys or secrets (use `.env`)
-- Running untested strategies in live mode
-- Bypassing the kill-switch during active positions
-- Modifying production data databases directly
-
-## Quality Gates
-
-### Pre-Merge Checklist
-
-- [ ] All tests pass (`pytest`)
-- [ ] Backtesting results documented
-- [ ] OOS metrics meet thresholds (if strategy change)
-- [ ] No secrets in committed files
-- [ ] Feature branch used (not direct to main)
-
-### Pre-Live Checklist
-
-- [ ] Paper trading validates expected behavior
-- [ ] Risk controls configured (daily loss limit, kill-switch)
-- [ ] Telegram notifications working
-- [ ] Deployment via `git pull` only
+1. **Planning**: Create design document at `docs/plans/{DATE}-{name}-design.md`
+2. **Approval**: Wait for explicit user approval before implementation
+3. **Branching**: Create feature branch `feature/{strategy-name}`
+4. **Implementation**: Strategy in `trading/strategy/{name}.py`, config in `config/strategies/{name}.json`
+5. **Validation**: Run backtesting with standard training/validation periods
+6. **Documentation**: Document results and rationale
+7. **Review**: Create PR for code review and merge
 
 ## Governance
 
-This constitution supersedes all other development practices for the Bitcoin Trading Bot project.
+This constitution establishes the foundational rules for the Bitcoin Trading Bot project.
 
-### Amendment Process
-
-1. Propose changes via PR to this file
-2. Document rationale for changes
-3. Increment version appropriately:
-   - **MAJOR**: Principle removal or fundamental redefinition
-   - **MINOR**: New principle or material expansion
-   - **PATCH**: Clarification or typo fixes
-4. Update dependent templates if principles change
-
-### Compliance
-
+- This constitution supersedes all other development practices
 - All PRs MUST verify compliance with these principles
-- Complexity beyond these guidelines MUST be explicitly justified
-- Runtime development guidance is in `CLAUDE.md`
+- Complexity beyond these guidelines MUST be justified in writing
+- The CLAUDE.md file provides runtime development guidance
 
-**Version**: 1.0.0 | **Ratified**: 2025-01-09 | **Last Amended**: 2025-01-09
+**Amendment procedure**:
+1. Propose changes with rationale
+2. Document impact on existing strategies
+3. Update version according to semantic versioning
+4. Update dependent documentation
+
+**Version policy**:
+- MAJOR: Principle removal or backward-incompatible changes
+- MINOR: New principles or material expansions
+- PATCH: Clarifications and non-semantic refinements
+
+**Version**: 1.0.0 | **Ratified**: 2026-01-09 | **Last Amended**: 2026-01-09

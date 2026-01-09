@@ -121,6 +121,12 @@ def run_backtest(job: BacktestJob) -> None:
             # Import here to avoid circular imports
             from core.backtester import Backtester
             from core.data_loader import DataLoader
+            from scripts.backtest_strategies import (
+                V35StrategyAdapter,
+                ShortV1StrategyAdapter,
+                SideWaysV2StrategyAdapter,
+                RegimeRouterLiveAdapter,
+            )
 
             config = job.config
             strategy_id = config.get('strategy', 'v35_long')
@@ -142,54 +148,159 @@ def run_backtest(job: BacktestJob) -> None:
 
             job.progress = 10
 
-            # Load strategy config (safe: strategy_id validated above)
-            strategy_config_path = f'config/strategies/{strategy_id}.json'
-
             # Determine exchange from strategy
             exchange = strategy_info['exchange'] if strategy_info else 'upbit'
 
-            # Initialize backtester
+            # Create strategy adapter based on strategy_id
+            # Load optimized configs where available
+            import json
+            from pathlib import Path
+            config_dir = Path('config/strategies')
+
+            if strategy_id == 'v35_long':
+                # Load optimized v35 config
+                v35_config = None
+                config_path = config_dir / 'v35_long.json'
+                if config_path.exists():
+                    with open(config_path) as f:
+                        raw = json.load(f)
+                    # Flatten nested config structure
+                    v35_config = {}
+                    v35_config.update(raw.get('market_classifier', {}))
+                    v35_config.update(raw.get('entry_conditions', {}))
+                    v35_config.update(raw.get('exit_conditions', {}))
+                    v35_config.update(raw.get('position_sizing', {}))
+                    v35_config.update(raw.get('sideways_strategies', {}))
+                strategy_func = V35StrategyAdapter(config=v35_config)
+                timeframe = 'day'
+            elif strategy_id == 'sideways_v2':
+                strategy_func = SideWaysV2StrategyAdapter()
+                timeframe = 'day'
+            elif strategy_id == 'short_v1':
+                strategy_func = ShortV1StrategyAdapter()
+                timeframe = 'minute240'
+            elif strategy_id == 'h4_conservative':
+                strategy_func = RegimeRouterLiveAdapter(timeframe='minute240')
+                timeframe = 'minute240'
+            else:
+                raise ValueError(f"Unknown strategy adapter for: {strategy_id}")
+
+            if job._cancelled:
+                return
+
+            job.progress = 20
+
+            # Load data
+            with DataLoader(exchange=exchange) as loader:
+                df = loader.load_timeframe(timeframe, start_date, end_date)
+
+            if df.empty:
+                raise ValueError(f"No data available for {start_date} to {end_date}")
+
+            job.progress = 30
+
+            # Initialize backtester with fee and slippage
             backtester = Backtester(
-                strategy_name=strategy_id,
-                config_path=strategy_config_path
+                initial_capital=initial_capital,
+                fee_rate=0.0005,   # 0.05%
+                slippage=0.0002    # 0.02%
             )
 
             if job._cancelled:
                 return
 
-            job.progress = 30
+            job.progress = 40
 
             # Run backtest
-            results = backtester.run(
-                start_date=start_date,
-                end_date=end_date,
-                initial_capital=initial_capital
-            )
+            results = backtester.run(df, strategy_func, {})
 
             if job._cancelled:
                 return
 
             job.progress = 90
 
-            # Format results
+            # Convert equity_curve DataFrame to list for JSON serialization
+            equity_curve = results.get('equity_curve')
+            equity_curve_list = []
+            max_drawdown_pct = 0
+            sharpe_ratio = 0
+
+            if equity_curve is not None and not equity_curve.empty:
+                import numpy as np
+
+                # Convert DataFrame to list with frontend-expected field names
+                for _, row in equity_curve.iterrows():
+                    ts = row.get('timestamp')
+                    date_str = str(ts)[:10] if ts else ''
+                    equity_curve_list.append({
+                        'date': date_str,
+                        'equity': row.get('total_equity', 0)
+                    })
+
+                # Calculate max drawdown
+                eq = equity_curve['total_equity']
+                peak = eq.cummax()
+                dd = (eq - peak) / peak
+                max_drawdown_pct = float(dd.min() * 100) if not dd.empty else 0
+
+                # Calculate Sharpe ratio (annualized)
+                rets = eq.pct_change().dropna()
+                if len(rets) > 5 and rets.std() != 0:
+                    sharpe_ratio = float((rets.mean() / rets.std()) * np.sqrt(252))
+
+            # Convert Trade objects to dicts with frontend-expected field names
+            trades_raw = results.get('trades', [])
+            trades_list = []
+            for t in trades_raw[:100]:  # Limit trades for response size
+                if hasattr(t, 'exit_time') and t.exit_time:
+                    # Closed trade - show as SELL with profit
+                    trade_dict = {
+                        'timestamp': str(t.exit_time) if t.exit_time else None,
+                        'action': 'SELL',
+                        'price': t.exit_price,
+                        'profit': round(t.profit_loss, 0) if t.profit_loss else 0,
+                    }
+                    trades_list.append(trade_dict)
+                elif hasattr(t, 'entry_time'):
+                    # Entry trade
+                    trade_dict = {
+                        'timestamp': str(t.entry_time) if t.entry_time else None,
+                        'action': 'BUY',
+                        'price': t.entry_price,
+                        'profit': None,
+                    }
+                    trades_list.append(trade_dict)
+                elif isinstance(t, dict):
+                    # Already a dict, transform field names
+                    trade_dict = {
+                        'timestamp': t.get('exit_time') or t.get('entry_time') or t.get('timestamp'),
+                        'action': 'SELL' if t.get('exit_time') else 'BUY',
+                        'price': t.get('exit_price') or t.get('entry_price') or t.get('price'),
+                        'profit': round(t.get('profit_loss', 0) or t.get('pnl', 0) or 0, 0) if t.get('exit_time') else None,
+                    }
+                    trades_list.append(trade_dict)
+
+            total_return_pct = results.get('total_return', 0)
+
+            # Format results with rounded numbers
             job.result = {
                 'strategy': strategy_id,
                 'start_date': start_date,
                 'end_date': end_date,
                 'initial_capital': initial_capital,
-                'final_capital': results.get('final_capital', initial_capital),
-                'total_return': results.get('total_return', 0),
-                'total_return_pct': results.get('total_return_pct', 0),
+                'final_capital': round(results.get('final_capital', initial_capital), 0),
+                'total_return': round(results.get('final_capital', initial_capital) - initial_capital, 0),
+                'total_return_pct': round(total_return_pct, 2),
                 'total_trades': results.get('total_trades', 0),
                 'winning_trades': results.get('winning_trades', 0),
                 'losing_trades': results.get('losing_trades', 0),
-                'win_rate': results.get('win_rate', 0),
-                'profit_factor': results.get('profit_factor', 0),
-                'max_drawdown': results.get('max_drawdown', 0),
-                'max_drawdown_pct': results.get('max_drawdown_pct', 0),
-                'sharpe_ratio': results.get('sharpe_ratio', 0),
-                'equity_curve': results.get('equity_curve', []),
-                'trades': results.get('trades', [])[:100]  # Limit trades for response size
+                'win_rate': round(results.get('win_rate', 0) * 100, 2),
+                'profit_factor': round(results.get('profit_factor', 0), 2),
+                'max_drawdown': round(max_drawdown_pct, 2),
+                'max_drawdown_pct': round(max_drawdown_pct, 2),
+                'sharpe_ratio': round(sharpe_ratio, 2),
+                'equity_curve': equity_curve_list,
+                'trades': trades_list
             }
 
             job.status = 'completed'

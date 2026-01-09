@@ -973,12 +973,17 @@ footer {
 .filter-select,
 .filter-input {
     padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.05);
+    background: #2a2a3e;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 6px;
     color: #fff;
     font-size: 0.85rem;
     min-width: 120px;
+}
+
+.filter-select option {
+    background: #2a2a3e;
+    color: #fff;
 }
 
 .filter-select:focus,
@@ -1405,11 +1410,17 @@ footer {
 .form-select,
 .form-input {
     padding: 10px 15px;
-    background: rgba(255, 255, 255, 0.05);
+    background: #2a2a3e;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 6px;
     color: #fff;
     font-size: 0.9rem;
+}
+
+.form-select option {
+    background: #2a2a3e;
+    color: #fff;
+    padding: 10px;
 }
 
 .form-select:focus,

@@ -38,15 +38,17 @@ except ImportError:
 
 # Import analytics service
 try:
-    from web.services.analytics import calculate_metrics, calculate_equity_curve
-except ImportError:
+    from services.analytics import calculate_metrics, calculate_equity_curve
+except Exception as e:
+    print(f"Failed to import analytics: {e}")
     calculate_metrics = None
     calculate_equity_curve = None
 
 # Import backtest runner service
 try:
-    from web.services import backtest_runner
-except ImportError:
+    from services import backtest_runner
+except Exception as e:
+    print(f"Failed to import backtest_runner: {e}")
     backtest_runner = None
 
 # Import metrics service for real-time dashboard
@@ -134,7 +136,11 @@ def requires_totp(f):
             session.permanent = False  # Session expires when browser closes
             return f(*args, **kwargs)
 
-        # Return TOTP input form
+        # For API calls, return JSON error instead of HTML form
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'Authentication required'}), 401
+
+        # Return TOTP input form for page requests
         return render_totp_form()
 
     return decorated

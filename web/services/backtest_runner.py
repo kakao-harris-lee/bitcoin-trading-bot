@@ -2,6 +2,14 @@
 Backtest runner service for executing backtests via web dashboard.
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to path for imports (core, scripts, etc.)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import threading
 import uuid
 from datetime import datetime

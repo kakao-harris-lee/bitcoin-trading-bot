@@ -278,6 +278,11 @@ class MultiAssetAlphaManager:
         """Set regime router for an asset (shared across exchanges)."""
         self._regime_routers[symbol] = router
 
+    def get_strategy_name(self, symbol: str, exchange: str) -> Optional[str]:
+        """Get the configured strategy name for an asset/exchange."""
+        strategy = self._strategies.get((symbol, exchange))
+        return type(strategy).__name__ if strategy else None
+
     def set_account(self, symbol: str, exchange: str, account: Any) -> None:
         """Set account/executor for an asset on a specific exchange."""
         self._accounts[(symbol, exchange)] = account

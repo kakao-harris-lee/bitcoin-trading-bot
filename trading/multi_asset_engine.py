@@ -572,6 +572,16 @@ class MultiAssetTradingEngine:
                 upbit_state = self.alpha_manager.get_state(symbol, "upbit")
                 binance_state = self.alpha_manager.get_state(symbol, "binance")
 
+                # Get configured strategy names (fallback when no position)
+                upbit_strategy = (
+                    upbit_state.strategy if upbit_state and upbit_state.strategy
+                    else self.alpha_manager.get_strategy_name(symbol, "upbit")
+                )
+                binance_strategy = (
+                    binance_state.strategy if binance_state and binance_state.strategy
+                    else self.alpha_manager.get_strategy_name(symbol, "binance")
+                )
+
                 status["assets"][symbol] = {
                     "regime": regime,
                     "upbit_price": self.price_hub.get_price(symbol, "upbit"),
@@ -580,13 +590,13 @@ class MultiAssetTradingEngine:
                     "upbit_enabled": asset_cfg.get("upbit_enabled", True),
                     "upbit_position_active": upbit_state.active if upbit_state else False,
                     "upbit_position_qty": upbit_state.quantity if upbit_state else 0,
-                    "upbit_strategy": upbit_state.strategy if upbit_state else None,
+                    "upbit_strategy": upbit_strategy,
                     # Binance state
                     "binance_enabled": asset_cfg.get("binance_enabled", False),
                     "binance_position_active": binance_state.active if binance_state else False,
                     "binance_position_qty": binance_state.quantity if binance_state else 0,
                     "binance_direction": binance_state.direction if binance_state else "long",
-                    "binance_strategy": binance_state.strategy if binance_state else None,
+                    "binance_strategy": binance_strategy,
                     "binance_leverage": binance_state.leverage if binance_state else 1,
                 }
 

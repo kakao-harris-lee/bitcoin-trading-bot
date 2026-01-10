@@ -76,6 +76,7 @@ class MetricsService:
         # Aggregate data across all assets for this exchange
         positions = []
         total_position_value = 0.0
+        configured_strategies = set()
 
         for asset_name, asset_data in assets.items():
             prefix = exchange
@@ -93,6 +94,10 @@ class MetricsService:
             position_active = asset_data.get(position_active_key, False)
             strategy = asset_data.get(strategy_key)
             regime = asset_data.get('regime', 'UNKNOWN')
+
+            # Track configured strategies (even without position)
+            if strategy:
+                configured_strategies.add(strategy)
 
             if position_active and qty > 0:
                 position_value = qty * price
@@ -112,11 +117,8 @@ class MetricsService:
         current_price = btc_data.get(price_key, 0.0)
         regime = btc_data.get('regime', 'UNKNOWN')
 
-        # Determine active strategies
-        active_strategies = list(set(
-            p['strategy'] for p in positions if p['strategy']
-        ))
-        strategy_str = ', '.join(active_strategies) if active_strategies else 'None'
+        # Show configured strategies (not just from active positions)
+        strategy_str = ', '.join(sorted(configured_strategies)) if configured_strategies else 'None'
 
         # Parse timestamp
         last_updated = None

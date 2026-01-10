@@ -51,8 +51,9 @@ except ImportError:
 
 # Import metrics service for real-time dashboard
 try:
-    from web.services.metrics_service import metrics_service
-except ImportError:
+    from services.metrics_service import metrics_service
+except Exception as e:
+    print(f"Failed to import metrics_service: {e}")
     metrics_service = None
 
 app = Flask(__name__)

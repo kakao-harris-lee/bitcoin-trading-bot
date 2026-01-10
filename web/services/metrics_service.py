@@ -2,7 +2,7 @@
 metrics_service.py
 Real-time trading metrics service for dashboard.
 
-Reads from existing JSON log files to provide:
+Reads from multi_asset_engine_status.json to provide:
 - Current strategy decisions
 - Position and P&L data
 - Market regime information
@@ -24,85 +24,123 @@ class MetricsService:
     """Service for reading and transforming trading metrics data."""
 
     LOGS_DIR = PROJECT_ROOT / "logs"
+    STATUS_FILE = "multi_asset_engine_status.json"
     STALE_THRESHOLD_SECONDS = 30
 
     def __init__(self):
         """Initialize the metrics service."""
-        pass
+        self._cached_data: Optional[dict] = None
+        self._cache_time: Optional[datetime] = None
+        self._cache_ttl_seconds = 2
+
+    def _load_status_file(self) -> Optional[dict]:
+        """Load and cache the multi-asset engine status file."""
+        now = datetime.now()
+        if (self._cached_data is not None and
+            self._cache_time is not None and
+            (now - self._cache_time).total_seconds() < self._cache_ttl_seconds):
+            return self._cached_data
+
+        status_file = self.LOGS_DIR / self.STATUS_FILE
+        if not status_file.exists():
+            return None
+
+        try:
+            with open(status_file, 'r') as f:
+                self._cached_data = json.load(f)
+                self._cache_time = now
+                return self._cached_data
+        except (json.JSONDecodeError, IOError):
+            return None
 
     def load_exchange_data(self, exchange: str) -> Optional[dict]:
         """
-        Load and parse JSON log file for an exchange.
+        Load and parse data for an exchange from multi-asset status.
 
         Args:
             exchange: Either 'upbit' or 'binance'
 
         Returns:
-            ExchangeMetrics dict per data-model.md, or None if file not found
+            ExchangeMetrics dict, or None if data not found
         """
-        log_file = self.LOGS_DIR / f"v2_engine_{exchange}.json"
-
-        if not log_file.exists():
+        data = self._load_status_file()
+        if not data:
             return None
 
-        try:
-            with open(log_file, 'r') as f:
-                data = json.load(f)
-        except (json.JSONDecodeError, IOError):
+        assets = data.get('assets', {})
+        portfolio = data.get('portfolio', {})
+
+        if not assets:
             return None
 
-        # Extract latest signal for current decision
-        signals = data.get('signals', [])
-        last_signal = signals[0] if signals else None
+        # Aggregate data across all assets for this exchange
+        positions = []
+        total_position_value = 0.0
 
-        # Get current price from latest signal
-        current_price = 0.0
-        if last_signal and 'indicators' in last_signal:
-            current_price = last_signal['indicators'].get('close', 0.0)
+        for asset_name, asset_data in assets.items():
+            prefix = exchange
+            price_key = f"{prefix}_price"
+            enabled_key = f"{prefix}_enabled"
+            position_active_key = f"{prefix}_position_active"
+            position_qty_key = f"{prefix}_position_qty"
+            strategy_key = f"{prefix}_strategy"
 
-        # Calculate position info
-        btc_balance = data.get('btc_balance', 0.0)
-        position_active = btc_balance > 0
+            if not asset_data.get(enabled_key, False):
+                continue
 
-        # Get entry price from last buy trade if position is active
-        entry_price = 0.0
-        trades = data.get('trades', [])
-        if position_active and trades:
-            # Find last buy trade
-            for trade in reversed(trades):
-                if trade.get('type') == 'buy':
-                    entry_price = trade.get('price', 0.0)
-                    break
+            price = asset_data.get(price_key, 0.0)
+            qty = asset_data.get(position_qty_key, 0.0)
+            position_active = asset_data.get(position_active_key, False)
+            strategy = asset_data.get(strategy_key)
+            regime = asset_data.get('regime', 'UNKNOWN')
 
-        # Calculate unrealized P&L
-        unrealized_pnl, unrealized_pnl_pct = self.calculate_unrealized_pnl(
-            position_active, btc_balance, entry_price, current_price
-        )
+            if position_active and qty > 0:
+                position_value = qty * price
+                total_position_value += position_value
+                positions.append({
+                    'asset': asset_name,
+                    'qty': qty,
+                    'price': price,
+                    'value': position_value,
+                    'strategy': strategy,
+                    'regime': regime
+                })
 
-        # Parse last update timestamp
+        # Get primary asset info (BTC) for backward compatibility
+        btc_data = assets.get('BTC', {})
+        price_key = f"{exchange}_price"
+        current_price = btc_data.get(price_key, 0.0)
+        regime = btc_data.get('regime', 'UNKNOWN')
+
+        # Determine active strategies
+        active_strategies = list(set(
+            p['strategy'] for p in positions if p['strategy']
+        ))
+        strategy_str = ', '.join(active_strategies) if active_strategies else 'None'
+
+        # Parse timestamp
         last_updated = None
-        if last_signal:
-            try:
-                last_updated = datetime.fromisoformat(last_signal.get('timestamp', ''))
-            except (ValueError, TypeError):
-                last_updated = None
+        try:
+            last_updated = datetime.fromisoformat(data.get('timestamp', ''))
+        except (ValueError, TypeError):
+            last_updated = datetime.now()
 
         # Build ExchangeMetrics response
         return {
             'exchange': exchange,
             'mode': data.get('mode', 'paper'),
-            'strategy': data.get('strategy', 'unknown'),
-            'regime': data.get('regime', 'UNKNOWN'),
-            'market_state': data.get('market_state', 'UNKNOWN'),
+            'strategy': strategy_str,
+            'regime': regime,
+            'market_state': regime,
             'current_price': current_price,
-            'position_active': position_active,
-            'position_qty': btc_balance,
-            'entry_price': entry_price,
-            'unrealized_pnl': unrealized_pnl,
-            'unrealized_pnl_pct': unrealized_pnl_pct,
-            'total_value': data.get('total_value', 0.0),
+            'position_active': len(positions) > 0,
+            'positions': positions,
+            'total_position_value': total_position_value,
+            'total_value': portfolio.get('total_value_krw', 0.0) if exchange == 'upbit' else 0.0,
+            'cash': portfolio.get('cash_krw', 0.0) if exchange == 'upbit' else 0.0,
+            'exposure_pct': portfolio.get('exposure_pct', 0.0),
             'last_updated': last_updated.isoformat() if last_updated else None,
-            'last_decision': self._format_decision(last_signal) if last_signal else None
+            'last_decision': None
         }
 
     def calculate_unrealized_pnl(
@@ -144,9 +182,9 @@ class MetricsService:
         Returns:
             ConnectionStatus dict per data-model.md
         """
-        log_file = self.LOGS_DIR / f"v2_engine_{exchange}.json"
+        status_file = self.LOGS_DIR / self.STATUS_FILE
 
-        if not log_file.exists():
+        if not status_file.exists():
             return {
                 'exchange': exchange,
                 'connected': False,
@@ -157,7 +195,7 @@ class MetricsService:
 
         # Get file modification time
         try:
-            mtime = os.path.getmtime(log_file)
+            mtime = os.path.getmtime(status_file)
             last_heartbeat = datetime.fromtimestamp(mtime)
         except OSError:
             return {
@@ -173,9 +211,19 @@ class MetricsService:
         stale_seconds = int((now - last_heartbeat).total_seconds())
         is_stale = stale_seconds > self.STALE_THRESHOLD_SECONDS
 
+        # Check if exchange is enabled in the data
+        data = self._load_status_file()
+        exchange_enabled = False
+        if data:
+            assets = data.get('assets', {})
+            for asset_data in assets.values():
+                if asset_data.get(f'{exchange}_enabled', False):
+                    exchange_enabled = True
+                    break
+
         return {
             'exchange': exchange,
-            'connected': True,
+            'connected': exchange_enabled and not is_stale,
             'last_heartbeat': last_heartbeat.isoformat(),
             'is_stale': is_stale,
             'stale_seconds': stale_seconds
@@ -188,47 +236,60 @@ class MetricsService:
         exchange: Optional[str] = None
     ) -> list[dict]:
         """
-        Get recent strategy decisions from both exchanges.
+        Get recent strategy decisions from current status.
+
+        Note: The multi-asset engine status doesn't store historical decisions.
+        This returns current state as a single decision per active position.
 
         Args:
-            hours: Number of hours of history to return
+            hours: Number of hours of history to return (unused currently)
             limit: Maximum number of decisions to return
             exchange: Optional filter by exchange
 
         Returns:
             List of StrategyDecision dicts sorted by timestamp descending
         """
-        cutoff = datetime.now() - timedelta(hours=hours)
+        data = self._load_status_file()
+        if not data:
+            return []
+
         decisions = []
+        timestamp = data.get('timestamp', datetime.now().isoformat())
+        assets = data.get('assets', {})
 
         exchanges = [exchange] if exchange else ['upbit', 'binance']
 
-        for exch in exchanges:
-            log_file = self.LOGS_DIR / f"v2_engine_{exch}.json"
-            if not log_file.exists():
-                continue
+        for asset_name, asset_data in assets.items():
+            regime = asset_data.get('regime', 'UNKNOWN')
 
-            try:
-                with open(log_file, 'r') as f:
-                    data = json.load(f)
-            except (json.JSONDecodeError, IOError):
-                continue
-
-            signals = data.get('signals', [])
-            for signal in signals:
-                try:
-                    timestamp = datetime.fromisoformat(signal.get('timestamp', ''))
-                    if timestamp >= cutoff:
-                        decision = self._format_decision(signal)
-                        decision['exchange'] = exch
-                        decisions.append(decision)
-                except (ValueError, TypeError):
+            for exch in exchanges:
+                enabled = asset_data.get(f'{exch}_enabled', False)
+                if not enabled:
                     continue
 
-        # Sort by timestamp descending
-        decisions.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+                position_active = asset_data.get(f'{exch}_position_active', False)
+                strategy = asset_data.get(f'{exch}_strategy')
+                price = asset_data.get(f'{exch}_price', 0.0)
 
-        # Apply limit
+                action = 'HOLD' if position_active else 'WAIT'
+
+                decisions.append({
+                    'timestamp': timestamp,
+                    'exchange': exch,
+                    'asset': asset_name,
+                    'strategy': strategy or 'None',
+                    'action': action,
+                    'reason': f'{regime} - {"Position active" if position_active else "No position"}',
+                    'regime': regime,
+                    'market_state': regime,
+                    'indicators': {
+                        'price': price
+                    }
+                })
+
+        # Sort by asset name for consistent ordering
+        decisions.sort(key=lambda x: (x.get('exchange', ''), x.get('asset', '')))
+
         return decisions[:limit]
 
     def get_dashboard_state(self) -> dict:
@@ -248,10 +309,27 @@ class MetricsService:
 
         recent_decisions = self.get_recent_decisions(hours=24, limit=50)
 
+        # Get portfolio summary from status file
+        data = self._load_status_file()
+        portfolio = None
+        if data:
+            raw_portfolio = data.get('portfolio', {})
+            portfolio = {
+                'total_capital_krw': raw_portfolio.get('total_capital_krw', 0.0),
+                'total_value_krw': raw_portfolio.get('total_value_krw', 0.0),
+                'cash_krw': raw_portfolio.get('cash_krw', 0.0),
+                'exposure_pct': raw_portfolio.get('exposure_pct', 0.0),
+                'total_unrealized_pnl': raw_portfolio.get('total_unrealized_pnl', 0.0),
+                'uptime_seconds': raw_portfolio.get('uptime_seconds', 0.0),
+                'assets': raw_portfolio.get('assets', {})
+            }
+
         return {
             'timestamp': datetime.now().isoformat(),
+            'mode': data.get('mode', 'unknown') if data else 'unknown',
             'upbit': upbit_data,
             'binance': binance_data,
+            'portfolio': portfolio,
             'recent_decisions': recent_decisions,
             'connection_status': connection_status
         }

@@ -98,30 +98,27 @@ def test_router_holds_on_bear_regime(monkeypatch):
     assert router.sideways_v2.calls == []
 
 
-def test_router_selects_short_v2_on_bear_strong():
-    """Test that router selects short_v2 for BEAR_STRONG with correct gate mode."""
+def test_router_classifies_bear_strong():
+    """Test that router correctly classifies BEAR_STRONG market state."""
     from trading.strategy.regime_router import RegimeRouter
 
-    router = RegimeRouter(
-        binance_gate_mode="bear_strong_only",
-        binance_policy="short_v2",
-    )
+    router = RegimeRouter()
 
-    decision = router.decide_from_market_state("BEAR_STRONG")
+    # MFI <= mfi_bear (48) and ADX >= adx_trend (20) -> BEAR_STRONG
+    market_state = router.classify_from_values(mfi=40.0, adx=25.0)
 
-    assert decision.binance_strategy == "short_v2"
-    assert decision.regime == "BEAR"
+    assert market_state == "BEAR_STRONG"
+    assert router.market_state_to_regime(market_state) == "BEAR"
 
 
-def test_router_no_short_v2_on_bear_moderate():
-    """Test that short_v2 does NOT activate on BEAR_MODERATE."""
+def test_router_classifies_bear_moderate():
+    """Test that router correctly classifies BEAR_MODERATE market state."""
     from trading.strategy.regime_router import RegimeRouter
 
-    router = RegimeRouter(
-        binance_gate_mode="bear_strong_only",
-        binance_policy="short_v2",
-    )
+    router = RegimeRouter()
 
-    decision = router.decide_from_market_state("BEAR_MODERATE")
+    # MFI <= mfi_bear (48) and adx_weak (15) <= ADX < adx_trend (20) -> BEAR_MODERATE
+    market_state = router.classify_from_values(mfi=40.0, adx=17.0)
 
-    assert decision.binance_strategy is None
+    assert market_state == "BEAR_MODERATE"
+    assert router.market_state_to_regime(market_state) == "BEAR"

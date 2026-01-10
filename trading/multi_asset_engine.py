@@ -244,11 +244,20 @@ class MultiAssetTradingEngine:
 
             if config_path.exists():
                 with open(config_path) as f:
-                    config = json_module.load(f)
+                    raw_config = json_module.load(f)
+
+                # Flatten nested config structure for V35LongStrategy
+                flat_config = {}
+                flat_config.update(raw_config.get('market_classifier', {}))
+                flat_config.update(raw_config.get('entry_conditions', {}))
+                flat_config.update(raw_config.get('exit_conditions', {}))
+                flat_config.update(raw_config.get('position_sizing', {}))
+                flat_config.update(raw_config.get('sideways_strategies', {}))
+
                 # Apply overrides
-                config.update(params_override)
-                logger.info(f"[{symbol}] Loaded V35 config from: {config_path.name}")
-                return V35LongStrategy(config=config)
+                flat_config.update(params_override)
+                logger.info(f"[{symbol}] Loaded V35 config from: {config_path.name} ({len(flat_config)} params)")
+                return V35LongStrategy(strategy_config=flat_config)
             else:
                 logger.warning(f"[{symbol}] Config not found: {config_path}")
         except Exception as e:

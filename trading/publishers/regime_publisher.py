@@ -7,10 +7,8 @@ Strategies can subscribe and use as advisory information (not gating).
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
-
-import pandas as pd
 
 from trading.strategy.regime_router import RegimeRouter
 
@@ -82,21 +80,15 @@ class RegimePublisher:
                 df_day = self.router.get_recent_daily_df()
 
                 if df_day is not None and len(df_day) > 0:
-                    # Classify
-                    decision = self.router.recommend(df_day)
+                    # Classify - RegimeContext includes mfi/adx values
+                    context = self.router.recommend(df_day)
 
-                    # Extract MFI/ADX from last row
-                    df_day["mfi"] = self._calc_mfi(df_day)
-                    df_day["adx"] = self._calc_adx(df_day)
-                    mfi = float(df_day["mfi"].iloc[-1])
-                    adx = float(df_day["adx"].iloc[-1])
-
-                    # Publish
+                    # Publish using values from RegimeContext
                     await self.publish_regime(
-                        regime=decision.regime,
-                        market_state=decision.market_state,
-                        mfi=mfi,
-                        adx=adx
+                        regime=context.regime,
+                        market_state=context.market_state,
+                        mfi=context.mfi,
+                        adx=context.adx
                     )
 
                 # Wait for next interval
@@ -109,41 +101,6 @@ class RegimePublisher:
                 await asyncio.sleep(60)  # Retry after 1 minute
 
         self.logger.info("Regime publisher stopped")
-
-    def _calc_mfi(self, df, period: int = 14):
-        """Calculate MFI (copied from regime_router for independence)."""
-        tp = (df["high"] + df["low"] + df["close"]) / 3.0
-        raw_mf = tp * df["volume"]
-        direction = tp.diff()
-        pos_mf = raw_mf.where(direction > 0, 0.0)
-        neg_mf = raw_mf.where(direction < 0, 0.0).abs()
-        pos_sum = pos_mf.rolling(period).sum()
-        neg_sum = neg_mf.rolling(period).sum()
-        mf_ratio = pos_sum / neg_sum.replace(0, pd.NA)
-        mfi = 100.0 - (100.0 / (1.0 + mf_ratio))
-        return mfi.fillna(100.0)
-
-    def _calc_adx(self, df, period: int = 14):
-        """Calculate ADX (copied from regime_router for independence)."""
-        high = df["high"]
-        low = df["low"]
-        close = df["close"]
-        prev_close = close.shift(1)
-        tr = pd.concat([
-            (high - low),
-            (high - prev_close).abs(),
-            (low - prev_close).abs(),
-        ], axis=1).max(axis=1)
-        up_move = high.diff()
-        down_move = -low.diff()
-        plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
-        minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
-        atr = tr.rolling(period).mean()
-        plus_di = 100.0 * (plus_dm.rolling(period).mean() / atr.replace(0, pd.NA))
-        minus_di = 100.0 * (minus_dm.rolling(period).mean() / atr.replace(0, pd.NA))
-        dx = 100.0 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, pd.NA)
-        adx = dx.rolling(period).mean()
-        return adx.fillna(0.0)
 
     def stop(self):
         """Stop the publisher gracefully."""

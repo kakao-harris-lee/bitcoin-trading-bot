@@ -32,25 +32,13 @@ from trading.strategy.regime_router import _calc_mfi as _live_calc_mfi
 
 
 def _market_state_to_regime(market_state: str) -> str:
-    """Map V35-style market_state to coarse regime labels."""
-    if market_state in {"BULL_STRONG", "BULL_MODERATE"}:
-        return "BULL"
-    if market_state in {"SIDEWAYS_UP", "SIDEWAYS_FLAT", "SIDEWAYS_DOWN"}:
-        return "SIDEWAYS"
-    if market_state in {"BEAR_MODERATE", "BEAR_STRONG"}:
-        return "BEAR"
-    return "UNKNOWN"
+    """Map market_state to coarse regime labels.
 
-
-def _live_market_state_to_regime(market_state: str) -> str:
-    """Map live RegimeRouter's market_state to coarse regime labels."""
-    if market_state.startswith("BULL"):
-        return "BULL"
-    if market_state.startswith("SIDEWAYS"):
-        return "SIDEWAYS"
-    if market_state.startswith("BEAR"):
-        return "BEAR"
-    return "UNKNOWN"
+    Uses RegimeRouter.market_state_to_regime for consistency.
+    Works for both V35-style (SIDEWAYS_UP, etc.) and live router
+    (SIDEWAYS_BULL, etc.) market states.
+    """
+    return LiveRegimeRouter.market_state_to_regime(market_state)
 
 
 def _bars_per_day(timeframe: str) -> int:
@@ -88,9 +76,29 @@ def _scale_sideways_config_for_timeframe(config: Dict, timeframe: str) -> Dict:
 class V35StrategyAdapter:
     """V35 Long 전략 어댑터 - wraps actual V35LongStrategy for backtester compatibility."""
 
-    def __init__(self, config: Dict = None):
+    def __init__(self, config: Dict = None, load_optimized: bool = True):
+        # Load optimized config from file if not provided
+        if config is None and load_optimized:
+            config = self._load_optimized_config()
         self.strategy = V35LongStrategy(strategy_config=config)
         self._cached_df: Optional[pd.DataFrame] = None
+
+    @staticmethod
+    def _load_optimized_config() -> Dict:
+        """Load Optuna-optimized config from v35_long.json."""
+        import json
+        config_path = PROJECT_ROOT / 'config' / 'strategies' / 'v35_long.json'
+        if config_path.exists():
+            with open(config_path) as f:
+                full_config = json.load(f)
+            # Flatten nested config for strategy consumption
+            flat_config = {}
+            for section in ['market_classifier', 'entry_conditions', 'exit_conditions',
+                          'position_sizing', 'sideways_strategies']:
+                if section in full_config:
+                    flat_config.update(full_config[section])
+            return flat_config
+        return {}
 
     @property
     def in_position(self) -> bool:
@@ -432,14 +440,13 @@ class RegimeRouterLiveAdapter:
         return self._cached_df
 
     def _pick_strategy(self, market_state: str) -> Optional[str]:
-        decision = self.router.decide_from_market_state(market_state)  # default Upbit policy embedded
-
+        """Select strategy based on market state and configured policies."""
         if market_state.startswith("BULL"):
             if self.bull_policy == "hold_long":
                 return "bull_hold"
             return "v35"
 
-        # Override only SIDEWAYS behavior when requested
+        # SIDEWAYS behavior based on policy
         if market_state.startswith("SIDEWAYS"):
             policy = self.sideways_policy
             if market_state == "SIDEWAYS_BEAR" and self.sideways_bear_policy is not None:
@@ -451,8 +458,9 @@ class RegimeRouterLiveAdapter:
                 return "v35"
             if policy == "hold":
                 return None
+            return "sideways_v2"  # default
 
-        # Override BEAR behavior when requested (lets tuner decide whether to trade in BEAR)
+        # BEAR behavior based on policy (default: hold)
         if market_state.startswith("BEAR"):
             policy: Optional[str] = None
             if market_state == "BEAR_STRONG":
@@ -464,9 +472,10 @@ class RegimeRouterLiveAdapter:
                 return "sideways_v2"
             if policy == "v35":
                 return "v35"
-            if policy == "hold":
-                return None
-        return decision.upbit_strategy
+            # Default: hold in BEAR
+            return None
+
+        return None
 
     def _delegate(self, strategy_key: str, df: pd.DataFrame, i: int, params: Dict) -> Dict:
         if strategy_key == "v35":
@@ -494,7 +503,7 @@ class RegimeRouterLiveAdapter:
                 cached = self._ensure_indicators(df)
                 row = cached.iloc[i]
                 market_state = self.router.classify_from_values(mfi=float(row.get("mfi", np.nan)), adx=float(row.get("adx", np.nan)))
-                regime = _live_market_state_to_regime(market_state)
+                regime = _market_state_to_regime(market_state)
 
                 if regime != "BULL":
                     self._active_strategy = None
@@ -519,7 +528,7 @@ class RegimeRouterLiveAdapter:
         cached = self._ensure_indicators(df)
         row = cached.iloc[i]
         market_state = self.router.classify_from_values(mfi=float(row.get("mfi", np.nan)), adx=float(row.get("adx", np.nan)))
-        regime = _live_market_state_to_regime(market_state)
+        regime = _market_state_to_regime(market_state)
         picked = self._pick_strategy(market_state)
 
         if picked is None:

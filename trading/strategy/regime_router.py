@@ -1,12 +1,45 @@
-"""Operational regime routing for live/paper trading.
+"""Market regime classification for live/paper trading.
 
-Goal: decide which strategy should be active based on recent daily market regime.
+Classifies market conditions using MFI (Money Flow Index) and ADX (Average
+Directional Index) indicators into 7 market states:
 
-This intentionally mirrors the simple V35-style regime thresholds used elsewhere:
-- MFI drives bull/sideways/bear bias
-- ADX drives trend strength
+Market States:
+    BULL_STRONG:      MFI >= 52, ADX >= 25 (strong uptrend)
+    BULL_MODERATE:    MFI >= 52, ADX >= 20 (moderate uptrend)
+    SIDEWAYS_BULL:    MFI >= 52, ADX < 20  (bullish but weak trend)
+    SIDEWAYS_NEUTRAL: 48 < MFI < 52        (no clear direction)
+    SIDEWAYS_BEAR:    MFI <= 48, ADX < 15  (bearish but weak trend)
+    BEAR_MODERATE:    MFI <= 48, 15 <= ADX < 20 (moderate downtrend)
+    BEAR_STRONG:      MFI <= 48, ADX >= 20 (strong downtrend)
 
-We keep this module dependency-light so it can run inside docker-compose.
+Base Regimes:
+    BULL:     All BULL_* states
+    SIDEWAYS: All SIDEWAYS_* states
+    BEAR:     All BEAR_* states
+
+Usage:
+    from trading.strategy.regime_router import RegimeRouter, RegimeContext
+
+    router = RegimeRouter()
+    context: RegimeContext = router.recommend(df_daily)
+
+    # Access classification
+    print(context.market_state)  # e.g., "BEAR_STRONG"
+    print(context.regime)        # e.g., "BEAR"
+
+    # Access raw indicators for custom logic
+    print(context.mfi)           # e.g., 42.5
+    print(context.adx)           # e.g., 28.3
+
+    # Strategy decides whether to trade based on context
+    if context.regime == "BEAR" and context.adx >= 25:
+        # Strong bear trend - consider short position
+        pass
+
+Note:
+    Strategy selection is NOT handled by RegimeRouter. Consumers (e.g.,
+    MultiAssetAlphaManager, RegimeRouterLiveAdapter) are responsible for
+    deciding which strategy to run based on the RegimeContext.
 """
 
 from __future__ import annotations
@@ -37,35 +70,47 @@ Regime = Literal["BULL", "SIDEWAYS", "BEAR"]
 
 
 @dataclass(frozen=True)
-class RegimeDecision:
+class RegimeContext:
+    """Market regime classification with raw indicator values.
+
+    Attributes:
+        market_state: Detailed market state (e.g., "BEAR_STRONG", "SIDEWAYS_NEUTRAL")
+        regime: Base regime category ("BULL", "SIDEWAYS", or "BEAR")
+        mfi: Money Flow Index value (0-100). Higher = more buying pressure
+        adx: Average Directional Index value. Higher = stronger trend
+    """
     market_state: MarketState
     regime: Regime
-    upbit_strategy: str | None
-    binance_strategy: str | None
+    mfi: float
+    adx: float
+
+
+# Backward compatibility alias
+RegimeDecision = RegimeContext
 
 
 class RegimeRouter:
+    """Market regime classifier using MFI and ADX indicators.
+
+    Provides market state classification and raw indicator values.
+    Strategy selection is handled by consumers (e.g., AlphaManager).
+    """
+
     def __init__(
         self,
         lookback_days: int = 180,
         mfi_period: int = 14,
         adx_period: int = 14,
-        # Thresholds (match earlier router/backtest logic)
+        # Classification thresholds
         mfi_bull: float = 52.0,
         mfi_bear: float = 48.0,
         adx_strong: float = 25.0,
         adx_trend: float = 20.0,
         adx_weak: float = 15.0,
-        # Operational policy knobs (kept simple for docker-compose)
-        bull_policy: str = "v35",
-        sideways_policy: str = "sideways_v2",
-        sideways_bear_policy: str | None = None,
-        bear_moderate_policy: str | None = None,
-        bear_strong_policy: str | None = None,
-        binance_gate_mode: str = "bear_only",
-        binance_policy: str = "short_v1",  # 'short_v1' | 'h4_short' | 'hold'
         # Data cache for efficient data loading
         data_cache: Optional["DataCache"] = None,
+        # Deprecated parameters (ignored, kept for backward compatibility)
+        **_deprecated_kwargs,
     ):
         self.lookback_days = int(lookback_days)
         self.mfi_period = int(mfi_period)
@@ -76,15 +121,6 @@ class RegimeRouter:
         self.adx_strong = float(adx_strong)
         self.adx_trend = float(adx_trend)
         self.adx_weak = float(adx_weak)
-
-        # Policies
-        self.bull_policy = str(bull_policy)
-        self.sideways_policy = str(sideways_policy)
-        self.sideways_bear_policy = str(sideways_bear_policy) if sideways_bear_policy is not None else None
-        self.bear_moderate_policy = str(bear_moderate_policy) if bear_moderate_policy is not None else None
-        self.bear_strong_policy = str(bear_strong_policy) if bear_strong_policy is not None else None
-        self.binance_gate_mode = str(binance_gate_mode)
-        self.binance_policy = str(binance_policy)
 
         # Data cache
         self.data_cache = data_cache
@@ -117,101 +153,14 @@ class RegimeRouter:
 
         return df
 
-    def decide_from_market_state(self, market_state: MarketState) -> RegimeDecision:
-        regime: Regime
+    @staticmethod
+    def market_state_to_regime(market_state: MarketState) -> Regime:
+        """Convert market state to base regime."""
         if market_state.startswith("BULL"):
-            regime = "BULL"
+            return "BULL"
         elif market_state.startswith("SIDEWAYS"):
-            regime = "SIDEWAYS"
-        else:
-            regime = "BEAR"
-
-        # ------------------------
-        # Upbit strategy selection
-        # ------------------------
-        upbit_strategy: str | None
-        if regime == "BULL":
-            if self.bull_policy == "hold_long":
-                upbit_strategy = "bull_hold"
-            elif self.bull_policy == "v35":
-                upbit_strategy = "v35"
-            elif self.bull_policy == "sideways_v2":
-                upbit_strategy = "sideways_v2"
-            elif self.bull_policy == "hold":
-                upbit_strategy = None
-            else:
-                upbit_strategy = "v35"
-
-        elif regime == "SIDEWAYS":
-            policy = self.sideways_policy
-            if market_state == "SIDEWAYS_BEAR" and self.sideways_bear_policy is not None:
-                policy = self.sideways_bear_policy
-
-            if policy == "sideways_v2":
-                upbit_strategy = "sideways_v2"
-            elif policy == "h4_conservative":
-                upbit_strategy = "h4_conservative"
-            elif policy == "v35":
-                upbit_strategy = "v35"
-            elif policy == "hold":
-                upbit_strategy = None
-            else:
-                upbit_strategy = "sideways_v2"
-
-        else:
-            # BEAR defaults to hold (avoid longs), unless overridden
-            policy: str | None = None
-            if market_state == "BEAR_STRONG":
-                policy = self.bear_strong_policy
-            elif market_state == "BEAR_MODERATE":
-                policy = self.bear_moderate_policy
-
-            if policy == "v35":
-                upbit_strategy = "v35"
-            elif policy == "sideways_v2":
-                upbit_strategy = "sideways_v2"
-            elif policy == "h4_conservative":
-                upbit_strategy = "h4_conservative"
-            else:
-                upbit_strategy = None
-
-        # --------------------------
-        # Binance strategy selection
-        # --------------------------
-        allow_binance = False
-        if self.binance_gate_mode == "bear_only":
-            allow_binance = regime == "BEAR"
-        elif self.binance_gate_mode == "sideways_and_bear":
-            allow_binance = regime in {"SIDEWAYS", "BEAR"}
-        elif self.binance_gate_mode == "bear_or_sideways_bear":
-            allow_binance = (regime == "BEAR") or (market_state == "SIDEWAYS_BEAR")
-        elif self.binance_gate_mode == "bear_strong_only":
-            allow_binance = market_state == "BEAR_STRONG"
-        elif self.binance_gate_mode == "bear_strong_or_sideways_bear":
-            allow_binance = market_state in {"BEAR_STRONG", "SIDEWAYS_BEAR"}
-        elif self.binance_gate_mode == "always":
-            allow_binance = True
-        else:
-            allow_binance = regime == "BEAR"
-
-        # binance_policy에 따라 전략 선택
-        binance_strategy: str | None = None
-        if allow_binance:
-            if self.binance_policy == "hold":
-                binance_strategy = None
-            elif self.binance_policy == "h4_short":
-                binance_strategy = "h4_short"
-            elif self.binance_policy == "short_v2":
-                binance_strategy = "short_v2"
-            else:
-                binance_strategy = "short_v1"
-
-        return RegimeDecision(
-            market_state=market_state,
-            regime=regime,
-            upbit_strategy=upbit_strategy,
-            binance_strategy=binance_strategy,
-        )
+            return "SIDEWAYS"
+        return "BEAR"
 
     def classify_from_values(self, mfi: float, adx: float) -> MarketState:
         """Deterministic mapping for unit tests and for low-dependency routing."""
@@ -236,20 +185,44 @@ class RegimeRouter:
         return "SIDEWAYS_NEUTRAL"
 
     def classify_market_state(self, df_day: pd.DataFrame) -> MarketState:
+        """Classify market state from daily OHLCV data."""
+        context = self.recommend(df_day)
+        return context.market_state
+
+    def recommend(self, df_day: pd.DataFrame) -> RegimeContext:
+        """Get full regime context with market state and raw indicator values.
+
+        Args:
+            df_day: Daily OHLCV DataFrame with columns: high, low, close, volume
+
+        Returns:
+            RegimeContext with market_state, regime, mfi, adx
+        """
         df = df_day.copy()
+
+        # Default values when insufficient data
         if len(df) < max(self.mfi_period, self.adx_period) + 5:
-            return "SIDEWAYS_NEUTRAL"
+            return RegimeContext(
+                market_state="SIDEWAYS_NEUTRAL",
+                regime="SIDEWAYS",
+                mfi=50.0,
+                adx=0.0,
+            )
 
         df["mfi"] = _calc_mfi(df, period=self.mfi_period)
         df["adx"] = _calc_adx(df, period=self.adx_period)
 
         mfi = float(df["mfi"].iloc[-1])
         adx = float(df["adx"].iloc[-1])
-        return self.classify_from_values(mfi=mfi, adx=adx)
+        market_state = self.classify_from_values(mfi=mfi, adx=adx)
+        regime = self.market_state_to_regime(market_state)
 
-    def recommend(self, df_day: pd.DataFrame) -> RegimeDecision:
-        market_state = self.classify_market_state(df_day)
-        return self.decide_from_market_state(market_state)
+        return RegimeContext(
+            market_state=market_state,
+            regime=regime,
+            mfi=mfi,
+            adx=adx,
+        )
 
 
 def _calc_mfi(df: pd.DataFrame, period: int) -> pd.Series:

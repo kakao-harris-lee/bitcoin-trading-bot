@@ -71,8 +71,8 @@
       "params_override": {}
     },
     "XRP": {
-      "upbit_enabled": false,
-      "binance_enabled": false,
+      "upbit_enabled": true,
+      "binance_enabled": true,
       "alpha_ratio": 0.1,
       "upbit_symbol": "KRW-XRP",
       "binance_symbol": "XRPUSDT",
@@ -83,16 +83,15 @@
         "BEAR": null
       },
       "binance_strategies": {
-        "BULL": null,
+        "BULL": "v35_xrp",
         "SIDEWAYS": null,
-        "BEAR": null
+        "BEAR": "short_v1"
       },
       "binance_leverage": 3,
       "strategy_configs": {
         "v35_xrp": "config/strategies/v35_xrp.json"
       },
-      "params_override": {},
-      "_note": "XRP disabled: V35 strategy unsuitable for XRP."
+      "params_override": {}
     }
   }
 }

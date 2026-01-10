@@ -1,0 +1,230 @@
+openapi: 3.0.3
+info:
+  title: Trading Metrics Dashboard API
+  description: API for real-time trading metrics dashboard
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: Dashboard API
+
+paths:
+  /metrics/realtime:
+    get:
+      summary: Get real-time trading metrics
+      description: Returns current state of all active trading sessions with strategy decisions and positions
+      operationId: getRealtimeMetrics
+      responses:
+        '200':
+          description: Successful response with metrics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardState'
+        '404':
+          description: No trading data available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /metrics/decisions:
+    get:
+      summary: Get strategy decision history
+      description: Returns recent strategy decisions with optional filtering
+      operationId: getDecisionHistory
+      parameters:
+        - name: exchange
+          in: query
+          description: Filter by exchange
+          schema:
+            type: string
+            enum: [upbit, binance]
+        - name: hours
+          in: query
+          description: Hours of history to return (default 24, max 72)
+          schema:
+            type: integer
+            default: 24
+            maximum: 72
+        - name: limit
+          in: query
+          description: Maximum number of decisions to return
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        '200':
+          description: List of strategy decisions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decisions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StrategyDecision'
+                  total_count:
+                    type: integer
+
+components:
+  schemas:
+    DashboardState:
+      type: object
+      required:
+        - timestamp
+        - connection_status
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Response generation timestamp
+        upbit:
+          $ref: '#/components/schemas/ExchangeMetrics'
+        binance:
+          $ref: '#/components/schemas/ExchangeMetrics'
+        recent_decisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/StrategyDecision'
+          maxItems: 50
+        connection_status:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConnectionStatus'
+
+    ExchangeMetrics:
+      type: object
+      required:
+        - exchange
+        - mode
+        - regime
+      properties:
+        exchange:
+          type: string
+          enum: [upbit, binance]
+        mode:
+          type: string
+          enum: [paper, live]
+        strategy:
+          type: string
+          description: Active strategy name
+          example: va02
+        regime:
+          type: string
+          enum: [BULL, SIDEWAYS, BEAR, UNKNOWN]
+        market_state:
+          type: string
+          enum: [BULL_STRONG, BULL_WEAK, SIDEWAYS, BEAR_WEAK, BEAR_STRONG, UNKNOWN]
+        current_price:
+          type: number
+          format: float
+          description: Current BTC price
+        position_active:
+          type: boolean
+        position_qty:
+          type: number
+          format: float
+          description: Position quantity in BTC
+        entry_price:
+          type: number
+          format: float
+        unrealized_pnl:
+          type: number
+          format: float
+          description: Unrealized P&L in local currency
+        unrealized_pnl_pct:
+          type: number
+          format: float
+          description: Unrealized P&L percentage
+        total_value:
+          type: number
+          format: float
+        last_updated:
+          type: string
+          format: date-time
+        last_decision:
+          $ref: '#/components/schemas/StrategyDecision'
+
+    StrategyDecision:
+      type: object
+      required:
+        - timestamp
+        - action
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        strategy:
+          type: string
+        action:
+          type: string
+          enum: [buy, sell, hold]
+        reason:
+          type: string
+          description: Reason code for the decision
+          example: VA02_HOLDING_S
+        regime:
+          type: string
+        market_state:
+          type: string
+        indicators:
+          $ref: '#/components/schemas/Indicators'
+
+    Indicators:
+      type: object
+      properties:
+        rsi:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        mfi:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        adx:
+          type: number
+          format: float
+        close:
+          type: number
+          format: float
+          description: Closing price
+        score:
+          type: integer
+        tier:
+          type: string
+          enum: [S, A, B, C, D, F]
+
+    ConnectionStatus:
+      type: object
+      required:
+        - exchange
+        - connected
+      properties:
+        exchange:
+          type: string
+          enum: [upbit, binance]
+        connected:
+          type: boolean
+        last_heartbeat:
+          type: string
+          format: date-time
+        is_stale:
+          type: boolean
+          description: True if data is older than 30 seconds
+        stale_seconds:
+          type: integer
+          description: Seconds since last update
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message

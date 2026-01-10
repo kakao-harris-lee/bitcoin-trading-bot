@@ -155,3 +155,86 @@ class RedisStreams:
             True if field exists
         """
         return await self._client.hexists(key, field)
+
+    # Position helpers
+    async def set_position(self, symbol: str, market: str, data: dict[str, Any]) -> None:
+        """Set position data.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC")
+            market: Market type (e.g., "spot", "futures")
+            data: Position data (flat dict with string values)
+        """
+        key = f"positions:{symbol}:{market}"
+        await self._client.hset(key, mapping=data)
+
+    async def get_position(self, symbol: str, market: str) -> dict[str, str]:
+        """Get position data.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC")
+            market: Market type (e.g., "spot", "futures")
+
+        Returns:
+            Dict of position data
+        """
+        key = f"positions:{symbol}:{market}"
+        return await self._client.hgetall(key)
+
+    async def has_position(self, symbol: str, market: str) -> bool:
+        """Check if position exists.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC")
+            market: Market type (e.g., "spot", "futures")
+
+        Returns:
+            True if position exists
+        """
+        key = f"positions:{symbol}:{market}"
+        return await self._client.exists(key) > 0
+
+    async def clear_position(self, symbol: str, market: str) -> None:
+        """Clear position.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC")
+            market: Market type (e.g., "spot", "futures")
+        """
+        key = f"positions:{symbol}:{market}"
+        await self._client.delete(key)
+
+    # Risk helpers
+    async def set_risk(self, data: dict[str, Any]) -> None:
+        """Set risk data.
+
+        Args:
+            data: Risk data (flat dict with string values)
+        """
+        await self._client.hset("risk", mapping=data)
+
+    async def get_risk(self) -> dict[str, str]:
+        """Get risk data.
+
+        Returns:
+            Dict of risk data
+        """
+        return await self._client.hgetall("risk")
+
+    async def is_blocked(self) -> bool:
+        """Check if trading is blocked.
+
+        Returns:
+            True if trading is blocked
+        """
+        risk = await self.get_risk()
+        return risk.get("blocked") == "true"
+
+    async def is_kill_switch_on(self) -> bool:
+        """Check if kill switch is on.
+
+        Returns:
+            True if kill switch is enabled
+        """
+        risk = await self.get_risk()
+        return risk.get("kill_switch") == "true"

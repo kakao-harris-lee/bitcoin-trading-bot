@@ -197,6 +197,86 @@ class TestRedisStreamsUnit:
         assert result is True
         mock_client.hexists.assert_called_once_with("test:key", "field1")
 
+    async def test_position_operations(self, redis_streams):
+        """Test position hash operations."""
+        mock_client = MagicMock()
+        mock_client.hset = AsyncMock()
+        mock_client.hgetall = AsyncMock(return_value={
+            "quantity": "0.05",
+            "entry_price": "43000",
+            "strategy": "v35_long",
+        })
+        mock_client.exists = AsyncMock(return_value=1)
+        mock_client.delete = AsyncMock()
+        redis_streams._client = mock_client
+
+        # Set position
+        await redis_streams.set_position("BTC", "spot", {
+            "quantity": "0.05",
+            "entry_price": "43000",
+            "strategy": "v35_long",
+        })
+        mock_client.hset.assert_called_once_with(
+            "positions:BTC:spot",
+            mapping={"quantity": "0.05", "entry_price": "43000", "strategy": "v35_long"}
+        )
+
+        # Check exists
+        assert await redis_streams.has_position("BTC", "spot")
+        mock_client.exists.assert_called_with("positions:BTC:spot")
+
+        # Check non-existent position
+        mock_client.exists.return_value = 0
+        assert not await redis_streams.has_position("ETH", "spot")
+
+        # Get position
+        mock_client.exists.return_value = 1
+        pos = await redis_streams.get_position("BTC", "spot")
+        assert pos["quantity"] == "0.05"
+        assert pos["strategy"] == "v35_long"
+        mock_client.hgetall.assert_called_with("positions:BTC:spot")
+
+        # Clear position
+        await redis_streams.clear_position("BTC", "spot")
+        mock_client.delete.assert_called_once_with("positions:BTC:spot")
+
+    async def test_risk_operations(self, redis_streams):
+        """Test risk hash operations."""
+        mock_client = MagicMock()
+        mock_client.hset = AsyncMock()
+        mock_client.hgetall = AsyncMock(return_value={
+            "kill_switch": "false",
+            "daily_pnl": "0",
+            "blocked": "false"
+        })
+        redis_streams._client = mock_client
+
+        # Initialize risk
+        await redis_streams.set_risk({
+            "kill_switch": "false",
+            "daily_pnl": "0",
+            "blocked": "false"
+        })
+        mock_client.hset.assert_called_with(
+            "risk",
+            mapping={"kill_switch": "false", "daily_pnl": "0", "blocked": "false"}
+        )
+
+        # Check blocked (initially false)
+        assert not await redis_streams.is_blocked()
+
+        # Block
+        mock_client.hgetall.return_value = {"blocked": "true"}
+        assert await redis_streams.is_blocked()
+
+        # Check kill switch (initially false)
+        mock_client.hgetall.return_value = {"kill_switch": "false"}
+        assert not await redis_streams.is_kill_switch_on()
+
+        # Enable kill switch
+        mock_client.hgetall.return_value = {"kill_switch": "true"}
+        assert await redis_streams.is_kill_switch_on()
+
 
 @pytest.mark.integration
 @skip_if_no_redis

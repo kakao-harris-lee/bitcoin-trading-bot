@@ -12,6 +12,7 @@ from typing import Any
 from trading.streams import RedisStreams, BinanceFeedTask
 from trading.strategies import V35LongTask, SidewaysV2Task, ShortV1Task
 from trading.executor import BinanceClient, AsyncExecutor, PaperExecutor
+from trading.notification import TelegramTask
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,16 @@ class TradingEngine:
         self.tasks.append(asyncio.create_task(executor.run()))
         logger.info(f"Started {mode} executor")
 
-        # 4. Set up signal handlers
+        # 4. Start Telegram notification task
+        try:
+            telegram = TelegramTask(redis=self.redis)
+            self.tasks.append(asyncio.create_task(telegram.run()))
+            await telegram.send_start_notification(mode=mode, symbols=symbols)
+            logger.info("Started Telegram notification task")
+        except ValueError as e:
+            logger.warning(f"Telegram notifications disabled: {e}")
+
+        # 5. Set up signal handlers
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, self._signal_handler)

@@ -1,0 +1,59 @@
+{
+  "strategy_name": "v35_optimized_binance",
+  "version": "v35",
+  "asset": "BTC",
+  "exchange": "binance",
+  "timeframe": "minute60",
+  "description": "V35 Optuna optimized for BTC on Binance",
+  "optimized_at": "2026-01-12T00:30:40.554821",
+  "market_classifier": {
+    "mfi_bull_strong": 49,
+    "mfi_bull_moderate": 42,
+    "mfi_sideways": 50,
+    "adx_strong": 23,
+    "adx_moderate": 24
+  },
+  "entry_conditions": {
+    "rsi_oversold": 36,
+    "bb_mult": 2.007813792492082,
+    "bb_entry_tolerance": 0.047960954578125645,
+    "sideways_entry_enabled": true,
+    "rsi_sideways_oversold": 29,
+    "stoch_oversold": 30
+  },
+  "position_sizing": {
+    "position_size_bull_strong": 0.6486629255955886,
+    "position_size_bull_moderate": 0.5438938726518512,
+    "position_size_sideways": 0.2875999530489673
+  },
+  "exit_conditions": {
+    "stop_loss": -0.04907829097393772,
+    "trailing_enabled": false,
+    "trailing_activation": 0.016534501876708907,
+    "trailing_distance": 0.023337260504099618,
+    "tp_bull_strong_1": 0.05462510091813956,
+    "tp_bull_strong_2": 0.12540199769979152,
+    "tp_bull_strong_3": 0.2114830088339827,
+    "tp_bull_moderate_1": 0.03803085158360542,
+    "tp_bull_moderate_2": 0.09323430537724485,
+    "tp_bull_moderate_3": 0.14940491732129504,
+    "tp_sideways_1": 0.0228678583606828,
+    "tp_sideways_2": 0.05110737614933413,
+    "tp_sideways_3": 0.09210878800168716,
+    "exit_fraction_1": 0.37546475629633136,
+    "exit_fraction_2": 0.40296237822671516,
+    "min_profit_for_macd_exit": 0.014513073173301366
+  },
+  "backtesting": {
+    "train_period": "2021-01-01 to 2024-12-31",
+    "validation_period": "2025-01-01 to 2026-01-11",
+    "best_score": 84.68230711216124
+  },
+  "validation_results": {
+    "return_pct": 1.5180340466821507,
+    "mdd_pct": -5.386823879959392,
+    "sharpe": 0.2834846246495594,
+    "trades": 7,
+    "win_rate": 0.8571428571428571
+  }
+}

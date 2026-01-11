@@ -1,7 +1,9 @@
 # trading/strategies/v35_long_task.py
 """V35 Long Strategy - ported to stream architecture."""
 from __future__ import annotations
+import json
 import logging
+from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
 from trading.streams.base_strategy import BaseStrategyTask
@@ -12,18 +14,51 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Regime thresholds (from original RegimeRouter)
-MFI_BULL = 52
-MFI_BEAR = 48
-ADX_STRONG = 25
-ADX_TREND = 20
-ADX_WEAK = 15
+# Default regime thresholds (used if no optimized config)
+DEFAULT_PARAMS = {
+    "mfi_bull": 52,
+    "mfi_bear": 48,
+    "adx_strong": 25,
+    "adx_trend": 20,
+    "adx_weak": 15,
+    "stop_loss_pct": 1.5,
+    "take_profit_pct": 3.0,
+    "trailing_activation": 2.0,
+    "trailing_distance": 1.5,
+}
 
-# Exit thresholds (from legacy v35_long.py)
-STOP_LOSS_PCT = 1.5      # -1.5% stop loss
-TAKE_PROFIT_PCT = 3.0    # +3.0% take profit
-TRAILING_ACTIVATION = 2.0  # Activate trailing at +2%
-TRAILING_DISTANCE = 1.5    # Trail by 1.5%
+
+def load_optimized_params(symbol: str) -> dict:
+    """Load optimized parameters from config file if available."""
+    config_path = Path(f"config/strategies/v35_{symbol.lower()}_binance.json")
+    if not config_path.exists():
+        logger.info(f"No optimized config for {symbol}, using defaults")
+        return DEFAULT_PARAMS.copy()
+
+    try:
+        with open(config_path) as f:
+            opt_config = json.load(f)
+
+        mc = opt_config.get("market_classifier", {})
+        ec = opt_config.get("exit_conditions", {})
+
+        params = {
+            "mfi_bull": mc.get("mfi_bull_moderate", DEFAULT_PARAMS["mfi_bull"]),
+            "mfi_bear": 48,  # Keep default for bear threshold
+            "adx_strong": mc.get("adx_strong", DEFAULT_PARAMS["adx_strong"]),
+            "adx_trend": mc.get("adx_moderate", DEFAULT_PARAMS["adx_trend"]),
+            "adx_weak": 15,
+            "stop_loss_pct": abs(ec.get("stop_loss", -DEFAULT_PARAMS["stop_loss_pct"] / 100)) * 100,
+            "take_profit_pct": ec.get("tp_bull_moderate_1", DEFAULT_PARAMS["take_profit_pct"] / 100) * 100,
+            "trailing_activation": ec.get("trailing_activation", DEFAULT_PARAMS["trailing_activation"] / 100) * 100,
+            "trailing_distance": ec.get("trailing_distance", DEFAULT_PARAMS["trailing_distance"] / 100) * 100,
+            "trailing_enabled": ec.get("trailing_enabled", True),
+        }
+        logger.info(f"Loaded optimized params for {symbol}: SL={params['stop_loss_pct']:.1f}%, TP={params['take_profit_pct']:.1f}%")
+        return params
+    except Exception as e:
+        logger.warning(f"Failed to load optimized config for {symbol}: {e}")
+        return DEFAULT_PARAMS.copy()
 
 
 class V35LongTask(BaseStrategyTask):
@@ -48,6 +83,8 @@ class V35LongTask(BaseStrategyTask):
         self.min_data_points = 180  # Need enough data for indicators
         # Track high water mark for trailing stop per symbol
         self.high_water_mark: dict[str, float] = {}
+        # Load optimized parameters per symbol
+        self.params: dict[str, dict] = {s: load_optimized_params(s) for s in symbols}
 
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:
         """Evaluate entry conditions for symbol."""
@@ -62,8 +99,8 @@ class V35LongTask(BaseStrategyTask):
         if indicators is None:
             return None
 
-        # Classify regime
-        regime = self._classify_regime(indicators["mfi"], indicators["adx"])
+        # Classify regime using per-symbol params
+        regime = self._classify_regime(symbol, indicators["mfi"], indicators["adx"])
 
         # Check entry
         if self._should_enter(regime):
@@ -78,19 +115,26 @@ class V35LongTask(BaseStrategyTask):
 
         return None
 
-    def _classify_regime(self, mfi: float, adx: float) -> str:
-        """Self-classify market regime (replaces RegimeRouter)."""
-        if mfi >= MFI_BULL:
-            if adx >= ADX_STRONG:
+    def _classify_regime(self, symbol: str, mfi: float, adx: float) -> str:
+        """Self-classify market regime using optimized params."""
+        p = self.params.get(symbol, DEFAULT_PARAMS)
+        mfi_bull = p["mfi_bull"]
+        mfi_bear = p["mfi_bear"]
+        adx_strong = p["adx_strong"]
+        adx_trend = p["adx_trend"]
+        adx_weak = p["adx_weak"]
+
+        if mfi >= mfi_bull:
+            if adx >= adx_strong:
                 return "BULL_STRONG"
-            elif adx >= ADX_TREND:
+            elif adx >= adx_trend:
                 return "BULL_MODERATE"
             else:
                 return "SIDEWAYS_BULL"
-        elif mfi <= MFI_BEAR:
-            if adx >= ADX_TREND:
+        elif mfi <= mfi_bear:
+            if adx >= adx_trend:
                 return "BEAR_STRONG"
-            elif adx >= ADX_WEAK:
+            elif adx >= adx_weak:
                 return "BEAR_MODERATE"
             else:
                 return "SIDEWAYS_BEAR"
@@ -143,6 +187,14 @@ class V35LongTask(BaseStrategyTask):
         if entry_price <= 0 or quantity <= 0:
             return None
 
+        # Get per-symbol parameters
+        p = self.params.get(symbol, DEFAULT_PARAMS)
+        stop_loss_pct = p["stop_loss_pct"]
+        take_profit_pct = p["take_profit_pct"]
+        trailing_activation = p["trailing_activation"]
+        trailing_distance = p["trailing_distance"]
+        trailing_enabled = p.get("trailing_enabled", True)
+
         # Calculate P&L percentage
         pnl_pct = ((current_price - entry_price) / entry_price) * 100
 
@@ -156,7 +208,7 @@ class V35LongTask(BaseStrategyTask):
         hwm_pnl = ((hwm - entry_price) / entry_price) * 100
 
         # Exit condition 1: Stop loss
-        if pnl_pct <= -STOP_LOSS_PCT:
+        if pnl_pct <= -stop_loss_pct:
             self.high_water_mark.pop(symbol, None)
             return {
                 "symbol": symbol,
@@ -167,7 +219,7 @@ class V35LongTask(BaseStrategyTask):
             }
 
         # Exit condition 2: Take profit
-        if pnl_pct >= TAKE_PROFIT_PCT:
+        if pnl_pct >= take_profit_pct:
             self.high_water_mark.pop(symbol, None)
             return {
                 "symbol": symbol,
@@ -177,9 +229,9 @@ class V35LongTask(BaseStrategyTask):
                 "reason": f"V35 exit: Take profit {pnl_pct:.2f}%",
             }
 
-        # Exit condition 3: Trailing stop (activated after +2%, trails by 1.5%)
-        if hwm_pnl >= TRAILING_ACTIVATION:
-            trailing_stop_price = hwm * (1 - TRAILING_DISTANCE / 100)
+        # Exit condition 3: Trailing stop
+        if trailing_enabled and hwm_pnl >= trailing_activation:
+            trailing_stop_price = hwm * (1 - trailing_distance / 100)
             if current_price <= trailing_stop_price:
                 locked_pnl = ((trailing_stop_price - entry_price) / entry_price) * 100
                 self.high_water_mark.pop(symbol, None)
@@ -192,7 +244,7 @@ class V35LongTask(BaseStrategyTask):
                 }
 
         # Exit condition 4: Regime change to bearish
-        regime = self._classify_regime(indicators["mfi"], indicators["adx"])
+        regime = self._classify_regime(symbol, indicators["mfi"], indicators["adx"])
         if regime in ("BEAR_STRONG", "BEAR_MODERATE") and pnl_pct > 0:
             self.high_water_mark.pop(symbol, None)
             return {

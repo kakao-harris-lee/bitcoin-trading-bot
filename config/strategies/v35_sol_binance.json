@@ -1,0 +1,59 @@
+{
+  "strategy_name": "v35_optimized_binance",
+  "version": "v35",
+  "asset": "SOL",
+  "exchange": "binance",
+  "timeframe": "minute60",
+  "description": "V35 Optuna optimized for SOL on Binance",
+  "optimized_at": "2026-01-12T07:46:12.196934",
+  "market_classifier": {
+    "mfi_bull_strong": 53,
+    "mfi_bull_moderate": 55,
+    "mfi_sideways": 41,
+    "adx_strong": 27,
+    "adx_moderate": 20
+  },
+  "entry_conditions": {
+    "rsi_oversold": 43,
+    "bb_mult": 2.265995556650009,
+    "bb_entry_tolerance": 0.005016101196391424,
+    "sideways_entry_enabled": true,
+    "rsi_sideways_oversold": 31,
+    "stoch_oversold": 28
+  },
+  "position_sizing": {
+    "position_size_bull_strong": 0.7608481668607896,
+    "position_size_bull_moderate": 0.4181505331639694,
+    "position_size_sideways": 0.383645306789579
+  },
+  "exit_conditions": {
+    "stop_loss": -0.03662220706583249,
+    "trailing_enabled": true,
+    "trailing_activation": 0.022401299959880383,
+    "trailing_distance": 0.01757416820855167,
+    "tp_bull_strong_1": 0.02549142600944814,
+    "tp_bull_strong_2": 0.11957876771916076,
+    "tp_bull_strong_3": 0.14591402696518427,
+    "tp_bull_moderate_1": 0.03664874793212425,
+    "tp_bull_moderate_2": 0.09008314360739797,
+    "tp_bull_moderate_3": 0.1509843140609778,
+    "tp_sideways_1": 0.01404325470277219,
+    "tp_sideways_2": 0.052905334000723475,
+    "tp_sideways_3": 0.07361872403001155,
+    "exit_fraction_1": 0.46013407479260976,
+    "exit_fraction_2": 0.3580691540855898,
+    "min_profit_for_macd_exit": 0.005638851073207934
+  },
+  "backtesting": {
+    "train_period": "2021-01-01 to 2024-12-31",
+    "validation_period": "2025-01-01 to 2026-01-11",
+    "best_score": 85.88273572695606
+  },
+  "validation_results": {
+    "return_pct": 5.635128392267616,
+    "mdd_pct": -4.274030416380606,
+    "sharpe": 0.994279975564915,
+    "trades": 23,
+    "win_rate": 0.8695652173913043
+  }
+}

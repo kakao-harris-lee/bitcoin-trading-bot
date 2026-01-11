@@ -34,6 +34,8 @@ class BaseStrategyTask(ABC):
         self.use_smart_exit = use_smart_exit
         self.price_buffer: dict[str, deque] = {}
         self._running = False
+        # Track pending entries to avoid duplicate orders
+        self._pending_entry: dict[str, bool] = {}
 
     async def run(self) -> None:
         """Main loop: consume prices, evaluate, publish orders."""
@@ -86,6 +88,8 @@ class BaseStrategyTask(ABC):
         # Check if already has position - evaluate exit only for own positions
         position = await self.redis.get_position(symbol, self.market)
         if position:
+            # Clear pending flag since position now exists
+            self._pending_entry.pop(symbol, None)
             # Only evaluate exit if this strategy owns the position
             if position.get("strategy") == self.name:
                 exit_signal = await self.evaluate_exit(symbol, position)
@@ -95,9 +99,14 @@ class BaseStrategyTask(ABC):
                         await self.redis.clear_position(symbol, self.market)
             return
 
+        # Check if entry is already pending (order published but not yet filled)
+        if self._pending_entry.get(symbol):
+            return
+
         # Evaluate entry
         signal = await self.evaluate(symbol)
         if signal:
+            self._pending_entry[symbol] = True
             await self._publish_order(signal)
 
     def _update_buffer(self, symbol: str, msg: dict[str, Any]) -> None:
@@ -176,7 +185,7 @@ class BaseStrategyTask(ABC):
         try:
             # Get balance from Redis (set by AsyncExecutor)
             balance_key = "spot_balance" if self.market == "spot" else "futures_balance"
-            account = await self.redis.client.hgetall("account")
+            account = await self.redis._client.hgetall("account")
 
             if not account:
                 logger.warning("No account balance found, using minimum size")

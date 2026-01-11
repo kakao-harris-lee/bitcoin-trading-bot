@@ -75,6 +75,27 @@ class SmartExecutor:
 
         self._running = False
 
+    def update_high_water_mark(self, symbol: str, price: float) -> None:
+        """Update high water mark for symbol."""
+        current_hwm = self.high_water_marks.get(symbol, 0)
+        if price > current_hwm:
+            self.high_water_marks[symbol] = price
+
+    def calculate_stop_price(self, symbol: str, volatility: str) -> float:
+        """Calculate trailing stop price."""
+        hwm = self.high_water_marks.get(symbol, 0)
+        trail_pct = self.trail_distances.get(volatility, 1.2)
+        return hwm * (1 - trail_pct / 100)
+
+    def should_trigger_stop(
+        self, symbol: str, current_price: float, volatility: str
+    ) -> bool:
+        """Check if trailing stop should trigger."""
+        if symbol not in self.high_water_marks:
+            return False
+        stop_price = self.calculate_stop_price(symbol, volatility)
+        return current_price <= stop_price
+
     def _calculate_ladder_prices(self, base_price: float) -> list[float]:
         """Calculate limit prices for ladder tiers."""
         prices = []

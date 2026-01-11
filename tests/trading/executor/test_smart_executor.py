@@ -112,3 +112,66 @@ async def test_calculate_ladder_quantities(mock_redis, mock_binance, config):
     assert quantities[1] == pytest.approx(0.035, rel=0.01)
     assert quantities[2] == pytest.approx(0.025, rel=0.01)
     assert sum(quantities) == pytest.approx(total_qty, rel=0.001)
+
+
+@pytest.mark.asyncio
+async def test_update_trailing_stop(mock_redis, mock_binance, config):
+    """Test trailing stop updates with price."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # Price goes up - HWM should update
+    executor.update_high_water_mark("BTC", 101000.0)
+    assert executor.high_water_marks["BTC"] == 101000.0
+
+    # Price goes up more
+    executor.update_high_water_mark("BTC", 102000.0)
+    assert executor.high_water_marks["BTC"] == 102000.0
+
+    # Price goes down - HWM stays
+    executor.update_high_water_mark("BTC", 101500.0)
+    assert executor.high_water_marks["BTC"] == 102000.0
+
+
+@pytest.mark.asyncio
+async def test_calculate_trailing_stop_price(mock_redis, mock_binance, config):
+    """Calculate stop price from HWM and volatility."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    executor.high_water_marks["BTC"] = 100000.0
+
+    # Low volatility = tight stop (0.8%)
+    stop = executor.calculate_stop_price("BTC", "low")
+    assert stop == pytest.approx(99200.0, rel=0.001)
+
+    # High volatility = wide stop (1.8%)
+    stop = executor.calculate_stop_price("BTC", "high")
+    assert stop == pytest.approx(98200.0, rel=0.001)
+
+
+@pytest.mark.asyncio
+async def test_should_trigger_trailing_stop(mock_redis, mock_binance, config):
+    """Trailing stop triggers when price drops below stop."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    executor.high_water_marks["BTC"] = 100000.0
+
+    # Price above stop - no trigger
+    assert executor.should_trigger_stop("BTC", 99500.0, "low") is False
+
+    # Price at stop - trigger
+    assert executor.should_trigger_stop("BTC", 99200.0, "low") is True
+
+    # Price below stop - trigger
+    assert executor.should_trigger_stop("BTC", 99000.0, "low") is True

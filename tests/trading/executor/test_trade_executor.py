@@ -54,24 +54,25 @@ class TestTradeExecutor:
     @pytest.fixture
     def executor(self, mock_redis):
         config = MagicMock()
-        config.upbit_mode = "paper"
         config.binance_mode = "paper"
         config.daily_loss_limit_pct = 5.0
         config.max_position_size = 1.0
-        upbit = AsyncMock()
         binance = AsyncMock()
-        return TradeExecutor(mock_redis, upbit, binance, config)
+        return TradeExecutor(mock_redis, binance, config)
 
     def test_strategy_exchange_mapping(self, executor):
-        assert executor.STRATEGY_EXCHANGE["v35"] == "upbit"
+        # All strategies now map to binance
+        assert executor.STRATEGY_EXCHANGE["v35"] == "binance"
         assert executor.STRATEGY_EXCHANGE["short_v1"] == "binance"
+        assert executor.STRATEGY_EXCHANGE["sideways_v2"] == "binance"
+        assert executor.STRATEGY_EXCHANGE["h4"] == "binance"
 
     @pytest.mark.asyncio
     async def test_process_signal_paper_mode(self, executor):
         msg = {
-            "stream": "signals:v35",
+            "stream": "signals:short_v1",
             "data": {
-                "action": "buy",
+                "action": "short",
                 "price": 50000.0,
                 "size": 0.1,
                 "reason": "TEST"
@@ -81,9 +82,9 @@ class TestTradeExecutor:
         await executor.process_signal(msg)
 
         # Should have recorded paper position
-        assert "v35" in executor._positions
-        assert executor._positions["v35"]["active"] is True
-        assert executor._positions["v35"]["entry_price"] == 50000.0
+        assert "short_v1" in executor._positions
+        assert executor._positions["short_v1"]["active"] is True
+        assert executor._positions["short_v1"]["entry_price"] == 50000.0
 
     @pytest.mark.asyncio
     async def test_process_signal_blocked_by_kill_switch(self, executor):

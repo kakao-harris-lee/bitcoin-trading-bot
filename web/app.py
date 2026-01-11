@@ -4,7 +4,7 @@ app.py
 Flask 웹 대시보드 - Dual Exchange Paper Trading 모니터링
 """
 
-from flask import Flask, render_template, jsonify, request, Response, session
+from flask import Flask, render_template, jsonify, request, Response
 from flask_cors import CORS
 from functools import wraps
 import secrets
@@ -14,7 +14,6 @@ import requests
 from pathlib import Path
 from datetime import datetime
 
-import pyotp
 import redis
 
 # Load .env file from project root
@@ -69,24 +68,13 @@ DEFAULT_DOMAIN = "lchsvr.duckdns.org"
 DEFAULT_PORT = "5080"
 DASHBOARD_PATH = "btc-dashboard"
 
-# TOTP 설정 (환경변수에서 비밀키 로드, 없으면 생성하여 출력)
-TOTP_SECRET = os.getenv("DASHBOARD_TOTP_SECRET")
-if not TOTP_SECRET:
-    TOTP_SECRET = pyotp.random_base32()
-    print(f"\n⚠️  DASHBOARD_TOTP_SECRET not set. Generated new secret:")
-    print(f"   Add to .env: DASHBOARD_TOTP_SECRET={TOTP_SECRET}\n")
-
-totp = pyotp.TOTP(TOTP_SECRET, interval=30)
-
-# 대시보드 인증 정보 (기존 Basic Auth - optional fallback)
-DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME")
-DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD")
+# 대시보드 인증 정보 (Basic Auth)
+DASHBOARD_USERNAME = "admin"
+DASHBOARD_PASSWORD = "@1tidh6ls6ls"
 
 
 def check_auth(username, password):
     """Check if username/password combination is valid."""
-    if not DASHBOARD_USERNAME or not DASHBOARD_PASSWORD:
-        return True  # No auth configured
     return username == DASHBOARD_USERNAME and password == DASHBOARD_PASSWORD
 
 
@@ -102,80 +90,11 @@ def requires_auth(f):
     """Decorator for routes that require authentication."""
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not DASHBOARD_USERNAME or not DASHBOARD_PASSWORD:
-            return f(*args, **kwargs)  # No auth configured
         auth = request.authorization
         if not auth or not check_auth(auth.username, auth.password):
             return authenticate()
         return f(*args, **kwargs)
     return decorated
-
-
-def verify_totp(code: str) -> bool:
-    """Verify TOTP code with 1 interval tolerance."""
-    return totp.verify(code, valid_window=1)
-
-
-def get_current_totp() -> str:
-    """Get current TOTP code."""
-    return totp.now()
-
-
-def requires_totp(f):
-    """Decorator for routes that require TOTP authentication."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        # Check if already authenticated in session
-        if session.get('totp_authenticated'):
-            return f(*args, **kwargs)
-
-        # Check for TOTP code in query parameter
-        totp_code = request.args.get('code')
-        if totp_code and verify_totp(totp_code):
-            session['totp_authenticated'] = True
-            session.permanent = False  # Session expires when browser closes
-            return f(*args, **kwargs)
-
-        # For API calls, return JSON error instead of HTML form
-        if request.path.startswith('/api/'):
-            return jsonify({'error': 'Authentication required'}), 401
-
-        # Return TOTP input form for page requests
-        return render_totp_form()
-
-    return decorated
-
-
-def render_totp_form():
-    """Render TOTP input form."""
-    return '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Dashboard Access</title>
-        <style>
-            body { font-family: Arial; background: #1a1a2e; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-            .container { background: #16213e; padding: 40px; border-radius: 10px; text-align: center; }
-            h2 { margin-bottom: 20px; }
-            input { padding: 15px; font-size: 24px; width: 200px; text-align: center; letter-spacing: 8px; border: 2px solid #0f3460; border-radius: 5px; background: #1a1a2e; color: #fff; }
-            button { padding: 15px 40px; font-size: 16px; background: #e94560; color: #fff; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px; }
-            button:hover { background: #ff6b6b; }
-            .error { color: #e94560; margin-top: 10px; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2>🔐 Dashboard Access</h2>
-            <form method="GET">
-                <input type="text" name="code" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required autofocus>
-                <br>
-                <button type="submit">Verify</button>
-            </form>
-            <p style="margin-top: 20px; font-size: 12px; color: #888;">Enter TOTP code from Telegram /dashboard command</p>
-        </div>
-    </body>
-    </html>
-    ''', 200
 
 
 def load_allocation_config() -> dict:
@@ -307,7 +226,6 @@ def _send_telegram_notification(message: str) -> bool:
 
 def _notify_dashboard_url(port: int = 5080):
     """대시보드 URL을 텔레그램으로 알림"""
-    current_code = get_current_totp()
     domain = os.getenv("DASHBOARD_DOMAIN", DEFAULT_DOMAIN)
     port = os.getenv("DASHBOARD_PORT", DEFAULT_PORT)
 
@@ -315,10 +233,7 @@ def _notify_dashboard_url(port: int = 5080):
 🖥️ *대시보드 시작*
 
 🔗 접속: `https://{domain}:{port}/{DASHBOARD_PATH}`
-🔐 현재 TOTP: `{current_code}`
 🕐 시작 시간: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`
-
-_/dashboard 명령어로 TOTP 코드를 받을 수 있습니다._
 """
     _send_telegram_notification(message)
 
@@ -338,9 +253,9 @@ def block_common():
 
 
 @app.route(f"/{DASHBOARD_PATH}")
-@requires_totp
+@requires_auth
 def dashboard():
-    """메인 대시보드 (TOTP 인증 필요)"""
+    """메인 대시보드 (Basic Auth 인증 필요)"""
     return render_template("dashboard.html")
 
 
@@ -1004,7 +919,7 @@ def get_positions():
 # =====================
 
 @app.route("/api/backtest/strategies")
-@requires_totp
+@requires_auth
 def get_backtest_strategies():
     """Get list of available strategies for backtesting."""
     if not backtest_runner:
@@ -1017,7 +932,7 @@ def get_backtest_strategies():
 
 
 @app.route("/api/backtest/run", methods=["POST"])
-@requires_totp
+@requires_auth
 def run_backtest():
     """
     Start a new backtest job.
@@ -1062,7 +977,7 @@ def run_backtest():
 
 
 @app.route("/api/backtest/status/<job_id>")
-@requires_totp
+@requires_auth
 def get_backtest_status(job_id: str):
     """Get status and results of a backtest job."""
     if not backtest_runner:
@@ -1076,7 +991,7 @@ def get_backtest_status(job_id: str):
 
 
 @app.route("/api/backtest/cancel/<job_id>", methods=["POST"])
-@requires_totp
+@requires_auth
 def cancel_backtest(job_id: str):
     """Cancel a running backtest job."""
     if not backtest_runner:
@@ -1223,7 +1138,7 @@ def get_decision_history():
 if __name__ == "__main__":
     print(f"\n{'='*50}")
     print(f"Dashboard available at: http://localhost:5080/{DASHBOARD_PATH}")
-    print(f"TOTP authentication required (use /dashboard command in Telegram)")
+    print(f"Basic Auth required (admin / @1tidh6ls6ls)")
     print(f"{'='*50}\n")
 
     # 텔레그램으로 대시보드 URL 알림

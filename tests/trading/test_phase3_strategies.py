@@ -72,7 +72,7 @@ def mock_config():
         'events': 'system:events',
     }
     config.trading = MagicMock()
-    config.trading.upbit_enabled = True
+    config.trading.binance_enabled = True
     config.trading.binance_enabled = True
     return config
 
@@ -268,9 +268,9 @@ class TestV35LongStrategy:
     def test_init(self, strategy):
         """초기화 테스트"""
         assert strategy.strategy_name == "v35-long"
-        assert strategy.exchange == Exchange.UPBIT
+        assert strategy.exchange == Exchange.BINANCE
         assert strategy.direction == Direction.LONG
-        assert strategy.symbol == "KRW-BTC"
+        assert strategy.symbol == "BTCUSDT"
 
     def test_add_indicators(self, strategy, sample_ohlcv_df):
         """지표 추가 테스트"""
@@ -392,7 +392,7 @@ class TestRiskManager:
         """유효한 신호 승인"""
         signal = {
             'strategy': 'v35_long',
-            'exchange': 'upbit',
+            'exchange': 'binance',
             'action': 'buy',
             'fraction': 0.3,
         }
@@ -408,7 +408,7 @@ class TestRiskManager:
 
         signal = {
             'strategy': 'v35_long',
-            'exchange': 'upbit',
+            'exchange': 'binance',
             'action': 'buy',
             'fraction': 0.3,
         }
@@ -438,7 +438,7 @@ class TestRiskManager:
 
         signal = {
             'strategy': 'v35_long',
-            'exchange': 'upbit',
+            'exchange': 'binance',
             'action': 'buy',
             'fraction': 0.2,
         }
@@ -452,7 +452,7 @@ class TestRiskManager:
         # 첫 번째 신호 승인
         signal = {
             'strategy': 'v35_long',
-            'exchange': 'upbit',
+            'exchange': 'binance',
             'action': 'buy',
             'fraction': 0.3,
         }
@@ -488,7 +488,7 @@ class TestRiskManager:
     def test_position_update(self, risk_manager):
         """포지션 업데이트 테스트"""
         risk_manager.update_position(
-            exchange='upbit',
+            exchange='binance',
             symbol='KRW-BTC',
             quantity=0.1,
             entry_price=50000000,
@@ -505,7 +505,7 @@ class TestRiskManager:
         signal = {
             'id': 'sig-001',
             'strategy': 'v35_long',
-            'exchange': 'upbit',
+            'exchange': 'binance',
             'symbol': 'KRW-BTC',
             'action': 'buy',
             'direction': 'long',
@@ -524,7 +524,7 @@ class TestRiskManager:
         order = risk_manager._create_order(signal, validation)
 
         assert order['signal_id'] == 'sig-001'
-        assert order['exchange'] == 'upbit'
+        assert order['exchange'] == 'binance'
         assert order['quantity'] == 0.25
         assert order['status'] == 'pending'
 
@@ -593,7 +593,7 @@ class TestPhase3Integration:
         # 정상 신호
         signal = {
             'strategy': 'v35_long',
-            'exchange': 'upbit',
+            'exchange': 'binance',
             'action': 'buy',
             'fraction': 0.3,
         }

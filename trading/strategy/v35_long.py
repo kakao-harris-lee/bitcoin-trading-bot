@@ -1,6 +1,6 @@
 """
 Trading Engine V2 - V35 Long Strategy
-Upbit Long 전략 (v35_optimized 이식)
+Binance Futures Long 전략 (v35_optimized 이식)
 """
 
 import logging
@@ -263,9 +263,9 @@ class V35LongStrategy(BaseStrategy):
 
         super().__init__(
             strategy_name="v35-long",
-            exchange=Exchange.UPBIT,
+            exchange=Exchange.BINANCE,
             direction=Direction.LONG,
-            symbol="KRW-BTC",
+            symbol="BTCUSDT",
             config=config,
             strategy_config=merged_config,
         )

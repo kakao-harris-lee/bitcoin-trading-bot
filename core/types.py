@@ -11,7 +11,6 @@ from enum import Enum
 
 class Exchange(str, Enum):
     """거래소"""
-    UPBIT = "upbit"
     BINANCE = "binance"
 
 
@@ -217,7 +216,6 @@ class AssetConfig(BaseModel):
     symbol: str = Field(description="Asset symbol (e.g., BTC, ETH, SOL)")
     enabled: bool = Field(default=True, description="Whether this asset is active")
     alpha_ratio: float = Field(ge=0.0, le=1.0, description="Capital allocation ratio")
-    upbit_symbol: str = Field(description="Upbit trading pair (e.g., KRW-BTC)")
     binance_symbol: str = Field(description="Binance trading pair (e.g., BTCUSDT)")
     db_path: str = Field(description="Path to historical data DB")
     strategies: Dict[str, Optional[str]] = Field(

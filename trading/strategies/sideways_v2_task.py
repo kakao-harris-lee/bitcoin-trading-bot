@@ -110,14 +110,22 @@ class SidewaysV2Task(BaseStrategyTask):
             adx = volatility * 1000
             adx = max(0, min(50, adx))
 
-            # Simple RSI calculation
+            # RSI calculation with edge case handling
             deltas = np.diff(closes[-15:])
             gains = np.where(deltas > 0, deltas, 0)
             losses = np.where(deltas < 0, -deltas, 0)
-            avg_gain = np.mean(gains) if len(gains) > 0 else 0
-            avg_loss = np.mean(losses) if len(losses) > 0 else 0.001
-            rs = avg_gain / avg_loss
-            rsi = 100 - (100 / (1 + rs))
+            avg_gain = np.mean(gains)
+            avg_loss = np.mean(losses)
+
+            # Minimum movement threshold (0.01% of price) to avoid false signals
+            min_movement = np.mean(closes[-15:]) * 0.0001
+            if avg_gain < min_movement and avg_loss < min_movement:
+                rsi = 50.0  # No significant movement, neutral RSI
+            elif avg_loss < min_movement:
+                rsi = 100.0  # Only significant gains
+            else:
+                rs = avg_gain / max(avg_loss, min_movement)
+                rsi = 100 - (100 / (1 + rs))
 
             return {
                 "mfi": mfi,

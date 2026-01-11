@@ -28,7 +28,7 @@ class TestStrategy(BaseStrategyTask):
 def mock_redis():
     redis = AsyncMock()
     redis.publish = AsyncMock(return_value="1234-0")
-    redis.has_position = AsyncMock(return_value=False)
+    redis.get_position = AsyncMock(return_value=None)  # No position
     redis.is_blocked = AsyncMock(return_value=False)
     return redis
 
@@ -77,7 +77,13 @@ async def test_strategy_publishes_order(mock_redis):
 @pytest.mark.asyncio
 async def test_strategy_skips_when_position_exists(mock_redis):
     """Test skipping when position already exists."""
-    mock_redis.has_position = AsyncMock(return_value=True)
+    # Return a position dict owned by a different strategy
+    mock_redis.get_position = AsyncMock(return_value={
+        "quantity": "0.01",
+        "entry_price": "40000",
+        "strategy": "other_strategy",  # Different strategy owns it
+        "side": "buy",
+    })
 
     strategy = TestStrategy(
         name="test",
@@ -89,7 +95,7 @@ async def test_strategy_skips_when_position_exists(mock_redis):
     msg = {"symbol": "BTC", "price": "43000", "market": "spot", "_id": "1-0"}
     await strategy._handle_message(msg)
 
-    # Should not publish order
+    # Should not publish order (position exists)
     mock_redis.publish.assert_not_called()
 
 

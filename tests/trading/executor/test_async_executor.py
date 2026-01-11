@@ -35,6 +35,8 @@ def mock_client():
 async def test_executor_passes_risk_gates(mock_redis, mock_client):
     """Test order passes risk gates."""
     executor = AsyncExecutor(redis=mock_redis, client=mock_client, config={})
+    # Set up balance cache (required for balance check)
+    executor._balance_cache = {"spot": 10000.0, "futures": 10000.0, "last_update": 0}
 
     order = {
         "id": "test-123",
@@ -77,6 +79,8 @@ async def test_executor_blocks_on_kill_switch(mock_redis, mock_client):
 async def test_executor_updates_position_after_fill(mock_redis, mock_client):
     """Test position is updated after successful fill."""
     executor = AsyncExecutor(redis=mock_redis, client=mock_client, config={})
+    # Set up balance cache (required for balance check)
+    executor._balance_cache = {"spot": 10000.0, "futures": 10000.0, "last_update": 0}
 
     order = {
         "id": "test-123",

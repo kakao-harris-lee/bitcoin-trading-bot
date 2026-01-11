@@ -131,3 +131,54 @@ class BaseStrategyTask(ABC):
         Returns order intent dict or None.
         """
         return None
+
+    async def get_dynamic_position_size(
+        self,
+        symbol: str,
+        price: float,
+        position_pct: float = 0.02,
+        min_size: float = 0.001,
+    ) -> float:
+        """
+        Calculate position size based on account balance.
+
+        Args:
+            symbol: Trading symbol (BTC, ETH, SOL)
+            price: Current price of the asset
+            position_pct: Percentage of balance to use (default 2%)
+            min_size: Minimum position size
+
+        Returns:
+            Position size in asset units
+        """
+        try:
+            # Get balance from Redis (set by AsyncExecutor)
+            balance_key = "spot_balance" if self.market == "spot" else "futures_balance"
+            account = await self.redis.client.hgetall("account")
+
+            if not account:
+                logger.warning("No account balance found, using minimum size")
+                return min_size
+
+            balance = float(account.get(balance_key, 0))
+
+            if balance <= 0:
+                return min_size
+
+            # Calculate position size
+            position_value = balance * position_pct
+            size = position_value / price
+
+            # Round to appropriate precision
+            if symbol == "BTC":
+                size = round(size, 5)  # 0.00001 BTC precision
+            elif symbol == "ETH":
+                size = round(size, 4)  # 0.0001 ETH precision
+            else:
+                size = round(size, 3)  # 0.001 for others
+
+            return max(size, min_size)
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate dynamic position size: {e}")
+            return min_size

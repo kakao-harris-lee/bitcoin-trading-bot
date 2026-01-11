@@ -26,7 +26,10 @@ class AsyncExecutor:
         self.client = client
         self.config = config
         self.max_daily_loss = config.get("max_daily_loss", 500)  # USDT
+        self.position_pct = config.get("position_pct", 0.02)  # 2% of balance per trade
+        self.min_balance = config.get("min_balance", 100)  # Minimum USDT to trade
         self._running = False
+        self._balance_cache = {"spot": 0.0, "futures": 0.0, "last_update": 0}
 
     async def run(self) -> None:
         """Main loop: consume and execute orders."""
@@ -35,7 +38,14 @@ class AsyncExecutor:
         consumer = "executor-main"
 
         await self.redis.create_consumer_group("orders", group)
+
+        # Sync account on startup
+        await self._sync_account()
+
         logger.info("AsyncExecutor started")
+
+        # Periodic balance refresh task
+        asyncio.create_task(self._balance_refresh_loop())
 
         while self._running:
             try:
@@ -55,6 +65,75 @@ class AsyncExecutor:
         """Signal executor to stop."""
         self._running = False
 
+    async def _sync_account(self) -> None:
+        """Sync positions and balance from Binance on startup."""
+        logger.info("Syncing account with Binance...")
+
+        try:
+            # Get balance
+            balance = await self.client.get_balance()
+            self._balance_cache = {
+                "spot": balance.spot_usdt,
+                "futures": balance.futures_usdt,
+                "last_update": time.time(),
+            }
+            logger.info(f"Balance: Spot=${balance.spot_usdt:.2f}, Futures=${balance.futures_usdt:.2f}")
+
+            # Get positions and sync to Redis
+            positions = await self.client.get_all_positions()
+            synced = 0
+
+            for pos in positions:
+                symbol = pos["symbol"]
+                market = pos["market"]
+
+                # Check if position exists in Redis
+                redis_pos = await self.redis.get_position(symbol, market)
+                if not redis_pos:
+                    # Add to Redis (mark as external/unknown strategy)
+                    await self.redis.set_position(symbol, market, {
+                        "quantity": str(pos["quantity"]),
+                        "entry_price": str(pos.get("entry_price", 0)),
+                        "strategy": "external",
+                        "entry_time": str(int(time.time() * 1000)),
+                        "side": pos["side"],
+                    })
+                    synced += 1
+                    logger.info(f"Synced external position: {symbol} {market}")
+
+            if synced > 0:
+                logger.info(f"Synced {synced} external positions from Binance")
+
+            # Store balance in Redis for strategies to access
+            await self.redis.client.hset("account", mapping={
+                "spot_balance": str(balance.spot_usdt),
+                "futures_balance": str(balance.futures_usdt),
+                "last_sync": str(int(time.time())),
+            })
+
+        except Exception as e:
+            logger.error(f"Account sync failed: {e}")
+
+    async def _balance_refresh_loop(self) -> None:
+        """Periodically refresh balance cache."""
+        while self._running:
+            try:
+                await asyncio.sleep(60)  # Refresh every minute
+                balance = await self.client.get_balance()
+                self._balance_cache = {
+                    "spot": balance.spot_usdt,
+                    "futures": balance.futures_usdt,
+                    "last_update": time.time(),
+                }
+                # Update Redis
+                await self.redis.client.hset("account", mapping={
+                    "spot_balance": str(balance.spot_usdt),
+                    "futures_balance": str(balance.futures_usdt),
+                    "last_sync": str(int(time.time())),
+                })
+            except Exception as e:
+                logger.warning(f"Balance refresh failed: {e}")
+
     async def _process_order(self, order: dict[str, Any]) -> dict | None:
         """Process single order."""
         # Check risk gates
@@ -63,7 +142,20 @@ class AsyncExecutor:
             await self._publish_rejection(order, "risk_blocked")
             return None
 
+        # Check balance before order
+        market = order.get("market", "spot")
+        required_balance = self._estimate_order_value(order)
+        available = self._balance_cache.get(market, 0)
+
+        if available < required_balance:
+            logger.warning(f"Insufficient balance: {available:.2f} < {required_balance:.2f}")
+            await self._publish_rejection(order, f"insufficient_balance:{available:.2f}")
+            return None
+
         try:
+            # Check if this is an exit (sell for spot, buy to cover for futures)
+            is_exit = await self._is_exit_order(order)
+
             # Execute order
             fill = await self.client.market_order(
                 symbol=order["symbol"],
@@ -73,10 +165,12 @@ class AsyncExecutor:
             )
 
             # Update position
-            await self._update_position(order, fill)
-
-            # Update daily P&L tracking
-            await self._update_daily_pnl(order, fill)
+            if is_exit:
+                # Calculate realized P&L
+                await self._record_exit_pnl(order, fill)
+                await self.redis.clear_position(order["symbol"], order["market"])
+            else:
+                await self._update_position(order, fill)
 
             # Publish trade notification
             await self._publish_trade(order, fill)
@@ -88,6 +182,70 @@ class AsyncExecutor:
             logger.error(f"Order {order['id']} failed: {e}")
             await self._publish_rejection(order, str(e))
             return None
+
+    def _estimate_order_value(self, order: dict) -> float:
+        """Estimate USDT value of order."""
+        quantity = float(order.get("quantity", 0))
+        # Use approximate price (we don't have real-time price here)
+        # This is a rough estimate for balance check
+        symbol = order.get("symbol", "BTC")
+        approx_prices = {"BTC": 90000, "ETH": 3000, "SOL": 130}
+        price = approx_prices.get(symbol, 100)
+        return quantity * price * 1.01  # 1% buffer for slippage
+
+    async def _is_exit_order(self, order: dict) -> bool:
+        """Check if order is closing an existing position."""
+        symbol = order["symbol"]
+        market = order["market"]
+        side = order["side"]
+
+        position = await self.redis.get_position(symbol, market)
+        if not position:
+            return False
+
+        pos_side = position.get("side", "buy")
+
+        # Exit if selling a long position or buying to cover a short
+        if market == "spot":
+            return side == "sell" and pos_side == "buy"
+        else:  # futures
+            return (side == "buy" and pos_side == "sell") or (side == "sell" and pos_side == "buy")
+
+    async def _record_exit_pnl(self, order: dict, fill: dict) -> None:
+        """Record realized P&L when exiting a position."""
+        symbol = order["symbol"]
+        market = order["market"]
+
+        position = await self.redis.get_position(symbol, market)
+        if not position:
+            return
+
+        entry_price = float(position.get("entry_price", 0))
+        exit_price = fill["filled_price"]
+        quantity = fill["filled_qty"]
+        side = position.get("side", "buy")
+
+        # Calculate P&L
+        if side == "buy":  # Long position
+            pnl = (exit_price - entry_price) * quantity
+        else:  # Short position
+            pnl = (entry_price - exit_price) * quantity
+
+        # Update daily P&L
+        risk = await self.redis.get_risk()
+        daily_pnl = float(risk.get("daily_pnl", 0)) + pnl
+        await self.redis.client.hset("risk", "daily_pnl", str(daily_pnl))
+
+        logger.info(f"Recorded P&L: {symbol} {pnl:+.2f} USDT (daily total: {daily_pnl:+.2f})")
+
+        # Publish P&L alert
+        await self.redis.publish("alerts", {
+            "type": "pnl_realized",
+            "symbol": symbol,
+            "pnl": str(pnl),
+            "daily_pnl": str(daily_pnl),
+            "timestamp": str(int(time.time() * 1000)),
+        })
 
     async def _pass_risk_gates(self) -> bool:
         """Check all risk conditions."""
@@ -109,6 +267,13 @@ class AsyncExecutor:
             logger.warning(f"Daily loss limit exceeded: {daily_pnl}")
             return False
 
+        # Minimum balance check
+        spot = self._balance_cache.get("spot", 0)
+        futures = self._balance_cache.get("futures", 0)
+        if spot < self.min_balance and futures < self.min_balance:
+            logger.warning(f"Balance too low: spot={spot}, futures={futures}")
+            return False
+
         return True
 
     async def _update_position(self, order: dict, fill: dict) -> None:
@@ -120,12 +285,6 @@ class AsyncExecutor:
             "entry_time": str(int(time.time() * 1000)),
             "side": order["side"],
         })
-
-    async def _update_daily_pnl(self, order: dict, fill: dict) -> None:
-        """Update daily P&L tracking."""
-        # For now, just track costs (entry has no realized P&L)
-        # Real P&L tracking happens on exit
-        pass
 
     async def _publish_trade(self, order: dict, fill: dict) -> None:
         """Publish trade to trades stream."""

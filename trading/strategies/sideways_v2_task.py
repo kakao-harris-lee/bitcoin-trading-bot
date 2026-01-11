@@ -65,7 +65,7 @@ class SidewaysV2Task(BaseStrategyTask):
 
         # Mean reversion: buy when oversold
         if indicators["rsi"] <= RSI_OVERSOLD:
-            quantity = self._calculate_position_size(indicators["close"])
+            quantity = await self._calculate_position_size(symbol, indicators["close"])
             return {
                 "symbol": symbol,
                 "side": "buy",
@@ -116,9 +116,16 @@ class SidewaysV2Task(BaseStrategyTask):
             logger.error(f"Indicator calculation failed for {symbol}: {e}")
             return None
 
-    def _calculate_position_size(self, price: float) -> float:
-        """Calculate position size."""
-        return self.config.get("position_size", 0.01)
+    async def _calculate_position_size(self, symbol: str, price: float) -> float:
+        """Calculate position size (dynamic or fixed based on config)."""
+        # Use dynamic sizing if enabled, otherwise fall back to fixed
+        use_dynamic = self.config.get("dynamic_sizing", False)
+
+        if use_dynamic:
+            position_pct = self.config.get("position_pct", 0.02)  # 2% of balance
+            return await self.get_dynamic_position_size(symbol, price, position_pct)
+        else:
+            return self.config.get("position_size", 0.01)
 
     async def evaluate_exit(self, symbol: str, position: dict) -> dict[str, Any] | None:
         """Evaluate exit conditions for mean-reversion strategy."""

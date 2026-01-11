@@ -842,7 +842,8 @@ def get_daily_analytics():
 @app.route("/api/positions")
 def get_positions():
     """
-    Get Binance Futures positions with unrealized P&L.
+    Get all Binance positions (Spot + Futures) with unrealized P&L.
+    Also includes positions tracked in Redis by the trading bot.
     """
     result = {
         'timestamp': datetime.now().isoformat(),
@@ -852,7 +853,6 @@ def get_positions():
         'errors': []
     }
 
-    # Fetch Binance Futures positions
     try:
         from binance.client import Client
         import time
@@ -860,53 +860,113 @@ def get_positions():
         api_key = os.getenv('BINANCE_API_KEY')
         api_secret = os.getenv('BINANCE_API_SECRET')
 
-        if api_key and api_secret:
-            client = Client(api_key, api_secret)
-            server_time = client.get_server_time()
-            local_time = int(time.time() * 1000)
-            client.timestamp_offset = server_time['serverTime'] - local_time
-
-            account = client.futures_account(recvWindow=60000)
-
-            for pos in account['positions']:
-                size = float(pos['positionAmt'])
-                if size != 0:
-                    entry_price = float(pos['entryPrice'])
-                    unrealized_pnl = float(pos['unrealizedProfit'])
-                    mark_price = float(pos.get('markPrice', entry_price))
-                    liquidation_price = float(pos.get('liquidationPrice', 0))
-                    leverage = int(pos.get('leverage', 1))
-
-                    side = 'LONG' if size > 0 else 'SHORT'
-                    abs_size = abs(size)
-                    value = abs_size * mark_price
-
-                    # Calculate P&L percentage
-                    if entry_price > 0:
-                        if side == 'LONG':
-                            unrealized_pnl_pct = ((mark_price / entry_price) - 1) * 100 * leverage
-                        else:
-                            unrealized_pnl_pct = ((entry_price / mark_price) - 1) * 100 * leverage
-                    else:
-                        unrealized_pnl_pct = 0
-
-                    result['positions'].append({
-                        'symbol': pos['symbol'],
-                        'exchange': 'binance',
-                        'side': side,
-                        'quantity': abs_size,
-                        'entry_price': entry_price,
-                        'current_price': mark_price,
-                        'value': value,
-                        'unrealized_pnl': unrealized_pnl,
-                        'unrealized_pnl_pct': unrealized_pnl_pct,
-                        'liquidation_price': liquidation_price if liquidation_price > 0 else None,
-                        'leverage': leverage
-                    })
-                    result['total_value'] += value
-                    result['total_unrealized_pnl'] += unrealized_pnl
-        else:
+        if not api_key or not api_secret:
             result['errors'].append('Binance: API credentials not configured')
+            return jsonify(result)
+
+        client = Client(api_key, api_secret)
+        server_time = client.get_server_time()
+        local_time = int(time.time() * 1000)
+        client.timestamp_offset = server_time['serverTime'] - local_time
+
+        # Get current prices
+        prices = {}
+        for ticker in client.get_all_tickers():
+            prices[ticker['symbol']] = float(ticker['price'])
+
+        # ==================== SPOT POSITIONS ====================
+        spot_account = client.get_account(recvWindow=60000)
+
+        # Get entry prices from Redis (tracked by trading bot)
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+
+        for balance in spot_account['balances']:
+            asset = balance['asset']
+            if asset in ['BTC', 'ETH', 'SOL']:
+                total = float(balance['free']) + float(balance['locked'])
+                if total > 0:
+                    symbol = f"{asset}USDT"
+                    current_price = prices.get(symbol, 0)
+                    value = total * current_price
+
+                    if value > 1:  # Only show if worth more than $1
+                        # Try to get entry price from Redis
+                        redis_pos = r.hgetall(f"positions:{asset}:spot")
+                        entry_price = float(redis_pos.get('entry_price', current_price)) if redis_pos else current_price
+                        strategy = redis_pos.get('strategy', 'manual') if redis_pos else 'manual'
+
+                        # Calculate P&L
+                        if entry_price > 0:
+                            unrealized_pnl = (current_price - entry_price) * total
+                            unrealized_pnl_pct = ((current_price - entry_price) / entry_price) * 100
+                        else:
+                            unrealized_pnl = 0
+                            unrealized_pnl_pct = 0
+
+                        result['positions'].append({
+                            'symbol': symbol,
+                            'exchange': 'binance',
+                            'market': 'spot',
+                            'side': 'LONG',
+                            'quantity': total,
+                            'entry_price': entry_price,
+                            'current_price': current_price,
+                            'value': value,
+                            'unrealized_pnl': unrealized_pnl,
+                            'unrealized_pnl_pct': unrealized_pnl_pct,
+                            'strategy': strategy,
+                            'leverage': 1
+                        })
+                        result['total_value'] += value
+                        result['total_unrealized_pnl'] += unrealized_pnl
+
+        # ==================== FUTURES POSITIONS ====================
+        futures_account = client.futures_account(recvWindow=60000)
+
+        for pos in futures_account['positions']:
+            size = float(pos['positionAmt'])
+            if size != 0:
+                entry_price = float(pos['entryPrice'])
+                unrealized_pnl = float(pos['unrealizedProfit'])
+                mark_price = float(pos.get('markPrice', entry_price))
+                liquidation_price = float(pos.get('liquidationPrice', 0))
+                leverage = int(pos.get('leverage', 1))
+
+                side = 'LONG' if size > 0 else 'SHORT'
+                abs_size = abs(size)
+                value = abs_size * mark_price
+
+                # Get strategy from Redis
+                asset = pos['symbol'].replace('USDT', '')
+                redis_pos = r.hgetall(f"positions:{asset}:futures")
+                strategy = redis_pos.get('strategy', 'manual') if redis_pos else 'manual'
+
+                # Calculate P&L percentage
+                if entry_price > 0:
+                    if side == 'LONG':
+                        unrealized_pnl_pct = ((mark_price / entry_price) - 1) * 100 * leverage
+                    else:
+                        unrealized_pnl_pct = ((entry_price / mark_price) - 1) * 100 * leverage
+                else:
+                    unrealized_pnl_pct = 0
+
+                result['positions'].append({
+                    'symbol': pos['symbol'],
+                    'exchange': 'binance',
+                    'market': 'futures',
+                    'side': side,
+                    'quantity': abs_size,
+                    'entry_price': entry_price,
+                    'current_price': mark_price,
+                    'value': value,
+                    'unrealized_pnl': unrealized_pnl,
+                    'unrealized_pnl_pct': unrealized_pnl_pct,
+                    'liquidation_price': liquidation_price if liquidation_price > 0 else None,
+                    'strategy': strategy,
+                    'leverage': leverage
+                })
+                result['total_value'] += value
+                result['total_unrealized_pnl'] += unrealized_pnl
 
     except Exception as e:
         result['errors'].append(f'Binance: {str(e)}')
@@ -1007,57 +1067,107 @@ def cancel_backtest(job_id: str):
 
 @app.route("/api/exchange_balances")
 def get_exchange_balances():
-    """Fetch live balances from Binance Futures."""
+    """Fetch live balances from Binance (both Spot and Futures)."""
     result = {
         'timestamp': datetime.now().isoformat(),
         'binance': None,
         'errors': []
     }
 
-    # Fetch Binance balance
     try:
         from binance.client import Client
         import time
         api_key = os.getenv('BINANCE_API_KEY')
         api_secret = os.getenv('BINANCE_API_SECRET')
 
-        if api_key and api_secret:
-            # Sync time offset with Binance server
-            client = Client(api_key, api_secret)
-            server_time = client.get_server_time()
-            local_time = int(time.time() * 1000)
-            client.timestamp_offset = server_time['serverTime'] - local_time
-
-            account = client.futures_account(recvWindow=60000)
-
-            usdt_balance = 0
-            unrealized_pnl = 0
-            for asset in account['assets']:
-                if asset['asset'] == 'USDT':
-                    usdt_balance = float(asset['walletBalance'])
-                    unrealized_pnl = float(asset['unrealizedProfit'])
-                    break
-
-            # Get open positions
-            positions = []
-            for pos in account['positions']:
-                size = float(pos['positionAmt'])
-                if size != 0:
-                    positions.append({
-                        'symbol': pos['symbol'],
-                        'size': size,
-                        'entry_price': float(pos['entryPrice']),
-                        'unrealized_pnl': float(pos['unrealizedProfit']),
-                    })
-
-            result['binance'] = {
-                'usdt_balance': usdt_balance,
-                'unrealized_pnl': unrealized_pnl,
-                'total_equity': usdt_balance + unrealized_pnl,
-                'positions': positions,
-            }
-        else:
+        if not api_key or not api_secret:
             result['errors'].append('Binance: API credentials not configured')
+            return jsonify(result)
+
+        # Sync time offset with Binance server
+        client = Client(api_key, api_secret)
+        server_time = client.get_server_time()
+        local_time = int(time.time() * 1000)
+        client.timestamp_offset = server_time['serverTime'] - local_time
+
+        # ==================== SPOT ACCOUNT ====================
+        spot_account = client.get_account(recvWindow=60000)
+        spot_usdt = 0.0
+        spot_positions = []
+
+        # Get current prices for value calculation
+        prices = {}
+        for ticker in client.get_all_tickers():
+            prices[ticker['symbol']] = float(ticker['price'])
+
+        for balance in spot_account['balances']:
+            asset = balance['asset']
+            free = float(balance['free'])
+            locked = float(balance['locked'])
+            total = free + locked
+
+            if total > 0:
+                if asset == 'USDT':
+                    spot_usdt = total
+                elif asset in ['BTC', 'ETH', 'SOL']:
+                    symbol = f"{asset}USDT"
+                    price = prices.get(symbol, 0)
+                    value = total * price
+                    if value > 1:  # Only show if worth more than $1
+                        spot_positions.append({
+                            'asset': asset,
+                            'market': 'spot',
+                            'quantity': total,
+                            'price': price,
+                            'value': value,
+                        })
+
+        spot_position_value = sum(p['value'] for p in spot_positions)
+
+        # ==================== FUTURES ACCOUNT ====================
+        futures_account = client.futures_account(recvWindow=60000)
+        futures_usdt = 0.0
+        futures_unrealized_pnl = 0.0
+        futures_positions = []
+
+        for asset in futures_account['assets']:
+            if asset['asset'] == 'USDT':
+                futures_usdt = float(asset['walletBalance'])
+                futures_unrealized_pnl = float(asset['unrealizedProfit'])
+                break
+
+        for pos in futures_account['positions']:
+            size = float(pos['positionAmt'])
+            if size != 0:
+                futures_positions.append({
+                    'asset': pos['symbol'].replace('USDT', ''),
+                    'market': 'futures',
+                    'quantity': size,
+                    'entry_price': float(pos['entryPrice']),
+                    'mark_price': float(pos['markPrice']),
+                    'unrealized_pnl': float(pos['unrealizedProfit']),
+                    'leverage': int(pos['leverage']),
+                })
+
+        # ==================== COMBINED SUMMARY ====================
+        total_equity = spot_usdt + spot_position_value + futures_usdt + futures_unrealized_pnl
+
+        result['binance'] = {
+            'spot': {
+                'usdt_balance': spot_usdt,
+                'position_value': spot_position_value,
+                'total': spot_usdt + spot_position_value,
+                'positions': spot_positions,
+            },
+            'futures': {
+                'usdt_balance': futures_usdt,
+                'unrealized_pnl': futures_unrealized_pnl,
+                'total': futures_usdt + futures_unrealized_pnl,
+                'positions': futures_positions,
+            },
+            'total_equity': total_equity,
+        }
+
     except Exception as e:
         result['errors'].append(f'Binance: {str(e)}')
 

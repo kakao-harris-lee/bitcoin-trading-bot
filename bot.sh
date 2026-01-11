@@ -77,7 +77,7 @@ start() {
     fi
 
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
-    nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" --telegram-commands >> "$LOG_FILE" 2>&1 &
+    nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" >> "$LOG_FILE" 2>&1 &
 
     PID=$!
     echo $PID > "$PID_FILE"

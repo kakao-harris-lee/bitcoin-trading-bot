@@ -19,6 +19,11 @@ ADX_TREND = 20
 # RSI threshold for short entry
 RSI_OVERBOUGHT = 70
 
+# Exit thresholds (for short positions)
+STOP_LOSS_PCT = 2.0      # +2% price rise = stop loss
+TAKE_PROFIT_PCT = 3.0    # -3% price drop = take profit
+RSI_OVERSOLD = 30        # Cover short when RSI oversold
+
 
 class ShortV1Task(BaseStrategyTask):
     """Short strategy for Binance futures in bear markets."""
@@ -106,3 +111,63 @@ class ShortV1Task(BaseStrategyTask):
     def _calculate_position_size(self, price: float) -> float:
         """Calculate position size for futures."""
         return self.config.get("position_size", 0.01)
+
+    async def evaluate_exit(self, symbol: str, position: dict) -> dict[str, Any] | None:
+        """Evaluate exit conditions for short position."""
+        indicators = self._calculate_indicators(symbol)
+        if indicators is None:
+            return None
+
+        entry_price = float(position.get("entry_price", 0))
+        quantity = float(position.get("quantity", 0))
+        current_price = indicators["close"]
+
+        if entry_price <= 0 or quantity <= 0:
+            return None
+
+        # For shorts: profit when price drops, loss when price rises
+        # P&L % = (entry - current) / entry * 100
+        pnl_pct = ((entry_price - current_price) / entry_price) * 100
+
+        # Exit condition 1: Stop loss (price rose too much)
+        if pnl_pct <= -STOP_LOSS_PCT:
+            return {
+                "symbol": symbol,
+                "side": "buy",  # Buy to cover short
+                "market": "futures",
+                "quantity": str(quantity),
+                "reason": f"ShortV1 exit: Stop loss {pnl_pct:.2f}%",
+            }
+
+        # Exit condition 2: Take profit (price dropped enough)
+        if pnl_pct >= TAKE_PROFIT_PCT:
+            return {
+                "symbol": symbol,
+                "side": "buy",  # Buy to cover short
+                "market": "futures",
+                "quantity": str(quantity),
+                "reason": f"ShortV1 exit: Take profit {pnl_pct:.2f}%",
+            }
+
+        # Exit condition 3: RSI oversold (mean reversion complete)
+        if indicators["rsi"] <= RSI_OVERSOLD:
+            return {
+                "symbol": symbol,
+                "side": "buy",  # Buy to cover short
+                "market": "futures",
+                "quantity": str(quantity),
+                "reason": f"ShortV1 exit: RSI={indicators['rsi']:.1f} (oversold), P&L={pnl_pct:.2f}%",
+            }
+
+        # Exit condition 4: Regime change to bullish
+        regime = self._classify_regime(indicators["mfi"], indicators["adx"])
+        if regime == "BULL" and pnl_pct > 0:
+            return {
+                "symbol": symbol,
+                "side": "buy",  # Buy to cover short
+                "market": "futures",
+                "quantity": str(quantity),
+                "reason": f"ShortV1 exit: Regime change to {regime}, locking {pnl_pct:.2f}%",
+            }
+
+        return None

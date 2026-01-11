@@ -21,6 +21,11 @@ ADX_WEAK = 15
 # RSI thresholds for mean reversion
 RSI_OVERSOLD = 35
 RSI_OVERBOUGHT = 65
+RSI_MEAN = 50
+
+# Exit thresholds
+TAKE_PROFIT_PCT = 1.5  # 1.5% profit target
+STOP_LOSS_PCT = 1.0    # 1.0% stop loss
 
 
 class SidewaysV2Task(BaseStrategyTask):
@@ -114,3 +119,51 @@ class SidewaysV2Task(BaseStrategyTask):
     def _calculate_position_size(self, price: float) -> float:
         """Calculate position size."""
         return self.config.get("position_size", 0.01)
+
+    async def evaluate_exit(self, symbol: str, position: dict) -> dict[str, Any] | None:
+        """Evaluate exit conditions for mean-reversion strategy."""
+        indicators = self._calculate_indicators(symbol)
+        if indicators is None:
+            return None
+
+        entry_price = float(position.get("entry_price", 0))
+        quantity = float(position.get("quantity", 0))
+        current_price = indicators["close"]
+
+        if entry_price <= 0 or quantity <= 0:
+            return None
+
+        # Calculate P&L percentage
+        pnl_pct = ((current_price - entry_price) / entry_price) * 100
+
+        # Exit condition 1: Take profit on price target
+        if pnl_pct >= TAKE_PROFIT_PCT:
+            return {
+                "symbol": symbol,
+                "side": "sell",
+                "market": "spot",
+                "quantity": str(quantity),
+                "reason": f"SidewaysV2 exit: Take profit {pnl_pct:.2f}%",
+            }
+
+        # Exit condition 2: Stop loss
+        if pnl_pct <= -STOP_LOSS_PCT:
+            return {
+                "symbol": symbol,
+                "side": "sell",
+                "market": "spot",
+                "quantity": str(quantity),
+                "reason": f"SidewaysV2 exit: Stop loss {pnl_pct:.2f}%",
+            }
+
+        # Exit condition 3: RSI mean reversion complete
+        if indicators["rsi"] >= RSI_MEAN:
+            return {
+                "symbol": symbol,
+                "side": "sell",
+                "market": "spot",
+                "quantity": str(quantity),
+                "reason": f"SidewaysV2 exit: RSI={indicators['rsi']:.1f} (mean reversion)",
+            }
+
+        return None

@@ -19,6 +19,12 @@ ADX_STRONG = 25
 ADX_TREND = 20
 ADX_WEAK = 15
 
+# Exit thresholds (from legacy v35_long.py)
+STOP_LOSS_PCT = 1.5      # -1.5% stop loss
+TAKE_PROFIT_PCT = 3.0    # +3.0% take profit
+TRAILING_ACTIVATION = 2.0  # Activate trailing at +2%
+TRAILING_DISTANCE = 1.5    # Trail by 1.5%
+
 
 class V35LongTask(BaseStrategyTask):
     """V35 Long-only strategy for Binance spot."""
@@ -38,6 +44,8 @@ class V35LongTask(BaseStrategyTask):
         )
         self.config = config or {}
         self.min_data_points = 180  # Need enough data for indicators
+        # Track high water mark for trailing stop per symbol
+        self.high_water_mark: dict[str, float] = {}
 
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:
         """Evaluate entry conditions for symbol."""
@@ -114,3 +122,78 @@ class V35LongTask(BaseStrategyTask):
         """Calculate position size based on config."""
         # Default: 0.01 BTC or configured amount
         return self.config.get("position_size", 0.01)
+
+    async def evaluate_exit(self, symbol: str, position: dict) -> dict[str, Any] | None:
+        """Evaluate exit conditions for long position."""
+        indicators = self._calculate_indicators(symbol)
+        if indicators is None:
+            return None
+
+        entry_price = float(position.get("entry_price", 0))
+        quantity = float(position.get("quantity", 0))
+        current_price = indicators["close"]
+
+        if entry_price <= 0 or quantity <= 0:
+            return None
+
+        # Calculate P&L percentage
+        pnl_pct = ((current_price - entry_price) / entry_price) * 100
+
+        # Update high water mark
+        if symbol not in self.high_water_mark:
+            self.high_water_mark[symbol] = current_price
+        else:
+            self.high_water_mark[symbol] = max(self.high_water_mark[symbol], current_price)
+
+        hwm = self.high_water_mark[symbol]
+        hwm_pnl = ((hwm - entry_price) / entry_price) * 100
+
+        # Exit condition 1: Stop loss
+        if pnl_pct <= -STOP_LOSS_PCT:
+            self.high_water_mark.pop(symbol, None)
+            return {
+                "symbol": symbol,
+                "side": "sell",
+                "market": "spot",
+                "quantity": str(quantity),
+                "reason": f"V35 exit: Stop loss {pnl_pct:.2f}%",
+            }
+
+        # Exit condition 2: Take profit
+        if pnl_pct >= TAKE_PROFIT_PCT:
+            self.high_water_mark.pop(symbol, None)
+            return {
+                "symbol": symbol,
+                "side": "sell",
+                "market": "spot",
+                "quantity": str(quantity),
+                "reason": f"V35 exit: Take profit {pnl_pct:.2f}%",
+            }
+
+        # Exit condition 3: Trailing stop (activated after +2%, trails by 1.5%)
+        if hwm_pnl >= TRAILING_ACTIVATION:
+            trailing_stop_price = hwm * (1 - TRAILING_DISTANCE / 100)
+            if current_price <= trailing_stop_price:
+                locked_pnl = ((trailing_stop_price - entry_price) / entry_price) * 100
+                self.high_water_mark.pop(symbol, None)
+                return {
+                    "symbol": symbol,
+                    "side": "sell",
+                    "market": "spot",
+                    "quantity": str(quantity),
+                    "reason": f"V35 exit: Trailing stop {locked_pnl:.2f}% (HWM={hwm_pnl:.2f}%)",
+                }
+
+        # Exit condition 4: Regime change to bearish
+        regime = self._classify_regime(indicators["mfi"], indicators["adx"])
+        if regime in ("BEAR_STRONG", "BEAR_MODERATE") and pnl_pct > 0:
+            self.high_water_mark.pop(symbol, None)
+            return {
+                "symbol": symbol,
+                "side": "sell",
+                "market": "spot",
+                "quantity": str(quantity),
+                "reason": f"V35 exit: Regime change to {regime}, locking {pnl_pct:.2f}%",
+            }
+
+        return None

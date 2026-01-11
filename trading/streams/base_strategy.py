@@ -81,11 +81,18 @@ class BaseStrategyTask(ABC):
         if await self.redis.is_blocked():
             return
 
-        # Check if already has position
-        if await self.redis.has_position(symbol, self.market):
+        # Check if already has position - evaluate exit only for own positions
+        position = await self.redis.get_position(symbol, self.market)
+        if position:
+            # Only evaluate exit if this strategy owns the position
+            if position.get("strategy") == self.name:
+                exit_signal = await self.evaluate_exit(symbol, position)
+                if exit_signal:
+                    await self._publish_order(exit_signal)
+                    await self.redis.clear_position(symbol, self.market)
             return
 
-        # Evaluate and possibly publish order
+        # Evaluate entry
         signal = await self.evaluate(symbol)
         if signal:
             await self._publish_order(signal)
@@ -115,3 +122,12 @@ class BaseStrategyTask(ABC):
         Order intent: {"symbol", "side", "market", "quantity", "reason"}
         """
         pass
+
+    async def evaluate_exit(self, symbol: str, position: dict) -> dict[str, Any] | None:
+        """
+        Evaluate exit conditions for existing position.
+
+        Override in subclass to implement exit logic.
+        Returns order intent dict or None.
+        """
+        return None

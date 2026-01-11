@@ -3,9 +3,9 @@
 from __future__ import annotations
 import logging
 from typing import Any, TYPE_CHECKING
-import numpy as np
 
 from trading.streams.base_strategy import BaseStrategyTask
+from trading.strategies.indicators import get_indicators
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -93,48 +93,22 @@ class SidewaysV2Task(BaseStrategyTask):
         return regime.startswith("SIDEWAYS")
 
     def _calculate_indicators(self, symbol: str) -> dict[str, float] | None:
-        """Calculate indicators from price buffer."""
+        """Calculate indicators using OHLCV data from database."""
         try:
-            buffer = list(self.price_buffer[symbol])
-            closes = np.array([float(p["price"]) for p in buffer])
+            # Get proper indicators from database OHLCV data
+            indicators = get_indicators(symbol, periods=100)
+            if indicators is None:
+                logger.warning(f"Could not load indicators for {symbol}")
+                return None
 
-            # Simplified calculations (placeholder)
-            sma = np.mean(closes[-20:])
-            current = closes[-1]
-            momentum = (current - sma) / sma * 100
+            # Use current price from buffer if available
+            buffer = self.price_buffer.get(symbol, [])
+            if buffer:
+                indicators["close"] = float(buffer[-1]["price"])
 
-            mfi = 50 + momentum * 2
-            mfi = max(0, min(100, mfi))
-
-            volatility = np.std(closes[-20:]) / np.mean(closes[-20:])
-            adx = volatility * 1000
-            adx = max(0, min(50, adx))
-
-            # RSI calculation with edge case handling
-            deltas = np.diff(closes[-15:])
-            gains = np.where(deltas > 0, deltas, 0)
-            losses = np.where(deltas < 0, -deltas, 0)
-            avg_gain = np.mean(gains)
-            avg_loss = np.mean(losses)
-
-            # Minimum movement threshold (0.01% of price) to avoid false signals
-            min_movement = np.mean(closes[-15:]) * 0.0001
-            if avg_gain < min_movement and avg_loss < min_movement:
-                rsi = 50.0  # No significant movement, neutral RSI
-            elif avg_loss < min_movement:
-                rsi = 100.0  # Only significant gains
-            else:
-                rs = avg_gain / max(avg_loss, min_movement)
-                rsi = 100 - (100 / (1 + rs))
-
-            return {
-                "mfi": mfi,
-                "adx": adx,
-                "close": current,
-                "rsi": rsi,
-            }
+            return indicators
         except Exception as e:
-            logger.error(f"Indicator calculation failed: {e}")
+            logger.error(f"Indicator calculation failed for {symbol}: {e}")
             return None
 
     def _calculate_position_size(self, price: float) -> float:

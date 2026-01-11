@@ -3,9 +3,9 @@
 from __future__ import annotations
 import logging
 from typing import Any, TYPE_CHECKING
-import numpy as np
 
 from trading.streams.base_strategy import BaseStrategyTask
+from trading.strategies.indicators import get_indicators
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -92,37 +92,22 @@ class V35LongTask(BaseStrategyTask):
         return regime in ("BULL_STRONG", "BULL_MODERATE")
 
     def _calculate_indicators(self, symbol: str) -> dict[str, float] | None:
-        """Calculate MFI and ADX from price buffer."""
+        """Calculate indicators using OHLCV data from database."""
         try:
-            buffer = list(self.price_buffer[symbol])
-            closes = np.array([float(p["price"]) for p in buffer])
+            # Get proper indicators from database OHLCV data
+            indicators = get_indicators(symbol, periods=100)
+            if indicators is None:
+                logger.warning(f"Could not load indicators for {symbol}")
+                return None
 
-            # For now, use simplified calculation
-            # In production, use talib with full OHLCV data
-            # This is a placeholder that returns mock values
-            # Real implementation will fetch OHLCV from data source
+            # Use current price from buffer if available
+            buffer = self.price_buffer.get(symbol, [])
+            if buffer:
+                indicators["close"] = float(buffer[-1]["price"])
 
-            # Simplified momentum: price vs SMA
-            sma = np.mean(closes[-20:])
-            current = closes[-1]
-            momentum = (current - sma) / sma * 100
-
-            # Mock MFI based on momentum
-            mfi = 50 + momentum * 2
-            mfi = max(0, min(100, mfi))
-
-            # Mock ADX (trend strength)
-            volatility = np.std(closes[-20:]) / np.mean(closes[-20:])
-            adx = volatility * 1000  # Scale to typical ADX range
-            adx = max(0, min(50, adx))
-
-            return {
-                "mfi": mfi,
-                "adx": adx,
-                "close": current,
-            }
+            return indicators
         except Exception as e:
-            logger.error(f"Indicator calculation failed: {e}")
+            logger.error(f"Indicator calculation failed for {symbol}: {e}")
             return None
 
     def _calculate_position_size(self, price: float) -> float:

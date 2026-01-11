@@ -27,10 +27,10 @@ def test_volatility_tracker_calculates_volatility():
 
 
 def test_volatility_classification_low():
-    """Low volatility when stddev/mean < 0.003."""
+    """Low volatility when stddev/mean < 0.71."""
     tracker = VolatilityTracker(window=5)
 
-    # Steady uptrend with small moves
+    # Steady uptrend with small moves (low variance in return sizes)
     prices = [100.0, 100.1, 100.2, 100.3, 100.4, 100.5]
     for p in prices:
         tracker.add_price(p)
@@ -39,11 +39,12 @@ def test_volatility_classification_low():
 
 
 def test_volatility_classification_high():
-    """High volatility when stddev/mean > 0.007."""
+    """High volatility when stddev/mean > 0.92."""
     tracker = VolatilityTracker(window=5)
 
-    # Choppy with large swings
-    prices = [100.0, 102.0, 99.0, 103.0, 98.0, 104.0]
+    # Mixed small and large moves create high variance in return sizes
+    # Returns: +1%, -1%, +10%, -9%, +1% -> high stddev/mean ratio
+    prices = [100.0, 101.0, 100.0, 110.0, 100.0, 101.0]
     for p in prices:
         tracker.add_price(p)
 

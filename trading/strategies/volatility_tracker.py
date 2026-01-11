@@ -16,8 +16,9 @@ class VolatilityTracker:
     }
 
     # Volatility thresholds (stddev/mean of returns)
-    LOW_VOL_THRESHOLD = 0.003
-    HIGH_VOL_THRESHOLD = 0.007
+    # Calibrated for BTC minute-level returns (25th/75th percentiles)
+    LOW_VOL_THRESHOLD = 0.71
+    HIGH_VOL_THRESHOLD = 0.92
 
     def __init__(self, window: int = 20):
         """Initialize tracker with rolling window size."""

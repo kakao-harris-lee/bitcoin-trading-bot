@@ -111,6 +111,17 @@ class TradingEngine:
         self.tasks.append(asyncio.create_task(executor.run()))
         logger.info(f"Started {mode} executor")
 
+        # 3b. Start SmartExecutor if enabled (live mode only)
+        if mode == "live" and self.config.get("smart_executor", {}).get("enabled", False):
+            from trading.executor.smart_executor import SmartExecutor
+            smart_executor = SmartExecutor(
+                redis=self.redis,
+                binance_client=client,
+                config=self.config,
+            )
+            self.tasks.append(asyncio.create_task(smart_executor.run()))
+            logger.info("Started SmartExecutor")
+
         # 4. Start Telegram notification task
         try:
             telegram = TelegramTask(redis=self.redis)

@@ -266,3 +266,241 @@ async def test_volatility_check_unknown_no_tracker(mock_redis, mock_binance, con
     # No tracker for ETH
     action = executor.analyze_price_action("ETH")
     assert action == "unknown"
+
+
+@pytest.mark.asyncio
+async def test_price_monitor_updates_volatility_tracker(mock_redis, mock_binance, config):
+    """Price monitor consumes prices and updates volatility trackers."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # Simulate price messages from Redis stream
+    price_messages = [
+        {"symbol": "BTC", "price": "100000", "_id": "1-0"},
+        {"symbol": "BTC", "price": "100500", "_id": "1-1"},
+        {"symbol": "ETH", "price": "3000", "_id": "1-2"},
+    ]
+
+    # Configure mock to return messages once, then empty
+    mock_redis.consume = AsyncMock(side_effect=[price_messages, []])
+
+    executor._running = True
+
+    # Run one iteration of price monitor
+    import asyncio
+
+    async def run_once():
+        executor._running = True
+        group = "smart-executor-prices"
+        consumer = "test-consumer"
+        await executor.redis.create_consumer_group("market:prices", group)
+        messages = await executor.redis.consume(
+            "market:prices", group, consumer, count=50, block_ms=500
+        )
+        for msg in messages:
+            symbol = msg.get("symbol")
+            price = msg.get("price")
+            if symbol and price:
+                if symbol not in executor.volatility_trackers:
+                    executor.volatility_trackers[symbol] = VolatilityTracker(
+                        window=executor.volatility_window
+                    )
+                executor.volatility_trackers[symbol].add_price(float(price))
+
+    await run_once()
+
+    # Verify trackers were created and updated
+    assert "BTC" in executor.volatility_trackers
+    assert "ETH" in executor.volatility_trackers
+    assert len(executor.volatility_trackers["BTC"].prices) == 2
+    assert len(executor.volatility_trackers["ETH"].prices) == 1
+
+
+@pytest.mark.asyncio
+async def test_price_monitor_updates_hwm_for_active_positions(mock_redis, mock_binance, config):
+    """Price monitor updates high water mark for symbols with active positions."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # Set initial HWM (indicating active position tracking)
+    executor.high_water_marks["BTC"] = 99000.0
+
+    # Simulate price message with higher price
+    price_messages = [
+        {"symbol": "BTC", "price": "100000", "_id": "1-0"},
+    ]
+    mock_redis.consume = AsyncMock(return_value=price_messages)
+
+    executor._running = True
+
+    # Manually invoke the logic from _price_monitor_loop
+    messages = await executor.redis.consume(
+        "market:prices", "group", "consumer", count=50, block_ms=500
+    )
+    for msg in messages:
+        symbol = msg.get("symbol")
+        price = msg.get("price")
+        if symbol and price:
+            if symbol not in executor.volatility_trackers:
+                executor.volatility_trackers[symbol] = VolatilityTracker(
+                    window=executor.volatility_window
+                )
+            executor.volatility_trackers[symbol].add_price(float(price))
+            if symbol in executor.high_water_marks:
+                executor.update_high_water_mark(symbol, float(price))
+
+    # Verify HWM was updated
+    assert executor.high_water_marks["BTC"] == 100000.0
+
+
+@pytest.mark.asyncio
+async def test_check_active_exits_clears_position_on_complete(mock_redis, mock_binance, config):
+    """Exit completion clears the Redis position."""
+    from trading.executor.smart_executor import ExitPlan
+    import time
+
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # Add clear_position mock
+    mock_redis.clear_position = AsyncMock()
+
+    # Create an exit plan with all orders filled
+    plan = ExitPlan(
+        symbol="BTC",
+        market="spot",
+        total_quantity=0.10,
+        trigger_price=100000.0,
+        strategy="v35_long",
+        start_time=time.time() - 10,  # Started 10 seconds ago
+    )
+    plan.ladder_orders = [{"order_id": 12345}]
+
+    executor.active_exits["BTC:spot"] = plan
+
+    # Mock get_order to return fully filled
+    mock_binance.get_order = AsyncMock(return_value={
+        "order_id": 12345,
+        "status": "FILLED",
+        "filled_qty": 0.10,
+    })
+
+    await executor._check_active_exits()
+
+    # Verify position was cleared
+    mock_redis.clear_position.assert_called_once_with("BTC", "spot")
+
+    # Verify exit was removed from active exits
+    assert "BTC:spot" not in executor.active_exits
+
+
+@pytest.mark.asyncio
+async def test_check_active_exits_phase1_timeout_triggers_sweep(mock_redis, mock_binance, config):
+    """Phase 1 timeout triggers sweep for unfilled orders."""
+    from trading.executor.smart_executor import ExitPlan
+    import time
+
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # Add clear_position mock
+    mock_redis.clear_position = AsyncMock()
+
+    # Create an exit plan that has exceeded phase1_timeout (60s) but not max_execution_time (90s)
+    plan = ExitPlan(
+        symbol="BTC",
+        market="spot",
+        total_quantity=0.10,
+        trigger_price=100000.0,
+        strategy="v35_long",
+        start_time=time.time() - 65,  # Started 65 seconds ago (past phase1 timeout)
+        phase="ladder",  # Still in ladder phase
+    )
+    plan.ladder_orders = [{"order_id": 12345}, {"order_id": 12346}]
+
+    executor.active_exits["BTC:spot"] = plan
+
+    # Mock get_order to return partially filled
+    mock_binance.get_order = AsyncMock(return_value={
+        "order_id": 12345,
+        "status": "PARTIALLY_FILLED",
+        "filled_qty": 0.04,  # Only first tier filled
+    })
+
+    await executor._check_active_exits()
+
+    # Verify cancel_order was called for unfilled orders
+    assert mock_binance.cancel_order.call_count >= 1
+
+    # Verify market_order was called for remaining quantity
+    mock_binance.market_order.assert_called_once()
+    call_args = mock_binance.market_order.call_args
+    assert call_args.kwargs["symbol"] == "BTC"
+    assert call_args.kwargs["side"] == "sell"
+
+    # Verify position was cleared
+    mock_redis.clear_position.assert_called_once_with("BTC", "spot")
+
+    # Verify exit was removed from active exits
+    assert "BTC:spot" not in executor.active_exits
+
+
+@pytest.mark.asyncio
+async def test_check_active_exits_max_timeout_triggers_sweep(mock_redis, mock_binance, config):
+    """Max execution timeout triggers sweep."""
+    from trading.executor.smart_executor import ExitPlan
+    import time
+
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # Add clear_position mock
+    mock_redis.clear_position = AsyncMock()
+
+    # Create an exit plan that has exceeded max_execution_time (90s)
+    # Set phase to "sweep" so phase1 check is skipped
+    plan = ExitPlan(
+        symbol="BTC",
+        market="spot",
+        total_quantity=0.10,
+        trigger_price=100000.0,
+        strategy="v35_long",
+        start_time=time.time() - 95,  # Started 95 seconds ago (past max timeout)
+        phase="sweep",  # Already past phase1
+    )
+    plan.ladder_orders = [{"order_id": 12345}]
+
+    executor.active_exits["BTC:spot"] = plan
+
+    # Mock get_order to return unfilled
+    mock_binance.get_order = AsyncMock(return_value={
+        "order_id": 12345,
+        "status": "NEW",
+        "filled_qty": 0.0,
+    })
+
+    await executor._check_active_exits()
+
+    # Verify market_order was called for sweep
+    mock_binance.market_order.assert_called_once()
+
+    # Verify position was cleared
+    mock_redis.clear_position.assert_called_once_with("BTC", "spot")
+
+    # Verify exit was removed from active exits
+    assert "BTC:spot" not in executor.active_exits

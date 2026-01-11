@@ -171,13 +171,37 @@ class SmartExecutor:
 
     async def _price_monitor_loop(self) -> None:
         """Monitor prices and update volatility trackers."""
+        group = "smart-executor-prices"
+        consumer = f"price-mon-{uuid.uuid4().hex[:8]}"
+
+        await self.redis.create_consumer_group("market:prices", group)
+
         while self._running:
             try:
-                # Read recent prices from market:prices stream
-                # Update volatility trackers
-                await asyncio.sleep(1)
+                messages = await self.redis.consume(
+                    "market:prices", group, consumer, count=50, block_ms=500
+                )
+
+                for msg in messages:
+                    symbol = msg.get("symbol")
+                    price = msg.get("price")
+
+                    if symbol and price:
+                        if symbol not in self.volatility_trackers:
+                            self.volatility_trackers[symbol] = VolatilityTracker(
+                                window=self.volatility_window
+                            )
+                        self.volatility_trackers[symbol].add_price(float(price))
+
+                        # Also update high water mark for active positions
+                        if symbol in self.high_water_marks:
+                            self.update_high_water_mark(symbol, float(price))
+
+                    await self.redis.ack("market:prices", group, msg["_id"])
+
             except Exception as e:
                 logger.error(f"Price monitor error: {e}")
+                await asyncio.sleep(1)
 
     async def _exit_execution_loop(self) -> None:
         """Monitor active exits and manage ladder phases."""
@@ -260,13 +284,25 @@ class SmartExecutor:
             if remaining <= 0:
                 plan.phase = "complete"
                 logger.info(f"Exit complete: {plan.symbol} all filled via ladder")
+                await self.redis.clear_position(plan.symbol, plan.market)
                 del self.active_exits[key]
                 continue
 
-            # Phase transition: sweep if timeout
+            # Phase 1 timeout: partial sweep for unfilled quantity
+            if plan.phase == "ladder" and elapsed > self.phase1_timeout and remaining > 0:
+                plan.phase = "sweep"
+                logger.info(f"Phase 1 timeout: sweeping {remaining} {plan.symbol}")
+                await self._sweep_remaining(plan, remaining)
+                plan.phase = "complete"
+                await self.redis.clear_position(plan.symbol, plan.market)
+                del self.active_exits[key]
+                continue
+
+            # Phase transition: sweep if max timeout
             if elapsed > self.max_execution_time and remaining > 0:
                 await self._sweep_remaining(plan, remaining)
                 plan.phase = "complete"
+                await self.redis.clear_position(plan.symbol, plan.market)
                 del self.active_exits[key]
 
     async def _sweep_remaining(self, plan: ExitPlan, remaining_qty: float) -> None:

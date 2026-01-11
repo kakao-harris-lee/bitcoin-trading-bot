@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
 data_loader.py
-Upbit/Binance 가격 데이터를 읽어오는 공통 모듈
+Binance 가격 데이터를 읽어오는 공통 모듈
 
 지원 DB:
-- upbit_bitcoin.db: Upbit BTC/KRW 데이터
 - binance_bitcoin.db: Binance BTCUSDT 데이터
 """
 
@@ -17,33 +16,17 @@ from datetime import datetime
 # 프로젝트 루트 기준 기본 DB 경로
 _PROJECT_ROOT = Path(__file__).parent.parent
 _DB_DIR = _PROJECT_ROOT / "data"
-_UPBIT_DB_PATH = _DB_DIR / "upbit_bitcoin.db"
 _BINANCE_DB_PATH = _DB_DIR / "binance_bitcoin.db"
 
 
 class DataLoader:
-    """Upbit/Binance 데이터 로더"""
+    """Binance 데이터 로더"""
 
     TIMEFRAMES = [
         "minute1", "minute3", "minute5", "minute10",
         "minute15", "minute30", "minute60", "minute240",
         "day", "week", "month"
     ]
-
-    # Upbit 테이블명 매핑
-    UPBIT_TABLE_MAP = {
-        "minute1": "bitcoin_minute1",
-        "minute3": "bitcoin_minute3",
-        "minute5": "bitcoin_minute5",
-        "minute10": "bitcoin_minute10",
-        "minute15": "bitcoin_minute15",
-        "minute30": "bitcoin_minute30",
-        "minute60": "bitcoin_minute60",
-        "minute240": "bitcoin_minute240",
-        "day": "bitcoin_day",
-        "week": "bitcoin_week",
-        "month": "bitcoin_month"
-    }
 
     # Binance 테이블명 매핑
     BINANCE_TABLE_MAP = {
@@ -57,21 +40,18 @@ class DataLoader:
     }
 
     # 하위 호환성을 위한 별칭
-    TABLE_MAP = UPBIT_TABLE_MAP
+    TABLE_MAP = BINANCE_TABLE_MAP
 
-    def __init__(self, db_path: str = None, exchange: Literal["upbit", "binance"] = "upbit"):
+    def __init__(self, db_path: str = None, exchange: Literal["binance"] = "binance"):
         """
         Args:
-            db_path: DB 경로 (기본: exchange에 따라 자동 설정)
-            exchange: 거래소 선택 ("upbit" 또는 "binance")
+            db_path: DB 경로 (기본: binance_bitcoin.db)
+            exchange: 거래소 선택 ("binance")
         """
         self.exchange = exchange
 
         if db_path is None:
-            if exchange == "binance":
-                self.db_path = _BINANCE_DB_PATH
-            else:
-                self.db_path = _UPBIT_DB_PATH
+            self.db_path = _BINANCE_DB_PATH
         else:
             self.db_path = Path(db_path)
 
@@ -99,53 +79,7 @@ class DataLoader:
         Returns:
             DataFrame with columns: timestamp, open, high, low, close, volume
         """
-        # exchange 파라미터가 주어지면 해당 거래소 DB 사용
-        target_exchange = exchange or self.exchange
-
-        if target_exchange == "binance":
-            return self._load_binance_timeframe(timeframe, start_date, end_date)
-        else:
-            return self._load_upbit_timeframe(timeframe, start_date, end_date)
-
-    def _load_upbit_timeframe(
-        self,
-        timeframe: str,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None
-    ) -> pd.DataFrame:
-        """Upbit 데이터 로드"""
-        if timeframe not in self.TIMEFRAMES:
-            raise ValueError(f"지원하지 않는 타임프레임: {timeframe}")
-
-        table_name = self.UPBIT_TABLE_MAP[timeframe]
-        query = f"SELECT * FROM {table_name}"
-        conditions = []
-
-        if start_date:
-            conditions.append(f"timestamp >= '{start_date}'")
-        if end_date:
-            conditions.append(f"timestamp <= '{end_date}'")
-
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
-
-        query += " ORDER BY timestamp ASC"
-
-        df = pd.read_sql_query(query, self.conn)
-
-        # Upbit 컬럼명 정리
-        df = df.rename(columns={
-            'opening_price': 'open',
-            'high_price': 'high',
-            'low_price': 'low',
-            'trade_price': 'close',
-            'candle_acc_trade_volume': 'volume'
-        })
-
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
-
-        return df
+        return self._load_binance_timeframe(timeframe, start_date, end_date)
 
     def _load_binance_timeframe(
         self,
@@ -155,13 +89,7 @@ class DataLoader:
     ) -> pd.DataFrame:
         """Binance 데이터 로드"""
         if timeframe not in self.BINANCE_TABLE_MAP:
-            raise ValueError(f"Binance에서 지원하지 않는 타임프레임: {timeframe}")
-
-        # Binance DB 연결 (다른 DB인 경우)
-        if self.exchange != "binance":
-            conn = sqlite3.connect(str(_BINANCE_DB_PATH))
-        else:
-            conn = self.conn
+            raise ValueError(f"지원하지 않는 타임프레임: {timeframe}")
 
         table_name = self.BINANCE_TABLE_MAP[timeframe]
         query = f"SELECT * FROM {table_name}"
@@ -177,11 +105,7 @@ class DataLoader:
 
         query += " ORDER BY timestamp ASC"
 
-        try:
-            df = pd.read_sql_query(query, conn)
-        finally:
-            if self.exchange != "binance":
-                conn.close()
+        df = pd.read_sql_query(query, self.conn)
 
         # Binance 컬럼명은 이미 표준 형식
         df['timestamp'] = pd.to_datetime(df['timestamp'])

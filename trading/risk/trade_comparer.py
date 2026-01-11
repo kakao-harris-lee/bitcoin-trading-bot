@@ -25,7 +25,7 @@ class ActualTrade:
     volume: float
     profit: Optional[float] = None
     profit_pct: Optional[float] = None
-    exchange: str = "upbit"
+    exchange: str = "binance"
 
 
 @dataclass

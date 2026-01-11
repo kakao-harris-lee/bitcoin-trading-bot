@@ -46,7 +46,7 @@ class ComparisonReportGenerator:
 
     # Strategy to exchange mapping
     STRATEGY_EXCHANGE_MAP = {
-        "v35_long": "upbit",
+        "v35_long": "binance",
         "short_v1": "binance",
     }
 
@@ -201,7 +201,7 @@ class ComparisonReportGenerator:
                 volume=t["volume"],
                 profit=t.get("profit"),
                 profit_pct=t.get("profit_pct"),
-                exchange=t.get("exchange", "upbit"),
+                exchange=t.get("exchange", "binance"),
             )
             for t in actual_trades_raw
         ]
@@ -293,7 +293,7 @@ class ComparisonReportGenerator:
             raise BacktestError(f"Unknown strategy: {strategy_name}")
 
         # Determine exchange for data loading
-        exchange = self.STRATEGY_EXCHANGE_MAP.get(strategy_name, "upbit")
+        exchange = self.STRATEGY_EXCHANGE_MAP.get(strategy_name, "binance")
 
         # Load market data for the date (include some days before for indicator warmup)
         warmup_days = 3

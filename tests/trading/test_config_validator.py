@@ -99,8 +99,8 @@ class TestConfigValidator:
         config = {
             "assets": {
                 "BTC": {
-                    "upbit_enabled": True,
-                    "upbit_symbol": "KRW-BTC",
+                    "binance_enabled": True,
+                    "binance_symbol": "BTCUSDT",
                     "db_path": str(temp_data_dir / "btc_data.db"),
                     "capital_krw": 100000,
                     "strategy": "v35_long",
@@ -115,12 +115,12 @@ class TestConfigValidator:
 
         assert result.valid
 
-    def test_validate_missing_upbit_symbol(self, temp_config_dir, temp_data_dir):
-        """Missing upbit_symbol is an error for enabled assets."""
+    def test_validate_missing_binance_symbol(self, temp_config_dir, temp_data_dir):
+        """Missing binance_symbol is an error for enabled assets."""
         config = {
             "assets": {
                 "BTC": {
-                    "upbit_enabled": True,
+                    "binance_enabled": True,
                     "db_path": str(temp_data_dir / "btc_data.db"),
                 }
             }
@@ -130,15 +130,15 @@ class TestConfigValidator:
         result = validator.validate_assets(config)
 
         assert not result.valid
-        assert any("upbit_symbol" in e for e in result.errors)
+        assert any("binance_symbol" in e for e in result.errors)
 
     def test_validate_missing_db_path(self, temp_config_dir, temp_data_dir):
         """Missing database file is an error."""
         config = {
             "assets": {
                 "BTC": {
-                    "upbit_enabled": True,
-                    "upbit_symbol": "KRW-BTC",
+                    "binance_enabled": True,
+                    "binance_symbol": "BTCUSDT",
                     "db_path": "/nonexistent/path.db",
                 }
             }
@@ -155,8 +155,8 @@ class TestConfigValidator:
         config = {
             "assets": {
                 "BTC": {
-                    "upbit_enabled": True,
-                    "upbit_symbol": "KRW-BTC",
+                    "binance_enabled": True,
+                    "binance_symbol": "BTCUSDT",
                     "db_path": str(temp_data_dir / "btc_data.db"),
                     "strategy": "nonexistent_strategy",
                 }
@@ -177,13 +177,13 @@ class TestConfigValidator:
             result = validator.validate_environment()
 
             assert not result.valid
-            assert any("UPBIT_ACCESS_KEY" in e for e in result.errors)
+            assert any("BINANCE_API_KEY" in e for e in result.errors)
 
     def test_validate_environment_with_keys(self, temp_config_dir, temp_data_dir):
         """Present API keys pass validation."""
         env = {
-            "UPBIT_ACCESS_KEY": "test_key",
-            "UPBIT_SECRET_KEY": "test_secret",
+            "BINANCE_API_KEY": "test_key",
+            "BINANCE_API_SECRET": "test_secret",
         }
 
         with patch.dict(os.environ, env, clear=True):

@@ -3,7 +3,6 @@ Trading Engine V2 - Phase 4 Unit Tests
 Execution Manager 및 Position Manager 테스트
 
 테스트 대상:
-- UpbitAdapter: Upbit 거래소 어댑터
 - BinanceAdapter: Binance 거래소 어댑터
 - ExecutionManager: 주문 실행 관리
 - PositionEntry: 포지션 엔트리
@@ -20,7 +19,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from trading.execution.execution_manager import (
-    ExecutionManager, UpbitAdapter, BinanceAdapter,
+    ExecutionManager, BinanceAdapter,
     OrderTracker, OrderState
 )
 from trading.execution.position_manager import (
@@ -34,12 +33,6 @@ from core.types import (
 # =============================================================================
 # Fixtures
 # =============================================================================
-
-@pytest.fixture
-def upbit_adapter():
-    """Upbit 어댑터"""
-    return UpbitAdapter(api_key="test", secret_key="test")
-
 
 @pytest.fixture
 def binance_adapter():
@@ -75,76 +68,6 @@ def position_manager():
             'signals': 'strategy:signals',
         }
         return pm
-
-
-# =============================================================================
-# UpbitAdapter Tests
-# =============================================================================
-
-class TestUpbitAdapter:
-    """UpbitAdapter 단위 테스트"""
-
-    @pytest.mark.asyncio
-    async def test_connect(self, upbit_adapter):
-        """연결 테스트"""
-        result = await upbit_adapter.connect()
-        assert result is True
-        assert upbit_adapter.connected is True
-
-    @pytest.mark.asyncio
-    async def test_disconnect(self, upbit_adapter):
-        """연결 종료 테스트"""
-        await upbit_adapter.connect()
-        await upbit_adapter.disconnect()
-        assert upbit_adapter.connected is False
-
-    @pytest.mark.asyncio
-    async def test_place_market_buy_order(self, upbit_adapter):
-        """시장가 매수 주문 테스트"""
-        await upbit_adapter.connect()
-
-        result = await upbit_adapter.place_order(
-            symbol="KRW-BTC",
-            side="bid",
-            quantity=0.001,
-            order_type="price"
-        )
-
-        assert "uuid" in result
-        assert result["side"] == "bid"
-        assert result["state"] == "done"
-        assert result["market"] == "KRW-BTC"
-
-    @pytest.mark.asyncio
-    async def test_place_market_sell_order(self, upbit_adapter):
-        """시장가 매도 주문 테스트"""
-        await upbit_adapter.connect()
-
-        result = await upbit_adapter.place_order(
-            symbol="KRW-BTC",
-            side="ask",
-            quantity=0.001,
-            order_type="market"
-        )
-
-        assert "uuid" in result
-        assert result["side"] == "ask"
-        assert result["state"] == "done"
-
-    @pytest.mark.asyncio
-    async def test_cancel_order(self, upbit_adapter):
-        """주문 취소 테스트"""
-        await upbit_adapter.connect()
-        result = await upbit_adapter.cancel_order("test-order-123", "KRW-BTC")
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_get_balance(self, upbit_adapter):
-        """잔고 조회 테스트"""
-        await upbit_adapter.connect()
-        balance = await upbit_adapter.get_balance()
-        assert "KRW" in balance
-        assert balance["KRW"] > 0
 
 
 # =============================================================================
@@ -205,12 +128,12 @@ class TestOrderTracker:
         tracker = OrderTracker(
             order_id="order-001",
             signal_id="sig-001",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             action=Action.BUY,
             direction=Direction.LONG,
             quantity=0.01,
-            price=50000000,
+            price=50000,
         )
 
         assert tracker.order_id == "order-001"
@@ -260,19 +183,18 @@ class TestExecutionManager:
     async def test_on_start(self, execution_manager):
         """시작 테스트"""
         await execution_manager.on_start()
-        assert execution_manager.upbit.connected is True
         assert execution_manager.binance.connected is True
 
     @pytest.mark.asyncio
-    async def test_submit_upbit_order(self, execution_manager):
-        """Upbit 주문 제출 테스트"""
+    async def test_submit_binance_order(self, execution_manager):
+        """Binance 주문 제출 테스트"""
         await execution_manager.on_start()
 
         tracker = OrderTracker(
-            order_id="order-upbit-001",
+            order_id="order-binance-001",
             signal_id="sig-001",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             action=Action.BUY,
             direction=Direction.LONG,
             quantity=0.001,
@@ -315,13 +237,13 @@ class TestExecutionManager:
         tracker = OrderTracker(
             order_id="order-cancel-001",
             signal_id="sig-001",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             action=Action.BUY,
             direction=Direction.LONG,
             quantity=0.001,
         )
-        tracker.exchange_order_id = "upbit-order-123"
+        tracker.exchange_order_id = "binance-order-123"
         tracker.state = OrderState.SUBMITTED
 
         execution_manager.active_orders[tracker.order_id] = tracker
@@ -356,11 +278,11 @@ class TestPositionEntry:
         """Long 포지션 생성"""
         pos = PositionEntry(
             id="pos-001",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
             quantity=0.1,
-            entry_price=50000000,
+            entry_price=50000,
         )
 
         assert pos.direction == Direction.LONG
@@ -370,16 +292,16 @@ class TestPositionEntry:
         """Long 포지션 이익"""
         pos = PositionEntry(
             id="pos-002",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
             quantity=0.1,
-            entry_price=50000000,
+            entry_price=50000,
         )
 
-        pos.update_price(52000000)  # +4%
+        pos.update_price(52000)  # +4%
 
-        assert pos.current_price == 52000000
+        assert pos.current_price == 52000
         assert pos.unrealized_pnl_pct == pytest.approx(4.0, rel=0.01)
         assert pos.unrealized_pnl > 0
 
@@ -387,14 +309,14 @@ class TestPositionEntry:
         """Long 포지션 손실"""
         pos = PositionEntry(
             id="pos-003",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
             quantity=0.1,
-            entry_price=50000000,
+            entry_price=50000,
         )
 
-        pos.update_price(48000000)  # -4%
+        pos.update_price(48000)  # -4%
 
         assert pos.unrealized_pnl_pct == pytest.approx(-4.0, rel=0.01)
         assert pos.unrealized_pnl < 0
@@ -437,20 +359,20 @@ class TestPositionEntry:
         """Long 스탑로스 체크"""
         pos = PositionEntry(
             id="pos-006",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
             quantity=0.1,
-            entry_price=50000000,
-            stop_loss_price=48000000,  # -4%
+            entry_price=50000,
+            stop_loss_price=48000,  # -4%
         )
 
         # 가격이 SL 위
-        pos.update_price(49000000)
+        pos.update_price(49000)
         assert pos.check_stop_loss() is False
 
         # 가격이 SL 아래
-        pos.update_price(47000000)
+        pos.update_price(47000)
         assert pos.check_stop_loss() is True
 
     def test_check_stop_loss_short(self):
@@ -475,39 +397,39 @@ class TestPositionEntry:
         """Long 테이크프로핏 체크"""
         pos = PositionEntry(
             id="pos-008",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
             quantity=0.1,
-            entry_price=50000000,
-            take_profit_price=55000000,  # +10%
+            entry_price=50000,
+            take_profit_price=55000,  # +10%
         )
 
-        pos.update_price(54000000)
+        pos.update_price(54000)
         assert pos.check_take_profit() is False
 
-        pos.update_price(56000000)
+        pos.update_price(56000)
         assert pos.check_take_profit() is True
 
     def test_trailing_stop_long(self):
         """Long 트레일링 스탑"""
         pos = PositionEntry(
             id="pos-009",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
             quantity=0.1,
-            entry_price=50000000,
+            entry_price=50000,
             trailing_stop_pct=5.0,
         )
 
         # 가격 상승
-        pos.update_price(55000000)
-        assert pos.highest_price == 55000000
+        pos.update_price(55000)
+        assert pos.highest_price == 55000
         assert pos.check_trailing_stop() is False
 
         # 최고가에서 5% 하락
-        pos.update_price(52000000)  # 55M * 0.95 = 52.25M
+        pos.update_price(52000)  # 55M * 0.95 = 52.25M
         assert pos.check_trailing_stop() is True
 
 
@@ -527,18 +449,18 @@ class TestPositionManager:
     def test_add_position_long(self, position_manager):
         """Long 포지션 추가"""
         pos = position_manager.add_position(
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
             quantity=0.1,
-            entry_price=50000000,
+            entry_price=50000,
             stop_loss_pct=3.0,
             take_profit_pct=10.0,
         )
 
         assert pos.id is not None
-        assert pos.stop_loss_price == 50000000 * 0.97  # -3%
-        assert pos.take_profit_price == 50000000 * 1.10  # +10%
+        assert pos.stop_loss_price == 50000 * 0.97  # -3%
+        assert pos.take_profit_price == 50000 * 1.10  # +10%
         assert len(position_manager.positions) == 1
 
     def test_add_position_short(self, position_manager):
@@ -561,18 +483,18 @@ class TestPositionManager:
     def test_close_position_profit(self, position_manager):
         """이익 청산 테스트"""
         position_manager.add_position(
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
             quantity=0.1,
-            entry_price=50000000,
+            entry_price=50000,
         )
 
         closed = position_manager.close_position(
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
-            exit_price=55000000,  # +10%
+            exit_price=55000,  # +10%
             reason="TAKE_PROFIT"
         )
 
@@ -585,18 +507,18 @@ class TestPositionManager:
     def test_close_position_loss(self, position_manager):
         """손실 청산 테스트"""
         position_manager.add_position(
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
             quantity=0.1,
-            entry_price=50000000,
+            entry_price=50000,
         )
 
         closed = position_manager.close_position(
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
-            exit_price=47500000,  # -5%
+            exit_price=47500,  # -5%
             reason="STOP_LOSS"
         )
 
@@ -607,42 +529,44 @@ class TestPositionManager:
     def test_update_price(self, position_manager):
         """가격 업데이트 테스트"""
         position_manager.add_position(
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             direction=Direction.LONG,
             quantity=0.1,
-            entry_price=50000000,
+            entry_price=50000,
         )
 
-        position_manager.update_price("upbit", "KRW-BTC", 52000000)
+        position_manager.update_price("binance", "BTCUSDT", 52000)
 
         pos = position_manager.get_position(
-            Exchange.UPBIT, "KRW-BTC", Direction.LONG
+            Exchange.BINANCE, "BTCUSDT", Direction.LONG
         )
-        assert pos.current_price == 52000000
+        assert pos.current_price == 52000
         assert pos.unrealized_pnl_pct == pytest.approx(4.0, rel=0.01)
 
     def test_get_portfolio_summary(self, position_manager):
         """포트폴리오 요약 테스트"""
-        # Long 포지션
-        position_manager.add_position(
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
-            direction=Direction.LONG,
-            quantity=0.1,
-            entry_price=50000000,
-        )
-        position_manager.update_price("upbit", "KRW-BTC", 52000000)
-
-        # Short 포지션
+        # Long 포지션 (가격 상승 시 이익)
         position_manager.add_position(
             exchange=Exchange.BINANCE,
             symbol="BTCUSDT",
-            direction=Direction.SHORT,
-            quantity=0.05,
+            direction=Direction.LONG,
+            quantity=0.1,
             entry_price=50000,
         )
-        position_manager.update_price("binance", "BTCUSDT", 48000)
+
+        # Short 포지션 (가격 하락 시 이익)
+        position_manager.add_position(
+            exchange=Exchange.BINANCE,
+            symbol="ETHUSDT",
+            direction=Direction.SHORT,
+            quantity=0.05,
+            entry_price=3000,
+        )
+
+        # 가격 업데이트 - Long은 이익, Short도 이익
+        position_manager.update_price("binance", "BTCUSDT", 52000)  # +4%
+        position_manager.update_price("binance", "ETHUSDT", 2800)   # -6.7% (Short 이익)
 
         summary = position_manager.get_portfolio_summary()
 
@@ -655,18 +579,18 @@ class TestPositionManager:
         """통계 조회 테스트"""
         # 승리 거래
         position_manager.add_position(
-            Exchange.UPBIT, "KRW-BTC", Direction.LONG, 0.1, 50000000
+            Exchange.BINANCE, "BTCUSDT", Direction.LONG, 0.1, 50000
         )
         position_manager.close_position(
-            Exchange.UPBIT, "KRW-BTC", Direction.LONG, 55000000, "TP"
+            Exchange.BINANCE, "BTCUSDT", Direction.LONG, 55000, "TP"
         )
 
         # 패배 거래
         position_manager.add_position(
-            Exchange.UPBIT, "KRW-BTC", Direction.LONG, 0.1, 50000000
+            Exchange.BINANCE, "BTCUSDT", Direction.LONG, 0.1, 50000
         )
         position_manager.close_position(
-            Exchange.UPBIT, "KRW-BTC", Direction.LONG, 48000000, "SL"
+            Exchange.BINANCE, "BTCUSDT", Direction.LONG, 48000, "SL"
         )
 
         stats = position_manager.get_stats()
@@ -712,12 +636,12 @@ class TestPhase4Integration:
         tracker = OrderTracker(
             order_id="flow-order-001",
             signal_id="flow-sig-001",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             action=Action.BUY,
             direction=Direction.LONG,
             quantity=0.1,
-            price=50000000,
+            price=50000,
         )
 
         em.active_orders[tracker.order_id] = tracker
@@ -737,10 +661,10 @@ class TestPhase4Integration:
         assert len(pm.positions) == 1
 
         # 3. 가격 업데이트
-        pm.update_price("upbit", "KRW-BTC", 52000000)
+        pm.update_price("binance", "BTCUSDT", 52000)
 
         # 4. 포지션 확인
-        pos = pm.get_position(Exchange.UPBIT, "KRW-BTC", Direction.LONG)
+        pos = pm.get_position(Exchange.BINANCE, "BTCUSDT", Direction.LONG)
         assert pos.unrealized_pnl > 0
 
 

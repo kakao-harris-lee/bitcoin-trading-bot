@@ -130,13 +130,14 @@ function renderEmpty(containerId, message = 'No data available') {
 }
 
 // Format numbers
-function formatKRW(value) {
+function formatUSDT(value) {
     if (value === null || value === undefined) return '-';
-    return new Intl.NumberFormat('ko-KR', {
+    return new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: 'KRW',
-        maximumFractionDigits: 0
-    }).format(value);
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(value).replace('$', '') + ' USDT';
 }
 
 function formatUSD(value) {
@@ -325,13 +326,13 @@ function renderAssetCards(assets) {
 function updatePortfolio(portfolio) {
     if (!portfolio) return;
 
-    document.getElementById('total-capital').textContent = formatKRW(portfolio.total_capital_krw);
-    document.getElementById('total-value').textContent = formatKRW(portfolio.total_value_krw);
+    document.getElementById('total-capital').textContent = formatUSDT(portfolio.total_capital_krw);
+    document.getElementById('total-value').textContent = formatUSDT(portfolio.total_value_krw);
     document.getElementById('exposure-pct').textContent = `${(portfolio.exposure_pct || 0).toFixed(1)}%`;
 
     const pnlEl = document.getElementById('unrealized-pnl');
     const pnl = portfolio.unrealized_pnl || 0;
-    pnlEl.textContent = formatKRW(pnl);
+    pnlEl.textContent = formatUSDT(pnl);
     pnlEl.className = `value ${pnl >= 0 ? 'positive' : 'negative'}`;
 }
 
@@ -721,12 +722,12 @@ function updatePositionsSummary(data) {
     const totalPnlEl = document.getElementById('positions-total-pnl');
 
     if (totalValueEl) {
-        // Mix of KRW and USD - show as approximate
-        totalValueEl.textContent = formatKRW(data.total_value) + ' (approx)';
+        // Show as approximate
+        totalValueEl.textContent = formatUSDT(data.total_value) + ' (approx)';
     }
 
     if (totalPnlEl) {
-        totalPnlEl.textContent = formatKRW(data.total_unrealized_pnl);
+        totalPnlEl.textContent = formatUSDT(data.total_unrealized_pnl);
         totalPnlEl.className = `value ${getPnLClass(data.total_unrealized_pnl)}`;
     }
 }
@@ -885,7 +886,6 @@ function goToPage(page) {
 // =====================
 
 let signalsState = {
-    exchange: '',
     action: ''
 };
 
@@ -894,7 +894,6 @@ function initSignalsFilters() {
 
     if (applyBtn) {
         applyBtn.addEventListener('click', () => {
-            signalsState.exchange = document.getElementById('signals-exchange-filter').value;
             signalsState.action = document.getElementById('signals-action-filter').value;
             fetchSignals();
         });
@@ -910,7 +909,6 @@ async function fetchSignals() {
         // Build query string
         const params = new URLSearchParams({ limit: 50 });
 
-        if (signalsState.exchange) params.append('exchange', signalsState.exchange);
         if (signalsState.action) params.append('action', signalsState.action);
 
         const data = await apiFetch(`/api/signals?${params.toString()}`);
@@ -940,7 +938,6 @@ function renderSignals(data) {
                 <div class="signal-header">
                     <span class="signal-time">${formatDateTime(signal.timestamp)}</span>
                     <div class="signal-badges">
-                        <span class="exchange-badge ${signal.exchange}">${signal.exchange}</span>
                         <span class="signal-action ${actionClass}">${signal.action}</span>
                         <span class="acted-badge ${actedClass}">${signal.acted ? 'Executed' : 'Not Acted'}</span>
                     </div>
@@ -1116,8 +1113,8 @@ function renderMetricsCards(data) {
             <div class="metric-label">Total Return</div>
         </div>
         <div class="metric-card">
-            <div class="metric-value ${profitClass}">${formatKRW(data.total_return_krw)}</div>
-            <div class="metric-label">Profit (KRW)</div>
+            <div class="metric-value ${profitClass}">${formatUSDT(data.total_return_krw)}</div>
+            <div class="metric-label">Profit (USDT)</div>
         </div>
         <div class="metric-card">
             <div class="metric-value">${data.win_rate.toFixed(1)}%</div>
@@ -1136,15 +1133,15 @@ function renderMetricsCards(data) {
             <div class="metric-label">Wins / Losses</div>
         </div>
         <div class="metric-card">
-            <div class="metric-value ${getPnLClass(data.avg_trade)}">${formatKRW(data.avg_trade)}</div>
+            <div class="metric-value ${getPnLClass(data.avg_trade)}">${formatUSDT(data.avg_trade)}</div>
             <div class="metric-label">Avg Trade</div>
         </div>
         <div class="metric-card">
-            <div class="metric-value positive">${formatKRW(data.avg_win)}</div>
+            <div class="metric-value positive">${formatUSDT(data.avg_win)}</div>
             <div class="metric-label">Avg Win</div>
         </div>
         <div class="metric-card">
-            <div class="metric-value negative">${formatKRW(data.avg_loss)}</div>
+            <div class="metric-value negative">${formatUSDT(data.avg_loss)}</div>
             <div class="metric-label">Avg Loss</div>
         </div>
         <div class="metric-card">
@@ -1201,7 +1198,7 @@ function renderEquityCurve(data) {
             labels: labels,
             datasets: [
                 {
-                    label: 'Equity (KRW)',
+                    label: 'Equity (USDT)',
                     data: equityValues,
                     borderColor: '#f39c12',
                     backgroundColor: 'rgba(243, 156, 18, 0.1)',
@@ -1242,7 +1239,7 @@ function renderEquityCurve(data) {
                     callbacks: {
                         label: function(context) {
                             if (context.datasetIndex === 0) {
-                                return `Equity: ${formatKRW(context.raw)}`;
+                                return `Equity: ${formatUSDT(context.raw)}`;
                             } else {
                                 return `Drawdown: ${context.raw.toFixed(1)}%`;
                             }
@@ -1326,7 +1323,7 @@ function renderStrategyBreakdown(strategies) {
                     </div>
                     <div class="stat-item">
                         <span class="label">Return</span>
-                        <span class="value ${returnClass}">${formatKRW(stats.total_return)}</span>
+                        <span class="value ${returnClass}">${formatUSDT(stats.total_return)}</span>
                     </div>
                     <div class="stat-item">
                         <span class="label">Profit Factor</span>
@@ -1378,7 +1375,7 @@ function renderDailySummary(summary) {
             <div class="label">Trading Days</div>
         </div>
         <div class="summary-card">
-            <div class="value ${profitClass}">${formatKRW(summary.total_profit)}</div>
+            <div class="value ${profitClass}">${formatUSDT(summary.total_profit)}</div>
             <div class="label">Total Profit</div>
         </div>
         <div class="summary-card">
@@ -1446,7 +1443,7 @@ function renderDailyChart(days) {
                     backgroundColor: 'rgba(0, 0, 0, 0.8)',
                     callbacks: {
                         label: function(context) {
-                            return `P&L: ${formatKRW(context.raw)}`;
+                            return `P&L: ${formatUSDT(context.raw)}`;
                         }
                     }
                 }
@@ -1512,7 +1509,7 @@ function renderDailyBreakdown(days) {
                 <td class="text-right">${day.trades}</td>
                 <td class="text-right">${day.wins} / ${day.losses}</td>
                 <td class="text-right">${day.win_rate}%</td>
-                <td class="text-right profit-cell ${profitClass}">${formatKRW(day.profit)}</td>
+                <td class="text-right profit-cell ${profitClass}">${formatUSDT(day.profit)}</td>
                 <td>
                     <div class="daily-bar">
                         <div class="bar ${barClass}" style="width: ${barWidth}px;"></div>
@@ -1769,11 +1766,11 @@ function renderBacktestResults(result) {
                 <div class="label">Total Return</div>
             </div>
             <div class="backtest-metric">
-                <div class="value ${getPnLClass(result.total_return)}">${formatKRW(result.total_return)}</div>
-                <div class="label">Profit (KRW)</div>
+                <div class="value ${getPnLClass(result.total_return)}">${formatUSDT(result.total_return)}</div>
+                <div class="label">Profit (USDT)</div>
             </div>
             <div class="backtest-metric">
-                <div class="value">${formatKRW(result.final_capital)}</div>
+                <div class="value">${formatUSDT(result.final_capital)}</div>
                 <div class="label">Final Capital</div>
             </div>
             <div class="backtest-metric">
@@ -1865,7 +1862,7 @@ function renderBacktestEquityCurve(equityData) {
                     backgroundColor: 'rgba(0, 0, 0, 0.8)',
                     callbacks: {
                         label: function(context) {
-                            return `Equity: ${formatKRW(context.raw)}`;
+                            return `Equity: ${formatUSDT(context.raw)}`;
                         }
                     }
                 }
@@ -1923,7 +1920,7 @@ function renderBacktestTrades(trades) {
                 <td><span class="action-badge ${actionClass}">${escapeHtml(trade.action) || '-'}</span></td>
                 <td class="text-right">${formatPrice(trade.price, true)}</td>
                 <td class="text-right ${pnlClass}">
-                    ${trade.profit !== undefined && trade.profit !== null ? formatKRW(trade.profit) : '-'}
+                    ${trade.profit !== undefined && trade.profit !== null ? formatUSDT(trade.profit) : '-'}
                 </td>
             </tr>
         `;

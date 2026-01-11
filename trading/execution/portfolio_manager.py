@@ -76,14 +76,13 @@ class PortfolioManager:
         assets_config = self._config.get("assets", {})
 
         for symbol, cfg in assets_config.items():
-            if cfg.get("upbit_enabled", False) or cfg.get("binance_enabled", False):
+            if cfg.get("binance_enabled", False):
                 self._assets[symbol] = AssetConfig(
                     symbol=symbol,
-                    enabled=cfg.get("upbit_enabled", False) or cfg.get("binance_enabled", False),
+                    enabled=cfg.get("binance_enabled", False),
                     alpha_ratio=cfg.get("alpha_ratio", 0.0),
-                    upbit_symbol=cfg.get("upbit_symbol", f"KRW-{symbol}"),
                     binance_symbol=cfg.get("binance_symbol", f"{symbol}USDT"),
-                    db_path=cfg.get("db_path", f"data/upbit_{symbol.lower()}.db"),
+                    db_path=cfg.get("db_path", f"data/binance_{symbol.lower()}.db"),
                     strategies=cfg.get("strategies", {}),
                     params_override=cfg.get("params_override", {}),
                 )

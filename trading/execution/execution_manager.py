@@ -67,123 +67,6 @@ class ExchangeAdapter(Protocol):
 
 
 # =============================================================================
-# Upbit Adapter
-# =============================================================================
-
-class UpbitAdapter:
-    """Upbit 거래소 어댑터"""
-
-    def __init__(self, api_key: str = "", secret_key: str = ""):
-        self.api_key = api_key
-        self.secret_key = secret_key
-        self.base_url = "https://api.upbit.com"
-        self.connected = False
-        self.logger = logging.getLogger("trading.upbit-adapter")
-
-    async def connect(self) -> bool:
-        """Upbit API 연결 확인"""
-        try:
-            # 실제로는 API 키 검증
-            self.connected = True
-            self.logger.info("Upbit 연결 성공")
-            return True
-        except Exception as e:
-            self.logger.error(f"Upbit 연결 실패: {e}")
-            return False
-
-    async def disconnect(self) -> None:
-        """연결 종료"""
-        self.connected = False
-        self.logger.info("Upbit 연결 종료")
-
-    async def place_order(
-        self,
-        symbol: str,
-        side: str,
-        quantity: float,
-        price: Optional[float] = None,
-        order_type: str = "market"
-    ) -> Dict[str, Any]:
-        """
-        Upbit 주문 실행
-
-        Args:
-            symbol: 심볼 (예: KRW-BTC)
-            side: bid(매수) / ask(매도)
-            quantity: 수량
-            price: 지정가 (시장가 시 None)
-            order_type: limit / price(시장가 매수) / market(시장가 매도)
-
-        Returns:
-            주문 결과
-        """
-        try:
-            # 시뮬레이션 모드
-            order_id = create_message_id("upbit-order")
-
-            # 시장가 주문 시 즉시 체결 가정
-            if order_type in ["price", "market"]:
-                executed_price = price or 50000000  # 임시
-                result = {
-                    "uuid": order_id,
-                    "side": side,
-                    "ord_type": order_type,
-                    "state": "done",
-                    "market": symbol,
-                    "volume": str(quantity),
-                    "executed_volume": str(quantity),
-                    "price": str(executed_price),
-                    "avg_price": str(executed_price),
-                    "fee": str(executed_price * quantity * 0.0005),
-                }
-            else:
-                # 지정가 주문
-                result = {
-                    "uuid": order_id,
-                    "side": side,
-                    "ord_type": order_type,
-                    "state": "wait",
-                    "market": symbol,
-                    "volume": str(quantity),
-                    "executed_volume": "0",
-                    "price": str(price),
-                    "avg_price": None,
-                    "fee": "0",
-                }
-
-            self.logger.info(f"Upbit 주문 실행: {symbol} {side} {quantity}")
-            return result
-
-        except Exception as e:
-            self.logger.error(f"Upbit 주문 실패: {e}")
-            return {"error": str(e), "state": "failed"}
-
-    async def cancel_order(self, order_id: str, symbol: str) -> bool:
-        """주문 취소"""
-        try:
-            self.logger.info(f"Upbit 주문 취소: {order_id}")
-            return True
-        except Exception as e:
-            self.logger.error(f"Upbit 주문 취소 실패: {e}")
-            return False
-
-    async def get_order_status(self, order_id: str, symbol: str) -> Dict[str, Any]:
-        """주문 상태 조회"""
-        return {
-            "uuid": order_id,
-            "state": "done",
-            "market": symbol,
-        }
-
-    async def get_balance(self) -> Dict[str, float]:
-        """잔고 조회"""
-        return {
-            "KRW": 10000000.0,
-            "BTC": 0.0,
-        }
-
-
-# =============================================================================
 # Binance Adapter
 # =============================================================================
 
@@ -375,13 +258,11 @@ class ExecutionManager(BaseModule):
     def __init__(
         self,
         config: Optional[Config] = None,
-        upbit_adapter: Optional[UpbitAdapter] = None,
         binance_adapter: Optional[BinanceAdapter] = None,
     ):
         super().__init__("execution-manager", config)
 
         # 거래소 어댑터
-        self.upbit = upbit_adapter or UpbitAdapter()
         self.binance = binance_adapter or BinanceAdapter()
 
         # 주문 추적
@@ -401,7 +282,6 @@ class ExecutionManager(BaseModule):
     async def on_start(self):
         """시작 시 초기화"""
         # 거래소 연결
-        await self.upbit.connect()
         await self.binance.connect()
         self.logger.info("거래소 어댑터 연결 완료")
 
@@ -412,7 +292,6 @@ class ExecutionManager(BaseModule):
             self.logger.warning(f"미체결 주문 {len(self.active_orders)}건 존재")
 
         # 연결 종료
-        await self.upbit.disconnect()
         await self.binance.disconnect()
 
     async def run_cycle(self):
@@ -454,7 +333,7 @@ class ExecutionManager(BaseModule):
             tracker = OrderTracker(
                 order_id=order_data.get("id", create_message_id("order")),
                 signal_id=order_data.get("signal_id", ""),
-                exchange=Exchange(order_data.get("exchange", "upbit")),
+                exchange=Exchange(order_data.get("exchange", "binance")),
                 symbol=order_data.get("symbol", ""),
                 action=Action(order_data.get("action", "hold")),
                 direction=Direction(order_data.get("direction", "long")),
@@ -478,10 +357,7 @@ class ExecutionManager(BaseModule):
         tracker.submitted_at = datetime.now()
 
         try:
-            if tracker.exchange == Exchange.UPBIT:
-                result = await self._submit_upbit_order(tracker)
-            else:
-                result = await self._submit_binance_order(tracker)
+            result = await self._submit_binance_order(tracker)
 
             # 결과 처리
             if result.get("error"):
@@ -500,24 +376,6 @@ class ExecutionManager(BaseModule):
             tracker.error_message = str(e)
             self._orders_failed += 1
             self.logger.error(f"주문 제출 실패: {e}")
-
-    async def _submit_upbit_order(self, tracker: OrderTracker) -> Dict:
-        """Upbit 주문 제출"""
-        # side 변환
-        if tracker.action == Action.BUY:
-            side = "bid"
-            order_type = "price"  # 시장가 매수
-        else:
-            side = "ask"
-            order_type = "market"  # 시장가 매도
-
-        return await self.upbit.place_order(
-            symbol=tracker.symbol,
-            side=side,
-            quantity=tracker.quantity,
-            price=tracker.price,
-            order_type=order_type
-        )
 
     async def _submit_binance_order(self, tracker: OrderTracker) -> Dict:
         """Binance 주문 제출"""
@@ -576,14 +434,9 @@ class ExecutionManager(BaseModule):
         for order_id, tracker in list(self.active_orders.items()):
             if tracker.state in [OrderState.SUBMITTED, OrderState.PARTIAL]:
                 try:
-                    if tracker.exchange == Exchange.UPBIT:
-                        result = await self.upbit.get_order_status(
-                            tracker.exchange_order_id, tracker.symbol
-                        )
-                    else:
-                        result = await self.binance.get_order_status(
-                            tracker.exchange_order_id, tracker.symbol
-                        )
+                    result = await self.binance.get_order_status(
+                        tracker.exchange_order_id, tracker.symbol
+                    )
 
                     await self._check_fill_status(tracker, result)
 
@@ -643,14 +496,9 @@ class ExecutionManager(BaseModule):
             return False
 
         try:
-            if tracker.exchange == Exchange.UPBIT:
-                success = await self.upbit.cancel_order(
-                    tracker.exchange_order_id, tracker.symbol
-                )
-            else:
-                success = await self.binance.cancel_order(
-                    tracker.exchange_order_id, tracker.symbol
-                )
+            success = await self.binance.cancel_order(
+                tracker.exchange_order_id, tracker.symbol
+            )
 
             if success:
                 tracker.state = OrderState.CANCELLED

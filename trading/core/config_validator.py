@@ -125,7 +125,7 @@ class ConfigValidator:
                 result.add_error(f"{symbol}: asset config must be a dictionary")
                 continue
 
-            if not (asset_config.get("upbit_enabled") or asset_config.get("binance_enabled")):
+            if not asset_config.get("binance_enabled"):
                 continue
 
             enabled_count += 1
@@ -142,7 +142,7 @@ class ConfigValidator:
         result = ValidationResult(valid=True)
 
         # Required fields for enabled assets
-        required_fields = ["upbit_symbol"]
+        required_fields = ["binance_symbol"]
         for field in required_fields:
             if not config.get(field):
                 result.add_error(f"{symbol}: missing required field '{field}'")
@@ -195,7 +195,7 @@ class ConfigValidator:
         # Collect strategies referenced by enabled assets
         referenced_strategies = set()
         for symbol, asset_config in config.get("assets", {}).items():
-            is_enabled = asset_config.get("upbit_enabled") or asset_config.get("binance_enabled")
+            is_enabled = asset_config.get("binance_enabled")
             if is_enabled and asset_config.get("strategy"):
                 referenced_strategies.add(asset_config["strategy"])
 
@@ -333,8 +333,8 @@ class ConfigValidator:
 
         # Check for critical API keys (without exposing values)
         critical_env_vars = [
-            ("UPBIT_ACCESS_KEY", "Upbit API"),
-            ("UPBIT_SECRET_KEY", "Upbit API"),
+            ("BINANCE_API_KEY", "Binance API"),
+            ("BINANCE_API_SECRET", "Binance API"),
         ]
 
         for var, service in critical_env_vars:
@@ -343,8 +343,6 @@ class ConfigValidator:
 
         # Optional but recommended env vars
         optional_env_vars = [
-            ("BINANCE_API_KEY", "Binance API"),
-            ("BINANCE_API_SECRET", "Binance API"),
             ("TELEGRAM_BOT_TOKEN", "Telegram notifications"),
             ("TELEGRAM_CHAT_ID", "Telegram notifications"),
         ]
@@ -357,7 +355,6 @@ class ConfigValidator:
 
     def validate_connections(
         self,
-        upbit_test: Optional[callable] = None,
         binance_test: Optional[callable] = None,
         redis_test: Optional[callable] = None,
         telegram_test: Optional[callable] = None,
@@ -366,7 +363,6 @@ class ConfigValidator:
         Validate connectivity to external services.
 
         Args:
-            upbit_test: Function to test Upbit connection
             binance_test: Function to test Binance connection
             redis_test: Function to test Redis connection
             telegram_test: Function to test Telegram connection
@@ -376,19 +372,12 @@ class ConfigValidator:
         """
         result = ValidationResult(valid=True)
 
-        if upbit_test:
-            try:
-                upbit_test()
-                logger.info("Upbit connection: OK")
-            except Exception as e:
-                result.add_error(f"Upbit connection failed: {e}")
-
         if binance_test:
             try:
                 binance_test()
                 logger.info("Binance connection: OK")
             except Exception as e:
-                result.add_warning(f"Binance connection failed: {e}")
+                result.add_error(f"Binance connection failed: {e}")
 
         if redis_test:
             try:
@@ -405,14 +394,6 @@ class ConfigValidator:
                 result.add_warning(f"Telegram connection failed: {e}")
 
         return result
-
-    @staticmethod
-    def test_upbit_connection() -> None:
-        """Default Upbit connection test using pyupbit."""
-        import pyupbit
-        price = pyupbit.get_current_price("KRW-BTC")
-        if price is None:
-            raise ConnectionError("Failed to get BTC price from Upbit")
 
     @staticmethod
     def test_binance_connection() -> None:
@@ -475,8 +456,7 @@ class StartupValidator:
 
     def validate_with_connections(
         self,
-        test_upbit: bool = True,
-        test_binance: bool = False,
+        test_binance: bool = True,
         test_redis: bool = False,
         test_telegram: bool = False,
     ) -> ValidationResult:
@@ -484,8 +464,7 @@ class StartupValidator:
         Run validations including connection tests.
 
         Args:
-            test_upbit: Test Upbit connection (critical)
-            test_binance: Test Binance connection (optional)
+            test_binance: Test Binance connection (critical)
             test_redis: Test Redis connection (optional)
             test_telegram: Test Telegram connection (optional)
 
@@ -497,7 +476,6 @@ class StartupValidator:
 
         # Run connection tests
         connection_result = self._validator.validate_connections(
-            upbit_test=ConfigValidator.test_upbit_connection if test_upbit else None,
             binance_test=ConfigValidator.test_binance_connection if test_binance else None,
             redis_test=ConfigValidator.test_redis_connection if test_redis else None,
             telegram_test=ConfigValidator.test_telegram_connection if test_telegram else None,
@@ -522,8 +500,7 @@ class StartupValidator:
 
     def validate_connections_or_raise(
         self,
-        test_upbit: bool = True,
-        test_binance: bool = False,
+        test_binance: bool = True,
         test_redis: bool = False,
         test_telegram: bool = False,
     ) -> None:
@@ -533,7 +510,6 @@ class StartupValidator:
         This is the recommended startup validation method.
         """
         result = self.validate_with_connections(
-            test_upbit=test_upbit,
             test_binance=test_binance,
             test_redis=test_redis,
             test_telegram=test_telegram,

@@ -56,7 +56,7 @@ class TradeLogger:
 
     def log_trade(self, action: str, price: float, volume: float,
                   profit: Optional[float] = None, profit_pct: Optional[float] = None,
-                  exchange: str = 'upbit'):
+                  exchange: str = 'binance'):
         """
         거래 내역 기록
 
@@ -95,23 +95,24 @@ class TradeLogger:
         except Exception as e:
             print(f"❌ 거래 기록 실패: {e}")
 
-    def log_position_open(self, price: float, volume: float, exchange: str = 'upbit'):
+    def log_position_open(self, price: float, volume: float, exchange: str = 'binance'):
         """포지션 진입 기록"""
         self.log_trade('BUY', price, volume, exchange=exchange)
 
     def log_position_close(self, price: float, volume: float,
-                          entry_price: float, exchange: str = 'upbit'):
+                          entry_price: float, exchange: str = 'binance',
+                          is_short: bool = True):
         """포지션 청산 기록 (손익 계산 포함)"""
 
         # 손익 계산
-        if exchange == 'upbit':
-            # 업비트: 원화 기준
-            profit = (price - entry_price) * volume
-            profit_pct = ((price - entry_price) / entry_price) * 100
-        else:
-            # 바이넨스: 숏 포지션
+        if is_short:
+            # 숏 포지션: 진입가보다 낮으면 이익
             profit = (entry_price - price) * volume
             profit_pct = ((entry_price - price) / entry_price) * 100
+        else:
+            # 롱 포지션: 진입가보다 높으면 이익
+            profit = (price - entry_price) * volume
+            profit_pct = ((price - entry_price) / entry_price) * 100
 
         self.log_trade('SELL', price, volume, profit, profit_pct, exchange)
 
@@ -394,7 +395,7 @@ def add_exchange_column_if_not_exists(db_path: str):
         if 'exchange' not in columns:
             cursor.execute("""
                 ALTER TABLE trades
-                ADD COLUMN exchange TEXT DEFAULT 'upbit'
+                ADD COLUMN exchange TEXT DEFAULT 'binance'
             """)
             conn.commit()
             print("✅ trades 테이블에 exchange 컬럼 추가 완료")
@@ -427,8 +428,8 @@ if __name__ == "__main__":
 
     # 테스트 거래 기록
     print("✅ 1. 테스트 거래 기록...")
-    logger.log_position_open(100_000_000, 0.001, 'upbit')
-    logger.log_position_close(102_000_000, 0.001, 100_000_000, 'upbit')
+    logger.log_position_open(50000.0, 0.001, 'binance')
+    logger.log_position_close(49000.0, 0.001, 50000.0, 'binance', is_short=True)
 
     print()
 

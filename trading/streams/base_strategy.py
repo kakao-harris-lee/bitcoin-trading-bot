@@ -24,12 +24,14 @@ class BaseStrategyTask(ABC):
         redis: RedisStreams,
         market: str,
         buffer_size: int = 500,
+        use_smart_exit: bool = False,
     ):
         self.name = name
         self.symbols = set(symbols)
         self.redis = redis
         self.market = market
         self.buffer_size = buffer_size
+        self.use_smart_exit = use_smart_exit
         self.price_buffer: dict[str, deque] = {}
         self._running = False
 
@@ -88,8 +90,9 @@ class BaseStrategyTask(ABC):
             if position.get("strategy") == self.name:
                 exit_signal = await self.evaluate_exit(symbol, position)
                 if exit_signal:
-                    await self._publish_order(exit_signal)
-                    await self.redis.clear_position(symbol, self.market)
+                    await self._publish_exit(exit_signal, position)
+                    if not self.use_smart_exit:
+                        await self.redis.clear_position(symbol, self.market)
             return
 
         # Evaluate entry
@@ -112,6 +115,25 @@ class BaseStrategyTask(ABC):
         }
         await self.redis.publish("orders", order)
         logger.info(f"Strategy {self.name} published order: {order}")
+
+    async def _publish_exit(self, signal: dict[str, Any], position: dict) -> None:
+        """Publish exit signal to appropriate stream."""
+        if self.use_smart_exit:
+            # Add trigger price if not present
+            if "trigger_price" not in signal:
+                buffer = self.price_buffer.get(signal["symbol"], [])
+                if buffer:
+                    signal["trigger_price"] = buffer[-1]["price"]
+
+            exit_signal = {
+                "id": str(uuid.uuid4()),
+                "strategy": self.name,
+                **signal,
+            }
+            await self.redis.publish("exit_signals", exit_signal)
+            logger.info(f"Strategy {self.name} published exit signal: {exit_signal}")
+        else:
+            await self._publish_order(signal)
 
     @abstractmethod
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:

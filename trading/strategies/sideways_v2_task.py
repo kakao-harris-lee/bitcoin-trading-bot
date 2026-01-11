@@ -37,14 +37,16 @@ class SidewaysV2Task(BaseStrategyTask):
         redis: RedisStreams,
         config: dict | None = None,
     ):
+        config = config or {}
         super().__init__(
             name="sideways_v2",
             symbols=symbols,
             redis=redis,
             market="spot",
             buffer_size=500,
+            use_smart_exit=config.get("use_smart_exit", False),
         )
-        self.config = config or {}
+        self.config = config
         self.min_data_points = 180
 
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:

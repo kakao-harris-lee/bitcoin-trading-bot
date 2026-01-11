@@ -71,3 +71,4 @@ data/processed/
 # Test artifacts
 MagicMock/
 .worktrees/
+.worktrees/

@@ -34,14 +34,16 @@ class ShortV1Task(BaseStrategyTask):
         redis: RedisStreams,
         config: dict | None = None,
     ):
+        config = config or {}
         super().__init__(
             name="short_v1",
             symbols=symbols,
             redis=redis,
             market="futures",  # Shorts on futures
             buffer_size=500,
+            use_smart_exit=config.get("use_smart_exit", False),
         )
-        self.config = config or {}
+        self.config = config
         self.min_data_points = 180
 
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:

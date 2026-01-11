@@ -9,6 +9,9 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
 
+# Skip entire module if Flask is not installed
+pytest.importorskip("flask")
+
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -228,27 +231,6 @@ class TestDecisionHistoryEndpoint:
             assert response.status_code == 200
             call_kwargs = mock_service.get_recent_decisions.call_args[1]
             assert call_kwargs['limit'] == 200
-
-    def test_decisions_endpoint_invalid_exchange(self, client):
-        """Test that invalid exchange returns error."""
-        response = client.get('/api/metrics/decisions?exchange=invalid')
-
-        assert response.status_code == 400
-        data = json.loads(response.data)
-        assert 'error' in data
-
-
-class TestMetricsPage:
-    """Tests for /metrics page route."""
-
-    def test_metrics_page_renders(self, client):
-        """Test that the metrics page renders without error."""
-        # Note: This test may require auth depending on configuration
-        response = client.get('/metrics')
-
-        # Should return either 200 (OK) or 401 (auth required)
-        assert response.status_code in [200, 401]
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

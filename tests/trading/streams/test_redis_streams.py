@@ -13,6 +13,7 @@ Note: Tests require Redis running locally. Integration tests are skipped if Redi
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -283,25 +284,23 @@ class TestRedisStreamsUnit:
 class TestRedisStreamsIntegration:
     """Integration tests requiring Redis running locally."""
 
-    @pytest.fixture
-    def connected_streams(self, event_loop):
-        """Create and connect RedisStreams instance (sync fixture wrapping async)."""
+    @pytest_asyncio.fixture
+    async def connected_streams(self):
+        """Create and connect RedisStreams instance."""
         from trading.streams.redis_streams import RedisStreams
 
         streams = RedisStreams(url="redis://localhost:6379/15")  # Use DB 15 for tests
+        await streams.connect()
 
-        async def setup():
-            await streams.connect()
-            return streams
+        yield streams
 
-        async def teardown(s):
-            if s._client:
-                await s._client.delete("test:stream", "test:key")
-                await s.disconnect()
-
-        instance = event_loop.run_until_complete(setup())
-        yield instance
-        event_loop.run_until_complete(teardown(instance))
+        # Teardown
+        try:
+            if streams._client:
+                await streams._client.delete("test:stream", "test:key")
+                await streams.disconnect()
+        except Exception:
+            pass  # Ignore cleanup errors
 
     async def test_publish_and_consume(self, connected_streams):
         """Test basic publish/consume cycle."""

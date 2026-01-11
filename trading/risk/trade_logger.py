@@ -66,7 +66,7 @@ class TradeLogger:
             volume: 거래량 (BTC)
             profit: 실현 손익 (원) - SELL 시
             profit_pct: 손익률 (%) - SELL 시
-            exchange: 거래소 ('upbit' 또는 'binance')
+            exchange: 거래소 ('binance')
         """
         try:
             conn = sqlite3.connect(self.db_path)
@@ -144,7 +144,7 @@ class TradeLogger:
 
         Args:
             limit: 조회할 최대 거래 수
-            exchange: 거래소 필터 ('upbit' 또는 'binance', None이면 전체)
+            exchange: 거래소 필터 ('binance', None이면 전체)
 
         Returns:
             List of dicts with trade info
@@ -202,7 +202,7 @@ class TradeLogger:
         Args:
             target_date: 조회할 날짜
             strategy_name: 전략 이름 필터 (None이면 현재 strategy_id 사용)
-            exchange: 거래소 필터 ('upbit' 또는 'binance', None이면 전체)
+            exchange: 거래소 필터 ('binance', None이면 전체)
 
         Returns:
             List of dicts with trade info including timestamp, action, price, volume, profit, profit_pct, exchange

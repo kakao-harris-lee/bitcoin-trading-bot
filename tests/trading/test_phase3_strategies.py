@@ -5,7 +5,7 @@ Trading Engine V2 - Phase 3 Unit Tests
 테스트 대상:
 - MarketClassifier: 시장 상태 분류
 - DynamicExitManager: 동적 익절/손절 관리
-- V35LongStrategy: Upbit Long 전략
+- V35LongStrategy: Binance Futures Long 전략
 - ShortV1Strategy: Binance Short 전략
 - RiskManager: 신호 검증 및 위험 관리
 """

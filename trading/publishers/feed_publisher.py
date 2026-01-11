@@ -78,7 +78,7 @@ class FeedPublisher:
         """Run feed publisher with WebSocket handler.
 
         Args:
-            ws_handler: WebSocketHandler instance (Upbit or Binance)
+            ws_handler: WebSocketHandler instance (Binance)
         """
         self.logger.info(f"Starting {self.exchange.value} feed publisher...")
 

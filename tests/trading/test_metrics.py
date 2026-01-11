@@ -176,12 +176,12 @@ class TestMetricsCollector:
         collector.metrics.api_latency_ms.clear()
         collector.metrics.api_calls.clear()
 
-        with collector.time_api_call("upbit"):
+        with collector.time_api_call("binance"):
             time.sleep(0.01)
 
         metrics = collector.get_metrics()
-        assert "upbit" in metrics["counters"]["api_calls"]
-        assert "upbit" in metrics["histograms"]["api_latency_ms"]
+        assert "binance" in metrics["counters"]["api_calls"]
+        assert "binance" in metrics["histograms"]["api_latency_ms"]
 
     def test_get_summary(self):
         """get_summary returns expected format."""

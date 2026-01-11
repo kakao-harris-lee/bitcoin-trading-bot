@@ -205,7 +205,7 @@ class DynamicExitManager:
 
 class V35LongStrategy(BaseStrategy):
     """
-    V35 Long Strategy (Upbit)
+    V35 Long Strategy (Binance Futures)
 
     v35_optimized 전략을 이벤트 기반으로 이식
     - 시장 상태별 Entry/Exit

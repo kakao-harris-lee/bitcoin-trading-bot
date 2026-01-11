@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import signal
 from pathlib import Path
 from typing import Any
@@ -15,10 +16,22 @@ from trading.executor import BinanceClient, AsyncExecutor, PaperExecutor
 logger = logging.getLogger(__name__)
 
 
+def _expand_env_vars(obj: Any) -> Any:
+    """Recursively expand environment variables in config values."""
+    if isinstance(obj, str):
+        return os.path.expandvars(obj)
+    elif isinstance(obj, dict):
+        return {k: _expand_env_vars(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_expand_env_vars(item) for item in obj]
+    return obj
+
+
 def load_config(path: str) -> dict[str, Any]:
-    """Load configuration from JSON file."""
+    """Load configuration from JSON file with environment variable expansion."""
     with open(path) as f:
-        return json.load(f)
+        config = json.load(f)
+    return _expand_env_vars(config)
 
 
 class TradingEngine:

@@ -35,14 +35,16 @@ class V35LongTask(BaseStrategyTask):
         redis: RedisStreams,
         config: dict | None = None,
     ):
+        config = config or {}
         super().__init__(
             name="v35_long",
             symbols=symbols,
             redis=redis,
             market="spot",
             buffer_size=500,
+            use_smart_exit=config.get("use_smart_exit", False),
         )
-        self.config = config or {}
+        self.config = config
         self.min_data_points = 180  # Need enough data for indicators
         # Track high water mark for trailing stop per symbol
         self.high_water_mark: dict[str, float] = {}

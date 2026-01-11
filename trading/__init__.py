@@ -1,12 +1,11 @@
 """
-Trading Engine V2 - Main Package
+Trading Engine V3 - Binance Stream Architecture
 """
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
-from .multi_asset_engine import MultiAssetTradingEngine, MultiAssetEngineConfig
+from .engine import TradingEngine
 
 __all__ = [
-    "MultiAssetTradingEngine",
-    "MultiAssetEngineConfig",
+    "TradingEngine",
 ]

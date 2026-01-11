@@ -1,97 +1,27 @@
 {
-  "capital": {
-    "upbit_krw": 10000000,
-    "binance_usdt": 5000
+  "redis_url": "redis://localhost:6379",
+  "symbols": ["BTC", "ETH", "SOL"],
+  "binance": {
+    "api_key": "${BINANCE_API_KEY}",
+    "api_secret": "${BINANCE_API_SECRET}"
   },
-  "assets": {
-    "BTC": {
-      "upbit_enabled": true,
-      "binance_enabled": true,
-      "alpha_ratio": 0.4,
-      "upbit_symbol": "KRW-BTC",
-      "binance_symbol": "BTCUSDT",
-      "db_path": "data/upbit_bitcoin.db",
-      "upbit_strategies": {
-        "BULL": "v35",
-        "SIDEWAYS": "sideways_v2",
-        "BEAR": null
-      },
-      "binance_strategies": {
-        "BULL": "v35",
-        "SIDEWAYS": null,
-        "BEAR": "short_v1"
-      },
-      "binance_leverage": 3,
-      "params_override": {}
+  "strategies": {
+    "v35_long": {
+      "position_size": 0.01
     },
-    "ETH": {
-      "upbit_enabled": true,
-      "binance_enabled": true,
-      "alpha_ratio": 0.3,
-      "upbit_symbol": "KRW-ETH",
-      "binance_symbol": "ETHUSDT",
-      "db_path": "data/upbit_ethereum.db",
-      "upbit_strategies": {
-        "BULL": "v35_eth",
-        "SIDEWAYS": "sideways_v2",
-        "BEAR": null
-      },
-      "binance_strategies": {
-        "BULL": "v35_eth",
-        "SIDEWAYS": null,
-        "BEAR": "short_v1"
-      },
-      "binance_leverage": 3,
-      "strategy_configs": {
-        "v35_eth": "config/strategies/v35_eth.json"
-      },
-      "params_override": {}
+    "sideways_v2": {
+      "position_size": 0.01
     },
-    "SOL": {
-      "upbit_enabled": true,
-      "binance_enabled": true,
-      "alpha_ratio": 0.2,
-      "upbit_symbol": "KRW-SOL",
-      "binance_symbol": "SOLUSDT",
-      "db_path": "data/upbit_solana.db",
-      "upbit_strategies": {
-        "BULL": "v35_sol",
-        "SIDEWAYS": "v35_sol",
-        "BEAR": null
-      },
-      "binance_strategies": {
-        "BULL": "v35_sol",
-        "SIDEWAYS": null,
-        "BEAR": "short_v1"
-      },
-      "binance_leverage": 3,
-      "strategy_configs": {
-        "v35_sol": "config/strategies/v35_sol.json"
-      },
-      "params_override": {}
-    },
-    "XRP": {
-      "upbit_enabled": true,
-      "binance_enabled": true,
-      "alpha_ratio": 0.1,
-      "upbit_symbol": "KRW-XRP",
-      "binance_symbol": "XRPUSDT",
-      "db_path": "data/upbit_xrp.db",
-      "upbit_strategies": {
-        "BULL": "v35_xrp",
-        "SIDEWAYS": null,
-        "BEAR": null
-      },
-      "binance_strategies": {
-        "BULL": "v35_xrp",
-        "SIDEWAYS": null,
-        "BEAR": "short_v1"
-      },
-      "binance_leverage": 3,
-      "strategy_configs": {
-        "v35_xrp": "config/strategies/v35_xrp.json"
-      },
-      "params_override": {}
+    "short_v1": {
+      "position_size": 0.01
     }
+  },
+  "risk": {
+    "max_daily_loss": 500
+  },
+  "paper": {
+    "initial_balance": 10000,
+    "fee_rate": 0.001,
+    "slippage": 0.0004
   }
 }

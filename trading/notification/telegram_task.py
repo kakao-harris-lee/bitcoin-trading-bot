@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
+import pyotp
 import pytz
 from dotenv import load_dotenv
 
@@ -198,6 +199,8 @@ class TelegramTask:
             await self._cmd_kill_off()
         elif command == "info":
             await self._cmd_info()
+        elif command == "dashboard":
+            await self._cmd_dashboard()
         elif command == "help":
             await self._cmd_help()
         else:
@@ -255,11 +258,34 @@ _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
 """
         await self._send_message(message)
 
+    async def _cmd_dashboard(self) -> None:
+        """Handle /dashboard command - show TOTP code for dashboard access."""
+        totp_secret = os.getenv("DASHBOARD_TOTP_SECRET")
+        if not totp_secret:
+            await self._send_message("⚠️ DASHBOARD_TOTP_SECRET not configured in .env")
+            return
+
+        totp = pyotp.TOTP(totp_secret, interval=30)
+        current_code = totp.now()
+
+        domain = os.getenv("DASHBOARD_DOMAIN", "lchsvr.duckdns.org")
+        port = os.getenv("DASHBOARD_PORT", "5080")
+
+        message = f"""🖥️ *Dashboard Access*
+
+🔗 URL: `https://{domain}:{port}/btc-dashboard`
+🔐 TOTP: `{current_code}`
+
+_Code valid for ~30 seconds_
+"""
+        await self._send_message(message)
+
     async def _cmd_help(self) -> None:
         """Handle /help command."""
         message = """*Available Commands*
 
 /info - Show current status
+/dashboard - Get dashboard TOTP code
 /kill_on - Enable kill switch (stop trading)
 /kill_off - Disable kill switch (resume trading)
 /help - Show this message

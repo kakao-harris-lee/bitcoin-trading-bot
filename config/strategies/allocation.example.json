@@ -1,0 +1,31 @@
+{
+  "redis_url": "redis://localhost:6379",
+  "symbols": ["BTC", "ETH", "SOL"],
+  "binance": {
+    "api_key": "YOUR_BINANCE_API_KEY",
+    "api_secret": "YOUR_BINANCE_API_SECRET"
+  },
+  "strategies": {
+    "v35_long": {
+      "position_size": 0.01
+    },
+    "sideways_v2": {
+      "position_size": 0.01
+    },
+    "short_v1": {
+      "position_size": 0.01
+    }
+  },
+  "risk": {
+    "max_daily_loss": 500
+  },
+  "paper": {
+    "initial_balance": 10000,
+    "fee_rate": 0.001,
+    "slippage": 0.0004
+  },
+  "telegram": {
+    "bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+    "chat_id": "YOUR_TELEGRAM_CHAT_ID"
+  }
+}

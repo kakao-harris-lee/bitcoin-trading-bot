@@ -1,5 +1,7 @@
 """
 Backtest runner service for executing backtests via web dashboard.
+
+Uses the same backtest logic as scripts/backtest_short.py for consistency.
 """
 
 import sys
@@ -56,7 +58,6 @@ class BacktestJob:
 
 def get_available_strategies() -> list:
     """Get list of available strategies for backtesting."""
-    # These match the strategies defined in the trading system (Binance-only)
     return [
         {
             'id': 'v35_long',
@@ -69,6 +70,13 @@ def get_available_strategies() -> list:
             'id': 'short_v1',
             'name': 'Short V1 (Binance)',
             'description': 'Futures short strategy for bear markets',
+            'exchange': 'binance',
+            'default_params': {}
+        },
+        {
+            'id': 'short_v1_baseline',
+            'name': 'Short V1 Baseline (Binance)',
+            'description': 'Simple short strategy with fixed SL/TP',
             'exchange': 'binance',
             'default_params': {}
         }
@@ -112,219 +120,37 @@ def run_backtest(job: BacktestJob) -> None:
             job.started_at = datetime.now().isoformat()
             job.progress = 0
 
-            # Import here to avoid circular imports
-            from core.backtester import Backtester
-            from core.data_loader import DataLoader
-            from trading.strategy.v35_long import V35LongStrategy
-            from trading.strategy.short_v1 import ShortV1Strategy
-
-            # Strategy adapters to wrap strategy classes for Backtester interface
-            class V35StrategyAdapter:
-                """Adapter to make V35LongStrategy work with Backtester."""
-                def __init__(self, config=None):
-                    self.strategy = V35LongStrategy(config or {})
-                    self._indicators_added = False
-
-                def __call__(self, df, i, params):
-                    if not self._indicators_added:
-                        self.strategy.add_indicators(df)
-                        self._indicators_added = True
-                    signal = self.strategy.generate_signal(df, i)
-                    if signal:
-                        action = signal.get('action', 'hold')
-                        if action in ('buy', 'sell'):
-                            return {'action': action, 'fraction': signal.get('fraction', 1.0)}
-                    return {'action': 'hold', 'fraction': 0}
-
-            class ShortV1StrategyAdapter:
-                """Adapter to make ShortV1Strategy work with Backtester."""
-                def __init__(self, config=None):
-                    self.strategy = ShortV1Strategy(strategy_config=config)
-                    self._indicators_added = False
-
-                def __call__(self, df, i, params):
-                    if not self._indicators_added:
-                        df = self.strategy.add_indicators(df)
-                        self._indicators_added = True
-                    signal = self.strategy.generate_signal(df, i)
-                    if signal:
-                        action = signal.get('action', 'hold')
-                        # Map short actions to backtester actions
-                        if action == 'open_short':
-                            return {'action': 'sell', 'fraction': signal.get('fraction', 1.0)}
-                        elif action in ('close_short', 'partial_close'):
-                            return {'action': 'buy', 'fraction': signal.get('fraction', 1.0)}
-                    return {'action': 'hold', 'fraction': 0}
-
             config = job.config
             strategy_id = config.get('strategy', 'v35_long')
             start_date = config.get('start_date', '2024-01-01')
             end_date = config.get('end_date', '2024-12-31')
             initial_capital = config.get('initial_capital', 10000000)
 
-            # SECURITY: Re-validate strategy_id in worker thread to prevent path traversal
+            # SECURITY: Validate strategy_id
             strategies = get_available_strategies()
             valid_ids = [s['id'] for s in strategies]
             if strategy_id not in valid_ids:
                 raise ValueError(f"Invalid strategy: {strategy_id}")
 
-            strategy_info = next((s for s in strategies if s['id'] == strategy_id), None)
-
-            # Check cancellation
             if job._cancelled:
                 return
 
             job.progress = 10
 
-            # Determine exchange from strategy
-            exchange = strategy_info['exchange'] if strategy_info else 'binance'
-
-            # Create strategy adapter based on strategy_id
-            # Load optimized configs where available
-            import json
-            from pathlib import Path
-            config_dir = Path('config/strategies')
-
-            if strategy_id == 'v35_long':
-                # Load optimized v35 config
-                v35_config = None
-                config_path = config_dir / 'v35_long.json'
-                if config_path.exists():
-                    with open(config_path) as f:
-                        raw = json.load(f)
-                    # Flatten nested config structure
-                    v35_config = {}
-                    v35_config.update(raw.get('market_classifier', {}))
-                    v35_config.update(raw.get('entry_conditions', {}))
-                    v35_config.update(raw.get('exit_conditions', {}))
-                    v35_config.update(raw.get('position_sizing', {}))
-                    v35_config.update(raw.get('sideways_strategies', {}))
-                strategy_func = V35StrategyAdapter(config=v35_config)
-                timeframe = 'day'
-            elif strategy_id == 'short_v1':
-                strategy_func = ShortV1StrategyAdapter()
-                timeframe = 'minute240'
+            # Route to appropriate backtester
+            if strategy_id in ('short_v1', 'short_v1_baseline'):
+                results = _run_short_backtest(
+                    strategy_id, start_date, end_date, initial_capital, job
+                )
             else:
-                raise ValueError(f"Unknown strategy adapter for: {strategy_id}")
+                results = _run_long_backtest(
+                    strategy_id, start_date, end_date, initial_capital, job
+                )
 
             if job._cancelled:
                 return
 
-            job.progress = 20
-
-            # Load data
-            with DataLoader(exchange=exchange) as loader:
-                df = loader.load_timeframe(timeframe, start_date, end_date)
-
-            if df.empty:
-                raise ValueError(f"No data available for {start_date} to {end_date}")
-
-            job.progress = 30
-
-            # Initialize backtester with fee and slippage
-            backtester = Backtester(
-                initial_capital=initial_capital,
-                fee_rate=0.0005,   # 0.05%
-                slippage=0.0002    # 0.02%
-            )
-
-            if job._cancelled:
-                return
-
-            job.progress = 40
-
-            # Run backtest
-            results = backtester.run(df, strategy_func, {})
-
-            if job._cancelled:
-                return
-
-            job.progress = 90
-
-            # Convert equity_curve DataFrame to list for JSON serialization
-            equity_curve = results.get('equity_curve')
-            equity_curve_list = []
-            max_drawdown_pct = 0
-            sharpe_ratio = 0
-
-            if equity_curve is not None and not equity_curve.empty:
-                import numpy as np
-
-                # Convert DataFrame to list with frontend-expected field names
-                for _, row in equity_curve.iterrows():
-                    ts = row.get('timestamp')
-                    date_str = str(ts)[:10] if ts else ''
-                    equity_curve_list.append({
-                        'date': date_str,
-                        'equity': row.get('total_equity', 0)
-                    })
-
-                # Calculate max drawdown
-                eq = equity_curve['total_equity']
-                peak = eq.cummax()
-                dd = (eq - peak) / peak
-                max_drawdown_pct = float(dd.min() * 100) if not dd.empty else 0
-
-                # Calculate Sharpe ratio (annualized)
-                rets = eq.pct_change().dropna()
-                if len(rets) > 5 and rets.std() != 0:
-                    sharpe_ratio = float((rets.mean() / rets.std()) * np.sqrt(252))
-
-            # Convert Trade objects to dicts with frontend-expected field names
-            trades_raw = results.get('trades', [])
-            trades_list = []
-            for t in trades_raw[:100]:  # Limit trades for response size
-                if hasattr(t, 'exit_time') and t.exit_time:
-                    # Closed trade - show as SELL with profit
-                    trade_dict = {
-                        'timestamp': str(t.exit_time) if t.exit_time else None,
-                        'action': 'SELL',
-                        'price': t.exit_price,
-                        'profit': round(t.profit_loss, 0) if t.profit_loss else 0,
-                    }
-                    trades_list.append(trade_dict)
-                elif hasattr(t, 'entry_time'):
-                    # Entry trade
-                    trade_dict = {
-                        'timestamp': str(t.entry_time) if t.entry_time else None,
-                        'action': 'BUY',
-                        'price': t.entry_price,
-                        'profit': None,
-                    }
-                    trades_list.append(trade_dict)
-                elif isinstance(t, dict):
-                    # Already a dict, transform field names
-                    trade_dict = {
-                        'timestamp': t.get('exit_time') or t.get('entry_time') or t.get('timestamp'),
-                        'action': 'SELL' if t.get('exit_time') else 'BUY',
-                        'price': t.get('exit_price') or t.get('entry_price') or t.get('price'),
-                        'profit': round(t.get('profit_loss', 0) or t.get('pnl', 0) or 0, 0) if t.get('exit_time') else None,
-                    }
-                    trades_list.append(trade_dict)
-
-            total_return_pct = results.get('total_return', 0)
-
-            # Format results with rounded numbers
-            job.result = {
-                'strategy': strategy_id,
-                'start_date': start_date,
-                'end_date': end_date,
-                'initial_capital': initial_capital,
-                'final_capital': round(results.get('final_capital', initial_capital), 0),
-                'total_return': round(results.get('final_capital', initial_capital) - initial_capital, 0),
-                'total_return_pct': round(total_return_pct, 2),
-                'total_trades': results.get('total_trades', 0),
-                'winning_trades': results.get('winning_trades', 0),
-                'losing_trades': results.get('losing_trades', 0),
-                'win_rate': round(results.get('win_rate', 0) * 100, 2),
-                'profit_factor': round(results.get('profit_factor', 0), 2),
-                'max_drawdown': round(max_drawdown_pct, 2),
-                'max_drawdown_pct': round(max_drawdown_pct, 2),
-                'sharpe_ratio': round(sharpe_ratio, 2),
-                'equity_curve': equity_curve_list,
-                'trades': trades_list
-            }
-
+            job.result = results
             job.status = 'completed'
             job.progress = 100
             job.completed_at = datetime.now().isoformat()
@@ -339,6 +165,407 @@ def run_backtest(job: BacktestJob) -> None:
     job._thread.start()
 
 
+def _run_short_backtest(
+    strategy_id: str,
+    start_date: str,
+    end_date: str,
+    initial_capital: float,
+    job: BacktestJob
+) -> dict:
+    """
+    Run short strategy backtest using the same logic as scripts/backtest_short.py.
+    This ensures dashboard and script produce identical results.
+    """
+    import numpy as np
+    import pandas as pd
+    from typing import Dict, List
+
+    from core.data_loader import DataLoader
+
+    # Determine preset based on strategy_id
+    preset = 'baseline' if strategy_id == 'short_v1_baseline' else 'enhanced'
+    leverage = 3
+    timeframe = 'minute240'
+
+    job.progress = 20
+
+    # Load data
+    with DataLoader(exchange='binance') as loader:
+        df = loader.load_timeframe(timeframe, start_date, end_date)
+
+    if df.empty:
+        raise ValueError(f"No data available for {start_date} to {end_date}")
+
+    job.progress = 30
+
+    # Import strategy classes (same as script)
+    if preset == 'enhanced':
+        from trading.strategy.short_v1 import ShortV1Strategy
+
+        class EnhancedShortStrategyAdapter:
+            def __init__(self, config=None):
+                self.strategy = ShortV1Strategy(strategy_config=config)
+                self._indicators_added = False
+                self._cached_df = None
+
+            def execute(self, df, i):
+                if i < 200:
+                    return {'action': 'hold', 'reason': 'WARMUP'}
+                if not self._indicators_added:
+                    self._cached_df = self.strategy.add_indicators(df.copy())
+                    self._indicators_added = True
+                signal = self.strategy.generate_signal(self._cached_df, i)
+                if signal is None:
+                    return {'action': 'hold', 'reason': 'NO_SIGNAL'}
+                action = signal.get('action', 'hold')
+                if action == 'open_short':
+                    return {'action': 'open_short', 'fraction': signal.get('fraction', 0.3), 'reason': signal.get('reason', '')}
+                elif action == 'close_short':
+                    return {'action': 'close_short', 'fraction': signal.get('fraction', 1.0), 'reason': signal.get('reason', '')}
+                elif action == 'partial_close':
+                    return {'action': 'partial_close', 'fraction': signal.get('fraction', 0.5), 'reason': signal.get('reason', '')}
+                return {'action': 'hold', 'reason': 'NO_SIGNAL'}
+
+        strategy = EnhancedShortStrategyAdapter()
+    else:
+        # Baseline strategy (simple fixed SL/TP)
+        class BasicShortStrategy:
+            def __init__(self, config=None):
+                self.config = config or {
+                    'ema_fast': 50, 'ema_slow': 200, 'adx_threshold': 25,
+                    'stop_loss_pct': 2.0, 'take_profit_pct': 5.0, 'position_size': 0.3
+                }
+                self.in_position = False
+                self.entry_price = 0.0
+                self._cached_df = None
+
+            def _add_indicators(self, df):
+                df = df.copy()
+                df['ema_fast'] = df['close'].ewm(span=self.config['ema_fast'], adjust=False).mean()
+                df['ema_slow'] = df['close'].ewm(span=self.config['ema_slow'], adjust=False).mean()
+                df['death_cross'] = (df['ema_fast'] < df['ema_slow']) & (df['ema_fast'].shift(1) >= df['ema_slow'].shift(1))
+                df['golden_cross'] = (df['ema_fast'] > df['ema_slow']) & (df['ema_fast'].shift(1) <= df['ema_slow'].shift(1))
+                df['tr'] = np.maximum(df['high'] - df['low'], np.maximum(abs(df['high'] - df['close'].shift(1)), abs(df['low'] - df['close'].shift(1))))
+                df['atr'] = df['tr'].rolling(window=14).mean()
+                plus_dm = df['high'].diff()
+                minus_dm = -df['low'].diff()
+                plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0)
+                minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0)
+                plus_di = 100 * (plus_dm.rolling(14).mean() / df['atr'])
+                minus_di = 100 * (minus_dm.rolling(14).mean() / df['atr'])
+                dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+                df['adx'] = dx.rolling(14).mean()
+                df['plus_di'] = plus_di
+                df['minus_di'] = minus_di
+                return df
+
+            def execute(self, df, i):
+                if i < 200:
+                    return {'action': 'hold', 'reason': 'WARMUP'}
+                if self._cached_df is None or len(df) != len(self._cached_df):
+                    self._cached_df = self._add_indicators(df)
+                row = self._cached_df.iloc[i]
+                if self.in_position:
+                    pnl_pct = (self.entry_price - row['close']) / self.entry_price * 100
+                    if pnl_pct <= -self.config['stop_loss_pct']:
+                        self.in_position = False
+                        return {'action': 'close_short', 'fraction': 1.0, 'reason': f'STOP_LOSS: {pnl_pct:+.2f}%'}
+                    if pnl_pct >= self.config['take_profit_pct']:
+                        self.in_position = False
+                        return {'action': 'close_short', 'fraction': 1.0, 'reason': f'TAKE_PROFIT: {pnl_pct:+.2f}%'}
+                    if row.get('golden_cross', False):
+                        self.in_position = False
+                        return {'action': 'close_short', 'fraction': 1.0, 'reason': f'GOLDEN_CROSS: {pnl_pct:+.2f}%'}
+                    return {'action': 'hold', 'reason': 'IN_POSITION'}
+                if row.get('death_cross', False):
+                    adx = row.get('adx', 0)
+                    plus_di = row.get('plus_di', 0)
+                    minus_di = row.get('minus_di', 0)
+                    if adx >= self.config['adx_threshold'] and minus_di > plus_di:
+                        self.in_position = True
+                        self.entry_price = row['close']
+                        return {'action': 'open_short', 'fraction': self.config.get('position_size', 0.3), 'reason': f'DEATH_CROSS: ADX={adx:.1f}'}
+                return {'action': 'hold', 'reason': 'NO_SIGNAL'}
+
+        strategy = BasicShortStrategy()
+
+    job.progress = 40
+
+    # Run backtest using ShortBacktester logic (same as script)
+    fee_rate = 0.0004
+    slippage = 0.0002
+
+    capital = initial_capital
+    position_size = 0.0
+    entry_price = 0.0
+    initial_position_size = 0.0
+    trades: List[Dict] = []
+    equity_curve: List[float] = []
+
+    for i in range(len(df)):
+        if job._cancelled:
+            return {}
+
+        signal = strategy.execute(df, i)
+        row = df.iloc[i]
+        action = signal.get('action', 'hold')
+
+        # Open Short
+        if action == 'open_short' and position_size == 0:
+            fraction = signal.get('fraction', 0.3)
+            margin = capital * fraction
+            position_size = margin * leverage
+            initial_position_size = position_size
+            entry_price = row['close'] * (1 - slippage)
+            fee = position_size * fee_rate
+            capital -= margin + fee
+            trades.append({
+                'type': 'open_short',
+                'time': str(row.get('timestamp', row.name)),
+                'price': entry_price,
+                'size': position_size,
+                'reason': signal.get('reason', '')
+            })
+
+        # Partial Close
+        elif action == 'partial_close' and position_size > 0:
+            close_fraction = signal.get('fraction', 0.5)
+            close_size = initial_position_size * close_fraction
+            exit_price = row['close'] * (1 + slippage)
+            pnl_ratio = (entry_price - exit_price) / entry_price
+            pnl = close_size * pnl_ratio
+            fee = close_size * fee_rate
+            margin_return = close_size / leverage
+            capital += margin_return + pnl - fee
+            position_size -= close_size
+            trades.append({
+                'type': 'partial_close',
+                'time': str(row.get('timestamp', row.name)),
+                'entry_price': entry_price,
+                'exit_price': exit_price,
+                'size': close_size,
+                'pnl': pnl,
+                'pnl_pct': pnl_ratio * 100 * leverage,
+                'reason': signal.get('reason', '')
+            })
+
+        # Close Short
+        elif action == 'close_short' and position_size > 0:
+            exit_price = row['close'] * (1 + slippage)
+            pnl_ratio = (entry_price - exit_price) / entry_price
+            pnl = position_size * pnl_ratio
+            fee = position_size * fee_rate
+            margin_return = position_size / leverage
+            capital += margin_return + pnl - fee
+            trades.append({
+                'type': 'close_short',
+                'time': str(row.get('timestamp', row.name)),
+                'entry_price': entry_price,
+                'exit_price': exit_price,
+                'size': position_size,
+                'pnl': pnl,
+                'pnl_pct': pnl_ratio * 100 * leverage,
+                'reason': signal.get('reason', '')
+            })
+            position_size = 0.0
+            entry_price = 0.0
+            initial_position_size = 0.0
+
+        # Equity calculation
+        if position_size > 0:
+            unrealized_pnl_ratio = (entry_price - row['close']) / entry_price
+            unrealized_pnl = position_size * unrealized_pnl_ratio
+            current_equity = capital + (position_size / leverage) + unrealized_pnl
+        else:
+            current_equity = capital
+
+        equity_curve.append({'date': str(row.get('timestamp', row.name))[:10], 'equity': current_equity})
+
+    job.progress = 80
+
+    # Close remaining position
+    if position_size > 0:
+        last_price = df.iloc[-1]['close']
+        pnl_ratio = (entry_price - last_price) / entry_price
+        pnl = position_size * pnl_ratio
+        capital += (position_size / leverage) + pnl
+
+    # Calculate metrics
+    final_capital = capital
+    total_return_pct = (final_capital - initial_capital) / initial_capital * 100
+
+    close_trades = [t for t in trades if t['type'] in ('close_short', 'partial_close')]
+    profits = [t['pnl'] for t in close_trades] if close_trades else []
+    wins = [p for p in profits if p > 0]
+    losses = [p for p in profits if p <= 0]
+
+    win_rate = len(wins) / len(close_trades) * 100 if close_trades else 0
+    profit_factor = sum(wins) / abs(sum(losses)) if losses and sum(losses) != 0 else 0
+
+    equity_values = [e['equity'] for e in equity_curve]
+    equity_series = pd.Series(equity_values)
+    returns = equity_series.pct_change().dropna()
+    sharpe = float(returns.mean() / returns.std() * np.sqrt(252)) if len(returns) > 0 and returns.std() > 0 else 0
+
+    peak = equity_series.cummax()
+    drawdown = (equity_series - peak) / peak * 100
+    mdd = float(drawdown.min())
+
+    # Format trades for frontend
+    trades_list = []
+    for t in close_trades[:100]:
+        trades_list.append({
+            'timestamp': t.get('time'),
+            'action': 'SELL' if t['type'] == 'close_short' else 'PARTIAL',
+            'price': t.get('exit_price', 0),
+            'profit': round(t.get('pnl', 0), 0)
+        })
+
+    return {
+        'strategy': strategy_id,
+        'preset': preset,
+        'start_date': start_date,
+        'end_date': end_date,
+        'initial_capital': initial_capital,
+        'final_capital': round(final_capital, 0),
+        'total_return': round(final_capital - initial_capital, 0),
+        'total_return_pct': round(total_return_pct, 2),
+        'leverage': leverage,
+        'total_trades': len(close_trades),
+        'winning_trades': len(wins),
+        'losing_trades': len(losses),
+        'win_rate': round(win_rate, 2),
+        'profit_factor': round(profit_factor, 2),
+        'max_drawdown': round(mdd, 2),
+        'max_drawdown_pct': round(mdd, 2),
+        'sharpe_ratio': round(sharpe, 2),
+        'equity_curve': equity_curve,
+        'trades': trades_list
+    }
+
+
+def _run_long_backtest(
+    strategy_id: str,
+    start_date: str,
+    end_date: str,
+    initial_capital: float,
+    job: BacktestJob
+) -> dict:
+    """Run long strategy backtest using core/backtester.py (spot trading)."""
+    import numpy as np
+    from core.backtester import Backtester
+    from core.data_loader import DataLoader
+    from trading.strategy.v35_long import V35LongStrategy
+
+    class V35StrategyAdapter:
+        def __init__(self, config=None):
+            self.strategy = V35LongStrategy(config or {})
+            self._indicators_added = False
+
+        def __call__(self, df, i, params):
+            if not self._indicators_added:
+                self.strategy.add_indicators(df)
+                self._indicators_added = True
+            signal = self.strategy.generate_signal(df, i)
+            if signal:
+                action = signal.get('action', 'hold')
+                if action in ('buy', 'sell'):
+                    return {'action': action, 'fraction': signal.get('fraction', 1.0)}
+            return {'action': 'hold', 'fraction': 0}
+
+    job.progress = 20
+
+    # Load data
+    with DataLoader(exchange='binance') as loader:
+        df = loader.load_timeframe('day', start_date, end_date)
+
+    if df.empty:
+        raise ValueError(f"No data available for {start_date} to {end_date}")
+
+    job.progress = 30
+
+    # Load config if available
+    import json
+    config_path = Path('config/strategies/v35_long.json')
+    v35_config = None
+    if config_path.exists():
+        with open(config_path) as f:
+            raw = json.load(f)
+        v35_config = {}
+        v35_config.update(raw.get('market_classifier', {}))
+        v35_config.update(raw.get('entry_conditions', {}))
+        v35_config.update(raw.get('exit_conditions', {}))
+        v35_config.update(raw.get('position_sizing', {}))
+
+    strategy_func = V35StrategyAdapter(config=v35_config)
+
+    job.progress = 40
+
+    # Run backtest
+    backtester = Backtester(
+        initial_capital=initial_capital,
+        fee_rate=0.0005,
+        slippage=0.0002
+    )
+    results = backtester.run(df, strategy_func, {})
+
+    job.progress = 80
+
+    # Process results
+    equity_curve = results.get('equity_curve')
+    equity_curve_list = []
+    max_drawdown_pct = 0
+    sharpe_ratio = 0
+
+    if equity_curve is not None and not equity_curve.empty:
+        for _, row in equity_curve.iterrows():
+            ts = row.get('timestamp')
+            date_str = str(ts)[:10] if ts else ''
+            equity_curve_list.append({'date': date_str, 'equity': row.get('total_equity', 0)})
+
+        eq = equity_curve['total_equity']
+        peak = eq.cummax()
+        dd = (eq - peak) / peak
+        max_drawdown_pct = float(dd.min() * 100) if not dd.empty else 0
+
+        rets = eq.pct_change().dropna()
+        if len(rets) > 5 and rets.std() != 0:
+            sharpe_ratio = float((rets.mean() / rets.std()) * np.sqrt(252))
+
+    # Format trades
+    trades_raw = results.get('trades', [])
+    trades_list = []
+    for t in trades_raw[:100]:
+        if hasattr(t, 'exit_time') and t.exit_time:
+            trades_list.append({
+                'timestamp': str(t.exit_time),
+                'action': 'SELL',
+                'price': t.exit_price,
+                'profit': round(t.profit_loss, 0) if t.profit_loss else 0,
+            })
+
+    return {
+        'strategy': strategy_id,
+        'start_date': start_date,
+        'end_date': end_date,
+        'initial_capital': initial_capital,
+        'final_capital': round(results.get('final_capital', initial_capital), 0),
+        'total_return': round(results.get('final_capital', initial_capital) - initial_capital, 0),
+        'total_return_pct': round(results.get('total_return', 0), 2),
+        'leverage': 1,
+        'total_trades': results.get('total_trades', 0),
+        'winning_trades': results.get('winning_trades', 0),
+        'losing_trades': results.get('losing_trades', 0),
+        'win_rate': round(results.get('win_rate', 0) * 100, 2),
+        'profit_factor': round(results.get('profit_factor', 0), 2),
+        'max_drawdown': round(max_drawdown_pct, 2),
+        'max_drawdown_pct': round(max_drawdown_pct, 2),
+        'sharpe_ratio': round(sharpe_ratio, 2),
+        'equity_curve': equity_curve_list,
+        'trades': trades_list
+    }
+
+
 def get_running_job_count() -> int:
     """Count currently running jobs."""
     with _jobs_lock:
@@ -347,7 +574,6 @@ def get_running_job_count() -> int:
 
 def start_backtest(config: dict) -> BacktestJob:
     """Create and start a backtest job."""
-    # Rate limiting: check concurrent job count
     if get_running_job_count() >= MAX_CONCURRENT_JOBS:
         raise RuntimeError(f"Too many concurrent jobs. Maximum is {MAX_CONCURRENT_JOBS}.")
 

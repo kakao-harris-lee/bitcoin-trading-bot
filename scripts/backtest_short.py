@@ -5,6 +5,10 @@ Short V1 Strategy Backtester
 
 사용법:
     python backtest_short.py [--year 2024] [--preset NAME]
+
+프리셋:
+    - baseline: 기존 단순 전략 (EMA cross, fixed SL/TP)
+    - enhanced: 향상된 전략 (2-tier exit, ATR-based SL, trailing stop)
 """
 
 import sys
@@ -32,27 +36,30 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         "leverage": 3,
     },
 
-    # Grid Search 추천(2020-2024 train + 2025 OOS 확인)
-    # optimize_short_v1.py 결과 기반: EMA(30/100), ADX>20, SL2.5, TP5.0
-    "opt_v1": {
-        "strategy_impl": "optimized",
-        "ema_fast": 30,
-        "ema_slow": 100,
-        "adx_threshold": 20,
-        "stop_loss_pct": 2.5,
-        "take_profit_pct": 5.0,
-        "position_size": 0.3,
+    # 향상된 전략 (trading/strategy/short_v1.py와 동일)
+    "enhanced": {
+        "strategy_impl": "enhanced",
+        "ema_fast": 50,
+        "ema_slow": 200,
+        "adx_period": 14,
+        "adx_min": 25,
+        "require_death_cross": True,
+        "di_negative_dominant": True,
+        "max_leverage": 3,
+        "position_risk_pct": 1.0,
+        "max_stop_loss_pct": 5.0,
+        "risk_reward_ratio": 2.5,
+        "exit_on_golden_cross": True,
+        "two_tier_enabled": True,
+        "first_tier_r_multiple": 1.0,
+        "first_tier_pct": 0.5,
+        "second_tier_r_multiple": 2.0,
+        "atr_buffer_multiplier": 1.5,
+        "trailing_stop_atr_multiplier": 1.5,
+        "require_adx_not_declining": True,
+        "halt_entries_on_extreme_vol": True,
+        "extreme_volatility_threshold": 0.10,
         "leverage": 3,
-        "entry_mode": "any",
-        "min_signals": 1,
-        "use_death_cross": True,
-        "use_rsi_overbought": False,
-        "use_bb_rejection": True,
-        "use_trend_follow": True,
-        "rsi_oversold": 25,
-        "bb_upper_threshold": 0.93,
-        "slope_threshold": -0.5,
-        "max_hold_bars": 100,
     },
 }
 
@@ -64,8 +71,8 @@ def get_preset(name: str) -> Dict[str, Any]:
     return dict(PRESETS[name])
 
 
-class ShortV1Strategy:
-    """Short V1 전략 - EMA 데드크로스 기반 숏"""
+class BasicShortStrategy:
+    """Basic Short V1 전략 - EMA 데드크로스 기반 숏 (단순 버전)"""
 
     def __init__(self, config: Dict = None):
         self.config = config or self._default_config()
@@ -79,8 +86,8 @@ class ShortV1Strategy:
             'ema_fast': 50,
             'ema_slow': 200,
             'adx_threshold': 25,
-            'stop_loss_pct': 2.0,   # +2% (숏이므로 가격 상승이 손실)
-            'take_profit_pct': 5.0,  # -5% (숏이므로 가격 하락이 이익)
+            'stop_loss_pct': 2.0,
+            'take_profit_pct': 5.0,
             'position_size': 0.3,
             'leverage': 3,
         }
@@ -119,61 +126,35 @@ class ShortV1Strategy:
         df['plus_di'] = plus_di
         df['minus_di'] = minus_di
 
-        # 추세 방향
-        df['trend'] = np.where(df['ema_fast'] > df['ema_slow'], 'UP', 'DOWN')
-
         return df
 
     def execute(self, df: pd.DataFrame, i: int) -> Dict:
         """전략 실행"""
-        if i < 200:  # EMA 200 워밍업
+        if i < 200:
             return {'action': 'hold', 'reason': 'WARMUP'}
 
-        # 지표 계산 (캐싱)
         if self._cached_df is None or len(df) != len(self._cached_df):
             self._cached_df = self.add_indicators(df)
 
         row = self._cached_df.iloc[i]
 
-        # 포지션 있을 때: 청산 조건 확인
         if self.in_position:
-            # 숏 PnL: (entry - current) / entry
             pnl_pct = (self.entry_price - row['close']) / self.entry_price * 100
 
-            # 스탑로스 (가격 상승)
             if pnl_pct <= -self.config['stop_loss_pct']:
                 self.in_position = False
-                return {
-                    'action': 'close_short',
-                    'fraction': 1.0,
-                    'reason': f'STOP_LOSS: {pnl_pct:+.2f}%',
-                    'pnl_pct': pnl_pct
-                }
+                return {'action': 'close_short', 'fraction': 1.0, 'reason': f'STOP_LOSS: {pnl_pct:+.2f}%', 'pnl_pct': pnl_pct}
 
-            # 테이크프로핏 (가격 하락)
             if pnl_pct >= self.config['take_profit_pct']:
                 self.in_position = False
-                return {
-                    'action': 'close_short',
-                    'fraction': 1.0,
-                    'reason': f'TAKE_PROFIT: {pnl_pct:+.2f}%',
-                    'pnl_pct': pnl_pct
-                }
+                return {'action': 'close_short', 'fraction': 1.0, 'reason': f'TAKE_PROFIT: {pnl_pct:+.2f}%', 'pnl_pct': pnl_pct}
 
-            # 골든크로스 시 청산 (추세 반전)
             if row.get('golden_cross', False):
                 self.in_position = False
-                return {
-                    'action': 'close_short',
-                    'fraction': 1.0,
-                    'reason': f'GOLDEN_CROSS: {pnl_pct:+.2f}%',
-                    'pnl_pct': pnl_pct
-                }
+                return {'action': 'close_short', 'fraction': 1.0, 'reason': f'GOLDEN_CROSS: {pnl_pct:+.2f}%', 'pnl_pct': pnl_pct}
 
             return {'action': 'hold', 'reason': 'IN_POSITION'}
 
-        # 포지션 없을 때: 진입 조건 확인
-        # 데드크로스 + ADX 강세 + -DI > +DI
         if row.get('death_cross', False):
             adx = row.get('adx', 0)
             plus_di = row.get('plus_di', 0)
@@ -182,23 +163,72 @@ class ShortV1Strategy:
             if adx >= self.config['adx_threshold'] and minus_di > plus_di:
                 self.in_position = True
                 self.entry_price = row['close']
-                self.entry_time = row.get('timestamp', row.name)
-                return {
-                    'action': 'open_short',
-                    'fraction': float(self.config.get('position_size', 0.3)),
-                    'reason': f'DEATH_CROSS: ADX={adx:.1f}, -DI={minus_di:.1f} > +DI={plus_di:.1f}'
-                }
+                return {'action': 'open_short', 'fraction': float(self.config.get('position_size', 0.3)), 'reason': f'DEATH_CROSS: ADX={adx:.1f}'}
+
+        return {'action': 'hold', 'reason': 'NO_SIGNAL'}
+
+
+class EnhancedShortStrategyAdapter:
+    """Adapter for enhanced ShortV1Strategy from trading/strategy/short_v1.py"""
+
+    def __init__(self, config: Dict = None):
+        from trading.strategy.short_v1 import ShortV1Strategy
+        self.strategy = ShortV1Strategy(strategy_config=config)
+        self._indicators_added = False
+        self._cached_df = None
+
+    def execute(self, df: pd.DataFrame, i: int) -> Dict:
+        """Execute strategy and return signal compatible with backtester"""
+        if i < 200:
+            return {'action': 'hold', 'reason': 'WARMUP'}
+
+        # Add indicators once
+        if not self._indicators_added:
+            self._cached_df = self.strategy.add_indicators(df.copy())
+            self._indicators_added = True
+
+        # Generate signal using enhanced strategy
+        signal = self.strategy.generate_signal(self._cached_df, i)
+
+        if signal is None:
+            return {'action': 'hold', 'reason': 'NO_SIGNAL'}
+
+        action = signal.get('action', 'hold')
+
+        # Map enhanced strategy actions to backtester actions
+        if action == 'open_short':
+            return {
+                'action': 'open_short',
+                'fraction': signal.get('fraction', 0.3),
+                'reason': signal.get('reason', ''),
+                'stop_loss': signal.get('stop_loss', 0),
+                'take_profit': signal.get('take_profit', 0),
+            }
+        elif action == 'close_short':
+            return {
+                'action': 'close_short',
+                'fraction': signal.get('fraction', 1.0),
+                'reason': signal.get('reason', ''),
+                'exit_type': signal.get('exit_type', 'UNKNOWN'),
+            }
+        elif action == 'partial_close':
+            return {
+                'action': 'partial_close',
+                'fraction': signal.get('fraction', 0.5),
+                'reason': signal.get('reason', ''),
+                'exit_type': signal.get('exit_type', 'TAKE_PROFIT_1R'),
+            }
 
         return {'action': 'hold', 'reason': 'NO_SIGNAL'}
 
 
 class ShortBacktester:
-    """숏 전략 백테스터"""
+    """숏 전략 백테스터 (Enhanced version with two-tier support)"""
 
     def __init__(
         self,
         initial_capital: float = 10_000_000,
-        fee_rate: float = 0.0004,  # Binance Futures 수수료
+        fee_rate: float = 0.0004,
         slippage: float = 0.0002,
         leverage: int = 3
     ):
@@ -207,18 +237,19 @@ class ShortBacktester:
         self.slippage = slippage
         self.leverage = leverage
 
-        # 상태
         self.capital = initial_capital
-        self.position_size = 0.0  # USDT 기준 포지션 크기
+        self.position_size = 0.0
         self.entry_price = 0.0
+        self.initial_position_size = 0.0
         self.trades: List[Dict] = []
         self.equity_curve: List[float] = []
 
-    def run(self, df: pd.DataFrame, strategy: ShortV1Strategy) -> Dict:
+    def run(self, df: pd.DataFrame, strategy) -> Dict:
         """백테스팅 실행"""
         self.capital = self.initial_capital
         self.position_size = 0.0
         self.entry_price = 0.0
+        self.initial_position_size = 0.0
         self.trades = []
         self.equity_curve = []
 
@@ -231,8 +262,9 @@ class ShortBacktester:
             if action == 'open_short' and self.position_size == 0:
                 fraction = signal.get('fraction', 0.3)
                 margin = self.capital * fraction
-                self.position_size = margin * self.leverage  # 레버리지 적용
-                self.entry_price = row['close'] * (1 - self.slippage)  # 숏 진입 시 유리하게
+                self.position_size = margin * self.leverage
+                self.initial_position_size = self.position_size
+                self.entry_price = row['close'] * (1 - self.slippage)
                 fee = self.position_size * self.fee_rate
 
                 self.capital -= margin + fee
@@ -247,16 +279,41 @@ class ShortBacktester:
                     'reason': signal.get('reason', '')
                 })
 
-            # Close Short
-            elif action == 'close_short' and self.position_size > 0:
-                exit_price = row['close'] * (1 + self.slippage)  # 숏 청산 시 불리하게
+            # Partial Close (50% at 1R)
+            elif action == 'partial_close' and self.position_size > 0:
+                close_fraction = signal.get('fraction', 0.5)
+                close_size = self.initial_position_size * close_fraction
+                exit_price = row['close'] * (1 + self.slippage)
 
-                # 숏 PnL: (entry - exit) / entry * position_size
+                pnl_ratio = (self.entry_price - exit_price) / self.entry_price
+                pnl = close_size * pnl_ratio
+                fee = close_size * self.fee_rate
+
+                margin_return = close_size / self.leverage
+                self.capital += margin_return + pnl - fee
+                self.position_size -= close_size
+
+                self.trades.append({
+                    'type': 'partial_close',
+                    'time': row.get('timestamp', row.name),
+                    'entry_price': self.entry_price,
+                    'exit_price': exit_price,
+                    'size': close_size,
+                    'pnl': pnl,
+                    'pnl_pct': pnl_ratio * 100 * self.leverage,
+                    'fee': fee,
+                    'reason': signal.get('reason', ''),
+                    'remaining_size': self.position_size,
+                })
+
+            # Close Short (full)
+            elif action == 'close_short' and self.position_size > 0:
+                exit_price = row['close'] * (1 + self.slippage)
+
                 pnl_ratio = (self.entry_price - exit_price) / self.entry_price
                 pnl = self.position_size * pnl_ratio
                 fee = self.position_size * self.fee_rate
 
-                # 마진 회수 + PnL
                 margin_return = self.position_size / self.leverage
                 self.capital += margin_return + pnl - fee
 
@@ -274,8 +331,9 @@ class ShortBacktester:
 
                 self.position_size = 0.0
                 self.entry_price = 0.0
+                self.initial_position_size = 0.0
 
-            # Equity 계산
+            # Equity calculation
             if self.position_size > 0:
                 unrealized_pnl_ratio = (self.entry_price - row['close']) / self.entry_price
                 unrealized_pnl = self.position_size * unrealized_pnl_ratio
@@ -285,7 +343,7 @@ class ShortBacktester:
 
             self.equity_curve.append(current_equity)
 
-        # 미청산 포지션 정리
+        # Close remaining position
         if self.position_size > 0:
             last_price = df.iloc[-1]['close']
             pnl_ratio = (self.entry_price - last_price) / self.entry_price
@@ -299,8 +357,7 @@ class ShortBacktester:
         final_capital = self.capital
         total_return = (final_capital - self.initial_capital) / self.initial_capital * 100
 
-        # 거래 분석
-        close_trades = [t for t in self.trades if t['type'] == 'close_short']
+        close_trades = [t for t in self.trades if t['type'] in ('close_short', 'partial_close')]
 
         if not close_trades:
             return {
@@ -320,12 +377,10 @@ class ShortBacktester:
         avg_loss = abs(np.mean(losses)) if losses else 0
         profit_factor = sum(wins) / abs(sum(losses)) if losses and sum(losses) != 0 else 0
 
-        # Sharpe Ratio
         equity_series = pd.Series(self.equity_curve)
         returns = equity_series.pct_change().dropna()
         sharpe = returns.mean() / returns.std() * np.sqrt(252) if len(returns) > 0 and returns.std() > 0 else 0
 
-        # MDD
         peak = equity_series.cummax()
         drawdown = (equity_series - peak) / peak * 100
         mdd = drawdown.min()
@@ -352,57 +407,8 @@ def load_binance_data(timeframe: str, start_date: str, end_date: str) -> pd.Data
     """Binance 데이터 로드"""
     from core.data_loader import DataLoader
 
-    db_path = PROJECT_ROOT / 'data' / 'binance_bitcoin.db'
-    loader = DataLoader(str(db_path))
-    df = loader.load_binance(timeframe, start_date, end_date)
-    loader.conn.close()
-    return df
-
-
-def load_binance_futures_data(timeframe: str, start_date: str, end_date: str) -> pd.DataFrame:
-    """Binance Futures 데이터 로드"""
-    import ccxt
-    from datetime import datetime
-
-    exchange = ccxt.binance({
-        'options': {'defaultType': 'future'}
-    })
-
-    # 타임프레임 매핑
-    tf_map = {
-        'minute240': '4h',
-        'minute60': '1h',
-        'day': '1d',
-    }
-    ccxt_tf = tf_map.get(timeframe, '4h')
-
-    # 날짜 변환
-    since = int(datetime.strptime(start_date, '%Y-%m-%d').timestamp() * 1000)
-    end_ts = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp() * 1000)
-
-    all_data = []
-    current_since = since
-
-    print(f"📥 Binance Futures 데이터 수집 중...")
-
-    while current_since < end_ts:
-        ohlcv = exchange.fetch_ohlcv('BTC/USDT', ccxt_tf, since=current_since, limit=1000)
-        if not ohlcv:
-            break
-
-        all_data.extend(ohlcv)
-        current_since = ohlcv[-1][0] + 1
-
-        if len(all_data) % 5000 == 0:
-            print(f"   수집: {len(all_data):,}개...")
-
-    print(f"✅ 총 {len(all_data):,}개 캔들 수집")
-
-    # DataFrame 변환
-    df = pd.DataFrame(all_data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    df = df[df['timestamp'] <= end_date]
-
+    with DataLoader(exchange='binance') as loader:
+        df = loader.load_timeframe(timeframe, start_date, end_date)
     return df
 
 
@@ -411,7 +417,7 @@ def run_backtest(
     start_date: str = '2020-01-01',
     end_date: str = '2024-12-31',
     leverage: int = 3,
-    preset: str = 'baseline',
+    preset: str = 'enhanced',
 ) -> Dict:
     """백테스팅 실행"""
     print(f"\n{'='*60}")
@@ -423,32 +429,29 @@ def run_backtest(
     print(f"   레버리지: {leverage}x")
     print(f"{'='*60}")
 
-    # 데이터 로드
     df = load_binance_data(timeframe, start_date, end_date)
-
     print(f"✅ 데이터 로드: {len(df):,}개 캔들")
 
     preset_cfg = get_preset(preset)
     preset_cfg['leverage'] = leverage
 
-    # 전략 초기화
-    if preset_cfg.get('strategy_impl') == 'optimized':
-        from scripts.optimize import ShortV1StrategyOptimized  # type: ignore
-        strategy = ShortV1StrategyOptimized(preset_cfg)
+    # Select strategy implementation
+    if preset_cfg.get('strategy_impl') == 'enhanced':
+        print(f"   전략: Enhanced (2-tier exit, ATR SL, trailing stop)")
+        strategy = EnhancedShortStrategyAdapter(preset_cfg)
     else:
-        strategy = ShortV1Strategy(preset_cfg)
+        print(f"   전략: Basic (fixed SL/TP)")
+        strategy = BasicShortStrategy(preset_cfg)
 
-    # 백테스팅 실행
     backtester = ShortBacktester(
         initial_capital=10_000_000,
-        fee_rate=0.0004,  # Binance Futures
+        fee_rate=0.0004,
         slippage=0.0002,
         leverage=leverage
     )
 
     results = backtester.run(df, strategy)
 
-    # 결과 출력
     print(f"\n📈 결과:")
     print(f"   초기 자본: {results['initial_capital']:,.0f}원")
     print(f"   최종 자본: {results['final_capital']:,.0f}원")
@@ -463,25 +466,24 @@ def run_backtest(
         print(f"   Sharpe Ratio: {results['sharpe_ratio']:.2f}")
         print(f"   MDD: {results['max_drawdown']:.2f}%")
 
-    # Buy & Hold 비교 (숏이므로 부호 반대)
     bh_return = (df.iloc[0]['close'] - df.iloc[-1]['close']) / df.iloc[0]['close'] * 100 * leverage
     print(f"\n📊 Short Buy & Hold (x{leverage}): {bh_return:+.2f}%")
     print(f"   Alpha: {results['total_return'] - bh_return:+.2f}%p")
 
     results['short_bh_return'] = bh_return
+    results['preset'] = preset
 
     return results
 
 
-def run_full_analysis():
+def run_full_analysis(preset: str = 'enhanced'):
     """전체 분석"""
     print("\n" + "="*80)
-    print("🔻 Short V1 Strategy - 백테스팅 분석")
+    print(f"🔻 Short V1 Strategy - 백테스팅 분석 (preset: {preset})")
     print("="*80)
 
     results = {}
 
-    # Binance 데이터 기반 (4시간봉)
     print("\n" + "-"*40)
     print("📌 Binance 데이터 기반")
     print("-"*40)
@@ -495,15 +497,16 @@ def run_full_analysis():
                 start_date=f'{year}-01-01',
                 end_date=end_date,
                 leverage=3,
-                preset='baseline'
+                preset=preset
             )
         except Exception as e:
             print(f"   ❌ {year}년 오류: {e}")
+            import traceback
+            traceback.print_exc()
             results[key] = {'total_return': 0, 'total_trades': 0}
 
-    # 요약 테이블
     print(f"\n{'='*80}")
-    print("📊 연도별 Short V1 성과 요약 (Binance Futures, 3x 레버리지)")
+    print(f"📊 연도별 Short V1 성과 요약 (Binance Futures, 3x 레버리지, {preset})")
     print("="*80)
     print(f"{'연도':<8} {'수익률':>10} {'거래':>8} {'승률':>8} {'Sharpe':>8} {'MDD':>10}")
     print("-"*80)
@@ -517,13 +520,44 @@ def run_full_analysis():
 
     print("="*80)
 
-    # 핵심 인사이트
-    print("\n💡 핵심 인사이트:")
-    print("   - 숏 전략은 하락장(2022년)에서 수익 기대")
-    print("   - 상승장에서는 손실 발생 가능")
-    print("   - 롱 전략(V35)과 함께 헤지 포트폴리오 구성 권장")
+    if preset == 'enhanced':
+        print("\n💡 Enhanced 전략 특징:")
+        print("   - 2-tier exit: 50% at 1R, 50% trailing stop")
+        print("   - ATR-based dynamic stop loss")
+        print("   - ADX declining filter (avoid weakening trends)")
+        print("   - Extreme volatility filter (>10% daily range)")
+    else:
+        print("\n💡 Baseline 전략 특징:")
+        print("   - Fixed stop loss: 2%")
+        print("   - Fixed take profit: 5%")
+        print("   - Simple EMA death cross entry")
 
     return results
+
+
+def compare_presets():
+    """Compare baseline vs enhanced presets"""
+    print("\n" + "="*80)
+    print("📊 전략 비교: Baseline vs Enhanced")
+    print("="*80)
+
+    baseline_results = run_full_analysis(preset='baseline')
+    enhanced_results = run_full_analysis(preset='enhanced')
+
+    print("\n" + "="*80)
+    print("📊 비교 요약")
+    print("="*80)
+    print(f"{'연도':<8} {'Baseline':>12} {'Enhanced':>12} {'차이':>12}")
+    print("-"*80)
+
+    for year in ['2020', '2021', '2022', '2023', '2024', '2025']:
+        key = f'binance_{year}'
+        b_ret = baseline_results.get(key, {}).get('total_return', 0)
+        e_ret = enhanced_results.get(key, {}).get('total_return', 0)
+        diff = e_ret - b_ret
+        print(f"{year:<8} {b_ret:>+11.2f}% {e_ret:>+11.2f}% {diff:>+11.2f}%p")
+
+    print("="*80)
 
 
 if __name__ == '__main__':
@@ -533,12 +567,15 @@ if __name__ == '__main__':
     parser.add_argument('--year', default='all')
     parser.add_argument('--timeframe', default='minute240')
     parser.add_argument('--leverage', type=int, default=3)
-    parser.add_argument('--preset', default='baseline', help=f"Presets: {', '.join(sorted(PRESETS.keys()))}")
+    parser.add_argument('--preset', default='enhanced', help=f"Presets: {', '.join(sorted(PRESETS.keys()))}")
+    parser.add_argument('--compare', action='store_true', help='Compare baseline vs enhanced')
 
     args = parser.parse_args()
 
-    if args.year == 'all':
-        run_full_analysis()
+    if args.compare:
+        compare_presets()
+    elif args.year == 'all':
+        run_full_analysis(preset=args.preset)
     else:
         end_date = '2025-12-11' if args.year == '2025' else f'{args.year}-12-31'
         run_backtest(

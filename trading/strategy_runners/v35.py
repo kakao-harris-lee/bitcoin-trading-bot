@@ -1,7 +1,7 @@
 """
 V35 Long Strategy - Standalone Coroutine
 
-Upbit long strategy with momentum-based entries.
+Binance Futures long strategy with momentum-based entries.
 Generates signals in ALL market states (no internal gating).
 Uses regime info for position sizing and TP levels only.
 """
@@ -59,11 +59,11 @@ class V35Strategy(StandaloneStrategy):
 
     @property
     def exchange(self) -> str:
-        return "upbit"
+        return "binance"
 
     @property
     def subscribed_streams(self) -> List[str]:
-        return ["market:upbit:prices", "market:regime"]
+        return ["market:binance:prices"]
 
     async def on_regime(self, regime_data: dict) -> None:
         """Update regime info (advisory only, no gating)."""

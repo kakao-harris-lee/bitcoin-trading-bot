@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 Short V1 Strategy Backtester
-숏 전략 백테스팅 (Upbit 데이터 시뮬레이션 + Binance Futures 데이터)
+숏 전략 백테스팅 (Binance Futures 데이터)
 
 사용법:
-    python backtest_short_v1.py [--source upbit|binance] [--year 2024] [--preset NAME]
+    python backtest_short.py [--year 2024] [--preset NAME]
 """
 
 import sys
@@ -348,13 +348,13 @@ class ShortBacktester:
         }
 
 
-def load_upbit_data(timeframe: str, start_date: str, end_date: str) -> pd.DataFrame:
-    """Upbit 데이터 로드"""
+def load_binance_data(timeframe: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """Binance 데이터 로드"""
     from core.data_loader import DataLoader
 
-    db_path = PROJECT_ROOT / 'data' / 'upbit_bitcoin.db'
+    db_path = PROJECT_ROOT / 'data' / 'binance_bitcoin.db'
     loader = DataLoader(str(db_path))
-    df = loader.load_timeframe(timeframe, start_date, end_date)
+    df = loader.load_binance(timeframe, start_date, end_date)
     loader.conn.close()
     return df
 
@@ -407,7 +407,6 @@ def load_binance_futures_data(timeframe: str, start_date: str, end_date: str) ->
 
 
 def run_backtest(
-    source: str = 'upbit',
     timeframe: str = 'minute240',
     start_date: str = '2020-01-01',
     end_date: str = '2024-12-31',
@@ -417,7 +416,7 @@ def run_backtest(
     """백테스팅 실행"""
     print(f"\n{'='*60}")
     print(f"📊 Short V1 백테스팅")
-    print(f"   소스: {source.upper()}")
+    print(f"   소스: BINANCE")
     print(f"   프리셋: {preset}")
     print(f"   타임프레임: {timeframe}")
     print(f"   기간: {start_date} ~ {end_date}")
@@ -425,10 +424,7 @@ def run_backtest(
     print(f"{'='*60}")
 
     # 데이터 로드
-    if source == 'upbit':
-        df = load_upbit_data(timeframe, start_date, end_date)
-    else:
-        df = load_binance_futures_data(timeframe, start_date, end_date)
+    df = load_binance_data(timeframe, start_date, end_date)
 
     print(f"✅ 데이터 로드: {len(df):,}개 캔들")
 
@@ -485,17 +481,16 @@ def run_full_analysis():
 
     results = {}
 
-    # Upbit 데이터 기반 (4시간봉)
+    # Binance 데이터 기반 (4시간봉)
     print("\n" + "-"*40)
-    print("📌 Upbit 데이터 기반 시뮬레이션")
+    print("📌 Binance 데이터 기반")
     print("-"*40)
 
     for year in ['2020', '2021', '2022', '2023', '2024', '2025']:
         end_date = '2025-12-11' if year == '2025' else f'{year}-12-31'
-        key = f'upbit_{year}'
+        key = f'binance_{year}'
         try:
             results[key] = run_backtest(
-                source='upbit',
                 timeframe='minute240',
                 start_date=f'{year}-01-01',
                 end_date=end_date,
@@ -508,13 +503,13 @@ def run_full_analysis():
 
     # 요약 테이블
     print(f"\n{'='*80}")
-    print("📊 연도별 Short V1 성과 요약 (Upbit 시뮬레이션, 3x 레버리지)")
+    print("📊 연도별 Short V1 성과 요약 (Binance Futures, 3x 레버리지)")
     print("="*80)
     print(f"{'연도':<8} {'수익률':>10} {'거래':>8} {'승률':>8} {'Sharpe':>8} {'MDD':>10}")
     print("-"*80)
 
     for year in ['2020', '2021', '2022', '2023', '2024', '2025']:
-        key = f'upbit_{year}'
+        key = f'binance_{year}'
         res = results.get(key, {})
         print(f"{year:<8} {res.get('total_return', 0):>+9.2f}% {res.get('total_trades', 0):>7}회 "
               f"{res.get('win_rate', 0):>7.1f}% {res.get('sharpe_ratio', 0):>7.2f} "
@@ -534,8 +529,7 @@ def run_full_analysis():
 if __name__ == '__main__':
     import argparse
 
-    parser = argparse.ArgumentParser(description='Short V1 백테스팅')
-    parser.add_argument('--source', choices=['upbit', 'binance'], default='upbit')
+    parser = argparse.ArgumentParser(description='Short V1 백테스팅 (Binance)')
     parser.add_argument('--year', default='all')
     parser.add_argument('--timeframe', default='minute240')
     parser.add_argument('--leverage', type=int, default=3)
@@ -548,7 +542,6 @@ if __name__ == '__main__':
     else:
         end_date = '2025-12-11' if args.year == '2025' else f'{args.year}-12-31'
         run_backtest(
-            source=args.source,
             timeframe=args.timeframe,
             start_date=f'{args.year}-01-01',
             end_date=end_date,

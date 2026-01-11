@@ -323,11 +323,11 @@ class QuickBacktester:
 
 
 def load_data(start_date: str = '2020-01-01', end_date: str = '2024-12-31') -> pd.DataFrame:
-    """데이터 로드"""
+    """데이터 로드 (Binance)"""
     from core.data_loader import DataLoader
-    db_path = PROJECT_ROOT / 'data' / 'upbit_bitcoin.db'
+    db_path = PROJECT_ROOT / 'data' / 'binance_bitcoin.db'
     loader = DataLoader(str(db_path))
-    df = loader.load_timeframe('minute240', start_date, end_date)
+    df = loader.load_binance('minute240', start_date, end_date)
     loader.conn.close()
     return df
 

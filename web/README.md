@@ -21,7 +21,6 @@ Open http://localhost:8080
 ### Status & Trades
 
 - `GET /api/status` - Current status
-- `GET /api/trades/upbit` - Upbit trades
 - `GET /api/trades/binance` - Binance trades
 - `GET /api/statistics` - Statistics
 - `GET /api/kill_switch/status` - Kill switch status
@@ -30,7 +29,7 @@ Open http://localhost:8080
 
 - `GET /api/metrics/realtime` - Current trading state (strategy, regime, positions)
 - `GET /api/metrics/decisions` - Decision history
-  - Query params: `exchange` (upbit/binance), `hours` (1-72), `limit` (1-200)
+  - Query params: `exchange` (binance), `hours` (1-72), `limit` (1-200)
 
 ## Real-Time Metrics Dashboard
 

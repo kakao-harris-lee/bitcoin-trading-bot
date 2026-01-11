@@ -31,11 +31,11 @@ class ConcreteStrategy(StandaloneStrategy):
 
     @property
     def exchange(self) -> str:
-        return "upbit"
+        return "binance"
 
     @property
     def subscribed_streams(self) -> list:
-        return ["market:upbit:prices"]
+        return ["market:binance:prices"]
 
     async def on_price(self, price_data: dict):
         if price_data.get("price", 0) > 50000:
@@ -66,10 +66,10 @@ class TestStandaloneStrategy:
         assert strategy.name == "test_strategy"
 
     def test_strategy_exchange(self, strategy):
-        assert strategy.exchange == "upbit"
+        assert strategy.exchange == "binance"
 
     def test_subscribed_streams(self, strategy):
-        assert strategy.subscribed_streams == ["market:upbit:prices"]
+        assert strategy.subscribed_streams == ["market:binance:prices"]
 
     @pytest.mark.asyncio
     async def test_on_price_generates_signal(self, strategy):

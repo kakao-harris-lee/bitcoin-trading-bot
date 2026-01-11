@@ -77,13 +77,13 @@ class StandaloneStrategy(ABC):
     @property
     @abstractmethod
     def exchange(self) -> str:
-        """Exchange this strategy trades on ('upbit' or 'binance')"""
+        """Exchange this strategy trades on ('binance')"""
         pass
 
     @property
     @abstractmethod
     def subscribed_streams(self) -> List[str]:
-        """Streams this strategy needs (e.g., ['market:upbit:prices'])"""
+        """Streams this strategy needs (e.g., ['market:binance:prices'])"""
         pass
 
     @abstractmethod

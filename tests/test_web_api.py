@@ -37,33 +37,31 @@ def mock_multi_asset_status():
         'assets': {
             'BTC': {
                 'regime': 'BULL',
-                'upbit_price': 150000000,
                 'binance_price': 100000,
                 'position_active': True,
                 'position_qty': 0.1,
             },
             'ETH': {
                 'regime': 'SIDEWAYS',
-                'upbit_price': 5000000,
                 'binance_price': 3500,
                 'position_active': False,
                 'position_qty': 0,
             },
         },
         'portfolio': {
-            'total_capital_krw': 100000000,
-            'total_value_krw': 105000000,
-            'cash_krw': 50000000,
+            'total_capital_usdt': 10000,
+            'total_value_usdt': 10500,
+            'cash_usdt': 5000,
             'exposure_pct': 50,
-            'total_unrealized_pnl': 5000000,
+            'total_unrealized_pnl': 500,
             'assets': {
                 'BTC': {
-                    'allocated_krw': 40000000,
-                    'position_value_krw': 42000000,
+                    'allocated_usdt': 4000,
+                    'position_value_usdt': 4200,
                 },
                 'ETH': {
-                    'allocated_krw': 10000000,
-                    'position_value_krw': 0,
+                    'allocated_usdt': 1000,
+                    'position_value_usdt': 0,
                 },
             },
         },
@@ -78,16 +76,16 @@ def mock_trading_log():
             {
                 'timestamp': '2025-01-03T09:00:00',
                 'action': 'BUY',
-                'price': 150000000,
+                'price': 100000,
                 'quantity': 0.1,
                 'pnl': 0,
             },
             {
                 'timestamp': '2025-01-03T10:00:00',
                 'action': 'SELL',
-                'price': 152000000,
+                'price': 102000,
                 'quantity': 0.1,
-                'pnl': 200000,
+                'pnl': 200,
             },
         ],
         'signals': [
@@ -177,10 +175,10 @@ class TestStatusAPI:
         assert 'assets' in data
         assert 'portfolio' in data
 
-        # Check assets (API returns keys like "BTC_upbit", "BTC_binance")
-        assert 'BTC_upbit' in data['assets']
-        assert data['assets']['BTC_upbit']['regime'] == 'BULL'
-        assert data['assets']['BTC_upbit']['exchange'] == 'upbit'
+        # Check assets (API returns keys like "BTC_binance")
+        assert 'BTC_binance' in data['assets']
+        assert data['assets']['BTC_binance']['regime'] == 'BULL'
+        assert data['assets']['BTC_binance']['exchange'] == 'binance'
 
 
 class TestKillSwitchAPI:
@@ -229,7 +227,7 @@ class TestTradesAPI:
         """Trades should return 404 when no log."""
         mock_load.return_value = None
 
-        response = client.get('/api/trades/upbit')
+        response = client.get('/api/trades/binance')
         assert response.status_code == 404
 
     @patch('web.app.load_trading_log')
@@ -237,11 +235,11 @@ class TestTradesAPI:
         """Trades should return trade data."""
         mock_load.return_value = mock_trading_log
 
-        response = client.get('/api/trades/upbit')
+        response = client.get('/api/trades/binance')
         assert response.status_code == 200
         data = json.loads(response.data)
 
-        assert data['exchange'] == 'upbit'
+        assert data['exchange'] == 'binance'
         assert 'trades' in data
         assert len(data['trades']) == 2
         assert data['total_count'] == 2
@@ -255,7 +253,7 @@ class TestSignalsAPI:
         """Signals should return 404 when no log."""
         mock_load.return_value = None
 
-        response = client.get('/api/signals/upbit')
+        response = client.get('/api/signals/binance')
         assert response.status_code == 404
 
     @patch('web.app.load_trading_log')
@@ -263,11 +261,11 @@ class TestSignalsAPI:
         """Signals should return signal data."""
         mock_load.return_value = mock_trading_log
 
-        response = client.get('/api/signals/upbit')
+        response = client.get('/api/signals/binance')
         assert response.status_code == 200
         data = json.loads(response.data)
 
-        assert data['exchange'] == 'upbit'
+        assert data['exchange'] == 'binance'
         assert 'signals' in data
         assert len(data['signals']) == 1
 
@@ -277,16 +275,15 @@ class TestStatisticsAPI:
 
     @patch('web.app.load_trading_log')
     def test_statistics_with_data(self, mock_load, client, mock_trading_log):
-        """Statistics should combine upbit and binance stats."""
+        """Statistics should return binance stats."""
         mock_load.return_value = mock_trading_log
 
         response = client.get('/api/statistics')
         assert response.status_code == 200
         data = json.loads(response.data)
 
-        assert 'upbit' in data
         assert 'binance' in data
-        assert data['upbit']['return_pct'] == 5.2
+        assert data['binance']['return_pct'] == 5.2
 
 
 if __name__ == '__main__':

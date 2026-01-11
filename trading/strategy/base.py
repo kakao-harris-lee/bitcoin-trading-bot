@@ -25,8 +25,8 @@ class BaseStrategy(BaseModule):
     전략 엔진의 기본 클래스
 
     모든 전략은 이 클래스를 상속받아 구현:
-    - V35LongStrategy (Upbit Long)
-    - ShortV1Strategy (Binance Short)
+    - V35LongStrategy (Binance Futures Long)
+    - ShortV1Strategy (Binance Futures Short)
     """
 
     def __init__(

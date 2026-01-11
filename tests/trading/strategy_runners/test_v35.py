@@ -34,10 +34,10 @@ class TestV35Strategy:
         assert strategy.name == "v35"
 
     def test_exchange(self, strategy):
-        assert strategy.exchange == "upbit"
+        assert strategy.exchange == "binance"
 
     def test_subscribed_streams(self, strategy):
-        assert "market:upbit:prices" in strategy.subscribed_streams
+        assert "market:binance:prices" in strategy.subscribed_streams
 
     @pytest.mark.asyncio
     async def test_on_price_no_signal_without_data(self, strategy):

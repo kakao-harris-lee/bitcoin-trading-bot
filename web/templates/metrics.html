@@ -98,11 +98,6 @@
             font-weight: 600;
         }
 
-        .exchange-badge.upbit {
-            background: rgba(0, 150, 255, 0.2);
-            color: #00a8ff;
-        }
-
         .exchange-badge.binance {
             background: rgba(243, 186, 47, 0.2);
             color: #f3ba2f;
@@ -450,10 +445,6 @@
                 <h2>Connection Status</h2>
                 <div class="connection-status" id="connection-status">
                     <div class="connection-item">
-                        <span class="connection-dot disconnected" id="upbit-connection"></span>
-                        <span>Upbit</span>
-                    </div>
-                    <div class="connection-item">
                         <span class="connection-dot disconnected" id="binance-connection"></span>
                         <span>Binance</span>
                     </div>
@@ -462,23 +453,6 @@
 
             <!-- Strategy Decisions Grid -->
             <div class="metrics-grid" id="exchange-cards">
-                <!-- Upbit Card -->
-                <div class="metrics-card" id="upbit-card" style="display: none;">
-                    <h2>
-                        <span>Strategy Decision</span>
-                        <span>
-                            <span class="exchange-badge upbit">Upbit</span>
-                            <span class="mode-badge paper" id="upbit-mode">PAPER</span>
-                        </span>
-                    </h2>
-                    <div class="strategy-name" id="upbit-strategy">-</div>
-                    <div class="decision-display">
-                        <div class="decision-action hold" id="upbit-action">-</div>
-                        <div class="decision-reason" id="upbit-reason">-</div>
-                        <div class="decision-time" id="upbit-time">-</div>
-                    </div>
-                </div>
-
                 <!-- Binance Card -->
                 <div class="metrics-card" id="binance-card" style="display: none;">
                     <h2>
@@ -505,29 +479,6 @@
                     <div class="regime-display">
                         <div class="regime-badge unknown" id="regime-badge">UNKNOWN</div>
                         <div class="market-state" id="market-state">-</div>
-                    </div>
-                </div>
-
-                <!-- Position Metrics - Upbit -->
-                <div class="metrics-card" id="upbit-position-card" style="display: none;">
-                    <h2>Position <span class="exchange-badge upbit">Upbit</span></h2>
-                    <div class="position-grid">
-                        <div class="position-stat">
-                            <span class="label">Entry Price</span>
-                            <span class="value" id="upbit-entry-price">-</span>
-                        </div>
-                        <div class="position-stat">
-                            <span class="label">Current Price</span>
-                            <span class="value" id="upbit-current-price">-</span>
-                        </div>
-                        <div class="position-stat">
-                            <span class="label">Position Size</span>
-                            <span class="value" id="upbit-position-size">-</span>
-                        </div>
-                        <div class="position-stat">
-                            <span class="label">Unrealized P&L</span>
-                            <span class="value" id="upbit-pnl">-</span>
-                        </div>
                     </div>
                 </div>
 

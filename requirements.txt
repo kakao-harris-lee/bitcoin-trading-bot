@@ -90,7 +90,6 @@ mypy>=1.5.0
 jupyterlab>=4.0.0
 pytest-asyncio
 
-pyupbit
 python-binance
 ccxt>=4.0.0
 cryptography

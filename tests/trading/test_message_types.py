@@ -28,7 +28,6 @@ class TestEnums:
 
     def test_exchange_values(self):
         """Exchange enum 값"""
-        assert Exchange.UPBIT.value == "upbit"
         assert Exchange.BINANCE.value == "binance"
 
     def test_direction_values(self):
@@ -100,13 +99,13 @@ class TestPriceMessage:
         """최소 필드로 생성"""
         msg = PriceMessage(
             timestamp=1702345678901,
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             price=134500000,
         )
         assert msg.timestamp == 1702345678901
-        assert msg.exchange == Exchange.UPBIT
-        assert msg.symbol == "KRW-BTC"
+        assert msg.exchange == Exchange.BINANCE
+        assert msg.symbol == "BTCUSDT"
         assert msg.price == 134500000
         assert msg.volume_24h is None
         assert msg.ohlcv is None
@@ -129,28 +128,28 @@ class TestPriceMessage:
         """to_dict 변환"""
         msg = PriceMessage(
             timestamp=1702345678901,
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             price=134500000,
         )
         result = msg.to_dict()
 
         assert isinstance(result, dict)
         assert result["timestamp"] == 1702345678901
-        assert result["exchange"] == "upbit"  # Enum이 문자열로 변환
-        assert result["symbol"] == "KRW-BTC"
+        assert result["exchange"] == "binance"  # Enum이 문자열로 변환
+        assert result["symbol"] == "BTCUSDT"
 
     def test_from_dict(self):
         """from_dict 생성"""
         data = {
             "timestamp": 1702345678901,
-            "exchange": "upbit",
-            "symbol": "KRW-BTC",
+            "exchange": "binance",
+            "symbol": "BTCUSDT",
             "price": 134500000,
         }
         msg = PriceMessage.from_dict(data)
 
-        assert msg.exchange == Exchange.UPBIT
+        assert msg.exchange == Exchange.BINANCE
         assert msg.price == 134500000
 
     def test_from_dict_with_ohlcv(self):
@@ -185,8 +184,8 @@ class TestSignalMessage:
             id="sig-123",
             timestamp=1702345678901,
             strategy="v35-long",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             action=Action.BUY,
             direction=Direction.LONG,
             fraction=0.5,
@@ -206,8 +205,8 @@ class TestSignalMessage:
             id="sig-123",
             timestamp=1702345678901,
             strategy="test",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             action=Action.BUY,
             direction=Direction.LONG,
             fraction=0.0,
@@ -223,8 +222,8 @@ class TestSignalMessage:
             id="sig-123",
             timestamp=1702345678901,
             strategy="v35-long",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             action=Action.BUY,
             direction=Direction.LONG,
             fraction=0.5,
@@ -235,7 +234,7 @@ class TestSignalMessage:
 
         assert result["action"] == "buy"
         assert result["direction"] == "long"
-        assert result["exchange"] == "upbit"
+        assert result["exchange"] == "binance"
 
 
 # ========== OrderMessage Tests ==========
@@ -249,8 +248,8 @@ class TestOrderMessage:
             id="ord-456",
             timestamp=1702345678901,
             signal_id="sig-123",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             action=Action.BUY,
             direction=Direction.LONG,
             quantity=0.01,
@@ -265,8 +264,8 @@ class TestOrderMessage:
             id="ord-456",
             timestamp=1702345678901,
             signal_id="sig-123",
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             action=Action.BUY,
             direction=Direction.LONG,
             quantity=0.01,
@@ -287,9 +286,9 @@ class TestPositionMessage:
 
     def test_create_position_message(self):
         """포지션 메시지 생성"""
-        upbit_pos = Position(
-            exchange=Exchange.UPBIT,
-            symbol="KRW-BTC",
+        binance_pos = Position(
+            exchange=Exchange.BINANCE,
+            symbol="BTCUSDT",
             side=Direction.LONG,
             quantity=0.05,
             entry_price=130000000,
@@ -301,12 +300,12 @@ class TestPositionMessage:
         msg = PositionMessage(
             timestamp=1702345678901,
             total_equity_krw=15000000,
-            positions={"upbit": upbit_pos},
+            positions={"binance": binance_pos},
             total_pnl_pct=5.0,
         )
 
         assert msg.total_equity_krw == 15000000
-        assert "upbit" in msg.positions
+        assert "binance" in msg.positions
         assert msg.total_pnl_pct == 5.0
 
 

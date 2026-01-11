@@ -1,6 +1,6 @@
 """
 Trading Engine V2 - V35 Long Strategy
-Upbit Long 전략 (v35_optimized 이식)
+Binance Futures Long 전략 (v35_optimized 이식)
 """
 
 import logging
@@ -205,7 +205,7 @@ class DynamicExitManager:
 
 class V35LongStrategy(BaseStrategy):
     """
-    V35 Long Strategy (Upbit)
+    V35 Long Strategy (Binance Futures)
 
     v35_optimized 전략을 이벤트 기반으로 이식
     - 시장 상태별 Entry/Exit
@@ -263,9 +263,9 @@ class V35LongStrategy(BaseStrategy):
 
         super().__init__(
             strategy_name="v35-long",
-            exchange=Exchange.UPBIT,
+            exchange=Exchange.BINANCE,
             direction=Direction.LONG,
-            symbol="KRW-BTC",
+            symbol="BTCUSDT",
             config=config,
             strategy_config=merged_config,
         )

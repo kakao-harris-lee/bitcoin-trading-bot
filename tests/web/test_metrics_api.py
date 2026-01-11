@@ -28,61 +28,53 @@ def mock_metrics_service():
     """Mock the metrics service with sample data."""
     sample_data = {
         'timestamp': datetime.now().isoformat(),
-        'upbit': {
-            'exchange': 'upbit',
+        'binance': {
+            'exchange': 'binance',
             'mode': 'paper',
-            'strategy': 'va02',
-            'regime': 'BEAR',
-            'market_state': 'BEAR_STRONG',
-            'current_price': 128000000.0,
+            'strategy': 'v35_long',
+            'regime': 'BULL',
+            'market_state': 'BULL_STRONG',
+            'current_price': 95000.0,
             'position_active': True,
-            'position_qty': 0.019,
-            'entry_price': 128073000.0,
-            'unrealized_pnl': -15000.0,
-            'unrealized_pnl_pct': -0.06,
-            'total_value': 10000000.0,
+            'position_qty': 0.01,
+            'entry_price': 94500.0,
+            'unrealized_pnl': 50.0,
+            'unrealized_pnl_pct': 0.53,
+            'total_value': 10000.0,
             'last_updated': datetime.now().isoformat(),
             'last_decision': {
                 'timestamp': datetime.now().isoformat(),
-                'strategy': 'va02',
+                'strategy': 'v35_long',
                 'action': 'hold',
-                'reason': 'VA02_HOLDING_S',
-                'regime': 'BEAR',
-                'market_state': 'BEAR_STRONG',
+                'reason': 'V35_HOLDING',
+                'regime': 'BULL',
+                'market_state': 'BULL_STRONG',
                 'indicators': {
-                    'rsi': 36.5,
-                    'mfi': 35.9,
-                    'adx': 34.4,
-                    'close': 128000000.0,
-                    'score': 32,
-                    'tier': 'S'
+                    'rsi': 55.5,
+                    'mfi': 58.9,
+                    'adx': 28.4,
+                    'close': 95000.0,
+                    'score': 72,
+                    'tier': 'A'
                 }
             }
         },
-        'binance': None,
         'recent_decisions': [
             {
                 'timestamp': datetime.now().isoformat(),
-                'strategy': 'va02',
+                'strategy': 'v35_long',
                 'action': 'hold',
-                'reason': 'VA02_HOLDING_S',
-                'exchange': 'upbit'
+                'reason': 'V35_HOLDING',
+                'exchange': 'binance'
             }
         ],
         'connection_status': [
             {
-                'exchange': 'upbit',
+                'exchange': 'binance',
                 'connected': True,
                 'last_heartbeat': datetime.now().isoformat(),
                 'is_stale': False,
                 'stale_seconds': 5
-            },
-            {
-                'exchange': 'binance',
-                'connected': False,
-                'last_heartbeat': None,
-                'is_stale': True,
-                'stale_seconds': None
             }
         ]
     }
@@ -102,7 +94,7 @@ class TestMetricsRealtimeEndpoint:
             assert response.status_code == 200
             data = json.loads(response.data)
             assert 'timestamp' in data
-            assert 'upbit' in data
+            assert 'binance' in data
             assert 'connection_status' in data
 
     def test_realtime_endpoint_returns_404_when_no_data(self, client):
@@ -110,7 +102,6 @@ class TestMetricsRealtimeEndpoint:
         with patch('web.app.metrics_service') as mock_service:
             mock_service.get_dashboard_state.return_value = {
                 'timestamp': datetime.now().isoformat(),
-                'upbit': None,
                 'binance': None,
                 'recent_decisions': [],
                 'connection_status': []
@@ -143,12 +134,12 @@ class TestMetricsRealtimeEndpoint:
             assert response.status_code == 200
             data = json.loads(response.data)
 
-            upbit = data.get('upbit')
-            assert upbit is not None
-            assert upbit['position_active'] is True
-            assert upbit['position_qty'] > 0
-            assert 'unrealized_pnl' in upbit
-            assert 'unrealized_pnl_pct' in upbit
+            binance = data.get('binance')
+            assert binance is not None
+            assert binance['position_active'] is True
+            assert binance['position_qty'] > 0
+            assert 'unrealized_pnl' in binance
+            assert 'unrealized_pnl_pct' in binance
 
     def test_realtime_endpoint_returns_regime_data(self, client, mock_metrics_service):
         """Test that market regime data is correctly returned."""
@@ -160,10 +151,10 @@ class TestMetricsRealtimeEndpoint:
             assert response.status_code == 200
             data = json.loads(response.data)
 
-            upbit = data.get('upbit')
-            assert upbit is not None
-            assert upbit['regime'] == 'BEAR'
-            assert upbit['market_state'] == 'BEAR_STRONG'
+            binance = data.get('binance')
+            assert binance is not None
+            assert binance['regime'] == 'BULL'
+            assert binance['market_state'] == 'BULL_STRONG'
 
 
 class TestDecisionHistoryEndpoint:
@@ -174,10 +165,10 @@ class TestDecisionHistoryEndpoint:
         sample_decisions = [
             {
                 'timestamp': datetime.now().isoformat(),
-                'strategy': 'va02',
+                'strategy': 'v35_long',
                 'action': 'hold',
-                'reason': 'VA02_HOLDING_S',
-                'exchange': 'upbit'
+                'reason': 'V35_HOLDING',
+                'exchange': 'binance'
             }
         ]
 
@@ -197,12 +188,12 @@ class TestDecisionHistoryEndpoint:
         with patch('web.app.metrics_service') as mock_service:
             mock_service.get_recent_decisions.return_value = []
 
-            response = client.get('/api/metrics/decisions?exchange=upbit')
+            response = client.get('/api/metrics/decisions?exchange=binance')
 
             assert response.status_code == 200
             mock_service.get_recent_decisions.assert_called_once()
             call_kwargs = mock_service.get_recent_decisions.call_args[1]
-            assert call_kwargs['exchange'] == 'upbit'
+            assert call_kwargs['exchange'] == 'binance'
 
     def test_decisions_endpoint_with_hours_filter(self, client):
         """Test filtering by hours."""

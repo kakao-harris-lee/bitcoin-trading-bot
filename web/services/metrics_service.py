@@ -316,7 +316,6 @@ class MetricsService:
             'timestamp': datetime.now().isoformat(),
             'mode': 'live',  # Could be paper, but we don't track this in Redis
             'binance': binance_data,
-            'upbit': None,  # Upbit removed
             'portfolio': portfolio,
             'recent_decisions': recent_decisions,
             'connection_status': connection_status,

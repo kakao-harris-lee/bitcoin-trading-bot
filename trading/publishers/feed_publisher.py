@@ -2,7 +2,6 @@
 Feed Publisher - Publishes price data to Redis streams
 
 Wraps exchange WebSocket handlers and publishes to:
-- market:upbit:prices
 - market:binance:prices
 """
 
@@ -22,7 +21,7 @@ class FeedPublisher:
     def __init__(self, exchange: Exchange, redis_client, config):
         """
         Args:
-            exchange: Exchange enum (UPBIT or BINANCE)
+            exchange: Exchange enum (BINANCE)
             redis_client: RedisClient instance
             config: Configuration
         """
@@ -79,7 +78,7 @@ class FeedPublisher:
         """Run feed publisher with WebSocket handler.
 
         Args:
-            ws_handler: WebSocketHandler instance (Upbit or Binance)
+            ws_handler: WebSocketHandler instance (Binance)
         """
         self.logger.info(f"Starting {self.exchange.value} feed publisher...")
 

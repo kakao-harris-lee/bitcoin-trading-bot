@@ -346,87 +346,78 @@ def dashboard():
 
 @app.route("/api/status")
 def get_status():
-    """현재 상태 API - Multi-asset support with exchange separation"""
+    """현재 상태 API - Binance-only stream architecture"""
 
-    # Load multi-asset engine status
+    # Try to load from metrics service (Redis-based)
+    if metrics_service:
+        try:
+            dashboard_state = metrics_service.get_dashboard_state()
+            binance_data = dashboard_state.get('binance')
+
+            if binance_data:
+                # Build per-asset response
+                assets = {}
+                for pos in binance_data.get('positions', []):
+                    symbol = pos.get('asset', 'BTC')
+                    market = pos.get('market', 'spot')
+                    key = f"{symbol}_{market}"
+                    assets[key] = {
+                        'symbol': symbol,
+                        'exchange': 'binance',
+                        'market': market,
+                        'enabled': True,
+                        'price': pos.get('current_price', 0),
+                        'position_active': pos.get('qty', 0) > 0,
+                        'position_qty': pos.get('qty', 0),
+                        'direction': 'long' if market == 'spot' else 'short',
+                        'strategy': pos.get('strategy', 'unknown'),
+                        'entry_price': pos.get('entry_price', 0),
+                        'unrealized_pnl': pos.get('unrealized_pnl', 0),
+                        'unrealized_pnl_pct': pos.get('unrealized_pnl_pct', 0),
+                    }
+
+                # If no positions, show symbols with no position
+                if not assets:
+                    for symbol in ['BTC', 'ETH', 'SOL']:
+                        for market in ['spot', 'futures']:
+                            key = f"{symbol}_{market}"
+                            assets[key] = {
+                                'symbol': symbol,
+                                'exchange': 'binance',
+                                'market': market,
+                                'enabled': True,
+                                'price': 0,
+                                'position_active': False,
+                                'position_qty': 0,
+                                'direction': 'long' if market == 'spot' else 'short',
+                                'strategy': 'None',
+                            }
+
+                status = {
+                    'timestamp': dashboard_state.get('timestamp', datetime.now().isoformat()),
+                    'mode': binance_data.get('mode', 'live'),
+                    'engine': 'stream',
+                    'assets': assets,
+                    'portfolio': dashboard_state.get('portfolio', {}),
+                    'kill_switch': binance_data.get('kill_switch', False),
+                    'daily_pnl': binance_data.get('daily_pnl', 0),
+                }
+                return jsonify(status)
+        except Exception as e:
+            print(f"Error loading from metrics service: {e}")
+
+    # Fallback: try legacy multi-asset status file
     ma_status = load_multi_asset_status()
-    allocation = load_allocation_config()
+    if ma_status:
+        return jsonify({
+            'timestamp': ma_status.get('timestamp', datetime.now().isoformat()),
+            'mode': ma_status.get('mode', 'paper'),
+            'engine': 'legacy',
+            'assets': ma_status.get('assets', {}),
+            'portfolio': ma_status.get('portfolio', {}),
+        })
 
-    if not ma_status:
-        return jsonify({'error': 'No engine status available'}), 404
-
-    # Build response
-    assets_data = ma_status.get('assets', {})
-    portfolio = ma_status.get('portfolio', {})
-    capital_cfg = allocation.get('capital', {})
-
-    # Build per-asset-per-exchange response
-    assets = {}
-    for symbol, data in assets_data.items():
-        asset_config = allocation.get('assets', {}).get(symbol, {})
-        portfolio_asset = portfolio.get('assets', {}).get(symbol, {})
-        regime = data.get('regime', 'UNKNOWN')
-
-        # Upbit card (if enabled)
-        if asset_config.get('upbit_enabled', True) or data.get('upbit_enabled', True):
-            upbit_key = f"{symbol}_upbit"
-            assets[upbit_key] = {
-                'symbol': symbol,
-                'exchange': 'upbit',
-                'enabled': asset_config.get('upbit_enabled', True),
-                'regime': regime,
-                'price': data.get('upbit_price', 0),
-                'position_active': data.get('upbit_position_active', data.get('position_active', False)),
-                'position_qty': data.get('upbit_position_qty', data.get('position_qty', 0)),
-                'direction': 'long',
-                'strategy': data.get('upbit_strategy'),
-                # Portfolio allocation
-                'alpha_ratio': asset_config.get('alpha_ratio', 0),
-                'allocated_krw': portfolio_asset.get('allocated_krw', 0),
-                'position_value_krw': portfolio_asset.get('position_value_krw', 0),
-                # Strategy config
-                'strategies': asset_config.get('upbit_strategies', asset_config.get('strategies', {})),
-            }
-
-        # Binance card (if enabled)
-        if asset_config.get('binance_enabled', False) or data.get('binance_enabled', False):
-            binance_key = f"{symbol}_binance"
-            assets[binance_key] = {
-                'symbol': symbol,
-                'exchange': 'binance',
-                'enabled': asset_config.get('binance_enabled', False),
-                'regime': regime,
-                'price': data.get('binance_price', 0),
-                'position_active': data.get('binance_position_active', False),
-                'position_qty': data.get('binance_position_qty', 0),
-                'direction': data.get('binance_direction', 'long'),
-                'strategy': data.get('binance_strategy'),
-                'leverage': data.get('binance_leverage', asset_config.get('binance_leverage', 1)),
-                # Capital allocation
-                'alpha_ratio': asset_config.get('alpha_ratio', 0),
-                'capital_usdt': capital_cfg.get('binance_usdt', 5000) * asset_config.get('alpha_ratio', 0),
-                # Strategy config
-                'strategies': asset_config.get('binance_strategies', {}),
-            }
-
-    status = {
-        'timestamp': ma_status.get('timestamp', datetime.now().isoformat()),
-        'mode': ma_status.get('mode', 'paper'),
-        'engine': ma_status.get('engine', 'multi-asset'),
-        'iteration_count': ma_status.get('iteration_count', 0),
-        'signal_count': ma_status.get('signal_count', 0),
-        'assets': assets,
-        'portfolio': {
-            'total_capital_krw': portfolio.get('total_capital_krw', 0),
-            'total_value_krw': portfolio.get('total_value_krw', 0),
-            'cash_krw': portfolio.get('cash_krw', 0),
-            'exposure_pct': portfolio.get('exposure_pct', 0),
-            'unrealized_pnl': portfolio.get('total_unrealized_pnl', 0),
-        },
-        'capital': capital_cfg,
-    }
-
-    return jsonify(status)
+    return jsonify({'error': 'No engine status available'}), 404
 
 
 @app.route("/health")
@@ -1296,11 +1287,10 @@ def get_realtime_metrics():
     """
     Get real-time trading metrics for the dashboard.
 
-    Returns DashboardState JSON per contracts/api.yaml with:
-    - Current strategy decisions for each exchange
+    Returns DashboardState JSON with:
+    - Current strategy decisions for Binance
     - Position and P&L information
-    - Market regime classification
-    - Connection status
+    - Connection status (Redis-based)
     """
     if not metrics_service:
         return jsonify({'error': 'Metrics service not available'}), 500
@@ -1309,10 +1299,10 @@ def get_realtime_metrics():
         dashboard_state = metrics_service.get_dashboard_state()
 
         # Check if any data is available
-        if not dashboard_state.get('upbit') and not dashboard_state.get('binance'):
+        if not dashboard_state.get('binance'):
             return jsonify({
                 'error': 'No trading data available',
-                'message': 'Trading bot may not be running or no log files found'
+                'message': 'Trading bot may not be running or Redis not connected'
             }), 404
 
         return jsonify(dashboard_state)
@@ -1326,7 +1316,6 @@ def get_decision_history():
     Get strategy decision history with optional filtering.
 
     Query parameters:
-    - exchange: Filter by exchange (upbit, binance)
     - hours: Hours of history to return (default 24, max 72)
     - limit: Maximum number of decisions (default 50, max 200)
     """
@@ -1334,18 +1323,13 @@ def get_decision_history():
         return jsonify({'error': 'Metrics service not available'}), 500
 
     try:
-        # Parse query parameters
-        exchange = request.args.get('exchange')
-        if exchange and exchange not in ['upbit', 'binance']:
-            return jsonify({'error': 'Invalid exchange. Use upbit or binance'}), 400
-
         hours = max(1, min(int(request.args.get('hours', 24)), 72))
         limit = max(1, min(int(request.args.get('limit', 50)), 200))
 
         decisions = metrics_service.get_recent_decisions(
             hours=hours,
             limit=limit,
-            exchange=exchange
+            exchange='binance'  # Binance-only now
         )
 
         return jsonify({

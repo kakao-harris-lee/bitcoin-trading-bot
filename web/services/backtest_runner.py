@@ -115,12 +115,46 @@ def run_backtest(job: BacktestJob) -> None:
             # Import here to avoid circular imports
             from core.backtester import Backtester
             from core.data_loader import DataLoader
-            from scripts.backtest_strategies import (
-                V35StrategyAdapter,
-                ShortV1StrategyAdapter,
-                SideWaysV2StrategyAdapter,
-                RegimeRouterLiveAdapter,
-            )
+            from trading.strategy.v35_long import V35LongStrategy
+            from trading.strategy.short_v1 import ShortV1Strategy
+
+            # Strategy adapters to wrap strategy classes for Backtester interface
+            class V35StrategyAdapter:
+                """Adapter to make V35LongStrategy work with Backtester."""
+                def __init__(self, config=None):
+                    self.strategy = V35LongStrategy(config or {})
+                    self._indicators_added = False
+
+                def __call__(self, df, i, params):
+                    if not self._indicators_added:
+                        self.strategy.add_indicators(df)
+                        self._indicators_added = True
+                    signal = self.strategy.generate_signal(df, i)
+                    if signal:
+                        action = signal.get('action', 'hold')
+                        if action in ('buy', 'sell'):
+                            return {'action': action, 'fraction': signal.get('fraction', 1.0)}
+                    return {'action': 'hold', 'fraction': 0}
+
+            class ShortV1StrategyAdapter:
+                """Adapter to make ShortV1Strategy work with Backtester."""
+                def __init__(self, config=None):
+                    self.strategy = ShortV1Strategy(strategy_config=config)
+                    self._indicators_added = False
+
+                def __call__(self, df, i, params):
+                    if not self._indicators_added:
+                        df = self.strategy.add_indicators(df)
+                        self._indicators_added = True
+                    signal = self.strategy.generate_signal(df, i)
+                    if signal:
+                        action = signal.get('action', 'hold')
+                        # Map short actions to backtester actions
+                        if action == 'open_short':
+                            return {'action': 'sell', 'fraction': signal.get('fraction', 1.0)}
+                        elif action in ('close_short', 'partial_close'):
+                            return {'action': 'buy', 'fraction': signal.get('fraction', 1.0)}
+                    return {'action': 'hold', 'fraction': 0}
 
             config = job.config
             strategy_id = config.get('strategy', 'v35_long')
@@ -167,14 +201,8 @@ def run_backtest(job: BacktestJob) -> None:
                     v35_config.update(raw.get('sideways_strategies', {}))
                 strategy_func = V35StrategyAdapter(config=v35_config)
                 timeframe = 'day'
-            elif strategy_id == 'sideways_v2':
-                strategy_func = SideWaysV2StrategyAdapter()
-                timeframe = 'day'
             elif strategy_id == 'short_v1':
                 strategy_func = ShortV1StrategyAdapter()
-                timeframe = 'minute240'
-            elif strategy_id == 'h4_conservative':
-                strategy_func = RegimeRouterLiveAdapter(timeframe='minute240')
                 timeframe = 'minute240'
             else:
                 raise ValueError(f"Unknown strategy adapter for: {strategy_id}")

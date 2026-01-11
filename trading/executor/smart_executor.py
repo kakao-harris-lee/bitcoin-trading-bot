@@ -96,6 +96,30 @@ class SmartExecutor:
         stop_price = self.calculate_stop_price(symbol, volatility)
         return current_price <= stop_price
 
+    def analyze_price_action(self, symbol: str) -> str:
+        """Analyze recent price action for execution decisions."""
+        tracker = self.volatility_trackers.get(symbol)
+        if not tracker or len(tracker.prices) < 4:
+            return "unknown"
+
+        prices = list(tracker.prices)[-4:]
+
+        # Count direction changes
+        changes = []
+        for i in range(1, len(prices)):
+            changes.append(prices[i] - prices[i - 1])
+
+        # 3+ consecutive drops = trending down
+        if all(c < 0 for c in changes):
+            return "trending_down"
+
+        # 3+ consecutive rises = trending up
+        if all(c > 0 for c in changes):
+            return "trending_up"
+
+        # Mixed = choppy/bouncing
+        return "bouncing"
+
     def _calculate_ladder_prices(self, base_price: float) -> list[float]:
         """Calculate limit prices for ladder tiers."""
         prices = []

@@ -2,6 +2,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from trading.executor.smart_executor import SmartExecutor
+from trading.strategies.volatility_tracker import VolatilityTracker
 
 
 @pytest.fixture
@@ -175,3 +176,93 @@ async def test_should_trigger_trailing_stop(mock_redis, mock_binance, config):
 
     # Price below stop - trigger
     assert executor.should_trigger_stop("BTC", 99000.0, "low") is True
+
+
+@pytest.mark.asyncio
+async def test_volatility_check_trending_down(mock_redis, mock_binance, config):
+    """Detect trending down from price action."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # 3+ consecutive red candles
+    prices = [100000, 99500, 99000, 98500]
+    executor.volatility_trackers["BTC"] = VolatilityTracker()
+    for p in prices:
+        executor.volatility_trackers["BTC"].add_price(p)
+
+    action = executor.analyze_price_action("BTC")
+    assert action == "trending_down"
+
+
+@pytest.mark.asyncio
+async def test_volatility_check_trending_up(mock_redis, mock_binance, config):
+    """Detect trending up from price action."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # 3+ consecutive green candles
+    prices = [100000, 100500, 101000, 101500]
+    executor.volatility_trackers["BTC"] = VolatilityTracker()
+    for p in prices:
+        executor.volatility_trackers["BTC"].add_price(p)
+
+    action = executor.analyze_price_action("BTC")
+    assert action == "trending_up"
+
+
+@pytest.mark.asyncio
+async def test_volatility_check_bouncing(mock_redis, mock_binance, config):
+    """Detect bouncing/choppy from price action."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # Up-down-up pattern
+    prices = [100000, 100500, 100200, 100700]
+    executor.volatility_trackers["BTC"] = VolatilityTracker()
+    for p in prices:
+        executor.volatility_trackers["BTC"].add_price(p)
+
+    action = executor.analyze_price_action("BTC")
+    assert action == "bouncing"
+
+
+@pytest.mark.asyncio
+async def test_volatility_check_unknown_insufficient_data(mock_redis, mock_binance, config):
+    """Return unknown when insufficient price data."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # Only 2 prices - not enough for analysis
+    prices = [100000, 99500]
+    executor.volatility_trackers["BTC"] = VolatilityTracker()
+    for p in prices:
+        executor.volatility_trackers["BTC"].add_price(p)
+
+    action = executor.analyze_price_action("BTC")
+    assert action == "unknown"
+
+
+@pytest.mark.asyncio
+async def test_volatility_check_unknown_no_tracker(mock_redis, mock_binance, config):
+    """Return unknown when no tracker exists for symbol."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    # No tracker for ETH
+    action = executor.analyze_price_action("ETH")
+    assert action == "unknown"

@@ -12,7 +12,6 @@
         <header>
             <h1>Multi-Asset Trading Bot</h1>
             <div class="header-info">
-                <a href="/metrics" class="nav-link" style="color: #3498db; text-decoration: none; margin-right: 15px;">Real-Time Metrics</a>
                 <span class="engine-mode" id="engine-mode">-</span>
                 <span class="last-update">Last update: <span id="last-update-time">-</span></span>
                 <span class="kill-switch">
@@ -92,6 +91,7 @@
             <button class="tab-btn active" data-tab="positions">Positions</button>
             <button class="tab-btn" data-tab="history">History</button>
             <button class="tab-btn" data-tab="signals">Signals</button>
+            <button class="tab-btn" data-tab="decisions">Decisions</button>
             <button class="tab-btn" data-tab="analytics">Analytics</button>
             <button class="tab-btn" data-tab="backtest">Backtest</button>
         </nav>
@@ -149,10 +149,19 @@
         <div id="signals" class="tab-content">
             <div class="tab-panel">
                 <h3>Trading Signals</h3>
-                <!-- Signal Filters -->
                 <!-- Signal List -->
                 <div id="signals-container" class="signals-list">
                     <p class="loading">Loading signals...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Decisions -->
+        <div id="decisions" class="tab-content">
+            <div class="tab-panel">
+                <h3>Decision History (Last 24 Hours)</h3>
+                <div id="decisions-container" class="decisions-list">
+                    <p class="loading">Loading decisions...</p>
                 </div>
             </div>
         </div>

@@ -1179,6 +1179,96 @@ footer {
     color: #888;
 }
 
+/* Decision History Styles */
+.decisions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.decision-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 12px 15px;
+    border-left: 3px solid #888;
+}
+
+.decision-card.buy {
+    border-left-color: #2ecc71;
+}
+
+.decision-card.sell {
+    border-left-color: #e74c3c;
+}
+
+.decision-card.hold {
+    border-left-color: #f1c40f;
+}
+
+.decision-card .decision-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.decision-card .decision-time {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.decision-card .decision-action {
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.decision-card .decision-action.buy {
+    background: rgba(46, 204, 113, 0.2);
+    color: #2ecc71;
+}
+
+.decision-card .decision-action.sell {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+
+.decision-card .decision-action.hold {
+    background: rgba(241, 196, 15, 0.2);
+    color: #f1c40f;
+}
+
+.decision-card .decision-body {
+    margin-bottom: 8px;
+}
+
+.decision-card .decision-reason {
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+.decision-card .decision-strategy {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 4px;
+}
+
+.decision-card .decision-indicators {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.decision-card .decision-indicators .ind {
+    font-size: 0.75rem;
+    color: #aaa;
+}
+
 /* Analytics Tab Styles */
 
 /* Period Selector */

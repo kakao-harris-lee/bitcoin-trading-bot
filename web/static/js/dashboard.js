@@ -618,6 +618,9 @@ function onTabActivated(tabId) {
         case 'signals':
             fetchSignals();
             break;
+        case 'decisions':
+            fetchDecisions();
+            break;
         case 'analytics':
             fetchAnalytics(analyticsState.period);
             break;
@@ -1003,6 +1006,59 @@ function renderSignals(data) {
                         <span class="value">${indicators.tier}</span>
                     </div>
                     ` : ''}
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+// Decision History (within Signals tab)
+async function fetchDecisions() {
+    const containerId = 'decisions-container';
+
+    try {
+        renderLoading(containerId);
+
+        const data = await apiFetch('/api/metrics/decisions?hours=24&limit=50');
+        renderDecisions(data.decisions || []);
+    } catch (error) {
+        renderError(containerId, 'Failed to load decisions', 'fetchDecisions');
+    }
+}
+
+function renderDecisions(decisions) {
+    const container = document.getElementById('decisions-container');
+
+    if (!decisions || decisions.length === 0) {
+        renderEmpty('decisions-container', 'No decisions in the last 24 hours');
+        return;
+    }
+
+    let html = '';
+
+    for (const decision of decisions) {
+        const actionClass = decision.action.toLowerCase();
+        const indicators = decision.indicators || {};
+
+        html += `
+            <div class="decision-card ${actionClass}">
+                <div class="decision-header">
+                    <span class="decision-time">${formatDateTime(decision.timestamp)}</span>
+                    <span class="decision-action ${actionClass}">${decision.action}</span>
+                </div>
+                <div class="decision-body">
+                    <div class="decision-reason">${escapeHtml(decision.reason) || '-'}</div>
+                    <div class="decision-strategy">${escapeHtml(decision.strategy) || '-'}</div>
+                </div>
+                ${Object.keys(indicators).length > 0 ? `
+                <div class="decision-indicators">
+                    ${indicators.rsi !== undefined ? `<span class="ind">RSI: ${formatNumber(indicators.rsi, 1)}</span>` : ''}
+                    ${indicators.mfi !== undefined ? `<span class="ind">MFI: ${formatNumber(indicators.mfi, 1)}</span>` : ''}
+                    ${indicators.adx !== undefined ? `<span class="ind">ADX: ${formatNumber(indicators.adx, 1)}</span>` : ''}
+                    ${indicators.close !== undefined ? `<span class="ind">Price: ${formatPrice(indicators.close, true)}</span>` : ''}
                 </div>
                 ` : ''}
             </div>

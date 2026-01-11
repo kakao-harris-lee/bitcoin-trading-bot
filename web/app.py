@@ -1068,13 +1068,6 @@ def get_exchange_balances():
 # Real-Time Metrics Dashboard Endpoints
 # =============================================================================
 
-@app.route("/metrics")
-@requires_auth
-def metrics_page():
-    """Render the real-time metrics dashboard page."""
-    return render_template("metrics.html")
-
-
 @app.route("/api/metrics/realtime")
 def get_realtime_metrics():
     """

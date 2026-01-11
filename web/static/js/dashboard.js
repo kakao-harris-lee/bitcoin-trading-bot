@@ -612,6 +612,7 @@ function onTabActivated(tabId) {
             fetchPositions();
             break;
         case 'history':
+            initHistoryDefaults();
             fetchTrades();
             break;
         case 'signals':
@@ -739,11 +740,21 @@ function updatePositionsSummary(data) {
 let historyState = {
     page: 1,
     limit: 50,
-    exchange: '',
     startDate: '',
     endDate: '',
-    totalCount: 0
+    totalCount: 0,
+    initialized: false
 };
+
+function getDefaultHistoryDates() {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+    };
+}
 
 function initHistoryFilters() {
     const applyBtn = document.getElementById('history-apply-filters');
@@ -751,7 +762,6 @@ function initHistoryFilters() {
 
     if (applyBtn) {
         applyBtn.addEventListener('click', () => {
-            historyState.exchange = document.getElementById('history-exchange-filter').value;
             historyState.startDate = document.getElementById('history-start-date').value;
             historyState.endDate = document.getElementById('history-end-date').value;
             historyState.page = 1;
@@ -761,15 +771,26 @@ function initHistoryFilters() {
 
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
-            document.getElementById('history-exchange-filter').value = '';
-            document.getElementById('history-start-date').value = '';
-            document.getElementById('history-end-date').value = '';
-            historyState.exchange = '';
-            historyState.startDate = '';
-            historyState.endDate = '';
+            // Reset to default (last 1 week)
+            const defaults = getDefaultHistoryDates();
+            document.getElementById('history-start-date').value = defaults.startDate;
+            document.getElementById('history-end-date').value = defaults.endDate;
+            historyState.startDate = defaults.startDate;
+            historyState.endDate = defaults.endDate;
             historyState.page = 1;
             fetchTrades();
         });
+    }
+}
+
+function initHistoryDefaults() {
+    if (!historyState.initialized) {
+        const defaults = getDefaultHistoryDates();
+        document.getElementById('history-start-date').value = defaults.startDate;
+        document.getElementById('history-end-date').value = defaults.endDate;
+        historyState.startDate = defaults.startDate;
+        historyState.endDate = defaults.endDate;
+        historyState.initialized = true;
     }
 }
 
@@ -785,7 +806,6 @@ async function fetchTrades() {
             limit: historyState.limit
         });
 
-        if (historyState.exchange) params.append('exchange', historyState.exchange);
         if (historyState.startDate) params.append('start_date', historyState.startDate);
         if (historyState.endDate) params.append('end_date', historyState.endDate);
 
@@ -812,7 +832,6 @@ function renderTradeTable(data) {
             <thead>
                 <tr>
                     <th>Time</th>
-                    <th>Exchange</th>
                     <th>Action</th>
                     <th class="text-right">Price</th>
                     <th class="text-right">Volume</th>
@@ -831,7 +850,6 @@ function renderTradeTable(data) {
         html += `
             <tr>
                 <td>${formatDateTime(trade.timestamp)}</td>
-                <td><span class="exchange-badge ${trade.exchange}">${trade.exchange}</span></td>
                 <td><span class="action-badge ${actionClass}">${trade.action}</span></td>
                 <td class="text-right">$${formatPrice(trade.price, false)}</td>
                 <td class="text-right">${formatQuantity(trade.volume, 4)}</td>
@@ -885,19 +903,8 @@ function goToPage(page) {
 // Signals Tab (US3)
 // =====================
 
-let signalsState = {
-    action: ''
-};
-
 function initSignalsFilters() {
-    const applyBtn = document.getElementById('signals-apply-filters');
-
-    if (applyBtn) {
-        applyBtn.addEventListener('click', () => {
-            signalsState.action = document.getElementById('signals-action-filter').value;
-            fetchSignals();
-        });
-    }
+    // No filters needed - show all signals
 }
 
 async function fetchSignals() {
@@ -908,8 +915,6 @@ async function fetchSignals() {
 
         // Build query string
         const params = new URLSearchParams({ limit: 50 });
-
-        if (signalsState.action) params.append('action', signalsState.action);
 
         const data = await apiFetch(`/api/signals?${params.toString()}`);
         renderSignals(data);

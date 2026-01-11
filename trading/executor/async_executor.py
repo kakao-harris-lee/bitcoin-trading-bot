@@ -105,7 +105,7 @@ class AsyncExecutor:
                 logger.info(f"Synced {synced} external positions from Binance")
 
             # Store balance in Redis for strategies to access
-            await self.redis.client.hset("account", mapping={
+            await self.redis.hset("account", {
                 "spot_balance": str(balance.spot_usdt),
                 "futures_balance": str(balance.futures_usdt),
                 "last_sync": str(int(time.time())),
@@ -126,7 +126,7 @@ class AsyncExecutor:
                     "last_update": time.time(),
                 }
                 # Update Redis
-                await self.redis.client.hset("account", mapping={
+                await self.redis.hset("account", {
                     "spot_balance": str(balance.spot_usdt),
                     "futures_balance": str(balance.futures_usdt),
                     "last_sync": str(int(time.time())),
@@ -234,7 +234,7 @@ class AsyncExecutor:
         # Update daily P&L
         risk = await self.redis.get_risk()
         daily_pnl = float(risk.get("daily_pnl", 0)) + pnl
-        await self.redis.client.hset("risk", "daily_pnl", str(daily_pnl))
+        await self.redis.hset("risk", {"daily_pnl": str(daily_pnl)})
 
         logger.info(f"Recorded P&L: {symbol} {pnl:+.2f} USDT (daily total: {daily_pnl:+.2f})")
 

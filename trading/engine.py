@@ -9,6 +9,9 @@ import signal
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent.parent / ".env")
+
 from trading.streams import RedisStreams, BinanceFeedTask
 from trading.strategies import V35LongTask, SidewaysV2Task, ShortV1Task
 from trading.executor import BinanceClient, AsyncExecutor, PaperExecutor

@@ -29,7 +29,7 @@ def run_training_test(assets: list):
     config = BacktestConfig(
         start_date="2020-01-01",
         end_date="2024-12-31",
-        upbit_capital_krw=10_000_000,
+        # Binance-only: no KRW capital needed
         binance_capital_usdt=10_000,
         assets=assets,
     )
@@ -50,7 +50,7 @@ def run_validation_test(assets: list):
     config = BacktestConfig(
         start_date="2025-01-01",
         end_date="2025-12-31",
-        upbit_capital_krw=10_000_000,
+        # Binance-only: no KRW capital needed
         binance_capital_usdt=10_000,
         assets=assets,
     )
@@ -75,7 +75,7 @@ def run_yearly_breakdown(assets: list):
         config = BacktestConfig(
             start_date=f"{year}-01-01",
             end_date=f"{year}-12-31",
-            upbit_capital_krw=10_000_000,
+            # Binance-only: no KRW capital needed
             binance_capital_usdt=10_000,
             assets=assets,
         )
@@ -125,7 +125,7 @@ def run_component_comparison():
         config = BacktestConfig(
             start_date="2024-01-01",
             end_date="2024-12-31",
-            upbit_capital_krw=10_000_000,
+            # Binance-only: no KRW capital needed
             binance_capital_usdt=10_000,
             assets=["BTC"],
             enable_long=enable_long,
@@ -200,7 +200,7 @@ def main():
         config = BacktestConfig(
             start_date=args.start or "2024-01-01",
             end_date=args.end or "2024-12-31",
-            upbit_capital_krw=10_000_000,
+            # Binance-only: no KRW capital needed
             binance_capital_usdt=10_000,
             assets=args.assets,
         )

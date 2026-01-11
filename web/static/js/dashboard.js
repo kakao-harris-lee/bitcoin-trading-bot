@@ -175,11 +175,8 @@ function formatDateTime(isoString) {
     });
 }
 
-function formatPrice(price, isKRW = true) {
+function formatPrice(price, isUSD = true) {
     if (!price) return '-';
-    if (isKRW) {
-        return new Intl.NumberFormat('ko-KR').format(Math.round(price));
-    }
     return new Intl.NumberFormat('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -251,19 +248,13 @@ function renderAssetCards(assets) {
         const regimeClass = getRegimeClass(data.regime);
         const regimeLabel = getRegimeLabel(data.regime);
         const exchangeClass = `exchange-${data.exchange}`;
-        const isUpbit = data.exchange === 'upbit';
-        const isBinance = data.exchange === 'binance';
 
         // Position status
         let positionStatus = 'None';
         let positionClass = '';
         if (data.position_active) {
             positionClass = 'has-position';
-            if (isBinance) {
-                positionStatus = data.direction === 'short' ? 'SHORT' : 'LONG';
-            } else {
-                positionStatus = 'LONG';
-            }
+            positionStatus = data.direction === 'short' ? 'SHORT' : 'LONG';
         }
 
         // Get active strategy from strategies config
@@ -275,13 +266,11 @@ function renderAssetCards(assets) {
             }
         }
 
-        // Format price based on exchange
-        const priceDisplay = isUpbit
-            ? formatPrice(data.price, true)
-            : `$${formatPrice(data.price, false)}`;
+        // Format price (USDT)
+        const priceDisplay = `$${formatPrice(data.price, false)}`;
 
-        // Direction indicator for Binance
-        const directionClass = isBinance && data.direction === 'short' ? 'direction-short' : 'direction-long';
+        // Direction indicator
+        const directionClass = data.direction === 'short' ? 'direction-short' : 'direction-long';
 
         html += `
             <div class="asset-card ${regimeClass} ${positionClass} ${exchangeClass}">
@@ -295,29 +284,20 @@ function renderAssetCards(assets) {
                         <span class="label">Price</span>
                         <span class="value">${priceDisplay}</span>
                     </div>
-                    ${isBinance ? `
                     <div class="price-row">
                         <span class="label">Leverage</span>
                         <span class="value">${data.leverage || 1}x</span>
                     </div>
-                    ` : ''}
                 </div>
                 <div class="asset-allocation">
                     <div class="info-row">
                         <span class="label">Allocation</span>
                         <span class="value">${(data.alpha_ratio * 100).toFixed(0)}%</span>
                     </div>
-                    ${isUpbit ? `
-                    <div class="info-row">
-                        <span class="label">Allocated</span>
-                        <span class="value">${formatKRW(data.allocated_krw)}</span>
-                    </div>
-                    ` : `
                     <div class="info-row">
                         <span class="label">Capital</span>
                         <span class="value">${formatUSD(data.capital_usdt)}</span>
                     </div>
-                    `}
                 </div>
                 <div class="asset-position">
                     <div class="info-row">
@@ -415,57 +395,6 @@ async function fetchKillSwitch() {
 
 // Update exchange balances display
 function updateExchangeBalances(data) {
-    // Update Upbit
-    if (data.upbit) {
-        document.getElementById('upbit-status').textContent = 'Connected';
-        document.getElementById('upbit-status').className = 'exchange-status connected';
-        document.getElementById('upbit-krw').textContent = formatKRW(data.upbit.krw_balance);
-        document.getElementById('upbit-total').textContent = formatKRW(data.upbit.total_krw);
-
-        // Update Upbit positions
-        const upbitPositions = data.upbit.positions || [];
-        const upbitPosList = document.getElementById('upbit-positions-list');
-        if (upbitPositions.length > 0) {
-            let html = '';
-            for (const pos of upbitPositions) {
-                const pnlClass = pos.pnl_krw >= 0 ? 'positive' : 'negative';
-                const pnlPctClass = pos.pnl_pct >= 0 ? 'positive' : 'negative';
-                html += `
-                    <div class="position-item">
-                        <div class="position-header">
-                            <span class="position-symbol">${pos.symbol}</span>
-                            <span class="position-side long">LONG</span>
-                        </div>
-                        <div class="position-details">
-                            <div class="detail-row">
-                                <span class="label">Qty</span>
-                                <span class="value">${pos.quantity.toFixed(8)}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="label">Avg Price</span>
-                                <span class="value">${formatPrice(pos.avg_price, true)}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="label">Value</span>
-                                <span class="value">${formatKRW(pos.value_krw)}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="label">PnL</span>
-                                <span class="value ${pnlClass}">${formatKRW(pos.pnl_krw)} (${pos.pnl_pct >= 0 ? '+' : ''}${pos.pnl_pct.toFixed(2)}%)</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            upbitPosList.innerHTML = html;
-        } else {
-            upbitPosList.innerHTML = '<span class="no-positions">No positions</span>';
-        }
-    } else {
-        document.getElementById('upbit-status').textContent = 'Error';
-        document.getElementById('upbit-status').className = 'exchange-status error';
-    }
-
     // Update Binance
     if (data.binance) {
         document.getElementById('binance-status').textContent = 'Connected';
@@ -529,8 +458,6 @@ async function fetchExchangeBalances() {
         updateExchangeBalances(data);
     } catch (err) {
         console.error('Exchange balances fetch error:', err);
-        document.getElementById('upbit-status').textContent = 'Error';
-        document.getElementById('upbit-status').className = 'exchange-status error';
         document.getElementById('binance-status').textContent = 'Error';
         document.getElementById('binance-status').className = 'exchange-status error';
     }
@@ -729,16 +656,10 @@ function renderPositions(data) {
         return;
     }
 
-    // Group positions by exchange
-    const upbitPositions = data.positions.filter(p => p.exchange === 'upbit');
-    const binancePositions = data.positions.filter(p => p.exchange === 'binance');
-
     let html = '';
 
-    // Render all positions
-    const allPositions = [...upbitPositions, ...binancePositions];
-    for (const pos of allPositions) {
-        const isKRW = pos.exchange === 'upbit';
+    // Render all positions (Binance-only)
+    for (const pos of data.positions) {
         const pnlClass = getPnLClass(pos.unrealized_pnl);
         const sideClass = pos.side.toLowerCase();
 
@@ -754,19 +675,19 @@ function renderPositions(data) {
                 <div class="card-body">
                     <div class="stat-row">
                         <span class="label">Quantity</span>
-                        <span class="value">${formatQuantity(pos.quantity, isKRW ? 8 : 4)}</span>
+                        <span class="value">${formatQuantity(pos.quantity, 4)}</span>
                     </div>
                     <div class="stat-row">
                         <span class="label">Entry Price</span>
-                        <span class="value">${isKRW ? formatPrice(pos.entry_price, true) : '$' + formatPrice(pos.entry_price, false)}</span>
+                        <span class="value">$${formatPrice(pos.entry_price, false)}</span>
                     </div>
                     <div class="stat-row">
                         <span class="label">Current Price</span>
-                        <span class="value">${isKRW ? formatPrice(pos.current_price, true) : '$' + formatPrice(pos.current_price, false)}</span>
+                        <span class="value">$${formatPrice(pos.current_price, false)}</span>
                     </div>
                     <div class="stat-row">
                         <span class="label">Value</span>
-                        <span class="value">${isKRW ? formatKRW(pos.value) : formatUSD(pos.value)}</span>
+                        <span class="value">${formatUSD(pos.value)}</span>
                     </div>
                     ${pos.leverage ? `
                     <div class="stat-row">
@@ -783,7 +704,7 @@ function renderPositions(data) {
                     <div class="stat-row pnl-row">
                         <span class="label">Unrealized P&L</span>
                         <span class="pnl-value ${pnlClass}">
-                            ${isKRW ? formatKRW(pos.unrealized_pnl) : formatUSD(pos.unrealized_pnl)}
+                            ${formatUSD(pos.unrealized_pnl)}
                             (${formatPercent(pos.unrealized_pnl_pct)})
                         </span>
                     </div>
@@ -903,7 +824,6 @@ function renderTradeTable(data) {
     `;
 
     for (const trade of data.trades) {
-        const isKRW = trade.exchange === 'upbit';
         const actionClass = trade.action.toLowerCase();
         const pnlClass = getPnLClass(trade.profit);
 
@@ -912,10 +832,10 @@ function renderTradeTable(data) {
                 <td>${formatDateTime(trade.timestamp)}</td>
                 <td><span class="exchange-badge ${trade.exchange}">${trade.exchange}</span></td>
                 <td><span class="action-badge ${actionClass}">${trade.action}</span></td>
-                <td class="text-right">${isKRW ? formatPrice(trade.price, true) : '$' + formatPrice(trade.price, false)}</td>
-                <td class="text-right">${formatQuantity(trade.volume, isKRW ? 8 : 4)}</td>
+                <td class="text-right">$${formatPrice(trade.price, false)}</td>
+                <td class="text-right">${formatQuantity(trade.volume, 4)}</td>
                 <td class="text-right ${pnlClass}">
-                    ${trade.profit !== null ? (isKRW ? formatKRW(trade.profit) : formatUSD(trade.profit)) : '-'}
+                    ${trade.profit !== null ? formatUSD(trade.profit) : '-'}
                     ${trade.profit_pct !== null ? `(${formatPercent(trade.profit_pct)})` : ''}
                 </td>
                 <td>${escapeHtml(trade.strategy) || '-'}</td>

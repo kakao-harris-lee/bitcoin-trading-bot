@@ -1,6 +1,6 @@
 # Bitcoin Trading Bot
 
-비트코인 자동 트레이딩 봇 - Upbit(현물) + Binance(선물) 듀얼 엔진
+Binance Futures 자동 트레이딩 봇
 
 ## 빠른 시작
 
@@ -12,7 +12,7 @@ python run.py --mode paper
 ENABLE_LIVE_TRADING=1 python run.py --mode live
 
 # 서버 실행
-./bot.sh start live h4_conservative h4_short bear_only
+./bot.sh start live
 ./bot.sh status
 ./bot.sh logs
 ./bot.sh stop
@@ -42,9 +42,8 @@ bitcoin-trading-bot/
 ├── scripts/                    # CLI 도구
 │   ├── backtest.py             # 백테스트
 │   ├── optimize.py             # 파라미터 최적화
-│   └── collect_data.py         # 데이터 수집
+│   └── auto_collect_data.py    # 데이터 자동 수집
 ├── data/                       # 데이터베이스 파일
-├── upbit_history_db/           # 데이터 수집 도구
 ├── tests/                      # 테스트
 ├── web/                        # 대시보드
 └── docs/                       # 문서
@@ -53,11 +52,11 @@ bitcoin-trading-bot/
 ## 데이터 수집
 
 ```bash
-# Upbit 데이터 (Go)
-cd upbit_history_db && ./upbit-collector
+# Binance 데이터 자동 수집
+python scripts/auto_collect_data.py
 
-# Binance 데이터 (Python)
-python upbit_history_db/binance_collector.py --start 2020-01-01
+# Binance 데이터 수집 (Python)
+python scripts/collectors/binance_collector.py --start 2020-01-01
 ```
 
 ### 데이터 사용
@@ -66,8 +65,6 @@ python upbit_history_db/binance_collector.py --start 2020-01-01
 from core.data_loader import DataLoader
 
 with DataLoader() as loader:
-    # Upbit
-    df = loader.load_timeframe('minute240', start_date='2024-01-01')
     # Binance
     df = loader.load_binance('minute240', start_date='2024-01-01')
 ```
@@ -76,19 +73,14 @@ with DataLoader() as loader:
 
 | 전략 | 거래소 | 레짐 | 파일 |
 |------|--------|------|------|
-| V35 Long | Upbit | BULL | `trading/strategy/v35_long.py` |
-| Sideways V2 | Upbit | SIDEWAYS | `trading/strategy/sideways_v2.py` |
-| H4 Conservative | Upbit | SIDEWAYS | `trading/strategy/h4_conservative.py` |
+| V35 Long | Binance | BULL | `trading/strategy/v35_long.py` |
 | Short V1 | Binance | BEAR | `trading/strategy/short_v1.py` |
-| H4 Short | Binance | BEAR | `trading/strategy/h4_short.py` |
 
 ## 환경 설정
 
 ### .env
 
 ```env
-UPBIT_ACCESS_KEY=your_key
-UPBIT_SECRET_KEY=your_secret
 BINANCE_API_KEY=your_key
 BINANCE_API_SECRET=your_secret
 TELEGRAM_BOT_TOKEN=your_token
@@ -112,9 +104,7 @@ python run.py --help
 
 --mode {paper,live}           실행 모드 (기본: paper)
 --interval INT                실행 간격 분 (기본: 60)
---sideways-policy {sideways_v2,h4_conservative,v35,hold}
---binance-policy {short_v1,h4_short,hold}
---binance-gate {bear_only,sideways_and_bear,always}
+--binance-policy {short_v1,hold}
 --no-telegram                 텔레그램 비활성화
 ```
 

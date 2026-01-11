@@ -56,20 +56,13 @@ class BacktestJob:
 
 def get_available_strategies() -> list:
     """Get list of available strategies for backtesting."""
-    # These match the strategies defined in the trading system
+    # These match the strategies defined in the trading system (Binance-only)
     return [
         {
             'id': 'v35_long',
-            'name': 'V35 Long (Upbit)',
+            'name': 'V35 Long (Binance)',
             'description': 'Momentum-based long strategy for bull markets',
-            'exchange': 'upbit',
-            'default_params': {}
-        },
-        {
-            'id': 'sideways_v2',
-            'name': 'Sideways V2 (Upbit)',
-            'description': 'Range-bound trading strategy for sideways markets',
-            'exchange': 'upbit',
+            'exchange': 'binance',
             'default_params': {}
         },
         {
@@ -77,13 +70,6 @@ def get_available_strategies() -> list:
             'name': 'Short V1 (Binance)',
             'description': 'Futures short strategy for bear markets',
             'exchange': 'binance',
-            'default_params': {}
-        },
-        {
-            'id': 'h4_conservative',
-            'name': 'H4 Conservative',
-            'description': '4-hour timeframe conservative strategy',
-            'exchange': 'upbit',
             'default_params': {}
         }
     ]
@@ -157,7 +143,7 @@ def run_backtest(job: BacktestJob) -> None:
             job.progress = 10
 
             # Determine exchange from strategy
-            exchange = strategy_info['exchange'] if strategy_info else 'upbit'
+            exchange = strategy_info['exchange'] if strategy_info else 'binance'
 
             # Create strategy adapter based on strategy_id
             # Load optimized configs where available

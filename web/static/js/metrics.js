@@ -86,24 +86,11 @@ function updateDashboard(data) {
     // Update connection status
     updateConnectionStatus(data.connection_status || []);
 
-    // Update Upbit data
-    if (data.upbit) {
-        updateStrategyDecision('upbit', data.upbit);
-        updatePositionMetrics('upbit', data.upbit);
-        updateMarketRegime(data.upbit);
-    } else {
-        document.getElementById('upbit-card').style.display = 'none';
-        document.getElementById('upbit-position-card').style.display = 'none';
-    }
-
     // Update Binance data
     if (data.binance) {
         updateStrategyDecision('binance', data.binance);
         updatePositionMetrics('binance', data.binance);
-        // Use binance regime if upbit not available
-        if (!data.upbit) {
-            updateMarketRegime(data.binance);
-        }
+        updateMarketRegime(data.binance);
     } else {
         document.getElementById('binance-card').style.display = 'none';
         document.getElementById('binance-position-card').style.display = 'none';
@@ -351,26 +338,16 @@ function formatTimestamp(timestamp) {
 }
 
 /**
- * Format price based on exchange
+ * Format price (USDT - 2 decimals)
  */
 function formatPrice(price, exchange) {
     if (!price) return '-';
 
-    if (exchange === 'upbit') {
-        // KRW - no decimals
-        return new Intl.NumberFormat('ko-KR', {
-            style: 'currency',
-            currency: 'KRW',
-            maximumFractionDigits: 0
-        }).format(price);
-    } else {
-        // USDT - 2 decimals
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            maximumFractionDigits: 2
-        }).format(price);
-    }
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 2
+    }).format(price);
 }
 
 /**
@@ -396,22 +373,14 @@ function formatBtc(amount) {
 }
 
 /**
- * Format currency based on exchange
+ * Format currency (USDT)
  */
 function formatCurrency(amount, exchange) {
-    if (exchange === 'upbit') {
-        return new Intl.NumberFormat('ko-KR', {
-            style: 'currency',
-            currency: 'KRW',
-            maximumFractionDigits: 0
-        }).format(amount);
-    } else {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            maximumFractionDigits: 2
-        }).format(amount);
-    }
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 2
+    }).format(amount);
 }
 
 // Initialize: Fetch data immediately, then start polling

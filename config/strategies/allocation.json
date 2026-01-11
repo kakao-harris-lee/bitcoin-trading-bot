@@ -7,12 +7,18 @@
   },
   "strategies": {
     "v35_long": {
+      "dynamic_sizing": true,
+      "position_pct": 0.30,
       "position_size": 0.01
     },
     "sideways_v2": {
+      "dynamic_sizing": true,
+      "position_pct": 0.20,
       "position_size": 0.01
     },
     "short_v1": {
+      "dynamic_sizing": true,
+      "position_pct": 0.20,
       "position_size": 0.01
     }
   },
@@ -25,3 +31,4 @@
     "slippage": 0.0004
   }
 }
+

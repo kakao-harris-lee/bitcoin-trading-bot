@@ -376,22 +376,21 @@ def get_status():
                         'unrealized_pnl_pct': pos.get('unrealized_pnl_pct', 0),
                     }
 
-                # If no positions, show symbols with no position
+                # If no positions, show symbols with no position (one per symbol)
                 if not assets:
                     for symbol in ['BTC', 'ETH', 'SOL']:
-                        for market in ['spot', 'futures']:
-                            key = f"{symbol}_{market}"
-                            assets[key] = {
-                                'symbol': symbol,
-                                'exchange': 'binance',
-                                'market': market,
-                                'enabled': True,
-                                'price': 0,
-                                'position_active': False,
-                                'position_qty': 0,
-                                'direction': 'long' if market == 'spot' else 'short',
-                                'strategy': 'None',
-                            }
+                        key = f"{symbol}_spot"
+                        assets[key] = {
+                            'symbol': symbol,
+                            'exchange': 'binance',
+                            'market': 'spot',
+                            'enabled': True,
+                            'price': 0,
+                            'position_active': False,
+                            'position_qty': 0,
+                            'direction': 'long',
+                            'strategy': 'None',
+                        }
 
                 status = {
                     'timestamp': dashboard_state.get('timestamp', datetime.now().isoformat()),

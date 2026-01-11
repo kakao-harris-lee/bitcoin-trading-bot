@@ -67,6 +67,13 @@ def get_available_strategies() -> list:
             'default_params': {}
         },
         {
+            'id': 'sideways_v2',
+            'name': 'Sideways V2 (Binance)',
+            'description': 'Mean-reversion strategy for sideways markets',
+            'exchange': 'binance',
+            'default_params': {}
+        },
+        {
             'id': 'short_v1',
             'name': 'Short V1 (Binance)',
             'description': 'Futures short strategy for bear markets',
@@ -473,6 +480,108 @@ def _run_long_backtest(
                     return {'action': action, 'fraction': signal.get('fraction', 1.0)}
             return {'action': 'hold', 'fraction': 0}
 
+    class SidewaysV2StrategyAdapter:
+        """Mean-reversion strategy for sideways markets (48 < MFI < 52, ADX < 20)."""
+        def __init__(self, config=None):
+            self.config = config or {}
+            self._indicators_added = False
+            self.in_position = False
+            self.entry_price = 0.0
+            # Thresholds from sideways_v2_task.py
+            self.mfi_bull = 52
+            self.mfi_bear = 48
+            self.adx_trend = 20
+            self.rsi_oversold = 35
+            self.rsi_mean = 50
+            self.take_profit_pct = 1.5
+            self.stop_loss_pct = 1.0
+
+        def _add_indicators(self, df):
+            """Add MFI, ADX, and RSI indicators."""
+            # RSI
+            delta = df['close'].diff()
+            gain = delta.where(delta > 0, 0).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / loss.replace(0, np.inf)
+            df['rsi'] = 100 - (100 / (1 + rs))
+
+            # MFI (Money Flow Index)
+            typical_price = (df['high'] + df['low'] + df['close']) / 3
+            raw_money_flow = typical_price * df['volume']
+            pos_flow = raw_money_flow.where(typical_price > typical_price.shift(1), 0)
+            neg_flow = raw_money_flow.where(typical_price < typical_price.shift(1), 0)
+            pos_mf = pos_flow.rolling(window=14).sum()
+            neg_mf = neg_flow.rolling(window=14).sum()
+            mf_ratio = pos_mf / neg_mf.replace(0, np.inf)
+            df['mfi'] = 100 - (100 / (1 + mf_ratio))
+
+            # ADX
+            tr = np.maximum(
+                df['high'] - df['low'],
+                np.maximum(
+                    abs(df['high'] - df['close'].shift(1)),
+                    abs(df['low'] - df['close'].shift(1))
+                )
+            )
+            atr = tr.rolling(window=14).mean()
+            plus_dm = df['high'].diff()
+            minus_dm = -df['low'].diff()
+            plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0)
+            minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0)
+            plus_di = 100 * (plus_dm.rolling(14).mean() / atr)
+            minus_di = 100 * (minus_dm.rolling(14).mean() / atr)
+            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+            df['adx'] = dx.rolling(14).mean()
+
+            return df
+
+        def _is_sideways(self, mfi: float, adx: float) -> bool:
+            """Check if market is in sideways regime."""
+            return self.mfi_bear < mfi < self.mfi_bull and adx < self.adx_trend
+
+        def __call__(self, df, i, params):
+            if i < 100:
+                return {'action': 'hold', 'fraction': 0}
+
+            if not self._indicators_added:
+                df = self._add_indicators(df)
+                self._indicators_added = True
+
+            row = df.iloc[i]
+            mfi = row.get('mfi', 50)
+            adx = row.get('adx', 25)
+            rsi = row.get('rsi', 50)
+            price = row['close']
+
+            if self.in_position:
+                # Check exit conditions
+                pnl_pct = ((price - self.entry_price) / self.entry_price) * 100
+
+                # Take profit
+                if pnl_pct >= self.take_profit_pct:
+                    self.in_position = False
+                    return {'action': 'sell', 'fraction': 1.0}
+
+                # Stop loss
+                if pnl_pct <= -self.stop_loss_pct:
+                    self.in_position = False
+                    return {'action': 'sell', 'fraction': 1.0}
+
+                # RSI mean reversion complete
+                if rsi >= self.rsi_mean:
+                    self.in_position = False
+                    return {'action': 'sell', 'fraction': 1.0}
+
+                return {'action': 'hold', 'fraction': 0}
+
+            # Entry: sideways regime + oversold RSI
+            if self._is_sideways(mfi, adx) and rsi <= self.rsi_oversold:
+                self.in_position = True
+                self.entry_price = price
+                return {'action': 'buy', 'fraction': 1.0}
+
+            return {'action': 'hold', 'fraction': 0}
+
     job.progress = 20
 
     # Load data
@@ -484,20 +593,23 @@ def _run_long_backtest(
 
     job.progress = 30
 
-    # Load config if available
+    # Select strategy adapter based on strategy_id
     import json
-    config_path = Path('config/strategies/v35_long.json')
-    v35_config = None
-    if config_path.exists():
-        with open(config_path) as f:
-            raw = json.load(f)
-        v35_config = {}
-        v35_config.update(raw.get('market_classifier', {}))
-        v35_config.update(raw.get('entry_conditions', {}))
-        v35_config.update(raw.get('exit_conditions', {}))
-        v35_config.update(raw.get('position_sizing', {}))
-
-    strategy_func = V35StrategyAdapter(config=v35_config)
+    if strategy_id == 'sideways_v2':
+        strategy_func = SidewaysV2StrategyAdapter()
+    else:
+        # Load config if available for v35_long
+        config_path = Path('config/strategies/v35_long.json')
+        v35_config = None
+        if config_path.exists():
+            with open(config_path) as f:
+                raw = json.load(f)
+            v35_config = {}
+            v35_config.update(raw.get('market_classifier', {}))
+            v35_config.update(raw.get('entry_conditions', {}))
+            v35_config.update(raw.get('exit_conditions', {}))
+            v35_config.update(raw.get('position_sizing', {}))
+        strategy_func = V35StrategyAdapter(config=v35_config)
 
     job.progress = 40
 

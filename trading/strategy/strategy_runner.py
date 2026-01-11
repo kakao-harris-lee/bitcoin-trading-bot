@@ -62,21 +62,7 @@ class StrategyRunner:
     - Tracks position state
     """
 
-    # Strategy selection by regime
-    # V35 (proven S-Tier) for BULL, VA02 (2025 promise) for SIDEWAYS
-    UPBIT_STRATEGY_MAP = {
-        "BULL": "v35",
-        "BULL_STRONG": "v35",
-        "BULL_MODERATE": "v35",
-        "SIDEWAYS": "va02",
-        "SIDEWAYS_BULL": "va02",
-        "SIDEWAYS_NEUTRAL": "va02",
-        "SIDEWAYS_BEAR": "va02",
-        "BEAR": None,  # Hold cash
-        "BEAR_MODERATE": None,
-        "BEAR_STRONG": None,
-    }
-
+    # Strategy selection by regime (Binance only)
     BINANCE_STRATEGY_MAP = {
         "BULL": None,  # No shorting in bull
         "BULL_STRONG": None,
@@ -99,7 +85,7 @@ class StrategyRunner:
     ):
         """
         Args:
-            exchange: "upbit" or "binance"
+            exchange: Exchange name (e.g., "binance")
             price_hub: PriceHub instance
             data_cache: DataCache instance
             min_eval_interval: Minimum seconds between evaluations
@@ -121,11 +107,8 @@ class StrategyRunner:
         self._eval_count: int = 0
         self._signal_count: int = 0
 
-        # Strategy map based on exchange
-        if exchange == "upbit":
-            self._strategy_map = self.UPBIT_STRATEGY_MAP
-        else:
-            self._strategy_map = self.BINANCE_STRATEGY_MAP
+        # Strategy map
+        self._strategy_map = self.BINANCE_STRATEGY_MAP
 
     def _load_strategies(self) -> None:
         """Lazy load strategies."""
@@ -133,63 +116,11 @@ class StrategyRunner:
             return
 
         try:
-            if self.exchange == "upbit":
-                self._load_upbit_strategies()
-            else:
-                self._load_binance_strategies()
+            self._load_binance_strategies()
             self._strategies_loaded = True
             logger.info(f"Loaded {len(self._strategies)} strategies for {self.exchange}")
         except Exception as e:
             logger.error(f"Failed to load strategies: {e}")
-
-    def _load_upbit_strategies(self) -> None:
-        """Load Upbit strategies."""
-        import json
-        from pathlib import Path
-
-        # V35 Long
-        try:
-            from trading.strategy.v35_long import V35LongStrategy
-            config_path = Path(__file__).parent.parent.parent / "config" / "strategies" / "v35_long.json"
-            if config_path.exists():
-                with open(config_path) as f:
-                    config = json.load(f)
-                self._strategies["v35"] = V35LongStrategy(config=config)
-                logger.debug("Loaded V35 strategy")
-        except Exception as e:
-            logger.warning(f"Failed to load V35: {e}")
-
-        # VA02 Long (for SIDEWAYS regimes)
-        try:
-            from trading.strategy.va02_long import VA02LongStrategy
-            config_path = Path(__file__).parent.parent.parent / "config" / "strategies" / "va02_long.json"
-            if config_path.exists():
-                with open(config_path) as f:
-                    config = json.load(f)
-                self._strategies["va02"] = VA02LongStrategy(strategy_config=config)
-                logger.debug("Loaded VA02 strategy")
-        except Exception as e:
-            logger.warning(f"Failed to load VA02: {e}")
-
-        # SideWays V2 (fallback)
-        try:
-            from trading.strategy.sideways_v2 import SideWaysV2Strategy
-            self._strategies["sideways_v2"] = SideWaysV2Strategy()
-            logger.debug("Loaded SideWays_v2 strategy")
-        except Exception as e:
-            logger.warning(f"Failed to load SideWays_v2: {e}")
-
-        # H4 Conservative
-        try:
-            from trading.strategy.h4_conservative import H4ConservativeStrategy
-            self._strategies["h4_conservative"] = H4ConservativeStrategy({
-                "position_fraction": 0.5,
-                "take_profit": 0.04,
-                "stop_loss": -0.02,
-            })
-            logger.debug("Loaded H4 Conservative strategy")
-        except Exception as e:
-            logger.warning(f"Failed to load H4 Conservative: {e}")
 
     def _load_binance_strategies(self) -> None:
         """Load Binance strategies."""

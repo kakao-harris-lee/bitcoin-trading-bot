@@ -62,7 +62,7 @@ class PriceHub:
         self._started_at = datetime.now()
 
         # Statistics
-        self._update_count: Dict[str, int] = {"upbit": 0, "binance": 0}
+        self._update_count: Dict[str, int] = {"binance": 0}
         self._notification_count: int = 0
 
     async def update_price(self, exchange: str, msg: PriceMessage) -> bool:
@@ -70,7 +70,7 @@ class PriceHub:
         Update price from FeedHandler.
 
         Args:
-            exchange: "upbit" or "binance"
+            exchange: Exchange name (e.g., "binance")
             msg: Price message from WebSocket
 
         Returns:
@@ -191,10 +191,7 @@ class PriceHub:
 
     def all_prices_fresh(self, max_age_seconds: float = 60.0) -> bool:
         """Check if all prices are fresh."""
-        for exchange in ["upbit", "binance"]:
-            if not self.is_price_fresh(exchange, max_age_seconds):
-                return False
-        return True
+        return self.is_price_fresh("binance", max_age_seconds)
 
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics for monitoring."""

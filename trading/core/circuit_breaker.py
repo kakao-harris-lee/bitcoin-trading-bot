@@ -64,7 +64,7 @@ class CircuitBreaker:
     Circuit breaker for protecting external service calls.
 
     Usage:
-        breaker = CircuitBreaker("upbit")
+        breaker = CircuitBreaker("binance")
 
         # Option 1: Execute with protection
         result = breaker.execute(api_call, arg1, arg2)
@@ -475,7 +475,6 @@ class CircuitBreakerRegistry:
 
     Usage:
         registry = CircuitBreakerRegistry()
-        upbit_breaker = registry.get_or_create("upbit", failure_threshold=3)
         binance_breaker = registry.get_or_create("binance", failure_threshold=5)
 
         # Get all stats

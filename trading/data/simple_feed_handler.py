@@ -2,7 +2,7 @@
 SimpleFeedHandler - WebSocket price feed without Redis dependency.
 
 Simplified version of FeedHandler that:
-- Connects to Upbit and Binance WebSockets
+- Connects to Binance WebSocket
 - Maintains last price cache
 - Supports direct callbacks (no Redis)
 """
@@ -138,76 +138,6 @@ class WebSocketClient:
         pass
 
 
-class UpbitWebSocketClient(WebSocketClient):
-    """Upbit WebSocket client."""
-
-    def __init__(self, symbols: List[str] = None):
-        symbols = symbols or ["KRW-BTC"]
-        super().__init__("upbit", "wss://api.upbit.com/websocket/v1")
-        self.symbols = symbols
-
-    async def _subscribe(self) -> None:
-        """Subscribe to Upbit ticker."""
-        subscribe_msg = [
-            {"ticket": f"async-engine-{int(datetime.now().timestamp())}"},
-            {"type": "ticker", "codes": self.symbols, "isOnlyRealtime": True},
-            {"format": "SIMPLE"},
-        ]
-        await self._ws.send_json(subscribe_msg)
-        logger.info(f"Subscribed to Upbit: {self.symbols}")
-
-    async def receive(self) -> Optional[PriceMessage]:
-        """Receive and parse Upbit message."""
-        if not self._ws or not self._connected:
-            return None
-
-        try:
-            msg = await asyncio.wait_for(self._ws.receive(), timeout=30)
-
-            if msg.type == aiohttp.WSMsgType.TEXT:
-                data = json.loads(msg.data)
-                return self._parse(data)
-            elif msg.type == aiohttp.WSMsgType.BINARY:
-                data = json.loads(msg.data.decode("utf-8"))
-                return self._parse(data)
-            elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
-                logger.warning(f"Upbit WebSocket closed: {msg.type}")
-                self._connected = False
-
-        except asyncio.TimeoutError:
-            pass
-        except Exception as e:
-            logger.error(f"Upbit receive error: {e}")
-
-        return None
-
-    def _parse(self, data: Dict) -> Optional[PriceMessage]:
-        """Parse Upbit message."""
-        if "cd" not in data:
-            return None
-
-        try:
-            ohlcv = OHLCV(
-                open=float(data.get("op", data.get("tp", 0))),
-                high=float(data.get("hp", data.get("tp", 0))),
-                low=float(data.get("lp", data.get("tp", 0))),
-                close=float(data.get("tp", 0)),
-                volume=float(data.get("tv", 0)),
-            )
-
-            return PriceMessage(
-                timestamp=data.get("tms", int(datetime.now().timestamp() * 1000)),
-                exchange="upbit",
-                symbol=data.get("cd", ""),
-                price=float(data.get("tp", 0)),
-                volume_24h=float(data.get("atv", 0)),
-                ohlcv=ohlcv,
-            )
-        except Exception as e:
-            logger.error(f"Upbit parse error: {e}")
-            return None
-
-
 class BinanceWebSocketClient(WebSocketClient):
     """Binance Futures WebSocket client."""
 
@@ -283,7 +213,7 @@ class SimpleFeedHandler:
     """
     Simple feed handler without Redis dependency.
 
-    Connects to Upbit and Binance WebSockets,
+    Connects to Binance WebSocket,
     maintains price cache, and supports callbacks.
     """
 
@@ -304,36 +234,28 @@ class SimpleFeedHandler:
             Configured SimpleFeedHandler
         """
         assets = config.get("assets", {})
-        upbit_symbols = []
         binance_symbols = []
 
         for symbol, asset_config in assets.items():
-            if asset_config.get("upbit_enabled", False):
-                upbit_symbols.append(asset_config.get("upbit_symbol", f"KRW-{symbol}"))
             if asset_config.get("binance_enabled", False):
                 binance_symbols.append(asset_config.get("binance_symbol", f"{symbol}USDT"))
 
         return cls(
-            upbit_symbols=upbit_symbols,
             binance_symbols=binance_symbols,
             on_price=on_price,
         )
 
     def __init__(
         self,
-        upbit_symbols: List[str] = None,
         binance_symbols: List[str] = None,
         on_price: Optional[Callable[["PriceMessage"], None]] = None,
     ):
         """
         Args:
-            upbit_symbols: Upbit symbols to subscribe
             binance_symbols: Binance symbols to subscribe
             on_price: Callback for new prices
         """
-        self._upbit_symbols = upbit_symbols or ["KRW-BTC"]
         self._binance_symbols = binance_symbols or ["btcusdt"]
-        self._upbit_ws = UpbitWebSocketClient(self._upbit_symbols)
         self._binance_ws = BinanceWebSocketClient(self._binance_symbols)
         self._on_price = on_price
         self._last_prices: Dict[str, PriceMessage] = {}
@@ -345,17 +267,10 @@ class SimpleFeedHandler:
         self._build_symbol_map()
 
         # Statistics
-        self._upbit_count = 0
         self._binance_count = 0
 
     def _build_symbol_map(self) -> None:
         """Build mapping from exchange symbols to canonical symbols."""
-        # Upbit: KRW-BTC -> BTC
-        for sym in self._upbit_symbols:
-            canonical = sym.replace("KRW-", "")
-            self._symbol_map[sym] = canonical
-            self._symbol_map[sym.upper()] = canonical
-
         # Binance: btcusdt/BTCUSDT -> BTC
         for sym in self._binance_symbols:
             canonical = sym.upper().replace("USDT", "")
@@ -372,13 +287,11 @@ class SimpleFeedHandler:
         if self._started:
             return
 
-        # Connect WebSockets
-        await self._upbit_ws.connect()
+        # Connect WebSocket
         await self._binance_ws.connect()
 
-        # Start receive loops
+        # Start receive loop
         self._tasks = [
-            asyncio.create_task(self._receive_loop(self._upbit_ws, "upbit")),
             asyncio.create_task(self._receive_loop(self._binance_ws, "binance")),
         ]
 
@@ -394,7 +307,6 @@ class SimpleFeedHandler:
             except asyncio.CancelledError:
                 pass
 
-        await self._upbit_ws.disconnect()
         await self._binance_ws.disconnect()
 
         self._started = False
@@ -416,10 +328,7 @@ class SimpleFeedHandler:
                     self._last_prices[key] = msg
 
                     # Update stats
-                    if exchange == "upbit":
-                        self._upbit_count += 1
-                    else:
-                        self._binance_count += 1
+                    self._binance_count += 1
 
                     # Callback
                     if self._on_price:
@@ -448,10 +357,6 @@ class SimpleFeedHandler:
         """Get feed handler statistics."""
         return {
             "started": self._started,
-            "upbit": {
-                "connected": self._upbit_ws.is_connected,
-                "message_count": self._upbit_count,
-            },
             "binance": {
                 "connected": self._binance_ws.is_connected,
                 "message_count": self._binance_count,

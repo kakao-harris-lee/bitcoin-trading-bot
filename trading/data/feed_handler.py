@@ -165,66 +165,6 @@ class WebSocketHandler(ABC):
         }
 
 
-class UpbitWebSocket(WebSocketHandler):
-    """Upbit WebSocket 핸들러"""
-
-    WS_URL = "wss://api.upbit.com/websocket/v1"
-
-    def __init__(self, symbols: List[str] = None):
-        symbols = symbols or ["KRW-BTC"]
-        super().__init__(Exchange.UPBIT, symbols)
-
-    @property
-    def ws_url(self) -> str:
-        return self.WS_URL
-
-    async def _subscribe(self):
-        """Upbit ticker 구독"""
-        subscribe_msg = [
-            {"ticket": f"trading-engine-{current_timestamp()}"},
-            {
-                "type": "ticker",
-                "codes": self.symbols,
-                "isOnlyRealtime": True
-            },
-            {"format": "SIMPLE"}
-        ]
-        await self._ws.send_json(subscribe_msg)
-        self.logger.info(f"📡 구독 요청: {self.symbols}")
-
-    def _parse_message(self, data: Dict) -> Optional[PriceMessage]:
-        """Upbit 메시지 파싱"""
-        try:
-            # SIMPLE 포맷 필드명
-            # cd: code, tp: trade_price, tv: trade_volume
-            # op: opening_price, hp: high_price, lp: low_price
-            # atv: acc_trade_volume
-
-            if "cd" not in data:
-                return None
-
-            ohlcv = OHLCV(
-                open=float(data.get("op", data.get("tp", 0))),
-                high=float(data.get("hp", data.get("tp", 0))),
-                low=float(data.get("lp", data.get("tp", 0))),
-                close=float(data.get("tp", 0)),
-                volume=float(data.get("tv", 0)),
-            )
-
-            return PriceMessage(
-                timestamp=data.get("tms", current_timestamp()),
-                exchange=Exchange.UPBIT,
-                symbol=data.get("cd", ""),
-                price=float(data.get("tp", 0)),
-                volume_24h=float(data.get("atv", 0)),
-                ohlcv=ohlcv,
-            )
-
-        except Exception as e:
-            self.logger.error(f"Upbit 파싱 오류: {e}, data={data}")
-            return None
-
-
 class BinanceWebSocket(WebSocketHandler):
     """Binance WebSocket 핸들러"""
 
@@ -287,44 +227,32 @@ class FeedHandler(BaseModule):
     """
     Feed Handler - 실시간 데이터 수집기
 
-    Upbit, Binance WebSocket에서 가격 데이터를 수집하여
+    Binance WebSocket에서 가격 데이터를 수집하여
     Redis Stream(market:prices)에 발행
     """
 
     def __init__(
         self,
         config: Optional[Config] = None,
-        upbit_symbols: List[str] = None,
         binance_symbols: List[str] = None,
     ):
         """
         Args:
             config: 설정
-            upbit_symbols: Upbit 구독 심볼 (기본: ["KRW-BTC"])
             binance_symbols: Binance 구독 심볼 (기본: ["btcusdt"])
         """
         super().__init__("feed-handler", config)
 
         # WebSocket 핸들러
-        self._upbit_ws: Optional[UpbitWebSocket] = None
         self._binance_ws: Optional[BinanceWebSocket] = None
-
-        self._upbit_symbols = upbit_symbols or ["KRW-BTC"]
         self._binance_symbols = binance_symbols or ["btcusdt"]
 
         # 통계
-        self._upbit_message_count = 0
         self._binance_message_count = 0
         self._last_prices: Dict[str, PriceMessage] = {}
 
     async def on_start(self):
         """모듈 시작 - WebSocket 연결"""
-        # Upbit 연결
-        if self.config.trading.upbit_enabled:
-            self._upbit_ws = UpbitWebSocket(self._upbit_symbols)
-            if not await self._upbit_ws.connect():
-                self.logger.error("Upbit WebSocket 연결 실패")
-
         # Binance 연결
         if self.config.trading.binance_enabled:
             self._binance_ws = BinanceWebSocket(self._binance_symbols)
@@ -333,23 +261,14 @@ class FeedHandler(BaseModule):
 
     async def on_stop(self):
         """모듈 정지 - WebSocket 종료"""
-        if self._upbit_ws:
-            await self._upbit_ws.disconnect()
         if self._binance_ws:
             await self._binance_ws.disconnect()
 
     async def run_cycle(self):
         """
-        메인 사이클 - 각 WebSocket에서 데이터 수집 후 발행
+        메인 사이클 - Binance WebSocket에서 데이터 수집 후 발행
         """
         tasks = []
-
-        # Upbit 수신 태스크
-        if self._upbit_ws and self._upbit_ws.is_connected:
-            tasks.append(self._receive_and_publish(self._upbit_ws))
-        elif self._upbit_ws and not self._upbit_ws.is_connected:
-            # 재연결 시도
-            tasks.append(self._reconnect(self._upbit_ws))
 
         # Binance 수신 태스크
         if self._binance_ws and self._binance_ws.is_connected:
@@ -376,10 +295,7 @@ class FeedHandler(BaseModule):
                 )
 
                 # 통계 업데이트
-                if ws.exchange == Exchange.UPBIT:
-                    self._upbit_message_count += 1
-                else:
-                    self._binance_message_count += 1
+                self._binance_message_count += 1
 
                 # 최신 가격 캐시
                 key = f"{ws.exchange.value}:{price_msg.symbol}"
@@ -412,12 +328,6 @@ class FeedHandler(BaseModule):
         """통계"""
         base_stats = super().get_stats()
         base_stats.update({
-            "upbit": {
-                "enabled": self.config.trading.upbit_enabled,
-                "connected": self._upbit_ws.is_connected if self._upbit_ws else False,
-                "message_count": self._upbit_message_count,
-                "symbols": self._upbit_symbols,
-            },
             "binance": {
                 "enabled": self.config.trading.binance_enabled,
                 "connected": self._binance_ws.is_connected if self._binance_ws else False,
@@ -455,8 +365,7 @@ async def main():
         for _ in range(30):
             await handler.run_cycle()
             stats = handler.get_stats()
-            print(f"\r📊 Upbit: {stats['upbit']['message_count']} | "
-                  f"Binance: {stats['binance']['message_count']}", end="", flush=True)
+            print(f"\r📊 Binance: {stats['binance']['message_count']}", end="", flush=True)
 
     except KeyboardInterrupt:
         print("\n\n중단됨")

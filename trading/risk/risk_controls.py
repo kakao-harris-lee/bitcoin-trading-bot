@@ -25,11 +25,9 @@ class RiskConfig:
     daily_max_loss_pct: float = 2.0
 
     # Caps on per-entry sizing as a fraction of available cash.
-    max_upbit_entry_fraction: float = 1.0
     max_binance_entry_fraction: float = 1.0
 
     # Minimum order amounts.
-    min_upbit_order_krw: float = 5_000.0
     min_binance_order_usdt: float = 10.0
 
     # Kill-switch recommendation thresholds (notify operator; does not auto-enable).

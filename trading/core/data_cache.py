@@ -57,7 +57,7 @@ class DataCache:
         max_rows: int = 5000,
         sync_interval: int = 300,  # 5 minutes
         initial_lookback_days: int = 365,
-        exchange: Literal["upbit", "binance"] = "upbit",
+        exchange: Literal["upbit", "binance"] = "binance",
     ):
         """
         Args:

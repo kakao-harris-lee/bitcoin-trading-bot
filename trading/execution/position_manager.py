@@ -268,7 +268,7 @@ class PositionManager(BaseModule):
         """체결 결과 처리"""
         try:
             order_id = exec_data.get("order_id")
-            exchange = Exchange(exec_data.get("exchange", "upbit"))
+            exchange = Exchange(exec_data.get("exchange", "binance"))
             symbol = exec_data.get("symbol", "")
             action = Action(exec_data.get("action", "hold"))
             direction = Direction(exec_data.get("direction", "long"))

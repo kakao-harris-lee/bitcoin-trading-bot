@@ -15,8 +15,8 @@ class PaperTradingAccount:
     def __init__(self, initial_capital: float, exchange: str):
         """
         Args:
-            initial_capital: 초기 자본 (KRW 또는 USDT)
-            exchange: 'upbit' 또는 'binance'
+            initial_capital: 초기 자본 (USDT)
+            exchange: Exchange name (e.g., 'binance')
         """
         self.exchange = exchange
         self.initial_capital = initial_capital

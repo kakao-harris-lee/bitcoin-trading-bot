@@ -29,18 +29,17 @@ class TradeExecutor:
         "signals:h4",
     ]
 
-    # Strategy to exchange mapping
+    # Strategy to exchange mapping (Binance only)
     STRATEGY_EXCHANGE = {
-        "v35": "upbit",
-        "sideways_v2": "upbit",
-        "h4": "upbit",
+        "v35": "binance",
+        "sideways_v2": "binance",
+        "h4": "binance",
         "short_v1": "binance",
     }
 
     def __init__(
         self,
         redis_client,
-        upbit_adapter,
         binance_adapter,
         config,
         notifier=None
@@ -48,13 +47,11 @@ class TradeExecutor:
         """
         Args:
             redis_client: RedisClient instance
-            upbit_adapter: Upbit exchange adapter
             binance_adapter: Binance exchange adapter
             config: Configuration
             notifier: Optional TelegramNotifier
         """
         self.redis = redis_client
-        self.upbit = upbit_adapter
         self.binance = binance_adapter
         self.config = config
         self.notifier = notifier
@@ -64,8 +61,7 @@ class TradeExecutor:
         # Risk controls
         self.risk = RiskControls(config)
 
-        # Trading modes
-        self.upbit_mode = getattr(config, 'upbit_mode', 'paper')
+        # Trading mode
         self.binance_mode = getattr(config, 'binance_mode', 'paper')
 
         # Position tracking per strategy
@@ -122,14 +118,9 @@ class TradeExecutor:
             self.logger.warning(f"Signal blocked by risk controls: {strategy}")
             return
 
-        # Route to exchange
-        exchange = self.STRATEGY_EXCHANGE.get(strategy, "upbit")
-
+        # Execute on Binance
         try:
-            if exchange == "upbit":
-                await self._execute_upbit(strategy, signal)
-            elif exchange == "binance":
-                await self._execute_binance(strategy, signal)
+            await self._execute_binance(strategy, signal)
 
             # Notify
             if self.notifier:
@@ -137,23 +128,6 @@ class TradeExecutor:
 
         except Exception as e:
             self.logger.error(f"Execution error for {strategy}: {e}", exc_info=True)
-
-    async def _execute_upbit(self, strategy: str, signal: Dict):
-        """Execute trade on Upbit."""
-        action = signal.get("action")
-        price = signal.get("price", 0)
-        size = signal.get("size", 0)
-
-        if self.upbit_mode == "paper":
-            self.logger.info(f"[PAPER] Upbit {action}: {size} @ {price}")
-            # Update paper position
-            self._update_paper_position(strategy, action, price, size)
-        else:
-            # Live execution
-            if action == "buy":
-                await self.upbit.buy(size=size, price=price)
-            elif action in ["sell", "close"]:
-                await self.upbit.sell(size=size, price=price)
 
     def _has_active_binance_position(self, exclude_strategy: str) -> bool:
         """Check if any other strategy has an active Binance position."""

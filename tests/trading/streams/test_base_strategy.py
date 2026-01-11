@@ -116,3 +116,140 @@ async def test_strategy_skips_when_blocked(mock_redis):
 
     # Should not publish order
     mock_redis.publish.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_strategy_publishes_exit_signal_with_smart_exit(mock_redis):
+    """Test exit signal publishing for smart execution."""
+    mock_redis.get_position = AsyncMock(return_value={
+        "quantity": "0.01",
+        "entry_price": "40000",
+        "strategy": "test",
+        "side": "buy",
+    })
+    mock_redis.clear_position = AsyncMock()
+
+    class TestExitStrategy(BaseStrategyTask):
+        async def evaluate(self, symbol: str) -> dict | None:
+            return None
+
+        async def evaluate_exit(self, symbol: str, position: dict) -> dict | None:
+            return {
+                "symbol": symbol,
+                "side": "sell",
+                "market": "spot",
+                "quantity": position["quantity"],
+                "trigger_price": "42000",
+                "reason": "test exit",
+            }
+
+    strategy = TestExitStrategy(
+        name="test",
+        symbols=["BTC"],
+        redis=mock_redis,
+        market="spot",
+        use_smart_exit=True,
+    )
+
+    msg = {"symbol": "BTC", "price": "42000", "market": "spot", "_id": "1-0"}
+    await strategy._handle_message(msg)
+
+    # Should publish to exit_signals, not orders
+    calls = mock_redis.publish.call_args_list
+    assert len(calls) == 1
+    assert calls[0][0][0] == "exit_signals"
+    exit_signal = calls[0][0][1]
+    assert exit_signal["symbol"] == "BTC"
+    assert exit_signal["side"] == "sell"
+    assert exit_signal["strategy"] == "test"
+    assert exit_signal["trigger_price"] == "42000"
+
+    # Position should NOT be cleared when using smart exit
+    mock_redis.clear_position.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_strategy_publishes_to_orders_without_smart_exit(mock_redis):
+    """Test that without smart exit, exit signals go to orders stream."""
+    mock_redis.get_position = AsyncMock(return_value={
+        "quantity": "0.01",
+        "entry_price": "40000",
+        "strategy": "test",
+        "side": "buy",
+    })
+    mock_redis.clear_position = AsyncMock()
+
+    class TestExitStrategy(BaseStrategyTask):
+        async def evaluate(self, symbol: str) -> dict | None:
+            return None
+
+        async def evaluate_exit(self, symbol: str, position: dict) -> dict | None:
+            return {
+                "symbol": symbol,
+                "side": "sell",
+                "market": "spot",
+                "quantity": position["quantity"],
+                "reason": "test exit",
+            }
+
+    strategy = TestExitStrategy(
+        name="test",
+        symbols=["BTC"],
+        redis=mock_redis,
+        market="spot",
+        use_smart_exit=False,  # Default behavior
+    )
+
+    msg = {"symbol": "BTC", "price": "42000", "market": "spot", "_id": "1-0"}
+    await strategy._handle_message(msg)
+
+    # Should publish to orders stream (legacy behavior)
+    calls = mock_redis.publish.call_args_list
+    assert len(calls) == 1
+    assert calls[0][0][0] == "orders"
+
+    # Position should be cleared
+    mock_redis.clear_position.assert_called_once_with("BTC", "spot")
+
+
+@pytest.mark.asyncio
+async def test_exit_signal_adds_trigger_price_from_buffer(mock_redis):
+    """Test that trigger_price is added from buffer if not in signal."""
+    mock_redis.get_position = AsyncMock(return_value={
+        "quantity": "0.01",
+        "entry_price": "40000",
+        "strategy": "test",
+        "side": "buy",
+    })
+    mock_redis.clear_position = AsyncMock()
+
+    class TestExitStrategy(BaseStrategyTask):
+        async def evaluate(self, symbol: str) -> dict | None:
+            return None
+
+        async def evaluate_exit(self, symbol: str, position: dict) -> dict | None:
+            # Exit signal WITHOUT trigger_price
+            return {
+                "symbol": symbol,
+                "side": "sell",
+                "market": "spot",
+                "quantity": position["quantity"],
+                "reason": "test exit",
+            }
+
+    strategy = TestExitStrategy(
+        name="test",
+        symbols=["BTC"],
+        redis=mock_redis,
+        market="spot",
+        use_smart_exit=True,
+    )
+
+    msg = {"symbol": "BTC", "price": "42500", "market": "spot", "_id": "1-0"}
+    await strategy._handle_message(msg)
+
+    # Should have trigger_price from buffer
+    calls = mock_redis.publish.call_args_list
+    assert len(calls) == 1
+    exit_signal = calls[0][0][1]
+    assert exit_signal["trigger_price"] == "42500"

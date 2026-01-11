@@ -278,6 +278,32 @@ class TestRedisStreamsUnit:
         mock_client.hgetall.return_value = {"kill_switch": "true"}
         assert await redis_streams.is_kill_switch_on()
 
+    async def test_publish_to_arbitrary_stream_name(self, redis_streams):
+        """Test that publish works with arbitrary stream names including 'exit_signals'."""
+        mock_client = MagicMock()
+        mock_client.xadd = AsyncMock(return_value="1234567890-0")
+        redis_streams._client = mock_client
+
+        # Test with exit_signals stream
+        msg_id = await redis_streams.publish("exit_signals", {
+            "symbol": "BTC",
+            "market": "spot",
+            "quantity": "0.05",
+            "trigger_price": "43000"
+        })
+
+        assert msg_id == "1234567890-0"
+        mock_client.xadd.assert_called_once()
+        call_args = mock_client.xadd.call_args
+        assert call_args[0][0] == "exit_signals"
+        assert call_args[0][1]["symbol"] == "BTC"
+
+        # Test with other custom stream names
+        mock_client.xadd.reset_mock()
+        await redis_streams.publish("custom:stream", {"data": "value"})
+        mock_client.xadd.assert_called_once()
+        assert mock_client.xadd.call_args[0][0] == "custom:stream"
+
 
 @pytest.mark.integration
 @skip_if_no_redis
@@ -335,3 +361,38 @@ class TestRedisStreamsIntegration:
         # Exists
         assert await connected_streams.hexists(key, "symbol") is True
         assert await connected_streams.hexists(key, "nonexistent") is False
+
+    async def test_exit_signals_stream_integration(self, connected_streams):
+        """Test exit_signals stream with publish/consume cycle."""
+        stream = "exit_signals"
+        group = "smart-executor"
+        consumer = "smart-executor-test"
+
+        # Setup consumer group
+        await connected_streams.create_consumer_group(stream, group)
+
+        # Publish exit signal
+        msg_id = await connected_streams.publish(stream, {
+            "symbol": "BTC",
+            "market": "spot",
+            "quantity": "0.05",
+            "trigger_price": "43000",
+            "strategy": "v35_long"
+        })
+        assert msg_id is not None
+
+        # Consume exit signal
+        messages = await connected_streams.consume(stream, group, consumer, count=1)
+        assert len(messages) == 1
+        assert messages[0]["symbol"] == "BTC"
+        assert messages[0]["market"] == "spot"
+        assert messages[0]["quantity"] == "0.05"
+        assert messages[0]["trigger_price"] == "43000"
+        assert messages[0]["strategy"] == "v35_long"
+
+        # Acknowledge message
+        await connected_streams.ack(stream, group, messages[0]["_id"])
+
+        # Verify no more messages
+        messages = await connected_streams.consume(stream, group, consumer, count=1, block_ms=100)
+        assert len(messages) == 0

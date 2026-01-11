@@ -13,43 +13,6 @@ from typing import Any, Dict, Optional, Tuple
 
 
 @dataclass
-class UpbitLiveAccount:
-    """Adapter over UpbitTrader with a PaperTradingAccount-like API."""
-
-    trader: Any
-    initial_capital: float
-
-    def get_balance(self) -> Tuple[float, float]:
-        return self.trader.get_balance()
-
-    def get_total_value(self, current_price: float) -> float:
-        krw, btc = self.get_balance()
-        return float(krw) + float(btc) * float(current_price)
-
-    def buy(self, amount: float, price: float) -> Dict[str, Any]:  # price ignored (market)
-        result = self.trader.buy_market_order(float(amount))
-        return result or {"success": False, "error": "BUY_FAILED"}
-
-    def sell(self, btc_qty: float, price: float) -> Dict[str, Any]:  # price ignored (market)
-        result = self.trader.sell_market_order(float(btc_qty))
-        return result or {"success": False, "error": "SELL_FAILED"}
-
-    def get_statistics(self) -> Dict[str, Any]:
-        total_value = self.trader.get_total_value()
-        return_pct = ((total_value - self.initial_capital) / self.initial_capital) * 100 if self.initial_capital > 0 else 0.0
-        return {
-            "total_trades": None,
-            "total_pnl": None,
-            "total_fees": None,
-            "net_pnl": None,
-            "win_rate": None,
-            "initial_capital": self.initial_capital,
-            "current_cash": self.get_balance()[0],
-            "return_pct": return_pct,
-        }
-
-
-@dataclass
 class BinanceLiveAccount:
     """Adapter over BinanceFuturesTrader with a PaperTradingAccount-like API."""
 

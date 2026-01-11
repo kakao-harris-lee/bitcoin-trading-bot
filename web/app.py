@@ -233,13 +233,13 @@ def read_json_logs(log_type: str = 'signals', exchanges: list = None) -> list:
 
     Args:
         log_type: 'signals' or 'trades'
-        exchanges: List of exchanges to read from (default: ['upbit', 'binance'])
+        exchanges: List of exchanges to read from (default: ['binance'])
 
     Returns:
         List of entries with exchange field added
     """
     if exchanges is None:
-        exchanges = ['upbit', 'binance']
+        exchanges = ['binance']
 
     all_entries = []
     for exchange in exchanges:
@@ -752,28 +752,13 @@ def get_signals():
 
 @app.route("/api/statistics")
 def get_statistics():
-    """통합 통계 API"""
+    """통합 통계 API - Binance only"""
 
-    upbit_log = load_trading_log('upbit')
     binance_log = load_trading_log('binance')
 
     statistics = {
-        'upbit': upbit_log.get('statistics', {}) if upbit_log else {},
         'binance': binance_log.get('statistics', {}) if binance_log else {}
     }
-
-    # 합계 계산 (간단히 수익률 평균)
-    if upbit_log and binance_log:
-        upbit_return = statistics['upbit'].get('return_pct', 0)
-        binance_return = statistics['binance'].get('return_pct', 0)
-
-        statistics['combined'] = {
-            'average_return_pct': (upbit_return + binance_return) / 2,
-            'total_trades': (
-                statistics['upbit'].get('total_trades', 0) +
-                statistics['binance'].get('total_trades', 0)
-            )
-        }
 
     return jsonify(statistics)
 
@@ -943,8 +928,7 @@ def get_daily_analytics():
 @app.route("/api/positions")
 def get_positions():
     """
-    Get consolidated positions from both exchanges.
-    Returns positions with unrealized P&L.
+    Get Binance Futures positions with unrealized P&L.
     """
     result = {
         'timestamp': datetime.now().isoformat(),
@@ -953,51 +937,6 @@ def get_positions():
         'positions': [],
         'errors': []
     }
-
-    # Fetch Upbit positions
-    try:
-        import pyupbit
-
-        upbit_client = pyupbit.Upbit(
-            os.getenv('UPBIT_ACCESS_KEY'),
-            os.getenv('UPBIT_SECRET_KEY')
-        )
-        balances = upbit_client.get_balances()
-
-        for bal in balances:
-            currency = bal.get('currency', '')
-            if currency == 'KRW':
-                continue
-
-            balance = float(bal.get('balance', 0))
-            avg_price = float(bal.get('avg_buy_price', 0))
-
-            if balance > 0 and avg_price > 0:
-                ticker = f"KRW-{currency}"
-                current_price = pyupbit.get_current_price(ticker) or avg_price
-                value = balance * current_price
-                cost = balance * avg_price
-                unrealized_pnl = value - cost
-                unrealized_pnl_pct = ((current_price / avg_price) - 1) * 100 if avg_price > 0 else 0
-
-                result['positions'].append({
-                    'symbol': currency,
-                    'exchange': 'upbit',
-                    'side': 'LONG',
-                    'quantity': balance,
-                    'entry_price': avg_price,
-                    'current_price': current_price,
-                    'value': value,
-                    'unrealized_pnl': unrealized_pnl,
-                    'unrealized_pnl_pct': unrealized_pnl_pct,
-                    'liquidation_price': None,
-                    'leverage': None
-                })
-                result['total_value'] += value
-                result['total_unrealized_pnl'] += unrealized_pnl
-
-    except Exception as e:
-        result['errors'].append(f'Upbit: {str(e)}')
 
     # Fetch Binance Futures positions
     try:
@@ -1154,72 +1093,12 @@ def cancel_backtest(job_id: str):
 
 @app.route("/api/exchange_balances")
 def get_exchange_balances():
-    """Fetch live balances from Upbit and Binance exchanges."""
+    """Fetch live balances from Binance Futures."""
     result = {
         'timestamp': datetime.now().isoformat(),
-        'upbit': None,
         'binance': None,
         'errors': []
     }
-
-    # Fetch Upbit balance
-    try:
-        from trading.adapters.upbit import UpbitTrader
-        import pyupbit
-
-        upbit = UpbitTrader()
-        krw_balance, btc_balance = upbit.get_balance()
-        btc_price = upbit.get_current_price() or 0
-
-        btc_value = btc_balance * btc_price if btc_price else 0
-        total_krw = krw_balance + btc_value
-
-        # Get all coin balances from Upbit
-        positions = []
-        try:
-            upbit_client = pyupbit.Upbit(
-                os.getenv('UPBIT_ACCESS_KEY'),
-                os.getenv('UPBIT_SECRET_KEY')
-            )
-            balances = upbit_client.get_balances()
-            for bal in balances:
-                currency = bal.get('currency', '')
-                if currency == 'KRW':
-                    continue
-                balance = float(bal.get('balance', 0))
-                avg_price = float(bal.get('avg_buy_price', 0))
-                if balance > 0 and avg_price > 0:
-                    # Get current price
-                    ticker = f"KRW-{currency}"
-                    current_price = pyupbit.get_current_price(ticker) or avg_price
-                    value_krw = balance * current_price
-                    cost_krw = balance * avg_price
-                    pnl_krw = value_krw - cost_krw
-                    pnl_pct = ((current_price / avg_price) - 1) * 100 if avg_price > 0 else 0
-
-                    positions.append({
-                        'symbol': currency,
-                        'quantity': balance,
-                        'avg_price': avg_price,
-                        'current_price': current_price,
-                        'value_krw': value_krw,
-                        'cost_krw': cost_krw,
-                        'pnl_krw': pnl_krw,
-                        'pnl_pct': pnl_pct,
-                    })
-        except Exception as e:
-            result['errors'].append(f'Upbit positions: {str(e)}')
-
-        result['upbit'] = {
-            'krw_balance': krw_balance,
-            'btc_balance': btc_balance,
-            'btc_price': btc_price,
-            'btc_value_krw': btc_value,
-            'total_krw': total_krw,
-            'positions': positions,
-        }
-    except Exception as e:
-        result['errors'].append(f'Upbit: {str(e)}')
 
     # Fetch Binance balance
     try:

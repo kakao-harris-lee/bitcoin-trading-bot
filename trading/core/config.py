@@ -50,7 +50,6 @@ class RedisConfig:
             "risk-manager",
         ],
         "orders:pending": [
-            "executor-upbit",
             "executor-binance",
         ],
         "orders:executed": [
@@ -72,11 +71,9 @@ class RedisConfig:
 class TradingConfig:
     """트레이딩 설정"""
     # 거래소 설정
-    upbit_enabled: bool = True
     binance_enabled: bool = True
 
     # 초기 자본
-    upbit_capital: float = 10_000_000  # 10M KRW
     binance_capital: float = 10_000     # 10K USDT
 
     # 리스크 파라미터

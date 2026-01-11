@@ -43,6 +43,7 @@ def load_data(
     timeframe: str,
     start_date: str,
     end_date: str,
+    exchange: str = None,
 ) -> pd.DataFrame:
     """Load OHLCV data from database.
 
@@ -51,11 +52,19 @@ def load_data(
         timeframe: Candle timeframe (day, minute240, etc.)
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
+        exchange: Exchange type ("upbit" or "binance"). Auto-detected from db_path if None.
 
     Returns:
         DataFrame with OHLCV data
     """
-    with DataLoader(db_path) as loader:
+    # Auto-detect exchange from db_path
+    if exchange is None:
+        if "binance" in str(db_path).lower():
+            exchange = "binance"
+        else:
+            exchange = "upbit"
+
+    with DataLoader(db_path, exchange=exchange) as loader:
         df = loader.load_timeframe(timeframe, start_date, end_date)
     return df
 

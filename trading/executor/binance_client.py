@@ -198,6 +198,114 @@ class BinanceClient:
             logger.error(f"Order failed: {e}")
             raise
 
+    async def limit_order(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        price: float,
+        market: str,
+    ) -> dict[str, Any]:
+        """Place limit order on spot or futures."""
+        pair = f"{symbol}USDT"
+
+        try:
+            if market == "futures":
+                result = await self._futures_client.futures_create_order(
+                    symbol=pair,
+                    side=side.upper(),
+                    type="LIMIT",
+                    quantity=quantity,
+                    price=price,
+                    timeInForce="GTC",
+                )
+            else:
+                result = await self._spot_client.create_order(
+                    symbol=pair,
+                    side=side.upper(),
+                    type="LIMIT",
+                    quantity=quantity,
+                    price=price,
+                    timeInForce="GTC",
+                )
+
+            return {
+                "order_id": result["orderId"],
+                "symbol": symbol,
+                "side": side,
+                "market": market,
+                "price": float(result.get("price", price)),
+                "quantity": quantity,
+                "filled_qty": float(result.get("executedQty", 0)),
+                "status": result["status"],
+            }
+
+        except Exception as e:
+            logger.error(f"Limit order failed: {e}")
+            raise
+
+    async def cancel_order(
+        self,
+        symbol: str,
+        order_id: int,
+        market: str,
+    ) -> dict[str, Any]:
+        """Cancel an open order."""
+        pair = f"{symbol}USDT"
+
+        try:
+            if market == "futures":
+                result = await self._futures_client.futures_cancel_order(
+                    symbol=pair,
+                    orderId=order_id,
+                )
+            else:
+                result = await self._spot_client.cancel_order(
+                    symbol=pair,
+                    orderId=order_id,
+                )
+
+            return {
+                "order_id": result["orderId"],
+                "status": result["status"],
+            }
+
+        except Exception as e:
+            logger.error(f"Cancel order failed: {e}")
+            raise
+
+    async def get_order(
+        self,
+        symbol: str,
+        order_id: int,
+        market: str,
+    ) -> dict[str, Any]:
+        """Get order status."""
+        pair = f"{symbol}USDT"
+
+        try:
+            if market == "futures":
+                result = await self._futures_client.futures_get_order(
+                    symbol=pair,
+                    orderId=order_id,
+                )
+            else:
+                result = await self._spot_client.get_order(
+                    symbol=pair,
+                    orderId=order_id,
+                )
+
+            return {
+                "order_id": result["orderId"],
+                "status": result["status"],
+                "filled_qty": float(result.get("executedQty", 0)),
+                "price": float(result.get("price", 0)),
+            }
+
+        except Exception as e:
+            logger.error(f"Get order failed: {e}")
+            raise
+
 
 class MockBinanceClient:
     """Mock client for testing without real API."""

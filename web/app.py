@@ -35,8 +35,13 @@ try:
 except ImportError:
     trade_logger = None
 
-# Import analytics service
+# Import analytics service (relative import from web/services/)
 try:
+    import sys
+    from pathlib import Path
+    web_dir = Path(__file__).parent
+    if str(web_dir) not in sys.path:
+        sys.path.insert(0, str(web_dir))
     from services.analytics import calculate_metrics, calculate_equity_curve
 except Exception as e:
     print(f"Failed to import analytics: {e}")
@@ -173,6 +178,84 @@ def read_json_logs(log_type: str = 'signals', exchanges: list = None) -> list:
     # Sort by timestamp descending
     all_entries.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
     return all_entries
+
+
+def read_redis_trades(limit: int = 1000) -> list:
+    """
+    Read trades from Redis 'trades' stream (stream architecture).
+
+    Returns:
+        List of trade dicts with standardized format
+    """
+    try:
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+
+        # Read from trades stream (newest first by reversing)
+        messages = r.xrevrange('trades', count=limit)
+
+        trades = []
+        for msg_id, data in messages:
+            # Convert timestamp from millis to ISO format
+            ts_millis = int(data.get('timestamp', msg_id.split('-')[0]))
+            ts_dt = datetime.fromtimestamp(ts_millis / 1000)
+
+            trade = {
+                'id': data.get('order_id', msg_id),
+                'timestamp': ts_dt.isoformat(),
+                'action': data.get('side', '').upper(),
+                'symbol': data.get('symbol', ''),
+                'price': float(data.get('price', 0)),
+                'volume': float(data.get('quantity', 0)),
+                'market': data.get('market', 'spot'),
+                'exchange': 'binance',
+                'strategy': data.get('strategy', ''),
+                'paper': data.get('paper', 'true') == 'true',
+                'profit': float(data.get('profit', 0)) if data.get('profit') else None,
+                'profit_pct': float(data.get('profit_pct', 0)) if data.get('profit_pct') else None,
+                'reason': data.get('reason', ''),
+            }
+            trades.append(trade)
+
+        return trades
+    except Exception as e:
+        print(f"Error reading Redis trades: {e}")
+        return []
+
+
+def read_redis_orders(limit: int = 200) -> list:
+    """
+    Read order intents/signals from Redis 'orders' stream.
+
+    Returns:
+        List of signal dicts
+    """
+    try:
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+
+        # Read from orders stream (pending signals)
+        messages = r.xrevrange('orders', count=limit)
+
+        signals = []
+        for msg_id, data in messages:
+            ts_millis = int(msg_id.split('-')[0])
+            ts_dt = datetime.fromtimestamp(ts_millis / 1000)
+
+            signal = {
+                'id': data.get('id', msg_id),
+                'timestamp': ts_dt.isoformat(),
+                'action': data.get('side', '').upper(),
+                'symbol': data.get('symbol', ''),
+                'market': data.get('market', 'spot'),
+                'strategy': data.get('strategy', ''),
+                'reason': data.get('reason', ''),
+                'exchange': 'binance',
+            }
+            signals.append(signal)
+
+        return signals
+    except Exception as e:
+        print(f"Error reading Redis orders: {e}")
+        return []
 
 
 def load_multi_asset_status() -> dict:
@@ -502,39 +585,11 @@ def get_trades():
     # Clamp limit
     limit = min(max(1, limit), 500)
 
-    # Try to use TradeLogger for database trades first
-    db_trades = []
-    if trade_logger:
-        try:
-            # Get trades from database
-            if start_date and end_date:
-                db_trades = trade_logger.get_trades_for_date_range(start_date, end_date)
-            else:
-                db_trades = trade_logger.get_recent_trades(limit=1000)
-        except Exception as e:
-            print(f"TradeLogger error: {e}")
+    # Read trades from Redis stream (stream architecture)
+    redis_trades = read_redis_trades(limit=1000)
 
-    # Also get trades from JSON logs for richer data
-    json_trades = read_json_logs('trades')
-
-    # Merge and dedupe trades (prefer JSON for detail, DB for completeness)
-    all_trades = []
-
-    # Add JSON trades first (have more detail)
-    for t in json_trades:
-        all_trades.append({
-            'id': t.get('id', len(all_trades)),
-            'timestamp': t.get('timestamp', ''),
-            'action': t.get('action', '').upper(),
-            'price': t.get('price', 0),
-            'volume': t.get('volume', 0),
-            'profit': t.get('profit'),
-            'profit_pct': t.get('profit_pct'),
-            'exchange': t.get('exchange', 'unknown'),
-            'strategy': t.get('strategy', ''),
-            'reason': t.get('reason', ''),
-            'regime': t.get('regime', ''),
-        })
+    # All trades from Redis (already formatted)
+    all_trades = redis_trades
 
     # Apply filters
     filtered_trades = all_trades
@@ -630,22 +685,22 @@ def get_signals():
     # Clamp limit
     limit = min(max(1, limit), 200)
 
-    # Read signals from JSON logs
-    all_signals = read_json_logs('signals')
+    # Read executed trades from Redis (these are completed signals)
+    redis_trades = read_redis_trades(limit=limit)
 
-    # Transform to standard format
+    # Transform trades to signal format
     signals = []
-    for s in all_signals:
+    for t in redis_trades:
         signals.append({
-            'timestamp': s.get('timestamp', ''),
-            'exchange': s.get('exchange', 'unknown'),
-            'strategy': s.get('strategy', ''),
-            'action': s.get('action', 'hold'),
-            'reason': s.get('reason', ''),
-            'regime': s.get('regime', ''),
-            'market_state': s.get('market_state', ''),
-            'acted': s.get('acted', False),
-            'indicators': s.get('indicators', {}),
+            'timestamp': t.get('timestamp', ''),
+            'exchange': t.get('exchange', 'binance'),
+            'strategy': t.get('strategy', ''),
+            'action': t.get('action', '').lower(),
+            'symbol': t.get('symbol', ''),
+            'market': t.get('market', 'spot'),
+            'price': t.get('price', 0),
+            'reason': t.get('reason', ''),
+            'acted': True,  # All trades from stream are executed
         })
 
     # Apply filters
@@ -653,7 +708,7 @@ def get_signals():
         signals = [s for s in signals if s['exchange'] == exchange_filter]
 
     if action_filter:
-        signals = [s for s in signals if s['action'] == action_filter]
+        signals = [s for s in signals if s['action'] == action_filter.lower()]
 
     # Limit results
     signals = signals[:limit]
@@ -691,8 +746,8 @@ def get_analytics():
     if period not in valid_periods:
         period = '30d'
 
-    # Get trades from JSON logs
-    all_trades = read_json_logs('trades')
+    # Get trades from Redis stream
+    all_trades = read_redis_trades(limit=1000)
 
     # Filter by strategy if specified
     if strategy_filter:
@@ -723,8 +778,8 @@ def get_equity_curve():
 
     max_points = min(max(1, max_points), 500)
 
-    # Get trades from JSON logs
-    all_trades = read_json_logs('trades')
+    # Get trades from Redis stream
+    all_trades = read_redis_trades(limit=1000)
 
     # Calculate equity curve
     if calculate_equity_curve:
@@ -757,8 +812,8 @@ def get_daily_analytics():
     if period not in valid_periods:
         period = '30d'
 
-    # Get trades from JSON logs
-    all_trades = read_json_logs('trades')
+    # Get trades from Redis stream
+    all_trades = read_redis_trades(limit=1000)
 
     # Filter by period
     now = datetime.now()

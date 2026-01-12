@@ -278,7 +278,6 @@ function renderAssetCards(assets) {
                 <div class="asset-header">
                     <span class="asset-symbol">${data.symbol}</span>
                     <span class="asset-exchange">${data.exchange.toUpperCase()}</span>
-                    <span class="asset-regime ${regimeClass}">${regimeLabel}</span>
                 </div>
                 <div class="asset-prices">
                     <div class="price-row">
@@ -288,16 +287,6 @@ function renderAssetCards(assets) {
                     <div class="price-row">
                         <span class="label">Leverage</span>
                         <span class="value">${data.leverage || 1}x</span>
-                    </div>
-                </div>
-                <div class="asset-allocation">
-                    <div class="info-row">
-                        <span class="label">Allocation</span>
-                        <span class="value">${(data.alpha_ratio * 100).toFixed(0)}%</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Capital</span>
-                        <span class="value">${formatUSD(data.capital_usdt)}</span>
                     </div>
                 </div>
                 <div class="asset-position">

@@ -11,6 +11,8 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 
 from trading.strategies.volatility_tracker import VolatilityTracker
+from trading.utils.precision import PriceUtils, get_symbol_info
+from trading.utils.exchange_info import get_exchange_cache
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -123,20 +125,28 @@ class SmartExecutor:
         # Mixed = choppy/bouncing
         return "bouncing"
 
-    def _calculate_ladder_prices(self, base_price: float) -> list[float]:
-        """Calculate limit prices for ladder tiers."""
+    def _calculate_ladder_prices(self, base_price: float, symbol: str, market: str) -> list[float]:
+        """Calculate limit prices for ladder tiers with Binance tick_size compliance."""
+        cache = get_exchange_cache(market)
+        symbol_info = cache.get(symbol)
+
         prices = []
         for tier_pct in self.ladder_tiers:
             price = base_price * (1 + tier_pct / 100)
-            prices.append(round(price, 2))
+            rounded_price = PriceUtils.round_to_tick(price, symbol_info.tick_size)
+            prices.append(float(rounded_price))
         return prices
 
-    def _calculate_ladder_quantities(self, total_qty: float) -> list[float]:
-        """Calculate quantity for each ladder tier."""
+    def _calculate_ladder_quantities(self, total_qty: float, symbol: str, market: str) -> list[float]:
+        """Calculate quantity for each ladder tier with Binance LOT_SIZE compliance."""
+        cache = get_exchange_cache(market)
+        symbol_info = cache.get(symbol)
+
         quantities = []
         for weight in self.ladder_weights:
             qty = total_qty * weight
-            quantities.append(round(qty, 8))
+            rounded_qty = PriceUtils.round_down_to_step(qty, symbol_info.step_size)
+            quantities.append(float(rounded_qty))
         return quantities
 
     async def run(self) -> None:
@@ -149,6 +159,14 @@ class SmartExecutor:
 
         # Restore state
         await self._load_state()
+
+        # Initialize exchange info cache for LOT_SIZE/PRICE_FILTER compliance
+        symbols = self.config.get("symbols", ["BTC", "ETH", "SOL"])
+        spot_cache = get_exchange_cache("spot")
+        futures_cache = get_exchange_cache("futures")
+        await spot_cache.refresh(symbols)
+        await futures_cache.refresh(symbols)
+        logger.info(f"ExchangeInfo loaded for {symbols}")
 
         logger.info("SmartExecutor started")
 
@@ -276,6 +294,12 @@ class SmartExecutor:
         trigger_price = float(signal.get("trigger_price", 0))
         strategy = signal.get("strategy", "unknown")
 
+        # Skip if exit already in progress for this symbol
+        exit_key = f"{symbol}:{market}"
+        if exit_key in self.active_exits:
+            logger.debug(f"Exit already active for {symbol}, skipping duplicate signal")
+            return
+
         logger.info(f"Received exit signal: {symbol} {quantity} @ {trigger_price}")
 
         # Create exit plan
@@ -297,10 +321,15 @@ class SmartExecutor:
 
     async def _execute_ladder(self, plan: ExitPlan) -> None:
         """Place limit order ladder."""
-        prices = self._calculate_ladder_prices(plan.trigger_price)
-        quantities = self._calculate_ladder_quantities(plan.total_quantity)
+        prices = self._calculate_ladder_prices(plan.trigger_price, plan.symbol, plan.market)
+        quantities = self._calculate_ladder_quantities(plan.total_quantity, plan.symbol, plan.market)
 
         for price, qty in zip(prices, quantities):
+            # Skip tiers with zero quantity after rounding
+            if qty <= 0:
+                logger.warning(f"Skipping ladder tier: qty rounded to 0 @ {price}")
+                continue
+
             try:
                 result = await self.client.limit_order(
                     symbol=plan.symbol,
@@ -372,7 +401,16 @@ class SmartExecutor:
 
     async def _sweep_remaining(self, plan: ExitPlan, remaining_qty: float) -> None:
         """Cancel unfilled orders and sweep with market order."""
-        logger.info(f"Sweeping remaining {remaining_qty} {plan.symbol}")
+        # Round quantity to step_size for LOT_SIZE compliance
+        cache = get_exchange_cache(plan.market)
+        symbol_info = cache.get(plan.symbol)
+        rounded_qty = float(PriceUtils.round_down_to_step(remaining_qty, symbol_info.step_size))
+
+        logger.info(f"Sweeping remaining {rounded_qty} {plan.symbol} (raw: {remaining_qty})")
+
+        if rounded_qty <= 0:
+            logger.warning(f"Sweep cancelled: qty rounded to 0 for {plan.symbol}")
+            return
 
         # Cancel unfilled orders
         for order in plan.ladder_orders:
@@ -390,7 +428,7 @@ class SmartExecutor:
             result = await self.client.market_order(
                 symbol=plan.symbol,
                 side="sell",
-                quantity=remaining_qty,
+                quantity=rounded_qty,
                 market=plan.market,
             )
             logger.info(f"Sweep complete: {result}")

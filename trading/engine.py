@@ -56,12 +56,16 @@ class TradingEngine:
         self.redis = RedisStreams(url=self.config.get("redis_url", "redis://localhost:6379"))
         await self.redis.connect()
 
-        # Initialize risk state
-        await self.redis.set_risk({
-            "kill_switch": "false",
-            "blocked": "false",
-            "daily_pnl": "0",
-        })
+        # Initialize risk state (only if not exists)
+        current_risk = await self.redis.get_risk()
+        if not current_risk:
+            await self.redis.set_risk({
+                "kill_switch": "false",
+                "blocked": "false",
+                "daily_pnl": "0",
+            })
+        else:
+            logger.info(f"Loaded existing risk state: daily_pnl={current_risk.get('daily_pnl')}")
 
         symbols = self.config.get("symbols", ["BTC"])
 

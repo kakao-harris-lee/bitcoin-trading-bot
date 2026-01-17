@@ -5,6 +5,7 @@ Trading Engine V2 - Risk Manager
 
 import asyncio
 import logging
+import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
@@ -15,6 +16,7 @@ from core.types import (
     SignalMessage, OrderMessage, Exchange, Direction, Action,
     OrderStatus, EventType, create_message_id, current_timestamp
 )
+from trading.streams.redis_streams import RedisStreams
 
 logger = logging.getLogger(__name__)
 
@@ -73,14 +75,18 @@ class RiskManager(BaseModule):
 
     def __init__(
         self,
+        redis: Optional[RedisStreams] = None,
         config: Optional[Config] = None,
         risk_params: Optional[Dict] = None,
         initial_capital: float = 10_000_000,
     ):
-        super().__init__("risk-manager", config)
+        super().__init__("risk-manager", config, redis_client=redis)
 
         self.risk_params = {**self.DEFAULT_PARAMS, **(risk_params or {})}
         self.initial_capital = initial_capital
+
+        # Redis key for persistence
+        self.redis_key = "risk:state:daily"
 
         # 리스크 상태
         self.state = RiskState(
@@ -96,8 +102,75 @@ class RiskManager(BaseModule):
         self._signals_approved = 0
         self._signals_rejected = 0
 
+    async def load_state(self):
+        """Load risk state from Redis."""
+        if not self.redis:
+            return
+
+        try:
+            data = await self.redis.hgetall(self.redis_key)
+            if not data:
+                return
+
+            # Check for day change
+            last_reset_ts = float(data.get("last_reset_ts", 0))
+            last_reset = datetime.fromtimestamp(last_reset_ts) if last_reset_ts > 0 else datetime.now()
+
+            if self._is_new_day(last_reset):
+                logger.info("New day detected in Risk Manager. Resetting daily PnL.")
+                await self.reset_daily_stats()
+                return
+
+            # Restore state
+            self.state.total_equity = float(data.get("total_equity", self.initial_capital))
+            self.state.daily_pnl = float(data.get("daily_pnl", 0.0))
+            self.state.daily_pnl_pct = float(data.get("daily_pnl_pct", 0.0))
+            self.state.max_drawdown = float(data.get("max_drawdown", 0.0))
+            self.state.peak_equity = float(data.get("peak_equity", self.initial_capital))
+            self.state.daily_trades = int(data.get("daily_trades", 0))
+            self.state.last_reset = last_reset
+
+            logger.info(f"Risk Manager state loaded. Daily PnL: {self.state.daily_pnl}")
+
+        except Exception as e:
+            logger.error(f"Failed to load risk state: {e}")
+
+    async def save_state(self):
+        """Save risk state to Redis."""
+        if not self.redis:
+            return
+
+        try:
+            mapping = {
+                "total_equity": str(self.state.total_equity),
+                "daily_pnl": str(self.state.daily_pnl),
+                "daily_pnl_pct": str(self.state.daily_pnl_pct),
+                "max_drawdown": str(self.state.max_drawdown),
+                "peak_equity": str(self.state.peak_equity),
+                "daily_trades": str(self.state.daily_trades),
+                "last_reset_ts": str(self.state.last_reset.timestamp()),
+            }
+            await self.redis.hset(self.redis_key, mapping)
+        except Exception as e:
+            logger.error(f"Failed to save risk state: {e}")
+
+    def _is_new_day(self, last_reset: datetime) -> bool:
+        """Check if it's a new day (UTC)."""
+        now = datetime.utcnow()
+        return now.date() > last_reset.date()
+
+    async def reset_daily_stats(self):
+        """Reset daily statistics."""
+        self.state.daily_pnl = 0.0
+        self.state.daily_pnl_pct = 0.0
+        self.state.daily_trades = 0
+        self.state.last_reset = datetime.utcnow()
+        await self.save_state()
+
     async def on_start(self):
         """시작"""
+        if self.redis:
+            await self.load_state()
         self.logger.info("⚠️ Risk Manager 시작")
         self.logger.info(f"   초기 자본: {self.initial_capital:,.0f}")
         self.logger.info(f"   최대 낙폭: {self.risk_params['max_drawdown_pct']}%")
@@ -309,7 +382,7 @@ class RiskManager(BaseModule):
         self.state.long_exposure = long_total
         self.state.short_exposure = short_total
 
-    def update_equity(self, total_equity: float):
+    async def update_equity(self, total_equity: float):
         """자산 업데이트"""
         self.state.total_equity = total_equity
 
@@ -330,6 +403,9 @@ class RiskManager(BaseModule):
         # 일일 손익
         self.state.daily_pnl = total_equity - self.initial_capital
         self.state.daily_pnl_pct = self.state.daily_pnl / self.initial_capital * 100
+
+        # Persist state to Redis
+        await self.save_state()
 
     def get_risk_state(self) -> Dict:
         """현재 리스크 상태 반환"""

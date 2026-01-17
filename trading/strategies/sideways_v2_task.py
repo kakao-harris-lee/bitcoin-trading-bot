@@ -2,10 +2,10 @@
 """SidewaysV2 Strategy - ported to stream architecture."""
 from __future__ import annotations
 import logging
+import pandas as pd
 from typing import Any, TYPE_CHECKING
-
 from trading.streams.base_strategy import BaseStrategyTask
-from trading.strategies.indicators import get_indicators
+from trading.indicators import add_all_indicators
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -47,15 +47,27 @@ class SidewaysV2Task(BaseStrategyTask):
             use_smart_exit=config.get("use_smart_exit", False),
         )
         self.config = config
-        self.min_data_points = 180
+        self.min_data_points = 0
+        # Historical data for indicators
+        self.history: dict[str, list[dict]] = {}
+
+    async def run(self) -> None:
+        """Main loop with warm-up."""
+        logger.info(f"Warming up strategy {self.name}...")
+        for symbol in self.symbols:
+            # Fetch daily candles as this strategy is Daily
+            candles = await self.fetch_initial_candles(symbol, interval="1d", limit=200)
+            if candles:
+                self.history[symbol] = candles
+                logger.info(f"Fetched {len(candles)} daily candles for {symbol}")
+            else:
+                logger.warning(f"Failed to fetch history for {symbol}")
+
+        await super().run()
 
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:
         """Evaluate entry conditions for sideways market."""
-        buffer = self.price_buffer.get(symbol, [])
-
-        if len(buffer) < self.min_data_points:
-            return None
-
+        # Calculate indicators
         indicators = self._calculate_indicators(symbol)
         if indicators is None:
             return None
@@ -100,20 +112,29 @@ class SidewaysV2Task(BaseStrategyTask):
         return regime.startswith("SIDEWAYS")
 
     def _calculate_indicators(self, symbol: str) -> dict[str, float] | None:
-        """Calculate indicators using OHLCV data from database."""
+        """Calculate indicators using warm-up history + live ticks."""
         try:
-            # Get proper indicators from database OHLCV data
-            indicators = get_indicators(symbol, periods=100)
-            if indicators is None:
-                logger.warning(f"Could not load indicators for {symbol}")
+            history = self.history.get(symbol)
+            if not history:
                 return None
 
-            # Use current price from buffer if available
+            # Create DF, update last row
+            df = pd.DataFrame(history)
+
+            # Update last candle with current price
             buffer = self.price_buffer.get(symbol, [])
             if buffer:
-                indicators["close"] = float(buffer[-1]["price"])
+                current_price = float(buffer[-1]["price"])
+                idx = df.index[-1]
+                df.at[idx, "close"] = current_price
+                df.at[idx, "high"] = max(df.at[idx, "high"], current_price)
+                df.at[idx, "low"] = min(df.at[idx, "low"], current_price)
 
-            return indicators
+            # Add indicators
+            df = add_all_indicators(df)
+
+            return df.iloc[-1].to_dict()
+
         except Exception as e:
             logger.error(f"Indicator calculation failed for {symbol}: {e}")
             return None

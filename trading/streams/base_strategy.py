@@ -6,6 +6,7 @@ import uuid
 import logging
 from abc import ABC, abstractmethod
 from collections import deque
+from trading.streams.data_warmup import DataWarmup
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -38,6 +39,21 @@ class BaseStrategyTask(ABC):
         self._pending_entry: dict[str, bool] = {}
         # Track positions we've notified exit strategy about
         self._notified_positions: set[str] = set()
+
+    async def fetch_initial_candles(self, symbol: str, interval: str = "1h", limit: int = 200) -> list[dict]:
+        """Fetch historical candles for warm-up."""
+        try:
+            warmup = DataWarmup()
+            candles = await warmup.fetch_recent_candles(
+                symbol=symbol,
+                limit=limit,
+                interval=interval,
+                market=self.market
+            )
+            return candles
+        except Exception as e:
+            logger.error(f"Failed to fetch initial candles for {symbol}: {e}")
+            return []
 
     async def run(self) -> None:
         """Main loop: consume prices, evaluate, publish orders."""

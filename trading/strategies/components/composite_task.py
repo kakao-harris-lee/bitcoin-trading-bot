@@ -25,8 +25,9 @@ import asyncio
 import logging
 from typing import Any, TYPE_CHECKING
 
+import pandas as pd
 from trading.streams.base_strategy import BaseStrategyTask
-from trading.strategies.indicators import get_indicators
+from trading.indicators import add_all_indicators
 
 from .interfaces import IEntryStrategy, IExitStrategy
 from .models import MarketData, Position, Signal
@@ -80,7 +81,28 @@ class CompositeStrategyTask(BaseStrategyTask):
         self.entry_strategy = entry_strategy
         self.exit_strategy = exit_strategy
         self.config = config or {}
-        self.min_data_points = 180
+        # Min data depends on indicators, typically 30-50, using 0 if we warm up
+        self.min_data_points = 0
+        self.history: dict[str, list[dict]] = {}
+
+    async def run(self) -> None:
+        """Main loop: warm-up then consume."""
+        logger.info(f"Warming up composite strategy {self.name}...")
+
+        # Determine interval based on name (simple heuristic for migration)
+        interval = "1d"
+        if "short" in self.name or "h4" in self.name:
+            interval = "4h"
+
+        for symbol in self.symbols:
+            candles = await self.fetch_initial_candles(symbol, interval=interval, limit=200)
+            if candles:
+                self.history[symbol] = candles
+                logger.info(f"Fetched {len(candles)} {interval} candles for {symbol}")
+            else:
+                logger.warning(f"Failed to fetch history for {symbol}")
+
+        await super().run()
 
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:
         """Evaluate entry conditions by delegating to entry component.
@@ -177,7 +199,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         logger.info(f"{symbol}: Notified exit strategy of position close")
 
     def _build_market_data(self, symbol: str) -> MarketData | None:
-        """Build MarketData from current indicators.
+        """Build MarketData from current indicators (Memory + Pandas).
 
         Args:
             symbol: Trading symbol.
@@ -186,22 +208,39 @@ class CompositeStrategyTask(BaseStrategyTask):
             MarketData instance or None if indicators unavailable.
         """
         try:
-            indicators = get_indicators(symbol, periods=100)
-            if indicators is None:
-                logger.warning(f"Could not load indicators for {symbol}")
+            history = self.history.get(symbol)
+            if not history:
                 return None
 
-            # Use current price from buffer if available
+            # Create DF and update last row
+            df = pd.DataFrame(history)
+
+            # Update last candle with current price
             buffer = self.price_buffer.get(symbol, [])
-            close = float(buffer[-1]["price"]) if buffer else indicators["close"]
+            if buffer:
+                current_price = float(buffer[-1]["price"])
+                idx = df.index[-1]
+                # Ensure we have required columns before updating
+                if 'close' in df.columns:
+                    df.at[idx, "close"] = current_price
+                if 'high' in df.columns:
+                    df.at[idx, "high"] = max(df.at[idx, "high"], current_price)
+                if 'low' in df.columns:
+                    df.at[idx, "low"] = min(df.at[idx, "low"], current_price)
+            else:
+                current_price = df.iloc[-1]["close"]
+
+            # Calculate indicators using pandas-ta/ta-lib wrapper
+            df = add_all_indicators(df)
+            last_row = df.iloc[-1]
 
             return MarketData(
                 symbol=symbol,
-                close=close,
-                mfi=indicators["mfi"],
-                adx=indicators["adx"],
-                rsi=indicators["rsi"],
-                timestamp=buffer[-1].get("timestamp", 0) if buffer else 0,
+                close=float(current_price),
+                mfi=float(last_row.get("mfi", 50)),
+                adx=float(last_row.get("adx", 20)),
+                rsi=float(last_row.get("rsi", 50)),
+                timestamp=int(buffer[-1].get("timestamp", 0) if buffer else 0),
             )
         except Exception as e:
             logger.error(f"Failed to build MarketData for {symbol}: {e}")

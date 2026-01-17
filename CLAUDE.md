@@ -1,15 +1,107 @@
 # Bitcoin Trading Bot
 
+# Bitcoin Trading Bot Refactoring Instructions
+
+## 1. Mission Overview
+
+Refactor the current monolithic strategy architecture into a modular, component-based system using Strategy, Factory, and Adapter patterns. Simultaneously, implement critical safety features for state persistence and data integrity.
+
+## 2. Architectural Pattern Implementation
+
+### A. Separation of Concerns (Entry vs Exit)
+
+Split the logic currently inside `evaluate()` and `evaluate_exit()` into distinct components.
+
+- **Create Interface `IEntryStrategy`**:
+  - Method: `check_entry(market_data) -> Signal (Buy/None)`
+  - Responsibility: Only analyzes indicators to find entry points.
+- **Create Interface `IExitStrategy`**:
+  - Method: `check_exit(position, current_price, market_data) -> Signal (Sell/None)`
+  - Responsibility: Manages open positions (Stop Loss, Take Profit, Trailing Stop).
+- **Refactor `BaseStrategyTask`**:
+  - It should act as a **Context** that holds one `IEntryStrategy` and one `IExitStrategy`.
+  - It handles the Redis Stream I/O, while logic is delegated to components.
+
+### B. Factory Pattern for Strategy Management
+
+- **Create `StrategyFactory`**:
+  - Responsibility: Parse `allocation.json`.
+  - Logic: Dynamically instantiate and assemble Entry/Exit components based on config names.
+  - Example Config:
+
+    ```json
+    "BTC": {
+      "entry_strategy": "V35Breakout",
+      "exit_strategy": "V35TrailingStop",
+      "params": { ... }
+    }
+    ```
+
+### C. Adapter Pattern for Indicators
+
+- **Create `IndicatorAdapter`**:
+  - Abstract the calculation library (currently `pandas`/`ta-lib`).
+  - Allow switching between `pandas-ta`, `talib`, or custom calculations without changing strategy code.
+
+## 3. Critical System Improvements (High Priority)
+
+### A. State Persistence (Redis-backed State)
+
+**Problem:** `high_water_mark`, `entry_count` are lost on restart.
+**Solution:**
+
+- Implement a `StateManager` mixin or helper class.
+- All stateful variables in strategies MUST use this manager.
+- **Mechanism:**
+  - Key schema: `state:{strategy_name}:{symbol}:{variable_name}`
+  - On Init: Load values from Redis.
+  - On Update: Write values to Redis immediately.
+- **Target:** Apply specifically to `V35LongTask`'s trailing stop logic first, then generalize.
+
+### B. Data Warm-up (Gap Handling)
+
+**Problem:** Bot waits 180 candles to calculate indicators after restart.
+**Solution:**
+
+- Implement `DataLoader.fetch_recent_candles(limit=200)` using `ccxt` (REST API).
+- On `FeedTask` startup, before processing WebSocket stream, fill the `price_buffer` with this historical data.
+- Ensure indicators are calculated immediately upon start.
+
+### C. Precision Safety
+
+**Problem:** Python `float` precision errors.
+**Solution:**
+
+- Introduce a `PriceUtils` helper.
+- Use `decimal.Decimal` for all PnL and Quantity calculations.
+- Implement `round_down_to_step_size(qty, step_size)` compliant with Binance `exchangeInfo`.
+
+## 4. Implementation Roadmap
+
+1. **Core Refactoring**: Define `IEntryStrategy` and `IExitStrategy` interfaces.
+2. **Component Migration**: Extract `V35LongTask` logic into `V35Entry` and `V35TrailingExit` classes.
+3. **Persistence Layer**: Implement `StateManager` and integrate it into `V35TrailingExit`.
+4. **Factory Integration**: Update `TradingEngine` to use `StrategyFactory` for task creation.
+5. **Data Safety**: Add REST API warm-up logic to `FeedTask`.
+6. **Cleanup**: Remove the old monolithic `V35LongTask` after verification.
+
+## 5. Coding Standards
+
+- **Type Hinting**: Strict usage of Python type hints.
+- **Async**: Keep all I/O non-blocking.
+- **Logging**: Log every state change (e.g., "High Water Mark updated: 50000 -> 51000").
+- **Error Handling**: Strategies must fail gracefully (log error, return Neutral signal) rather than crashing the engine.
+
 ## Quick Reference
 
 **Always add important documentation here!** When you create or discover:
+
 - Architecture Diagram → Add Reference Paths Here
 - Database Schema → Add Reference Paths Here
 - Troubleshooting → Add Reference Paths Here
 - Setup Guide → Add Reference Paths Here
 
 This prevents context loss! Update this file immediately when you create important documentation.
-
 
 ```bash
 # Bot management (recommended)
@@ -72,6 +164,7 @@ The bot uses a **stream-based architecture** with Redis as the communication bac
 ```
 
 **Key principles:**
+
 - No central orchestrator — each task runs autonomously
 - Redis streams as the only coupling between components
 - Strategies self-classify market conditions (no regime router)
@@ -134,18 +227,21 @@ bitcoin-trading-bot/
 ## Redis Data Structures
 
 ### Streams
+
 - `market:prices` - Price updates from Binance WebSocket
 - `orders` - Order intents from strategies
 - `trades` - Executed trade confirmations
 - `alerts` - System alerts and errors
 
 ### Hashes
+
 - `positions:{symbol}:{market}` - Position state (qty, entry_price, strategy)
 - `risk` - Risk state (kill_switch, blocked, daily_pnl)
 
 ## Configuration
 
 `config/strategies/allocation.json`:
+
 ```json
 {
   "redis_url": "redis://localhost:6379",
@@ -259,6 +355,7 @@ REDIS_URL=redis://localhost:6379
 ## Do's and Don'ts
 
 **Do:**
+
 - Reactive strategies (momentum-following)
 - Simple conditions (2-3 max)
 - Self-classifying market conditions
@@ -266,6 +363,7 @@ REDIS_URL=redis://localhost:6379
 - Use minute60+ timeframes
 
 **Don't:**
+
 - Predictive strategies (e.g., RSI < 30 -> buy)
 - Complex indicator combos (3+ indicators)
 - Over-optimisation (overfitting)

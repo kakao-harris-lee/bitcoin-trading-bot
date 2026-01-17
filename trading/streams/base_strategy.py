@@ -36,6 +36,8 @@ class BaseStrategyTask(ABC):
         self._running = False
         # Track pending entries to avoid duplicate orders
         self._pending_entry: dict[str, bool] = {}
+        # Track positions we've notified exit strategy about
+        self._notified_positions: set[str] = set()
 
     async def run(self) -> None:
         """Main loop: consume prices, evaluate, publish orders."""
@@ -92,11 +94,19 @@ class BaseStrategyTask(ABC):
             self._pending_entry.pop(symbol, None)
             # Only evaluate exit if this strategy owns the position
             if position.get("strategy") == self.name:
+                # Notify exit strategy about new position (once per position)
+                if symbol not in self._notified_positions:
+                    self._notified_positions.add(symbol)
+                    await self.on_position_opened(symbol, position)
+
                 exit_signal = await self.evaluate_exit(symbol, position)
                 if exit_signal:
                     await self._publish_exit(exit_signal, position)
                     if not self.use_smart_exit:
                         await self.redis.clear_position(symbol, self.market)
+                        # Notify exit strategy about position close
+                        self._notified_positions.discard(symbol)
+                        await self.on_position_closed(symbol)
             return
 
         # Check if entry is already pending (order published but not yet filled)
@@ -162,6 +172,29 @@ class BaseStrategyTask(ABC):
         Returns order intent dict or None.
         """
         return None
+
+    async def on_position_opened(self, symbol: str, position: dict) -> None:
+        """
+        Called when a new position is detected for the first time.
+
+        Override in subclass to initialize exit strategy state (e.g., high water mark).
+
+        Args:
+            symbol: Trading symbol.
+            position: Position dict from Redis.
+        """
+        pass
+
+    async def on_position_closed(self, symbol: str) -> None:
+        """
+        Called when a position is closed.
+
+        Override in subclass to clean up exit strategy state.
+
+        Args:
+            symbol: Trading symbol.
+        """
+        pass
 
     async def get_dynamic_position_size(
         self,

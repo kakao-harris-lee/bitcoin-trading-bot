@@ -33,6 +33,8 @@ class ExitPlan:
     ladder_orders: list[dict] = field(default_factory=list)
     filled_quantity: float = 0.0
     phase: str = "ladder"  # ladder, sweep, complete
+    reason: str = ""
+    entry_price: float = 0.0  # For P&L calculation
 
 
 class SmartExecutor:
@@ -293,6 +295,7 @@ class SmartExecutor:
         quantity = float(signal.get("quantity", 0))
         trigger_price = float(signal.get("trigger_price", 0))
         strategy = signal.get("strategy", "unknown")
+        reason = signal.get("reason", "")
 
         # Skip if exit already in progress for this symbol
         exit_key = f"{symbol}:{market}"
@@ -302,6 +305,12 @@ class SmartExecutor:
 
         logger.info(f"Received exit signal: {symbol} {quantity} @ {trigger_price}")
 
+        # Get entry price from position for P&L calculation
+        entry_price = 0.0
+        position = await self.redis.get_position(symbol, market)
+        if position:
+            entry_price = float(position.get("entry_price", 0))
+
         # Create exit plan
         plan = ExitPlan(
             symbol=symbol,
@@ -309,6 +318,8 @@ class SmartExecutor:
             total_quantity=quantity,
             trigger_price=trigger_price,
             strategy=strategy,
+            reason=reason,
+            entry_price=entry_price,
         )
 
         # Start ladder execution
@@ -371,6 +382,8 @@ class SmartExecutor:
             if remaining <= 0:
                 plan.phase = "complete"
                 logger.info(f"Exit complete: {plan.symbol} all filled via ladder")
+                # Publish trade notification BEFORE clearing position
+                await self._publish_trade(plan, plan.total_quantity, plan.trigger_price)
                 await self.redis.clear_position(plan.symbol, plan.market)
                 del self.active_exits[key]
                 await self._remove_exit_plan(key)
@@ -382,6 +395,8 @@ class SmartExecutor:
                 logger.info(f"Phase 1 timeout: sweeping {remaining} {plan.symbol}")
                 await self._sweep_remaining(plan, remaining)
                 plan.phase = "complete"
+                # Publish trade notification BEFORE clearing position
+                await self._publish_trade(plan, plan.total_quantity, plan.trigger_price)
                 await self.redis.clear_position(plan.symbol, plan.market)
                 del self.active_exits[key]
                 await self._remove_exit_plan(key)
@@ -391,6 +406,8 @@ class SmartExecutor:
             if elapsed > self.max_execution_time and remaining > 0:
                 await self._sweep_remaining(plan, remaining)
                 plan.phase = "complete"
+                # Publish trade notification BEFORE clearing position
+                await self._publish_trade(plan, plan.total_quantity, plan.trigger_price)
                 await self.redis.clear_position(plan.symbol, plan.market)
                 del self.active_exits[key]
                 await self._remove_exit_plan(key)
@@ -434,3 +451,29 @@ class SmartExecutor:
             logger.info(f"Sweep complete: {result}")
         except Exception as e:
             logger.error(f"Sweep failed: {e}")
+
+    async def _publish_trade(self, plan: ExitPlan, filled_qty: float, avg_price: float) -> None:
+        """Publish completed exit trade to trades stream for Telegram notification."""
+        # Calculate P&L
+        pnl = 0.0
+        pnl_pct = 0.0
+        if plan.entry_price > 0:
+            pnl = (avg_price - plan.entry_price) * filled_qty
+            pnl_pct = ((avg_price - plan.entry_price) / plan.entry_price * 100)
+
+        trade = {
+            "order_id": str(int(time.time() * 1000)),
+            "symbol": plan.symbol,
+            "side": "sell",
+            "market": plan.market,
+            "quantity": str(filled_qty),
+            "price": str(avg_price),
+            "strategy": plan.strategy,
+            "timestamp": str(int(time.time() * 1000)),
+            "reason": plan.reason,
+            "profit": str(pnl),
+            "profit_pct": str(pnl_pct),
+        }
+
+        await self.redis.publish("trades", trade)
+        logger.info(f"Published exit trade: {plan.symbol} SELL {filled_qty} @ {avg_price} (P&L: {pnl:+.2f})")

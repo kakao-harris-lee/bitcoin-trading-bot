@@ -14,6 +14,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 
 from trading.streams import RedisStreams, BinanceFeedTask
 from trading.strategies import V35LongTask, SidewaysV2Task, ShortV1Task
+from trading.strategies.components import StrategyFactory, create_composite_task
 from trading.executor import BinanceClient, AsyncExecutor, PaperExecutor
 from trading.notification import TelegramTask
 
@@ -78,17 +79,23 @@ class TradingEngine:
 
         # 2. Start strategy tasks
         strategy_config = self.config.get("strategies", {})
+        use_components = self.config.get("use_component_strategies", False)
 
-        v35_long = V35LongTask(symbols=symbols, redis=self.redis, config=strategy_config.get("v35_long"))
-        self.tasks.append(asyncio.create_task(v35_long.run()))
+        if use_components:
+            # Use new component-based strategy architecture
+            await self._start_component_strategies(symbols, strategy_config, mode)
+        else:
+            # Use legacy strategy tasks (backward compatible)
+            v35_long = V35LongTask(symbols=symbols, redis=self.redis, config=strategy_config.get("v35_long"))
+            self.tasks.append(asyncio.create_task(v35_long.run()))
 
-        sideways = SidewaysV2Task(symbols=symbols, redis=self.redis, config=strategy_config.get("sideways_v2"))
-        self.tasks.append(asyncio.create_task(sideways.run()))
+            sideways = SidewaysV2Task(symbols=symbols, redis=self.redis, config=strategy_config.get("sideways_v2"))
+            self.tasks.append(asyncio.create_task(sideways.run()))
 
-        short = ShortV1Task(symbols=symbols, redis=self.redis, config=strategy_config.get("short_v1"))
-        self.tasks.append(asyncio.create_task(short.run()))
+            short = ShortV1Task(symbols=symbols, redis=self.redis, config=strategy_config.get("short_v1"))
+            self.tasks.append(asyncio.create_task(short.run()))
 
-        logger.info("Started 3 strategy tasks")
+            logger.info("Started 3 legacy strategy tasks")
 
         # 3. Start executor
         if mode == "paper":
@@ -165,3 +172,60 @@ class TradingEngine:
             await self.redis.disconnect()
 
         logger.info("Shutdown complete")
+
+    async def _start_component_strategies(
+        self,
+        symbols: list[str],
+        strategy_config: dict,
+        mode: str,
+    ) -> None:
+        """Start strategies using the component-based architecture.
+
+        Uses StrategyFactory to create Entry/Exit components and
+        CompositeStrategyTask to run them.
+
+        Args:
+            symbols: List of trading symbols.
+            strategy_config: Strategy configuration from allocation.json.
+            mode: Trading mode ("paper" or "live").
+        """
+        # Create factory with Redis client for persistent strategies
+        factory = StrategyFactory(redis=self.redis._client)
+
+        # Determine if we should use persistence (live mode)
+        use_persistence = mode == "live"
+
+        strategy_names = ["v35_long", "sideways_v2", "short_v1"]
+        started = 0
+
+        for name in strategy_names:
+            config = strategy_config.get(name, {})
+
+            try:
+                # Create entry and exit components
+                entry, exit_strat = factory.create_components(
+                    strategy_name=name,
+                    config=config,
+                    persistent=use_persistence,
+                )
+
+                # Create composite task
+                task = await create_composite_task(
+                    name=name,
+                    symbols=symbols,
+                    redis=self.redis,
+                    entry_strategy=entry,
+                    exit_strategy=exit_strat,
+                    config=config,
+                    market=factory.get_market(name),
+                    use_smart_exit=config.get("use_smart_exit", False),
+                )
+
+                self.tasks.append(asyncio.create_task(task.run()))
+                started += 1
+                logger.info(f"Started component strategy: {name} (persistent={use_persistence})")
+
+            except Exception as e:
+                logger.error(f"Failed to create strategy {name}: {e}")
+
+        logger.info(f"Started {started} component strategy tasks")

@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 import aiohttp
 
 from .feed_task import SymbolFeedTask
+from .data_warmup import DataWarmup
 
 if TYPE_CHECKING:
     from .redis_streams import RedisStreams
@@ -28,10 +29,63 @@ class BinanceFeedTask(SymbolFeedTask):
         symbol: str,
         redis: RedisStreams,
         market: str = "spot",
+        warmup_enabled: bool = True,
+        warmup_limit: int = 200,
+        warmup_interval: str = "1h",
         **kwargs,
     ):
         super().__init__(symbol=symbol, redis=redis, **kwargs)
         self.market = market
+        self._warmup_enabled = warmup_enabled
+        self._warmup_limit = warmup_limit
+        self._warmup_interval = warmup_interval
+        self._warmed_up = False
+
+    async def run(self) -> None:
+        """Main loop with warm-up: fetch historical data, then stream live."""
+        # Warm-up: fetch historical candles before starting WebSocket
+        if self._warmup_enabled and not self._warmed_up:
+            await self._warmup()
+
+        # Call parent run() for WebSocket streaming
+        await super().run()
+
+    async def _warmup(self) -> None:
+        """Fetch and publish historical candles for immediate indicator calculation.
+
+        This eliminates the need to wait for 180+ candles after restart.
+        """
+        logger.info(
+            f"Feed {self.symbol} ({self.market}): Starting warm-up "
+            f"({self._warmup_limit} {self._warmup_interval} candles)"
+        )
+
+        try:
+            warmup = DataWarmup()
+            messages = await warmup.warmup_symbol(
+                symbol=self.symbol,
+                market=self.market,
+                limit=self._warmup_limit,
+                interval=self._warmup_interval,
+            )
+
+            if not messages:
+                logger.warning(f"Feed {self.symbol}: No warm-up data received")
+                return
+
+            # Publish historical data to Redis stream
+            for msg in messages:
+                await self.redis.publish("market:prices", msg)
+
+            self._warmed_up = True
+            logger.info(
+                f"Feed {self.symbol} ({self.market}): Warm-up complete, "
+                f"published {len(messages)} historical prices"
+            )
+
+        except Exception as e:
+            logger.error(f"Feed {self.symbol}: Warm-up failed: {e}")
+            # Continue anyway - WebSocket will provide live data
 
     def _build_ws_url(self) -> str:
         """Build WebSocket URL for symbol."""

@@ -385,6 +385,29 @@ def dashboard():
 def get_status():
     """현재 상태 API - Binance-only stream architecture"""
 
+    # Get current prices from Redis market:prices stream
+    prices = {}
+    try:
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        # Read most recent prices from stream
+        price_msgs = r.xrevrange('market:prices', count=100)
+        seen_symbols = set()
+        for msg_id, data in price_msgs:
+            symbol = data.get('symbol', '')
+            if symbol and symbol not in seen_symbols:
+                prices[symbol] = float(data.get('price', 0))
+                seen_symbols.add(symbol)
+    except Exception as e:
+        print(f"Error reading prices from Redis: {e}")
+
+    # Get risk data from Redis
+    risk = {}
+    try:
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        risk = r.hgetall('risk') or {}
+    except Exception as e:
+        print(f"Error reading risk from Redis: {e}")
+
     # Try to load from metrics service (Redis-based)
     if metrics_service:
         try:
@@ -422,7 +445,7 @@ def get_status():
                             'exchange': 'binance',
                             'market': 'spot',
                             'enabled': True,
-                            'price': 0,
+                            'price': prices.get(f'{symbol}USDT', 0),
                             'position_active': False,
                             'position_qty': 0,
                             'direction': 'long',
@@ -433,10 +456,14 @@ def get_status():
                     'timestamp': dashboard_state.get('timestamp', datetime.now().isoformat()),
                     'mode': binance_data.get('mode', 'live'),
                     'engine': 'stream',
+                    'engine_status': 'running',
+                    'trading_mode': binance_data.get('mode', 'paper'),
                     'assets': assets,
                     'portfolio': dashboard_state.get('portfolio', {}),
                     'kill_switch': binance_data.get('kill_switch', False),
                     'daily_pnl': binance_data.get('daily_pnl', 0),
+                    'prices': prices,
+                    'risk': risk,
                 }
                 return jsonify(status)
         except Exception as e:
@@ -449,11 +476,22 @@ def get_status():
             'timestamp': ma_status.get('timestamp', datetime.now().isoformat()),
             'mode': ma_status.get('mode', 'paper'),
             'engine': 'legacy',
+            'engine_status': 'running',
+            'trading_mode': ma_status.get('mode', 'paper'),
             'assets': ma_status.get('assets', {}),
             'portfolio': ma_status.get('portfolio', {}),
+            'prices': prices,
+            'risk': risk,
         })
 
-    return jsonify({'error': 'No engine status available'}), 404
+    # Final fallback - return minimal status with prices/risk from Redis
+    return jsonify({
+        'timestamp': datetime.now().isoformat(),
+        'engine_status': 'stopped' if not prices else 'running',
+        'trading_mode': 'paper',
+        'prices': prices,
+        'risk': risk,
+    })
 
 
 @app.route("/health")
@@ -661,6 +699,38 @@ def get_trades():
         'limit': limit,
         'has_more': end_idx < total_count
     })
+
+
+@app.route("/api/recent_trades")
+def get_recent_trades():
+    """
+    Get recent trades in simplified format for dashboard.
+    Query params: limit (default 20, max 50)
+    """
+    limit = request.args.get('limit', 20, type=int)
+    limit = min(max(1, limit), 50)
+
+    # Read trades from Redis stream
+    redis_trades = read_redis_trades(limit=limit)
+
+    # Transform to simplified format
+    trades = []
+    for t in redis_trades:
+        trades.append({
+            'id': t.get('id', ''),
+            'timestamp': t.get('timestamp', ''),
+            'symbol': t.get('symbol', ''),
+            'side': t.get('action', '').lower(),
+            'market': t.get('market', 'spot'),
+            'quantity': t.get('volume', 0),
+            'price': t.get('price', 0),
+            'strategy': t.get('strategy', ''),
+            'profit': t.get('profit'),
+            'profit_pct': t.get('profit_pct'),
+            'reason': t.get('reason', ''),
+        })
+
+    return jsonify(trades)
 
 
 @app.route("/api/trades/<int:trade_id>")

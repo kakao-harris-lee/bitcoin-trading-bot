@@ -11,6 +11,10 @@ const RETRY_DELAY = 2000; // 2 seconds
 // Track last successful fetch times
 let lastFetchTimes = {};
 
+// Price history for sparklines (symbol -> array of prices)
+const priceHistory = {};
+const PRICE_HISTORY_LENGTH = 60; // Keep last 60 data points
+
 // API Fetch Utility with Error Handling and Retry
 async function apiFetch(endpoint, options = {}, retryCount = 0) {
     const defaultOptions = {
@@ -236,6 +240,93 @@ function getRegimeLabel(regime) {
     return regime.substring(0, 4).toUpperCase();
 }
 
+// Update price history for sparklines
+function updatePriceHistory(symbol, price) {
+    if (!price || price <= 0) return;
+
+    if (!priceHistory[symbol]) {
+        priceHistory[symbol] = [];
+    }
+
+    priceHistory[symbol].push(price);
+
+    // Keep only last N points
+    if (priceHistory[symbol].length > PRICE_HISTORY_LENGTH) {
+        priceHistory[symbol].shift();
+    }
+}
+
+// Draw sparkline chart on canvas
+function drawSparkline(canvasId, data, color = '#58a6ff') {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !data || data.length < 2) return;
+
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const padding = 2;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+
+    // Find min/max for scaling
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+
+    // Calculate points
+    const stepX = (width - padding * 2) / (data.length - 1);
+    const points = data.map((val, i) => ({
+        x: padding + i * stepX,
+        y: height - padding - ((val - min) / range) * (height - padding * 2)
+    }));
+
+    // Determine line color based on trend
+    const isUp = data[data.length - 1] >= data[0];
+    const lineColor = isUp ? '#3fb950' : '#f85149';
+
+    // Draw gradient fill
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, isUp ? 'rgba(63, 185, 80, 0.3)' : 'rgba(248, 81, 73, 0.3)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.lineTo(points[points.length - 1].x, height);
+    ctx.lineTo(points[0].x, height);
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // Draw line
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Draw end dot
+    const lastPoint = points[points.length - 1];
+    ctx.beginPath();
+    ctx.arc(lastPoint.x, lastPoint.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = lineColor;
+    ctx.fill();
+}
+
+// Draw all sparklines for assets
+function drawAllSparklines() {
+    for (const symbol of Object.keys(priceHistory)) {
+        const canvasId = `sparkline-${symbol.toLowerCase()}`;
+        drawSparkline(canvasId, priceHistory[symbol]);
+    }
+}
+
 // Render asset cards (exchange-aware)
 function renderAssetCards(assets) {
     const container = document.getElementById('assets-grid');
@@ -249,6 +340,9 @@ function renderAssetCards(assets) {
         const regimeClass = getRegimeClass(data.regime);
         const regimeLabel = getRegimeLabel(data.regime);
         const exchangeClass = `exchange-${data.exchange}`;
+
+        // Update price history for sparkline
+        updatePriceHistory(data.symbol, data.price);
 
         // Position status
         let positionStatus = 'None';
@@ -273,16 +367,33 @@ function renderAssetCards(assets) {
         // Direction indicator
         const directionClass = data.direction === 'short' ? 'direction-short' : 'direction-long';
 
+        // Calculate price change percentage if we have history
+        let priceChange = '';
+        const history = priceHistory[data.symbol];
+        if (history && history.length >= 2) {
+            const firstPrice = history[0];
+            const lastPrice = history[history.length - 1];
+            const changePct = ((lastPrice - firstPrice) / firstPrice) * 100;
+            const changeClass = changePct >= 0 ? 'positive' : 'negative';
+            priceChange = `<span class="price-change ${changeClass}">${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%</span>`;
+        }
+
+        // Sparkline canvas ID
+        const sparklineId = `sparkline-${data.symbol.toLowerCase()}`;
+
         html += `
             <div class="asset-card ${regimeClass} ${positionClass} ${exchangeClass}">
                 <div class="asset-header">
                     <span class="asset-symbol">${data.symbol}</span>
                     <span class="asset-exchange">${data.exchange.toUpperCase()}</span>
                 </div>
+                <div class="asset-chart">
+                    <canvas id="${sparklineId}" width="180" height="50"></canvas>
+                </div>
                 <div class="asset-prices">
                     <div class="price-row">
                         <span class="label">Price</span>
-                        <span class="value">${priceDisplay}</span>
+                        <span class="value">${priceDisplay} ${priceChange}</span>
                     </div>
                     <div class="price-row">
                         <span class="label">Leverage</span>
@@ -309,6 +420,11 @@ function renderAssetCards(assets) {
         `;
     }
     container.innerHTML = html;
+
+    // Draw sparklines after DOM update
+    requestAnimationFrame(() => {
+        drawAllSparklines();
+    });
 }
 
 // Update portfolio summary

@@ -21,6 +21,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, TYPE_CHECKING
 
@@ -129,13 +130,12 @@ class CompositeStrategyTask(BaseStrategyTask):
         position = self._dict_to_position(position_dict)
 
         # Delegate to exit component
-        # Handle both sync and async exit strategies
-        if hasattr(self.exit_strategy, '__class__') and 'Persistent' in self.exit_strategy.__class__.__name__:
-            # Async persistent strategy
-            signal = await self.exit_strategy.check_exit(position, market_data)
+        # Handle both sync and async exit strategies using proper detection
+        check_exit_method = self.exit_strategy.check_exit
+        if asyncio.iscoroutinefunction(check_exit_method):
+            signal = await check_exit_method(position, market_data)
         else:
-            # Sync strategy
-            signal = self.exit_strategy.check_exit(position, market_data)
+            signal = check_exit_method(position, market_data)
 
         if signal:
             return self._signal_to_dict(signal, signal.quantity)
@@ -154,12 +154,13 @@ class CompositeStrategyTask(BaseStrategyTask):
         position = self._dict_to_position(position_dict)
 
         # Notify exit strategy (for state initialization)
-        if hasattr(self.exit_strategy, '__class__') and 'Persistent' in self.exit_strategy.__class__.__name__:
-            await self.exit_strategy.on_position_opened(position)
+        on_opened_method = self.exit_strategy.on_position_opened
+        if asyncio.iscoroutinefunction(on_opened_method):
+            await on_opened_method(position)
         else:
-            self.exit_strategy.on_position_opened(position)
+            on_opened_method(position)
 
-        logger.debug(f"{symbol}: Notified exit strategy of position open")
+        logger.info(f"{symbol}: Notified exit strategy of position open")
 
     async def on_position_closed(self, symbol: str) -> None:
         """Notify exit strategy when position is closed.
@@ -167,12 +168,13 @@ class CompositeStrategyTask(BaseStrategyTask):
         Args:
             symbol: Trading symbol.
         """
-        if hasattr(self.exit_strategy, '__class__') and 'Persistent' in self.exit_strategy.__class__.__name__:
-            await self.exit_strategy.on_position_closed(symbol)
+        on_closed_method = self.exit_strategy.on_position_closed
+        if asyncio.iscoroutinefunction(on_closed_method):
+            await on_closed_method(symbol)
         else:
-            self.exit_strategy.on_position_closed(symbol)
+            on_closed_method(symbol)
 
-        logger.debug(f"{symbol}: Notified exit strategy of position close")
+        logger.info(f"{symbol}: Notified exit strategy of position close")
 
     def _build_market_data(self, symbol: str) -> MarketData | None:
         """Build MarketData from current indicators.

@@ -65,19 +65,30 @@ class TradingEngine:
 
         symbols = self.config.get("symbols", ["BTC"])
 
-        # 1. Start feed tasks (one per symbol, for both spot and futures)
+        # 1. Create feed instances and run warmup BEFORE starting strategies
+        # This ensures warmup data is in Redis before strategy consumer groups are created
+        feeds: list[BinanceFeedTask] = []
         for symbol in symbols:
             # Spot feed
             spot_feed = BinanceFeedTask(symbol=symbol, redis=self.redis, market="spot")
-            self.tasks.append(asyncio.create_task(spot_feed.run()))
+            feeds.append(spot_feed)
 
             # Futures feed
             futures_feed = BinanceFeedTask(symbol=symbol, redis=self.redis, market="futures")
-            self.tasks.append(asyncio.create_task(futures_feed.run()))
+            feeds.append(futures_feed)
 
-        logger.info(f"Started {len(symbols) * 2} feed tasks")
+        # Run warmup for all feeds concurrently and wait for completion
+        warmup_tasks = [feed.warmup() for feed in feeds]
+        await asyncio.gather(*warmup_tasks, return_exceptions=True)
+        logger.info(f"Completed warmup for {len(feeds)} feeds")
 
-        # 2. Start strategy tasks
+        # Now start feed run tasks (warmup already done, will skip to WebSocket streaming)
+        for feed in feeds:
+            self.tasks.append(asyncio.create_task(feed.run()))
+
+        logger.info(f"Started {len(feeds)} feed tasks")
+
+        # 2. Start strategy tasks (AFTER warmup is complete)
         strategy_config = self.config.get("strategies", {})
         use_components = self.config.get("use_component_strategies", False)
 

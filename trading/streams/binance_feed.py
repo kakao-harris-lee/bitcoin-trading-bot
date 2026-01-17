@@ -44,13 +44,24 @@ class BinanceFeedTask(SymbolFeedTask):
     async def run(self) -> None:
         """Main loop with warm-up: fetch historical data, then stream live."""
         # Warm-up: fetch historical candles before starting WebSocket
+        # (Skip if already done via explicit warmup() call)
         if self._warmup_enabled and not self._warmed_up:
-            await self._warmup()
+            await self.warmup()
 
         # Call parent run() for WebSocket streaming
         await super().run()
 
-    async def _warmup(self) -> None:
+    async def warmup(self) -> None:
+        """Public warmup method - can be called externally before run().
+
+        Fetches historical candles and publishes to Redis stream.
+        Safe to call multiple times - only runs once.
+        """
+        if self._warmed_up:
+            return
+        await self._do_warmup()
+
+    async def _do_warmup(self) -> None:
         """Fetch and publish historical candles for immediate indicator calculation.
 
         This eliminates the need to wait for 180+ candles after restart.

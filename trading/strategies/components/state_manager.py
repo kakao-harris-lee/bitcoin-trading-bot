@@ -151,7 +151,7 @@ class StateManager:
         variable: str,
         value: Any,
     ) -> None:
-        """Set state value (updates cache and writes to Redis immediately).
+        """Set state value (writes to Redis first, then updates cache).
 
         Args:
             symbol: Trading symbol.
@@ -162,21 +162,23 @@ class StateManager:
         cache_key = self._cache_key(symbol, variable)
 
         old_value = self._cache.get(cache_key)
-        self._cache[cache_key] = value
 
         try:
-            # Serialize to JSON for Redis storage
+            # Write to Redis first to ensure persistence
             serialized = json.dumps(value)
             await self._redis.set(key, serialized)
 
+            # Only update cache after successful Redis write
+            self._cache[cache_key] = value
+
             if old_value != value:
-                logger.debug(
+                logger.info(
                     f"StateManager: Updated {key}: {old_value} -> {value}"
                 )
         except Exception as e:
             logger.error(f"StateManager: Failed to persist {key}: {e}")
-            # Keep cache updated even if Redis fails
-            # This allows the strategy to continue working
+            # Do NOT update cache if Redis fails - maintains consistency
+            # On restart, we'll load the last known good value from Redis
 
     async def delete(
         self,

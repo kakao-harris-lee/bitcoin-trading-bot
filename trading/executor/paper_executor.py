@@ -131,11 +131,17 @@ class PaperExecutor:
             "fees": fees,
         }
 
-        # Update position
-        await self._update_position(order, fill)
+        # Check if exit and calculate P&L
+        profit_data = None
+        is_exit = await self._is_exit_order(order)
+        if is_exit:
+            profit_data = await self._calculate_exit_pnl(order, fill)
+            await self.redis.clear_position(order["symbol"], order["market"])
+        else:
+            await self._update_position(order, fill)
 
         # Publish trade
-        await self._publish_trade(order, fill)
+        await self._publish_trade(order, fill, profit_data)
 
         logger.info(f"Paper fill: {fill}, balance: {self.balance:.2f}")
         return fill
@@ -172,9 +178,49 @@ class PaperExecutor:
             "side": order["side"],
         })
 
-    async def _publish_trade(self, order: dict, fill: dict) -> None:
+    async def _is_exit_order(self, order: dict) -> bool:
+        """Check if order is an exit (closing position)."""
+        symbol = order["symbol"]
+        market = order["market"]
+        side = order["side"]
+
+        position = await self.redis.get_position(symbol, market)
+        if not position:
+            return False
+
+        pos_side = position.get("side", "buy")
+        # Exit if selling a long position
+        return side == "sell" and pos_side == "buy"
+
+    async def _calculate_exit_pnl(self, order: dict, fill: dict) -> dict | None:
+        """Calculate P&L when exiting a position."""
+        symbol = order["symbol"]
+        market = order["market"]
+
+        position = await self.redis.get_position(symbol, market)
+        if not position:
+            return None
+
+        entry_price = float(position.get("entry_price", 0))
+        exit_price = fill["filled_price"]
+        quantity = fill["filled_qty"]
+
+        # Calculate P&L (paper trades are always spot/long)
+        pnl = (exit_price - entry_price) * quantity
+        pnl_pct = ((exit_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+
+        # Update daily P&L
+        risk = await self.redis.get_risk()
+        daily_pnl = float(risk.get("daily_pnl", 0)) + pnl
+        await self.redis.hset("risk", {"daily_pnl": str(daily_pnl)})
+
+        logger.info(f"Paper P&L: {symbol} {pnl:+.2f} USDT ({pnl_pct:+.2f}%)")
+
+        return {"profit": pnl, "profit_pct": pnl_pct}
+
+    async def _publish_trade(self, order: dict, fill: dict, profit_data: dict | None = None) -> None:
         """Publish trade to trades stream."""
-        await self.redis.publish("trades", {
+        trade = {
             "order_id": str(fill["order_id"]),
             "symbol": order["symbol"],
             "side": order["side"],
@@ -184,4 +230,12 @@ class PaperExecutor:
             "strategy": order["strategy"],
             "timestamp": str(int(time.time() * 1000)),
             "paper": "true",
-        })
+            "reason": order.get("reason", ""),
+        }
+
+        # Add profit data for exit trades
+        if profit_data:
+            trade["profit"] = str(profit_data["profit"])
+            trade["profit_pct"] = str(profit_data["profit_pct"])
+
+        await self.redis.publish("trades", trade)

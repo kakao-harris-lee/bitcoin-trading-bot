@@ -185,38 +185,77 @@ def read_redis_trades(limit: int = 1000) -> list:
     Read trades from Redis 'trades' stream (stream architecture).
 
     Returns:
-        List of trade dicts with standardized format
+        List of trade dicts with standardized format.
+        For SELL trades without profit data, calculates profit from matching BUY trades.
     """
     try:
         r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
 
-        # Read from trades stream (newest first by reversing)
-        messages = r.xrevrange('trades', count=limit)
+        # Read from trades stream (oldest first for pairing)
+        messages = r.xrange('trades', count=limit)
 
         trades = []
+        # Track open positions per symbol for profit calculation
+        open_positions: dict[str, list] = {}  # symbol -> [(price, qty, strategy)]
+
         for msg_id, data in messages:
             # Convert timestamp from millis to ISO format
             ts_millis = int(data.get('timestamp', msg_id.split('-')[0]))
             ts_dt = datetime.fromtimestamp(ts_millis / 1000)
 
+            symbol = data.get('symbol', '')
+            action = data.get('side', '').upper()
+            price = float(data.get('price', 0))
+            volume = float(data.get('quantity', 0))
+            strategy = data.get('strategy', '')
+
             trade = {
                 'id': data.get('order_id', msg_id),
                 'timestamp': ts_dt.isoformat(),
-                'action': data.get('side', '').upper(),
-                'symbol': data.get('symbol', ''),
-                'price': float(data.get('price', 0)),
-                'volume': float(data.get('quantity', 0)),
+                'action': action,
+                'symbol': symbol,
+                'price': price,
+                'volume': volume,
                 'market': data.get('market', 'spot'),
                 'exchange': 'binance',
-                'strategy': data.get('strategy', ''),
+                'strategy': strategy,
                 'paper': data.get('paper', 'true') == 'true',
                 'profit': float(data.get('profit', 0)) if data.get('profit') else None,
                 'profit_pct': float(data.get('profit_pct', 0)) if data.get('profit_pct') else None,
                 'reason': data.get('reason', ''),
             }
+
+            # Calculate profit for SELL trades without profit data
+            if action == 'BUY':
+                # Add to open positions
+                if symbol not in open_positions:
+                    open_positions[symbol] = []
+                open_positions[symbol].append((price, volume, strategy))
+
+            elif action == 'SELL' and trade['profit'] is None:
+                # Try to match with open position
+                if symbol in open_positions and open_positions[symbol]:
+                    # Use FIFO - match with oldest BUY
+                    entry_price, entry_qty, _ = open_positions[symbol][0]
+                    # Calculate profit
+                    matched_qty = min(volume, entry_qty)
+                    profit = (price - entry_price) * matched_qty
+                    profit_pct = ((price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+
+                    trade['profit'] = profit
+                    trade['profit_pct'] = profit_pct
+
+                    # Update or remove matched position
+                    if volume >= entry_qty:
+                        open_positions[symbol].pop(0)
+                    else:
+                        remaining = entry_qty - volume
+                        open_positions[symbol][0] = (entry_price, remaining, strategy)
+
             trades.append(trade)
 
-        return trades
+        # Return in reverse order (newest first)
+        return list(reversed(trades))
     except Exception as e:
         print(f"Error reading Redis trades: {e}")
         return []
@@ -685,12 +724,78 @@ def get_signals():
     # Clamp limit
     limit = min(max(1, limit), 200)
 
+    # Read order intents from Redis orders stream (has reason/regime data)
+    redis_orders = read_redis_orders(limit=limit * 2)  # Get more orders for matching
+
+    # Build lookup of order reasons by (symbol, strategy, action) with timestamp
+    # Store list of (timestamp, reason) tuples for each key
+    order_reasons = {}
+    for o in redis_orders:
+        key = (o.get('symbol', ''), o.get('strategy', ''), o.get('action', '').upper())
+        ts = o.get('timestamp', '')
+        reason = o.get('reason', '')
+        if reason:
+            if key not in order_reasons:
+                order_reasons[key] = []
+            order_reasons[key].append((ts, reason))
+
     # Read executed trades from Redis (these are completed signals)
     redis_trades = read_redis_trades(limit=limit)
 
-    # Transform trades to signal format
+    # Transform trades to signal format, enriching with reason from orders
     signals = []
     for t in redis_trades:
+        # Try to find reason from matching order by key and closest timestamp
+        key = (t.get('symbol', ''), t.get('strategy', ''), t.get('action', '').upper())
+        reason = t.get('reason', '')
+
+        if not reason and key in order_reasons:
+            # Find closest timestamp match
+            trade_ts = t.get('timestamp', '')
+            best_reason = ''
+            best_diff = float('inf')
+            for order_ts, order_reason in order_reasons[key]:
+                try:
+                    # Compare ISO timestamps
+                    diff = abs((datetime.fromisoformat(trade_ts) - datetime.fromisoformat(order_ts)).total_seconds())
+                    if diff < best_diff and diff < 60:  # Within 60 seconds
+                        best_diff = diff
+                        best_reason = order_reason
+                except Exception:
+                    pass
+            reason = best_reason
+
+        # Parse regime/market state from reason if present
+        regime = ''
+        market_state = ''
+        strategy = t.get('strategy', '')
+
+        if reason:
+            # Extract regime from reason like "V35 entry: BULL_STRONG, MFI=77.0, ADX=35.4"
+            if 'BULL_STRONG' in reason:
+                regime = 'BULL'
+                market_state = 'STRONG'
+            elif 'BULL_MODERATE' in reason:
+                regime = 'BULL'
+                market_state = 'MODERATE'
+            elif 'BEAR' in reason:
+                regime = 'BEAR'
+                market_state = 'TRENDING'
+            elif 'SIDEWAYS' in reason or 'sideways' in reason.lower():
+                regime = 'SIDEWAYS'
+                market_state = 'RANGING'
+        else:
+            # Infer from strategy name when reason not available
+            if 'v35_long' in strategy:
+                regime = 'BULL'
+                market_state = 'TRENDING'
+            elif 'sideways' in strategy:
+                regime = 'SIDEWAYS'
+                market_state = 'RANGING'
+            elif 'short' in strategy:
+                regime = 'BEAR'
+                market_state = 'TRENDING'
+
         signals.append({
             'timestamp': t.get('timestamp', ''),
             'exchange': t.get('exchange', 'binance'),
@@ -699,7 +804,9 @@ def get_signals():
             'symbol': t.get('symbol', ''),
             'market': t.get('market', 'spot'),
             'price': t.get('price', 0),
-            'reason': t.get('reason', ''),
+            'reason': reason,
+            'regime': regime,
+            'market_state': market_state,
             'acted': True,  # All trades from stream are executed
         })
 

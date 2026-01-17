@@ -39,6 +39,8 @@ class BaseStrategyTask(ABC):
         self._pending_entry: dict[str, bool] = {}
         # Track positions we've notified exit strategy about
         self._notified_positions: set[str] = set()
+        # Track pending exits to avoid duplicate exit signals (for smart exit)
+        self._pending_exits: set[str] = set()
 
     async def fetch_initial_candles(self, symbol: str, interval: str = "1h", limit: int = 200) -> list[dict]:
         """Fetch historical candles for warm-up."""
@@ -110,6 +112,14 @@ class BaseStrategyTask(ABC):
 
         # Check if already has position - evaluate exit only for own positions
         position = await self.redis.get_position(symbol, self.market)
+        if not position:
+            # Position closed - clear pending exit flag
+            if symbol in self._pending_exits:
+                self._pending_exits.discard(symbol)
+                self._notified_positions.discard(symbol)
+                await self.on_position_closed(symbol)
+                logger.info(f"Strategy {self.name}: {symbol} position closed, cleared pending exit")
+
         if position:
             # Clear pending flag since position now exists
             self._pending_entry.pop(symbol, None)
@@ -120,8 +130,14 @@ class BaseStrategyTask(ABC):
                     self._notified_positions.add(symbol)
                     await self.on_position_opened(symbol, position)
 
+                # Skip if exit signal already pending (avoid spam)
+                if symbol in self._pending_exits:
+                    return
+
                 exit_signal = await self.evaluate_exit(symbol, position)
                 if exit_signal:
+                    if self.use_smart_exit:
+                        self._pending_exits.add(symbol)
                     await self._publish_exit(exit_signal, position)
                     if not self.use_smart_exit:
                         await self.redis.clear_position(symbol, self.market)

@@ -73,11 +73,11 @@ def main():
         print("\n" + "="*50)
         print(f"BACKTEST RESULTS: {strategy_name}")
         print("="*50)
-        print(f"Total Return: {results['total_return_pct']:.2f}%")
+        print(f"Total Return: {results['total_return']:.2f}%")
         print(f"Trades: {results['total_trades']}")
-        print(f"Win Rate: {results['win_rate']:.2f}%")
+        print(f"Win Rate: {results['win_rate']*100 if results['total_trades'] > 0 else 0:.2f}%")
         print(f"Profit Factor: {results['profit_factor'] if results['profit_factor'] else 0.0:.2f}")
-        print(f"Max Drawdown: {results['max_drawdown']:.2f}%")
+        # print(f"Max Drawdown: {results['max_drawdown']:.2f}%") # Unavailable in current backtester
         print("="*50)
 
         # Show last few trades
@@ -89,7 +89,7 @@ def main():
 
                 print(f"{entry_date} {t.side} @ {t.entry_price:.2f} -> "
                       f"{exit_date} "
-                      f"Result: {t.profit_loss_pct*100 if t.profit_loss_pct else 0:.2f}%")
+                      f"Result: {t.profit_loss_pct if t.profit_loss_pct else 0:.2f}%")
 
     except Exception as e:
         import traceback

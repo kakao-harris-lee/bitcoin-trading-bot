@@ -24,7 +24,9 @@ class ComponentStrategyAdapter:
             config=config,
             persistent=False  # Backtesting is always non-persistent (stateless run)
         )
+        self.market = factory.get_market(strategy_name)
         self.current_position: Optional[Position] = None
+        self.high_water_mark: Optional[float] = None
         self.symbol = "BTC" # Default, will be updated if possible
 
     def __call__(self, df: pd.DataFrame, i: int, params: Dict = None) -> Dict[str, Any]:
@@ -41,20 +43,19 @@ class ComponentStrategyAdapter:
             mfi=row.get('mfi', 50.0),      # Default to neural
             adx=row.get('adx', 0.0),       # Default to no trend
             rsi=row.get('rsi', 50.0),      # Default to neutral
-            high_water_mark=self.current_position.high_water_mark if self.current_position else None
+            high_water_mark=self.high_water_mark
         )
 
         # 2. Check Exits first (if we have a position)
         if self.current_position:
-            # Update current price in position for calculation context
-            # (In live trading, position updates happen via Redis, here we simulate)
 
             # Check exit
             signal = self.exit_strategy.check_exit(self.current_position, market_data)
 
-            if signal and signal.signal_type != "NEUTRAL":
+            if signal:
                 # Close position
                 self.current_position = None
+                self.high_water_mark = None
                 return {
                     'action': 'sell',
                     'fraction': 1.0,  # Simplify to full exit for now
@@ -63,8 +64,8 @@ class ComponentStrategyAdapter:
 
             # If no exit, update high water mark if needed (for trailing stops)
             # This mimics the Redis persistence in live trading
-            if row['close'] > self.current_position.high_water_mark:
-                self.current_position.high_water_mark = row['close']
+            if self.high_water_mark is None or row['close'] > self.high_water_mark:
+                self.high_water_mark = row['close']
 
             return {'action': 'hold'}
 
@@ -72,19 +73,17 @@ class ComponentStrategyAdapter:
         else:
             signal = self.entry_strategy.check_entry(market_data)
 
-            if signal and signal.signal_type == "BUY":
+            if signal and signal.side == "buy":
                 # Create simulated position
                 self.current_position = Position(
                     symbol=self.symbol,
                     quantity=1.0, # Placeholder
                     entry_price=row['close'],
-                    side="LONG",
                     strategy=self.strategy_name,
-                    timestamp=int(row['timestamp'].timestamp()),
-                    current_price=row['close'],
-                    high_water_mark=row['close'],
-                    stop_loss=None # Strategy manages this internally usually
+                    market=self.market,
+                    timestamp=int(row['timestamp'].timestamp())
                 )
+                self.high_water_mark = row['close']
                 return {
                     'action': 'buy',
                     'fraction': 1.0,

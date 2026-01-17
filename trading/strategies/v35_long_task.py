@@ -6,8 +6,9 @@ import logging
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
+import pandas as pd
 from trading.streams.base_strategy import BaseStrategyTask
-from trading.strategies.indicators import get_indicators
+from trading.indicators import add_all_indicators
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -29,36 +30,31 @@ DEFAULT_PARAMS = {
 
 
 def load_optimized_params(symbol: str) -> dict:
-    """Load optimized parameters from config file if available."""
+    """Load optimized parameters from config file."""
     config_path = Path(f"config/strategies/v35_{symbol.lower()}_binance.json")
     if not config_path.exists():
-        logger.info(f"No optimized config for {symbol}, using defaults")
-        return DEFAULT_PARAMS.copy()
+        raise FileNotFoundError(f"Optimized config for {symbol} not found at {config_path}")
 
-    try:
-        with open(config_path) as f:
-            opt_config = json.load(f)
+    with open(config_path) as f:
+        opt_config = json.load(f)
 
-        mc = opt_config.get("market_classifier", {})
-        ec = opt_config.get("exit_conditions", {})
+    mc = opt_config.get("market_classifier", {})
+    ec = opt_config.get("exit_conditions", {})
 
-        params = {
-            "mfi_bull": mc.get("mfi_bull_moderate", DEFAULT_PARAMS["mfi_bull"]),
-            "mfi_bear": 48,  # Keep default for bear threshold
-            "adx_strong": mc.get("adx_strong", DEFAULT_PARAMS["adx_strong"]),
-            "adx_trend": mc.get("adx_moderate", DEFAULT_PARAMS["adx_trend"]),
-            "adx_weak": 15,
-            "stop_loss_pct": abs(ec.get("stop_loss", -DEFAULT_PARAMS["stop_loss_pct"] / 100)) * 100,
-            "take_profit_pct": ec.get("tp_bull_moderate_1", DEFAULT_PARAMS["take_profit_pct"] / 100) * 100,
-            "trailing_activation": ec.get("trailing_activation", DEFAULT_PARAMS["trailing_activation"] / 100) * 100,
-            "trailing_distance": ec.get("trailing_distance", DEFAULT_PARAMS["trailing_distance"] / 100) * 100,
-            "trailing_enabled": ec.get("trailing_enabled", True),
-        }
-        logger.info(f"Loaded optimized params for {symbol}: SL={params['stop_loss_pct']:.1f}%, TP={params['take_profit_pct']:.1f}%")
-        return params
-    except Exception as e:
-        logger.warning(f"Failed to load optimized config for {symbol}: {e}")
-        return DEFAULT_PARAMS.copy()
+    params = {
+        "mfi_bull": mc.get("mfi_bull_moderate", DEFAULT_PARAMS["mfi_bull"]),
+        "mfi_bear": 48,  # Keep default for bear threshold
+        "adx_strong": mc.get("adx_strong", DEFAULT_PARAMS["adx_strong"]),
+        "adx_trend": mc.get("adx_moderate", DEFAULT_PARAMS["adx_trend"]),
+        "adx_weak": 15,
+        "stop_loss_pct": abs(ec.get("stop_loss", -DEFAULT_PARAMS["stop_loss_pct"] / 100)) * 100,
+        "take_profit_pct": ec.get("tp_bull_moderate_1", DEFAULT_PARAMS["take_profit_pct"] / 100) * 100,
+        "trailing_activation": ec.get("trailing_activation", DEFAULT_PARAMS["trailing_activation"] / 100) * 100,
+        "trailing_distance": ec.get("trailing_distance", DEFAULT_PARAMS["trailing_distance"] / 100) * 100,
+        "trailing_enabled": ec.get("trailing_enabled", True),
+    }
+    logger.info(f"Loaded optimized params for {symbol}: SL={params['stop_loss_pct']:.1f}%, TP={params['take_profit_pct']:.1f}%")
+    return params
 
 
 class V35LongTask(BaseStrategyTask):
@@ -80,20 +76,30 @@ class V35LongTask(BaseStrategyTask):
             use_smart_exit=config.get("use_smart_exit", False),
         )
         self.config = config
-        self.min_data_points = 180  # Need enough data for indicators
+        self.min_data_points = 0  # No need waiting if we fetch history
         # Track high water mark for trailing stop per symbol
         self.high_water_mark: dict[str, float] = {}
-        # Load optimized parameters per symbol
+        # Load optimized parameters per symbol (fail-fast)
         self.params: dict[str, dict] = {s: load_optimized_params(s) for s in symbols}
+        # Historical data for indicators
+        self.history: dict[str, list[dict]] = {}
+
+    async def run(self) -> None:
+        """Main loop with warm-up."""
+        logger.info(f"Warming up strategy {self.name}...")
+        for symbol in self.symbols:
+            # Fetch daily candles as this strategy is Daily
+            candles = await self.fetch_initial_candles(symbol, interval="1d", limit=200)
+            if candles:
+                self.history[symbol] = candles
+                logger.info(f"Fetched {len(candles)} daily candles for {symbol}")
+            else:
+                logger.warning(f"Failed to fetch history for {symbol}")
+
+        await super().run()
 
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:
         """Evaluate entry conditions for symbol."""
-        buffer = self.price_buffer.get(symbol, [])
-
-        # Need sufficient data
-        if len(buffer) < self.min_data_points:
-            return None
-
         # Calculate indicators
         indicators = self._calculate_indicators(symbol)
         if indicators is None:
@@ -146,20 +152,39 @@ class V35LongTask(BaseStrategyTask):
         return regime in ("BULL_STRONG", "BULL_MODERATE")
 
     def _calculate_indicators(self, symbol: str) -> dict[str, float] | None:
-        """Calculate indicators using OHLCV data from database."""
+        """Calculate indicators using warm-up history + live ticks."""
         try:
-            # Get proper indicators from database OHLCV data
-            indicators = get_indicators(symbol, periods=100)
-            if indicators is None:
-                logger.warning(f"Could not load indicators for {symbol}")
+            history = self.history.get(symbol)
+            if not history:
                 return None
 
-            # Use current price from buffer if available
+            # Clone history to avoid mutation issues (or optimize by updating in place carefully)
+            # For 200 rows, creating a DataFrame is fast enough
+            # We must NOT modify the "stored" history list with temporary tick updates permanently
+            # unless we know we are validly updating the candle.
+            # But here we just want a snapshot for calculation.
+
+            # Simple approach: Create DF, update last row
+            df = pd.DataFrame(history)
+
+            # Update last candle with current price
             buffer = self.price_buffer.get(symbol, [])
             if buffer:
-                indicators["close"] = float(buffer[-1]["price"])
+                current_price = float(buffer[-1]["price"])
+                # We need to explicitly cast to float and update the specific cell
+                idx = df.index[-1]
+                df.at[idx, "close"] = current_price
+                df.at[idx, "high"] = max(df.at[idx, "high"], current_price)
+                df.at[idx, "low"] = min(df.at[idx, "low"], current_price)
+                # Volume integration is skipped for now (using API volume-so-far)
 
-            return indicators
+            # Add indicators
+            df = add_all_indicators(df)
+
+            # Return last row as dict
+            # iloc[-1] returns a Series, to_dict converts to python types (float)
+            return df.iloc[-1].to_dict()
+
         except Exception as e:
             logger.error(f"Indicator calculation failed for {symbol}: {e}")
             return None

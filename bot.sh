@@ -206,6 +206,21 @@ show_help() {
     echo "  $0 restart --trend=live               # Restart with trend live"
     echo "  $0 stop                               # Stop bot"
     echo "  $0 status                             # Check status"
+    echo "  $0 health                             # Run server health check"
+}
+
+health() {
+    # Find venv python
+    if [ -f "$SCRIPT_DIR/.venv/bin/python3" ]; then
+        PYTHON_BIN="$SCRIPT_DIR/.venv/bin/python3"
+    elif [ -f "$SCRIPT_DIR/venv/bin/python3" ]; then
+        PYTHON_BIN="$SCRIPT_DIR/venv/bin/python3"
+    else
+        PYTHON_BIN="python3"
+    fi
+
+    echo "🏥 Running Server Health Check..."
+    "$PYTHON_BIN" scripts/server_health_check.py
 }
 
 case "$1" in
@@ -218,6 +233,9 @@ case "$1" in
         ;;
     status)
         status
+        ;;
+    health)
+        health
         ;;
     logs)
         logs

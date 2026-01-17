@@ -4,9 +4,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import json
 import uuid
 from typing import Any, TYPE_CHECKING
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
 
 from trading.strategies.volatility_tracker import VolatilityTracker
 
@@ -75,11 +77,12 @@ class SmartExecutor:
 
         self._running = False
 
-    def update_high_water_mark(self, symbol: str, price: float) -> None:
+    async def update_high_water_mark(self, symbol: str, price: float) -> None:
         """Update high water mark for symbol."""
         current_hwm = self.high_water_marks.get(symbol, 0)
         if price > current_hwm:
             self.high_water_marks[symbol] = price
+            await self._save_hwm(symbol, price)
 
     def calculate_stop_price(self, symbol: str, volatility: str) -> float:
         """Calculate trailing stop price."""
@@ -144,7 +147,61 @@ class SmartExecutor:
 
         await self.redis.create_consumer_group("exit_signals", group)
 
+        # Restore state
+        await self._load_state()
+
         logger.info("SmartExecutor started")
+
+    async def _load_state(self) -> None:
+        """Load state from Redis."""
+        try:
+            # Load active exit plans
+            data = await self.redis.hgetall("smart_exit:plans")
+            for key, plan_json in data.items():
+                try:
+                    plan_dict = json.loads(plan_json)
+                    self.active_exits[key] = ExitPlan(**plan_dict)
+                except Exception as e:
+                    logger.error(f"Failed to load exit plan for {key}: {e}")
+
+            # Load high water marks
+            data = await self.redis.hgetall("smart_exit:hwm")
+            for symbol, hwm in data.items():
+                self.high_water_marks[symbol] = float(hwm)
+
+            logger.info(f"Loaded {len(self.active_exits)} active exits and {len(self.high_water_marks)} HWMs")
+        except Exception as e:
+            logger.error(f"Failed to load smart executor state: {e}")
+
+    async def _save_exit_plan(self, key: str, plan: ExitPlan) -> None:
+        """Save exit plan to Redis."""
+        try:
+            plan_json = json.dumps(asdict(plan))
+            await self.redis.hset("smart_exit:plans", {key: plan_json})
+        except Exception as e:
+            logger.error(f"Failed to save exit plan: {e}")
+
+    async def _remove_exit_plan(self, key: str) -> None:
+        """Remove exit plan from Redis."""
+        # Note: RedisStreams wrapper might not have hdel, check implementation
+        # If not, we might need to add it or use raw client if exposed
+        if hasattr(self.redis, "hdel"):
+            await self.redis.hdel("smart_exit:plans", key)
+        elif self.redis._client:
+             await self.redis._client.hdel("smart_exit:plans", key)
+
+    async def _save_hwm(self, symbol: str, price: float) -> None:
+        """Save HWM to Redis."""
+        try:
+            await self.redis.hset("smart_exit:hwm", {symbol: str(price)})
+        except Exception as e:
+            logger.error(f"Failed to save HWM: {e}")
+
+    async def _remove_hwm(self, symbol: str) -> None:
+        """Remove HWM from Redis."""
+        if self.redis._client:
+            await self.redis._client.hdel("smart_exit:hwm", symbol)
+
 
         # Start background tasks
         asyncio.create_task(self._price_monitor_loop())
@@ -195,7 +252,7 @@ class SmartExecutor:
 
                         # Also update high water mark for active positions
                         if symbol in self.high_water_marks:
-                            self.update_high_water_mark(symbol, float(price))
+                            await self.update_high_water_mark(symbol, float(price))
 
                     await self.redis.ack("market:prices", group, msg["_id"])
 
@@ -235,7 +292,9 @@ class SmartExecutor:
         await self._execute_ladder(plan)
 
         # Track active exit
-        self.active_exits[f"{symbol}:{market}"] = plan
+        key = f"{symbol}:{market}"
+        self.active_exits[key] = plan
+        await self._save_exit_plan(key, plan)
 
     async def _execute_ladder(self, plan: ExitPlan) -> None:
         """Place limit order ladder."""
@@ -286,6 +345,7 @@ class SmartExecutor:
                 logger.info(f"Exit complete: {plan.symbol} all filled via ladder")
                 await self.redis.clear_position(plan.symbol, plan.market)
                 del self.active_exits[key]
+                await self._remove_exit_plan(key)
                 continue
 
             # Phase 1 timeout: partial sweep for unfilled quantity
@@ -296,6 +356,7 @@ class SmartExecutor:
                 plan.phase = "complete"
                 await self.redis.clear_position(plan.symbol, plan.market)
                 del self.active_exits[key]
+                await self._remove_exit_plan(key)
                 continue
 
             # Phase transition: sweep if max timeout
@@ -304,6 +365,11 @@ class SmartExecutor:
                 plan.phase = "complete"
                 await self.redis.clear_position(plan.symbol, plan.market)
                 del self.active_exits[key]
+                await self._remove_exit_plan(key)
+                continue
+
+            # Save progress
+            await self._save_exit_plan(key, plan)
 
     async def _sweep_remaining(self, plan: ExitPlan, remaining_qty: float) -> None:
         """Cancel unfilled orders and sweep with market order."""

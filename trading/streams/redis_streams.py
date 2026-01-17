@@ -176,10 +176,15 @@ class RedisStreams:
             market: Market type (e.g., "spot", "futures")
 
         Returns:
-            Dict of position data
+            Dict of position data including symbol and market
         """
         key = f"positions:{symbol}:{market}"
-        return await self._client.hgetall(key)
+        data = await self._client.hgetall(key)
+        if data:
+            # Include symbol and market in returned data for convenience
+            data["symbol"] = symbol
+            data["market"] = market
+        return data
 
     async def has_position(self, symbol: str, market: str) -> bool:
         """Check if position exists.

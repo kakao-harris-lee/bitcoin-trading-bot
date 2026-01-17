@@ -80,8 +80,13 @@ class BaseStrategyTask(ABC):
         if msg.get("market") != self.market:
             return
 
-        # Update buffer
+        # Update buffer (always, for indicator calculation)
         self._update_buffer(symbol, msg)
+
+        # Skip signal evaluation for warm-up data (historical candles)
+        # Warm-up data is for populating buffers/indicators, not trading
+        if msg.get("warmup") == "true":
+            return
 
         # Check if blocked
         if await self.redis.is_blocked():

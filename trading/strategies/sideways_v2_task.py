@@ -139,25 +139,6 @@ class SidewaysV2Task(BaseStrategyTask):
             logger.error(f"Indicator calculation failed for {symbol}: {e}")
             return None
 
-    def _calculate_indicators(self, symbol: str) -> dict[str, float] | None:
-        """Calculate indicators using OHLCV data from database."""
-        try:
-            # Get proper indicators from database OHLCV data
-            indicators = get_indicators(symbol, periods=100)
-            if indicators is None:
-                logger.warning(f"Could not load indicators for {symbol}")
-                return None
-
-            # Use current price from buffer if available
-            buffer = self.price_buffer.get(symbol, [])
-            if buffer:
-                indicators["close"] = float(buffer[-1]["price"])
-
-            return indicators
-        except Exception as e:
-            logger.error(f"Indicator calculation failed for {symbol}: {e}")
-            return None
-
     async def _calculate_position_size(self, symbol: str, price: float) -> float:
         """Calculate position size (dynamic or fixed based on config)."""
         # Use dynamic sizing if enabled, otherwise fall back to fixed

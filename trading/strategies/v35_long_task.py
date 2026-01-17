@@ -33,28 +33,33 @@ def load_optimized_params(symbol: str) -> dict:
     """Load optimized parameters from config file."""
     config_path = Path(f"config/strategies/v35_{symbol.lower()}_binance.json")
     if not config_path.exists():
-        raise FileNotFoundError(f"Optimized config for {symbol} not found at {config_path}")
+        logger.info(f"No optimized config for {symbol}, using defaults")
+        return DEFAULT_PARAMS.copy()
 
-    with open(config_path) as f:
-        opt_config = json.load(f)
+    try:
+        with open(config_path) as f:
+            opt_config = json.load(f)
 
-    mc = opt_config.get("market_classifier", {})
-    ec = opt_config.get("exit_conditions", {})
+        mc = opt_config.get("market_classifier", {})
+        ec = opt_config.get("exit_conditions", {})
 
-    params = {
-        "mfi_bull": mc.get("mfi_bull_moderate", DEFAULT_PARAMS["mfi_bull"]),
-        "mfi_bear": 48,  # Keep default for bear threshold
-        "adx_strong": mc.get("adx_strong", DEFAULT_PARAMS["adx_strong"]),
-        "adx_trend": mc.get("adx_moderate", DEFAULT_PARAMS["adx_trend"]),
-        "adx_weak": 15,
-        "stop_loss_pct": abs(ec.get("stop_loss", -DEFAULT_PARAMS["stop_loss_pct"] / 100)) * 100,
-        "take_profit_pct": ec.get("tp_bull_moderate_1", DEFAULT_PARAMS["take_profit_pct"] / 100) * 100,
-        "trailing_activation": ec.get("trailing_activation", DEFAULT_PARAMS["trailing_activation"] / 100) * 100,
-        "trailing_distance": ec.get("trailing_distance", DEFAULT_PARAMS["trailing_distance"] / 100) * 100,
-        "trailing_enabled": ec.get("trailing_enabled", True),
-    }
-    logger.info(f"Loaded optimized params for {symbol}: SL={params['stop_loss_pct']:.1f}%, TP={params['take_profit_pct']:.1f}%")
-    return params
+        params = {
+            "mfi_bull": mc.get("mfi_bull_moderate", DEFAULT_PARAMS["mfi_bull"]),
+            "mfi_bear": 48,  # Keep default for bear threshold
+            "adx_strong": mc.get("adx_strong", DEFAULT_PARAMS["adx_strong"]),
+            "adx_trend": mc.get("adx_moderate", DEFAULT_PARAMS["adx_trend"]),
+            "adx_weak": 15,
+            "stop_loss_pct": abs(ec.get("stop_loss", -DEFAULT_PARAMS["stop_loss_pct"] / 100)) * 100,
+            "take_profit_pct": ec.get("tp_bull_moderate_1", DEFAULT_PARAMS["take_profit_pct"] / 100) * 100,
+            "trailing_activation": ec.get("trailing_activation", DEFAULT_PARAMS["trailing_activation"] / 100) * 100,
+            "trailing_distance": ec.get("trailing_distance", DEFAULT_PARAMS["trailing_distance"] / 100) * 100,
+            "trailing_enabled": ec.get("trailing_enabled", True),
+        }
+        logger.info(f"Loaded optimized params for {symbol}: SL={params['stop_loss_pct']:.1f}%, TP={params['take_profit_pct']:.1f}%")
+        return params
+    except Exception as e:
+        logger.error(f"Failed to load config for {symbol}: {e}, using defaults")
+        return DEFAULT_PARAMS.copy()
 
 
 class V35LongTask(BaseStrategyTask):

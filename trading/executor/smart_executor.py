@@ -152,6 +152,25 @@ class SmartExecutor:
 
         logger.info("SmartExecutor started")
 
+        # Start background tasks
+        asyncio.create_task(self._price_monitor_loop())
+        asyncio.create_task(self._exit_execution_loop())
+
+        while self._running:
+            try:
+                # Consume exit signals
+                messages = await self.redis.consume(
+                    "exit_signals", group, consumer, count=10, block_ms=1000
+                )
+
+                for msg in messages:
+                    await self._handle_exit_signal(msg)
+                    await self.redis.ack("exit_signals", group, msg["_id"])
+
+            except Exception as e:
+                logger.error(f"SmartExecutor error: {e}")
+                await asyncio.sleep(1)
+
     async def _load_state(self) -> None:
         """Load state from Redis."""
         try:
@@ -188,7 +207,7 @@ class SmartExecutor:
         if hasattr(self.redis, "hdel"):
             await self.redis.hdel("smart_exit:plans", key)
         elif self.redis._client:
-             await self.redis._client.hdel("smart_exit:plans", key)
+            await self.redis._client.hdel("smart_exit:plans", key)
 
     async def _save_hwm(self, symbol: str, price: float) -> None:
         """Save HWM to Redis."""
@@ -201,26 +220,6 @@ class SmartExecutor:
         """Remove HWM from Redis."""
         if self.redis._client:
             await self.redis._client.hdel("smart_exit:hwm", symbol)
-
-
-        # Start background tasks
-        asyncio.create_task(self._price_monitor_loop())
-        asyncio.create_task(self._exit_execution_loop())
-
-        while self._running:
-            try:
-                # Consume exit signals
-                messages = await self.redis.consume(
-                    "exit_signals", group, consumer, count=10, block_ms=1000
-                )
-
-                for msg in messages:
-                    await self._handle_exit_signal(msg)
-                    await self.redis.ack("exit_signals", group, msg["_id"])
-
-            except Exception as e:
-                logger.error(f"SmartExecutor error: {e}")
-                await asyncio.sleep(1)
 
     def stop(self) -> None:
         """Signal executor to stop."""

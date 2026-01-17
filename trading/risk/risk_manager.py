@@ -382,7 +382,7 @@ class RiskManager(BaseModule):
         self.state.long_exposure = long_total
         self.state.short_exposure = short_total
 
-    def update_equity(self, total_equity: float):
+    async def update_equity(self, total_equity: float):
         """자산 업데이트"""
         self.state.total_equity = total_equity
 
@@ -403,6 +403,9 @@ class RiskManager(BaseModule):
         # 일일 손익
         self.state.daily_pnl = total_equity - self.initial_capital
         self.state.daily_pnl_pct = self.state.daily_pnl / self.initial_capital * 100
+
+        # Persist state to Redis
+        await self.save_state()
 
     def get_risk_state(self) -> Dict:
         """현재 리스크 상태 반환"""

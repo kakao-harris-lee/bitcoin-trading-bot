@@ -1,5 +1,6 @@
 {
   "redis_url": "redis://localhost:6379",
+  "use_component_strategies": true,
   "symbols": ["BTC", "ETH", "SOL"],
   "binance": {
     "api_key": "${BINANCE_API_KEY}",

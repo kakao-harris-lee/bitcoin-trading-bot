@@ -165,15 +165,16 @@ class AsyncExecutor:
             )
 
             # Update position
+            profit_data = None
             if is_exit:
-                # Calculate realized P&L
-                await self._record_exit_pnl(order, fill)
+                # Calculate realized P&L (must be done before clearing position)
+                profit_data = await self._record_exit_pnl(order, fill)
                 await self.redis.clear_position(order["symbol"], order["market"])
             else:
                 await self._update_position(order, fill)
 
-            # Publish trade notification
-            await self._publish_trade(order, fill)
+            # Publish trade notification (with profit data for exits)
+            await self._publish_trade(order, fill, profit_data)
 
             logger.info(f"Order {order['id']} filled: {fill}")
             return fill
@@ -211,14 +212,18 @@ class AsyncExecutor:
         else:  # futures
             return (side == "buy" and pos_side == "sell") or (side == "sell" and pos_side == "buy")
 
-    async def _record_exit_pnl(self, order: dict, fill: dict) -> None:
-        """Record realized P&L when exiting a position."""
+    async def _record_exit_pnl(self, order: dict, fill: dict) -> dict | None:
+        """Record realized P&L when exiting a position.
+
+        Returns:
+            Dict with profit and profit_pct, or None if no position found.
+        """
         symbol = order["symbol"]
         market = order["market"]
 
         position = await self.redis.get_position(symbol, market)
         if not position:
-            return
+            return None
 
         entry_price = float(position.get("entry_price", 0))
         exit_price = fill["filled_price"]
@@ -228,15 +233,17 @@ class AsyncExecutor:
         # Calculate P&L
         if side == "buy":  # Long position
             pnl = (exit_price - entry_price) * quantity
+            pnl_pct = ((exit_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
         else:  # Short position
             pnl = (entry_price - exit_price) * quantity
+            pnl_pct = ((entry_price - exit_price) / entry_price * 100) if entry_price > 0 else 0
 
         # Update daily P&L
         risk = await self.redis.get_risk()
         daily_pnl = float(risk.get("daily_pnl", 0)) + pnl
         await self.redis.hset("risk", {"daily_pnl": str(daily_pnl)})
 
-        logger.info(f"Recorded P&L: {symbol} {pnl:+.2f} USDT (daily total: {daily_pnl:+.2f})")
+        logger.info(f"Recorded P&L: {symbol} {pnl:+.2f} USDT ({pnl_pct:+.2f}%) (daily total: {daily_pnl:+.2f})")
 
         # Publish P&L alert
         await self.redis.publish("alerts", {
@@ -246,6 +253,8 @@ class AsyncExecutor:
             "daily_pnl": str(daily_pnl),
             "timestamp": str(int(time.time() * 1000)),
         })
+
+        return {"profit": pnl, "profit_pct": pnl_pct}
 
     async def _pass_risk_gates(self) -> bool:
         """Check all risk conditions."""
@@ -286,9 +295,15 @@ class AsyncExecutor:
             "side": order["side"],
         })
 
-    async def _publish_trade(self, order: dict, fill: dict) -> None:
-        """Publish trade to trades stream."""
-        await self.redis.publish("trades", {
+    async def _publish_trade(self, order: dict, fill: dict, profit_data: dict | None = None) -> None:
+        """Publish trade to trades stream.
+
+        Args:
+            order: Order dict with symbol, side, market, strategy.
+            fill: Fill dict with order_id, filled_qty, filled_price.
+            profit_data: Optional dict with profit and profit_pct for exit trades.
+        """
+        trade = {
             "order_id": str(fill["order_id"]),
             "symbol": order["symbol"],
             "side": order["side"],
@@ -297,7 +312,15 @@ class AsyncExecutor:
             "price": str(fill["filled_price"]),
             "strategy": order["strategy"],
             "timestamp": str(int(time.time() * 1000)),
-        })
+            "reason": order.get("reason", ""),
+        }
+
+        # Add profit data for exit trades
+        if profit_data:
+            trade["profit"] = str(profit_data["profit"])
+            trade["profit_pct"] = str(profit_data["profit_pct"])
+
+        await self.redis.publish("trades", trade)
 
     async def _publish_rejection(self, order: dict, reason: str) -> None:
         """Publish order rejection to alerts stream."""

@@ -1,11 +1,54 @@
 # trading/executor/binance_client.py
 """Unified Binance client for spot and futures."""
 from __future__ import annotations
+import asyncio
 import logging
-from typing import Any
+from typing import Any, Callable, TypeVar
 from dataclasses import dataclass
+from functools import wraps
 
 logger = logging.getLogger(__name__)
+
+# Error codes that are safe to retry (transient issues)
+RETRYABLE_ERROR_CODES = {
+    -1021,  # Timestamp for this request is outside the recvWindow
+    -1001,  # Disconnected
+}
+
+# Retry configuration
+MAX_RETRIES = 3
+INITIAL_BACKOFF_SEC = 0.5
+
+T = TypeVar("T")
+
+
+def with_retry(func: Callable[..., T]) -> Callable[..., T]:
+    """Decorator to retry on transient Binance API errors with exponential backoff."""
+    @wraps(func)
+    async def wrapper(*args, **kwargs) -> T:
+        last_exception = None
+        backoff = INITIAL_BACKOFF_SEC
+
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                # Check if it's a retryable Binance API error
+                error_code = getattr(e, "code", None)
+                if error_code in RETRYABLE_ERROR_CODES and attempt < MAX_RETRIES:
+                    logger.warning(
+                        f"Retryable error (code={error_code}), attempt {attempt}/{MAX_RETRIES}, "
+                        f"retrying in {backoff}s: {e}"
+                    )
+                    last_exception = e
+                    await asyncio.sleep(backoff)
+                    backoff *= 2  # Exponential backoff
+                else:
+                    raise
+
+        # Should not reach here, but raise last exception if it does
+        raise last_exception
+    return wrapper
 
 
 @dataclass
@@ -155,6 +198,7 @@ class BinanceClient:
         futures = await self.get_futures_positions()
         return spot + futures
 
+    @with_retry
     async def market_order(
         self,
         symbol: str,
@@ -198,6 +242,7 @@ class BinanceClient:
             logger.error(f"Order failed: {e}")
             raise
 
+    @with_retry
     async def limit_order(
         self,
         symbol: str,
@@ -244,6 +289,7 @@ class BinanceClient:
             logger.error(f"Limit order failed: {e}")
             raise
 
+    @with_retry
     async def cancel_order(
         self,
         symbol: str,
@@ -274,6 +320,7 @@ class BinanceClient:
             logger.error(f"Cancel order failed: {e}")
             raise
 
+    @with_retry
     async def get_order(
         self,
         symbol: str,

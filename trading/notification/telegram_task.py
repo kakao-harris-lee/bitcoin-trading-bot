@@ -36,6 +36,10 @@ class TelegramTask:
     CONSUMER_GROUP = "telegram"
     CONSUMER_NAME = "telegram-1"
 
+    # Rate limiting settings
+    MIN_MESSAGE_INTERVAL = 5  # Minimum seconds between messages
+    ALERT_COOLDOWN = 60  # Cooldown for same alert type (seconds)
+
     def __init__(self, redis: RedisStreams):
         """Initialize Telegram task.
 
@@ -57,6 +61,10 @@ class TelegramTask:
         self.utc = pytz.UTC
         self._running = False
         self._last_update_id = 0
+
+        # Rate limiting state
+        self._last_message_time = 0
+        self._last_alert_times: dict[str, float] = {}  # alert_key -> timestamp
 
     async def run(self) -> None:
         """Main loop: consume streams and poll for commands."""
@@ -204,7 +212,7 @@ class TelegramTask:
         elif command == "help":
             await self._cmd_help()
         else:
-            await self._send_message(f"Unknown command: /{command}\n\nUse /help for available commands.")
+            await self._send_message(f"Unknown command: /{command}\n\nUse /help for available commands.", bypass_rate_limit=True)
 
     async def _cmd_kill_on(self) -> None:
         """Handle /kill_on command - enable kill switch."""
@@ -212,7 +220,7 @@ class TelegramTask:
         risk["kill_switch"] = "true"
         await self.redis.set_risk(risk)
 
-        await self._send_message("*Kill Switch: ON*\n\nTrading is now DISABLED. Use /kill_off to re-enable.")
+        await self._send_message("*Kill Switch: ON*\n\nTrading is now DISABLED. Use /kill_off to re-enable.", bypass_rate_limit=True)
 
     async def _cmd_kill_off(self) -> None:
         """Handle /kill_off command - disable kill switch."""
@@ -220,7 +228,7 @@ class TelegramTask:
         risk["kill_switch"] = "false"
         await self.redis.set_risk(risk)
 
-        await self._send_message("*Kill Switch: OFF*\n\nTrading is now ENABLED.")
+        await self._send_message("*Kill Switch: OFF*\n\nTrading is now ENABLED.", bypass_rate_limit=True)
 
     async def _cmd_info(self) -> None:
         """Handle /info command - show current status."""
@@ -256,13 +264,13 @@ class TelegramTask:
 
 _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
 """
-        await self._send_message(message)
+        await self._send_message(message, bypass_rate_limit=True)
 
     async def _cmd_dashboard(self) -> None:
         """Handle /dashboard command - show TOTP code for dashboard access."""
         totp_secret = os.getenv("DASHBOARD_TOTP_SECRET")
         if not totp_secret:
-            await self._send_message("⚠️ DASHBOARD_TOTP_SECRET not configured in .env")
+            await self._send_message("⚠️ DASHBOARD_TOTP_SECRET not configured in .env", bypass_rate_limit=True)
             return
 
         totp = pyotp.TOTP(totp_secret, interval=30)
@@ -278,7 +286,7 @@ _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
 
 _Code valid for ~30 seconds_
 """
-        await self._send_message(message)
+        await self._send_message(message, bypass_rate_limit=True)
 
     async def _cmd_help(self) -> None:
         """Handle /help command."""
@@ -290,7 +298,7 @@ _Code valid for ~30 seconds_
 /kill_off - Disable kill switch (resume trading)
 /help - Show this message
 """
-        await self._send_message(message)
+        await self._send_message(message, bypass_rate_limit=True)
 
     async def _handle_trade(self, trade: dict) -> None:
         """Handle trade notification.
@@ -334,21 +342,65 @@ _Code valid for ~30 seconds_
 
         Args:
             alert: Alert data from alerts stream
+
+        Handles two formats:
+        1. Executor format: {"type": "order_rejected", "symbol": "BTC", "reason": "..."}
+        2. Generic format: {"level": "error", "component": "system", "message": "..."}
         """
-        level = alert.get("level", "info").upper()
-        component = alert.get("component", "system")
-        message_text = alert.get("message", "No message")
+        alert_type = alert.get("type")
 
-        if level == "CRITICAL":
-            emoji = ""
-        elif level == "ERROR":
-            emoji = ""
-        elif level == "WARNING":
-            emoji = ""
+        # Handle executor alert format
+        if alert_type:
+            # Skip pnl_realized - already shown in trade notification
+            if alert_type == "pnl_realized":
+                return
+
+            # Rate limit by alert type + symbol
+            alert_key = f"{alert_type}:{alert.get('symbol', 'unknown')}"
+            if not self._should_send_alert(alert_key):
+                logger.debug(f"Alert rate limited: {alert_key}")
+                return
+
+            if alert_type == "order_rejected":
+                symbol = alert.get("symbol", "?")
+                reason = alert.get("reason", "Unknown reason")
+                message = f"""⚠️ *Order Rejected*
+
+*Symbol:* {symbol}
+*Reason:* {reason}
+
+_Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
+"""
+            else:
+                # Unknown executor alert type
+                message = f"""ℹ️ *Alert: {alert_type}*
+
+{', '.join(f'{k}: {v}' for k, v in alert.items() if k not in ['type', 'timestamp', '_id'])}
+
+_Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
+"""
         else:
-            emoji = ""
+            # Handle generic alert format
+            level = alert.get("level", "info").upper()
+            component = alert.get("component", "system")
+            message_text = alert.get("message", "No message")
 
-        message = f"""{emoji} *{level}*
+            # Rate limit by level + component
+            alert_key = f"{level}:{component}"
+            if not self._should_send_alert(alert_key):
+                logger.debug(f"Alert rate limited: {alert_key}")
+                return
+
+            if level == "CRITICAL":
+                emoji = "🚨"
+            elif level == "ERROR":
+                emoji = "❌"
+            elif level == "WARNING":
+                emoji = "⚠️"
+            else:
+                emoji = "ℹ️"
+
+            message = f"""{emoji} *{level}*
 
 *Component:* {component}
 *Message:* {message_text}
@@ -357,15 +409,42 @@ _Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
 """
         await self._send_message(message)
 
-    async def _send_message(self, message: str) -> bool:
-        """Send message to Telegram.
+    def _should_send_alert(self, alert_key: str) -> bool:
+        """Check if alert should be sent (rate limiting).
+
+        Args:
+            alert_key: Unique key for this alert type
+
+        Returns:
+            True if alert should be sent
+        """
+        now = time.time()
+        last_time = self._last_alert_times.get(alert_key, 0)
+
+        if now - last_time < self.ALERT_COOLDOWN:
+            return False
+
+        self._last_alert_times[alert_key] = now
+        return True
+
+    async def _send_message(self, message: str, bypass_rate_limit: bool = False) -> bool:
+        """Send message to Telegram with rate limiting.
 
         Args:
             message: Message text (supports Markdown)
+            bypass_rate_limit: Skip rate limiting (for command responses)
 
         Returns:
             True if sent successfully
         """
+        # Global rate limiting (except for command responses)
+        if not bypass_rate_limit:
+            now = time.time()
+            if now - self._last_message_time < self.MIN_MESSAGE_INTERVAL:
+                logger.debug("Message rate limited (global)")
+                return False
+            self._last_message_time = now
+
         url = f"{self.api_url}/sendMessage"
         payload = {
             "chat_id": self.chat_id,

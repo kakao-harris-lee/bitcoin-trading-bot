@@ -2,6 +2,15 @@
 
 ## Quick Reference
 
+**Always add important documentation here!** When you create or discover:
+- Architecture Diagram → Add Reference Paths Here
+- Database Schema → Add Reference Paths Here
+- Troubleshooting → Add Reference Paths Here
+- Setup Guide → Add Reference Paths Here
+
+This prevents context loss! Update this file immediately when you create important documentation.
+
+
 ```bash
 # Bot management (recommended)
 ./bot.sh start                    # Paper mode (default)

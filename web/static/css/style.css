@@ -1045,6 +1045,37 @@ footer {
     color: #e74c3c;
 }
 
+/* Symbol Badge */
+.symbol-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background: rgba(52, 152, 219, 0.2);
+    color: #3498db;
+    font-family: monospace;
+}
+
+/* Market Badge */
+.market-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-left: 4px;
+}
+
+.market-badge.spot {
+    background: rgba(46, 204, 113, 0.2);
+    color: #2ecc71;
+}
+
+.market-badge.futures {
+    background: rgba(155, 89, 182, 0.2);
+    color: #9b59b6;
+}
+
 /* Signals Tab Styles */
 .signals-list {
     display: flex;
@@ -1241,8 +1272,21 @@ footer {
     color: #f1c40f;
 }
 
+.decision-card .decision-badges {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 .decision-card .decision-body {
     margin-bottom: 8px;
+}
+
+.decision-card .decision-asset {
+    font-size: 0.85rem;
+    color: #3498db;
+    font-weight: 600;
+    margin-bottom: 4px;
 }
 
 .decision-card .decision-reason {

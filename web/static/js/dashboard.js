@@ -824,6 +824,7 @@ function renderTradeTable(data) {
             <thead>
                 <tr>
                     <th>Time</th>
+                    <th>Symbol</th>
                     <th>Action</th>
                     <th class="text-right">Price</th>
                     <th class="text-right">Volume</th>
@@ -838,10 +839,13 @@ function renderTradeTable(data) {
     for (const trade of data.trades) {
         const actionClass = trade.action.toLowerCase();
         const pnlClass = getPnLClass(trade.profit);
+        const symbolDisplay = trade.symbol || '-';
+        const marketBadge = trade.market === 'futures' ? ' <span class="market-badge futures">F</span>' : '';
 
         html += `
             <tr>
                 <td>${formatDateTime(trade.timestamp)}</td>
+                <td><span class="symbol-badge">${escapeHtml(symbolDisplay)}</span>${marketBadge}</td>
                 <td><span class="action-badge ${actionClass}">${trade.action}</span></td>
                 <td class="text-right">$${formatPrice(trade.price, false)}</td>
                 <td class="text-right">${formatQuantity(trade.volume, 4)}</td>
@@ -929,17 +933,24 @@ function renderSignals(data) {
         const actionClass = signal.action.toLowerCase();
         const actedClass = signal.acted ? 'yes' : 'no';
         const indicators = signal.indicators || {};
+        const symbolDisplay = signal.symbol || '-';
+        const marketDisplay = signal.market === 'futures' ? 'Futures' : 'Spot';
 
         html += `
             <div class="signal-card ${actionClass}">
                 <div class="signal-header">
                     <span class="signal-time">${formatDateTime(signal.timestamp)}</span>
                     <div class="signal-badges">
+                        <span class="symbol-badge">${escapeHtml(symbolDisplay)}</span>
                         <span class="signal-action ${actionClass}">${signal.action}</span>
                         <span class="acted-badge ${actedClass}">${signal.acted ? 'Executed' : 'Not Acted'}</span>
                     </div>
                 </div>
                 <div class="signal-body">
+                    <div class="signal-info">
+                        <span class="label">Symbol</span>
+                        <span class="value">${escapeHtml(symbolDisplay)} (${marketDisplay})</span>
+                    </div>
                     <div class="signal-info">
                         <span class="label">Strategy</span>
                         <span class="value">${escapeHtml(signal.strategy) || '-'}</span>
@@ -1031,14 +1042,21 @@ function renderDecisions(decisions) {
     for (const decision of decisions) {
         const actionClass = decision.action.toLowerCase();
         const indicators = decision.indicators || {};
+        const assetDisplay = decision.asset || '-';
+        const marketDisplay = decision.market === 'futures' ? 'Futures' : 'Spot';
 
         html += `
             <div class="decision-card ${actionClass}">
                 <div class="decision-header">
                     <span class="decision-time">${formatDateTime(decision.timestamp)}</span>
-                    <span class="decision-action ${actionClass}">${decision.action}</span>
+                    <div class="decision-badges">
+                        <span class="symbol-badge">${escapeHtml(assetDisplay)}</span>
+                        <span class="market-badge ${decision.market || 'spot'}">${marketDisplay}</span>
+                        <span class="decision-action ${actionClass}">${decision.action}</span>
+                    </div>
                 </div>
                 <div class="decision-body">
+                    <div class="decision-asset">${escapeHtml(assetDisplay)} (${marketDisplay})</div>
                     <div class="decision-reason">${escapeHtml(decision.reason) || '-'}</div>
                     <div class="decision-strategy">${escapeHtml(decision.strategy) || '-'}</div>
                 </div>
@@ -1950,6 +1968,7 @@ function renderBacktestTrades(trades) {
             <thead>
                 <tr>
                     <th>Date</th>
+                    <th>Symbol</th>
                     <th>Action</th>
                     <th class="text-right">Price</th>
                     <th class="text-right">P&L</th>
@@ -1963,10 +1982,12 @@ function renderBacktestTrades(trades) {
     for (const trade of displayTrades) {
         const actionClass = (trade.action || '').toLowerCase();
         const pnlClass = getPnLClass(trade.profit);
+        const symbolDisplay = trade.symbol || '-';
 
         html += `
             <tr>
                 <td>${formatDate(trade.timestamp || trade.date)}</td>
+                <td><span class="symbol-badge">${escapeHtml(symbolDisplay)}</span></td>
                 <td><span class="action-badge ${actionClass}">${escapeHtml(trade.action) || '-'}</span></td>
                 <td class="text-right">${formatPrice(trade.price, true)}</td>
                 <td class="text-right ${pnlClass}">

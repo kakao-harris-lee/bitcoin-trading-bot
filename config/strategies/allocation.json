@@ -24,6 +24,12 @@
       "position_pct": 0.20,
       "position_size": 0.01,
       "use_smart_exit": true
+    },
+    "v35_experimental": {
+      "dynamic_sizing": true,
+      "position_pct": 0.05,
+      "position_size": 0.01,
+      "use_smart_exit": true
     }
   },
   "smart_executor": {

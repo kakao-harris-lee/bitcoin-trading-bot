@@ -7,25 +7,25 @@ This document describes all trading strategies, their data sources, indicators, 
 | Strategy | Exchange | Direction | Timeframe | Primary Indicators | Entry Method |
 |----------|----------|-----------|-----------|-------------------|--------------|
 | V35_Long | Upbit | LONG | Daily | RSI, MACD, MFI, ADX | Momentum/Breakout/Range |
+| V35_Experimental | Spot | LONG | Daily | RSI, MACD, MFI, ADX | V35 Entry + Tighter Exit |
 | Short_V1 | Binance | SHORT | 4H | EMA, ADX, DI, ATR | EMA Death Cross + ADX |
-| Short_V2 | Binance | SHORT | 4H | EMA, ADX, DI | Hedge (regime-based) |
 | Sideways_V2 | Upbit | LONG | Daily | RSI, BB, Stoch, OBV | Multi-method (3 entries) |
-| H4_Conservative | Upbit | LONG | 4H | RSI, BB, EMA, Volume | Oversold pullback |
-| H4_Short | Binance | SHORT | 4H | RSI, BB, EMA, Volume | Overbought bounce |
 
 ---
 
 ## 1. V35_Long Strategy
 
-**File:** `trading/strategy/v35_long.py`
+**Components:** `trading/strategies/components/v35_entry.py`, `v35_trailing_exit.py`
 **Config:** `config/strategies/v35_long.json`
 
 ### Overview
-- **Exchange:** Upbit (KRW-BTC)
+
+- **Exchange:** Upbit (KRW-BTC) / Binance Spot
 - **Direction:** LONG
 - **Timeframe:** Daily
 
 ### Data Sources
+
 | Source | Description |
 |--------|-------------|
 | OHLCV | Daily candles from Upbit |
@@ -57,26 +57,31 @@ This document describes all trading strategies, their data sources, indicators, 
 ### Entry Conditions
 
 **BULL_STRONG (Momentum Entry):**
+
 - MACD > MACD_signal (golden cross)
 - RSI > 52
 - Confidence: 0.85
 
 **BULL_MODERATE (Momentum Entry):**
+
 - MACD > MACD_signal
 - RSI > 55
 - Confidence: 0.75
 
 **SIDEWAYS_UP (Breakout Entry):**
+
 - Close > 20-period high × 1.0071
 - Volume > 20-period avg × 1.23
 - Confidence: 0.70
 
 **SIDEWAYS_FLAT/DOWN (Range Support Entry):**
+
 - Close < Support + (Range × 15.93%)
 - RSI < 38
 - Confidence: 0.65
 
 **BEAR (Conservative Entry):**
+
 - RSI < 30
 - Stoch_K < 20
 - Close < Support + (Range × 10%)
@@ -95,18 +100,42 @@ This document describes all trading strategies, their data sources, indicators, 
 
 ---
 
+## 1.1 V35_Experimental Strategy
+
+**Components:** `trading/strategies/components/v35_entry.py`, `experimental_exit.py`
+**Config:** `config/strategies/v35_experimental.json`
+
+### Overview
+
+- **Exchange:** Binance Spot
+- **Direction:** LONG
+- **Timeframe:** Daily
+- **Concept:** Mixes V35 Entry logic with a tighter, experimental trailing stop exit.
+
+### Differences from V35_Long
+
+- **Entry:** Identical to V35_Long.
+- **Exit:**
+  - **Trailing Stop:** Activates at +0.5%, Trails by 0.5% (vs 3.0%/2.0%).
+  - **Stop Loss:** -0.5% (Tighter).
+  - **Take Profit:** Scaled down targets (1.5%, 2.5%, 3.5%).
+
+---
+
 ## 2. Short_V1 Strategy
 
-**File:** `trading/strategy/short_v1.py`
+**Components:** `trading/strategies/components/short_entry.py`, `short_exit.py`
 **Config:** `config/strategies/short_v1.json`
 
 ### Overview
+
 - **Exchange:** Binance Futures (BTCUSDT)
 - **Direction:** SHORT
 - **Timeframe:** 4H
 - **Leverage:** 2x
 
 ### Data Sources
+
 | Source | Description |
 |--------|-------------|
 | OHLCV | 4H candles from Binance Futures |
@@ -150,6 +179,7 @@ All conditions must be met:
 | Golden Cross | EMA_fast > EMA_slow | Close 100% |
 
 **Stop Loss Calculation:**
+
 ```
 ATR Buffer = ATR × 1.5
 Raw Stop = Swing High + ATR Buffer
@@ -165,12 +195,14 @@ Stop Loss = min(Raw Stop, Max Stop)
 **Config:** `config/strategies/short_v2.json`
 
 ### Overview
+
 - **Exchange:** Binance Futures (BTCUSDT)
 - **Direction:** SHORT
 - **Timeframe:** 4H
 - **Purpose:** Defensive hedge for BEAR_STRONG regime
 
 ### Data Sources
+
 | Source | Description |
 |--------|-------------|
 | OHLCV | 4H candles from Binance |
@@ -205,6 +237,7 @@ Stop Loss = min(Raw Stop, Max Stop)
 | Regime Change | Regime != BEAR_STRONG | Close 100% |
 
 ### Position Sizing
+
 - Matches long exposure: `long_exposure_krw / fx_rate`
 - Leverage: 2x
 
@@ -212,15 +245,17 @@ Stop Loss = min(Raw Stop, Max Stop)
 
 ## 4. Sideways_V2 Strategy
 
-**File:** `trading/strategy/sideways_v2.py`
+**Components:** `trading/strategies/components/sideways_entry.py`, `sideways_exit.py`
 **Config:** `config/strategies/sideways_v2.json`
 
 ### Overview
+
 - **Exchange:** Upbit (KRW-BTC)
 - **Direction:** LONG
 - **Timeframe:** Daily
 
 ### Data Sources
+
 | Source | Description |
 |--------|-------------|
 | OHLCV | Daily candles from Upbit |
@@ -249,6 +284,7 @@ Stop Loss = min(Raw Stop, Max Stop)
 | Volume Breakout | Volume >= Avg × 1.68 | 40% |
 
 **Entry Filter:**
+
 - OBV Slope >= -0.04 (blocks entries during declining volume)
 
 ### Exit Conditions
@@ -269,11 +305,13 @@ Stop Loss = min(Raw Stop, Max Stop)
 **Config:** `config/strategies/h4_conservative.json`
 
 ### Overview
+
 - **Exchange:** Upbit (KRW-BTC)
 - **Direction:** LONG
 - **Timeframe:** 4H
 
 ### Data Sources
+
 | Source | Description |
 |--------|-------------|
 | OHLCV | 4H candles from Upbit |
@@ -319,11 +357,13 @@ All conditions required:
 **Config:** `config/strategies/h4_short.json`
 
 ### Overview
+
 - **Exchange:** Binance Futures (BTCUSDT)
 - **Direction:** SHORT
 - **Timeframe:** 4H
 
 ### Data Sources
+
 | Source | Description |
 |--------|-------------|
 | OHLCV | 4H candles from Binance |
@@ -368,6 +408,7 @@ All conditions required:
 The `RegimeRouter` classifies market conditions and provides context to strategies:
 
 ### Market States (7)
+
 | State | MFI | ADX | Regime |
 |-------|-----|-----|--------|
 | BULL_STRONG | >= 52 | >= 25 | BULL |
@@ -379,6 +420,7 @@ The `RegimeRouter` classifies market conditions and provides context to strategi
 | BEAR_STRONG | <= 48 | >= 20 | BEAR |
 
 ### RegimeContext Output
+
 ```python
 @dataclass
 class RegimeContext:
@@ -411,6 +453,7 @@ From `CLAUDE.md`:
 | Max Drawdown | <= 20% |
 
 ### Fee Calculation
+
 ```
 Entry Fee:    0.05%
 Exit Fee:     0.05%

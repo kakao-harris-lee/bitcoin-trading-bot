@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from trading.streams import RedisStreams, BinanceFeedTask
-from trading.strategies import V35LongTask, SidewaysV2Task, ShortV1Task
 from trading.strategies.components import StrategyFactory, create_composite_task
 from trading.executor import BinanceClient, AsyncExecutor, PaperExecutor
 from trading.notification import TelegramTask
@@ -94,23 +93,9 @@ class TradingEngine:
 
         # 2. Start strategy tasks (AFTER warmup is complete)
         strategy_config = self.config.get("strategies", {})
-        use_components = self.config.get("use_component_strategies", False)
 
-        if use_components:
-            # Use new component-based strategy architecture
-            await self._start_component_strategies(symbols, strategy_config, mode)
-        else:
-            # Use legacy strategy tasks (backward compatible)
-            v35_long = V35LongTask(symbols=symbols, redis=self.redis, config=strategy_config.get("v35_long"))
-            self.tasks.append(asyncio.create_task(v35_long.run()))
-
-            sideways = SidewaysV2Task(symbols=symbols, redis=self.redis, config=strategy_config.get("sideways_v2"))
-            self.tasks.append(asyncio.create_task(sideways.run()))
-
-            short = ShortV1Task(symbols=symbols, redis=self.redis, config=strategy_config.get("short_v1"))
-            self.tasks.append(asyncio.create_task(short.run()))
-
-            logger.info("Started 3 legacy strategy tasks")
+        # Always use component-based strategy architecture
+        await self._start_component_strategies(symbols, strategy_config, mode)
 
         # 3. Start executor
         if mode == "paper":
@@ -210,11 +195,16 @@ class TradingEngine:
         # Determine if we should use persistence (live mode)
         use_persistence = mode == "live"
 
-        strategy_names = ["v35_long", "sideways_v2", "short_v1"]
+        # Use strategies defined in allocation.json
+        # This allows us to enable/disable strategies via config
+        strategy_names = list(strategy_config.keys())
         started = 0
 
         for name in strategy_names:
+            # Skip if disabled or not configured to run
             config = strategy_config.get(name, {})
+            # Basic check: if config is empty, maybe skip?
+            # But the factory acts as the registry check.
 
             try:
                 # Create entry and exit components

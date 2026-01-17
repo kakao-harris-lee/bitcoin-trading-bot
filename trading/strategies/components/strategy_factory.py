@@ -37,6 +37,7 @@ from .v35_trailing_exit import V35TrailingExitStrategy, V35ExitParams
 from .v35_persistent_exit import V35PersistentExitStrategy
 from .sideways_exit import SidewaysExitStrategy, SidewaysExitParams
 from .short_exit import ShortExitStrategy, ShortExitParams
+from .experimental_exit import ExperimentalExitStrategy, ExperimentalExitParams
 
 # State management
 from .state_manager import StateManager
@@ -88,6 +89,15 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_params_class=ShortExitParams,
         persistent_exit_class=None,  # Stateless, no persistence needed
         market="futures",
+    ),
+    "v35_experimental": StrategySpec(
+        name="v35_experimental",
+        entry_class=V35EntryStrategy,
+        entry_params_class=V35EntryParams,
+        exit_class=ExperimentalExitStrategy,
+        exit_params_class=ExperimentalExitParams,
+        persistent_exit_class=None,
+        market="spot",
     ),
 }
 

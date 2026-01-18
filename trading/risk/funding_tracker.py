@@ -11,7 +11,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from trading.executor.binance_client import BinanceClient
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +34,7 @@ class FundingTracker:
     # Funding times in UTC
     FUNDING_HOURS_UTC = [0, 8, 16]
 
-    def __init__(self, binance_client=None):
+    def __init__(self, binance_client: Optional[BinanceClient] = None):
         """Initialize FundingTracker.
 
         Args:

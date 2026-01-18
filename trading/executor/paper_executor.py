@@ -224,7 +224,7 @@ class PaperExecutor:
         )
 
     async def _calculate_exit_pnl(self, order: dict, fill: dict) -> dict | None:
-        """Calculate P&L when exiting a position."""
+        """Calculate P&L when exiting a position (long or short)."""
         symbol = order["symbol"]
         market = order["market"]
 
@@ -235,19 +235,33 @@ class PaperExecutor:
         entry_price = float(position.get("entry_price", 0))
         exit_price = fill["filled_price"]
         quantity = fill["filled_qty"]
+        pos_side = position.get("side", "buy")
+        leverage = int(position.get("leverage", 1))
 
-        # Calculate P&L (paper trades are always spot/long)
-        pnl = (exit_price - entry_price) * quantity
-        pnl_pct = ((exit_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+        if entry_price <= 0 or quantity <= 0:
+            return None
+
+        # Calculate P&L based on position direction
+        if pos_side == "buy":  # Long position
+            pnl = (exit_price - entry_price) * quantity
+            price_change_pct = ((exit_price - entry_price) / entry_price) * 100
+        else:  # Short position
+            pnl = (entry_price - exit_price) * quantity
+            price_change_pct = ((entry_price - exit_price) / entry_price) * 100
+
+        # Apply leverage
+        pnl_with_leverage = pnl * leverage
+        pnl_pct = price_change_pct * leverage
 
         # Update daily P&L
         risk = await self.redis.get_risk()
-        daily_pnl = float(risk.get("daily_pnl", 0)) + pnl
+        daily_pnl = float(risk.get("daily_pnl", 0)) + pnl_with_leverage
         await self.redis.hset("risk", {"daily_pnl": str(daily_pnl)})
 
-        logger.info(f"Paper P&L: {symbol} {pnl:+.2f} USDT ({pnl_pct:+.2f}%)")
+        direction = "Long" if pos_side == "buy" else "Short"
+        logger.info(f"Paper P&L ({direction}): {symbol} {pnl_with_leverage:+.2f} USDT ({pnl_pct:+.2f}%)")
 
-        return {"profit": pnl, "profit_pct": pnl_pct}
+        return {"profit": pnl_with_leverage, "profit_pct": pnl_pct}
 
     async def _publish_trade(self, order: dict, fill: dict, profit_data: dict | None = None) -> None:
         """Publish trade to trades stream."""

@@ -152,3 +152,87 @@ async def test_is_exit_order_returns_false_for_new_position():
     result = await executor._is_exit_order(order)
 
     assert result is False, "No position means not an exit"
+
+
+@pytest.mark.asyncio
+async def test_calculate_pnl_for_profitable_short():
+    """Short P&L: profit when price drops."""
+    from unittest.mock import MagicMock
+    from trading.executor.paper_executor import PaperExecutor
+
+    mock_redis = MagicMock()
+    mock_redis.get_position = AsyncMock(return_value={
+        "side": "sell",  # Short position
+        "quantity": "0.01",
+        "entry_price": "100000",
+        "leverage": "1",
+    })
+    mock_redis.get_risk = AsyncMock(return_value={"daily_pnl": "0"})
+    mock_redis.hset = AsyncMock()
+
+    executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+
+    order = {"symbol": "BTC", "market": "futures", "side": "buy"}
+    fill = {"filled_qty": 0.01, "filled_price": 95000}  # Price dropped
+
+    result = await executor._calculate_exit_pnl(order, fill)
+
+    # Short profit: (entry - exit) * qty = (100000 - 95000) * 0.01 = 50
+    assert result["profit"] == pytest.approx(50.0, rel=0.01)
+    assert result["profit_pct"] == pytest.approx(5.0, rel=0.01)
+
+
+@pytest.mark.asyncio
+async def test_calculate_pnl_for_losing_short():
+    """Short P&L: loss when price rises."""
+    from unittest.mock import MagicMock
+    from trading.executor.paper_executor import PaperExecutor
+
+    mock_redis = MagicMock()
+    mock_redis.get_position = AsyncMock(return_value={
+        "side": "sell",
+        "quantity": "0.01",
+        "entry_price": "100000",
+        "leverage": "1",
+    })
+    mock_redis.get_risk = AsyncMock(return_value={"daily_pnl": "0"})
+    mock_redis.hset = AsyncMock()
+
+    executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+
+    order = {"symbol": "BTC", "market": "futures", "side": "buy"}
+    fill = {"filled_qty": 0.01, "filled_price": 102000}  # Price rose
+
+    result = await executor._calculate_exit_pnl(order, fill)
+
+    # Short loss: (entry - exit) * qty = (100000 - 102000) * 0.01 = -20
+    assert result["profit"] == pytest.approx(-20.0, rel=0.01)
+    assert result["profit_pct"] == pytest.approx(-2.0, rel=0.01)
+
+
+@pytest.mark.asyncio
+async def test_calculate_pnl_for_long_still_works():
+    """Long P&L should still work correctly."""
+    from unittest.mock import MagicMock
+    from trading.executor.paper_executor import PaperExecutor
+
+    mock_redis = MagicMock()
+    mock_redis.get_position = AsyncMock(return_value={
+        "side": "buy",
+        "quantity": "0.01",
+        "entry_price": "100000",
+        "leverage": "1",
+    })
+    mock_redis.get_risk = AsyncMock(return_value={"daily_pnl": "0"})
+    mock_redis.hset = AsyncMock()
+
+    executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+
+    order = {"symbol": "BTC", "market": "futures", "side": "sell"}
+    fill = {"filled_qty": 0.01, "filled_price": 105000}  # Price rose
+
+    result = await executor._calculate_exit_pnl(order, fill)
+
+    # Long profit: (exit - entry) * qty = (105000 - 100000) * 0.01 = 50
+    assert result["profit"] == pytest.approx(50.0, rel=0.01)
+    assert result["profit_pct"] == pytest.approx(5.0, rel=0.01)

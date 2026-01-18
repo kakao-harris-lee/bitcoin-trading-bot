@@ -1865,7 +1865,9 @@ footer kbd {
 
 /* Chart Section */
 .chart-section {
+    margin-top: 25px;
     margin-bottom: 25px;
+    clear: both;
 }
 
 .chart-section h4 {
@@ -2242,6 +2244,8 @@ footer kbd {
 /* Backtest Trades Table */
 .backtest-trades-section {
     margin-top: 25px;
+    margin-bottom: 25px;
+    clear: both;
 }
 
 .backtest-trades-section h4 {
@@ -2262,25 +2266,30 @@ footer kbd {
 .chart-image-container {
     background: var(--bg-tertiary);
     border-radius: 8px;
-    padding: 16px;
-    margin-top: 20px;
+    padding: 20px;
+    margin-top: 25px;
+    margin-bottom: 25px;
     border: 1px solid var(--border-color);
+    overflow: hidden;
 }
 
 .chart-image-container h4 {
     font-family: var(--font-mono);
     font-size: 0.85rem;
     color: var(--text-secondary);
-    margin-bottom: 12px;
+    margin-bottom: 16px;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
 
 .chart-image-container img {
     display: block;
+    width: 100%;
     max-width: 100%;
+    height: auto;
     border-radius: 6px;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    box-sizing: border-box;
 }
 
 .chart-image-container .download-link {

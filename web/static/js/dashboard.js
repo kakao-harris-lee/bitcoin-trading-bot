@@ -2215,27 +2215,12 @@ function renderBacktestResults(result) {
 
 function renderBacktestChartImage(chartPath) {
     const container = document.getElementById('backtest-chart-image');
-    if (!container) {
-        // Create container if it doesn't exist
-        const equityChart = document.getElementById('backtest-equity-chart');
-        if (equityChart && chartPath) {
-            const imageContainer = document.createElement('div');
-            imageContainer.id = 'backtest-chart-image';
-            imageContainer.className = 'chart-image-container';
-            imageContainer.innerHTML = `
-                <h4>Strategy vs Benchmark Chart</h4>
-                <img src="${chartPath}" alt="Backtest Chart" style="max-width: 100%; border-radius: 8px;">
-                <a href="${chartPath}" target="_blank" class="download-link">Open Full Size</a>
-            `;
-            equityChart.parentNode.insertBefore(imageContainer, equityChart.nextSibling);
-        }
-        return;
-    }
+    if (!container) return;
 
     if (chartPath) {
         container.innerHTML = `
             <h4>Strategy vs Benchmark Chart</h4>
-            <img src="${chartPath}" alt="Backtest Chart" style="max-width: 100%; border-radius: 8px;">
+            <img src="${chartPath}" alt="Backtest Chart">
             <a href="${chartPath}" target="_blank" class="download-link">Open Full Size</a>
         `;
         container.style.display = 'block';

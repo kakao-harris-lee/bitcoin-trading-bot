@@ -25,29 +25,67 @@
         <section class="exchange-section">
             <h2>Exchange Balances</h2>
             <div class="exchange-grid">
-                <!-- Binance Card -->
-                <div class="exchange-card binance">
+                <!-- Binance Spot Card -->
+                <div class="exchange-card binance-spot">
                     <div class="exchange-header">
-                        <span class="exchange-name">Binance Futures</span>
-                        <span class="exchange-status" id="binance-status">Loading...</span>
+                        <span class="exchange-name">Binance Spot</span>
+                        <span class="exchange-status" id="spot-status">Loading...</span>
                     </div>
                     <div class="exchange-balances">
                         <div class="balance-row">
-                            <span class="label">USDT Wallet</span>
-                            <span class="value" id="binance-usdt">-</span>
+                            <span class="label">USDT Balance</span>
+                            <span class="value" id="spot-usdt">-</span>
+                        </div>
+                        <div class="balance-row">
+                            <span class="label">Position Value</span>
+                            <span class="value" id="spot-position-value">-</span>
                         </div>
                         <div class="balance-row total">
-                            <span class="label">Total Equity</span>
-                            <span class="value" id="binance-total">-</span>
+                            <span class="label">Total</span>
+                            <span class="value" id="spot-total">-</span>
                         </div>
                     </div>
-                    <div class="exchange-positions" id="binance-positions-section">
-                        <div class="positions-header">Open Positions</div>
-                        <div id="binance-positions-list" class="positions-list">
+                    <div class="exchange-positions" id="spot-positions-section">
+                        <div class="positions-header">Spot Positions</div>
+                        <div id="spot-positions-list" class="positions-list">
                             <span class="no-positions">No positions</span>
                         </div>
                     </div>
                 </div>
+
+                <!-- Binance Futures Card -->
+                <div class="exchange-card binance-futures">
+                    <div class="exchange-header">
+                        <span class="exchange-name">Binance Futures</span>
+                        <span class="hedge-mode-badge" id="hedge-mode-badge" style="display: none;">HEDGE</span>
+                        <span class="exchange-status" id="futures-status">Loading...</span>
+                    </div>
+                    <div class="exchange-balances">
+                        <div class="balance-row">
+                            <span class="label">USDT Wallet</span>
+                            <span class="value" id="futures-usdt">-</span>
+                        </div>
+                        <div class="balance-row">
+                            <span class="label">Unrealized P&L</span>
+                            <span class="value" id="futures-unrealized-pnl">-</span>
+                        </div>
+                        <div class="balance-row total">
+                            <span class="label">Total Equity</span>
+                            <span class="value" id="futures-total">-</span>
+                        </div>
+                    </div>
+                    <div class="exchange-positions" id="futures-positions-section">
+                        <div class="positions-header">Open Positions</div>
+                        <div id="futures-positions-list" class="positions-list">
+                            <span class="no-positions">No positions</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Combined Total -->
+            <div class="exchange-total">
+                <span class="label">Combined Total Equity:</span>
+                <span class="value" id="binance-total">-</span>
             </div>
         </section>
 

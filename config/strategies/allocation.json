@@ -6,26 +6,38 @@
     "api_key": "${BINANCE_API_KEY}",
     "api_secret": "${BINANCE_API_SECRET}"
   },
+  "futures": {
+    "enabled": true,
+    "default_leverage": 3
+  },
   "strategies": {
     "v35_long": {
+      "market": "futures",
+      "leverage": 3,
       "dynamic_sizing": true,
       "position_pct": 0.30,
       "position_size": 0.01,
       "use_smart_exit": true
     },
     "sideways_v2": {
+      "market": "futures",
+      "leverage": 3,
       "dynamic_sizing": true,
       "position_pct": 0.20,
       "position_size": 0.01,
       "use_smart_exit": true
     },
     "short_v1": {
+      "market": "futures",
+      "leverage": 3,
       "dynamic_sizing": true,
       "position_pct": 0.20,
       "position_size": 0.01,
       "use_smart_exit": true
     },
     "v35_experimental": {
+      "market": "futures",
+      "leverage": 3,
       "dynamic_sizing": true,
       "position_pct": 0.05,
       "position_size": 0.01,

@@ -230,18 +230,43 @@ class StrategyFactory:
         exit_strat = self.create_exit(strategy_name, config, persistent)
         return entry, exit_strat
 
-    def get_market(self, strategy_name: str) -> str:
+    def get_market(self, strategy_name: str, config: dict[str, Any] | None = None) -> str:
         """Get the market type for a strategy.
 
         Args:
             strategy_name: Name of the strategy.
+            config: Optional config that may override the default market.
 
         Returns:
             Market type ("spot" or "futures").
         """
         if strategy_name not in self._registry:
             raise ValueError(f"Unknown strategy: {strategy_name}")
-        return self._registry[strategy_name].market
+
+        spec = self._registry[strategy_name]
+
+        # Config market overrides spec default
+        if config and "market" in config:
+            return config["market"]
+
+        return spec.market
+
+    def _get_market(
+        self,
+        spec: StrategySpec,
+        config: dict[str, Any],
+    ) -> str:
+        """Get market type from config or spec default.
+
+        Args:
+            spec: Strategy specification.
+            config: Configuration parameters.
+
+        Returns:
+            Market type ("spot" or "futures").
+        """
+        # Config market overrides spec default
+        return config.get("market", spec.market)
 
     def _build_entry_params(
         self,
@@ -252,14 +277,16 @@ class StrategyFactory:
 
         Maps config keys to param fields.
         """
-        param_kwargs = {"market": spec.market}
+        # Get market from config (allows override of spec default)
+        market = self._get_market(spec, config)
+        param_kwargs = {"market": market}
 
         # Map config to params
         if "position_size" in config:
             param_kwargs["position_size"] = config["position_size"]
 
         # Strategy-specific params
-        if spec.name == "v35_long":
+        if spec.name == "v35_long" or spec.name == "v35_experimental":
             if "mfi_bull" in config:
                 param_kwargs["mfi_bull"] = config["mfi_bull"]
             if "adx_trend" in config:
@@ -282,7 +309,9 @@ class StrategyFactory:
 
         Maps config keys to param fields.
         """
-        param_kwargs = {"market": spec.market}
+        # Get market from config (allows override of spec default)
+        market = self._get_market(spec, config)
+        param_kwargs = {"market": market}
 
         # Common exit params
         if "stop_loss_pct" in config:
@@ -291,7 +320,7 @@ class StrategyFactory:
             param_kwargs["take_profit_pct"] = config["take_profit_pct"]
 
         # V35-specific trailing stop params
-        if spec.name == "v35_long":
+        if spec.name == "v35_long" or spec.name == "v35_experimental":
             if "trailing_enabled" in config:
                 param_kwargs["trailing_enabled"] = config["trailing_enabled"]
             if "trailing_activation" in config:

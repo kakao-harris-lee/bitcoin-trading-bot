@@ -501,53 +501,129 @@ async function fetchKillSwitch() {
 
 // Update exchange balances display
 function updateExchangeBalances(data) {
-    // Update Binance
-    if (data.binance) {
-        document.getElementById('binance-status').textContent = 'Connected';
-        document.getElementById('binance-status').className = 'exchange-status connected';
-        document.getElementById('binance-usdt').textContent = formatUSD(data.binance.usdt_balance);
-        document.getElementById('binance-total').textContent = formatUSD(data.binance.total_equity);
+    if (!data.binance) {
+        document.getElementById('spot-status').textContent = 'Error';
+        document.getElementById('spot-status').className = 'exchange-status error';
+        document.getElementById('futures-status').textContent = 'Error';
+        document.getElementById('futures-status').className = 'exchange-status error';
+        return;
+    }
 
-        // Update Binance positions
-        const binancePositions = data.binance.positions || [];
-        const binancePosList = document.getElementById('binance-positions-list');
-        if (binancePositions.length > 0) {
-            let html = '';
-            for (const pos of binancePositions) {
-                const side = pos.size > 0 ? 'LONG' : 'SHORT';
-                const sideClass = pos.size > 0 ? 'long' : 'short';
-                const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
-                html += `
-                    <div class="position-item">
-                        <div class="position-header">
-                            <span class="position-symbol">${pos.symbol}</span>
-                            <span class="position-side ${sideClass}">${side}</span>
+    const binance = data.binance;
+
+    // ==================== SPOT SECTION ====================
+    const spot = binance.spot || {};
+    document.getElementById('spot-status').textContent = 'Connected';
+    document.getElementById('spot-status').className = 'exchange-status connected';
+    document.getElementById('spot-usdt').textContent = formatUSD(spot.usdt_balance || 0);
+    document.getElementById('spot-position-value').textContent = formatUSD(spot.position_value || 0);
+    document.getElementById('spot-total').textContent = formatUSD(spot.total || 0);
+
+    // Spot positions
+    const spotPositions = spot.positions || [];
+    const spotPosList = document.getElementById('spot-positions-list');
+    if (spotPositions.length > 0) {
+        let html = '';
+        for (const pos of spotPositions) {
+            html += `
+                <div class="position-item spot">
+                    <div class="position-header">
+                        <span class="position-symbol">${pos.asset}</span>
+                        <span class="position-side long">HOLD</span>
+                    </div>
+                    <div class="position-details">
+                        <div class="detail-row">
+                            <span class="label">Qty</span>
+                            <span class="value">${pos.quantity.toFixed(6)}</span>
                         </div>
-                        <div class="position-details">
-                            <div class="detail-row">
-                                <span class="label">Size</span>
-                                <span class="value">${Math.abs(pos.size).toFixed(4)}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="label">Entry</span>
-                                <span class="value">$${formatPrice(pos.entry_price, false)}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="label">PnL</span>
-                                <span class="value ${pnlClass}">${formatUSD(pos.unrealized_pnl)}</span>
-                            </div>
+                        <div class="detail-row">
+                            <span class="label">Price</span>
+                            <span class="value">$${formatPrice(pos.price, false)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Value</span>
+                            <span class="value">${formatUSD(pos.value)}</span>
                         </div>
                     </div>
-                `;
-            }
-            binancePosList.innerHTML = html;
-        } else {
-            binancePosList.innerHTML = '<span class="no-positions">No positions</span>';
+                </div>
+            `;
         }
+        spotPosList.innerHTML = html;
     } else {
-        document.getElementById('binance-status').textContent = 'Error';
-        document.getElementById('binance-status').className = 'exchange-status error';
+        spotPosList.innerHTML = '<span class="no-positions">No spot positions</span>';
     }
+
+    // ==================== FUTURES SECTION ====================
+    const futures = binance.futures || {};
+    document.getElementById('futures-status').textContent = 'Connected';
+    document.getElementById('futures-status').className = 'exchange-status connected';
+    document.getElementById('futures-usdt').textContent = formatUSD(futures.usdt_balance || 0);
+
+    // Unrealized PnL with color
+    const unrealizedPnlEl = document.getElementById('futures-unrealized-pnl');
+    const unrealizedPnl = futures.unrealized_pnl || 0;
+    unrealizedPnlEl.textContent = formatUSD(unrealizedPnl);
+    unrealizedPnlEl.className = `value ${unrealizedPnl >= 0 ? 'positive' : 'negative'}`;
+
+    document.getElementById('futures-total').textContent = formatUSD(futures.total || 0);
+
+    // Hedge mode badge
+    const hedgeBadge = document.getElementById('hedge-mode-badge');
+    if (futures.hedge_mode) {
+        hedgeBadge.style.display = 'inline-block';
+    } else {
+        hedgeBadge.style.display = 'none';
+    }
+
+    // Futures positions
+    const futuresPositions = futures.positions || [];
+    const futuresPosList = document.getElementById('futures-positions-list');
+    if (futuresPositions.length > 0) {
+        let html = '';
+        for (const pos of futuresPositions) {
+            const sideClass = pos.side === 'LONG' ? 'long' : 'short';
+            const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
+            html += `
+                <div class="position-item futures ${sideClass}">
+                    <div class="position-header">
+                        <span class="position-symbol">${pos.symbol}</span>
+                        <span class="position-side ${sideClass}">${pos.side}</span>
+                        <span class="position-leverage">${pos.leverage}x</span>
+                    </div>
+                    <div class="position-details">
+                        <div class="detail-row">
+                            <span class="label">Size</span>
+                            <span class="value">${Math.abs(pos.size).toFixed(4)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Entry</span>
+                            <span class="value">$${formatPrice(pos.entry_price, false)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Mark</span>
+                            <span class="value">$${formatPrice(pos.mark_price, false)}</span>
+                        </div>
+                        ${pos.liquidation_price > 0 ? `
+                        <div class="detail-row liquidation">
+                            <span class="label">Liq.</span>
+                            <span class="value warning">$${formatPrice(pos.liquidation_price, false)}</span>
+                        </div>
+                        ` : ''}
+                        <div class="detail-row pnl">
+                            <span class="label">PnL</span>
+                            <span class="value ${pnlClass}">${formatUSD(pos.unrealized_pnl)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        futuresPosList.innerHTML = html;
+    } else {
+        futuresPosList.innerHTML = '<span class="no-positions">No futures positions</span>';
+    }
+
+    // ==================== COMBINED TOTAL ====================
+    document.getElementById('binance-total').textContent = formatUSD(binance.total_equity || 0);
 
     // Show errors if any
     if (data.errors && data.errors.length > 0) {

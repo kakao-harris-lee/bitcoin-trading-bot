@@ -1,9 +1,68 @@
 # tests/trading/executor/test_smart_executor_integration.py
 """Integration tests for SmartExecutor exit flow."""
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from trading.executor.smart_executor import SmartExecutor
 from trading.strategies.volatility_tracker import VolatilityTracker
+from trading.utils.precision import SymbolInfo
+
+
+@pytest.fixture
+def mock_symbol_info_btc():
+    """Mock SymbolInfo for BTCUSDT."""
+    return SymbolInfo(
+        symbol="BTCUSDT",
+        price_precision=2,
+        qty_precision=5,
+        min_qty="0.00001",
+        step_size="0.00001",
+        tick_size="0.01",
+        min_notional="10.0",
+    )
+
+
+@pytest.fixture
+def mock_symbol_info_eth():
+    """Mock SymbolInfo for ETHUSDT."""
+    return SymbolInfo(
+        symbol="ETHUSDT",
+        price_precision=2,
+        qty_precision=4,
+        min_qty="0.0001",
+        step_size="0.0001",
+        tick_size="0.01",
+        min_notional="10.0",
+    )
+
+
+@pytest.fixture
+def mock_symbol_info_sol():
+    """Mock SymbolInfo for SOLUSDT."""
+    return SymbolInfo(
+        symbol="SOLUSDT",
+        price_precision=2,
+        qty_precision=2,
+        min_qty="0.01",
+        step_size="0.01",
+        tick_size="0.01",
+        min_notional="10.0",
+    )
+
+
+@pytest.fixture
+def mock_exchange_cache(mock_symbol_info_btc, mock_symbol_info_eth, mock_symbol_info_sol):
+    """Mock exchange cache that returns symbol info."""
+    symbol_map = {
+        "BTC": mock_symbol_info_btc,
+        "BTCUSDT": mock_symbol_info_btc,
+        "ETH": mock_symbol_info_eth,
+        "ETHUSDT": mock_symbol_info_eth,
+        "SOL": mock_symbol_info_sol,
+        "SOLUSDT": mock_symbol_info_sol,
+    }
+    cache = MagicMock()
+    cache.get = MagicMock(side_effect=lambda s: symbol_map.get(s, mock_symbol_info_btc))
+    return cache
 
 
 @pytest.fixture
@@ -14,6 +73,8 @@ def mock_redis():
     redis.create_consumer_group = AsyncMock()
     redis.ack = AsyncMock()
     redis.publish = AsyncMock(return_value="1234-0")
+    redis.get_position = AsyncMock(return_value=None)
+    redis.hset = AsyncMock()
     return redis
 
 
@@ -57,7 +118,7 @@ def integration_config():
 
 
 @pytest.mark.asyncio
-async def test_full_exit_flow(mock_redis, mock_binance, integration_config):
+async def test_full_exit_flow(mock_redis, mock_binance, integration_config, mock_exchange_cache):
     """Test complete exit flow from signal to completion."""
     executor = SmartExecutor(mock_redis, mock_binance, integration_config)
 
@@ -70,7 +131,8 @@ async def test_full_exit_flow(mock_redis, mock_binance, integration_config):
         "strategy": "v35_long",
     }
 
-    await executor._handle_exit_signal(signal)
+    with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
+        await executor._handle_exit_signal(signal)
 
     # Verify ladder orders placed
     assert mock_binance.limit_order.call_count == 2
@@ -88,7 +150,7 @@ async def test_full_exit_flow(mock_redis, mock_binance, integration_config):
 
 
 @pytest.mark.asyncio
-async def test_exit_flow_ladder_prices(mock_redis, mock_binance, integration_config):
+async def test_exit_flow_ladder_prices(mock_redis, mock_binance, integration_config, mock_exchange_cache):
     """Test that ladder prices are calculated correctly."""
     executor = SmartExecutor(mock_redis, mock_binance, integration_config)
 
@@ -100,7 +162,8 @@ async def test_exit_flow_ladder_prices(mock_redis, mock_binance, integration_con
         "strategy": "sideways_v2",
     }
 
-    await executor._handle_exit_signal(signal)
+    with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
+        await executor._handle_exit_signal(signal)
 
     # Verify limit_order calls with correct prices
     calls = mock_binance.limit_order.call_args_list
@@ -112,7 +175,7 @@ async def test_exit_flow_ladder_prices(mock_redis, mock_binance, integration_con
 
 
 @pytest.mark.asyncio
-async def test_exit_flow_ladder_quantities(mock_redis, mock_binance, integration_config):
+async def test_exit_flow_ladder_quantities(mock_redis, mock_binance, integration_config, mock_exchange_cache):
     """Test that ladder quantities match weight distribution."""
     executor = SmartExecutor(mock_redis, mock_binance, integration_config)
 
@@ -124,7 +187,8 @@ async def test_exit_flow_ladder_quantities(mock_redis, mock_binance, integration
         "strategy": "v35_long",
     }
 
-    await executor._handle_exit_signal(signal)
+    with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
+        await executor._handle_exit_signal(signal)
 
     calls = mock_binance.limit_order.call_args_list
 
@@ -135,7 +199,7 @@ async def test_exit_flow_ladder_quantities(mock_redis, mock_binance, integration
 
 
 @pytest.mark.asyncio
-async def test_exit_flow_order_parameters(mock_redis, mock_binance, integration_config):
+async def test_exit_flow_order_parameters(mock_redis, mock_binance, integration_config, mock_exchange_cache):
     """Test that orders are placed with correct parameters."""
     executor = SmartExecutor(mock_redis, mock_binance, integration_config)
 
@@ -147,7 +211,8 @@ async def test_exit_flow_order_parameters(mock_redis, mock_binance, integration_
         "strategy": "short_v1",
     }
 
-    await executor._handle_exit_signal(signal)
+    with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
+        await executor._handle_exit_signal(signal)
 
     # All orders should be sell orders
     for call in mock_binance.limit_order.call_args_list:
@@ -157,7 +222,7 @@ async def test_exit_flow_order_parameters(mock_redis, mock_binance, integration_
 
 
 @pytest.mark.asyncio
-async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_config):
+async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_config, mock_exchange_cache):
     """Test handling multiple concurrent exits for different symbols."""
     executor = SmartExecutor(mock_redis, mock_binance, integration_config)
 
@@ -179,8 +244,9 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
         "strategy": "v35_long",
     }
 
-    await executor._handle_exit_signal(btc_signal)
-    await executor._handle_exit_signal(eth_signal)
+    with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
+        await executor._handle_exit_signal(btc_signal)
+        await executor._handle_exit_signal(eth_signal)
 
     # Both exits tracked
     assert "BTC:spot" in executor.active_exits
@@ -191,7 +257,7 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
 
 
 @pytest.mark.asyncio
-async def test_exit_flow_stores_order_results(mock_redis, mock_binance, integration_config):
+async def test_exit_flow_stores_order_results(mock_redis, mock_binance, integration_config, mock_exchange_cache):
     """Test that order results are stored in the exit plan."""
     # Set up unique order IDs for each call
     order_ids = iter([11111, 22222])
@@ -213,7 +279,8 @@ async def test_exit_flow_stores_order_results(mock_redis, mock_binance, integrat
         "strategy": "v35_long",
     }
 
-    await executor._handle_exit_signal(signal)
+    with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
+        await executor._handle_exit_signal(signal)
 
     plan = executor.active_exits["BTC:spot"]
     assert len(plan.ladder_orders) == 2

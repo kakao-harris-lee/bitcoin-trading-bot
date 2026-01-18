@@ -3,6 +3,29 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from trading.executor.smart_executor import SmartExecutor
 from trading.strategies.volatility_tracker import VolatilityTracker
+from trading.utils.precision import SymbolInfo
+
+
+@pytest.fixture
+def mock_symbol_info():
+    """Mock SymbolInfo for BTCUSDT."""
+    return SymbolInfo(
+        symbol="BTCUSDT",
+        price_precision=2,
+        qty_precision=5,
+        min_qty="0.00001",
+        step_size="0.00001",
+        tick_size="0.01",
+        min_notional="10.0",
+    )
+
+
+@pytest.fixture
+def mock_exchange_cache(mock_symbol_info):
+    """Mock exchange cache that returns symbol info."""
+    cache = MagicMock()
+    cache.get = MagicMock(return_value=mock_symbol_info)
+    return cache
 
 
 @pytest.fixture
@@ -16,6 +39,7 @@ def mock_redis():
     redis.ack = AsyncMock()
     redis.client = AsyncMock()
     redis.client.xrange = AsyncMock(return_value=[])
+    redis.hset = AsyncMock()
     return redis
 
 
@@ -77,7 +101,7 @@ def test_smart_executor_init(mock_redis, mock_binance, config):
 
 
 @pytest.mark.asyncio
-async def test_calculate_ladder_prices(mock_redis, mock_binance, config):
+async def test_calculate_ladder_prices(mock_redis, mock_binance, config, mock_exchange_cache):
     """Calculate limit ladder prices."""
     executor = SmartExecutor(
         redis=mock_redis,
@@ -86,7 +110,9 @@ async def test_calculate_ladder_prices(mock_redis, mock_binance, config):
     )
 
     base_price = 100000.0
-    prices = executor._calculate_ladder_prices(base_price)
+
+    with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
+        prices = executor._calculate_ladder_prices(base_price, "BTC", "spot")
 
     # Should have 3 tiers at +0.05%, +0.12%, +0.20%
     assert len(prices) == 3
@@ -96,7 +122,7 @@ async def test_calculate_ladder_prices(mock_redis, mock_binance, config):
 
 
 @pytest.mark.asyncio
-async def test_calculate_ladder_quantities(mock_redis, mock_binance, config):
+async def test_calculate_ladder_quantities(mock_redis, mock_binance, config, mock_exchange_cache):
     """Calculate quantity per ladder tier."""
     executor = SmartExecutor(
         redis=mock_redis,
@@ -105,7 +131,9 @@ async def test_calculate_ladder_quantities(mock_redis, mock_binance, config):
     )
 
     total_qty = 0.10
-    quantities = executor._calculate_ladder_quantities(total_qty)
+
+    with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
+        quantities = executor._calculate_ladder_quantities(total_qty, "BTC", "spot")
 
     # Should split by weights: 40%, 35%, 25%
     assert len(quantities) == 3
@@ -125,15 +153,15 @@ async def test_update_trailing_stop(mock_redis, mock_binance, config):
     )
 
     # Price goes up - HWM should update
-    executor.update_high_water_mark("BTC", 101000.0)
+    await executor.update_high_water_mark("BTC", 101000.0)
     assert executor.high_water_marks["BTC"] == 101000.0
 
     # Price goes up more
-    executor.update_high_water_mark("BTC", 102000.0)
+    await executor.update_high_water_mark("BTC", 102000.0)
     assert executor.high_water_marks["BTC"] == 102000.0
 
     # Price goes down - HWM stays
-    executor.update_high_water_mark("BTC", 101500.0)
+    await executor.update_high_water_mark("BTC", 101500.0)
     assert executor.high_water_marks["BTC"] == 102000.0
 
 
@@ -353,7 +381,7 @@ async def test_price_monitor_updates_hwm_for_active_positions(mock_redis, mock_b
                 )
             executor.volatility_trackers[symbol].add_price(float(price))
             if symbol in executor.high_water_marks:
-                executor.update_high_water_mark(symbol, float(price))
+                await executor.update_high_water_mark(symbol, float(price))
 
     # Verify HWM was updated
     assert executor.high_water_marks["BTC"] == 100000.0

@@ -71,4 +71,7 @@ data/processed/
 # Test artifacts
 MagicMock/
 .worktrees/
-.worktrees/
+
+# MLflow
+mlruns/
+mlartifacts/

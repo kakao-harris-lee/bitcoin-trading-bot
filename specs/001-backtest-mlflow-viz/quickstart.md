@@ -187,6 +187,53 @@ lsof -i :5000
 mlflow ui --port 5001
 ```
 
+## Comparing Multiple Runs in MLflow UI
+
+After logging multiple backtest runs, you can compare them side-by-side in the MLflow UI.
+
+### 1. Start MLflow UI
+
+```bash
+mlflow ui --backend-store-uri ./mlruns
+# Open http://localhost:5000 in your browser
+```
+
+### 2. Filter Runs by Strategy or Symbol
+
+Use the search bar to filter runs:
+- By strategy: `tags.strategy_name = "v35_long"`
+- By symbol: `tags.symbol = "BTC"`
+- By sweep: `tags.sweep_id = "sweep_20240115"`
+
+### 3. Select Runs to Compare
+
+1. Check the boxes next to runs you want to compare
+2. Click "Compare" button at the top
+3. View metrics side-by-side in the comparison view
+
+### 4. Key Metrics to Compare
+
+| Metric | Good Value | Description |
+|--------|------------|-------------|
+| `sharpe_ratio` | >= 1.5 | Risk-adjusted return |
+| `max_drawdown_pct` | <= 20% | Maximum loss from peak |
+| `total_return_pct` | > benchmark | Strategy vs buy-and-hold |
+| `win_rate` | >= 0.5 | Percentage of winning trades |
+| `profit_factor` | >= 1.5 | Gross profit / gross loss |
+
+### 5. Sort and Rank
+
+Click column headers to sort runs by metric:
+- Sort by `sharpe_ratio` descending to find best risk-adjusted strategies
+- Sort by `total_return_pct` descending to find highest returns
+- Sort by `max_drawdown_pct` ascending to find safest strategies
+
+### 6. View Chart Artifacts
+
+1. Click on a run name to open details
+2. Scroll to "Artifacts" section
+3. Click on chart PNG to view strategy vs benchmark visualization
+
 ## Next Steps
 
 1. Review results in MLflow UI

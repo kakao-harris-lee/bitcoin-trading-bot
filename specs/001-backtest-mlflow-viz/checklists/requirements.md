@@ -31,9 +31,9 @@
 - [x] Success criteria include specific thresholds (2s, 5s, 20 combinations)
 - [x] Edge cases are testable (MLflow unavailable, long backtests, missing data)
 
-## Open Questions (To Be Resolved in Planning)
+## Open Questions (Resolved in Planning)
 
-- [ ] Which charting library to use (matplotlib, plotly, etc.)?
-- [ ] MLflow deployment model (local file store vs. remote server)?
-- [ ] Should parameter sweeps run in parallel?
-- [ ] Visualization file format options (PNG only or also HTML/interactive)?
+- [x] Which charting library to use? → **matplotlib with twinx()** (research.md)
+- [x] MLflow deployment model? → **Local file store (./mlruns)** (research.md)
+- [x] Should parameter sweeps run in parallel? → **Sequential (parallel=False)** (data-model.md)
+- [x] Visualization file format options? → **PNG only** (research.md)

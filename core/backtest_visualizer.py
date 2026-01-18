@@ -43,7 +43,7 @@ def _validate_output_path(output_path: str, base_dir: Optional[Path] = None) -> 
     """Validate and resolve output path to prevent path traversal.
 
     Args:
-        output_path: The requested output path
+        output_path: The requested output path (can be absolute or relative)
         base_dir: Base directory that output must be within. Defaults to cwd.
 
     Returns:
@@ -52,13 +52,27 @@ def _validate_output_path(output_path: str, base_dir: Optional[Path] = None) -> 
     Raises:
         ValueError: If path would escape base directory
     """
+    output_path_obj = Path(output_path)
+
+    # If output_path is absolute and its parent directory exists, use it directly
+    # This allows callers to specify exact output locations
+    if output_path_obj.is_absolute():
+        resolved = output_path_obj.resolve()
+        # Ensure parent directory exists
+        if resolved.parent.exists():
+            # Sanitize just the filename portion for safety
+            safe_filename = _sanitize_filename(resolved.name)
+            return resolved.parent / safe_filename
+        # Fall through to relative path handling if parent doesn't exist
+
+    # For relative paths, use base_dir
     if base_dir is None:
         base_dir = Path.cwd()
 
     base_dir = base_dir.resolve()
 
     # Get just the filename, stripping any directory components
-    filename = Path(output_path).name
+    filename = output_path_obj.name
     safe_filename = _sanitize_filename(filename)
 
     # Construct path within base directory

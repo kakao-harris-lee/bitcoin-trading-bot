@@ -75,3 +75,4 @@ MagicMock/
 # MLflow
 mlruns/
 mlartifacts/
+web/static/charts/*.png

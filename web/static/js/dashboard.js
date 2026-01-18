@@ -1624,7 +1624,11 @@ function renderEquityCurve(data) {
                     },
                     ticks: {
                         color: '#888',
-                        maxTicksLimit: 10
+                        maxTicksLimit: 10,
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        autoSkipPadding: 10
                     }
                 },
                 y: {
@@ -1821,7 +1825,14 @@ function renderDailyChart(days) {
                 x: {
                     display: true,
                     grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                    ticks: { color: '#888', maxTicksLimit: 15 }
+                    ticks: {
+                        color: '#888',
+                        maxTicksLimit: 15,
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        autoSkipPadding: 10
+                    }
                 },
                 y: {
                     display: true,
@@ -2345,7 +2356,14 @@ function renderBacktestEquityCurve(equityData, benchmarkData) {
                 x: {
                     display: true,
                     grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                    ticks: { color: '#888', maxTicksLimit: 10 }
+                    ticks: {
+                        color: '#888',
+                        maxTicksLimit: 10,
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        autoSkipPadding: 10
+                    }
                 },
                 y: {
                     type: 'linear',

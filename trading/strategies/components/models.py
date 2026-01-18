@@ -71,3 +71,6 @@ class Position:
     strategy: str
     market: Literal["spot", "futures"]
     timestamp: int | str
+    side: str = "buy"  # "buy" for long, "sell" for short
+    leverage: int = 1  # leverage multiplier
+    liquidation_price: float = 0.0  # for futures

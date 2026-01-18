@@ -196,12 +196,15 @@ class PaperExecutor:
 
     async def _update_position(self, order: dict, fill: dict) -> None:
         """Update position in Redis."""
+        leverage = order.get("leverage", 1)
+
         await self.redis.set_position(order["symbol"], order["market"], {
             "quantity": str(fill["filled_qty"]),
             "entry_price": str(fill["filled_price"]),
             "strategy": order["strategy"],
             "entry_time": str(int(time.time() * 1000)),
             "side": order["side"],
+            "leverage": str(leverage),
         })
 
     async def _is_exit_order(self, order: dict) -> bool:

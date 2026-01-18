@@ -69,23 +69,47 @@ class MLflowConfig:
         )
 
     @classmethod
-    def from_file(cls, file_path: str) -> "MLflowConfig":
+    def from_file(cls, file_path: str, base_dir: Optional[str] = None) -> "MLflowConfig":
         """Create from JSON configuration file.
 
         Args:
-            file_path: Path to JSON config file
+            file_path: Path to JSON config file (must have .json extension)
+            base_dir: Optional base directory to restrict file access.
+                      If provided, file_path must be within this directory.
 
         Returns:
             MLflowConfig instance
+
+        Raises:
+            ValueError: If file extension is not .json or path escapes base_dir
         """
         import json
         from pathlib import Path
 
         path = Path(file_path)
-        if not path.exists():
+
+        # Validate file extension
+        if path.suffix.lower() != ".json":
+            raise ValueError(f"Config file must have .json extension, got: {path.suffix}")
+
+        # Resolve the path to prevent symlink attacks
+        resolved = path.resolve()
+
+        # If base_dir is specified, ensure file is within it
+        if base_dir is not None:
+            base_resolved = Path(base_dir).resolve()
+            if not str(resolved).startswith(str(base_resolved)):
+                raise ValueError(f"Config file must be within {base_dir}")
+
+        if not resolved.exists():
             return cls()
 
-        with open(path) as f:
+        # Check file size to prevent DoS (max 1MB for config)
+        max_size = 1024 * 1024  # 1MB
+        if resolved.stat().st_size > max_size:
+            raise ValueError(f"Config file too large (max {max_size} bytes)")
+
+        with open(resolved) as f:
             config = json.load(f)
 
         return cls.from_dict(config)

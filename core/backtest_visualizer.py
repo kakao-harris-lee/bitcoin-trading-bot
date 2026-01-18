@@ -1,6 +1,7 @@
 """Backtest visualization with dual-axis charts for strategy vs benchmark comparison."""
 
 import logging
+import re
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -12,6 +13,62 @@ from core.backtest_config import VisualizationConfig
 from core.backtest_result import BacktestResult
 
 logger = logging.getLogger(__name__)
+
+# Allowed output formats for chart generation
+ALLOWED_FORMATS = {"png", "svg", "pdf", "jpg", "jpeg"}
+
+
+def _sanitize_filename(name: str) -> str:
+    """Sanitize a string for safe use in filenames.
+
+    Removes or replaces characters that could be used for path traversal
+    or other security issues.
+
+    Args:
+        name: Input string to sanitize
+
+    Returns:
+        Safe filename string containing only alphanumeric, underscore, hyphen, and dot
+    """
+    # Replace any non-alphanumeric characters (except underscore, hyphen, dot) with underscore
+    safe = re.sub(r"[^\w\-.]", "_", name)
+    # Remove any leading dots or path separators that might remain
+    safe = safe.lstrip("._")
+    # Collapse multiple underscores
+    safe = re.sub(r"_+", "_", safe)
+    return safe or "unnamed"
+
+
+def _validate_output_path(output_path: str, base_dir: Optional[Path] = None) -> Path:
+    """Validate and resolve output path to prevent path traversal.
+
+    Args:
+        output_path: The requested output path
+        base_dir: Base directory that output must be within. Defaults to cwd.
+
+    Returns:
+        Resolved safe Path object
+
+    Raises:
+        ValueError: If path would escape base directory
+    """
+    if base_dir is None:
+        base_dir = Path.cwd()
+
+    base_dir = base_dir.resolve()
+
+    # Get just the filename, stripping any directory components
+    filename = Path(output_path).name
+    safe_filename = _sanitize_filename(filename)
+
+    # Construct path within base directory
+    resolved = (base_dir / safe_filename).resolve()
+
+    # Verify the resolved path is within base directory
+    if not str(resolved).startswith(str(base_dir)):
+        raise ValueError(f"Output path escapes base directory: {output_path}")
+
+    return resolved
 
 
 class BacktestVisualizer:
@@ -157,17 +214,32 @@ class BacktestVisualizer:
 
         fig.tight_layout()
 
+        # Validate format
+        chart_format = self.config.format.lower()
+        if chart_format not in ALLOWED_FORMATS:
+            logger.warning(f"Invalid format '{chart_format}', defaulting to 'png'")
+            chart_format = "png"
+
         # Generate output path if not provided
         if output_path is None:
-            safe_name = strategy_name.replace("/", "_").replace(" ", "_")
-            output_path = f"backtest_{safe_name}_{symbol}.{self.config.format}"
+            safe_strategy = _sanitize_filename(strategy_name)
+            safe_symbol = _sanitize_filename(symbol) if symbol else "unknown"
+            output_path = f"backtest_{safe_strategy}_{safe_symbol}.{chart_format}"
+
+        # Validate and sanitize output path
+        try:
+            safe_path = _validate_output_path(output_path)
+        except ValueError as e:
+            logger.error(f"Invalid output path: {e}")
+            plt.close(fig)
+            return None
 
         # Save chart
-        plt.savefig(output_path, dpi=self.config.dpi, format=self.config.format)
+        plt.savefig(str(safe_path), dpi=self.config.dpi, format=chart_format)
         plt.close(fig)
 
-        logger.info(f"Chart saved to: {output_path}")
-        return output_path
+        logger.info(f"Chart saved to: {safe_path}")
+        return str(safe_path)
 
     def create_comparison_chart(
         self,
@@ -253,12 +325,26 @@ class BacktestVisualizer:
 
         fig.tight_layout()
 
+        # Validate format
+        chart_format = self.config.format.lower()
+        if chart_format not in ALLOWED_FORMATS:
+            logger.warning(f"Invalid format '{chart_format}', defaulting to 'png'")
+            chart_format = "png"
+
         # Generate output path if not provided
         if output_path is None:
-            output_path = f"comparison_chart.{self.config.format}"
+            output_path = f"comparison_chart.{chart_format}"
 
-        plt.savefig(output_path, dpi=self.config.dpi, format=self.config.format)
+        # Validate and sanitize output path
+        try:
+            safe_path = _validate_output_path(output_path)
+        except ValueError as e:
+            logger.error(f"Invalid output path: {e}")
+            plt.close(fig)
+            return None
+
+        plt.savefig(str(safe_path), dpi=self.config.dpi, format=chart_format)
         plt.close(fig)
 
-        logger.info(f"Comparison chart saved to: {output_path}")
-        return output_path
+        logger.info(f"Comparison chart saved to: {safe_path}")
+        return str(safe_path)

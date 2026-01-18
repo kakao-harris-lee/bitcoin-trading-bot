@@ -1,6 +1,7 @@
 """Parameter sweep functionality for grid search with MLflow logging."""
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass, field
 from functools import reduce
@@ -14,6 +15,20 @@ from core.backtest_result import BacktestResult
 from core.mlflow_config import MLflowConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_sweep_id(sweep_id: str) -> str:
+    """Sanitize sweep_id for safe use in filenames.
+
+    Args:
+        sweep_id: The sweep identifier
+
+    Returns:
+        Safe string containing only alphanumeric and underscore
+    """
+    # Only allow alphanumeric and underscore
+    safe = re.sub(r"[^\w]", "_", sweep_id)
+    return safe[:64]  # Limit length
 
 
 @dataclass
@@ -161,9 +176,11 @@ class ParameterSweepRunner:
         results = []
         chart_paths = []
         total = sweep.total_combinations
+        # Generate safe sweep_id using UUID (inherently safe)
         sweep_id = f"sweep_{uuid.uuid4().hex[:8]}"
+        safe_sweep_id = _sanitize_sweep_id(sweep_id)
 
-        logger.info(f"Starting parameter sweep: {total} combinations (sweep_id={sweep_id})")
+        logger.info(f"Starting parameter sweep: {total} combinations (sweep_id={safe_sweep_id})")
 
         for i, config in enumerate(sweep.generate_combinations()):
             if progress_callback:
@@ -180,13 +197,15 @@ class ParameterSweepRunner:
 
             results.append(result)
 
-            # Generate chart
+            # Generate chart with sanitized filename
             chart_path = None
             if generate_charts and self.visualizer:
                 try:
+                    # Use sanitized sweep_id in filename
+                    safe_filename = f"{safe_sweep_id}_run_{i+1}.png"
                     chart_path = self.visualizer.create_chart(
                         result,
-                        output_path=f"sweep_{sweep_id}_run_{i+1}.png",
+                        output_path=safe_filename,
                     )
                     chart_paths.append(chart_path)
                 except Exception as e:
@@ -198,10 +217,10 @@ class ParameterSweepRunner:
             try:
                 self.mlflow_tracker.log_sweep(
                     results,
-                    sweep_id=sweep_id,
+                    sweep_id=safe_sweep_id,
                     chart_paths=chart_paths if generate_charts else None,
                 )
-                logger.info(f"Logged {len(results)} runs to MLflow (sweep_id={sweep_id})")
+                logger.info(f"Logged {len(results)} runs to MLflow (sweep_id={safe_sweep_id})")
             except Exception as e:
                 logger.warning(f"MLflow logging failed for sweep: {e}")
 

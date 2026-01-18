@@ -228,7 +228,11 @@ class BacktestVisualizer:
                 chart_title += f" ({symbol})"
         plt.title(chart_title)
 
-        fig.tight_layout()
+        # Use tight_layout with rect to reserve space for right Y-axis on dual-axis charts
+        if has_benchmark:
+            fig.tight_layout(rect=[0, 0, 0.88, 1])
+        else:
+            fig.tight_layout()
 
         # Validate format
         chart_format = self.config.format.lower()

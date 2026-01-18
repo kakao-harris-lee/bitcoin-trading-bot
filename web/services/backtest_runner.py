@@ -2,10 +2,12 @@
 Backtest runner service for executing backtests via web dashboard.
 
 Uses the same backtest logic as scripts/backtest_short.py for consistency.
+Integrates with MLflow visualization for chart generation and experiment tracking.
 """
 
 import sys
 from pathlib import Path
+import logging
 
 # Add project root to path for imports (core, scripts, etc.)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -17,6 +19,14 @@ import uuid
 from datetime import datetime
 from typing import Optional
 import traceback
+import pandas as pd
+
+# MLflow visualization imports
+from core.backtest_visualizer import BacktestVisualizer
+from core.mlflow_tracker import MLflowTracker
+from core.metrics import calculate_benchmark
+
+logger = logging.getLogger(__name__)
 
 # Job storage (in-memory for now)
 _backtest_jobs: dict = {}
@@ -24,6 +34,122 @@ _jobs_lock = threading.Lock()
 
 # Rate limiting
 MAX_CONCURRENT_JOBS = 3
+
+# Chart output directory
+CHART_OUTPUT_DIR = PROJECT_ROOT / "web" / "static" / "charts"
+CHART_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Initialize visualization components
+_visualizer = BacktestVisualizer()
+_mlflow_tracker = MLflowTracker()
+
+
+def _generate_visualization(
+    results: dict,
+    price_data: pd.DataFrame,
+    strategy_id: str,
+    job_id: str
+) -> dict:
+    """Generate benchmark chart and log to MLflow.
+
+    Args:
+        results: Backtest results dict
+        price_data: Original price DataFrame for benchmark calculation
+        strategy_id: Strategy identifier
+        job_id: Job ID for unique chart filename
+
+    Returns:
+        Updated results dict with chart_path, benchmark_curve, and mlflow_run_id
+    """
+    try:
+        initial_capital = results.get('initial_capital', 10000000)
+
+        # Calculate benchmark (buy-and-hold)
+        if not price_data.empty and 'close' in price_data.columns:
+            # Ensure timestamp column exists
+            if 'timestamp' not in price_data.columns:
+                price_data = price_data.copy()
+                price_data['timestamp'] = price_data.index
+
+            benchmark_curve, benchmark_return_pct = calculate_benchmark(
+                price_data, initial_capital
+            )
+            results['benchmark_return_pct'] = round(benchmark_return_pct, 2)
+
+            # Convert benchmark to list format for frontend
+            if benchmark_curve is not None and len(benchmark_curve) > 0:
+                benchmark_list = []
+                for ts, equity in benchmark_curve.items():
+                    benchmark_list.append({
+                        'date': str(ts)[:10],
+                        'equity': equity
+                    })
+                results['benchmark_curve'] = benchmark_list
+
+        # Create equity curve DataFrame for visualization
+        equity_data = results.get('equity_curve', [])
+        if equity_data:
+            equity_df = pd.DataFrame(equity_data)
+            equity_df['timestamp'] = pd.to_datetime(equity_df['date'])
+            equity_df['total_equity'] = equity_df['equity']
+
+            # Generate chart
+            chart_filename = f"backtest_{strategy_id}_{job_id}.png"
+            chart_path = CHART_OUTPUT_DIR / chart_filename
+
+            # Build chart data structure for visualizer
+            chart_result = {
+                'equity_curve': equity_df,
+                'benchmark_curve': benchmark_curve if 'benchmark_curve' in dir() else None,
+                'strategy_name': strategy_id,
+                'symbol': 'BTC',
+                'total_return': results.get('total_return_pct', 0),
+                'benchmark_return_pct': results.get('benchmark_return_pct', 0)
+            }
+
+            saved_path = _visualizer.create_chart(
+                chart_result,
+                output_path=str(chart_path),
+                title=f"{strategy_id} Backtest"
+            )
+
+            if saved_path:
+                # Store relative path for web serving
+                results['chart_path'] = f"/static/charts/{chart_filename}"
+                logger.info(f"Generated chart: {saved_path}")
+
+        # Log to MLflow
+        mlflow_result = {
+            'strategy_name': strategy_id,
+            'symbol': 'BTC',
+            'total_return': results.get('total_return_pct', 0),
+            'sharpe_ratio': results.get('sharpe_ratio', 0),
+            'max_drawdown_pct': results.get('max_drawdown_pct', 0),
+            'win_rate': results.get('win_rate', 0),
+            'total_trades': results.get('total_trades', 0),
+            'profit_factor': results.get('profit_factor', 0),
+            'benchmark_return_pct': results.get('benchmark_return_pct', 0),
+            'params': {
+                'start_date': results.get('start_date'),
+                'end_date': results.get('end_date'),
+                'initial_capital': initial_capital,
+                'leverage': results.get('leverage', 1)
+            }
+        }
+
+        chart_artifact = str(chart_path) if results.get('chart_path') else None
+        run_id = _mlflow_tracker.log_run(mlflow_result, chart_path=chart_artifact)
+
+        if run_id:
+            results['mlflow_run_id'] = run_id
+            results['mlflow_url'] = _mlflow_tracker.get_run_url(run_id)
+            logger.info(f"Logged to MLflow: run_id={run_id}")
+
+    except Exception as e:
+        logger.warning(f"Visualization/MLflow logging failed: {e}")
+        traceback.print_exc()
+
+    return results
 
 
 class BacktestJob:
@@ -146,16 +272,23 @@ def run_backtest(job: BacktestJob) -> None:
 
             # Route to appropriate backtester
             if strategy_id in ('short_v1', 'short_v1_baseline'):
-                results = _run_short_backtest(
+                results, price_data = _run_short_backtest(
                     strategy_id, start_date, end_date, initial_capital, job
                 )
             else:
-                results = _run_long_backtest(
+                results, price_data = _run_long_backtest(
                     strategy_id, start_date, end_date, initial_capital, job
                 )
 
             if job._cancelled:
                 return
+
+            job.progress = 90
+
+            # Generate visualization and log to MLflow
+            results = _generate_visualization(
+                results, price_data, strategy_id, job.job_id
+            )
 
             job.result = results
             job.status = 'completed'
@@ -428,7 +561,7 @@ def _run_short_backtest(
             'profit': round(t.get('pnl', 0), 0)
         })
 
-    return {
+    results = {
         'strategy': strategy_id,
         'preset': preset,
         'start_date': start_date,
@@ -449,6 +582,7 @@ def _run_short_backtest(
         'equity_curve': equity_curve,
         'trades': trades_list
     }
+    return results, df
 
 
 def _run_long_backtest(
@@ -656,7 +790,7 @@ def _run_long_backtest(
                 'profit': round(t.profit_loss, 0) if t.profit_loss else 0,
             })
 
-    return {
+    result_dict = {
         'strategy': strategy_id,
         'start_date': start_date,
         'end_date': end_date,
@@ -676,6 +810,7 @@ def _run_long_backtest(
         'equity_curve': equity_curve_list,
         'trades': trades_list
     }
+    return result_dict, df
 
 
 def get_running_job_count() -> int:

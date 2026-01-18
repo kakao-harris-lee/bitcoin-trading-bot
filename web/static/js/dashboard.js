@@ -2016,14 +2016,26 @@ function renderBacktestResults(result) {
 
     resultsDiv.style.display = 'block';
 
-    // Render metrics
+    // Render metrics with benchmark comparison
     if (metricsDiv) {
         const returnClass = getPnLClass(result.total_return_pct);
+        const benchmarkReturn = result.benchmark_return_pct || 0;
+        const benchmarkClass = getPnLClass(benchmarkReturn);
+        const outperformance = (result.total_return_pct || 0) - benchmarkReturn;
+        const outperformanceClass = outperformance >= 0 ? 'positive' : 'negative';
 
         metricsDiv.innerHTML = `
             <div class="backtest-metric highlight">
                 <div class="value ${returnClass}">${formatPercent(result.total_return_pct)}</div>
-                <div class="label">Total Return</div>
+                <div class="label">Strategy Return</div>
+            </div>
+            <div class="backtest-metric">
+                <div class="value ${benchmarkClass}">${formatPercent(benchmarkReturn)}</div>
+                <div class="label">Buy & Hold</div>
+            </div>
+            <div class="backtest-metric">
+                <div class="value ${outperformanceClass}">${outperformance >= 0 ? '+' : ''}${outperformance.toFixed(2)}%</div>
+                <div class="label">vs Benchmark</div>
             </div>
             <div class="backtest-metric">
                 <div class="value ${getPnLClass(result.total_return)}">${formatUSDT(result.total_return)}</div>
@@ -2060,8 +2072,14 @@ function renderBacktestResults(result) {
         `;
     }
 
-    // Render equity curve
-    renderBacktestEquityCurve(result.equity_curve || []);
+    // Render equity curve with benchmark
+    renderBacktestEquityCurve(result.equity_curve || [], result.benchmark_curve || []);
+
+    // Render chart image if available
+    renderBacktestChartImage(result.chart_path);
+
+    // Render MLflow link if available
+    renderMLflowLink(result.mlflow_run_id, result.mlflow_url);
 
     // Render sample trades
     if (tradesDiv && result.trades) {
@@ -2069,7 +2087,68 @@ function renderBacktestResults(result) {
     }
 }
 
-function renderBacktestEquityCurve(equityData) {
+function renderBacktestChartImage(chartPath) {
+    const container = document.getElementById('backtest-chart-image');
+    if (!container) {
+        // Create container if it doesn't exist
+        const equityChart = document.getElementById('backtest-equity-chart');
+        if (equityChart && chartPath) {
+            const imageContainer = document.createElement('div');
+            imageContainer.id = 'backtest-chart-image';
+            imageContainer.className = 'chart-image-container';
+            imageContainer.innerHTML = `
+                <h4>Strategy vs Benchmark Chart</h4>
+                <img src="${chartPath}" alt="Backtest Chart" style="max-width: 100%; border-radius: 8px;">
+                <a href="${chartPath}" target="_blank" class="download-link">Open Full Size</a>
+            `;
+            equityChart.parentNode.insertBefore(imageContainer, equityChart.nextSibling);
+        }
+        return;
+    }
+
+    if (chartPath) {
+        container.innerHTML = `
+            <h4>Strategy vs Benchmark Chart</h4>
+            <img src="${chartPath}" alt="Backtest Chart" style="max-width: 100%; border-radius: 8px;">
+            <a href="${chartPath}" target="_blank" class="download-link">Open Full Size</a>
+        `;
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function renderMLflowLink(runId, mlflowUrl) {
+    let container = document.getElementById('backtest-mlflow-link');
+    if (!container) {
+        // Create container if it doesn't exist
+        const metricsDiv = document.getElementById('backtest-metrics');
+        if (metricsDiv && runId) {
+            const linkContainer = document.createElement('div');
+            linkContainer.id = 'backtest-mlflow-link';
+            linkContainer.className = 'mlflow-link-container';
+            metricsDiv.parentNode.insertBefore(linkContainer, metricsDiv.nextSibling);
+            container = linkContainer;
+        } else {
+            return;
+        }
+    }
+
+    if (runId) {
+        container.innerHTML = `
+            <div class="mlflow-info">
+                <span class="mlflow-label">📊 MLflow Run:</span>
+                <code>${runId}</code>
+                ${mlflowUrl ? `<br><small>${mlflowUrl}</small>` : ''}
+            </div>
+        `;
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function renderBacktestEquityCurve(equityData, benchmarkData) {
     const canvas = document.getElementById('backtest-equity-chart');
     if (!canvas) return;
 
@@ -2096,33 +2175,59 @@ function renderBacktestEquityCurve(equityData) {
         return i.toString();
     });
 
-    const values = equityData.map(p => p.equity || p.value || p);
+    const strategyValues = equityData.map(p => p.equity || p.value || p);
+
+    // Build datasets
+    const datasets = [{
+        label: 'Strategy',
+        data: strategyValues,
+        borderColor: '#2ecc71',
+        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+        fill: true,
+        tension: 0.2,
+        yAxisID: 'y'
+    }];
+
+    // Add benchmark if available
+    const hasBenchmark = benchmarkData && benchmarkData.length > 0;
+    if (hasBenchmark) {
+        const benchmarkValues = benchmarkData.map(p => p.equity || p.value || p);
+        datasets.push({
+            label: 'Buy & Hold',
+            data: benchmarkValues,
+            borderColor: '#3498db',
+            backgroundColor: 'rgba(52, 152, 219, 0.05)',
+            fill: false,
+            tension: 0.2,
+            borderDash: [5, 5],
+            yAxisID: 'y1'
+        });
+    }
 
     backtestState.chart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'Equity',
-                data: values,
-                borderColor: '#2ecc71',
-                backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                fill: true,
-                tension: 0.2
-            }]
+            datasets: datasets
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: {
-                    display: false
+                    display: hasBenchmark,
+                    labels: { color: '#ccc' }
                 },
                 tooltip: {
                     backgroundColor: 'rgba(0, 0, 0, 0.8)',
                     callbacks: {
                         label: function(context) {
-                            return `Equity: ${formatUSDT(context.raw)}`;
+                            const label = context.dataset.label || '';
+                            return `${label}: ${formatUSDT(context.raw)}`;
                         }
                     }
                 }
@@ -2134,11 +2239,33 @@ function renderBacktestEquityCurve(equityData) {
                     ticks: { color: '#888', maxTicksLimit: 10 }
                 },
                 y: {
+                    type: 'linear',
                     display: true,
+                    position: 'left',
                     grid: { color: 'rgba(255, 255, 255, 0.05)' },
                     ticks: {
                         color: '#2ecc71',
                         callback: value => (value / 1000000).toFixed(1) + 'M'
+                    },
+                    title: {
+                        display: hasBenchmark,
+                        text: 'Strategy ($)',
+                        color: '#2ecc71'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: hasBenchmark,
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        color: '#3498db',
+                        callback: value => (value / 1000000).toFixed(1) + 'M'
+                    },
+                    title: {
+                        display: hasBenchmark,
+                        text: 'Buy & Hold ($)',
+                        color: '#3498db'
                     }
                 }
             }

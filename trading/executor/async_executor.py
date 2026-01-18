@@ -156,12 +156,16 @@ class AsyncExecutor:
             # Check if this is an exit (sell for spot, buy to cover for futures)
             is_exit = await self._is_exit_order(order)
 
+            # Determine position_side for futures hedge mode
+            position_side = await self._get_position_side(order, is_exit)
+
             # Execute order
             fill = await self.client.market_order(
                 symbol=order["symbol"],
                 side=order["side"],
                 quantity=float(order["quantity"]),
                 market=order["market"],
+                position_side=position_side,
             )
 
             # Update position
@@ -211,6 +215,37 @@ class AsyncExecutor:
             return side == "sell" and pos_side == "buy"
         else:  # futures
             return (side == "buy" and pos_side == "sell") or (side == "sell" and pos_side == "buy")
+
+    async def _get_position_side(self, order: dict, is_exit: bool) -> str | None:
+        """Determine position_side for futures hedge mode.
+
+        In hedge mode, orders must specify which position they affect:
+        - LONG: for opening/closing long positions
+        - SHORT: for opening/closing short positions
+
+        Args:
+            order: Order dict with symbol, side, market.
+            is_exit: Whether this order is closing an existing position.
+
+        Returns:
+            "LONG" or "SHORT" for futures orders, None for spot.
+        """
+        market = order.get("market", "spot")
+        if market != "futures":
+            return None
+
+        side = order["side"]
+
+        if is_exit:
+            # For exits, use the existing position's side
+            position = await self.redis.get_position(order["symbol"], market)
+            if position:
+                pos_side = position.get("side", "buy")
+                # Position side buy means LONG position, sell means SHORT position
+                return "LONG" if pos_side == "buy" else "SHORT"
+
+        # For entries: BUY opens LONG, SELL opens SHORT
+        return "LONG" if side == "buy" else "SHORT"
 
     async def _record_exit_pnl(self, order: dict, fill: dict) -> dict | None:
         """Record realized P&L when exiting a position.

@@ -1368,17 +1368,36 @@ def get_exchange_balances():
                 futures_unrealized_pnl = float(asset['unrealizedProfit'])
                 break
 
+        # Check hedge mode status (dualSidePosition)
+        hedge_mode_enabled = False
+        try:
+            position_mode = client.futures_get_position_mode(recvWindow=60000)
+            hedge_mode_enabled = position_mode.get('dualSidePosition', False)
+        except Exception:
+            pass  # Fall back to False if not available
+
         for pos in futures_account['positions']:
             size = float(pos['positionAmt'])
             if size != 0:
+                # Determine position side
+                position_side = pos.get('positionSide', 'BOTH')
+                if position_side == 'BOTH':
+                    # One-way mode: derive from size
+                    side = 'LONG' if size > 0 else 'SHORT'
+                else:
+                    # Hedge mode: use positionSide directly
+                    side = position_side
+
                 futures_positions.append({
-                    'asset': pos['symbol'].replace('USDT', ''),
+                    'symbol': pos['symbol'].replace('USDT', ''),
                     'market': 'futures',
-                    'quantity': size,
+                    'size': size,
+                    'side': side,
                     'entry_price': float(pos['entryPrice']),
                     'mark_price': float(pos['markPrice']),
                     'unrealized_pnl': float(pos['unrealizedProfit']),
                     'leverage': int(pos['leverage']),
+                    'liquidation_price': float(pos.get('liquidationPrice', 0)),
                 })
 
         # ==================== COMBINED SUMMARY ====================
@@ -1396,6 +1415,7 @@ def get_exchange_balances():
                 'unrealized_pnl': futures_unrealized_pnl,
                 'total': futures_usdt + futures_unrealized_pnl,
                 'positions': futures_positions,
+                'hedge_mode': hedge_mode_enabled,
             },
             'total_equity': total_equity,
         }

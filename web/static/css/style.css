@@ -382,6 +382,86 @@ section h2 {
     color: var(--loss);
 }
 
+.detail-row .value.warning {
+    color: #f0b90b;
+}
+
+/* Futures-specific Styles */
+.exchange-card.binance-spot {
+    border-left-color: #3fb950;
+}
+
+.exchange-card.binance-futures {
+    border-left-color: #f0b90b;
+}
+
+.hedge-mode-badge {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: rgba(138, 43, 226, 0.2);
+    color: #a855f7;
+    border: 1px solid rgba(138, 43, 226, 0.4);
+    margin-left: 8px;
+}
+
+.position-leverage {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    background: rgba(240, 185, 11, 0.15);
+    color: #f0b90b;
+    border: 1px solid rgba(240, 185, 11, 0.3);
+    margin-left: auto;
+}
+
+.position-item.futures.long {
+    border-left: 3px solid var(--profit);
+}
+
+.position-item.futures.short {
+    border-left: 3px solid var(--loss);
+}
+
+.detail-row.liquidation .value {
+    color: #f0b90b;
+}
+
+.detail-row.pnl {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-color);
+}
+
+.exchange-total {
+    margin-top: 16px;
+    padding: 12px 20px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.exchange-total .label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.exchange-total .value {
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--accent-cyan);
+}
+
 /* Portfolio Section */
 .portfolio-section {
     background: var(--bg-card);

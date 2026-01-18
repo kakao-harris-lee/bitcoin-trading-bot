@@ -74,12 +74,20 @@ class Balance:
 class BinanceClient:
     """Unified async client for Binance spot and futures."""
 
-    def __init__(self, api_key: str, api_secret: str):
+    # Default leverage for futures trading
+    DEFAULT_LEVERAGE = 1
+
+    def __init__(self, api_key: str, api_secret: str, default_leverage: int = 1):
         self.api_key = api_key
         self.api_secret = api_secret
         self._spot_client = None
         self._futures_client = None
         self._is_mock = False
+        self._default_leverage = default_leverage
+        # Track configured leverage per symbol to avoid redundant API calls
+        self._leverage_cache: dict[str, int] = {}
+        # Track hedge mode status
+        self._hedge_mode_enabled = False
 
     async def connect(self) -> None:
         """Initialize API clients."""
@@ -88,11 +96,15 @@ class BinanceClient:
             self._spot_client = await AsyncClient.create(self.api_key, self.api_secret)
             self._futures_client = await AsyncClient.create(self.api_key, self.api_secret)
             logger.info("Connected to Binance API")
+
+            # Enable hedge mode for futures (allows simultaneous long/short positions)
+            await self.enable_hedge_mode()
         except ImportError:
             logger.warning("binance package not installed, using mock client")
             self._spot_client = MockBinanceClient()
             self._futures_client = MockBinanceClient()
             self._is_mock = True
+            self._hedge_mode_enabled = True  # Mock assumes hedge mode enabled
 
     async def disconnect(self) -> None:
         """Close API clients."""
@@ -100,6 +112,48 @@ class BinanceClient:
             await self._spot_client.close_connection()
         if self._futures_client and hasattr(self._futures_client, 'close_connection'):
             await self._futures_client.close_connection()
+
+    async def enable_hedge_mode(self) -> bool:
+        """Enable hedge mode for futures trading.
+
+        Hedge mode allows holding both LONG and SHORT positions simultaneously
+        on the same symbol. This is required when running long and short
+        strategies concurrently.
+
+        Returns:
+            True if hedge mode is enabled successfully.
+        """
+        if self._hedge_mode_enabled:
+            logger.debug("Hedge mode already enabled")
+            return True
+
+        try:
+            if self._is_mock:
+                self._hedge_mode_enabled = True
+                logger.info("[Mock] Enabled hedge mode for futures")
+                return True
+
+            # Change position mode to hedge (dualSidePosition=true)
+            await self._futures_client.futures_change_position_mode(dualSidePosition=True)
+            self._hedge_mode_enabled = True
+            logger.info("Enabled hedge mode for futures (dual position mode)")
+            return True
+
+        except Exception as e:
+            # Error code -4059 means hedge mode is already enabled
+            error_code = getattr(e, "code", None)
+            if error_code == -4059:
+                self._hedge_mode_enabled = True
+                logger.debug("Hedge mode already enabled on Binance")
+                return True
+
+            logger.error(f"Failed to enable hedge mode: {e}")
+            return False
+
+    @property
+    def hedge_mode_enabled(self) -> bool:
+        """Check if hedge mode is enabled."""
+        return self._hedge_mode_enabled
 
     async def get_balance(self) -> Balance:
         """Get USDT balance from spot and futures accounts."""
@@ -198,6 +252,116 @@ class BinanceClient:
         futures = await self.get_futures_positions()
         return spot + futures
 
+    async def set_leverage(self, symbol: str, leverage: int) -> bool:
+        """Set leverage for a futures symbol.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC" or "BTCUSDT").
+            leverage: Leverage multiplier (1-125 depending on symbol).
+
+        Returns:
+            True if leverage was set successfully.
+        """
+        # Normalize symbol to pair format
+        pair = f"{symbol}USDT" if not symbol.endswith("USDT") else symbol
+
+        # Check if already set to this leverage
+        if self._leverage_cache.get(pair) == leverage:
+            logger.debug(f"Leverage already set to {leverage}x for {pair}")
+            return True
+
+        try:
+            if self._is_mock:
+                self._leverage_cache[pair] = leverage
+                logger.info(f"[Mock] Set leverage to {leverage}x for {pair}")
+                return True
+
+            result = await self._futures_client.futures_change_leverage(
+                symbol=pair,
+                leverage=leverage,
+            )
+
+            actual_leverage = int(result.get("leverage", leverage))
+            self._leverage_cache[pair] = actual_leverage
+            logger.info(f"Set leverage to {actual_leverage}x for {pair}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to set leverage for {pair}: {e}")
+            return False
+
+    async def get_leverage(self, symbol: str) -> int:
+        """Get current leverage for a futures symbol.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC" or "BTCUSDT").
+
+        Returns:
+            Current leverage multiplier.
+        """
+        pair = f"{symbol}USDT" if not symbol.endswith("USDT") else symbol
+
+        # Return cached value if available
+        if pair in self._leverage_cache:
+            return self._leverage_cache[pair]
+
+        try:
+            if self._is_mock:
+                return self._default_leverage
+
+            # Fetch from account info
+            account = await self._futures_client.futures_account()
+            for pos in account.get("positions", []):
+                if pos["symbol"] == pair:
+                    leverage = int(pos.get("leverage", self._default_leverage))
+                    self._leverage_cache[pair] = leverage
+                    return leverage
+
+            return self._default_leverage
+
+        except Exception as e:
+            logger.error(f"Failed to get leverage for {pair}: {e}")
+            return self._default_leverage
+
+    async def ensure_leverage(self, symbol: str, leverage: int | None = None) -> bool:
+        """Ensure leverage is set for a symbol before trading.
+
+        Args:
+            symbol: Trading symbol.
+            leverage: Desired leverage. If None, uses default_leverage.
+
+        Returns:
+            True if leverage is correctly set.
+        """
+        target_leverage = leverage if leverage is not None else self._default_leverage
+        current = await self.get_leverage(symbol)
+
+        if current != target_leverage:
+            return await self.set_leverage(symbol, target_leverage)
+
+        return True
+
+    async def initialize_leverage(self, symbols: list[str], leverage: int | None = None) -> dict[str, bool]:
+        """Initialize leverage for multiple symbols at startup.
+
+        Args:
+            symbols: List of symbols to configure.
+            leverage: Leverage to set. If None, uses default_leverage.
+
+        Returns:
+            Dict mapping symbol to success status.
+        """
+        target_leverage = leverage if leverage is not None else self._default_leverage
+        results = {}
+
+        for symbol in symbols:
+            results[symbol] = await self.set_leverage(symbol, target_leverage)
+
+        success_count = sum(results.values())
+        logger.info(f"Initialized leverage for {success_count}/{len(symbols)} symbols at {target_leverage}x")
+
+        return results
+
     @with_retry
     async def market_order(
         self,
@@ -205,18 +369,33 @@ class BinanceClient:
         side: str,
         quantity: float,
         market: str,
+        position_side: str | None = None,
     ) -> dict[str, Any]:
-        """Execute market order on spot or futures."""
+        """Execute market order on spot or futures.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC").
+            side: Order side ("buy" or "sell").
+            quantity: Order quantity.
+            market: Market type ("spot" or "futures").
+            position_side: Position side for hedge mode ("LONG" or "SHORT").
+                          Required for futures in hedge mode.
+        """
         pair = f"{symbol}USDT"
 
         try:
             if market == "futures":
-                result = await self._futures_client.futures_create_order(
-                    symbol=pair,
-                    side=side.upper(),
-                    type="MARKET",
-                    quantity=quantity,
-                )
+                order_params = {
+                    "symbol": pair,
+                    "side": side.upper(),
+                    "type": "MARKET",
+                    "quantity": quantity,
+                }
+                # Add positionSide for hedge mode
+                if self._hedge_mode_enabled and position_side:
+                    order_params["positionSide"] = position_side.upper()
+
+                result = await self._futures_client.futures_create_order(**order_params)
                 filled_price = float(result.get("avgPrice", 0)) or \
                                float(result["cumQuote"]) / float(result["executedQty"])
             else:
@@ -236,6 +415,7 @@ class BinanceClient:
                 "filled_qty": float(result["executedQty"]),
                 "filled_price": filled_price,
                 "status": result["status"],
+                "position_side": position_side,
             }
 
         except Exception as e:
@@ -250,20 +430,36 @@ class BinanceClient:
         quantity: float,
         price: float,
         market: str,
+        position_side: str | None = None,
     ) -> dict[str, Any]:
-        """Place limit order on spot or futures."""
+        """Place limit order on spot or futures.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC").
+            side: Order side ("buy" or "sell").
+            quantity: Order quantity.
+            price: Limit price.
+            market: Market type ("spot" or "futures").
+            position_side: Position side for hedge mode ("LONG" or "SHORT").
+                          Required for futures in hedge mode.
+        """
         pair = f"{symbol}USDT"
 
         try:
             if market == "futures":
-                result = await self._futures_client.futures_create_order(
-                    symbol=pair,
-                    side=side.upper(),
-                    type="LIMIT",
-                    quantity=quantity,
-                    price=price,
-                    timeInForce="GTC",
-                )
+                order_params = {
+                    "symbol": pair,
+                    "side": side.upper(),
+                    "type": "LIMIT",
+                    "quantity": quantity,
+                    "price": price,
+                    "timeInForce": "GTC",
+                }
+                # Add positionSide for hedge mode
+                if self._hedge_mode_enabled and position_side:
+                    order_params["positionSide"] = position_side.upper()
+
+                result = await self._futures_client.futures_create_order(**order_params)
             else:
                 result = await self._spot_client.create_order(
                     symbol=pair,
@@ -283,6 +479,7 @@ class BinanceClient:
                 "quantity": quantity,
                 "filled_qty": float(result.get("executedQty", 0)),
                 "status": result["status"],
+                "position_side": position_side,
             }
 
         except Exception as e:
@@ -357,6 +554,10 @@ class BinanceClient:
 class MockBinanceClient:
     """Mock client for testing without real API."""
 
+    def __init__(self):
+        self._leverage: dict[str, int] = {}
+        self._hedge_mode = False
+
     async def get_account(self) -> dict:
         return {
             "balances": [
@@ -373,6 +574,15 @@ class MockBinanceClient:
     async def futures_account(self) -> dict:
         return {"positions": []}
 
+    async def futures_change_leverage(self, symbol: str, leverage: int) -> dict:
+        self._leverage[symbol] = leverage
+        return {"leverage": leverage, "symbol": symbol}
+
+    async def futures_change_position_mode(self, dualSidePosition: bool) -> dict:
+        """Mock enabling/disabling hedge mode."""
+        self._hedge_mode = dualSidePosition
+        return {"dualSidePosition": dualSidePosition}
+
     async def create_order(self, **kwargs) -> dict:
         return {
             "orderId": 99999,
@@ -382,10 +592,14 @@ class MockBinanceClient:
         }
 
     async def futures_create_order(self, **kwargs) -> dict:
-        return {
+        result = {
             "orderId": 99999,
             "executedQty": str(kwargs.get("quantity", 0.01)),
             "cumQuote": "430.00",
             "avgPrice": "43000.00",
             "status": "FILLED",
         }
+        # Include positionSide in response if provided
+        if "positionSide" in kwargs:
+            result["positionSide"] = kwargs["positionSide"]
+        return result

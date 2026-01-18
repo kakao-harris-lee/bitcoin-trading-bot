@@ -104,11 +104,21 @@ class TradingEngine:
                 config=self.config.get("paper", {"initial_balance": 10000}),
             )
         else:
+            # Get futures config for leverage
+            futures_config = self.config.get("futures", {})
+            default_leverage = futures_config.get("default_leverage", 1)
+
             client = BinanceClient(
                 api_key=self.config["binance"]["api_key"],
                 api_secret=self.config["binance"]["api_secret"],
+                default_leverage=default_leverage,
             )
             await client.connect()
+
+            # Initialize leverage for all trading symbols
+            if futures_config.get("enabled", False) and symbols:
+                await client.initialize_leverage(symbols, leverage=default_leverage)
+                logger.info(f"Initialized {default_leverage}x leverage for {symbols}")
             executor = AsyncExecutor(
                 redis=self.redis,
                 client=client,

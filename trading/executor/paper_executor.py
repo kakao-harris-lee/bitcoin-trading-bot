@@ -208,15 +208,20 @@ class PaperExecutor:
         """Check if order is an exit (closing position)."""
         symbol = order["symbol"]
         market = order["market"]
-        side = order["side"]
+        order_side = order["side"]
 
         position = await self.redis.get_position(symbol, market)
         if not position:
             return False
 
         pos_side = position.get("side", "buy")
-        # Exit if selling a long position
-        return side == "sell" and pos_side == "buy"
+
+        # Long exit: sell closes buy
+        # Short exit: buy closes sell
+        return (
+            (pos_side == "buy" and order_side == "sell") or
+            (pos_side == "sell" and order_side == "buy")
+        )
 
     async def _calculate_exit_pnl(self, order: dict, fill: dict) -> dict | None:
         """Calculate P&L when exiting a position."""

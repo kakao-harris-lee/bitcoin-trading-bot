@@ -64,8 +64,10 @@ def _validate_output_path(output_path: str, base_dir: Optional[Path] = None) -> 
     # Construct path within base directory
     resolved = (base_dir / safe_filename).resolve()
 
-    # Verify the resolved path is within base directory
-    if not str(resolved).startswith(str(base_dir)):
+    # Verify the resolved path is within base directory using proper path containment check
+    try:
+        resolved.relative_to(base_dir)
+    except ValueError:
         raise ValueError(f"Output path escapes base directory: {output_path}")
 
     return resolved

@@ -6,10 +6,13 @@ This module provides functions to calculate key performance metrics:
 - Maximum drawdown
 """
 
+import logging
 from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_benchmark(
@@ -36,6 +39,14 @@ def calculate_benchmark(
         >>> print(f"Buy-and-hold return: {benchmark_return:.2f}%")
     """
     if price_data.empty:
+        return pd.Series(dtype=float), 0.0
+
+    # Validate required columns exist
+    if price_column not in price_data.columns:
+        logger.warning(f"Column '{price_column}' not found in price data")
+        return pd.Series(dtype=float), 0.0
+    if "timestamp" not in price_data.columns:
+        logger.warning("Column 'timestamp' not found in price data")
         return pd.Series(dtype=float), 0.0
 
     prices = price_data[price_column].values
@@ -89,6 +100,11 @@ def calculate_sharpe_ratio(
     if equity_curve.empty or len(equity_curve) < 2:
         return 0.0
 
+    # Validate required column exists
+    if equity_column not in equity_curve.columns:
+        logger.warning(f"Column '{equity_column}' not found in equity curve")
+        return 0.0
+
     equity = equity_curve[equity_column].values
 
     # Calculate period returns
@@ -134,6 +150,11 @@ def calculate_max_drawdown(
         >>> print(f"Max Drawdown: {max_dd:.2f}%")
     """
     if equity_curve.empty or len(equity_curve) < 2:
+        return 0.0
+
+    # Validate required column exists
+    if equity_column not in equity_curve.columns:
+        logger.warning(f"Column '{equity_column}' not found in equity curve")
         return 0.0
 
     equity = equity_curve[equity_column].values

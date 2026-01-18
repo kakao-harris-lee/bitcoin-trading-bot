@@ -25,6 +25,7 @@ from .report_notifier import ReportNotifier
 from .trade_comparer import TradeComparer, ActualTrade, BacktestTrade
 from .trade_logger import TradeLogger
 from .liquidation_guard import LiquidationGuard, LiquidationInfo
+from .funding_tracker import FundingTracker, FundingRate
 
 __all__ = [
     # Models
@@ -51,4 +52,6 @@ __all__ = [
     # Futures risk management
     "LiquidationGuard",
     "LiquidationInfo",
+    "FundingTracker",
+    "FundingRate",
 ]

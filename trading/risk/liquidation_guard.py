@@ -43,7 +43,7 @@ class LiquidationGuard:
         (float('inf'), 0.05),  # 5.0% for >= $5M
     ]
 
-    def __init__(self, exit_threshold_pct: float = None):
+    def __init__(self, exit_threshold_pct: Optional[float] = None):
         """Initialize LiquidationGuard.
 
         Args:

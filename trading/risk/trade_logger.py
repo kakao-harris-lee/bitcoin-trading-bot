@@ -15,12 +15,12 @@ class TradeLogger:
     def __init__(self, db_path: Optional[str] = None, strategy_name: Optional[str] = None):
         """
         Args:
-            db_path: DB 파일 경로 (기본: 프로젝트 루트의 trading_results.db)
+            db_path: DB file path (default: data/trading_results.db)
             strategy_name: Strategy name to use (default: v35_multi_exchange)
         """
         if db_path is None:
-            project_root = Path(__file__).parent.parent
-            db_path = str(project_root / "trading_results.db")
+            project_root = Path(__file__).parent.parent.parent
+            db_path = str(project_root / "data" / "trading_results.db")
 
         self.db_path = db_path
         self.strategy_id = None

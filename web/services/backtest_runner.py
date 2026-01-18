@@ -551,12 +551,23 @@ def _run_short_backtest(
     drawdown = (equity_series - peak) / peak * 100
     mdd = float(drawdown.min())
 
-    # Format trades for frontend
+    # Format trades for frontend - show both entry and exit
     trades_list = []
-    for t in close_trades[:100]:
+    for t in close_trades[:50]:  # Limit to 50 round-trips
+        # Add entry
+        if t.get('entry_price'):
+            trades_list.append({
+                'timestamp': t.get('entry_time', t.get('time')),
+                'symbol': 'BTC',
+                'action': 'SHORT',
+                'price': t.get('entry_price', 0),
+                'profit': None,
+            })
+        # Add exit
         trades_list.append({
             'timestamp': t.get('time'),
-            'action': 'SELL' if t['type'] == 'close_short' else 'PARTIAL',
+            'symbol': 'BTC',
+            'action': 'COVER' if t['type'] == 'close_short' else 'PARTIAL',
             'price': t.get('exit_price', 0),
             'profit': round(t.get('pnl', 0), 0)
         })
@@ -778,13 +789,24 @@ def _run_long_backtest(
         if len(rets) > 5 and rets.std() != 0:
             sharpe_ratio = float((rets.mean() / rets.std()) * np.sqrt(252))
 
-    # Format trades
+    # Format trades - show both BUY (entry) and SELL (exit) for each trade
     trades_raw = results.get('trades', [])
     trades_list = []
-    for t in trades_raw[:100]:
+    for t in trades_raw[:50]:  # Limit to 50 round-trips (100 rows)
+        if hasattr(t, 'entry_time') and t.entry_time:
+            # Add BUY entry
+            trades_list.append({
+                'timestamp': str(t.entry_time),
+                'symbol': 'BTC',
+                'action': 'BUY',
+                'price': t.entry_price,
+                'profit': None,  # No P&L on entry
+            })
         if hasattr(t, 'exit_time') and t.exit_time:
+            # Add SELL exit
             trades_list.append({
                 'timestamp': str(t.exit_time),
+                'symbol': 'BTC',
                 'action': 'SELL',
                 'price': t.exit_price,
                 'profit': round(t.profit_loss, 0) if t.profit_loss else 0,

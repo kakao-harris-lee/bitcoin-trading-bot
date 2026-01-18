@@ -8,6 +8,7 @@ import uuid
 from typing import Any, Optional, TYPE_CHECKING
 
 from trading.risk.trade_logger import TradeLogger
+from trading.risk.liquidation_guard import LiquidationGuard
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -35,6 +36,9 @@ class PaperExecutor:
         # Initialize trade logger for database persistence
         self.trade_logger = TradeLogger(strategy_name="paper_trading")
         logger.info("TradeLogger initialized for paper trading persistence")
+
+        # Add liquidation guard
+        self.liquidation_guard = LiquidationGuard()
 
     async def run(self) -> None:
         """Main loop: consume and simulate orders."""
@@ -195,8 +199,19 @@ class PaperExecutor:
         return True
 
     async def _update_position(self, order: dict, fill: dict) -> None:
-        """Update position in Redis."""
-        leverage = order.get("leverage", 1)
+        """Update position in Redis with liquidation price."""
+        leverage = int(order.get("leverage", 1))
+        position_value = fill["filled_price"] * fill["filled_qty"]
+
+        # Calculate liquidation price for futures positions
+        liq_price = 0.0
+        if order.get("market") == "futures" and leverage > 1:
+            liq_price = self.liquidation_guard.calculate_liquidation_price(
+                entry_price=fill["filled_price"],
+                leverage=leverage,
+                side=order["side"],
+                position_value=position_value,
+            )
 
         await self.redis.set_position(order["symbol"], order["market"], {
             "quantity": str(fill["filled_qty"]),
@@ -205,7 +220,14 @@ class PaperExecutor:
             "entry_time": str(int(time.time() * 1000)),
             "side": order["side"],
             "leverage": str(leverage),
+            "liquidation_price": str(liq_price),
         })
+
+        if liq_price > 0:
+            logger.info(
+                f"Position opened: {order['symbol']} {order['side'].upper()} "
+                f"{leverage}x @ {fill['filled_price']}, liq: {liq_price:.2f}"
+            )
 
     async def _is_exit_order(self, order: dict) -> bool:
         """Check if order is an exit (closing position)."""

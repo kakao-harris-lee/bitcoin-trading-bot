@@ -1,7 +1,34 @@
 """Strategy Factory - assembles Entry/Exit components from configuration.
 
 Implements the Factory Pattern for dynamic strategy assembly based on
-allocation.json configuration. Maps strategy names to component classes.
+allocation.json configuration. Supports both legacy and new config formats.
+
+Legacy format (backward compatible):
+    "v35_long": {
+        "position_size": 0.01,
+        "market": "futures"
+    }
+
+New format (explicit class names, fully configurable):
+    "v35_long": {
+        "market": "futures",
+        "leverage": 3,
+        "entry": {
+            "class": "V35EntryStrategy",
+            "params": {
+                "mfi_bull": 52.0,
+                "position_size": 0.01
+            }
+        },
+        "exit": {
+            "class": "V35TrailingExitStrategy",
+            "persistent_class": "V35PersistentExitStrategy",
+            "params": {
+                "stop_loss_pct": 1.5,
+                "trailing_enabled": true
+            }
+        }
+    }
 
 Usage:
     factory = StrategyFactory(redis_client)
@@ -27,17 +54,33 @@ from typing import Any, TYPE_CHECKING
 from .interfaces import IEntryStrategy, IExitStrategy
 from .models import MarketData, Position, Signal
 
-# Entry strategies
+# Entry strategies (imports trigger registration via decorators)
 from .v35_entry import V35EntryStrategy, V35EntryParams
 from .sideways_entry import SidewaysEntryStrategy, SidewaysEntryParams
 from .short_entry import ShortEntryStrategy, ShortEntryParams
 
-# Exit strategies
+# Exit strategies (imports trigger registration via decorators)
 from .v35_trailing_exit import V35TrailingExitStrategy, V35ExitParams
 from .v35_persistent_exit import V35PersistentExitStrategy
 from .sideways_exit import SidewaysExitStrategy, SidewaysExitParams
 from .short_exit import ShortExitStrategy, ShortExitParams
 from .experimental_exit import ExperimentalExitStrategy, ExperimentalExitParams
+
+# Registry and config validation
+from .registry import (
+    get_entry_class,
+    get_exit_class,
+    get_entry_params_class,
+    get_exit_params_class,
+    build_params_from_config,
+    is_entry_registered,
+    is_exit_registered,
+)
+from .config_schema import (
+    validate_strategy_config,
+    has_new_config_format,
+    ConfigValidationError,
+)
 
 # State management
 from .state_manager import StateManager
@@ -61,7 +104,7 @@ class StrategySpec:
     market: str = "spot"
 
 
-# Registry of available strategies
+# Registry of available strategies (legacy format support)
 STRATEGY_REGISTRY: dict[str, StrategySpec] = {
     "v35_long": StrategySpec(
         name="v35_long",
@@ -107,6 +150,10 @@ class StrategyFactory:
 
     Creates and assembles Entry/Exit strategy components based on
     strategy names and configuration parameters.
+
+    Supports two config formats:
+    1. Legacy format: Strategy name maps to predefined components
+    2. New format: Explicit entry/exit class names with custom params
     """
 
     def __init__(self, redis: Redis | None = None):
@@ -138,6 +185,10 @@ class StrategyFactory:
     ) -> IEntryStrategy:
         """Create an entry strategy component.
 
+        Supports both legacy and new config formats:
+        - Legacy: Uses predefined class from STRATEGY_REGISTRY
+        - New: Uses explicit "entry.class" from config
+
         Args:
             strategy_name: Name of the strategy (e.g., "v35_long").
             config: Configuration parameters.
@@ -148,22 +199,14 @@ class StrategyFactory:
         Raises:
             ValueError: If strategy name is not registered.
         """
-        if strategy_name not in self._registry:
-            raise ValueError(
-                f"Unknown strategy: {strategy_name}. "
-                f"Available: {self.get_available_strategies()}"
-            )
-
-        spec = self._registry[strategy_name]
         config = config or {}
 
-        # Build params from config
-        params = self._build_entry_params(spec, config)
+        # Check for new config format with explicit class name
+        if has_new_config_format(config) and "entry" in config:
+            return self._create_entry_from_config(strategy_name, config)
 
-        # Create entry strategy
-        entry = spec.entry_class(params=params)
-        logger.debug(f"Created entry strategy: {strategy_name}")
-        return entry
+        # Legacy format: use STRATEGY_REGISTRY
+        return self._create_entry_legacy(strategy_name, config)
 
     def create_exit(
         self,
@@ -172,6 +215,10 @@ class StrategyFactory:
         persistent: bool = False,
     ) -> IExitStrategy:
         """Create an exit strategy component.
+
+        Supports both legacy and new config formats:
+        - Legacy: Uses predefined class from STRATEGY_REGISTRY
+        - New: Uses explicit "exit.class" from config
 
         Args:
             strategy_name: Name of the strategy (e.g., "v35_long").
@@ -184,31 +231,14 @@ class StrategyFactory:
         Raises:
             ValueError: If strategy name is not registered.
         """
-        if strategy_name not in self._registry:
-            raise ValueError(
-                f"Unknown strategy: {strategy_name}. "
-                f"Available: {self.get_available_strategies()}"
-            )
-
-        spec = self._registry[strategy_name]
         config = config or {}
 
-        # Build params from config
-        params = self._build_exit_params(spec, config)
+        # Check for new config format with explicit class name
+        if has_new_config_format(config) and "exit" in config:
+            return self._create_exit_from_config(strategy_name, config, persistent)
 
-        # Use persistent version if requested and available
-        if persistent and spec.persistent_exit_class and self._redis:
-            exit_strat = spec.persistent_exit_class(
-                redis=self._redis,
-                params=params,
-                strategy_name=f"{strategy_name}_exit",
-            )
-            logger.debug(f"Created persistent exit strategy: {strategy_name}")
-        else:
-            exit_strat = spec.exit_class(params=params)
-            logger.debug(f"Created exit strategy: {strategy_name}")
-
-        return exit_strat
+        # Legacy format: use STRATEGY_REGISTRY
+        return self._create_exit_legacy(strategy_name, config, persistent)
 
     def create_components(
         self,
@@ -240,16 +270,237 @@ class StrategyFactory:
         Returns:
             Market type ("spot" or "futures").
         """
+        config = config or {}
+
+        # Config market overrides spec default
+        if "market" in config:
+            return config["market"]
+
+        # Check legacy registry
+        if strategy_name in self._registry:
+            return self._registry[strategy_name].market
+
+        # Default to spot
+        return "spot"
+
+    # --- New config format methods ---
+
+    def _create_entry_from_config(
+        self,
+        strategy_name: str,
+        config: dict[str, Any],
+    ) -> IEntryStrategy:
+        """Create entry strategy using new config format.
+
+        Args:
+            strategy_name: Strategy name for logging.
+            config: Config with entry.class and entry.params.
+
+        Returns:
+            Entry strategy instance.
+
+        Raises:
+            ValueError: If class not found in registry.
+        """
+        entry_config = config["entry"]
+        class_name = entry_config["class"]
+
+        # Validate and get class from registry
+        if not is_entry_registered(class_name):
+            from .registry import get_registered_entry_names
+            available = get_registered_entry_names()
+            raise ValueError(
+                f"Unknown entry class: {class_name}. "
+                f"Available: {available}"
+            )
+
+        entry_class = get_entry_class(class_name)
+        params_class = get_entry_params_class(class_name)
+
+        # Build params from config
+        entry_params = entry_config.get("params", {})
+        # Merge top-level config (market, position_size) with entry params
+        merged_params = self._merge_params(config, entry_params)
+
+        if params_class:
+            params = build_params_from_config(params_class, merged_params)
+        else:
+            params = None
+
+        entry = entry_class(params=params)
+        logger.debug(f"Created entry strategy: {class_name} (new format)")
+        return entry
+
+    def _create_exit_from_config(
+        self,
+        strategy_name: str,
+        config: dict[str, Any],
+        persistent: bool,
+    ) -> IExitStrategy:
+        """Create exit strategy using new config format.
+
+        Args:
+            strategy_name: Strategy name for logging.
+            config: Config with exit.class and exit.params.
+            persistent: Use persistent class if available.
+
+        Returns:
+            Exit strategy instance.
+
+        Raises:
+            ValueError: If class not found in registry.
+        """
+        exit_config = config["exit"]
+        class_name = exit_config["class"]
+
+        # Check for persistent class override
+        persistent_class_name = exit_config.get("persistent_class")
+        if persistent and persistent_class_name and self._redis:
+            class_name = persistent_class_name
+
+        # Validate and get class from registry
+        if not is_exit_registered(class_name):
+            from .registry import get_registered_exit_names
+            available = get_registered_exit_names()
+            raise ValueError(
+                f"Unknown exit class: {class_name}. "
+                f"Available: {available}"
+            )
+
+        exit_class = get_exit_class(class_name)
+        params_class = get_exit_params_class(class_name)
+
+        # Build params from config
+        exit_params = exit_config.get("params", {})
+        # Merge top-level config (market) with exit params
+        merged_params = self._merge_params(config, exit_params)
+
+        if params_class:
+            params = build_params_from_config(params_class, merged_params)
+        else:
+            params = None
+
+        # Check if this is a persistent strategy (needs redis)
+        if persistent and persistent_class_name and self._redis:
+            exit_strat = exit_class(
+                redis=self._redis,
+                params=params,
+                strategy_name=f"{strategy_name}_exit",
+            )
+            logger.debug(f"Created persistent exit strategy: {class_name} (new format)")
+        else:
+            exit_strat = exit_class(params=params)
+            logger.debug(f"Created exit strategy: {class_name} (new format)")
+
+        return exit_strat
+
+    def _merge_params(
+        self,
+        config: dict[str, Any],
+        component_params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Merge top-level config with component-specific params.
+
+        Component params take precedence over top-level config.
+
+        Args:
+            config: Top-level strategy config.
+            component_params: Component-specific params.
+
+        Returns:
+            Merged params dict.
+        """
+        merged = {}
+
+        # Add relevant top-level fields
+        if "market" in config:
+            merged["market"] = config["market"]
+        if "position_size" in config:
+            merged["position_size"] = config["position_size"]
+
+        # Component params override top-level
+        merged.update(component_params)
+
+        return merged
+
+    # --- Legacy format methods ---
+
+    def _create_entry_legacy(
+        self,
+        strategy_name: str,
+        config: dict[str, Any],
+    ) -> IEntryStrategy:
+        """Create entry strategy using legacy format.
+
+        Args:
+            strategy_name: Strategy name from STRATEGY_REGISTRY.
+            config: Configuration parameters.
+
+        Returns:
+            Entry strategy instance.
+
+        Raises:
+            ValueError: If strategy name not in registry.
+        """
         if strategy_name not in self._registry:
-            raise ValueError(f"Unknown strategy: {strategy_name}")
+            raise ValueError(
+                f"Unknown strategy: {strategy_name}. "
+                f"Available: {self.get_available_strategies()}"
+            )
 
         spec = self._registry[strategy_name]
 
-        # Config market overrides spec default
-        if config and "market" in config:
-            return config["market"]
+        # Build params using registry-based builder
+        params = self._build_entry_params(spec, config)
 
-        return spec.market
+        # Create entry strategy
+        entry = spec.entry_class(params=params)
+        logger.debug(f"Created entry strategy: {strategy_name} (legacy format)")
+        return entry
+
+    def _create_exit_legacy(
+        self,
+        strategy_name: str,
+        config: dict[str, Any],
+        persistent: bool,
+    ) -> IExitStrategy:
+        """Create exit strategy using legacy format.
+
+        Args:
+            strategy_name: Strategy name from STRATEGY_REGISTRY.
+            config: Configuration parameters.
+            persistent: Use Redis-backed persistence if available.
+
+        Returns:
+            Exit strategy instance.
+
+        Raises:
+            ValueError: If strategy name not in registry.
+        """
+        if strategy_name not in self._registry:
+            raise ValueError(
+                f"Unknown strategy: {strategy_name}. "
+                f"Available: {self.get_available_strategies()}"
+            )
+
+        spec = self._registry[strategy_name]
+
+        # Build params using registry-based builder
+        params = self._build_exit_params(spec, config)
+
+        # Use persistent version if requested and available
+        if persistent and spec.persistent_exit_class and self._redis:
+            exit_strat = spec.persistent_exit_class(
+                redis=self._redis,
+                params=params,
+                strategy_name=f"{strategy_name}_exit",
+            )
+            logger.debug(f"Created persistent exit strategy: {strategy_name} (legacy format)")
+        else:
+            exit_strat = spec.exit_class(params=params)
+            logger.debug(f"Created exit strategy: {strategy_name} (legacy format)")
+
+        return exit_strat
 
     def _get_market(
         self,
@@ -273,7 +524,7 @@ class StrategyFactory:
         spec: StrategySpec,
         config: dict[str, Any],
     ) -> Any:
-        """Build entry params from config.
+        """Build entry params from config (legacy format).
 
         Maps config keys to param fields.
         """
@@ -305,7 +556,7 @@ class StrategyFactory:
         spec: StrategySpec,
         config: dict[str, Any],
     ) -> Any:
-        """Build exit params from config.
+        """Build exit params from config (legacy format).
 
         Maps config keys to param fields.
         """

@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .models import MarketData, Position, Signal
+from .registry import exit_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class V35ExitParams:
     market: Literal["spot", "futures"] = "spot"
 
 
+@exit_strategy(params_class=V35ExitParams)
 class V35TrailingExitStrategy:
     """V35 Exit strategy with trailing stop.
 

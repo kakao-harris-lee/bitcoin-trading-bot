@@ -23,6 +23,17 @@ Usage:
     # State persistence (Redis-backed)
     from trading.strategies.components import StateManager
 
+    # Registry (new config format support)
+    from trading.strategies.components import (
+        entry_strategy,
+        exit_strategy,
+        get_entry_class,
+        get_exit_class,
+        build_params_from_config,
+        validate_strategy_config,
+        ConfigValidationError,
+    )
+
     # V35 Long (spot, bullish)
     from trading.strategies.components import (
         V35EntryStrategy,
@@ -47,6 +58,12 @@ Usage:
         ShortExitStrategy,
         ShortExitParams,
     )
+
+    # Experimental
+    from trading.strategies.components import (
+        ExperimentalExitStrategy,
+        ExperimentalExitParams,
+    )
 """
 
 from .interfaces import IEntryStrategy, IExitStrategy
@@ -58,6 +75,28 @@ from .composite_task import CompositeStrategyTask, create_composite_task
 
 # State persistence
 from .state_manager import StateManager
+
+# Registry (decorator-based auto-registration)
+from .registry import (
+    entry_strategy,
+    exit_strategy,
+    get_entry_class,
+    get_exit_class,
+    get_entry_params_class,
+    get_exit_params_class,
+    get_registered_entry_names,
+    get_registered_exit_names,
+    build_params_from_config,
+    is_entry_registered,
+    is_exit_registered,
+)
+
+# Config validation
+from .config_schema import (
+    validate_strategy_config,
+    has_new_config_format,
+    ConfigValidationError,
+)
 
 # V35 Long strategy components
 from .v35_entry import V35EntryParams, V35EntryStrategy
@@ -71,6 +110,9 @@ from .sideways_exit import SidewaysExitParams, SidewaysExitStrategy
 # Short strategy components
 from .short_entry import ShortEntryParams, ShortEntryStrategy
 from .short_exit import ShortExitParams, ShortExitStrategy
+
+# Experimental strategy components
+from .experimental_exit import ExperimentalExitParams, ExperimentalExitStrategy
 
 __all__ = [
     # Interfaces
@@ -88,6 +130,22 @@ __all__ = [
     "create_composite_task",
     # State persistence
     "StateManager",
+    # Registry
+    "entry_strategy",
+    "exit_strategy",
+    "get_entry_class",
+    "get_exit_class",
+    "get_entry_params_class",
+    "get_exit_params_class",
+    "get_registered_entry_names",
+    "get_registered_exit_names",
+    "build_params_from_config",
+    "is_entry_registered",
+    "is_exit_registered",
+    # Config validation
+    "validate_strategy_config",
+    "has_new_config_format",
+    "ConfigValidationError",
     # V35 Long implementations
     "V35EntryStrategy",
     "V35EntryParams",
@@ -104,4 +162,7 @@ __all__ = [
     "ShortEntryParams",
     "ShortExitStrategy",
     "ShortExitParams",
+    # Experimental implementations
+    "ExperimentalExitStrategy",
+    "ExperimentalExitParams",
 ]

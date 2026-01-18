@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from .models import MarketData, Position, Signal
 from .state_manager import StateManager
 from .v35_trailing_exit import V35ExitParams
+from .registry import exit_strategy
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 STATE_HIGH_WATER_MARK = "high_water_mark"
 
 
+@exit_strategy(params_class=V35ExitParams)
 class V35PersistentExitStrategy:
     """V35 Exit strategy with Redis-persisted trailing stop state.
 

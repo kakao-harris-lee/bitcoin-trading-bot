@@ -1521,6 +1521,265 @@ footer kbd {
     color: var(--text-secondary);
 }
 
+.decision-card.wait {
+    border-left-color: var(--text-muted);
+}
+
+.decision-card .decision-action.wait {
+    background: rgba(139, 148, 158, 0.15);
+    color: var(--text-muted);
+}
+
+.decision-card .decision-info {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.decision-card .decision-info .label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    min-width: 60px;
+}
+
+.decision-card .decision-info .value {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.regime-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.regime-badge.regime-bull-strong {
+    background: rgba(63, 185, 80, 0.25);
+    color: #4ade80;
+}
+
+.regime-badge.regime-bull {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--profit);
+}
+
+.regime-badge.regime-bear {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--loss);
+}
+
+.regime-badge.regime-sideways {
+    background: rgba(210, 153, 34, 0.15);
+    color: var(--warning);
+}
+
+.regime-badge.regime-unknown {
+    background: rgba(139, 148, 158, 0.15);
+    color: var(--text-muted);
+}
+
+.position-pnl {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.position-pnl.positive {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--profit);
+}
+
+.position-pnl.negative {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--loss);
+}
+
+/* =====================
+   Leverage State Panel
+   ===================== */
+
+#leverage-state {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.leverage-disabled {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+}
+
+.leverage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.leverage-header h4 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.leverage-badge {
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.leverage-badge.tier-full {
+    background: rgba(63, 185, 80, 0.2);
+    color: var(--profit);
+}
+
+.leverage-badge.tier-reduced {
+    background: rgba(241, 196, 15, 0.2);
+    color: #f1c40f;
+}
+
+.leverage-badge.tier-cautious {
+    background: rgba(230, 126, 34, 0.2);
+    color: #e67e22;
+}
+
+.leverage-badge.tier-minimal {
+    background: rgba(231, 76, 60, 0.2);
+    color: var(--loss);
+}
+
+.leverage-badge.tier-halted {
+    background: rgba(155, 89, 182, 0.2);
+    color: #9b59b6;
+}
+
+.leverage-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.leverage-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.leverage-metric .label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+}
+
+.leverage-metric .value {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    font-family: var(--font-mono);
+}
+
+.leverage-metric.highlight .value {
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.leverage-metric .value.tier-full { color: var(--profit); }
+.leverage-metric .value.tier-reduced { color: #f1c40f; }
+.leverage-metric .value.tier-cautious { color: #e67e22; }
+.leverage-metric .value.tier-minimal { color: var(--loss); }
+.leverage-metric .value.tier-halted { color: #9b59b6; }
+
+.drawdown-bar-container {
+    position: relative;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    margin-bottom: 24px;
+    overflow: visible;
+}
+
+.drawdown-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    background: linear-gradient(90deg, var(--profit) 0%, #f1c40f 40%, #e67e22 60%, var(--loss) 80%, #9b59b6 100%);
+}
+
+.drawdown-markers {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    right: 0;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.drawdown-markers .marker {
+    position: absolute;
+    transform: translateX(-50%);
+}
+
+.tier-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+
+.tier-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    opacity: 0.5;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.tier-indicator.active {
+    opacity: 1;
+    background: var(--bg-tertiary);
+    border-color: var(--border-accent);
+}
+
+.tier-indicator .tier-leverage {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+
+.tier-indicator .tier-name {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+}
+
+.tier-indicator .tier-dd {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
 /* Analytics Tab Styles */
 .period-selector {
     display: flex;

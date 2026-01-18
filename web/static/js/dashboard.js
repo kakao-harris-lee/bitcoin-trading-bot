@@ -645,12 +645,99 @@ async function fetchExchangeBalances() {
     }
 }
 
+// Fetch leverage state
+async function fetchLeverageState() {
+    try {
+        const response = await fetch('/api/metrics/leverage', { credentials: 'include' });
+        if (!response.ok) throw new Error('Leverage state fetch failed');
+        const data = await response.json();
+        renderLeverageState(data);
+    } catch (err) {
+        console.error('Leverage state fetch error:', err);
+    }
+}
+
+// Render leverage state panel
+function renderLeverageState(data) {
+    const container = document.getElementById('leverage-state');
+    if (!container) return;
+
+    if (!data.enabled) {
+        container.innerHTML = '<div class="leverage-disabled">LeverageManager not active</div>';
+        return;
+    }
+
+    // Calculate drawdown bar width
+    const drawdownPct = Math.min(data.drawdown_pct || 0, 25); // Cap at 25% for visual
+    const drawdownBarWidth = (drawdownPct / 25) * 100;
+
+    // Determine tier color
+    let tierClass = 'tier-full';
+    if (data.tier === 'reduced') tierClass = 'tier-reduced';
+    else if (data.tier === 'cautious') tierClass = 'tier-cautious';
+    else if (data.tier === 'minimal') tierClass = 'tier-minimal';
+    else if (data.tier === 'halted') tierClass = 'tier-halted';
+
+    // Build tier indicators
+    let tiersHtml = '';
+    if (data.tiers) {
+        for (const tier of data.tiers) {
+            const isActive = tier.name === data.tier;
+            tiersHtml += `
+                <div class="tier-indicator ${isActive ? 'active' : ''}">
+                    <span class="tier-leverage">${tier.leverage}x</span>
+                    <span class="tier-name">${tier.name}</span>
+                    <span class="tier-dd">&lt;${tier.drawdown_max_pct}%</span>
+                </div>
+            `;
+        }
+    }
+
+    container.innerHTML = `
+        <div class="leverage-header">
+            <h4>Risk-Adjusted Leverage</h4>
+            <span class="leverage-badge ${tierClass}">${data.leverage}x</span>
+        </div>
+        <div class="leverage-metrics">
+            <div class="leverage-metric">
+                <span class="label">Peak Equity</span>
+                <span class="value">${formatUSD(data.peak_equity)}</span>
+            </div>
+            <div class="leverage-metric">
+                <span class="label">Current Equity</span>
+                <span class="value">${formatUSD(data.current_equity)}</span>
+            </div>
+            <div class="leverage-metric highlight">
+                <span class="label">Drawdown</span>
+                <span class="value ${data.drawdown_pct > 10 ? 'negative' : ''}">${data.drawdown_pct.toFixed(1)}%</span>
+            </div>
+            <div class="leverage-metric">
+                <span class="label">Tier</span>
+                <span class="value ${tierClass}">${data.tier.toUpperCase()}</span>
+            </div>
+        </div>
+        <div class="drawdown-bar-container">
+            <div class="drawdown-bar" style="width: ${drawdownBarWidth}%"></div>
+            <div class="drawdown-markers">
+                <span class="marker" style="left: 20%">5%</span>
+                <span class="marker" style="left: 40%">10%</span>
+                <span class="marker" style="left: 60%">15%</span>
+                <span class="marker" style="left: 80%">20%</span>
+            </div>
+        </div>
+        <div class="tier-grid">
+            ${tiersHtml}
+        </div>
+    `;
+}
+
 // Fetch all data
 async function fetchAll() {
     await Promise.all([
         fetchStatus(),
         fetchKillSwitch(),
         fetchExchangeBalances(),
+        fetchLeverageState(),
     ]);
 }
 
@@ -1225,41 +1312,63 @@ function renderDecisions(decisions) {
     const container = document.getElementById('decisions-container');
 
     if (!decisions || decisions.length === 0) {
-        renderEmpty('decisions-container', 'No decisions in the last 24 hours');
+        renderEmpty('decisions-container', 'No decisions yet. Decisions are recorded hourly.');
         return;
     }
 
     let html = '';
 
     for (const decision of decisions) {
-        const actionClass = decision.action.toLowerCase();
+        // Support both old format (action/asset) and new format (decision/symbol)
+        const decisionType = decision.decision || decision.action || 'WAIT';
+        const decisionClass = decisionType.toLowerCase();
         const indicators = decision.indicators || {};
-        const assetDisplay = decision.asset || '-';
+        const symbolDisplay = decision.symbol || decision.asset || '-';
         const marketDisplay = decision.market === 'futures' ? 'Futures' : 'Spot';
+        const regime = decision.regime || '-';
+        const position = decision.position || {};
+
+        // Regime badge class
+        let regimeClass = 'regime-unknown';
+        if (regime.includes('BULL_STRONG')) regimeClass = 'regime-bull-strong';
+        else if (regime.includes('BULL')) regimeClass = 'regime-bull';
+        else if (regime.includes('BEAR')) regimeClass = 'regime-bear';
+        else if (regime.includes('SIDEWAYS')) regimeClass = 'regime-sideways';
+
+        // Position P&L display
+        let pnlDisplay = '';
+        if (position.active && position.unrealized_pnl_pct !== undefined) {
+            const pnlPct = position.unrealized_pnl_pct;
+            const pnlClass = pnlPct >= 0 ? 'positive' : 'negative';
+            pnlDisplay = `<span class="position-pnl ${pnlClass}">${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%</span>`;
+        }
 
         html += `
-            <div class="decision-card ${actionClass}">
+            <div class="decision-card ${decisionClass}">
                 <div class="decision-header">
                     <span class="decision-time">${formatDateTime(decision.timestamp)}</span>
                     <div class="decision-badges">
-                        <span class="symbol-badge">${escapeHtml(assetDisplay)}</span>
-                        <span class="market-badge ${decision.market || 'spot'}">${marketDisplay}</span>
-                        <span class="decision-action ${actionClass}">${decision.action}</span>
+                        <span class="symbol-badge">${escapeHtml(symbolDisplay)}</span>
+                        <span class="regime-badge ${regimeClass}">${escapeHtml(regime)}</span>
+                        <span class="decision-action ${decisionClass}">${decisionType}</span>
+                        ${pnlDisplay}
                     </div>
                 </div>
                 <div class="decision-body">
-                    <div class="decision-asset">${escapeHtml(assetDisplay)} (${marketDisplay})</div>
-                    <div class="decision-reason">${escapeHtml(decision.reason) || '-'}</div>
-                    <div class="decision-strategy">${escapeHtml(decision.strategy) || '-'}</div>
+                    <div class="decision-info">
+                        <span class="label">Strategy</span>
+                        <span class="value">${escapeHtml(decision.strategy) || '-'}</span>
+                    </div>
+                    <div class="decision-info">
+                        <span class="label">Reason</span>
+                        <span class="value">${escapeHtml(decision.reason) || '-'}</span>
+                    </div>
                 </div>
-                ${Object.keys(indicators).length > 0 ? `
                 <div class="decision-indicators">
-                    ${indicators.rsi !== undefined ? `<span class="ind">RSI: ${formatNumber(indicators.rsi, 1)}</span>` : ''}
-                    ${indicators.mfi !== undefined ? `<span class="ind">MFI: ${formatNumber(indicators.mfi, 1)}</span>` : ''}
-                    ${indicators.adx !== undefined ? `<span class="ind">ADX: ${formatNumber(indicators.adx, 1)}</span>` : ''}
-                    ${indicators.close !== undefined ? `<span class="ind">Price: ${formatPrice(indicators.close, true)}</span>` : ''}
+                    <span class="ind">Price: ${indicators.price ? formatPrice(indicators.price, true) : '-'}</span>
+                    <span class="ind">MFI: ${indicators.mfi ? formatNumber(indicators.mfi, 1) : '-'}</span>
+                    <span class="ind">ADX: ${indicators.adx ? formatNumber(indicators.adx, 1) : '-'}</span>
                 </div>
-                ` : ''}
             </div>
         `;
     }

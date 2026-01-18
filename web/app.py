@@ -1458,6 +1458,52 @@ def get_realtime_metrics():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route("/api/metrics/leverage")
+def get_leverage_state():
+    """
+    Get current leverage manager state.
+
+    Returns:
+    - peak_equity: High water mark
+    - current_equity: Current account equity
+    - drawdown_pct: Current drawdown percentage
+    - tier: Current leverage tier name
+    - leverage: Allowed leverage multiplier
+    - daily_loss_pct: Daily loss as percentage
+    - tiers: All defined tiers with active indicator
+    """
+    try:
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        state = r.hgetall("leverage:state")
+
+        if not state:
+            return jsonify({
+                'enabled': False,
+                'message': 'LeverageManager not initialized'
+            })
+
+        # Parse state values
+        return jsonify({
+            'enabled': True,
+            'peak_equity': float(state.get('peak_equity', 0)),
+            'current_equity': float(state.get('current_equity', 0)),
+            'drawdown_pct': float(state.get('drawdown_pct', 0)),
+            'tier': state.get('current_tier', 'unknown'),
+            'leverage': int(state.get('current_leverage', 1)),
+            'daily_pnl': float(state.get('daily_pnl', 0) if 'daily_pnl' in state else 0),
+            'last_updated': state.get('last_updated', ''),
+            'tiers': [
+                {'name': 'full', 'drawdown_max_pct': 5, 'leverage': 5},
+                {'name': 'reduced', 'drawdown_max_pct': 10, 'leverage': 3},
+                {'name': 'cautious', 'drawdown_max_pct': 15, 'leverage': 2},
+                {'name': 'minimal', 'drawdown_max_pct': 20, 'leverage': 1},
+                {'name': 'halted', 'drawdown_max_pct': 100, 'leverage': 0},
+            ]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route("/api/metrics/decisions")
 def get_decision_history():
     """

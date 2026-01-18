@@ -11,6 +11,7 @@ Reads from Redis to provide:
 
 from datetime import datetime, timedelta
 from typing import Optional
+import json
 import os
 import redis
 
@@ -237,15 +238,14 @@ class MetricsService:
         exchange: Optional[str] = None
     ) -> list[dict]:
         """
-        Get recent strategy decisions from current positions.
+        Get recent strategy decisions from strategy:decisions stream.
 
-        Note: The stream architecture doesn't store historical decisions.
-        This returns current state as a single decision per active position.
+        Reads hourly decision records written by CompositeStrategyTask.
 
         Args:
-            hours: Number of hours of history (unused currently)
+            hours: Number of hours of history to retrieve
             limit: Maximum number of decisions to return
-            exchange: Optional filter by exchange
+            exchange: Optional filter by exchange (only 'binance' supported)
 
         Returns:
             List of StrategyDecision dicts
@@ -253,6 +253,55 @@ class MetricsService:
         if exchange and exchange != "binance":
             return []
 
+        try:
+            r = self._get_redis()
+
+            # Read from strategy:decisions stream (newest first)
+            entries = r.xrevrange("strategy:decisions", count=limit)
+
+            # If no entries in stream, fall back to position-based decisions
+            if not entries:
+                return self._get_position_based_decisions(limit)
+
+            decisions = []
+            for msg_id, data in entries:
+                # Parse position JSON
+                position_data = {}
+                if data.get("position"):
+                    try:
+                        position_data = json.loads(data["position"])
+                    except (json.JSONDecodeError, TypeError):
+                        position_data = {}
+
+                decisions.append({
+                    'timestamp': data.get('timestamp', ''),
+                    'exchange': 'binance',
+                    'symbol': data.get('symbol', ''),
+                    'market': data.get('market', 'spot'),
+                    'strategy': data.get('strategy', ''),
+                    'decision': data.get('decision', ''),
+                    'reason': data.get('reason', ''),
+                    'regime': data.get('regime', ''),
+                    'indicators': {
+                        'price': float(data.get('price', 0)),
+                        'mfi': float(data.get('mfi', 0)),
+                        'adx': float(data.get('adx', 0)),
+                    },
+                    'position': position_data,
+                })
+
+            return decisions
+
+        except Exception as e:
+            # Any error - fall back to position-based decisions
+            print(f"Error reading strategy:decisions stream: {e}")
+            return self._get_position_based_decisions(limit)
+
+    def _get_position_based_decisions(self, limit: int = 50) -> list[dict]:
+        """Fallback: generate decisions from current position state.
+
+        Used when strategy:decisions stream is empty or doesn't exist.
+        """
         decisions = []
         prices = self._get_last_prices()
         timestamp = datetime.now().isoformat()
@@ -267,20 +316,24 @@ class MetricsService:
                 price_key = f"{symbol}:{market}"
                 price = prices.get(price_key, 0.0)
 
-                action = 'HOLD' if qty > 0 else 'WAIT'
+                decision = 'HOLD' if qty > 0 else 'WAIT'
                 reason = f"Position: {qty:.4f}" if qty > 0 else "No position"
 
                 decisions.append({
                     'timestamp': timestamp,
                     'exchange': 'binance',
-                    'asset': symbol,
+                    'symbol': symbol,
                     'market': market,
                     'strategy': strategy,
-                    'action': action,
+                    'decision': decision,
                     'reason': reason,
+                    'regime': 'UNKNOWN',
                     'indicators': {
                         'price': price,
-                    }
+                        'mfi': 0,
+                        'adx': 0,
+                    },
+                    'position': {'active': qty > 0},
                 })
 
         return decisions[:limit]

@@ -16,6 +16,7 @@ from trading.streams import RedisStreams, BinanceFeedTask
 from trading.strategies.components import StrategyFactory, create_composite_task
 from trading.executor import BinanceClient, AsyncExecutor, PaperExecutor
 from trading.notification import TelegramTask
+from trading.risk.leverage_manager import LeverageManager
 
 logger = logging.getLogger(__name__)
 
@@ -119,10 +120,22 @@ class TradingEngine:
             if futures_config.get("enabled", False) and symbols:
                 await client.initialize_leverage(symbols, leverage=default_leverage)
                 logger.info(f"Initialized {default_leverage}x leverage for {symbols}")
+
+            # Create LeverageManager for risk-adjusted leverage
+            leverage_manager = None
+            leverage_config = self.config.get("leverage_manager", {})
+            if leverage_config.get("enabled", True):
+                leverage_manager = LeverageManager(
+                    redis_url=self.config.get("redis_url", "redis://localhost:6379"),
+                    daily_loss_limit=leverage_config.get("daily_loss_limit", 0.05),
+                )
+                logger.info("LeverageManager created (will initialize on account sync)")
+
             executor = AsyncExecutor(
                 redis=self.redis,
                 client=client,
                 config=self.config.get("risk", {}),
+                leverage_manager=leverage_manager,
             )
 
         self.tasks.append(asyncio.create_task(executor.run()))

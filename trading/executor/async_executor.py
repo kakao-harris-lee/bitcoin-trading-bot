@@ -4,11 +4,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
     from trading.executor.binance_client import BinanceClient
+    from trading.risk.leverage_manager import LeverageManager
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,12 @@ class AsyncExecutor:
         redis: RedisStreams,
         client: BinanceClient,
         config: dict,
+        leverage_manager: Optional[LeverageManager] = None,
     ):
         self.redis = redis
         self.client = client
         self.config = config
+        self.leverage_manager = leverage_manager
         self.max_daily_loss = config.get("max_daily_loss", 500)  # USDT
         self.position_pct = config.get("position_pct", 0.02)  # 2% of balance per trade
         self.min_balance = config.get("min_balance", 100)  # Minimum USDT to trade
@@ -111,6 +114,16 @@ class AsyncExecutor:
                 "last_sync": str(int(time.time())),
             })
 
+            # Initialize LeverageManager with current equity
+            if self.leverage_manager:
+                total_equity = balance.spot_usdt + balance.futures_usdt
+                await self.leverage_manager.initialize(initial_equity=total_equity)
+                logger.info(
+                    f"LeverageManager initialized: equity=${total_equity:,.2f}, "
+                    f"tier={self.leverage_manager.current_tier.name} "
+                    f"({self.leverage_manager.current_tier.leverage}x)"
+                )
+
         except Exception as e:
             logger.error(f"Account sync failed: {e}")
 
@@ -155,6 +168,23 @@ class AsyncExecutor:
         try:
             # Check if this is an exit (sell for spot, buy to cover for futures)
             is_exit = await self._is_exit_order(order)
+
+            # Check leverage allowance for futures entry orders
+            allowed_leverage = None
+            if market == "futures" and not is_exit and self.leverage_manager:
+                allowed_leverage = await self.leverage_manager.get_allowed_leverage()
+                if allowed_leverage == 0:
+                    logger.warning(
+                        f"Order {order['id']} blocked: leverage halted "
+                        f"(drawdown={self.leverage_manager.get_drawdown_pct():.1f}%)"
+                    )
+                    await self._publish_rejection(order, "leverage_halted")
+                    return None
+
+                # Set leverage on Binance before order
+                symbol = order["symbol"]
+                await self.client.set_leverage(symbol, allowed_leverage)
+                logger.info(f"Set leverage for {symbol}: {allowed_leverage}x")
 
             # Determine position_side for futures hedge mode
             position_side = await self._get_position_side(order, is_exit)
@@ -279,6 +309,15 @@ class AsyncExecutor:
         await self.redis.hset("risk", {"daily_pnl": str(daily_pnl)})
 
         logger.info(f"Recorded P&L: {symbol} {pnl:+.2f} USDT ({pnl_pct:+.2f}%) (daily total: {daily_pnl:+.2f})")
+
+        # Update LeverageManager equity
+        if self.leverage_manager:
+            await self.leverage_manager.update_equity(pnl)
+            logger.info(
+                f"LeverageManager updated: equity=${self.leverage_manager.current_equity:,.2f}, "
+                f"drawdown={self.leverage_manager.get_drawdown_pct():.1f}%, "
+                f"tier={self.leverage_manager.current_tier.name} ({self.leverage_manager.current_tier.leverage}x)"
+            )
 
         # Publish P&L alert
         await self.redis.publish("alerts", {

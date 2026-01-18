@@ -22,7 +22,9 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+from datetime import datetime
 from typing import Any, TYPE_CHECKING
 
 import pandas as pd
@@ -84,6 +86,8 @@ class CompositeStrategyTask(BaseStrategyTask):
         # Min data depends on indicators, typically 30-50, using 0 if we warm up
         self.min_data_points = 0
         self.history: dict[str, list[dict]] = {}
+        # Track last recorded candle hour per symbol for decision logging
+        self.last_decision_hour: dict[str, int] = {}
 
     async def run(self) -> None:
         """Main loop: warm-up then consume."""
@@ -123,6 +127,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         if market_data is None:
             return None
 
+        # Record decision at candle close for dashboard visibility
+        await self._check_and_record_decision(symbol, market_data)
+
         # Delegate to entry component
         signal = self.entry_strategy.check_entry(market_data)
 
@@ -147,6 +154,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         market_data = self._build_market_data(symbol)
         if market_data is None:
             return None
+
+        # Record decision at candle close for dashboard visibility (with position)
+        await self._check_and_record_decision(symbol, market_data)
 
         # Build Position model from dict
         position = self._dict_to_position(position_dict)
@@ -310,6 +320,135 @@ class CompositeStrategyTask(BaseStrategyTask):
             return await self.get_dynamic_position_size(symbol, price, position_pct)
         else:
             return self.config.get("position_size", default_quantity)
+
+    async def _check_and_record_decision(
+        self,
+        symbol: str,
+        market_data: MarketData,
+    ) -> None:
+        """Check if candle closed and record decision to Redis stream.
+
+        Records strategy decision at hourly candle boundaries for dashboard visibility.
+
+        Args:
+            symbol: Trading symbol.
+            market_data: Current market state with indicators.
+        """
+        current_hour = datetime.now().hour
+        last_hour = self.last_decision_hour.get(symbol, -1)
+
+        # Only record once per hour per symbol
+        if current_hour == last_hour:
+            return
+
+        self.last_decision_hour[symbol] = current_hour
+
+        # Get regime from entry strategy if available
+        regime = "UNKNOWN"
+        if hasattr(self.entry_strategy, '_classify_regime'):
+            regime = self.entry_strategy._classify_regime(market_data.mfi, market_data.adx)
+
+        # Determine decision and reason based on position state
+        position_key = f"positions:{symbol}:{self.market}"
+        position = await self.redis._client.hgetall(position_key)
+
+        # Get entry thresholds for detailed logging
+        mfi_bull = 52.0
+        mfi_bear = 48.0
+        adx_trend = 20.0
+        if hasattr(self.entry_strategy, 'params'):
+            params = self.entry_strategy.params
+            mfi_bull = getattr(params, 'mfi_bull', 52.0)
+            mfi_bear = getattr(params, 'mfi_bear', 48.0)
+            adx_trend = getattr(params, 'adx_trend', 20.0)
+
+        if position and float(position.get('quantity', 0)) > 0:
+            entry_price = float(position.get('entry_price', 0))
+            quantity = float(position.get('quantity', 0))
+            unrealized_pnl = (market_data.close - entry_price) * quantity
+            unrealized_pnl_pct = ((market_data.close - entry_price) / entry_price * 100) if entry_price > 0 else 0
+            price_change = market_data.close - entry_price
+
+            decision = "HOLD"
+            reason = (
+                f"Position: {quantity:.6f} @ ${entry_price:,.2f} | "
+                f"Current: ${market_data.close:,.2f} ({'+' if price_change >= 0 else ''}{price_change:,.2f}) | "
+                f"P&L: {'+' if unrealized_pnl_pct >= 0 else ''}{unrealized_pnl_pct:.2f}%"
+            )
+            position_data = {
+                "active": True,
+                "entry_price": entry_price,
+                "quantity": quantity,
+                "unrealized_pnl": round(unrealized_pnl, 2),
+                "unrealized_pnl_pct": round(unrealized_pnl_pct, 2),
+            }
+        else:
+            # Check if conditions would trigger entry
+            should_enter = hasattr(self.entry_strategy, '_should_enter') and \
+                          self.entry_strategy._should_enter(regime)
+
+            if should_enter:
+                decision = "BUY"
+                reason = f"Entry signal: {regime} (MFI={market_data.mfi:.1f} >= {mfi_bull}, ADX={market_data.adx:.1f} >= {adx_trend})"
+            else:
+                # Detailed reason why not entering
+                reasons = []
+                if market_data.mfi < mfi_bull:
+                    reasons.append(f"MFI={market_data.mfi:.1f} < {mfi_bull}")
+                if market_data.mfi > mfi_bear:
+                    reasons.append(f"MFI={market_data.mfi:.1f} > {mfi_bear}")
+                if market_data.adx < adx_trend:
+                    reasons.append(f"ADX={market_data.adx:.1f} < {adx_trend}")
+
+                decision = "WAIT"
+                reason = f"No entry: {regime} | " + ", ".join(reasons) if reasons else f"No entry: {regime}"
+
+            position_data = {"active": False}
+
+        # Build decision record
+        decision_record = {
+            "timestamp": datetime.now().isoformat(),
+            "symbol": symbol,
+            "strategy": self.name,
+            "market": self.market,
+            "price": str(market_data.close),
+            "mfi": str(round(market_data.mfi, 1)),
+            "adx": str(round(market_data.adx, 1)),
+            "regime": regime,
+            "decision": decision,
+            "reason": reason,
+            "position": json.dumps(position_data),
+        }
+
+        # Write to Redis stream with auto-trim (keep ~48 hours of hourly data)
+        try:
+            await self.redis._client.xadd(
+                "strategy:decisions",
+                decision_record,
+                maxlen=5000,  # ~48h * 3 symbols * ~30 strategies
+            )
+
+            # Detailed log message
+            log_lines = [
+                f"{'='*60}",
+                f"[{self.name.upper()}] {symbol} ({self.market}) - HOURLY DECISION",
+                f"{'='*60}",
+                f"  Time:     {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                f"  Price:    ${market_data.close:,.2f}",
+                f"  MFI:      {market_data.mfi:.1f} (Bull>{mfi_bull}, Bear<{mfi_bear})",
+                f"  ADX:      {market_data.adx:.1f} (Trend>{adx_trend})",
+                f"  Regime:   {regime}",
+                f"  Decision: {decision}",
+                f"  Reason:   {reason}",
+            ]
+            if position_data.get("active"):
+                log_lines.append(f"  Position: {position_data['quantity']:.6f} @ ${position_data['entry_price']:,.2f}")
+                log_lines.append(f"  P&L:      ${position_data['unrealized_pnl']:,.2f} ({position_data['unrealized_pnl_pct']:+.2f}%)")
+            log_lines.append(f"{'='*60}")
+
+            logger.info("\n".join(log_lines))
+        except Exception as e:
+            logger.error(f"Failed to record decision for {symbol}: {e}")
 
 
 async def create_composite_task(

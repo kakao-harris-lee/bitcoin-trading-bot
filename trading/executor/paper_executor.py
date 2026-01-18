@@ -5,7 +5,9 @@ import asyncio
 import logging
 import time
 import uuid
-from typing import Any, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
+
+from trading.risk.trade_logger import TradeLogger
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -29,6 +31,10 @@ class PaperExecutor:
         self.max_daily_loss = config.get("max_daily_loss", 500)
         self.last_prices: dict[str, float] = {}
         self._running = False
+
+        # Initialize trade logger for database persistence
+        self.trade_logger = TradeLogger(strategy_name="paper_trading")
+        logger.info("TradeLogger initialized for paper trading persistence")
 
     async def run(self) -> None:
         """Main loop: consume and simulate orders."""
@@ -140,11 +146,31 @@ class PaperExecutor:
         else:
             await self._update_position(order, fill)
 
-        # Publish trade
+        # Publish trade to Redis stream
         await self._publish_trade(order, fill, profit_data)
+
+        # Log trade to database for persistence
+        self._log_trade_to_db(order, fill, profit_data)
 
         logger.info(f"Paper fill: {fill}, balance: {self.balance:.2f}")
         return fill
+
+    def _log_trade_to_db(self, order: dict, fill: dict, profit_data: dict | None) -> None:
+        """Log trade to SQLite database for persistence."""
+        try:
+            self.trade_logger.log_trade(
+                action=order["side"],
+                price=fill["filled_price"],
+                volume=fill["filled_qty"],
+                profit=profit_data.get("profit") if profit_data else None,
+                profit_pct=profit_data.get("profit_pct") if profit_data else None,
+                exchange="binance",
+                symbol=order["symbol"],
+                market=order["market"],
+                paper=True
+            )
+        except Exception as e:
+            logger.error(f"Failed to log trade to database: {e}")
 
     def _apply_slippage(self, price: float, side: str) -> float:
         """Apply slippage to price."""

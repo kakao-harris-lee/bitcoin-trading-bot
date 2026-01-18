@@ -12,10 +12,11 @@ from typing import Optional, List, Dict, Any
 class TradeLogger:
     """거래 내역을 DB에 기록하는 클래스"""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: Optional[str] = None, strategy_name: Optional[str] = None):
         """
         Args:
             db_path: DB 파일 경로 (기본: 프로젝트 루트의 trading_results.db)
+            strategy_name: Strategy name to use (default: v35_multi_exchange)
         """
         if db_path is None:
             project_root = Path(__file__).parent.parent
@@ -23,32 +24,89 @@ class TradeLogger:
 
         self.db_path = db_path
         self.strategy_id = None
+        self.strategy_name = strategy_name or "v35_multi_exchange"
+
+        # Initialize database schema
+        self._init_schema()
 
         # 전략 ID 조회 또는 생성
         self._ensure_strategy_exists()
 
-    def _ensure_strategy_exists(self):
-        """v35 듀얼 전략이 DB에 있는지 확인하고 없으면 생성"""
+    def _init_schema(self):
+        """Initialize database schema if tables don't exist."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        # v35-dual 전략 조회
+        # Create strategies table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS strategies (
+                strategy_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                version TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                timeframe TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Create trades table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS trades (
+                trade_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                strategy_id INTEGER NOT NULL,
+                symbol TEXT DEFAULT 'BTC',
+                action TEXT NOT NULL,
+                price REAL NOT NULL,
+                volume REAL NOT NULL,
+                profit REAL,
+                profit_pct REAL,
+                exchange TEXT DEFAULT 'binance',
+                market TEXT DEFAULT 'spot',
+                paper INTEGER DEFAULT 1,
+                timestamp TEXT NOT NULL,
+                FOREIGN KEY (strategy_id) REFERENCES strategies(strategy_id)
+            )
+        """)
+
+        # Create index for faster queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_trades_timestamp
+            ON trades(timestamp DESC)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_trades_strategy
+            ON trades(strategy_id)
+        """)
+
+        conn.commit()
+        conn.close()
+
+    def _ensure_strategy_exists(self):
+        """Ensure strategy exists in DB, create if not."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Query for strategy by name
         cursor.execute("""
             SELECT strategy_id FROM strategies
-            WHERE version = 'v35-dual' AND name = 'v35_multi_exchange'
-        """)
+            WHERE name = ?
+        """, (self.strategy_name,))
 
         result = cursor.fetchone()
 
         if result:
             self.strategy_id = result[0]
         else:
-            # 전략 생성
+            # Create strategy
             cursor.execute("""
                 INSERT INTO strategies (version, name, description, timeframe)
-                VALUES ('v35-dual', 'v35_multi_exchange',
-                        'v35 Optimized + Binance Futures (실시간)', 'day')
-            """)
+                VALUES (?, ?, ?, ?)
+            """, (
+                'paper',
+                self.strategy_name,
+                f'Paper trading - {self.strategy_name}',
+                'realtime'
+            ))
             self.strategy_id = cursor.lastrowid
             conn.commit()
 
@@ -56,17 +114,21 @@ class TradeLogger:
 
     def log_trade(self, action: str, price: float, volume: float,
                   profit: Optional[float] = None, profit_pct: Optional[float] = None,
-                  exchange: str = 'binance'):
+                  exchange: str = 'binance', symbol: str = 'BTC',
+                  market: str = 'spot', paper: bool = True):
         """
         거래 내역 기록
 
         Args:
-            action: 'BUY' 또는 'SELL'
-            price: 체결 가격
-            volume: 거래량 (BTC)
-            profit: 실현 손익 (원) - SELL 시
-            profit_pct: 손익률 (%) - SELL 시
-            exchange: 거래소 ('binance')
+            action: 'BUY' or 'SELL'
+            price: Fill price
+            volume: Trade volume
+            profit: Realized profit (for exits)
+            profit_pct: Profit percentage (for exits)
+            exchange: Exchange name ('binance')
+            symbol: Trading symbol ('BTC', 'ETH', etc.)
+            market: Market type ('spot' or 'futures')
+            paper: Whether this is paper trading
         """
         try:
             conn = sqlite3.connect(self.db_path)
@@ -74,23 +136,26 @@ class TradeLogger:
 
             cursor.execute("""
                 INSERT INTO trades
-                (strategy_id, action, price, volume, profit, profit_pct, exchange, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (strategy_id, symbol, action, price, volume, profit, profit_pct, exchange, market, paper, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 self.strategy_id,
+                symbol,
                 action.upper(),
                 price,
                 volume,
                 profit,
                 profit_pct,
                 exchange,
+                market,
+                1 if paper else 0,
                 datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             ))
 
             conn.commit()
             conn.close()
 
-            print(f"✅ 거래 기록 저장: {action} {volume:.8f} BTC @ {price:,.0f}원")
+            print(f"✅ Trade logged: {action} {volume:.8f} {symbol} @ {price:,.2f}")
 
         except Exception as e:
             print(f"❌ 거래 기록 실패: {e}")

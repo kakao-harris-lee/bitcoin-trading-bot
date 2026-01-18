@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .models import MarketData, Position, Signal
+from .registry import exit_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class ShortExitParams:
     market: Literal["spot", "futures"] = "futures"
 
 
+@exit_strategy(params_class=ShortExitParams)
 class ShortExitStrategy:
     """Short position exit strategy.
 

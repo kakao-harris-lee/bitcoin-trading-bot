@@ -11,6 +11,7 @@ from typing import Literal
 
 from .models import MarketData, Position, Signal
 from .v35_trailing_exit import V35TrailingExitStrategy, V35ExitParams
+from .registry import exit_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class ExperimentalExitParams(V35ExitParams):
     stop_loss_pct: float = 0.5
 
 
+@exit_strategy(params_class=ExperimentalExitParams)
 class ExperimentalExitStrategy(V35TrailingExitStrategy):
     """Experimental exit strategy based on V35 but with tighter constraints.
 

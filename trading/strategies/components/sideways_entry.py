@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .models import MarketData, Signal
+from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class SidewaysEntryParams:
     market: Literal["spot", "futures"] = "spot"
 
 
+@entry_strategy(params_class=SidewaysEntryParams)
 class SidewaysEntryStrategy:
     """Sideways/range-bound entry strategy.
 

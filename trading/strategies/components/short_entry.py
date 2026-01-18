@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .models import MarketData, Signal
+from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class ShortEntryParams:
     market: Literal["spot", "futures"] = "futures"
 
 
+@entry_strategy(params_class=ShortEntryParams)
 class ShortEntryStrategy:
     """Short entry strategy for bear markets.
 

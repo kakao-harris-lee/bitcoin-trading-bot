@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .models import MarketData, Signal
+from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class V35EntryParams:
     market: Literal["spot", "futures"] = "spot"
 
 
+@entry_strategy(params_class=V35EntryParams)
 class V35EntryStrategy:
     """V35 Long entry strategy.
 

@@ -13,9 +13,13 @@ from __future__ import annotations
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING, Protocol
+from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING, Protocol, Union
 from dataclasses import dataclass
 from datetime import datetime
+
+from core.backtest_result import BacktestResult
+from core.metrics import calculate_benchmark, calculate_sharpe_ratio, calculate_max_drawdown
+from core.mlflow_config import MLflowConfig
 
 if TYPE_CHECKING:
     from trading.strategies.components.interfaces import IEntryStrategy, IExitStrategy
@@ -348,7 +352,9 @@ class Backtester:
         strategy_name: str,
         config: Optional[Dict[str, Any]] = None,
         symbol: str = "BTC",
-    ) -> Dict:
+        return_backtest_result: bool = False,
+        mlflow_config: Optional[MLflowConfig] = None,
+    ) -> Union[Dict, BacktestResult]:
         """Run backtest using StrategyFactory to create strategy.
 
         Convenience method that uses StrategyFactory to create entry/exit
@@ -360,19 +366,43 @@ class Backtester:
             strategy_name: Strategy name (e.g., "v35_long", "sideways_v2").
             config: Configuration parameters for the strategy.
             symbol: Trading symbol for MarketData.
+            return_backtest_result: If True, return BacktestResult dataclass
+                instead of dict. Default False for backward compatibility.
+            mlflow_config: MLflow configuration for auto-logging. If provided,
+                results are automatically logged to MLflow. Default None (no logging).
 
         Returns:
-            Backtest results dictionary.
+            Backtest results dictionary or BacktestResult if return_backtest_result=True.
 
         Raises:
             ValueError: If strategy name is not registered in factory.
             RuntimeError: If indicator library is not available.
 
         Example:
+            # Legacy dict return
             results = backtester.run_strategy(
                 df,
                 strategy_name="v35_long",
                 config={"stop_loss_pct": 2.0, "take_profit_pct": 4.0},
+            )
+
+            # New BacktestResult return with benchmark
+            result = backtester.run_strategy(
+                df,
+                strategy_name="v35_long",
+                config={"stop_loss_pct": 2.0},
+                return_backtest_result=True,
+            )
+            print(f"Sharpe: {result.sharpe_ratio}, Benchmark: {result.benchmark_return_pct}%")
+
+            # With MLflow auto-logging
+            from core.mlflow_config import MLflowConfig
+            result = backtester.run_strategy(
+                df,
+                strategy_name="v35_long",
+                config={"stop_loss_pct": 2.0},
+                return_backtest_result=True,
+                mlflow_config=MLflowConfig(),
             )
         """
         from trading.strategies.components import StrategyFactory
@@ -395,7 +425,43 @@ class Backtester:
             position_size=position_size,
         )
 
-        return self.run(df, adapter)
+        results = self.run(df, adapter)
+
+        # Calculate benchmark
+        benchmark_curve, benchmark_return_pct = calculate_benchmark(
+            df, self.initial_capital, price_column="close"
+        )
+
+        # Add benchmark to results
+        results["benchmark_curve"] = benchmark_curve
+        results["benchmark_return_pct"] = benchmark_return_pct
+
+        # Create BacktestResult for MLflow logging
+        backtest_result = BacktestResult.from_dict(
+            results,
+            strategy_name=strategy_name,
+            symbol=symbol,
+            params=config or {},
+        )
+
+        # Auto-log to MLflow if config provided
+        if mlflow_config is not None:
+            from core.mlflow_tracker import MLflowTracker
+            from core.backtest_visualizer import BacktestVisualizer
+
+            tracker = MLflowTracker(mlflow_config)
+            if tracker.enabled:
+                # Generate chart for artifact
+                visualizer = BacktestVisualizer()
+                chart_path = visualizer.create_chart(backtest_result)
+
+                # Log to MLflow
+                tracker.log_run(backtest_result, chart_path=chart_path)
+
+        if return_backtest_result:
+            return backtest_result
+
+        return results
 
     def run_components(
         self,
@@ -512,9 +578,19 @@ class Backtester:
                 break
 
     def _generate_results(self) -> Dict:
-        """결과 생성"""
+        """결과 생성
+
+        Returns dictionary with all metrics including sharpe_ratio and max_drawdown_pct.
+        """
         final_equity = self.cash + self.position_value
         total_return = ((final_equity - self.initial_capital) / self.initial_capital) * 100
+
+        # Create equity curve DataFrame
+        equity_df = pd.DataFrame(self.equity_curve)
+
+        # Calculate risk metrics from equity curve
+        sharpe_ratio = calculate_sharpe_ratio(equity_df) if not equity_df.empty else 0.0
+        max_drawdown_pct = calculate_max_drawdown(equity_df) if not equity_df.empty else 0.0
 
         # 완료된 거래만 추출
         closed_trades = [t for t in self.trades if t.exit_time is not None]
@@ -525,7 +601,13 @@ class Backtester:
                 'final_capital': final_equity,
                 'total_return': total_return,
                 'total_trades': 0,
-                'equity_curve': pd.DataFrame(self.equity_curve)
+                'winning_trades': 0,
+                'losing_trades': 0,
+                'win_rate': 0.0,
+                'sharpe_ratio': sharpe_ratio,
+                'max_drawdown_pct': max_drawdown_pct,
+                'profit_factor': 0.0,
+                'equity_curve': equity_df
             }
 
         # 승리/패배 거래
@@ -536,7 +618,10 @@ class Backtester:
         win_rate = len(winning_trades) / len(closed_trades) if closed_trades else 0
         avg_profit = np.mean([t.profit_loss for t in winning_trades]) if winning_trades else 0
         avg_loss = abs(np.mean([t.profit_loss for t in losing_trades])) if losing_trades else 0
-        profit_factor = sum(t.profit_loss for t in winning_trades) / abs(sum(t.profit_loss for t in losing_trades)) if losing_trades else 0
+
+        gross_profit = sum(t.profit_loss for t in winning_trades) if winning_trades else 0
+        gross_loss = abs(sum(t.profit_loss for t in losing_trades)) if losing_trades else 0
+        profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0.0
 
         return {
             'initial_capital': self.initial_capital,
@@ -548,9 +633,11 @@ class Backtester:
             'win_rate': win_rate,
             'avg_profit': avg_profit,
             'avg_loss': avg_loss,
+            'sharpe_ratio': sharpe_ratio,
+            'max_drawdown_pct': max_drawdown_pct,
             'profit_factor': profit_factor,
             'trades': closed_trades,
-            'equity_curve': pd.DataFrame(self.equity_curve)
+            'equity_curve': equity_df
         }
 
 

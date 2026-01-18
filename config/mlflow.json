@@ -1,0 +1,13 @@
+{
+  "mlflow": {
+    "enabled": true,
+    "tracking_uri": "./mlruns",
+    "experiment_name": "backtest-experiments"
+  },
+  "visualization": {
+    "chart_width": 12,
+    "chart_height": 6,
+    "dpi": 150,
+    "format": "png"
+  }
+}

@@ -369,3 +369,10 @@ REDIS_URL=redis://localhost:6379
 - Over-optimisation (overfitting)
 - Split trading (fee explosion)
 - Day-level active trading
+
+## Active Technologies
+- Python 3.9+ (per requirements.txt) (001-backtest-mlflow-viz)
+- MLflow local file store (./mlruns) for development, configurable for production (001-backtest-mlflow-viz)
+
+## Recent Changes
+- 001-backtest-mlflow-viz: Added Python 3.9+ (per requirements.txt)

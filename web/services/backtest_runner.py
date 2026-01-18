@@ -870,3 +870,38 @@ def cleanup_old_jobs(max_age_hours: int = 24) -> int:
             removed += 1
 
     return removed
+
+
+def get_all_jobs() -> list:
+    """Get all backtest jobs sorted by creation time (newest first).
+
+    Returns:
+        List of job dictionaries with summary info (excludes large data like trades/equity_curve).
+    """
+    with _jobs_lock:
+        jobs = []
+        for job in _backtest_jobs.values():
+            # Create summary without large data fields
+            summary = {
+                'job_id': job.job_id,
+                'config': job.config,
+                'status': job.status,
+                'progress': job.progress,
+                'created_at': job.created_at,
+                'completed_at': job.completed_at,
+                'error': job.error,
+            }
+            # Add key metrics from result if available
+            if job.result:
+                summary['metrics'] = {
+                    'total_return_pct': job.result.get('total_return_pct', 0),
+                    'win_rate': job.result.get('win_rate', 0),
+                    'total_trades': job.result.get('total_trades', 0),
+                    'sharpe_ratio': job.result.get('sharpe_ratio', 0),
+                    'max_drawdown_pct': job.result.get('max_drawdown_pct', 0),
+                }
+            jobs.append(summary)
+
+        # Sort by created_at descending (newest first)
+        jobs.sort(key=lambda x: x['created_at'], reverse=True)
+        return jobs

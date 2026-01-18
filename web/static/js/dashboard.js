@@ -1940,6 +1940,9 @@ function initBacktest() {
     // Load available strategies
     fetchStrategies();
 
+    // Load backtest history
+    loadBacktestHistory();
+
     // Set up form handlers
     const runBtn = document.getElementById('backtest-run-btn');
     const cancelBtn = document.getElementById('backtest-cancel-btn');
@@ -2038,15 +2041,18 @@ function pollBacktestStatus(jobId) {
                 backtestState.pollInterval = null;
                 renderBacktestResults(data.result);
                 resetBacktestUI();
+                loadBacktestHistory();  // Refresh history list
             } else if (data.status === 'failed') {
                 clearInterval(backtestState.pollInterval);
                 backtestState.pollInterval = null;
                 resetBacktestUI();
+                loadBacktestHistory();  // Refresh history list
                 alert('Backtest failed: ' + (data.error || 'Unknown error'));
             } else if (data.status === 'cancelled') {
                 clearInterval(backtestState.pollInterval);
                 backtestState.pollInterval = null;
                 resetBacktestUI();
+                loadBacktestHistory();  // Refresh history list
             }
         } catch (error) {
             console.error('Poll error:', error);
@@ -2453,6 +2459,73 @@ function renderBacktestTrades(trades) {
     }
 
     container.innerHTML = html;
+}
+
+// Backtest History Functions
+async function loadBacktestHistory() {
+    const container = document.getElementById('backtest-history-list');
+    if (!container) return;
+
+    try {
+        const data = await apiFetch('/api/backtest/history');
+        const jobs = data.jobs || [];
+
+        if (jobs.length === 0) {
+            container.innerHTML = '<p class="no-data">No backtest history</p>';
+            return;
+        }
+
+        let html = '';
+        for (const job of jobs) {
+            const strategy = job.config?.strategy || 'Unknown';
+            const date = job.created_at ? new Date(job.created_at).toLocaleString() : '-';
+            const metrics = job.metrics || {};
+            const returnPct = metrics.total_return_pct || 0;
+            const returnClass = returnPct >= 0 ? 'positive' : 'negative';
+            const statusClass = job.status || 'pending';
+
+            html += `
+                <div class="backtest-history-item" data-job-id="${job.job_id}" onclick="loadBacktestJob('${job.job_id}')">
+                    <div class="history-item-info">
+                        <span class="history-item-strategy">${escapeHtml(strategy)}</span>
+                        <span class="history-item-date">${escapeHtml(date)}</span>
+                    </div>
+                    <div class="history-item-metrics">
+                        ${job.status === 'completed' ? `
+                            <span class="history-item-return ${returnClass}">${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%</span>
+                        ` : ''}
+                        <span class="history-item-status ${statusClass}">${job.status}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load backtest history:', error);
+        container.innerHTML = '<p class="no-data">Failed to load history</p>';
+    }
+}
+
+async function loadBacktestJob(jobId) {
+    try {
+        const data = await apiFetch(`/api/backtest/status/${jobId}`);
+
+        if (data.status === 'completed' && data.result) {
+            renderBacktestResults(data.result);
+
+            // Highlight active item
+            document.querySelectorAll('.backtest-history-item').forEach(el => {
+                el.classList.remove('active');
+            });
+            const activeItem = document.querySelector(`[data-job-id="${jobId}"]`);
+            if (activeItem) {
+                activeItem.classList.add('active');
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load backtest job:', error);
+    }
 }
 
 console.log('Multi-Asset Dashboard initialized');

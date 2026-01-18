@@ -2141,6 +2141,104 @@ footer kbd {
     color: var(--accent-cyan);
 }
 
+/* Backtest History Section */
+.backtest-history-section {
+    margin-top: 25px;
+    margin-bottom: 25px;
+}
+
+.backtest-history-section h4 {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.backtest-history-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.backtest-history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.backtest-history-item:hover {
+    background: var(--bg-hover);
+    transform: translateX(4px);
+}
+
+.backtest-history-item.active {
+    border-left: 3px solid var(--accent-cyan);
+}
+
+.history-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.history-item-strategy {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.history-item-date {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.history-item-metrics {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.history-item-return {
+    font-weight: 600;
+    font-family: var(--font-mono);
+}
+
+.history-item-return.positive {
+    color: var(--profit-green);
+}
+
+.history-item-return.negative {
+    color: var(--loss-red);
+}
+
+.history-item-status {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.history-item-status.completed {
+    background: rgba(46, 204, 113, 0.2);
+    color: var(--profit-green);
+}
+
+.history-item-status.running {
+    background: rgba(52, 152, 219, 0.2);
+    color: var(--accent-cyan);
+}
+
+.history-item-status.failed {
+    background: rgba(231, 76, 60, 0.2);
+    color: var(--loss-red);
+}
+
 /* Backtest Trades Table */
 .backtest-trades-section {
     margin-top: 25px;

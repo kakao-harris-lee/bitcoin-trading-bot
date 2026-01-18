@@ -1297,6 +1297,17 @@ def cancel_backtest(job_id: str):
         return jsonify({'error': 'Job not found or cannot be cancelled'}), 404
 
 
+@app.route("/api/backtest/history")
+@requires_auth
+def get_backtest_history():
+    """Get list of all backtest jobs (history)."""
+    if not backtest_runner:
+        return jsonify({'error': 'Backtest service not available'}), 503
+
+    jobs = backtest_runner.get_all_jobs()
+    return jsonify({'jobs': jobs})
+
+
 @app.route("/api/exchange_balances")
 def get_exchange_balances():
     """Fetch live balances from Binance (both Spot and Futures)."""

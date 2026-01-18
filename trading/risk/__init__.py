@@ -24,6 +24,7 @@ from .comparison_report import ComparisonReportGenerator
 from .report_notifier import ReportNotifier
 from .trade_comparer import TradeComparer, ActualTrade, BacktestTrade
 from .trade_logger import TradeLogger
+from .liquidation_guard import LiquidationGuard, LiquidationInfo
 
 __all__ = [
     # Models
@@ -47,4 +48,7 @@ __all__ = [
     "ActualTrade",
     "BacktestTrade",
     "TradeLogger",
+    # Futures risk management
+    "LiquidationGuard",
+    "LiquidationInfo",
 ]

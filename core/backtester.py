@@ -2,13 +2,45 @@
 """
 backtester.py
 백테스팅 엔진 - 가격 데이터 기반 거래 시뮬레이션
+
+Supports:
+- Legacy callback-based strategies (strategy_func)
+- Component-based strategies (IEntryStrategy + IExitStrategy)
+- StrategyFactory for creating strategies from configuration
 """
+
+from __future__ import annotations
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Callable
+from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING, Protocol
 from dataclasses import dataclass
 from datetime import datetime
+
+if TYPE_CHECKING:
+    from trading.strategies.components.interfaces import IEntryStrategy, IExitStrategy
+    from trading.strategies.components.models import MarketData, Position, Signal
+
+
+# Indicator library is imported lazily to avoid circular import issues
+# (trading/__init__.py -> TradingEngine -> trading.strategies.components)
+_add_all_indicators = None
+
+
+def _get_add_all_indicators():
+    """Lazily import add_all_indicators to avoid circular imports.
+
+    Returns:
+        The add_all_indicators function, or None if not available.
+    """
+    global _add_all_indicators
+    if _add_all_indicators is None:
+        try:
+            from trading.indicators import add_all_indicators
+            _add_all_indicators = add_all_indicators
+        except ImportError:
+            pass
+    return _add_all_indicators
 
 @dataclass
 class Trade:
@@ -22,6 +54,196 @@ class Trade:
     profit_loss: Optional[float] = None
     profit_loss_pct: Optional[float] = None
     reason: str = ""
+
+
+class BacktestAdapter:
+    """Adapter to bridge IEntryStrategy/IExitStrategy with backtester.
+
+    Converts component-based strategies to the callback interface expected
+    by Backtester.run(). Manages position state and indicator calculation.
+
+    Usage:
+        from trading.strategies.components import StrategyFactory
+
+        factory = StrategyFactory()
+        entry, exit_strat = factory.create_components("v35_long", config)
+
+        adapter = BacktestAdapter(
+            entry_strategy=entry,
+            exit_strategy=exit_strat,
+            symbol="BTC",
+        )
+
+        results = backtester.run(df, adapter)
+    """
+
+    def __init__(
+        self,
+        entry_strategy: "IEntryStrategy",
+        exit_strategy: "IExitStrategy",
+        symbol: str = "BTC",
+        market: str = "spot",
+        position_size: float = 0.01,
+    ):
+        """Initialize the adapter.
+
+        Args:
+            entry_strategy: Entry component implementing IEntryStrategy.
+            exit_strategy: Exit component implementing IExitStrategy.
+            symbol: Trading symbol for MarketData.
+            market: Market type ("spot" or "futures").
+            position_size: Default position size as fraction of capital.
+        """
+        self.entry_strategy = entry_strategy
+        self.exit_strategy = exit_strategy
+        self.symbol = symbol
+        self.market = market
+        self.position_size = position_size
+
+        # Position state for exit evaluation
+        self._position: Optional[Dict[str, Any]] = None
+        self._indicators_df: Optional[pd.DataFrame] = None
+        self._min_data_points = 200  # For indicator calculation
+
+    def __call__(
+        self,
+        df: pd.DataFrame,
+        i: int,
+        params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Callable interface for backtester strategy_func.
+
+        Args:
+            df: Price DataFrame with OHLCV data.
+            i: Current row index.
+            params: Strategy parameters (unused, for compatibility).
+
+        Returns:
+            Action dict: {'action': 'buy'/'sell'/'hold', 'fraction': float, 'reason': str}
+        """
+        # Ensure indicators are calculated
+        if self._indicators_df is None or len(self._indicators_df) != len(df):
+            self._calculate_indicators(df)
+
+        # Check minimum data
+        if i < self._min_data_points:
+            return {'action': 'hold'}
+
+        # Build MarketData from current row
+        market_data = self._build_market_data(i)
+        if market_data is None:
+            return {'action': 'hold'}
+
+        row = df.iloc[i]
+
+        # If we have a position, check exit first
+        if self._position is not None:
+            position = self._build_position()
+            signal = self.exit_strategy.check_exit(position, market_data)
+
+            if signal:
+                self._position = None
+                self.exit_strategy.on_position_closed(self.symbol)
+                return {
+                    'action': 'sell',
+                    'fraction': 1.0,
+                    'reason': signal.reason,
+                }
+
+        # No position, check entry
+        if self._position is None:
+            signal = self.entry_strategy.check_entry(market_data)
+
+            if signal:
+                # Create position state for exit evaluation
+                self._position = {
+                    'symbol': self.symbol,
+                    'entry_price': float(row['close']),
+                    'quantity': signal.quantity,
+                    'strategy': 'backtest',
+                    'market': self.market,
+                    'timestamp': row.get('timestamp', i),
+                }
+                self.exit_strategy.on_position_opened(self._build_position())
+                return {
+                    'action': 'buy',
+                    'fraction': self.position_size,
+                    'reason': signal.reason,
+                }
+
+        return {'action': 'hold'}
+
+    def reset(self) -> None:
+        """Reset adapter state for new backtest run."""
+        self._position = None
+        self._indicators_df = None
+
+    def _calculate_indicators(self, df: pd.DataFrame) -> None:
+        """Calculate all indicators for the DataFrame.
+
+        Args:
+            df: Price DataFrame with OHLCV data.
+        """
+        add_all_indicators = _get_add_all_indicators()
+        if add_all_indicators is None:
+            raise RuntimeError(
+                "Indicator library not available. "
+                "Install trading.indicators module."
+            )
+
+        # Make a copy to avoid modifying original
+        self._indicators_df = add_all_indicators(df.copy())
+
+    def _build_market_data(self, i: int) -> Optional[Any]:
+        """Build MarketData from current indicators.
+
+        Args:
+            i: Current row index.
+
+        Returns:
+            MarketData instance or None if data unavailable.
+        """
+        if self._indicators_df is None:
+            return None
+
+        # Import here to avoid circular import at module level
+        from trading.strategies.components.models import MarketData
+
+        row = self._indicators_df.iloc[i]
+
+        # Check if indicators are available (not NaN)
+        if pd.isna(row.get('mfi')) or pd.isna(row.get('adx')):
+            return None
+
+        return MarketData(
+            symbol=self.symbol,
+            close=float(row['close']),
+            mfi=float(row.get('mfi', 50)),
+            adx=float(row.get('adx', 20)),
+            rsi=float(row.get('rsi', 50)),
+            timestamp=row.get('timestamp', i),
+        )
+
+    def _build_position(self) -> Any:
+        """Build Position from current state.
+
+        Returns:
+            Position instance.
+        """
+        from trading.strategies.components.models import Position
+
+        if self._position is None:
+            raise ValueError("No position to build")
+
+        return Position(
+            symbol=self._position['symbol'],
+            entry_price=self._position['entry_price'],
+            quantity=self._position['quantity'],
+            strategy=self._position['strategy'],
+            market=self._position['market'],
+            timestamp=self._position['timestamp'],
+        )
+
 
 class Backtester:
     """백테스팅 엔진"""
@@ -119,6 +341,109 @@ class Backtester:
             self._execute_sell(last_row['timestamp'], last_row['close'], 1.0)
 
         return self._generate_results()
+
+    def run_strategy(
+        self,
+        df: pd.DataFrame,
+        strategy_name: str,
+        config: Optional[Dict[str, Any]] = None,
+        symbol: str = "BTC",
+    ) -> Dict:
+        """Run backtest using StrategyFactory to create strategy.
+
+        Convenience method that uses StrategyFactory to create entry/exit
+        components from configuration, wraps them in BacktestAdapter, and
+        runs the backtest.
+
+        Args:
+            df: Price DataFrame (timestamp, open, high, low, close, volume).
+            strategy_name: Strategy name (e.g., "v35_long", "sideways_v2").
+            config: Configuration parameters for the strategy.
+            symbol: Trading symbol for MarketData.
+
+        Returns:
+            Backtest results dictionary.
+
+        Raises:
+            ValueError: If strategy name is not registered in factory.
+            RuntimeError: If indicator library is not available.
+
+        Example:
+            results = backtester.run_strategy(
+                df,
+                strategy_name="v35_long",
+                config={"stop_loss_pct": 2.0, "take_profit_pct": 4.0},
+            )
+        """
+        from trading.strategies.components import StrategyFactory
+
+        factory = StrategyFactory()
+        entry, exit_strat = factory.create_components(
+            strategy_name,
+            config or {},
+            persistent=False,  # No Redis in backtest
+        )
+
+        market = factory.get_market(strategy_name)
+        position_size = (config or {}).get("position_size", 0.01)
+
+        adapter = BacktestAdapter(
+            entry_strategy=entry,
+            exit_strategy=exit_strat,
+            symbol=symbol,
+            market=market,
+            position_size=position_size,
+        )
+
+        return self.run(df, adapter)
+
+    def run_components(
+        self,
+        df: pd.DataFrame,
+        entry_strategy: "IEntryStrategy",
+        exit_strategy: "IExitStrategy",
+        symbol: str = "BTC",
+        market: str = "spot",
+        position_size: float = 0.01,
+    ) -> Dict:
+        """Run backtest with pre-created entry/exit components.
+
+        Lower-level method for running with already-instantiated strategy
+        components without using StrategyFactory.
+
+        Args:
+            df: Price DataFrame (timestamp, open, high, low, close, volume).
+            entry_strategy: Entry component implementing IEntryStrategy.
+            exit_strategy: Exit component implementing IExitStrategy.
+            symbol: Trading symbol for MarketData.
+            market: Market type ("spot" or "futures").
+            position_size: Position size as fraction of capital.
+
+        Returns:
+            Backtest results dictionary.
+
+        Example:
+            from trading.strategies.components import (
+                V35EntryStrategy,
+                V35TrailingExitStrategy,
+            )
+
+            entry = V35EntryStrategy()
+            exit_strat = V35TrailingExitStrategy()
+
+            results = backtester.run_components(
+                df, entry, exit_strat, symbol="ETH"
+            )
+        """
+        adapter = BacktestAdapter(
+            entry_strategy=entry_strategy,
+            exit_strategy=exit_strategy,
+            symbol=symbol,
+            market=market,
+            position_size=position_size,
+        )
+
+        return self.run(df, adapter)
 
     def _execute_buy(self, timestamp: datetime, price: float, fraction: float):
         """매수 실행"""
@@ -229,17 +554,29 @@ class Backtester:
         }
 
 
-# 사용 예제
+# Usage examples
 if __name__ == "__main__":
     from data_loader import DataLoader
 
-    # 간단한 전략 예제: RSI 기반
+    def print_results(results: Dict, title: str = "백테스팅 결과") -> None:
+        """Print backtest results."""
+        print(f"\n{'='*50}")
+        print(f"✅ {title}:")
+        print(f"   초기 자본: {results['initial_capital']:,.0f}원")
+        print(f"   최종 자본: {results['final_capital']:,.0f}원")
+        print(f"   총 수익률: {results['total_return']:.2f}%")
+        print(f"   총 거래: {results['total_trades']}회")
+        if results['total_trades'] > 0:
+            print(f"   승률: {results['win_rate']:.1%}")
+            print(f"   Profit Factor: {results['profit_factor']:.2f}")
+        print(f"{'='*50}\n")
+
+    # Example 1: Legacy callback-based strategy (RSI)
     def simple_rsi_strategy(df, i, params):
         """RSI 30 이하 매수, 70 이상 매도"""
         if i < 14:
             return {'action': 'hold'}
 
-        # RSI 계산 (간단 버전)
         window = 14
         delta = df['close'].diff()
         gain = delta.where(delta > 0, 0).rolling(window=window).mean()
@@ -256,18 +593,63 @@ if __name__ == "__main__":
         else:
             return {'action': 'hold'}
 
-    # 데이터 로드
+    # Load data
     with DataLoader() as loader:
         df = loader.load_timeframe("minute5", start_date="2024-01-01", end_date="2024-01-31")
 
-    # 백테스팅 실행
     backtester = Backtester()
-    results = backtester.run(df, simple_rsi_strategy)
 
-    print("✅ 백테스팅 결과:")
-    print(f"   초기 자본: {results['initial_capital']:,.0f}원")
-    print(f"   최종 자본: {results['final_capital']:,.0f}원")
-    print(f"   총 수익률: {results['total_return']:.2f}%")
-    print(f"   총 거래: {results['total_trades']}회")
-    print(f"   승률: {results['win_rate']:.1%}")
-    print(f"   Profit Factor: {results['profit_factor']:.2f}")
+    # Run legacy strategy
+    results1 = backtester.run(df, simple_rsi_strategy)
+    print_results(results1, "Legacy RSI Strategy")
+
+    # Example 2: Component-based strategy using StrategyFactory
+    # This uses the new IEntryStrategy/IExitStrategy architecture
+    try:
+        results2 = backtester.run_strategy(
+            df,
+            strategy_name="v35_long",
+            config={
+                "stop_loss_pct": 2.0,
+                "take_profit_pct": 4.0,
+                "trailing_enabled": True,
+                "position_size": 0.5,  # 50% of capital
+            },
+            symbol="BTC",
+        )
+        print_results(results2, "V35 Long Strategy (via StrategyFactory)")
+    except Exception as e:
+        print(f"Note: Component-based strategy requires trading.strategies.components: {e}")
+
+    # Example 3: Direct component usage
+    # For more control, you can create components directly
+    try:
+        from trading.strategies.components import (
+            V35EntryStrategy,
+            V35TrailingExitStrategy,
+            V35EntryParams,
+            V35ExitParams,
+        )
+
+        entry = V35EntryStrategy(params=V35EntryParams(
+            mfi_bull=50.0,  # More aggressive entry
+            position_size=0.02,
+        ))
+        exit_strat = V35TrailingExitStrategy(params=V35ExitParams(
+            stop_loss_pct=1.5,
+            take_profit_pct=3.0,
+            trailing_enabled=True,
+            trailing_activation=1.5,
+            trailing_distance=1.0,
+        ))
+
+        results3 = backtester.run_components(
+            df,
+            entry_strategy=entry,
+            exit_strategy=exit_strat,
+            symbol="BTC",
+            position_size=0.5,
+        )
+        print_results(results3, "V35 Custom Components")
+    except Exception as e:
+        print(f"Note: Direct component usage requires trading.strategies.components: {e}")

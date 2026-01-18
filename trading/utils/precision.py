@@ -371,40 +371,160 @@ class PriceUtils:
         return f"{quantized:f}"
 
 
-# Default symbol info for common pairs (can be overridden with live data)
-DEFAULT_SYMBOL_INFO = {
-    "BTCUSDT": SymbolInfo(
-        symbol="BTCUSDT",
-        price_precision=2,
-        qty_precision=5,
-        min_qty="0.00001",
-        step_size="0.00001",
-        tick_size="0.01",
-        min_notional="10.0",
-    ),
-    "ETHUSDT": SymbolInfo(
-        symbol="ETHUSDT",
-        price_precision=2,
-        qty_precision=4,
-        min_qty="0.0001",
-        step_size="0.0001",
-        tick_size="0.01",
-        min_notional="10.0",
-    ),
-    "SOLUSDT": SymbolInfo(
-        symbol="SOLUSDT",
-        price_precision=2,
-        qty_precision=2,
-        min_qty="0.01",
-        step_size="0.01",
-        tick_size="0.01",
-        min_notional="10.0",
-    ),
-}
+# Dynamic symbol info loading from config file
+# Loaded lazily on first access for faster module import
+_symbol_defaults: dict[str, SymbolInfo] | None = None
+_generic_fallback: dict | None = None
+
+# Config file path (relative to project root)
+_CONFIG_PATH = "config/symbol_defaults.json"
+
+
+def _find_config_path() -> str | None:
+    """Find the symbol_defaults.json config file.
+
+    Searches from the current file's location up to project root.
+
+    Returns:
+        Absolute path to config file, or None if not found.
+    """
+    import os
+    from pathlib import Path
+
+    # Try relative to this file (trading/utils/precision.py -> config/)
+    current_dir = Path(__file__).parent
+    for _ in range(5):  # Max 5 levels up
+        config_path = current_dir / _CONFIG_PATH
+        if config_path.exists():
+            return str(config_path)
+        current_dir = current_dir.parent
+
+    # Try relative to cwd
+    if Path(_CONFIG_PATH).exists():
+        return _CONFIG_PATH
+
+    return None
+
+
+def _load_symbol_defaults() -> dict[str, SymbolInfo]:
+    """Load symbol defaults from config file.
+
+    Returns:
+        Dict mapping symbol names to SymbolInfo.
+    """
+    global _generic_fallback
+    import json
+
+    config_path = _find_config_path()
+
+    if config_path is None:
+        logger.warning(
+            f"Symbol defaults config not found ({_CONFIG_PATH}). "
+            "Using hardcoded fallbacks."
+        )
+        return _get_hardcoded_defaults()
+
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+
+        symbols = config.get("symbols", {})
+        _generic_fallback = config.get("generic_fallback", {})
+
+        result = {}
+        for symbol, info in symbols.items():
+            result[symbol] = SymbolInfo(
+                symbol=symbol,
+                price_precision=info.get("price_precision", 8),
+                qty_precision=info.get("qty_precision", 8),
+                min_qty=info.get("min_qty", "0.00000001"),
+                step_size=info.get("step_size", "0.00000001"),
+                tick_size=info.get("tick_size", "0.00000001"),
+                min_notional=info.get("min_notional", "10.0"),
+            )
+
+        logger.debug(f"Loaded {len(result)} symbol defaults from {config_path}")
+        return result
+
+    except (json.JSONDecodeError, OSError) as e:
+        logger.error(f"Failed to load symbol defaults: {e}")
+        return _get_hardcoded_defaults()
+
+
+def _get_hardcoded_defaults() -> dict[str, SymbolInfo]:
+    """Get hardcoded defaults as ultimate fallback.
+
+    Returns:
+        Dict with basic BTC/ETH/SOL defaults.
+    """
+    return {
+        "BTCUSDT": SymbolInfo(
+            symbol="BTCUSDT",
+            price_precision=2,
+            qty_precision=5,
+            min_qty="0.00001",
+            step_size="0.00001",
+            tick_size="0.01",
+            min_notional="10.0",
+        ),
+        "ETHUSDT": SymbolInfo(
+            symbol="ETHUSDT",
+            price_precision=2,
+            qty_precision=4,
+            min_qty="0.0001",
+            step_size="0.0001",
+            tick_size="0.01",
+            min_notional="10.0",
+        ),
+        "SOLUSDT": SymbolInfo(
+            symbol="SOLUSDT",
+            price_precision=2,
+            qty_precision=2,
+            min_qty="0.01",
+            step_size="0.01",
+            tick_size="0.01",
+            min_notional="10.0",
+        ),
+    }
+
+
+def get_default_symbol_info() -> dict[str, SymbolInfo]:
+    """Get all default symbol info (loaded from config).
+
+    Returns:
+        Dict mapping symbol names to SymbolInfo.
+    """
+    global _symbol_defaults
+    if _symbol_defaults is None:
+        _symbol_defaults = _load_symbol_defaults()
+    return _symbol_defaults
+
+
+def reload_symbol_defaults() -> None:
+    """Force reload of symbol defaults from config file.
+
+    Call this after modifying config/symbol_defaults.json to pick up changes.
+    """
+    global _symbol_defaults, _generic_fallback
+    _symbol_defaults = None
+    _generic_fallback = None
+    get_default_symbol_info()  # Trigger reload
+    logger.info("Symbol defaults reloaded")
+
+
+# Backward compatibility: DEFAULT_SYMBOL_INFO is now a function call
+# Code using `DEFAULT_SYMBOL_INFO["BTCUSDT"]` should use `get_symbol_info("BTC")` instead
+# or `get_default_symbol_info()["BTCUSDT"]` for dict access
 
 
 def get_symbol_info(symbol: str) -> SymbolInfo:
-    """Get symbol info (defaults, should be refreshed from exchange).
+    """Get symbol info from defaults (use exchange cache for live data).
+
+    This function returns static defaults from config/symbol_defaults.json.
+    For live exchange data, use ExchangeInfoCache from exchange_info.py:
+
+        from trading.utils.exchange_info import get_symbol_info_live
+        info = await get_symbol_info_live("BTC")
 
     Args:
         symbol: Trading symbol (e.g., "BTC" or "BTCUSDT").
@@ -414,17 +534,48 @@ def get_symbol_info(symbol: str) -> SymbolInfo:
     """
     # Normalize symbol
     if not symbol.endswith("USDT"):
-        symbol = f"{symbol}USDT"
+        symbol = f"{symbol.upper()}USDT"
+    else:
+        symbol = symbol.upper()
 
-    return DEFAULT_SYMBOL_INFO.get(
-        symbol,
-        SymbolInfo(
+    defaults = get_default_symbol_info()
+
+    if symbol in defaults:
+        return defaults[symbol]
+
+    # Use generic fallback from config or hardcoded
+    global _generic_fallback
+    if _generic_fallback:
+        return SymbolInfo(
             symbol=symbol,
-            price_precision=8,
-            qty_precision=8,
-            min_qty="0.00000001",
-            step_size="0.00000001",
-            tick_size="0.00000001",
-            min_notional="10.0",
-        ),
+            price_precision=_generic_fallback.get("price_precision", 8),
+            qty_precision=_generic_fallback.get("qty_precision", 8),
+            min_qty=_generic_fallback.get("min_qty", "0.00000001"),
+            step_size=_generic_fallback.get("step_size", "0.00000001"),
+            tick_size=_generic_fallback.get("tick_size", "0.00000001"),
+            min_notional=_generic_fallback.get("min_notional", "10.0"),
+        )
+
+    return SymbolInfo(
+        symbol=symbol,
+        price_precision=8,
+        qty_precision=8,
+        min_qty="0.00000001",
+        step_size="0.00000001",
+        tick_size="0.00000001",
+        min_notional="10.0",
     )
+
+
+def add_symbol_default(symbol: str, info: SymbolInfo) -> None:
+    """Add or update a symbol in the runtime defaults.
+
+    Note: This only affects runtime. To persist, update config/symbol_defaults.json.
+
+    Args:
+        symbol: Symbol name (e.g., "BTCUSDT").
+        info: SymbolInfo for the symbol.
+    """
+    defaults = get_default_symbol_info()
+    defaults[symbol] = info
+    logger.info(f"Added symbol default: {symbol}")

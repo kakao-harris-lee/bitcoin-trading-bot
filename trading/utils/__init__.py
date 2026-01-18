@@ -5,7 +5,9 @@ from .precision import (
     SymbolInfo,
     DecimalInput,
     get_symbol_info,
-    DEFAULT_SYMBOL_INFO,
+    get_default_symbol_info,
+    reload_symbol_defaults,
+    add_symbol_default,
 )
 from .exchange_info import (
     ExchangeInfoCache,
@@ -19,7 +21,9 @@ __all__ = [
     "SymbolInfo",
     "DecimalInput",
     "get_symbol_info",
-    "DEFAULT_SYMBOL_INFO",
+    "get_default_symbol_info",
+    "reload_symbol_defaults",
+    "add_symbol_default",
     # Exchange info cache
     "ExchangeInfoCache",
     "get_exchange_cache",

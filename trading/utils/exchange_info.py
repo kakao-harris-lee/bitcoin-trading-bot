@@ -23,7 +23,7 @@ from typing import Any
 
 import aiohttp
 
-from .precision import SymbolInfo, DEFAULT_SYMBOL_INFO
+from .precision import SymbolInfo, get_default_symbol_info
 
 logger = logging.getLogger(__name__)
 
@@ -152,8 +152,9 @@ class ExchangeInfoCache:
             return self._cache[symbol]
 
         # Fall back to defaults
-        if symbol in DEFAULT_SYMBOL_INFO:
-            return DEFAULT_SYMBOL_INFO[symbol]
+        defaults = get_default_symbol_info()
+        if symbol in defaults:
+            return defaults[symbol]
 
         # Generic fallback
         logger.warning(f"No symbol info for {symbol}, using generic defaults")

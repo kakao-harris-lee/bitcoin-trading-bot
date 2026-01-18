@@ -211,6 +211,14 @@ class CompositeStrategyTask(BaseStrategyTask):
     def _build_market_data(self, symbol: str) -> MarketData | None:
         """Build MarketData from current indicators (Memory + Pandas).
 
+        Provides all indicators needed for V35 entry/exit strategies:
+        - MFI, ADX, RSI for regime classification
+        - MACD, MACD Signal for momentum entry/exit
+        - Stochastic for conservative entry
+        - High/Low/Volume for OHLCV
+        - 20-period high/low for breakout/range detection
+        - 20-period average volume for volume confirmation
+
         Args:
             symbol: Trading symbol.
 
@@ -244,6 +252,18 @@ class CompositeStrategyTask(BaseStrategyTask):
             df = add_all_indicators(df)
             last_row = df.iloc[-1]
 
+            # Calculate 20-period lookback values for breakout/range detection
+            lookback = 20
+            if len(df) >= lookback:
+                prev_df = df.iloc[-lookback-1:-1]  # Previous 20 candles (not including current)
+                prev_high_20 = float(prev_df['high'].max())
+                prev_low_20 = float(prev_df['low'].min())
+                avg_volume_20 = float(prev_df['volume'].mean())
+            else:
+                prev_high_20 = 0.0
+                prev_low_20 = 0.0
+                avg_volume_20 = 0.0
+
             return MarketData(
                 symbol=symbol,
                 close=float(current_price),
@@ -251,6 +271,24 @@ class CompositeStrategyTask(BaseStrategyTask):
                 adx=float(last_row.get("adx", 20)),
                 rsi=float(last_row.get("rsi", 50)),
                 timestamp=int(buffer[-1].get("timestamp", 0) if buffer else 0),
+                # OHLCV data
+                high=float(last_row.get("high", current_price)),
+                low=float(last_row.get("low", current_price)),
+                volume=float(last_row.get("volume", 0)),
+                # MACD indicators for momentum entry/exit
+                macd=float(last_row.get("macd", 0)),
+                macd_signal=float(last_row.get("macd_signal", 0)),
+                # Stochastic for conservative entry
+                stoch_k=float(last_row.get("stoch_k", 50)),
+                stoch_d=float(last_row.get("stoch_d", 50)),
+                # Bollinger Bands
+                bb_upper=float(last_row.get("bb_upper", 0)),
+                bb_lower=float(last_row.get("bb_lower", 0)),
+                bb_middle=float(last_row.get("bb_middle", 0)),
+                # Historical reference points for breakout/range detection
+                prev_high_20=prev_high_20,
+                prev_low_20=prev_low_20,
+                avg_volume_20=avg_volume_20,
             )
         except Exception as e:
             logger.error(f"Failed to build MarketData for {symbol}: {e}")

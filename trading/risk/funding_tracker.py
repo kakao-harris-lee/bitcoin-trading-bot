@@ -87,27 +87,29 @@ class FundingTracker:
             logger.warning("No Binance client configured for funding rates")
             return None
 
-        # Normalize symbol
-        pair = f"{symbol}USDT" if not symbol.endswith("USDT") else symbol
+        # Normalize symbol for caching
+        base_symbol = symbol.replace("USDT", "") if symbol.endswith("USDT") else symbol
 
         try:
-            # GET /fapi/v1/premiumIndex
-            data = await self._client._futures_client.futures_mark_price(symbol=pair)
+            # Use public API method instead of accessing private _futures_client
+            data = await self._client.get_funding_rate(symbol)
+            if data is None:
+                return self._rate_cache.get(base_symbol)
 
             rate = float(data.get("lastFundingRate", 0))
             next_time = int(data.get("nextFundingTime", 0))
 
             funding_rate = FundingRate(
-                symbol=symbol,
+                symbol=base_symbol,
                 rate=rate,
                 next_funding_time=datetime.fromtimestamp(next_time / 1000, tz=timezone.utc),
             )
 
             # Cache it
-            self._rate_cache[symbol] = funding_rate
+            self._rate_cache[base_symbol] = funding_rate
 
             logger.info(
-                f"Funding rate for {symbol}: {rate*100:.4f}%, "
+                f"Funding rate for {base_symbol}: {rate*100:.4f}%, "
                 f"next: {funding_rate.next_funding_time}"
             )
 
@@ -116,7 +118,7 @@ class FundingTracker:
         except Exception as e:
             logger.error(f"Failed to fetch funding rate for {symbol}: {e}")
             # Return cached rate if available
-            return self._rate_cache.get(symbol)
+            return self._rate_cache.get(base_symbol)
 
     def get_next_funding_time(self) -> datetime:
         """Get the next funding time in UTC.

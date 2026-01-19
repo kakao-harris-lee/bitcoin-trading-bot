@@ -14,6 +14,17 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
+# Default Binance maintenance margin rates by position notional value
+# https://www.binance.com/en/futures/trading-rules/perpetual/leverage-margin
+DEFAULT_MAINTENANCE_MARGIN_RATES: list[tuple[float, float]] = [
+    (50_000, 0.004),       # 0.4% for < $50k
+    (250_000, 0.005),      # 0.5% for < $250k
+    (1_000_000, 0.01),     # 1.0% for < $1M
+    (5_000_000, 0.025),    # 2.5% for < $5M
+    (float('inf'), 0.05),  # 5.0% for >= $5M
+]
+
+
 @dataclass
 class LiquidationInfo:
     """Information about position liquidation risk."""
@@ -33,23 +44,28 @@ class LiquidationGuard:
     # Exit when price is within this % of liquidation distance
     EXIT_THRESHOLD_PCT = 20.0
 
-    # Binance maintenance margin rates by position notional value
-    # https://www.binance.com/en/futures/trading-rules/perpetual/leverage-margin
-    MAINTENANCE_MARGIN_RATES = [
-        (50_000, 0.004),       # 0.4% for < $50k
-        (250_000, 0.005),      # 0.5% for < $250k
-        (1_000_000, 0.01),     # 1.0% for < $1M
-        (5_000_000, 0.025),    # 2.5% for < $5M
-        (float('inf'), 0.05),  # 5.0% for >= $5M
-    ]
+    # Default maintenance margin rates (can be overridden via constructor)
+    MAINTENANCE_MARGIN_RATES = DEFAULT_MAINTENANCE_MARGIN_RATES
 
-    def __init__(self, exit_threshold_pct: Optional[float] = None):
+    def __init__(
+        self,
+        exit_threshold_pct: Optional[float] = None,
+        maintenance_margin_rates: Optional[list[tuple[float, float]]] = None,
+    ):
         """Initialize LiquidationGuard.
 
         Args:
             exit_threshold_pct: Exit when within this % of liquidation. Default 20%.
+            maintenance_margin_rates: Custom margin rates as list of (threshold, rate) tuples.
+                Each tuple specifies (position_value_threshold, margin_rate).
+                Default uses Binance rates.
         """
         self.exit_threshold_pct = exit_threshold_pct or self.EXIT_THRESHOLD_PCT
+        self._maintenance_margin_rates = (
+            maintenance_margin_rates
+            if maintenance_margin_rates is not None
+            else self.MAINTENANCE_MARGIN_RATES
+        )
 
     def get_maintenance_margin_rate(self, position_value: float) -> float:
         """Get maintenance margin rate based on position size.
@@ -59,11 +75,17 @@ class LiquidationGuard:
 
         Returns:
             Maintenance margin rate as decimal (e.g., 0.004 for 0.4%).
+
+        Raises:
+            ValueError: If position_value is negative.
         """
-        for threshold, rate in self.MAINTENANCE_MARGIN_RATES:
+        if position_value < 0:
+            raise ValueError(f"Position value cannot be negative: {position_value}")
+
+        for threshold, rate in self._maintenance_margin_rates:
             if position_value < threshold:
                 return rate
-        return self.MAINTENANCE_MARGIN_RATES[-1][1]
+        return self._maintenance_margin_rates[-1][1]
 
     def calculate_liquidation_price(
         self,
@@ -82,7 +104,20 @@ class LiquidationGuard:
 
         Returns:
             Liquidation price.
+
+        Raises:
+            ValueError: If inputs are invalid (negative prices, zero leverage, etc.).
         """
+        # Input validation
+        if entry_price <= 0:
+            raise ValueError(f"Entry price must be positive: {entry_price}")
+        if leverage <= 0:
+            raise ValueError(f"Leverage must be positive: {leverage}")
+        if side not in ("buy", "sell"):
+            raise ValueError(f"Side must be 'buy' or 'sell': {side}")
+        if position_value < 0:
+            raise ValueError(f"Position value cannot be negative: {position_value}")
+
         mmr = self.get_maintenance_margin_rate(position_value)
 
         if side == "buy":  # Long

@@ -3,27 +3,55 @@
 Stores backtest results in SQLite for persistence across server restarts.
 """
 
+import atexit
 import json
 import sqlite3
 import threading
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 # Database path
 DB_PATH = Path(__file__).parent.parent.parent / "data" / "backtest_history.db"
 
-# Thread-local storage for connections
+# Thread-local storage for connections (each thread gets its own connection)
 _local = threading.local()
+# Track all connections for cleanup
+_all_connections: list[sqlite3.Connection] = []
+_connections_lock = threading.Lock()
 
 
 def _get_connection() -> sqlite3.Connection:
-    """Get thread-local database connection."""
+    """Get thread-local database connection.
+
+    Each thread gets its own connection for thread safety.
+    """
     if not hasattr(_local, 'connection') or _local.connection is None:
         DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _local.connection = sqlite3.connect(str(DB_PATH), check_same_thread=False)
-        _local.connection.row_factory = sqlite3.Row
+        # Each thread gets its own connection - no check_same_thread needed
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        _local.connection = conn
+        # Track for cleanup
+        with _connections_lock:
+            _all_connections.append(conn)
     return _local.connection
+
+
+def close_all_connections() -> None:
+    """Close all database connections (called at shutdown)."""
+    with _connections_lock:
+        for conn in _all_connections:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        _all_connections.clear()
+
+
+# Register cleanup at exit
+atexit.register(close_all_connections)
 
 
 def init_db():

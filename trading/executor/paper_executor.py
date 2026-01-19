@@ -15,6 +15,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Valid order sides and markets for validation
+VALID_SIDES = {"buy", "sell"}
+VALID_MARKETS = {"spot", "futures"}
+
 
 class PaperExecutor:
     """Simulates order execution without real API calls."""
@@ -39,6 +43,8 @@ class PaperExecutor:
 
         # Add liquidation guard
         self.liquidation_guard = LiquidationGuard()
+        # Store reference to background task to prevent garbage collection
+        self._price_tracker_task: Optional[asyncio.Task] = None
 
     async def run(self) -> None:
         """Main loop: consume and simulate orders."""
@@ -49,8 +55,8 @@ class PaperExecutor:
         await self.redis.create_consumer_group("orders", group)
         logger.info(f"PaperExecutor started with balance: {self.balance}")
 
-        # Also consume prices to track latest prices
-        asyncio.create_task(self._price_tracker())
+        # Store task reference to prevent garbage collection
+        self._price_tracker_task = asyncio.create_task(self._price_tracker())
 
         while self._running:
             try:
@@ -73,8 +79,9 @@ class PaperExecutor:
 
         try:
             await self.redis.create_consumer_group("market:prices", group)
-        except Exception:
-            pass
+        except Exception as e:
+            # Group may already exist, which is fine
+            logger.debug(f"Consumer group creation: {e}")
 
         while self._running:
             try:
@@ -96,14 +103,41 @@ class PaperExecutor:
 
     async def _process_order(self, order: dict[str, Any]) -> dict | None:
         """Simulate order execution."""
+        # Validate required fields
+        required_fields = ["id", "symbol", "side", "quantity", "market", "strategy"]
+        for field in required_fields:
+            if field not in order:
+                logger.error(f"Order missing required field: {field}")
+                return None
+
+        # Validate side
+        side = order["side"]
+        if side not in VALID_SIDES:
+            logger.error(f"Invalid order side: {side}")
+            return None
+
+        # Validate market
+        market = order["market"]
+        if market not in VALID_MARKETS:
+            logger.error(f"Invalid market type: {market}")
+            return None
+
+        # Validate quantity
+        try:
+            quantity = float(order["quantity"])
+            if quantity <= 0:
+                logger.error(f"Invalid quantity: {quantity}")
+                return None
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid quantity format: {order['quantity']}: {e}")
+            return None
+
         # Check risk gates
         if not await self._pass_risk_gates():
             logger.warning(f"Paper order {order['id']} blocked by risk gates")
             return None
 
         symbol = order["symbol"]
-        side = order["side"]
-        quantity = float(order["quantity"])
 
         # Get current price
         price = self.last_prices.get(symbol)
@@ -153,28 +187,36 @@ class PaperExecutor:
         # Publish trade to Redis stream
         await self._publish_trade(order, fill, profit_data)
 
-        # Log trade to database for persistence
-        self._log_trade_to_db(order, fill, profit_data)
+        # Log trade to database for persistence (async to avoid blocking event loop)
+        await self._log_trade_to_db_async(order, fill, profit_data)
 
         logger.info(f"Paper fill: {fill}, balance: {self.balance:.2f}")
         return fill
 
-    def _log_trade_to_db(self, order: dict, fill: dict, profit_data: dict | None) -> None:
-        """Log trade to SQLite database for persistence."""
+    async def _log_trade_to_db_async(self, order: dict, fill: dict, profit_data: dict | None) -> None:
+        """Log trade to SQLite database for persistence (non-blocking)."""
         try:
-            self.trade_logger.log_trade(
-                action=order["side"],
-                price=fill["filled_price"],
-                volume=fill["filled_qty"],
-                profit=profit_data.get("profit") if profit_data else None,
-                profit_pct=profit_data.get("profit_pct") if profit_data else None,
-                exchange="binance",
-                symbol=order["symbol"],
-                market=order["market"],
-                paper=True
+            # Run sync SQLite operation in thread pool to avoid blocking event loop
+            await asyncio.to_thread(
+                self._log_trade_to_db_sync,
+                order, fill, profit_data
             )
         except Exception as e:
             logger.error(f"Failed to log trade to database: {e}")
+
+    def _log_trade_to_db_sync(self, order: dict, fill: dict, profit_data: dict | None) -> None:
+        """Synchronous database logging (called from thread pool)."""
+        self.trade_logger.log_trade(
+            action=order["side"],
+            price=fill["filled_price"],
+            volume=fill["filled_qty"],
+            profit=profit_data.get("profit") if profit_data else None,
+            profit_pct=profit_data.get("profit_pct") if profit_data else None,
+            exchange="binance",
+            symbol=order["symbol"],
+            market=order["market"],
+            paper=True
+        )
 
     def _apply_slippage(self, price: float, side: str) -> float:
         """Apply slippage to price."""
@@ -187,12 +229,20 @@ class PaperExecutor:
         """Check risk conditions."""
         risk = await self.redis.get_risk()
 
-        if risk.get("kill_switch") == "true":
-            return False
-        if risk.get("blocked") == "true":
+        # Properly handle string/bool values from Redis
+        kill_switch = risk.get("kill_switch", "false")
+        if kill_switch is True or str(kill_switch).lower() == "true":
             return False
 
-        daily_pnl = float(risk.get("daily_pnl", 0))
+        blocked = risk.get("blocked", "false")
+        if blocked is True or str(blocked).lower() == "true":
+            return False
+
+        try:
+            daily_pnl = float(risk.get("daily_pnl", 0))
+        except (ValueError, TypeError):
+            daily_pnl = 0.0
+
         if daily_pnl < -self.max_daily_loss:
             return False
 

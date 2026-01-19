@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Literal
 
-from .models import MarketData, Signal
+from .models import MarketContext, MarketData, Signal
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ class V35EntryParams:
     position_size: float = 0.5
     conservative_position_mult: float = 0.5  # Half size for BEAR entries
 
-    market: Literal["spot", "futures"] = "spot"
+    market: Literal["spot", "futures"] = "futures"
 
 
 @entry_strategy(params_class=V35EntryParams)
@@ -84,7 +84,11 @@ class V35EntryStrategy:
         """
         self.params = params or V35EntryParams()
 
-    def check_entry(self, market_data: MarketData) -> Signal | None:
+    def check_entry(
+        self,
+        market_data: MarketData,
+        context: MarketContext,
+    ) -> Signal | None:
         """Check entry conditions and return signal if entry criteria met.
 
         Routes to different entry strategies based on market regime:
@@ -93,12 +97,29 @@ class V35EntryStrategy:
         - SIDEWAYS_FLAT/DOWN: Range entry
         - BEAR: Conservative entry
 
+        Uses MarketContext for early filtering:
+        - Skip if trend is BEAR (don't go long in bear market)
+        - Skip if extreme volatility (avoid wild swings)
+
         Args:
             market_data: Current market state with indicators.
+            context: Pre-analyzed market context (trend, volatility).
 
         Returns:
             Signal with side="buy" if entry conditions met, None otherwise.
         """
+        # Context-based filtering - skip unsuitable conditions early
+        if context.trend == "BEAR":
+            logger.debug(f"{market_data.symbol}: Skipping long entry - BEAR trend")
+            return None
+
+        if context.is_extreme_volatility:
+            logger.debug(
+                f"{market_data.symbol}: Skipping entry - extreme volatility "
+                f"({context.volatility_score*100:.2f}%)"
+            )
+            return None
+
         regime = self._classify_regime(
             market_data.mfi,
             market_data.adx

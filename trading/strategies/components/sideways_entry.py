@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketData, Signal
+from .models import MarketContext, MarketData, Signal
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -55,15 +55,31 @@ class SidewaysEntryStrategy:
         """
         self.params = params or SidewaysEntryParams()
 
-    def check_entry(self, market_data: MarketData) -> Signal | None:
+    def check_entry(
+        self,
+        market_data: MarketData,
+        context: MarketContext,
+    ) -> Signal | None:
         """Check entry conditions and return signal if criteria met.
+
+        Uses MarketContext for filtering but is more permissive since
+        sideways strategy works in neutral/range-bound conditions.
 
         Args:
             market_data: Current market state with indicators.
+            context: Pre-analyzed market context (trend, volatility).
 
         Returns:
             Signal with side="buy" if entry conditions met, None otherwise.
         """
+        # Sideways strategy skips extreme volatility but allows all trends
+        if context.is_extreme_volatility:
+            logger.debug(
+                f"{market_data.symbol}: Skipping sideways entry - extreme volatility "
+                f"({context.volatility_score*100:.2f}%)"
+            )
+            return None
+
         regime = self._classify_regime(market_data.mfi, market_data.adx)
 
         if not self._should_enter(regime):

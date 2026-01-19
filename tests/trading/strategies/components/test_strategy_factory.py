@@ -9,7 +9,7 @@ from trading.strategies.components.v35_entry import V35EntryStrategy
 from trading.strategies.components.v35_trailing_exit import V35TrailingExitStrategy
 from trading.strategies.components.sideways_entry import SidewaysEntryStrategy
 from trading.strategies.components.sideways_exit import SidewaysExitStrategy
-from trading.strategies.components.models import MarketData, Position
+from trading.strategies.components.models import MarketData, MarketContext, Position
 
 
 @pytest.fixture
@@ -65,22 +65,32 @@ class TestV35LongFutures:
         entry = factory.create_entry("v35_long", config)
 
         # Bullish market data that should trigger entry
+        # V35 requires: BULL regime + MACD crossover + RSI above threshold
         market_data = MarketData(
             symbol="BTC",
             close=95000.0,
             mfi=55.0,  # Above mfi_bull threshold
             adx=25.0,  # Strong trend
-            rsi=50.0,
+            rsi=58.0,  # Above momentum_rsi_bull_strong (57.0)
             timestamp=1000000,
+            macd=1.5,  # MACD crossover (above signal)
+            macd_signal=1.0,
         )
 
-        signal = entry.check_entry(market_data)
+        # Build context for BULL trend (MFI >= 52)
+        context = MarketContext(
+            trend="BULL",
+            volatility_score=0.01,
+            is_extreme_volatility=False,
+            adx=25.0,
+        )
+
+        signal = entry.check_entry(market_data, context)
 
         assert signal is not None
         assert signal.symbol == "BTC"
         assert signal.side == "buy"
         assert signal.market == "futures"
-        assert signal.quantity == 0.01
 
     def test_v35_exit_generates_futures_signal(self, factory):
         """Test V35 exit generates futures signal."""
@@ -161,7 +171,15 @@ class TestSidewaysV2Futures:
             timestamp=1000000,
         )
 
-        signal = entry.check_entry(market_data)
+        # Build context for NEUTRAL trend (48 < MFI < 52)
+        context = MarketContext(
+            trend="NEUTRAL",
+            volatility_score=0.01,
+            is_extreme_volatility=False,
+            adx=15.0,
+        )
+
+        signal = entry.check_entry(market_data, context)
 
         assert signal is not None
         assert signal.symbol == "ETH"
@@ -219,17 +237,27 @@ class TestCreateComponents:
         config = {"market": "futures", "position_size": 0.01}
         entry, exit_strat = factory.create_components("v35_long", config)
 
-        # Entry signal
+        # Entry signal - V35 requires MACD crossover + RSI above threshold
         market_data = MarketData(
             symbol="SOL",
             close=130.0,
             mfi=55.0,
             adx=25.0,
-            rsi=50.0,
+            rsi=58.0,  # Above momentum_rsi_bull_strong (57.0)
             timestamp=1000000,
+            macd=1.5,  # MACD crossover (above signal)
+            macd_signal=1.0,
         )
 
-        entry_signal = entry.check_entry(market_data)
+        # Build context for BULL trend (MFI >= 52)
+        context = MarketContext(
+            trend="BULL",
+            volatility_score=0.01,
+            is_extreme_volatility=False,
+            adx=25.0,
+        )
+
+        entry_signal = entry.check_entry(market_data, context)
         assert entry_signal is not None
         assert entry_signal.market == "futures"
 

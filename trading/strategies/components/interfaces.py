@@ -7,7 +7,7 @@ Implementations don't need to inherit - they just need to implement the methods
 
 from typing import Protocol
 
-from .models import MarketData, Position, Signal
+from .models import MarketContext, MarketData, Position, Signal
 
 
 class IEntryStrategy(Protocol):
@@ -17,11 +17,16 @@ class IEntryStrategy(Protocol):
     a position. They are stateless and don't track open positions.
     """
 
-    def check_entry(self, market_data: MarketData) -> Signal | None:
+    def check_entry(
+        self,
+        market_data: MarketData,
+        context: MarketContext,
+    ) -> Signal | None:
         """Analyze market conditions and return entry signal.
 
         Args:
             market_data: Current market state (indicators, price)
+            context: Pre-analyzed market context (trend, volatility)
 
         Returns:
             Signal with side="buy" for long, side="sell" for short

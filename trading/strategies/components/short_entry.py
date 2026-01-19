@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketData, Signal
+from .models import MarketContext, MarketData, Signal
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -56,15 +56,28 @@ class ShortEntryStrategy:
         """
         self.params = params or ShortEntryParams()
 
-    def check_entry(self, market_data: MarketData) -> Signal | None:
+    def check_entry(
+        self,
+        market_data: MarketData,
+        context: MarketContext,
+    ) -> Signal | None:
         """Check entry conditions and return signal if criteria met.
+
+        Uses MarketContext for early filtering:
+        - Skip if trend is BULL (don't short in bull market)
 
         Args:
             market_data: Current market state with indicators.
+            context: Pre-analyzed market context (trend, volatility).
 
         Returns:
             Signal with side="sell" to open short if conditions met, None otherwise.
         """
+        # Context-based filtering - skip unsuitable conditions early
+        if context.trend == "BULL":
+            logger.debug(f"{market_data.symbol}: Skipping short entry - BULL trend")
+            return None
+
         regime = self._classify_regime(market_data.mfi, market_data.adx)
 
         if not self._should_enter(regime):

@@ -32,7 +32,7 @@ from trading.streams.base_strategy import BaseStrategyTask
 from trading.indicators import add_all_indicators
 
 from .interfaces import IEntryStrategy, IExitStrategy
-from .models import MarketData, Position, Signal
+from .models import build_market_context, MarketContext, MarketData, Position, Signal
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -127,11 +127,14 @@ class CompositeStrategyTask(BaseStrategyTask):
         if market_data is None:
             return None
 
-        # Record decision at candle close for dashboard visibility
-        await self._check_and_record_decision(symbol, market_data)
+        # Build MarketContext for trend/volatility filtering
+        context = self._build_market_context(market_data)
 
-        # Delegate to entry component
-        signal = self.entry_strategy.check_entry(market_data)
+        # Record decision at candle close for dashboard visibility
+        await self._check_and_record_decision(symbol, market_data, context)
+
+        # Delegate to entry component with context
+        signal = self.entry_strategy.check_entry(market_data, context)
 
         if signal:
             # Apply dynamic sizing if configured
@@ -285,6 +288,8 @@ class CompositeStrategyTask(BaseStrategyTask):
                 bb_upper=float(last_row.get("bb_upper", 0)),
                 bb_lower=float(last_row.get("bb_lower", 0)),
                 bb_middle=float(last_row.get("bb_middle", 0)),
+                # ATR for volatility measurement
+                atr=float(last_row.get("atr", 0)),
                 # Historical reference points for breakout/range detection
                 prev_high_20=prev_high_20,
                 prev_low_20=prev_low_20,
@@ -293,6 +298,24 @@ class CompositeStrategyTask(BaseStrategyTask):
         except Exception as e:
             logger.error(f"Failed to build MarketData for {symbol}: {e}")
             return None
+
+    def _build_market_context(self, market_data: MarketData) -> MarketContext:
+        """Build MarketContext from MarketData.
+
+        Uses MFI-based trend classification and ATR-based volatility scoring.
+
+        Args:
+            market_data: Current market state with indicators.
+
+        Returns:
+            MarketContext with trend and volatility analysis.
+        """
+        return build_market_context(
+            mfi=market_data.mfi,
+            adx=market_data.adx,
+            atr=market_data.atr,
+            close=market_data.close,
+        )
 
     def _dict_to_position(self, position_dict: dict) -> Position:
         """Convert position dict to Position model.
@@ -363,6 +386,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         self,
         symbol: str,
         market_data: MarketData,
+        context: MarketContext | None = None,
     ) -> None:
         """Check if candle closed and record decision to Redis stream.
 
@@ -371,6 +395,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         Args:
             symbol: Trading symbol.
             market_data: Current market state with indicators.
+            context: Optional pre-analyzed market context.
         """
         current_hour = datetime.now().hour
         last_hour = self.last_decision_hour.get(symbol, -1)
@@ -458,6 +483,12 @@ class CompositeStrategyTask(BaseStrategyTask):
             "position": json.dumps(position_data),
         }
 
+        # Add context info if available
+        if context:
+            decision_record["trend"] = context.trend
+            decision_record["volatility_score"] = str(round(context.volatility_score, 4))
+            decision_record["is_extreme_volatility"] = str(context.is_extreme_volatility)
+
         # Write to Redis stream with auto-trim (keep ~48 hours of hourly data)
         try:
             await self.redis._client.xadd(
@@ -476,9 +507,17 @@ class CompositeStrategyTask(BaseStrategyTask):
                 f"  MFI:      {market_data.mfi:.1f} (Bull>{mfi_bull}, Bear<{mfi_bear})",
                 f"  ADX:      {market_data.adx:.1f} (Trend>{adx_trend})",
                 f"  Regime:   {regime}",
+            ]
+            # Add context info if available
+            if context:
+                vol_pct = context.volatility_score * 100
+                vol_status = "EXTREME" if context.is_extreme_volatility else "normal"
+                log_lines.append(f"  Trend:    {context.trend}")
+                log_lines.append(f"  Volatility: {vol_pct:.2f}% ({vol_status})")
+            log_lines.extend([
                 f"  Decision: {decision}",
                 f"  Reason:   {reason}",
-            ]
+            ])
             if position_data.get("active"):
                 log_lines.append(f"  Position: {position_data['quantity']:.6f} @ ${position_data['entry_price']:,.2f}")
                 log_lines.append(f"  P&L:      ${position_data['unrealized_pnl']:,.2f} ({position_data['unrealized_pnl_pct']:+.2f}%)")

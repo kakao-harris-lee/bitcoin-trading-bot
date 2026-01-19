@@ -37,6 +37,8 @@ class MarketData:
     bb_upper: float = 0.0
     bb_lower: float = 0.0
     bb_middle: float = 0.0
+    # ATR for volatility measurement
+    atr: float = 0.0
     # Historical reference points for breakout/range detection
     prev_high_20: float = 0.0  # 20-period high for resistance
     prev_low_20: float = 0.0   # 20-period low for support
@@ -61,6 +63,64 @@ class Signal:
     reason: str
     # Optional exit-specific fields
     trigger_price: float | None = None
+
+
+@dataclass(frozen=True)
+class MarketContext:
+    """Pre-analyzed market state for strategy filtering.
+
+    Provides simplified trend/volatility classification that entry strategies
+    can use to filter out unsuitable conditions early.
+    """
+
+    trend: Literal["BULL", "BEAR", "NEUTRAL"]  # Simplified trend direction
+    volatility_score: float  # ATR / close price (normalized)
+    is_extreme_volatility: bool  # volatility_score > threshold (0.03 = 3%)
+    adx: float  # Trend strength
+
+
+def build_market_context(
+    mfi: float,
+    adx: float,
+    atr: float,
+    close: float,
+    volatility_threshold: float = 0.03,  # 3% ATR/price
+) -> MarketContext:
+    """Build MarketContext from indicators.
+
+    Trend classification uses V35's MFI rules:
+    - BULL: MFI >= 52 (bullish money flow)
+    - BEAR: MFI <= 48 (bearish money flow)
+    - NEUTRAL: 48 < MFI < 52 (sideways)
+
+    Args:
+        mfi: Money Flow Index value (0-100)
+        adx: Average Directional Index value
+        atr: Average True Range value
+        close: Current close price
+        volatility_threshold: Threshold for extreme volatility (default 3%)
+
+    Returns:
+        MarketContext with trend and volatility analysis.
+    """
+    # Trend classification based on MFI (V35's rules)
+    if mfi >= 52:
+        trend: Literal["BULL", "BEAR", "NEUTRAL"] = "BULL"
+    elif mfi <= 48:
+        trend = "BEAR"
+    else:
+        trend = "NEUTRAL"
+
+    # Volatility classification
+    volatility_score = atr / close if close > 0 else 0.0
+    is_extreme_volatility = volatility_score > volatility_threshold
+
+    return MarketContext(
+        trend=trend,
+        volatility_score=volatility_score,
+        is_extreme_volatility=is_extreme_volatility,
+        adx=adx,
+    )
 
 
 @dataclass(frozen=True)

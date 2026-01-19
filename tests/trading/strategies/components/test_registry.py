@@ -28,7 +28,7 @@ from trading.strategies.components.v35_entry import V35EntryStrategy, V35EntryPa
 from trading.strategies.components.v35_trailing_exit import V35TrailingExitStrategy, V35ExitParams
 from trading.strategies.components.sideways_entry import SidewaysEntryStrategy
 from trading.strategies.components.sideways_exit import SidewaysExitStrategy
-from trading.strategies.components.models import MarketData
+from trading.strategies.components.models import MarketData, MarketContext
 
 
 @pytest.fixture
@@ -304,16 +304,25 @@ class TestNewConfigFormat:
         assert isinstance(entry, V35EntryStrategy)
         assert isinstance(exit_strat, SidewaysExitStrategy)
 
-        # Test entry generates signal
+        # Test entry generates signal - V35 requires MACD crossover + RSI above threshold
         market_data = MarketData(
             symbol="BTC",
             close=95000.0,
             mfi=55.0,
             adx=25.0,
-            rsi=50.0,
+            rsi=58.0,  # Above momentum_rsi_bull_strong (57.0)
             timestamp=1000000,
+            macd=1.5,  # MACD crossover (above signal)
+            macd_signal=1.0,
         )
-        signal = entry.check_entry(market_data)
+        # Build context for BULL trend (MFI >= 52)
+        context = MarketContext(
+            trend="BULL",
+            volatility_score=0.01,
+            is_extreme_volatility=False,
+            adx=25.0,
+        )
+        signal = entry.check_entry(market_data, context)
         assert signal is not None
         assert signal.market == "spot"
 

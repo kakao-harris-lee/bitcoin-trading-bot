@@ -26,6 +26,9 @@ from core.backtest_visualizer import BacktestVisualizer
 from core.mlflow_tracker import MLflowTracker
 from core.metrics import calculate_benchmark
 
+# Database persistence
+from web.services import backtest_db
+
 logger = logging.getLogger(__name__)
 
 # Job storage (in-memory for now)
@@ -224,6 +227,14 @@ def create_backtest_job(config: dict) -> BacktestJob:
     with _jobs_lock:
         _backtest_jobs[job_id] = job
 
+    # Save to database
+    backtest_db.save_backtest(
+        job_id=job_id,
+        config=config,
+        status='pending',
+        created_at=job.created_at
+    )
+
     return job
 
 
@@ -295,11 +306,31 @@ def run_backtest(job: BacktestJob) -> None:
             job.progress = 100
             job.completed_at = datetime.now().isoformat()
 
+            # Save to database
+            backtest_db.save_backtest(
+                job_id=job.job_id,
+                config=job.config,
+                status='completed',
+                created_at=job.created_at,
+                completed_at=job.completed_at,
+                result=results
+            )
+
         except Exception as e:
             job.status = 'failed'
             job.error = str(e)
             job.completed_at = datetime.now().isoformat()
             traceback.print_exc()
+
+            # Save to database
+            backtest_db.save_backtest(
+                job_id=job.job_id,
+                config=job.config,
+                status='failed',
+                created_at=job.created_at,
+                completed_at=job.completed_at,
+                error=str(e)
+            )
 
     job._thread = threading.Thread(target=_run, daemon=True)
     job._thread.start()
@@ -875,11 +906,21 @@ def cleanup_old_jobs(max_age_hours: int = 24) -> int:
 def get_all_jobs() -> list:
     """Get all backtest jobs sorted by creation time (newest first).
 
+    Merges in-memory running jobs with database history.
+    In-memory jobs take precedence for active (pending/running) jobs.
+
     Returns:
         List of job dictionaries with summary info (excludes large data like trades/equity_curve).
     """
+    jobs_by_id = {}
+
+    # First, load history from database
+    db_history = backtest_db.get_history(limit=50)
+    for db_job in db_history:
+        jobs_by_id[db_job['job_id']] = db_job
+
+    # Then, overlay in-memory jobs (for real-time progress on running jobs)
     with _jobs_lock:
-        jobs = []
         for job in _backtest_jobs.values():
             # Create summary without large data fields
             summary = {
@@ -900,8 +941,10 @@ def get_all_jobs() -> list:
                     'sharpe_ratio': job.result.get('sharpe_ratio', 0),
                     'max_drawdown_pct': job.result.get('max_drawdown_pct', 0),
                 }
-            jobs.append(summary)
+            # In-memory jobs override DB entries (for real-time updates)
+            jobs_by_id[job.job_id] = summary
 
-        # Sort by created_at descending (newest first)
-        jobs.sort(key=lambda x: x['created_at'], reverse=True)
-        return jobs
+    # Convert to list and sort by created_at descending (newest first)
+    jobs = list(jobs_by_id.values())
+    jobs.sort(key=lambda x: x['created_at'], reverse=True)
+    return jobs

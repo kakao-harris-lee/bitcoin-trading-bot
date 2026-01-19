@@ -96,7 +96,8 @@ Split the logic currently inside `evaluate()` and `evaluate_exit()` into distinc
 
 **Always add important documentation here!** When you create or discover:
 
-- Architecture Diagram → Add Reference Paths Here
+- Futures Trading Architecture → `docs/plans/2026-01-18-futures-trading-overhaul-design.md`
+- Futures Implementation Guide → `docs/plans/2026-01-18-futures-trading-overhaul-implementation.md`
 - Database Schema → Add Reference Paths Here
 - Troubleshooting → Add Reference Paths Here
 - Setup Guide → Add Reference Paths Here

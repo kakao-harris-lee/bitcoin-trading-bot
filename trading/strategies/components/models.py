@@ -9,11 +9,12 @@ from dataclasses import dataclass
 from typing import Literal
 
 
-@dataclass
+@dataclass(frozen=True)
 class MarketData:
     """Current market state with pre-calculated indicators.
 
     Entry/Exit strategies receive this data - they don't fetch their own.
+    This is an immutable data transfer object.
     """
 
     symbol: str
@@ -21,7 +22,7 @@ class MarketData:
     mfi: float
     adx: float
     rsi: float
-    timestamp: int | str
+    timestamp: int  # Unix timestamp in milliseconds
     # OHLCV data for calculations
     high: float = 0.0
     low: float = 0.0
@@ -44,12 +45,13 @@ class MarketData:
     high_water_mark: float | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class Signal:
     """Trading signal from entry or exit strategy.
 
     Used for both entry signals (side="buy" for long, "sell" for short)
     and exit signals (opposite side to close position).
+    This is an immutable data transfer object.
     """
 
     symbol: str
@@ -61,13 +63,19 @@ class Signal:
     trigger_price: float | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class Position:
-    """Current open position state."""
+    """Current open position state.
+
+    This is an immutable data transfer object.
+    """
 
     symbol: str
     entry_price: float
     quantity: float
     strategy: str
     market: Literal["spot", "futures"]
-    timestamp: int | str
+    timestamp: int  # Unix timestamp in milliseconds
+    side: str = "buy"  # "buy" for long, "sell" for short
+    leverage: int = 1  # leverage multiplier
+    liquidation_price: float = 0.0  # for futures

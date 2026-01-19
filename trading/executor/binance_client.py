@@ -550,6 +550,34 @@ class BinanceClient:
             logger.error(f"Get order failed: {e}")
             raise
 
+    async def get_funding_rate(self, symbol: str) -> dict[str, Any] | None:
+        """Get current funding rate for a futures symbol.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC" or "BTCUSDT").
+
+        Returns:
+            Dict with funding rate info or None if failed.
+        """
+        pair = f"{symbol}USDT" if not symbol.endswith("USDT") else symbol
+
+        try:
+            if self._is_mock:
+                # Return mock data for testing
+                import time
+                return {
+                    "symbol": pair,
+                    "lastFundingRate": "0.0001",
+                    "nextFundingTime": str(int(time.time() * 1000) + 28800000),
+                }
+
+            result = await self._futures_client.futures_mark_price(symbol=pair)
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to get funding rate for {pair}: {e}")
+            return None
+
 
 class MockBinanceClient:
     """Mock client for testing without real API."""

@@ -25,6 +25,33 @@ if TYPE_CHECKING:
     from trading.strategies.components.interfaces import IEntryStrategy, IExitStrategy
     from trading.strategies.components.models import MarketData, Position, Signal
 
+# Lazy-loaded model classes to avoid circular imports
+# These are cached on first use for performance in hot loops
+_MarketData = None
+_MarketContext = None
+_Position = None
+_build_market_context = None
+
+
+def _get_model_classes():
+    """Lazily import model classes to avoid circular imports.
+
+    Returns cached classes after first import for performance.
+    """
+    global _MarketData, _MarketContext, _Position, _build_market_context
+    if _MarketData is None:
+        from trading.strategies.components.models import (
+            MarketData,
+            MarketContext,
+            Position,
+            build_market_context,
+        )
+        _MarketData = MarketData
+        _MarketContext = MarketContext
+        _Position = Position
+        _build_market_context = build_market_context
+    return _MarketData, _MarketContext, _Position, _build_market_context
+
 
 # Indicator library is imported lazily to avoid circular import issues
 # (trading/__init__.py -> TradingEngine -> trading.strategies.components)
@@ -156,7 +183,9 @@ class BacktestAdapter:
 
         # No position, check entry
         if self._position is None:
-            signal = self.entry_strategy.check_entry(market_data)
+            # Build MarketContext for context-aware filtering
+            context = self._build_market_context(i)
+            signal = self.entry_strategy.check_entry(market_data, context)
 
             if signal:
                 # Create position state for exit evaluation
@@ -210,8 +239,8 @@ class BacktestAdapter:
         if self._indicators_df is None:
             return None
 
-        # Import here to avoid circular import at module level
-        from trading.strategies.components.models import MarketData
+        # Use cached import for performance in hot loop
+        MarketData, _, _, _ = _get_model_classes()
 
         row = self._indicators_df.iloc[i]
 
@@ -226,6 +255,56 @@ class BacktestAdapter:
             adx=float(row.get('adx', 20)),
             rsi=float(row.get('rsi', 50)),
             timestamp=row.get('timestamp', i),
+            atr=float(row.get('atr', 0)),
+            macd=float(row.get('macd', 0)),
+            macd_signal=float(row.get('macd_signal', 0)),
+            stoch_k=float(row.get('stoch_k', 50)),
+            volume=float(row.get('volume', 0)),
+            high=float(row.get('high', row['close'])),
+            low=float(row.get('low', row['close'])),
+            prev_high_20=float(row.get('prev_high_20', 0)),
+            prev_low_20=float(row.get('prev_low_20', 0)),
+            avg_volume_20=float(row.get('avg_volume_20', 0)),
+        )
+
+    def _build_market_context(self, i: int) -> Any:
+        """Build MarketContext from current indicators.
+
+        Args:
+            i: Current row index.
+
+        Returns:
+            MarketContext instance for context-aware filtering.
+        """
+        # Use cached imports for performance in hot loop
+        _, MarketContext, _, build_market_context = _get_model_classes()
+
+        if self._indicators_df is None:
+            # Return a neutral context if no data
+            return MarketContext(
+                trend="NEUTRAL",
+                regime="SIDEWAYS_FLAT",  # Default neutral regime
+                volatility_score=0.0,
+                is_extreme_volatility=False,
+                adx=20.0,
+            )
+
+        row = self._indicators_df.iloc[i]
+
+        mfi = float(row.get('mfi', 50))
+        adx = float(row.get('adx', 20))
+        atr = float(row.get('atr', 0))
+        close = float(row['close'])
+        volume = float(row.get('volume', 0))
+        avg_volume = float(row.get('avg_volume_20', 0))
+
+        return build_market_context(
+            mfi=mfi,
+            adx=adx,
+            atr=atr,
+            close=close,
+            volume=volume,
+            avg_volume=avg_volume,
         )
 
     def _build_position(self) -> Any:
@@ -234,7 +313,8 @@ class BacktestAdapter:
         Returns:
             Position instance.
         """
-        from trading.strategies.components.models import Position
+        # Use cached import for performance
+        _, _, Position, _ = _get_model_classes()
 
         if self._position is None:
             raise ValueError("No position to build")

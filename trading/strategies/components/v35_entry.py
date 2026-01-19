@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Literal
 
-from .models import MarketContext, MarketData, Signal
+from .models import MarketContext, MarketData, Signal, BEAR_REGIMES
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -95,10 +95,10 @@ class V35EntryStrategy:
         - BULL: Momentum entry (MACD + RSI)
         - SIDEWAYS_UP: Breakout entry
         - SIDEWAYS_FLAT/DOWN: Range entry
-        - BEAR: Conservative entry
 
-        Uses MarketContext for early filtering:
-        - Skip if trend is BEAR (don't go long in bear market)
+        Safety filters (Binance Futures):
+        - Skip if ADX < threshold (avoid whipsaws in weak trends)
+        - Skip if regime is BEAR (don't catch falling knives)
         - Skip if extreme volatility (avoid wild swings)
 
         Args:
@@ -108,11 +108,25 @@ class V35EntryStrategy:
         Returns:
             Signal with side="buy" if entry conditions met, None otherwise.
         """
-        # Context-based filtering - skip unsuitable conditions early
-        if context.trend == "BEAR":
-            logger.debug(f"{market_data.symbol}: Skipping long entry - BEAR trend")
+        # === SAFETY FILTER 1: Weak trend (ADX) ===
+        # Avoid whipsaws - don't enter when trend is weak
+        if context.adx < self.params.adx_moderate_trend:
+            logger.debug(
+                f"{market_data.symbol}: Skipping long entry - weak trend "
+                f"(ADX={context.adx:.1f} < {self.params.adx_moderate_trend})"
+            )
             return None
 
+        # === SAFETY FILTER 2: BEAR regime ===
+        # Don't catch falling knives - strictly ignore BEAR regimes
+        if context.regime in BEAR_REGIMES:
+            logger.debug(
+                f"{market_data.symbol}: Skipping long entry - BEAR regime "
+                f"({context.regime})"
+            )
+            return None
+
+        # === SAFETY FILTER 3: Extreme volatility ===
         if context.is_extreme_volatility:
             logger.debug(
                 f"{market_data.symbol}: Skipping entry - extreme volatility "
@@ -120,10 +134,8 @@ class V35EntryStrategy:
             )
             return None
 
-        regime = self._classify_regime(
-            market_data.mfi,
-            market_data.adx
-        )
+        # Use centralized regime from MarketContext
+        regime = context.regime
 
         # Route to appropriate entry strategy based on regime
         signal_data = None
@@ -308,47 +320,6 @@ class V35EntryStrategy:
             'strategy': 'CONSERVATIVE_BEAR_ENTRY',
             'quantity': p.position_size * p.conservative_position_mult,
         }
-
-    def _classify_regime(self, mfi: float, adx: float) -> str:
-        """Classify market regime based on MFI and ADX.
-
-        7-level classification matching original V35LongStrategy:
-        - BULL_STRONG: Strong bullish trend (high MFI + strong ADX)
-        - BULL_MODERATE: Moderate bullish trend (high MFI + moderate ADX)
-        - SIDEWAYS_UP: Weak bullish (moderate MFI, any ADX)
-        - SIDEWAYS_FLAT: Neutral (moderate MFI, any ADX)
-        - SIDEWAYS_DOWN: Weak bearish (low-moderate MFI, any ADX)
-        - BEAR_MODERATE: Moderate bearish (low MFI, moderate ADX)
-        - BEAR_STRONG: Strong bearish (very low MFI, strong ADX)
-
-        Args:
-            mfi: Money Flow Index value (0-100)
-            adx: Average Directional Index value
-
-        Returns:
-            Regime classification string.
-        """
-        p = self.params
-
-        # ADX for trend strength
-        is_strong_trend = adx >= p.adx_strong_trend
-        is_moderate_trend = adx >= p.adx_moderate_trend
-
-        # MFI for direction
-        if mfi >= p.mfi_bull_strong and is_strong_trend:
-            return "BULL_STRONG"
-        elif mfi >= p.mfi_bull_moderate and is_moderate_trend:
-            return "BULL_MODERATE"
-        elif mfi >= p.mfi_sideways_up:
-            return "SIDEWAYS_UP"
-        elif mfi >= p.mfi_bear_moderate:
-            return "SIDEWAYS_FLAT"
-        elif mfi >= p.mfi_bear_strong:
-            return "SIDEWAYS_DOWN"
-        elif is_strong_trend:
-            return "BEAR_STRONG"
-        else:
-            return "BEAR_MODERATE"
 
     def _should_enter(self, regime: str) -> bool:
         """Check if regime is suitable for long entry.

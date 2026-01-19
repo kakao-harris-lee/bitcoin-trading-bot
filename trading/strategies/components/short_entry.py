@@ -10,7 +10,14 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketContext, MarketData, Signal
+from .models import (
+    MarketContext,
+    MarketData,
+    Signal,
+    BULLISH_NO_SHORT_REGIMES,
+    SIDEWAYS_VOLATILE_REGIMES,
+    BEAR_REGIMES,
+)
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -63,8 +70,10 @@ class ShortEntryStrategy:
     ) -> Signal | None:
         """Check entry conditions and return signal if criteria met.
 
-        Uses MarketContext for early filtering:
-        - Skip if trend is BULL (don't short in bull market)
+        Safety filters (Binance Futures):
+        - Skip if BULL regime (never short in bull market)
+        - Allow BEAR regimes (BEAR_STRONG, BEAR_MODERATE)
+        - Allow SIDEWAYS_FLAT/DOWN only with extreme volatility
 
         Args:
             market_data: Current market state with indicators.
@@ -73,14 +82,31 @@ class ShortEntryStrategy:
         Returns:
             Signal with side="sell" to open short if conditions met, None otherwise.
         """
-        # Context-based filtering - skip unsuitable conditions early
-        if context.trend == "BULL":
-            logger.debug(f"{market_data.symbol}: Skipping short entry - BULL trend")
+        regime = context.regime
+
+        # === SAFETY FILTER 1: Never short in BULL ===
+        # BULL_STRONG, BULL_MODERATE, SIDEWAYS_UP are all bullish - don't short
+        if regime in BULLISH_NO_SHORT_REGIMES:
+            logger.debug(
+                f"{market_data.symbol}: Skipping short entry - bullish regime "
+                f"({regime})"
+            )
             return None
 
-        regime = self._classify_regime(market_data.mfi, market_data.adx)
+        # === SAFETY FILTER 2: SIDEWAYS requires extreme volatility ===
+        # Only short in SIDEWAYS_FLAT/DOWN if market is volatile
+        if regime in SIDEWAYS_VOLATILE_REGIMES:
+            if not context.is_extreme_volatility:
+                logger.debug(
+                    f"{market_data.symbol}: Skipping short entry - SIDEWAYS without "
+                    f"extreme volatility ({context.volatility_score*100:.2f}%)"
+                )
+                return None
 
-        if not self._should_enter(regime):
+        # === Regime check ===
+        # BEAR_STRONG, BEAR_MODERATE: Always allow
+        # SIDEWAYS_FLAT, SIDEWAYS_DOWN: Only if extreme volatility (checked above)
+        if not self._should_enter(regime, context.is_extreme_volatility):
             return None
 
         # Short when RSI is overbought in bear market
@@ -123,15 +149,28 @@ class ShortEntryStrategy:
         else:
             return "SIDEWAYS"
 
-    def _should_enter(self, regime: str) -> bool:
+    def _should_enter(self, regime: str, is_extreme_volatility: bool = False) -> bool:
         """Check if regime is suitable for short entry.
 
-        Only enters on strong bear regime to maximize profit potential.
+        Allowed regimes:
+        - BEAR_STRONG: Always allowed (strong bearish trend)
+        - BEAR_MODERATE: Always allowed (moderate bearish trend)
+        - SIDEWAYS_FLAT/DOWN: Only with extreme volatility
 
         Args:
             regime: Market regime classification.
+            is_extreme_volatility: Whether volatility exceeds threshold.
 
         Returns:
             True if should enter short position.
         """
-        return regime == "BEAR_STRONG"
+        # BEAR regimes: Always allow shorting
+        if regime in BEAR_REGIMES:
+            return True
+
+        # SIDEWAYS_FLAT/DOWN: Only with extreme volatility
+        if regime in SIDEWAYS_VOLATILE_REGIMES:
+            return is_extreme_volatility
+
+        # BULL regimes and SIDEWAYS_UP: Never short
+        return False

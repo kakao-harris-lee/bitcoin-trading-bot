@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketContext, MarketData, Signal
+from .models import MarketContext, MarketData, Signal, SIDEWAYS_REGIMES
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -62,8 +62,10 @@ class SidewaysEntryStrategy:
     ) -> Signal | None:
         """Check entry conditions and return signal if criteria met.
 
-        Uses MarketContext for filtering but is more permissive since
-        sideways strategy works in neutral/range-bound conditions.
+        Safety filters (Binance Futures):
+        - Skip if high volume (breakout potential kills mean reversion)
+        - Skip if regime is not SIDEWAYS (only trade range-bound markets)
+        - Skip if extreme volatility (avoid wild swings)
 
         Args:
             market_data: Current market state with indicators.
@@ -72,17 +74,31 @@ class SidewaysEntryStrategy:
         Returns:
             Signal with side="buy" if entry conditions met, None otherwise.
         """
-        # Sideways strategy skips extreme volatility but allows all trends
+        # === SAFETY FILTER 1: High volume ===
+        # High volume often precedes breakout/trend start, killing mean reversion
+        if context.is_high_volume:
+            logger.debug(
+                f"{market_data.symbol}: Skipping sideways entry - high volume "
+                f"(ratio={context.volume_ratio:.2f}x) - potential breakout"
+            )
+            return None
+
+        # === SAFETY FILTER 2: Non-SIDEWAYS regime ===
+        # Only trade mean reversion in range-bound markets
+        regime = context.regime
+        if not self._should_enter(regime):
+            logger.debug(
+                f"{market_data.symbol}: Skipping sideways entry - not SIDEWAYS regime "
+                f"({regime})"
+            )
+            return None
+
+        # === SAFETY FILTER 3: Extreme volatility ===
         if context.is_extreme_volatility:
             logger.debug(
                 f"{market_data.symbol}: Skipping sideways entry - extreme volatility "
                 f"({context.volatility_score*100:.2f}%)"
             )
-            return None
-
-        regime = self._classify_regime(market_data.mfi, market_data.adx)
-
-        if not self._should_enter(regime):
             return None
 
         # Mean reversion: buy when oversold
@@ -137,4 +153,4 @@ class SidewaysEntryStrategy:
         Returns:
             True if regime is sideways (suitable for mean reversion).
         """
-        return regime.startswith("SIDEWAYS")
+        return regime in SIDEWAYS_REGIMES

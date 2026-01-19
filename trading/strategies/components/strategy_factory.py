@@ -182,6 +182,7 @@ class StrategyFactory:
         self,
         strategy_name: str,
         config: dict[str, Any] | None = None,
+        param_overrides: dict[str, Any] | None = None,
     ) -> IEntryStrategy:
         """Create an entry strategy component.
 
@@ -192,14 +193,28 @@ class StrategyFactory:
         Args:
             strategy_name: Name of the strategy (e.g., "v35_long").
             config: Configuration parameters.
+            param_overrides: Parameter overrides for MLflow optimization.
+                These override values from config and dataclass defaults.
 
         Returns:
             Entry strategy instance.
 
         Raises:
             ValueError: If strategy name is not registered.
+
+        Example:
+            # For MLflow hyperparameter optimization:
+            entry = factory.create_entry(
+                "v35_long",
+                param_overrides={"mfi_bull_strong": 55.0, "position_size": 0.02}
+            )
         """
         config = config or {}
+        param_overrides = param_overrides or {}
+
+        # Merge param_overrides into config for processing
+        if param_overrides:
+            config = self._apply_param_overrides(config, param_overrides)
 
         # Check for new config format with explicit class name
         if has_new_config_format(config) and "entry" in config:
@@ -213,6 +228,7 @@ class StrategyFactory:
         strategy_name: str,
         config: dict[str, Any] | None = None,
         persistent: bool = False,
+        param_overrides: dict[str, Any] | None = None,
     ) -> IExitStrategy:
         """Create an exit strategy component.
 
@@ -224,14 +240,28 @@ class StrategyFactory:
             strategy_name: Name of the strategy (e.g., "v35_long").
             config: Configuration parameters.
             persistent: Use Redis-backed persistence if available.
+            param_overrides: Parameter overrides for MLflow optimization.
+                These override values from config and dataclass defaults.
 
         Returns:
             Exit strategy instance.
 
         Raises:
             ValueError: If strategy name is not registered.
+
+        Example:
+            # For MLflow hyperparameter optimization:
+            exit_strat = factory.create_exit(
+                "v35_long",
+                param_overrides={"stop_loss_pct": 2.5, "trailing_enabled": True}
+            )
         """
         config = config or {}
+        param_overrides = param_overrides or {}
+
+        # Merge param_overrides into config for processing
+        if param_overrides:
+            config = self._apply_param_overrides(config, param_overrides)
 
         # Check for new config format with explicit class name
         if has_new_config_format(config) and "exit" in config:
@@ -245,6 +275,8 @@ class StrategyFactory:
         strategy_name: str,
         config: dict[str, Any] | None = None,
         persistent: bool = False,
+        entry_overrides: dict[str, Any] | None = None,
+        exit_overrides: dict[str, Any] | None = None,
     ) -> tuple[IEntryStrategy, IExitStrategy]:
         """Create both entry and exit components for a strategy.
 
@@ -252,12 +284,22 @@ class StrategyFactory:
             strategy_name: Name of the strategy.
             config: Configuration parameters.
             persistent: Use Redis-backed persistence if available.
+            entry_overrides: Parameter overrides for entry strategy.
+            exit_overrides: Parameter overrides for exit strategy.
 
         Returns:
             Tuple of (entry_strategy, exit_strategy).
+
+        Example:
+            # For MLflow hyperparameter optimization:
+            entry, exit_strat = factory.create_components(
+                "v35_long",
+                entry_overrides={"mfi_bull_strong": 55.0},
+                exit_overrides={"stop_loss_pct": 2.5},
+            )
         """
-        entry = self.create_entry(strategy_name, config)
-        exit_strat = self.create_exit(strategy_name, config, persistent)
+        entry = self.create_entry(strategy_name, config, param_overrides=entry_overrides)
+        exit_strat = self.create_exit(strategy_name, config, persistent, param_overrides=exit_overrides)
         return entry, exit_strat
 
     def get_market(self, strategy_name: str, config: dict[str, Any] | None = None) -> str:
@@ -423,6 +465,57 @@ class StrategyFactory:
 
         return merged
 
+    def _apply_param_overrides(
+        self,
+        config: dict[str, Any],
+        param_overrides: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Apply parameter overrides to config for MLflow optimization.
+
+        Creates a new config dict with param_overrides merged in.
+        Overrides are applied at the top level for legacy format,
+        or into entry/exit.params for new format.
+
+        Optimized to minimize dict copies for MLflow hyperparameter sweeps.
+
+        Args:
+            config: Original configuration.
+            param_overrides: Parameter values to override.
+
+        Returns:
+            New config dict with overrides applied.
+        """
+        # Early return if no overrides - avoid unnecessary copies
+        if not param_overrides:
+            return config
+
+        if has_new_config_format(config):
+            # New format: merge into entry.params or exit.params
+            # Use single dict comprehension to reduce copies
+            result = {
+                k: v for k, v in config.items()
+                if k not in ("entry", "exit")
+            }
+
+            if "entry" in config and isinstance(config["entry"], dict):
+                entry = config["entry"]
+                result["entry"] = {
+                    **entry,
+                    "params": {**entry.get("params", {}), **param_overrides}
+                }
+
+            if "exit" in config and isinstance(config["exit"], dict):
+                exit_cfg = config["exit"]
+                result["exit"] = {
+                    **exit_cfg,
+                    "params": {**exit_cfg.get("params", {}), **param_overrides}
+                }
+
+            return result
+        else:
+            # Legacy format: single merged dict
+            return {**config, **param_overrides}
+
     # --- Legacy format methods ---
 
     def _create_entry_legacy(
@@ -526,30 +619,15 @@ class StrategyFactory:
     ) -> Any:
         """Build entry params from config (legacy format).
 
-        Maps config keys to param fields.
+        Uses registry-based param building for full flexibility.
+        All params defined in the dataclass can be overridden via config.
         """
         # Get market from config (allows override of spec default)
         market = self._get_market(spec, config)
-        param_kwargs = {"market": market}
 
-        # Map config to params
-        if "position_size" in config:
-            param_kwargs["position_size"] = config["position_size"]
-
-        # Strategy-specific params
-        if spec.name == "v35_long" or spec.name == "v35_experimental":
-            if "mfi_bull" in config:
-                param_kwargs["mfi_bull"] = config["mfi_bull"]
-            if "adx_trend" in config:
-                param_kwargs["adx_trend"] = config["adx_trend"]
-        elif spec.name == "sideways_v2":
-            if "rsi_oversold" in config:
-                param_kwargs["rsi_oversold"] = config["rsi_oversold"]
-        elif spec.name == "short_v1":
-            if "rsi_overbought" in config:
-                param_kwargs["rsi_overbought"] = config["rsi_overbought"]
-
-        return spec.entry_params_class(**param_kwargs)
+        # Use registry builder which handles all dataclass fields
+        merged_config = {"market": market, **config}
+        return build_params_from_config(spec.entry_params_class, merged_config)
 
     def _build_exit_params(
         self,
@@ -558,28 +636,15 @@ class StrategyFactory:
     ) -> Any:
         """Build exit params from config (legacy format).
 
-        Maps config keys to param fields.
+        Uses registry-based param building for full flexibility.
+        All params defined in the dataclass can be overridden via config.
         """
         # Get market from config (allows override of spec default)
         market = self._get_market(spec, config)
-        param_kwargs = {"market": market}
 
-        # Common exit params
-        if "stop_loss_pct" in config:
-            param_kwargs["stop_loss_pct"] = config["stop_loss_pct"]
-        if "take_profit_pct" in config:
-            param_kwargs["take_profit_pct"] = config["take_profit_pct"]
-
-        # V35-specific trailing stop params
-        if spec.name == "v35_long" or spec.name == "v35_experimental":
-            if "trailing_enabled" in config:
-                param_kwargs["trailing_enabled"] = config["trailing_enabled"]
-            if "trailing_activation" in config:
-                param_kwargs["trailing_activation"] = config["trailing_activation"]
-            if "trailing_distance" in config:
-                param_kwargs["trailing_distance"] = config["trailing_distance"]
-
-        return spec.exit_params_class(**param_kwargs)
+        # Use registry builder which handles all dataclass fields
+        merged_config = {"market": market, **config}
+        return build_params_from_config(spec.exit_params_class, merged_config)
 
 
 def create_factory(redis: Redis | None = None) -> StrategyFactory:

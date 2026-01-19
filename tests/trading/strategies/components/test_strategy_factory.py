@@ -80,6 +80,7 @@ class TestV35LongFutures:
         # Build context for BULL trend (MFI >= 52)
         context = MarketContext(
             trend="BULL",
+            regime="BULL_STRONG",  # MFI=55, ADX=25 -> BULL_STRONG
             volatility_score=0.01,
             is_extreme_volatility=False,
             adx=25.0,
@@ -174,6 +175,7 @@ class TestSidewaysV2Futures:
         # Build context for NEUTRAL trend (48 < MFI < 52)
         context = MarketContext(
             trend="NEUTRAL",
+            regime="SIDEWAYS_FLAT",  # MFI=50, ADX=15 -> SIDEWAYS_FLAT
             volatility_score=0.01,
             is_extreme_volatility=False,
             adx=15.0,
@@ -252,6 +254,7 @@ class TestCreateComponents:
         # Build context for BULL trend (MFI >= 52)
         context = MarketContext(
             trend="BULL",
+            regime="BULL_STRONG",  # MFI=55, ADX=25 -> BULL_STRONG
             volatility_score=0.01,
             is_extreme_volatility=False,
             adx=25.0,
@@ -284,3 +287,93 @@ class TestCreateComponents:
         exit_signal = exit_strat.check_exit(position, exit_market_data)
         assert exit_signal is not None
         assert exit_signal.market == "futures"
+
+
+class TestParamOverrides:
+    """Test param_overrides functionality for MLflow optimization."""
+
+    def test_param_overrides_legacy_format(self, factory):
+        """Test param_overrides with legacy config format."""
+        entry = factory.create_entry(
+            "v35_long",
+            param_overrides={"mfi_bull_strong": 56.0, "position_size": 0.03}
+        )
+
+        assert entry.params.mfi_bull_strong == 56.0
+        assert entry.params.position_size == 0.03
+
+    def test_param_overrides_with_existing_config(self, factory):
+        """Test param_overrides merges with existing config."""
+        config = {"market": "futures", "position_size": 0.01}
+        entry = factory.create_entry(
+            "v35_long",
+            config,
+            param_overrides={"position_size": 0.05}  # Override config value
+        )
+
+        assert entry.params.market == "futures"
+        assert entry.params.position_size == 0.05  # Override wins
+
+    def test_param_overrides_does_not_mutate_original(self, factory):
+        """Test that param_overrides doesn't mutate the original config."""
+        original_config = {"position_size": 0.01, "market": "spot"}
+        factory.create_entry(
+            "v35_long",
+            original_config,
+            param_overrides={"position_size": 0.05}
+        )
+
+        # Original config should be unchanged
+        assert original_config["position_size"] == 0.01
+        assert original_config["market"] == "spot"
+
+    def test_param_overrides_exit_strategy(self, factory):
+        """Test param_overrides works for exit strategy."""
+        exit_strat = factory.create_exit(
+            "v35_long",
+            param_overrides={"stop_loss_pct": 2.5, "tp_bull_strong_1": 6.0}
+        )
+
+        assert exit_strat.params.stop_loss_pct == 2.5
+        assert exit_strat.params.tp_bull_strong_1 == 6.0
+
+    def test_param_overrides_create_components(self, factory):
+        """Test separate entry/exit overrides in create_components."""
+        entry, exit_strat = factory.create_components(
+            "v35_long",
+            entry_overrides={"mfi_bull_strong": 56.0},
+            exit_overrides={"stop_loss_pct": 3.0},
+        )
+
+        assert entry.params.mfi_bull_strong == 56.0
+        assert exit_strat.params.stop_loss_pct == 3.0
+
+    def test_param_overrides_empty_returns_original(self, factory):
+        """Test empty param_overrides returns config unchanged."""
+        config = {"market": "futures", "position_size": 0.02}
+        entry = factory.create_entry("v35_long", config, param_overrides={})
+
+        assert entry.params.market == "futures"
+        assert entry.params.position_size == 0.02
+
+    def test_param_overrides_new_config_format(self, factory):
+        """Test param_overrides with new config format."""
+        config = {
+            "market": "futures",
+            "entry": {
+                "class": "V35EntryStrategy",
+                "params": {"mfi_bull_strong": 54.0}
+            },
+            "exit": {
+                "class": "V35TrailingExitStrategy",
+                "params": {"stop_loss_pct": 1.5}
+            }
+        }
+        entry = factory.create_entry(
+            "custom",
+            config,
+            param_overrides={"mfi_bull_strong": 58.0}
+        )
+
+        # Override should take precedence
+        assert entry.params.mfi_bull_strong == 58.0

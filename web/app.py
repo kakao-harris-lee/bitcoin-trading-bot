@@ -454,10 +454,10 @@ def get_status():
 
                 status = {
                     'timestamp': dashboard_state.get('timestamp', datetime.now().isoformat()),
-                    'mode': binance_data.get('mode', 'live'),
+                    'mode': risk.get('mode', 'paper'),
                     'engine': 'stream',
                     'engine_status': 'running',
-                    'trading_mode': binance_data.get('mode', 'paper'),
+                    'trading_mode': risk.get('mode', 'paper'),
                     'assets': assets,
                     'portfolio': dashboard_state.get('portfolio', {}),
                     'kill_switch': binance_data.get('kill_switch', False),
@@ -474,10 +474,10 @@ def get_status():
     if ma_status:
         return jsonify({
             'timestamp': ma_status.get('timestamp', datetime.now().isoformat()),
-            'mode': ma_status.get('mode', 'paper'),
+            'mode': risk.get('mode', 'paper'),
             'engine': 'legacy',
             'engine_status': 'running',
-            'trading_mode': ma_status.get('mode', 'paper'),
+            'trading_mode': risk.get('mode', 'paper'),
             'assets': ma_status.get('assets', {}),
             'portfolio': ma_status.get('portfolio', {}),
             'prices': prices,
@@ -487,8 +487,9 @@ def get_status():
     # Final fallback - return minimal status with prices/risk from Redis
     return jsonify({
         'timestamp': datetime.now().isoformat(),
+        'mode': risk.get('mode', 'paper'),
         'engine_status': 'stopped' if not prices else 'running',
-        'trading_mode': 'paper',
+        'trading_mode': risk.get('mode', 'paper'),
         'prices': prices,
         'risk': risk,
     })
@@ -1071,12 +1072,114 @@ def get_daily_analytics():
     })
 
 
+def _get_paper_positions(r, prices: dict) -> dict:
+    """Get positions from Redis for paper trading mode."""
+    result = {
+        'timestamp': datetime.now().isoformat(),
+        'total_value': 0,
+        'total_unrealized_pnl': 0,
+        'positions': [],
+        'errors': []
+    }
+
+    symbols = ['BTC', 'ETH', 'SOL']
+
+    for symbol in symbols:
+        # Check spot position
+        spot_pos = r.hgetall(f"positions:{symbol}:spot")
+        if spot_pos and float(spot_pos.get('quantity', 0)) > 0:
+            qty = float(spot_pos.get('quantity', 0))
+            entry_price = float(spot_pos.get('entry_price', 0))
+            current_price = prices.get(f'{symbol}USDT', entry_price)
+            value = qty * current_price
+            unrealized_pnl = (current_price - entry_price) * qty
+            unrealized_pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+
+            result['positions'].append({
+                'symbol': f'{symbol}USDT',
+                'exchange': 'binance',
+                'market': 'spot',
+                'side': 'LONG',
+                'quantity': qty,
+                'entry_price': entry_price,
+                'current_price': current_price,
+                'value': value,
+                'unrealized_pnl': unrealized_pnl,
+                'unrealized_pnl_pct': unrealized_pnl_pct,
+                'strategy': spot_pos.get('strategy', 'unknown'),
+                'leverage': 1
+            })
+            result['total_value'] += value
+            result['total_unrealized_pnl'] += unrealized_pnl
+
+        # Check futures position
+        futures_pos = r.hgetall(f"positions:{symbol}:futures")
+        if futures_pos and float(futures_pos.get('quantity', 0)) != 0:
+            qty = float(futures_pos.get('quantity', 0))
+            entry_price = float(futures_pos.get('entry_price', 0))
+            current_price = prices.get(f'{symbol}USDT', entry_price)
+            side = futures_pos.get('side', 'buy').upper()
+            if side == 'BUY':
+                side = 'LONG'
+            elif side == 'SELL':
+                side = 'SHORT'
+
+            abs_qty = abs(qty)
+            value = abs_qty * current_price
+
+            if side == 'LONG':
+                unrealized_pnl = (current_price - entry_price) * abs_qty
+            else:
+                unrealized_pnl = (entry_price - current_price) * abs_qty
+
+            unrealized_pnl_pct = (unrealized_pnl / (entry_price * abs_qty) * 100) if entry_price > 0 else 0
+
+            result['positions'].append({
+                'symbol': f'{symbol}USDT',
+                'exchange': 'binance',
+                'market': 'futures',
+                'side': side,
+                'quantity': abs_qty,
+                'entry_price': entry_price,
+                'current_price': current_price,
+                'value': value,
+                'unrealized_pnl': unrealized_pnl,
+                'unrealized_pnl_pct': unrealized_pnl_pct,
+                'strategy': futures_pos.get('strategy', 'unknown'),
+                'leverage': int(futures_pos.get('leverage', 1))
+            })
+            result['total_value'] += value
+            result['total_unrealized_pnl'] += unrealized_pnl
+
+    return result
+
+
 @app.route("/api/positions")
 def get_positions():
     """
     Get all Binance positions (Spot + Futures) with unrealized P&L.
     Also includes positions tracked in Redis by the trading bot.
+    In paper mode, returns positions from Redis only.
     """
+    # Check mode from Redis
+    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    risk_data = r.hgetall('risk') or {}
+    mode = risk_data.get('mode', 'paper')
+
+    # Get current prices from Redis
+    prices = {}
+    try:
+        price_data = r.hgetall('market:latest:prices') or {}
+        for key, val in price_data.items():
+            prices[key] = float(val)
+    except Exception:
+        pass
+
+    # Paper mode: return positions from Redis only
+    if mode == 'paper':
+        return jsonify(_get_paper_positions(r, prices))
+
+    # Live mode: fetch from Binance
     result = {
         'timestamp': datetime.now().isoformat(),
         'total_value': 0,
@@ -1310,13 +1413,112 @@ def get_backtest_history():
 
 @app.route("/api/exchange_balances")
 def get_exchange_balances():
-    """Fetch live balances from Binance (both Spot and Futures)."""
+    """Fetch balances from Binance (both Spot and Futures).
+    In paper mode, returns simulated balances from Redis.
+    """
+    # Check mode from Redis
+    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    risk_data = r.hgetall('risk') or {}
+    mode = risk_data.get('mode', 'paper')
+
     result = {
         'timestamp': datetime.now().isoformat(),
         'binance': None,
         'errors': []
     }
 
+    # Paper mode: return simulated balances from Redis
+    if mode == 'paper':
+        try:
+            account = r.hgetall('account') or {}
+            spot_balance = float(account.get('spot_balance', 10000))
+            futures_balance = float(account.get('futures_balance', 10000))
+
+            # Get prices from Redis
+            prices = {}
+            price_data = r.hgetall('market:latest:prices') or {}
+            for key, val in price_data.items():
+                prices[key] = float(val)
+
+            # Calculate position values
+            spot_positions = []
+            futures_positions = []
+            spot_position_value = 0
+            futures_unrealized_pnl = 0
+
+            for symbol in ['BTC', 'ETH', 'SOL']:
+                # Spot positions
+                spot_pos = r.hgetall(f"positions:{symbol}:spot")
+                if spot_pos and float(spot_pos.get('quantity', 0)) > 0:
+                    qty = float(spot_pos.get('quantity', 0))
+                    entry_price = float(spot_pos.get('entry_price', 0))
+                    current_price = prices.get(f'{symbol}USDT', entry_price)
+                    value = qty * current_price
+                    spot_positions.append({
+                        'asset': symbol,
+                        'market': 'spot',
+                        'quantity': qty,
+                        'price': current_price,
+                        'value': value,
+                    })
+                    spot_position_value += value
+
+                # Futures positions
+                futures_pos = r.hgetall(f"positions:{symbol}:futures")
+                if futures_pos and float(futures_pos.get('quantity', 0)) != 0:
+                    qty = float(futures_pos.get('quantity', 0))
+                    entry_price = float(futures_pos.get('entry_price', 0))
+                    current_price = prices.get(f'{symbol}USDT', entry_price)
+                    side = futures_pos.get('side', 'buy').upper()
+                    if side == 'BUY':
+                        side = 'LONG'
+                    elif side == 'SELL':
+                        side = 'SHORT'
+
+                    abs_qty = abs(qty)
+                    if side == 'LONG':
+                        pnl = (current_price - entry_price) * abs_qty
+                    else:
+                        pnl = (entry_price - current_price) * abs_qty
+
+                    futures_positions.append({
+                        'symbol': symbol,
+                        'market': 'futures',
+                        'size': qty,
+                        'side': side,
+                        'entry_price': entry_price,
+                        'mark_price': current_price,
+                        'unrealized_pnl': pnl,
+                        'leverage': int(futures_pos.get('leverage', 1)),
+                        'liquidation_price': 0,
+                    })
+                    futures_unrealized_pnl += pnl
+
+            total_equity = spot_balance + spot_position_value + futures_balance + futures_unrealized_pnl
+
+            result['binance'] = {
+                'spot': {
+                    'usdt_balance': spot_balance,
+                    'position_value': spot_position_value,
+                    'total': spot_balance + spot_position_value,
+                    'positions': spot_positions,
+                },
+                'futures': {
+                    'usdt_balance': futures_balance,
+                    'unrealized_pnl': futures_unrealized_pnl,
+                    'total': futures_balance + futures_unrealized_pnl,
+                    'positions': futures_positions,
+                    'hedge_mode': False,
+                },
+                'total_equity': total_equity,
+            }
+            return jsonify(result)
+
+        except Exception as e:
+            result['errors'].append(f'Paper mode error: {str(e)}')
+            return jsonify(result)
+
+    # Live mode: fetch from Binance
     try:
         from binance.client import Client
         import time

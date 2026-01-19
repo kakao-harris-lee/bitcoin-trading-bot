@@ -63,8 +63,11 @@ class TradingEngine:
                 "kill_switch": "false",
                 "blocked": "false",
                 "daily_pnl": "0",
+                "mode": mode,
             })
         else:
+            # Always update mode on startup
+            await self.redis._client.hset("risk", "mode", mode)
             logger.info(f"Loaded existing risk state: daily_pnl={current_risk.get('daily_pnl')}")
 
         symbols = self.config.get("symbols", ["BTC"])

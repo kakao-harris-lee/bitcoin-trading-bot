@@ -691,7 +691,7 @@ def _run_short_backtest(
         class EnhancedShortStrategyAdapter:
             def __init__(self, config=None):
                 self.config = config or {}
-                self.factory = StrategyFactory(redis_client=None)
+                self.factory = StrategyFactory(redis=None)
                 self.adapter = ComponentStrategyAdapter(self.factory, "short_v1", self.config)
                 self._indicators_added = False
                 self._cached_df = None

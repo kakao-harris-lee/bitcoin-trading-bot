@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Literal
 
-from .models import MarketContext, MarketData, Signal, BEAR_REGIMES
+from .models import MarketContext, MarketData, Signal, BEAR_REGIMES, TradingContext
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -86,8 +86,7 @@ class V35EntryStrategy:
 
     def check_entry(
         self,
-        market_data: MarketData,
-        context: MarketContext,
+        ctx: TradingContext,
     ) -> Signal | None:
         """Check entry conditions and return signal if entry criteria met.
 
@@ -102,12 +101,15 @@ class V35EntryStrategy:
         - Skip if extreme volatility (avoid wild swings)
 
         Args:
-            market_data: Current market state with indicators.
-            context: Pre-analyzed market context (trend, volatility).
+            ctx: Trading context with market data, regime, and positions.
 
         Returns:
             Signal with side="buy" if entry conditions met, None otherwise.
         """
+        # Extract market_data and context from TradingContext
+        market_data = ctx.market
+        context = ctx.regime
+
         # === SAFETY FILTER 1: Weak trend (ADX) ===
         # Avoid whipsaws - don't enter when trend is weak
         if context.adx < self.params.adx_moderate_trend:

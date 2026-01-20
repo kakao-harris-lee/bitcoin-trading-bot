@@ -1,6 +1,8 @@
 # Bitcoin Trading Bot
 
-# Bitcoin Trading Bot
+## Trading Mode
+
+**Futures-only trading.** Spot trading has been removed from the codebase. All strategies execute on Binance Futures (USDT-M perpetual contracts).
 
 ## 1. System Architecture
 
@@ -39,7 +41,8 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - [x] **Factory Integration**: `Engine` uses `StrategyFactory`.
 - [x] **Cleanup**: Legacy monolithic tasks (`V35LongTask`, etc.) deleted.
 - [x] **Persistence**: `StateManager` implemented.
-- [ ] **Observability**: Enhance `MetricsService` for component-specific events.
+- [x] **Futures-Only**: Spot trading removed, all strategies use futures.
+- [x] **Observability**: Enhance `MetricsService` for component-specific events.
 
 ## 4. Coding Standards
 
@@ -117,7 +120,7 @@ The bot uses a **stream-based component architecture** with Redis as the communi
 │                 Redis: trades stream ──► TelegramTask            │
 │                          │                                       │
 │                          ▼                                       │
-│                   Binance API (spot + futures)                   │
+│                   Binance Futures API                            │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -179,10 +182,16 @@ bitcoin-trading-bot/
 - `orders`: Order intents from strategies.
 - `trades`: Executed trade confirmations.
 - `alerts`: System alerts and errors.
+- `strategy:entry:events`: Entry condition evaluation events (observability).
+- `strategy:exit:events`: Exit condition evaluation events (observability).
+- `strategy:hwm:updates`: High-water-mark timeline updates (observability).
+- `strategy:safety:events`: Safety filter rejection events (observability).
+
+**Observability stream retention:** Event streams are auto-trimmed to 2000 entries (~24h of data). Enable via `emit_events: true` in `allocation.json`.
 
 ### Hashes
 
-- `positions:{symbol}:{market}`: Position state (qty, entry_price, strategy).
+- `positions:{symbol}:futures`: Position state (qty, entry_price, strategy). Futures-only.
 - `risk`: Risk state (kill_switch, blocked, daily_pnl).
 - `state:{strategy}:{symbol}`: Persistent strategy state (high_water_mark, etc).
 
@@ -252,6 +261,10 @@ BINANCE_API_SECRET=your_secret
 TELEGRAM_BOT_TOKEN=your_token
 TELEGRAM_CHAT_ID=your_chat_id
 
+# Required for dashboard
+DASHBOARD_PASSWORD=your_secure_password
+DASHBOARD_USERNAME=admin  # Optional, defaults to "admin"
+
 # Optional
 REDIS_URL=redis://localhost:6379
 ```
@@ -281,4 +294,6 @@ REDIS_URL=redis://localhost:6379
 
 ## Recent Changes
 
+- 2026-01-20: Added observability events (entry/exit/HWM/safety) with API endpoints
+- 2026-01-20: Removed spot trading - system now trades futures only
 - 001-backtest-mlflow-viz: Added Python 3.9+ (per requirements.txt)

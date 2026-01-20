@@ -2149,6 +2149,29 @@ footer kbd {
     margin-bottom: 25px;
 }
 
+.backtest-message {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.backtest-message.error {
+    border-color: rgba(231, 76, 60, 0.35);
+    background: rgba(231, 76, 60, 0.08);
+    color: var(--loss-red);
+}
+
+.backtest-message.success {
+    border-color: rgba(46, 204, 113, 0.35);
+    background: rgba(46, 204, 113, 0.08);
+    color: var(--profit-green);
+}
+
 .backtest-history-section h4 {
     font-family: var(--font-mono);
     font-size: 0.85rem;
@@ -2231,9 +2254,19 @@ footer kbd {
     color: var(--profit-green);
 }
 
+.history-item-status.pending {
+    background: rgba(255, 193, 7, 0.18);
+    color: #f1c40f;
+}
+
 .history-item-status.running {
     background: rgba(52, 152, 219, 0.2);
     color: var(--accent-cyan);
+}
+
+.history-item-status.cancelled {
+    background: rgba(149, 165, 166, 0.25);
+    color: var(--text-muted);
 }
 
 .history-item-status.failed {

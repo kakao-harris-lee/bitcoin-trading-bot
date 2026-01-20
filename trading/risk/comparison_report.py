@@ -78,18 +78,15 @@ class ComparisonReportGenerator:
         return list(STRATEGY_REGISTRY.keys())
 
     def _get_strategy_exchange(self, strategy_name: str) -> str:
-        """Get exchange for strategy based on registry spec."""
-        if strategy_name not in STRATEGY_REGISTRY:
-            return "binance"
-        spec = STRATEGY_REGISTRY[strategy_name]
-        return "binance" if spec.market == "futures" else "upbit"
+        """Get exchange for strategy. System is Binance-only since PR #21."""
+        return "binance"
 
     def _get_data_loader(self, exchange: str = "binance") -> DataLoader:
         """Get or create DataLoader instance."""
         if self._data_loader is None:
-             self._data_loader = DataLoader(exchange=exchange)
+            self._data_loader = DataLoader(exchange=exchange)
         elif self._data_loader.exchange != exchange:
-             self._data_loader = DataLoader(exchange=exchange)
+            self._data_loader = DataLoader(exchange=exchange)
         return self._data_loader
 
 

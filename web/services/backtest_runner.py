@@ -202,7 +202,7 @@ def get_available_strategies() -> list:
                 'id': name,
                 'name': name.replace('_', ' ').title(),
                 'description': f"{spec.market.title()} strategy ({name})",
-                'exchange': 'binance' if spec.market == 'futures' else 'upbit', # Better guess?
+                'exchange': 'binance',  # System is Binance-only since PR #21
                 'default_params': {}
             })
     except Exception as e:
@@ -382,20 +382,20 @@ def _run_generic_backtest(
     adapter = ComponentStrategyAdapter(factory, strategy_id, config)
 
     # 2. Set environment based on Market
+    # Note: System is Binance-only since PR #21
+    exchange_name = "binance"
+
     if market_type == 'futures':
         leverage = 3.0
-        fee_rate = 0.0004 # 0.04%
-        slippage = 0.0002 # 0.02%
+        fee_rate = 0.0004  # 0.04%
+        slippage = 0.0002  # 0.02%
         timeframe = spec.timeframe
     else:
         # Spot
         leverage = 1.0
-        fee_rate = 0.0005 # 0.05%
+        fee_rate = 0.0005  # 0.05%
         slippage = 0.0000
         timeframe = spec.timeframe
-    # But current system separates: V35_Long (Upbit), V35_Experimental (Binance Spot maybe?)
-    # For now, stick to Upbit for Spot unless specified otherwise.
-    # Actually, current `_run_long_backtest` loads from 'upbit'.
 
     with DataLoader(exchange=exchange_name) as loader:
         df = loader.load_timeframe(timeframe, start_date, end_date)

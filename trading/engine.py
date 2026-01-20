@@ -17,6 +17,7 @@ from trading.strategies.components import StrategyFactory, create_composite_task
 from trading.executor import BinanceClient, AsyncExecutor, PaperExecutor
 from trading.notification import TelegramTask
 from trading.risk.leverage_manager import LeverageManager
+from trading.observability import PeriodicLoggerTask
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +152,19 @@ class TradingEngine:
             self.tasks.append(asyncio.create_task(smart_executor.run()))
             logger.info("Started SmartExecutor")
 
-        # 4. Start Telegram notification task
+        # 4. Start periodic logger (5-minute system state logging)
+        periodic_logger_interval = self.config.get("periodic_logger", {}).get(
+            "interval_seconds", 300
+        )
+        periodic_logger = PeriodicLoggerTask(
+            redis=self.redis,
+            symbols=symbols,
+            interval_seconds=periodic_logger_interval,
+        )
+        self.tasks.append(asyncio.create_task(periodic_logger.run()))
+        logger.info(f"Started periodic logger (interval={periodic_logger_interval}s)")
+
+        # 5. Start Telegram notification task
         try:
             telegram = TelegramTask(redis=self.redis)
             self.tasks.append(asyncio.create_task(telegram.run()))
@@ -160,7 +173,7 @@ class TradingEngine:
         except ValueError as e:
             logger.warning(f"Telegram notifications disabled: {e}")
 
-        # 5. Set up signal handlers
+        # 6. Set up signal handlers
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, self._signal_handler)

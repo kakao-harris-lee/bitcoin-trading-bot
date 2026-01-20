@@ -3,11 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quant Lab - Results: {{ study_name }}</title>
+    <title>Quant Lab - Results</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 </head>
-<body>
-    <h1>Quant Lab - Results</h1>
-    <h2>Study: {{ study_name }}</h2>
-    <p>Template placeholder - to be implemented in Task 14</p>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div x-data="resultsViewer()" x-init="init()" class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-blue-400" x-text="studyName"></h1>
+                <p class="text-gray-400 mt-1">
+                    <span x-text="stats.total_trials"></span> trials |
+                    <span x-text="stats.pareto_front_size"></span> Pareto-optimal
+                </p>
+            </div>
+            <div class="space-x-4">
+                <a href="/quant-lab/monitor" class="text-gray-400 hover:text-white">Monitor</a>
+                <a href="/quant-lab/" class="text-gray-400 hover:text-white">New Experiment</a>
+                <a :href="'http://localhost:5000/#/experiments/' + mlflowExperiment"
+                   target="_blank" class="text-blue-400 hover:underline">Open in MLflow</a>
+            </div>
+        </div>
+
+        <!-- Pareto Plot -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Pareto Frontier</h2>
+            <div id="pareto-plot" class="h-96"></div>
+        </div>
+
+        <!-- Ranked Table -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Top Configurations</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="text-left text-gray-400 border-b border-gray-700">
+                            <th class="pb-2 cursor-pointer" @click="sortBy('rank')">Rank</th>
+                            <th class="pb-2 cursor-pointer" @click="sortBy('win_rate')">Win Rate</th>
+                            <th class="pb-2 cursor-pointer" @click="sortBy('total_return')">Return</th>
+                            <th class="pb-2 cursor-pointer" @click="sortBy('max_drawdown')">Max DD</th>
+                            <th class="pb-2">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(trial, i) in sortedPareto" :key="trial.trial_number">
+                            <tr class="border-b border-gray-700 hover:bg-gray-700/50 cursor-pointer"
+                                @click="selectTrial(trial)">
+                                <td class="py-3" x-text="i + 1"></td>
+                                <td class="py-3" x-text="(trial.values.win_rate * 100).toFixed(1) + '%'"></td>
+                                <td class="py-3" :class="trial.values.total_return >= 0 ? 'text-green-400' : 'text-red-400'"
+                                    x-text="(trial.values.total_return * 100).toFixed(2) + '%'"></td>
+                                <td class="py-3 text-red-400"
+                                    x-text="(trial.values.max_drawdown * 100).toFixed(1) + '%'"></td>
+                                <td class="py-3">
+                                    <button @click.stop="exportConfig(trial)"
+                                            class="text-blue-400 hover:underline text-sm">Export</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Selected Trial Detail -->
+        <div x-show="selectedTrial" class="bg-gray-800 rounded-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Configuration Detail</h2>
+                <button @click="selectedTrial = null" class="text-gray-400 hover:text-white">Close</button>
+            </div>
+            <div class="grid grid-cols-7 gap-2 mb-4">
+                <template x-for="regime in regimes" :key="regime">
+                    <div class="bg-gray-900 rounded p-2 text-xs">
+                        <div class="font-semibold text-blue-400 truncate" x-text="regime.replace('_', ' ')"></div>
+                        <div class="mt-1" x-text="getRegimeEntry(regime)"></div>
+                        <div class="text-gray-500" x-text="getRegimeExit(regime)"></div>
+                    </div>
+                </template>
+            </div>
+            <div>
+                <h3 class="font-semibold mb-2">Full Parameters</h3>
+                <pre class="bg-gray-900 rounded p-4 text-sm overflow-auto max-h-64"
+                     x-text="JSON.stringify(selectedTrial?.params, null, 2)"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function resultsViewer() {
+            return {
+                studyName: '{{ study_name }}',
+                mlflowExperiment: 'quant_lab',
+                stats: {},
+                pareto: [],
+                selectedTrial: null,
+                sortKey: 'total_return',
+                sortDesc: true,
+                regimes: [
+                    'BULL_STRONG', 'BULL_MODERATE',
+                    'SIDEWAYS_UP', 'SIDEWAYS_FLAT', 'SIDEWAYS_DOWN',
+                    'BEAR_MODERATE', 'BEAR_STRONG'
+                ],
+
+                get sortedPareto() {
+                    return [...this.pareto].sort((a, b) => {
+                        const aVal = a.values[this.sortKey];
+                        const bVal = b.values[this.sortKey];
+                        return this.sortDesc ? bVal - aVal : aVal - bVal;
+                    });
+                },
+
+                async init() {
+                    try {
+                        const res = await fetch(`/quant-lab/api/experiments/${this.studyName}/results`);
+                        const data = await res.json();
+                        this.stats = data.stats;
+                        this.pareto = data.pareto_front;
+                        this.renderParetoPlot();
+                    } catch (e) {
+                        console.error('Failed to load results:', e);
+                    }
+                },
+
+                renderParetoPlot() {
+                    const trace = {
+                        x: this.pareto.map(t => t.values.total_return * 100),
+                        y: this.pareto.map(t => t.values.win_rate * 100),
+                        mode: 'markers',
+                        type: 'scatter',
+                        marker: {
+                            size: this.pareto.map(t => Math.max(10, 50 - t.values.max_drawdown * 100)),
+                            color: this.pareto.map(t => t.values.max_drawdown * 100),
+                            colorscale: 'RdYlGn',
+                            reversescale: true,
+                            showscale: true,
+                            colorbar: {title: 'Max DD %'},
+                        },
+                        text: this.pareto.map(t => `Trial ${t.trial_number}`),
+                        hovertemplate:
+                            'Return: %{x:.1f}%<br>' +
+                            'Win Rate: %{y:.1f}%<br>' +
+                            '%{text}<extra></extra>',
+                    };
+
+                    const layout = {
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(31,41,55,1)',
+                        font: {color: '#9CA3AF'},
+                        xaxis: {title: 'Total Return %', gridcolor: '#374151'},
+                        yaxis: {title: 'Win Rate %', gridcolor: '#374151'},
+                        margin: {l: 60, r: 20, t: 20, b: 60},
+                    };
+
+                    Plotly.newPlot('pareto-plot', [trace], layout, {responsive: true});
+
+                    document.getElementById('pareto-plot').on('plotly_click', (data) => {
+                        const idx = data.points[0].pointIndex;
+                        this.selectTrial(this.pareto[idx]);
+                    });
+                },
+
+                selectTrial(trial) {
+                    this.selectedTrial = trial;
+                },
+
+                sortBy(key) {
+                    if (this.sortKey === key) {
+                        this.sortDesc = !this.sortDesc;
+                    } else {
+                        this.sortKey = key;
+                        this.sortDesc = true;
+                    }
+                },
+
+                getRegimeEntry(regime) {
+                    if (!this.selectedTrial) return '';
+                    const key = `${regime}_entry`;
+                    return this.selectedTrial.params[key] || '-';
+                },
+
+                getRegimeExit(regime) {
+                    if (!this.selectedTrial) return '';
+                    const key = `${regime}_exit`;
+                    return this.selectedTrial.params[key] || '-';
+                },
+
+                exportConfig(trial) {
+                    const config = {
+                        study_name: this.studyName,
+                        trial_number: trial.trial_number,
+                        params: trial.params,
+                        values: trial.values,
+                    };
+                    const blob = new Blob([JSON.stringify(config, null, 2)], {type: 'application/json'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${this.studyName}_trial_${trial.trial_number}.json`;
+                    a.click();
+                },
+            };
+        }
+    </script>
 </body>
 </html>

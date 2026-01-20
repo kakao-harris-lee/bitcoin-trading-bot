@@ -2,10 +2,11 @@
 
 This allows the historical backtester to run the exact same logic as live trading.
 """
+from dataclasses import replace
 from typing import Dict, Any, Callable, Optional
 import pandas as pd
 from trading.strategies.components import StrategyFactory
-from trading.strategies.components.models import MarketData, Position, Signal, MarketContext
+from trading.strategies.components.models import MarketData, Position, Signal, MarketContext, TradingContext, build_market_context
 from trading.strategies.components.strategy_factory import StrategyFactory
 from trading.strategies.volatility_tracker import VolatilityTracker
 
@@ -20,6 +21,7 @@ class ComponentStrategyAdapter:
             config: Configuration dictionary for the strategy
         """
         self.strategy_name = strategy_name
+        self.config = config
         self.entry_strategy, self.exit_strategy = factory.create_components(
             strategy_name=strategy_name,
             config=config,
@@ -45,24 +47,22 @@ class ComponentStrategyAdapter:
 
         row = df.iloc[i]
 
-        # Update Volatility
-        self.vol_tracker.add_price(row['close'])
-        vol_score = self.vol_tracker.get_volatility()
-        vol_score = vol_score if vol_score is not None else 0.0
-
-        is_extreme = vol_score > self.vol_tracker.HIGH_VOL_THRESHOLD
-
-        # Determine Regime
+        # Extract indicators for context building
         mfi = row.get('mfi', 50.0)
-        adx = row.get('adx', 0.0)
-        regime = self._determine_regime(mfi, adx)
+        adx = row.get('adx', 20.0)
+        atr = row.get('atr', 0.0)
+        close = row['close']
+        volume = row.get('volume', 0.0)
+        avg_volume = row.get('avg_volume_20', 0.0)
 
-        # Build Context
-        context = MarketContext(
-            regime=regime,
-            trend="neutral", # Placeholder
-            volatility_score=vol_score,
-            is_extreme_volatility=is_extreme
+        # Build Context using the standard function (ensures consistent regime/trend classification)
+        context = build_market_context(
+            mfi=mfi,
+            adx=adx,
+            atr=atr,
+            close=close,
+            volume=volume,
+            avg_volume=avg_volume,
         )
 
         # Extract indicators
@@ -87,14 +87,40 @@ class ComponentStrategyAdapter:
             if 'minus_di' in row: indicators['minus_di'] = row['minus_di']
             if 'adx_slope' in row: indicators['adx_slope'] = row['adx_slope']
 
-        # 1. efficient MarketData construction
+        # 1. MarketData construction with all fields needed by entry strategies
+        # Handle timestamp conversion
+        ts = row.get('timestamp', 0)
+        if hasattr(ts, 'timestamp'):
+            ts = int(ts.timestamp() * 1000)
+        else:
+            ts = int(ts) if ts else 0
+
         market_data = MarketData(
             symbol=self.symbol,
-            close=row['close'],
-            timestamp=row['timestamp'],
+            close=close,
+            timestamp=ts,
             mfi=mfi,
             adx=adx,
             rsi=row.get('rsi', 50.0),
+            # MACD for momentum entry
+            macd=row.get('macd', 0.0),
+            macd_signal=row.get('macd_signal', 0.0),
+            # Stochastic for conservative entry
+            stoch_k=row.get('stoch_k', 50.0),
+            stoch_d=row.get('stoch_d', 50.0),
+            # Bollinger Bands for range entry
+            bb_upper=row.get('bb_upper', 0.0),
+            bb_lower=row.get('bb_lower', 0.0),
+            bb_middle=row.get('bb_middle', 0.0),
+            # Volume for breakout entry
+            volume=volume,
+            avg_volume_20=avg_volume,
+            # Support/resistance levels
+            prev_high_20=row.get('prev_high_20', 0.0),
+            prev_low_20=row.get('prev_low_20', 0.0),
+            # ATR for volatility
+            atr=atr,
+            # Indicators map and HWM
             indicators=indicators,
             high_water_mark=self.high_water_mark
         )
@@ -105,16 +131,25 @@ class ComponentStrategyAdapter:
             is_long = getattr(self.current_position, 'side', 'long') == 'long'
 
             if is_long:
-                if self.high_water_mark is None or row['close'] > self.high_water_mark:
-                    self.high_water_mark = row['close']
+                if self.high_water_mark is None or close > self.high_water_mark:
+                    self.high_water_mark = close
             else:
-                if self.high_water_mark is None or row['close'] < self.high_water_mark:
-                    self.high_water_mark = row['close']
+                if self.high_water_mark is None or close < self.high_water_mark:
+                    self.high_water_mark = close
 
-            market_data.high_water_mark = self.high_water_mark
+            # Create new MarketData with updated HWM (frozen dataclass)
+            market_data = replace(market_data, high_water_mark=self.high_water_mark)
 
-            # Check exit
-            signal = self.exit_strategy.check_exit(self.current_position, market_data)
+            # Build TradingContext for new interface
+            positions = {self.strategy_name: self.current_position}
+            ctx = TradingContext(
+                symbol=self.symbol,
+                timestamp=market_data.timestamp,
+                market=market_data,
+                regime=context,
+                positions=positions,
+            )
+            signal = self.exit_strategy.check_exit(ctx, self.current_position)
 
             if signal:
                 self.current_position = None
@@ -130,7 +165,15 @@ class ComponentStrategyAdapter:
 
         # 3. Check Entries (if no position)
         else:
-            signal = self.entry_strategy.check_entry(market_data, context)
+            # Build TradingContext for new interface
+            ctx = TradingContext(
+                symbol=self.symbol,
+                timestamp=market_data.timestamp,
+                market=market_data,
+                regime=context,
+                positions={},  # No position when checking entry
+            )
+            signal = self.entry_strategy.check_entry(ctx)
 
             if signal:
                 is_short = signal.side == 'sell'
@@ -151,11 +194,14 @@ class ComponentStrategyAdapter:
                 )
                 self.high_water_mark = row['close']
 
+                # Use action names expected by backtest_runner:
+                # 'buy' for opening long, 'open_short' for opening short
+                action = "open_short" if is_short else "buy"
                 return {
-                    "action": "sell" if is_short else "buy",
-                    "price": row['close'],
+                    "action": action,
+                    "fraction": 1.0,
+                    "price": close,
                     "reason": signal.reason,
-                    "confidence": signal.strength
                 }
 
         return {"action": "hold"}

@@ -73,8 +73,6 @@ class MarketData:
     prev_high_20: float = 0.0  # 20-period high for resistance
     prev_low_20: float = 0.0   # 20-period low for support
     avg_volume_20: float = 0.0  # 20-period average volume
-    # Optional for trailing stop calculations
-    high_water_mark: float | None = None
 
 
 @dataclass(frozen=True)

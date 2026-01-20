@@ -59,7 +59,7 @@ class V35EntryParams:
     position_size: float = 0.5
     conservative_position_mult: float = 0.5  # Half size for BEAR entries
 
-    market: Literal["spot", "futures"] = "futures"
+    market: Literal["futures"] = "futures"
 
 
 @entry_strategy(params_class=V35EntryParams)

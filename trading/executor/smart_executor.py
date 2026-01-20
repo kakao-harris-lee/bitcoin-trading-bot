@@ -291,7 +291,7 @@ class SmartExecutor:
     async def _handle_exit_signal(self, signal: dict) -> None:
         """Handle incoming exit signal from strategy."""
         symbol = signal.get("symbol")
-        market = signal.get("market", "spot")
+        market = signal.get("market", "futures")
         quantity = float(signal.get("quantity", 0))
         trigger_price = float(signal.get("trigger_price", 0))
         strategy = signal.get("strategy", "unknown")

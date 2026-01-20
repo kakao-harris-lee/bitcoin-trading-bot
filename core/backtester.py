@@ -113,7 +113,7 @@ class BacktestAdapter:
         entry_strategy: "IEntryStrategy",
         exit_strategy: "IExitStrategy",
         symbol: str = "BTC",
-        market: str = "spot",
+        market: str = "futures",
         position_size: float = 0.01,
     ):
         """Initialize the adapter.
@@ -122,7 +122,7 @@ class BacktestAdapter:
             entry_strategy: Entry component implementing IEntryStrategy.
             exit_strategy: Exit component implementing IExitStrategy.
             symbol: Trading symbol for MarketData.
-            market: Market type ("spot" or "futures").
+            market: Market type (must be "futures").
             position_size: Default position size as fraction of capital.
         """
         self.entry_strategy = entry_strategy
@@ -549,7 +549,7 @@ class Backtester:
         entry_strategy: "IEntryStrategy",
         exit_strategy: "IExitStrategy",
         symbol: str = "BTC",
-        market: str = "spot",
+        market: str = "futures",
         position_size: float = 0.01,
     ) -> Dict:
         """Run backtest with pre-created entry/exit components.

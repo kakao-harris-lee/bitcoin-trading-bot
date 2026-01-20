@@ -76,11 +76,7 @@ class TradingEngine:
         # This ensures warmup data is in Redis before strategy consumer groups are created
         feeds: list[BinanceFeedTask] = []
         for symbol in symbols:
-            # Spot feed
-            spot_feed = BinanceFeedTask(symbol=symbol, redis=self.redis, market="spot")
-            feeds.append(spot_feed)
-
-            # Futures feed
+            # Futures feed only (spot trading removed)
             futures_feed = BinanceFeedTask(symbol=symbol, redis=self.redis, market="futures")
             feeds.append(futures_feed)
 

@@ -29,7 +29,7 @@ class SidewaysExitParams:
     # RSI threshold for mean reversion exit
     rsi_mean: float = 50.0
 
-    market: Literal["spot", "futures"] = "spot"
+    market: Literal["futures"] = "futures"
 
 
 @exit_strategy(params_class=SidewaysExitParams)

@@ -23,7 +23,7 @@ def mock_client():
         "order_id": 12345,
         "symbol": "BTC",
         "side": "buy",
-        "market": "spot",
+        "market": "futures",
         "filled_qty": 0.01,
         "filled_price": 43000.0,
         "status": "FILLED",
@@ -36,13 +36,13 @@ async def test_executor_passes_risk_gates(mock_redis, mock_client):
     """Test order passes risk gates."""
     executor = AsyncExecutor(redis=mock_redis, client=mock_client, config={})
     # Set up balance cache (required for balance check)
-    executor._balance_cache = {"spot": 10000.0, "futures": 10000.0, "last_update": 0}
+    executor._balance_cache = {"futures": 10000.0, "last_update": 0}
 
     order = {
         "id": "test-123",
         "symbol": "BTC",
         "side": "buy",
-        "market": "spot",
+        "market": "futures",
         "quantity": "0.01",
         "strategy": "v35_long",
     }
@@ -64,7 +64,7 @@ async def test_executor_blocks_on_kill_switch(mock_redis, mock_client):
         "id": "test-123",
         "symbol": "BTC",
         "side": "buy",
-        "market": "spot",
+        "market": "futures",
         "quantity": "0.01",
         "strategy": "v35_long",
     }
@@ -80,13 +80,13 @@ async def test_executor_updates_position_after_fill(mock_redis, mock_client):
     """Test position is updated after successful fill."""
     executor = AsyncExecutor(redis=mock_redis, client=mock_client, config={})
     # Set up balance cache (required for balance check)
-    executor._balance_cache = {"spot": 10000.0, "futures": 10000.0, "last_update": 0}
+    executor._balance_cache = {"futures": 10000.0, "last_update": 0}
 
     order = {
         "id": "test-123",
         "symbol": "BTC",
         "side": "buy",
-        "market": "spot",
+        "market": "futures",
         "quantity": "0.01",
         "strategy": "v35_long",
     }
@@ -96,4 +96,4 @@ async def test_executor_updates_position_after_fill(mock_redis, mock_client):
     mock_redis.set_position.assert_called_once()
     call_args = mock_redis.set_position.call_args
     assert call_args[0][0] == "BTC"
-    assert call_args[0][1] == "spot"
+    assert call_args[0][1] == "futures"

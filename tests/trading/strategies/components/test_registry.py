@@ -119,10 +119,10 @@ class TestBuildParamsFromConfig:
 
     def test_build_with_partial_config(self):
         """Test building params with partial config."""
-        config = {"market": "futures"}
+        config = {"market": "futures"}  # Override default
         params = build_params_from_config(V35EntryParams, config)
 
-        assert params.market == "futures"
+        assert params.market == "futures"  # Override applied
         assert params.mfi_bull_strong == 54.0  # default
 
     def test_build_with_extra_keys_ignored(self):
@@ -156,7 +156,7 @@ class TestConfigSchemaValidation:
         """Test detecting legacy config format."""
         config = {
             "position_size": 0.01,
-            "market": "spot",
+            "market": "futures",
         }
         assert has_new_config_format(config) is False
 
@@ -293,7 +293,7 @@ class TestNewConfigFormat:
     def test_mixed_entry_exit_pairing(self, factory):
         """Test mixing V35 entry with Sideways exit."""
         config = {
-            "market": "spot",
+            "market": "futures",
             "entry": {"class": "V35EntryStrategy"},
             "exit": {"class": "SidewaysExitStrategy"},
         }
@@ -325,7 +325,7 @@ class TestNewConfigFormat:
         )
         signal = entry.check_entry(market_data, context)
         assert signal is not None
-        assert signal.market == "spot"
+        assert signal.market == "futures"
 
     def test_unknown_entry_class_error(self, factory):
         """Test error for unknown entry class in new format."""
@@ -361,7 +361,7 @@ class TestNewConfigFormat:
     def test_component_params_override_top_level(self, factory):
         """Test that component params override top-level config."""
         config = {
-            "market": "spot",  # Top-level
+            "market": "futures",  # Top-level
             "entry": {
                 "class": "V35EntryStrategy",
                 "params": {"market": "futures"},  # Override

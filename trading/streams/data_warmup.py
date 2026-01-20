@@ -10,7 +10,7 @@ Usage:
     candles = await warmup.fetch_recent_candles("BTC", limit=200, interval="1h")
 
     # Convert to price messages for Redis
-    messages = warmup.candles_to_price_messages(candles, symbol="BTC", market="spot")
+    messages = warmup.candles_to_price_messages(candles, symbol="BTC", market="futures")
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ class DataWarmup:
         symbol: str,
         limit: int = 200,
         interval: str = "1h",
-        market: str = "spot",
+        market: str = "futures",
     ) -> list[dict[str, Any]]:
         """Fetch recent candles from Binance REST API.
 
@@ -131,7 +131,7 @@ class DataWarmup:
         self,
         candles: list[dict[str, Any]],
         symbol: str,
-        market: str = "spot",
+        market: str = "futures",
     ) -> list[dict[str, Any]]:
         """Convert candles to price message format for Redis.
 
@@ -166,7 +166,7 @@ class DataWarmup:
     async def warmup_symbol(
         self,
         symbol: str,
-        market: str = "spot",
+        market: str = "futures",
         limit: int = 200,
         interval: str = "1h",
     ) -> list[dict[str, Any]]:
@@ -192,7 +192,7 @@ class DataWarmup:
 
 async def fetch_warmup_data(
     symbols: list[str],
-    market: str = "spot",
+    market: str = "futures",
     limit: int = 200,
     interval: str = "1h",
 ) -> dict[str, list[dict[str, Any]]]:

@@ -33,7 +33,7 @@ class SidewaysEntryParams:
 
     # Position sizing
     position_size: float = 0.01
-    market: Literal["spot", "futures"] = "spot"
+    market: Literal["futures"] = "futures"
 
 
 @entry_strategy(params_class=SidewaysEntryParams)

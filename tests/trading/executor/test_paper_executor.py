@@ -31,7 +31,7 @@ async def test_paper_executor_simulates_fill(mock_redis):
         "id": "test-123",
         "symbol": "BTC",
         "side": "buy",
-        "market": "spot",
+        "market": "futures",
         "quantity": "0.01",
         "strategy": "v35_long",
     }
@@ -56,7 +56,7 @@ async def test_paper_executor_applies_slippage(mock_redis):
         "id": "test-123",
         "symbol": "BTC",
         "side": "buy",
-        "market": "spot",
+        "market": "futures",
         "quantity": "0.01",
         "strategy": "v35_long",
     }
@@ -82,7 +82,7 @@ async def test_paper_executor_tracks_balance(mock_redis):
         "id": "test-123",
         "symbol": "BTC",
         "side": "buy",
-        "market": "spot",
+        "market": "futures",
         "quantity": "0.01",
         "strategy": "v35_long",
     }
@@ -331,7 +331,7 @@ async def test_process_order_validates_side(mock_redis):
         "symbol": "BTC",
         "side": "invalid_side",  # Invalid
         "quantity": "0.01",
-        "market": "spot",
+        "market": "futures",
         "strategy": "v35_long",
     }
 
@@ -369,7 +369,7 @@ async def test_process_order_validates_quantity(mock_redis):
         "symbol": "BTC",
         "side": "buy",
         "quantity": "-0.01",  # Negative
-        "market": "spot",
+        "market": "futures",
         "strategy": "v35_long",
     }
 
@@ -496,7 +496,7 @@ class TestPaperExecutorRun:
                     "symbol": "BTC",
                     "side": "buy",
                     "quantity": "0.01",
-                    "market": "spot",
+                    "market": "futures",
                     "strategy": "test",
                 }]
             return []
@@ -695,7 +695,7 @@ class TestPublishTrade:
         order = {
             "symbol": "BTC",
             "side": "buy",
-            "market": "spot",
+            "market": "futures",
             "strategy": "v35_long",
         }
         fill = {
@@ -723,7 +723,7 @@ class TestPublishTrade:
 
         executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
 
-        order = {"symbol": "BTC", "side": "sell", "market": "spot", "strategy": "v35_long"}
+        order = {"symbol": "BTC", "side": "sell", "market": "futures", "strategy": "v35_long"}
         fill = {"order_id": "12345678", "filled_qty": 0.01, "filled_price": 52000.0}
         profit_data = {"profit": 20.0, "profit_pct": 4.0}
 

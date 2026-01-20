@@ -254,14 +254,14 @@ class BaseStrategyTask(ABC):
         """
         try:
             # Get balance from Redis (set by AsyncExecutor)
-            balance_key = "spot_balance" if self.market == "spot" else "futures_balance"
+            # Futures only - spot trading removed
             account = await self.redis._client.hgetall("account")
 
             if not account:
                 logger.warning("No account balance found, using minimum size")
                 return min_size
 
-            balance = float(account.get(balance_key, 0))
+            balance = float(account.get("futures_balance", 0))
 
             if balance <= 0:
                 return min_size

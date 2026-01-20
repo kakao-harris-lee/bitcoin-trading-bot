@@ -32,7 +32,7 @@ class AsyncExecutor:
         self.position_pct = config.get("position_pct", 0.02)  # 2% of balance per trade
         self.min_balance = config.get("min_balance", 100)  # Minimum USDT to trade
         self._running = False
-        self._balance_cache = {"spot": 0.0, "futures": 0.0, "last_update": 0}
+        self._balance_cache = {"futures": 0.0, "last_update": 0}
 
     async def run(self) -> None:
         """Main loop: consume and execute orders."""
@@ -76,11 +76,10 @@ class AsyncExecutor:
             # Get balance
             balance = await self.client.get_balance()
             self._balance_cache = {
-                "spot": balance.spot_usdt,
                 "futures": balance.futures_usdt,
                 "last_update": time.time(),
             }
-            logger.info(f"Balance: Spot=${balance.spot_usdt:.2f}, Futures=${balance.futures_usdt:.2f}")
+            logger.info(f"Futures Balance: ${balance.futures_usdt:.2f}")
 
             # Get positions and sync to Redis
             positions = await self.client.get_all_positions()
@@ -109,15 +108,13 @@ class AsyncExecutor:
 
             # Store balance in Redis for strategies to access
             await self.redis.hset("account", {
-                "spot_balance": str(balance.spot_usdt),
                 "futures_balance": str(balance.futures_usdt),
                 "last_sync": str(int(time.time())),
             })
 
-            # Initialize LeverageManager with current equity
+            # Initialize LeverageManager with futures equity
             if self.leverage_manager:
-                total_equity = balance.spot_usdt + balance.futures_usdt
-                await self.leverage_manager.initialize(initial_equity=total_equity)
+                await self.leverage_manager.initialize(initial_equity=balance.futures_usdt)
                 logger.info(
                     f"LeverageManager initialized: equity=${total_equity:,.2f}, "
                     f"tier={self.leverage_manager.current_tier.name} "
@@ -134,13 +131,11 @@ class AsyncExecutor:
                 await asyncio.sleep(60)  # Refresh every minute
                 balance = await self.client.get_balance()
                 self._balance_cache = {
-                    "spot": balance.spot_usdt,
                     "futures": balance.futures_usdt,
                     "last_update": time.time(),
                 }
                 # Update Redis
                 await self.redis.hset("account", {
-                    "spot_balance": str(balance.spot_usdt),
                     "futures_balance": str(balance.futures_usdt),
                     "last_sync": str(int(time.time())),
                 })
@@ -156,7 +151,7 @@ class AsyncExecutor:
             return None
 
         # Check balance before order
-        market = order.get("market", "spot")
+        market = order.get("market", "futures")
         required_balance = self._estimate_order_value(order)
         available = self._balance_cache.get(market, 0)
 
@@ -166,7 +161,7 @@ class AsyncExecutor:
             return None
 
         try:
-            # Check if this is an exit (sell for spot, buy to cover for futures)
+            # Check if this is an exit (closing an existing position)
             is_exit = await self._is_exit_order(order)
 
             # Check leverage allowance for futures entry orders
@@ -240,13 +235,10 @@ class AsyncExecutor:
 
         pos_side = position.get("side", "buy")
 
-        # Exit if selling a long position or buying to cover a short
-        if market == "spot":
-            return side == "sell" and pos_side == "buy"
-        else:  # futures
-            return (side == "buy" and pos_side == "sell") or (side == "sell" and pos_side == "buy")
+        # Exit: selling a long (buy) position or buying to cover a short (sell) position
+        return (side == "buy" and pos_side == "sell") or (side == "sell" and pos_side == "buy")
 
-    async def _get_position_side(self, order: dict, is_exit: bool) -> str | None:
+    async def _get_position_side(self, order: dict, is_exit: bool) -> str:
         """Determine position_side for futures hedge mode.
 
         In hedge mode, orders must specify which position they affect:
@@ -258,12 +250,9 @@ class AsyncExecutor:
             is_exit: Whether this order is closing an existing position.
 
         Returns:
-            "LONG" or "SHORT" for futures orders, None for spot.
+            "LONG" or "SHORT" for futures orders.
         """
-        market = order.get("market", "spot")
-        if market != "futures":
-            return None
-
+        market = order.get("market", "futures")
         side = order["side"]
 
         if is_exit:
@@ -351,10 +340,9 @@ class AsyncExecutor:
             return False
 
         # Minimum balance check
-        spot = self._balance_cache.get("spot", 0)
         futures = self._balance_cache.get("futures", 0)
-        if spot < self.min_balance and futures < self.min_balance:
-            logger.warning(f"Balance too low: spot={spot}, futures={futures}")
+        if futures < self.min_balance:
+            logger.warning(f"Futures balance too low: {futures}")
             return False
 
         return True

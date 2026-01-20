@@ -20,7 +20,7 @@ async def test_feed_task_publishes_price(mock_redis):
     # Simulate receiving a price update
     await task._publish_price({
         "price": "43250.50",
-        "market": "spot",
+        "market": "futures",
     })
 
     mock_redis.publish.assert_called_once()
@@ -28,7 +28,7 @@ async def test_feed_task_publishes_price(mock_redis):
     assert call_args[0][0] == "market:prices"
     assert call_args[0][1]["symbol"] == "BTC"
     assert call_args[0][1]["price"] == "43250.50"
-    assert call_args[0][1]["market"] == "spot"
+    assert call_args[0][1]["market"] == "futures"
     assert call_args[0][1]["source"] == "binance"
 
 

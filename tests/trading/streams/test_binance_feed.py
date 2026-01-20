@@ -17,7 +17,7 @@ def test_binance_feed_builds_ws_url():
 
     url = task._build_ws_url()
     assert "btcusdt@trade" in url
-    assert "wss://stream.binance.com" in url
+    assert "wss://fstream.binance.com" in url
 
 
 def test_binance_feed_parses_trade_message():
@@ -33,7 +33,7 @@ def test_binance_feed_parses_trade_message():
 
     parsed = task._parse_trade_message(raw_msg)
     assert parsed["price"] == "43250.50"
-    assert parsed["market"] == "spot"
+    assert parsed["market"] == "futures"
 
 
 def test_binance_futures_feed_parses_message():

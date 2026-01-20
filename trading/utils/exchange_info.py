@@ -41,7 +41,7 @@ class ExchangeInfoCache:
     from the exchange. Falls back to defaults if fetch fails.
     """
 
-    def __init__(self, market: str = "spot", ttl: int = CACHE_TTL):
+    def __init__(self, market: str = "futures", ttl: int = CACHE_TTL):
         """Initialize cache.
 
         Args:
@@ -195,7 +195,7 @@ _spot_cache: ExchangeInfoCache | None = None
 _futures_cache: ExchangeInfoCache | None = None
 
 
-def get_exchange_cache(market: str = "spot") -> ExchangeInfoCache:
+def get_exchange_cache(market: str = "futures") -> ExchangeInfoCache:
     """Get the global exchange info cache.
 
     Args:
@@ -218,7 +218,7 @@ def get_exchange_cache(market: str = "spot") -> ExchangeInfoCache:
 
 async def get_symbol_info_live(
     symbol: str,
-    market: str = "spot",
+    market: str = "futures",
 ) -> SymbolInfo:
     """Get symbol info, fetching from exchange if needed.
 

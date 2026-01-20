@@ -316,7 +316,7 @@ class TestParamOverrides:
 
     def test_param_overrides_does_not_mutate_original(self, factory):
         """Test that param_overrides doesn't mutate the original config."""
-        original_config = {"position_size": 0.01, "market": "spot"}
+        original_config = {"position_size": 0.01, "market": "futures"}
         factory.create_entry(
             "v35_long",
             original_config,
@@ -325,7 +325,7 @@ class TestParamOverrides:
 
         # Original config should be unchanged
         assert original_config["position_size"] == 0.01
-        assert original_config["market"] == "spot"
+        assert original_config["market"] == "futures"
 
     def test_param_overrides_exit_strategy(self, factory):
         """Test param_overrides works for exit strategy."""

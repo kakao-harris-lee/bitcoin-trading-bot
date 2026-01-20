@@ -101,7 +101,7 @@ class StrategySpec:
     exit_class: type
     exit_params_class: type
     persistent_exit_class: type | None = None
-    market: str = "spot"
+    market: str = "futures"
     timeframe: str = "day"
 
 
@@ -124,7 +124,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=SidewaysExitStrategy,
         exit_params_class=SidewaysExitParams,
         persistent_exit_class=None,  # Stateless, no persistence needed
-        market="spot",
+        market="futures",
         timeframe="day",
     ),
     "short_v1": StrategySpec(
@@ -144,7 +144,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=ExperimentalExitStrategy,
         exit_params_class=ExperimentalExitParams,
         persistent_exit_class=None,
-        market="spot",
+        market="futures",
         timeframe="day",
     ),
 }

@@ -17,7 +17,7 @@ class TestStrategy(BaseStrategyTask):
             return {
                 "symbol": symbol,
                 "side": "buy",
-                "market": "spot",
+                "market": "futures",
                 "quantity": "0.01",
                 "reason": "price above 40000",
             }
@@ -40,11 +40,11 @@ async def test_strategy_buffers_prices(mock_redis):
         name="test",
         symbols=["BTC"],
         redis=mock_redis,
-        market="spot",
+        market="futures",
     )
 
     # Process price message
-    msg = {"symbol": "BTC", "price": "43000", "market": "spot", "_id": "1-0"}
+    msg = {"symbol": "BTC", "price": "43000", "market": "futures", "_id": "1-0"}
     await strategy._handle_message(msg)
 
     assert "BTC" in strategy.price_buffer
@@ -59,11 +59,11 @@ async def test_strategy_publishes_order(mock_redis):
         name="test",
         symbols=["BTC"],
         redis=mock_redis,
-        market="spot",
+        market="futures",
     )
 
     # Process price that triggers signal
-    msg = {"symbol": "BTC", "price": "43000", "market": "spot", "_id": "1-0"}
+    msg = {"symbol": "BTC", "price": "43000", "market": "futures", "_id": "1-0"}
     await strategy._handle_message(msg)
 
     # Verify order published
@@ -89,10 +89,10 @@ async def test_strategy_skips_when_position_exists(mock_redis):
         name="test",
         symbols=["BTC"],
         redis=mock_redis,
-        market="spot",
+        market="futures",
     )
 
-    msg = {"symbol": "BTC", "price": "43000", "market": "spot", "_id": "1-0"}
+    msg = {"symbol": "BTC", "price": "43000", "market": "futures", "_id": "1-0"}
     await strategy._handle_message(msg)
 
     # Should not publish order (position exists)
@@ -108,10 +108,10 @@ async def test_strategy_skips_when_blocked(mock_redis):
         name="test",
         symbols=["BTC"],
         redis=mock_redis,
-        market="spot",
+        market="futures",
     )
 
-    msg = {"symbol": "BTC", "price": "43000", "market": "spot", "_id": "1-0"}
+    msg = {"symbol": "BTC", "price": "43000", "market": "futures", "_id": "1-0"}
     await strategy._handle_message(msg)
 
     # Should not publish order
@@ -137,7 +137,7 @@ async def test_strategy_publishes_exit_signal_with_smart_exit(mock_redis):
             return {
                 "symbol": symbol,
                 "side": "sell",
-                "market": "spot",
+                "market": "futures",
                 "quantity": position["quantity"],
                 "trigger_price": "42000",
                 "reason": "test exit",
@@ -147,11 +147,11 @@ async def test_strategy_publishes_exit_signal_with_smart_exit(mock_redis):
         name="test",
         symbols=["BTC"],
         redis=mock_redis,
-        market="spot",
+        market="futures",
         use_smart_exit=True,
     )
 
-    msg = {"symbol": "BTC", "price": "42000", "market": "spot", "_id": "1-0"}
+    msg = {"symbol": "BTC", "price": "42000", "market": "futures", "_id": "1-0"}
     await strategy._handle_message(msg)
 
     # Should publish to exit_signals, not orders
@@ -187,7 +187,7 @@ async def test_strategy_publishes_to_orders_without_smart_exit(mock_redis):
             return {
                 "symbol": symbol,
                 "side": "sell",
-                "market": "spot",
+                "market": "futures",
                 "quantity": position["quantity"],
                 "reason": "test exit",
             }
@@ -196,11 +196,11 @@ async def test_strategy_publishes_to_orders_without_smart_exit(mock_redis):
         name="test",
         symbols=["BTC"],
         redis=mock_redis,
-        market="spot",
+        market="futures",
         use_smart_exit=False,  # Default behavior
     )
 
-    msg = {"symbol": "BTC", "price": "42000", "market": "spot", "_id": "1-0"}
+    msg = {"symbol": "BTC", "price": "42000", "market": "futures", "_id": "1-0"}
     await strategy._handle_message(msg)
 
     # Should publish to orders stream (legacy behavior)
@@ -209,7 +209,7 @@ async def test_strategy_publishes_to_orders_without_smart_exit(mock_redis):
     assert calls[0][0][0] == "orders"
 
     # Position should be cleared
-    mock_redis.clear_position.assert_called_once_with("BTC", "spot")
+    mock_redis.clear_position.assert_called_once_with("BTC", "futures")
 
 
 @pytest.mark.asyncio
@@ -232,7 +232,7 @@ async def test_exit_signal_adds_trigger_price_from_buffer(mock_redis):
             return {
                 "symbol": symbol,
                 "side": "sell",
-                "market": "spot",
+                "market": "futures",
                 "quantity": position["quantity"],
                 "reason": "test exit",
             }
@@ -241,11 +241,11 @@ async def test_exit_signal_adds_trigger_price_from_buffer(mock_redis):
         name="test",
         symbols=["BTC"],
         redis=mock_redis,
-        market="spot",
+        market="futures",
         use_smart_exit=True,
     )
 
-    msg = {"symbol": "BTC", "price": "42500", "market": "spot", "_id": "1-0"}
+    msg = {"symbol": "BTC", "price": "42500", "market": "futures", "_id": "1-0"}
     await strategy._handle_message(msg)
 
     # Should have trigger_price from buffer

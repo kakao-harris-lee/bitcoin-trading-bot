@@ -125,7 +125,7 @@ async def test_full_exit_flow(mock_redis, mock_binance, integration_config, mock
     # Simulate exit signal
     signal = {
         "symbol": "BTC",
-        "market": "spot",
+        "market": "futures",
         "quantity": "0.1",
         "trigger_price": "95000",
         "strategy": "v35_long",
@@ -136,12 +136,12 @@ async def test_full_exit_flow(mock_redis, mock_binance, integration_config, mock
 
     # Verify ladder orders placed
     assert mock_binance.limit_order.call_count == 2
-    assert "BTC:spot" in executor.active_exits
+    assert "BTC:futures" in executor.active_exits
 
     # Verify exit plan created correctly
-    plan = executor.active_exits["BTC:spot"]
+    plan = executor.active_exits["BTC:futures"]
     assert plan.symbol == "BTC"
-    assert plan.market == "spot"
+    assert plan.market == "futures"
     assert plan.total_quantity == 0.1
     assert plan.trigger_price == 95000.0
     assert plan.strategy == "v35_long"
@@ -156,7 +156,7 @@ async def test_exit_flow_ladder_prices(mock_redis, mock_binance, integration_con
 
     signal = {
         "symbol": "ETH",
-        "market": "spot",
+        "market": "futures",
         "quantity": "1.0",
         "trigger_price": "3000",
         "strategy": "sideways_v2",
@@ -181,7 +181,7 @@ async def test_exit_flow_ladder_quantities(mock_redis, mock_binance, integration
 
     signal = {
         "symbol": "SOL",
-        "market": "spot",
+        "market": "futures",
         "quantity": "10.0",
         "trigger_price": "150",
         "strategy": "v35_long",
@@ -229,7 +229,7 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
     # Exit BTC position
     btc_signal = {
         "symbol": "BTC",
-        "market": "spot",
+        "market": "futures",
         "quantity": "0.1",
         "trigger_price": "95000",
         "strategy": "v35_long",
@@ -238,7 +238,7 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
     # Exit ETH position
     eth_signal = {
         "symbol": "ETH",
-        "market": "spot",
+        "market": "futures",
         "quantity": "2.0",
         "trigger_price": "3500",
         "strategy": "v35_long",
@@ -249,8 +249,8 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
         await executor._handle_exit_signal(eth_signal)
 
     # Both exits tracked
-    assert "BTC:spot" in executor.active_exits
-    assert "ETH:spot" in executor.active_exits
+    assert "BTC:futures" in executor.active_exits
+    assert "ETH:futures" in executor.active_exits
 
     # 4 total orders (2 per symbol)
     assert mock_binance.limit_order.call_count == 4
@@ -273,7 +273,7 @@ async def test_exit_flow_stores_order_results(mock_redis, mock_binance, integrat
 
     signal = {
         "symbol": "BTC",
-        "market": "spot",
+        "market": "futures",
         "quantity": "0.1",
         "trigger_price": "95000",
         "strategy": "v35_long",
@@ -282,7 +282,7 @@ async def test_exit_flow_stores_order_results(mock_redis, mock_binance, integrat
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
         await executor._handle_exit_signal(signal)
 
-    plan = executor.active_exits["BTC:spot"]
+    plan = executor.active_exits["BTC:futures"]
     assert len(plan.ladder_orders) == 2
     assert plan.ladder_orders[0]["order_id"] == 11111
     assert plan.ladder_orders[1]["order_id"] == 22222

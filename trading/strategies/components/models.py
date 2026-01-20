@@ -88,7 +88,7 @@ class Signal:
 
     symbol: str
     side: Literal["buy", "sell"]
-    market: Literal["spot", "futures"]
+    market: Literal["futures"]
     quantity: float
     reason: str
     # Optional exit-specific fields
@@ -297,7 +297,7 @@ class Position:
     entry_price: float
     quantity: float
     strategy: str
-    market: Literal["spot", "futures"]
+    market: Literal["futures"]
     timestamp: int  # Unix timestamp in milliseconds
     side: str = "buy"  # "buy" for long, "sell" for short
     leverage: int = 1  # leverage multiplier

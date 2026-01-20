@@ -34,7 +34,7 @@ class ShortExitParams:
     mfi_bull: float = 52.0
     adx_trend: float = 20.0
 
-    market: Literal["spot", "futures"] = "futures"
+    market: Literal["futures"] = "futures"
 
 
 @exit_strategy(params_class=ShortExitParams)

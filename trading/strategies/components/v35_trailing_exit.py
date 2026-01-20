@@ -67,7 +67,7 @@ class V35ExitParams:
     mfi_bear: float = 41.0
     adx_trend: float = 18.0
 
-    market: Literal["spot", "futures"] = "spot"
+    market: Literal["futures"] = "futures"
 
 
 @exit_strategy(params_class=V35ExitParams)

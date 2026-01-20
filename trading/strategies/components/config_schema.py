@@ -59,13 +59,13 @@ def validate_strategy_config(
     """
     warnings: list[str] = []
 
-    # Validate market if specified
+    # Validate market if specified (futures only - spot trading removed)
     if "market" in config:
         market = config["market"]
-        if market not in ("spot", "futures"):
+        if market != "futures":
             raise ConfigValidationError(
                 f"Strategy '{strategy_name}': Invalid market '{market}'. "
-                f"Must be 'spot' or 'futures'."
+                f"Only 'futures' is supported."
             )
 
     # Validate leverage if specified

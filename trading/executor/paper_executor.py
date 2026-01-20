@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Valid order sides and markets for validation
 VALID_SIDES = {"buy", "sell"}
-VALID_MARKETS = {"spot", "futures"}
+VALID_MARKETS = {"futures"}  # Spot trading removed
 
 
 class PaperExecutor:

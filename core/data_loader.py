@@ -87,25 +87,30 @@ class DataLoader:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> pd.DataFrame:
-        """Binance 데이터 로드"""
+        """Binance 데이터 로드 with parameterized queries."""
         if timeframe not in self.BINANCE_TABLE_MAP:
             raise ValueError(f"지원하지 않는 타임프레임: {timeframe}")
 
         table_name = self.BINANCE_TABLE_MAP[timeframe]
-        query = f"SELECT * FROM {table_name}"
+
+        # Build query with parameterized placeholders
+        params = []
         conditions = []
 
         if start_date:
-            conditions.append(f"timestamp >= '{start_date}'")
+            conditions.append("timestamp >= ?")
+            params.append(start_date)
         if end_date:
-            conditions.append(f"timestamp <= '{end_date}'")
+            conditions.append("timestamp <= ?")
+            params.append(end_date)
 
+        # Table name is safe (from internal mapping), but dates use parameters
+        query = f"SELECT * FROM {table_name}"
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
-
         query += " ORDER BY timestamp ASC"
 
-        df = pd.read_sql_query(query, self.conn)
+        df = pd.read_sql_query(query, self.conn, params=params)
 
         # Binance 컬럼명은 이미 표준 형식
         df['timestamp'] = pd.to_datetime(df['timestamp'])

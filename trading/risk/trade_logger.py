@@ -147,7 +147,7 @@ class TradeLogger:
     def log_trade(self, action: str, price: float, volume: float,
                   profit: Optional[float] = None, profit_pct: Optional[float] = None,
                   exchange: str = 'binance', symbol: str = 'BTC',
-                  market: str = 'spot', paper: bool = True):
+                  market: str = 'futures', paper: bool = True):
         """
         거래 내역 기록
 

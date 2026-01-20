@@ -28,7 +28,7 @@ class BinanceFeedTask(SymbolFeedTask):
         self,
         symbol: str,
         redis: RedisStreams,
-        market: str = "spot",
+        market: str = "futures",
         warmup_enabled: bool = True,
         warmup_limit: int = 200,
         warmup_interval: str = "1h",

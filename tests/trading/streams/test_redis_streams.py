@@ -287,7 +287,7 @@ class TestRedisStreamsUnit:
         # Test with exit_signals stream
         msg_id = await redis_streams.publish("exit_signals", {
             "symbol": "BTC",
-            "market": "spot",
+            "market": "futures",
             "quantity": "0.05",
             "trigger_price": "43000"
         })
@@ -374,7 +374,7 @@ class TestRedisStreamsIntegration:
         # Publish exit signal
         msg_id = await connected_streams.publish(stream, {
             "symbol": "BTC",
-            "market": "spot",
+            "market": "futures",
             "quantity": "0.05",
             "trigger_price": "43000",
             "strategy": "v35_long"
@@ -385,7 +385,7 @@ class TestRedisStreamsIntegration:
         messages = await connected_streams.consume(stream, group, consumer, count=1)
         assert len(messages) == 1
         assert messages[0]["symbol"] == "BTC"
-        assert messages[0]["market"] == "spot"
+        assert messages[0]["market"] == "futures"
         assert messages[0]["quantity"] == "0.05"
         assert messages[0]["trigger_price"] == "43000"
         assert messages[0]["strategy"] == "v35_long"

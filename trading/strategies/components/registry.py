@@ -199,7 +199,7 @@ def build_params_from_config(
         class V35EntryParams:
             mfi_bull: float = 52.0
             position_size: float = 0.01
-            market: str = "spot"
+            market: str = "futures"
 
         params = build_params_from_config(
             V35EntryParams,

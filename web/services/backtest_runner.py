@@ -992,7 +992,7 @@ def cleanup_old_jobs(max_age_hours: int = 24) -> int:
     return removed
 
 
-def get_all_jobs() -> list:
+def get_all_jobs(limit: int = 50) -> list:
     """Get all backtest jobs sorted by creation time (newest first).
 
     Merges in-memory running jobs with database history.
@@ -1004,7 +1004,7 @@ def get_all_jobs() -> list:
     jobs_by_id = {}
 
     # First, load history from database
-    db_history = backtest_db.get_history(limit=50)
+    db_history = backtest_db.get_history(limit=limit)
     for db_job in db_history:
         jobs_by_id[db_job['job_id']] = db_job
 

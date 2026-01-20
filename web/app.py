@@ -55,6 +55,13 @@ except Exception as e:
     print(f"Failed to import backtest_runner: {e}")
     backtest_runner = None
 
+# Import backtest DB (for history/details fallback)
+try:
+    from services import backtest_db
+except Exception as e:
+    print(f"Failed to import backtest_db: {e}")
+    backtest_db = None
+
 # Import metrics service for real-time dashboard
 try:
     from services.metrics_service import metrics_service
@@ -1350,11 +1357,19 @@ def run_backtest():
         return jsonify({'error': f'Invalid strategy: {strategy}'}), 400
 
     # Build config
+    initial_capital = data.get('initial_capital', 10000)
+    try:
+        initial_capital = float(initial_capital)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'initial_capital must be a number'}), 400
+    if initial_capital <= 0:
+        return jsonify({'error': 'initial_capital must be > 0'}), 400
+
     config = {
         'strategy': strategy,
         'start_date': data.get('start_date', '2024-01-01'),
         'end_date': data.get('end_date', '2024-12-31'),
-        'initial_capital': data.get('initial_capital', 10000),
+        'initial_capital': initial_capital,
     }
 
     # Start backtest (with rate limiting)
@@ -1379,10 +1394,20 @@ def get_backtest_status(job_id: str):
         return jsonify({'error': 'Backtest service not available'}), 503
 
     job = backtest_runner.get_job(job_id)
-    if not job:
-        return jsonify({'error': 'Job not found'}), 404
+    if job:
+        return jsonify(job.to_dict())
 
-    return jsonify(job.to_dict())
+    # Fallback to persisted history (supports viewing results after server restart)
+    if backtest_db:
+        persisted = backtest_db.get_backtest(job_id)
+        if persisted:
+            status = persisted.get('status')
+            progress = 100 if status in ('completed', 'failed', 'cancelled') else 0
+            persisted['progress'] = progress
+            persisted.setdefault('started_at', None)
+            return jsonify(persisted)
+
+    return jsonify({'error': 'Job not found'}), 404
 
 
 @app.route("/api/backtest/cancel/<job_id>", methods=["POST"])
@@ -1407,7 +1432,14 @@ def get_backtest_history():
     if not backtest_runner:
         return jsonify({'error': 'Backtest service not available'}), 503
 
-    jobs = backtest_runner.get_all_jobs()
+    limit_raw = request.args.get('limit', '50')
+    try:
+        limit = int(limit_raw)
+    except ValueError:
+        return jsonify({'error': 'Invalid limit'}), 400
+    limit = max(1, min(limit, 200))
+
+    jobs = backtest_runner.get_all_jobs(limit=limit)
     return jsonify({'jobs': jobs})
 
 

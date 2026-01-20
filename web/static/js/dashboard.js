@@ -1936,7 +1936,35 @@ let backtestState = {
     chart: null
 };
 
+function setBacktestMessage(message, level = 'info') {
+    const el = document.getElementById('backtest-message');
+    if (!el) return;
+
+    if (!message) {
+        el.style.display = 'none';
+        el.textContent = '';
+        el.classList.remove('error', 'success');
+        return;
+    }
+
+    el.textContent = message;
+    el.style.display = 'block';
+    el.classList.toggle('error', level === 'error');
+    el.classList.toggle('success', level === 'success');
+}
+
 function initBacktest() {
+    // Sensible default date range (last 365 days)
+    const startDateInput = document.getElementById('backtest-start-date');
+    const endDateInput = document.getElementById('backtest-end-date');
+    if (startDateInput && endDateInput && (!startDateInput.value || !endDateInput.value)) {
+        const today = new Date();
+        const end = today.toISOString().slice(0, 10);
+        const start = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        endDateInput.value = end;
+        startDateInput.value = start;
+    }
+
     // Load available strategies
     fetchStrategies();
 
@@ -1973,6 +2001,7 @@ async function fetchStrategies() {
     } catch (error) {
         console.error('Failed to load strategies:', error);
         selectEl.innerHTML = '<option value="">Error loading strategies</option>';
+        setBacktestMessage('Failed to load strategies: ' + error.message, 'error');
     }
 }
 
@@ -1989,18 +2018,24 @@ async function startBacktest() {
     // Validate
     const strategy = strategySelect.value;
     if (!strategy) {
-        alert('Please select a strategy');
+        setBacktestMessage('Please select a strategy.', 'error');
         return;
     }
 
     const startDate = startDateInput.value;
     const endDate = endDateInput.value;
     if (!startDate || !endDate) {
-        alert('Please select start and end dates');
+        setBacktestMessage('Please select start and end dates.', 'error');
         return;
     }
     if (startDate > endDate) {
-        alert('Start date must be before end date');
+        setBacktestMessage('Start date must be before end date.', 'error');
+        return;
+    }
+
+    const initialCapital = parseFloat(capitalInput.value);
+    if (!Number.isFinite(initialCapital) || initialCapital <= 0) {
+        setBacktestMessage('Initial capital must be a positive number.', 'error');
         return;
     }
 
@@ -2008,7 +2043,7 @@ async function startBacktest() {
         strategy: strategy,
         start_date: startDate,
         end_date: endDate,
-        initial_capital: parseFloat(capitalInput.value) || 10000
+        initial_capital: initialCapital
     };
 
     // Update UI
@@ -2017,6 +2052,7 @@ async function startBacktest() {
     cancelBtn.style.display = 'inline-block';
     progressDiv.style.display = 'block';
     resultsDiv.style.display = 'none';
+    setBacktestMessage(null);
 
     updateBacktestProgress(0, 'Starting backtest...');
 
@@ -2031,7 +2067,7 @@ async function startBacktest() {
     } catch (error) {
         console.error('Failed to start backtest:', error);
         resetBacktestUI();
-        alert('Failed to start backtest: ' + error.message);
+        setBacktestMessage('Failed to start backtest: ' + error.message, 'error');
     }
 }
 
@@ -2053,23 +2089,26 @@ function pollBacktestStatus(jobId) {
                 renderBacktestResults(data.result);
                 resetBacktestUI();
                 loadBacktestHistory();  // Refresh history list
+                setBacktestMessage('Backtest completed.', 'success');
             } else if (data.status === 'failed') {
                 clearInterval(backtestState.pollInterval);
                 backtestState.pollInterval = null;
                 resetBacktestUI();
                 loadBacktestHistory();  // Refresh history list
-                alert('Backtest failed: ' + (data.error || 'Unknown error'));
+                setBacktestMessage('Backtest failed: ' + (data.error || 'Unknown error'), 'error');
             } else if (data.status === 'cancelled') {
                 clearInterval(backtestState.pollInterval);
                 backtestState.pollInterval = null;
                 resetBacktestUI();
                 loadBacktestHistory();  // Refresh history list
+                setBacktestMessage('Backtest cancelled.', 'info');
             }
         } catch (error) {
             console.error('Poll error:', error);
             clearInterval(backtestState.pollInterval);
             backtestState.pollInterval = null;
             resetBacktestUI();
+            setBacktestMessage('Lost connection while polling: ' + error.message, 'error');
         }
     };
 
@@ -2114,12 +2153,19 @@ function updateBacktestProgress(progress, text) {
 async function cancelBacktest() {
     if (!backtestState.currentJobId) return;
 
+    const cancelBtn = document.getElementById('backtest-cancel-btn');
+    if (cancelBtn) {
+        cancelBtn.disabled = true;
+        cancelBtn.textContent = 'Cancelling...';
+    }
+
     try {
         await apiFetch(`/api/backtest/cancel/${backtestState.currentJobId}`, {
             method: 'POST'
         });
     } catch (error) {
         console.error('Failed to cancel:', error);
+        setBacktestMessage('Failed to cancel: ' + error.message, 'error');
     }
 
     if (backtestState.pollInterval) {
@@ -2142,6 +2188,8 @@ function resetBacktestUI() {
     }
     if (cancelBtn) {
         cancelBtn.style.display = 'none';
+        cancelBtn.disabled = false;
+        cancelBtn.textContent = 'Cancel';
     }
     if (progressDiv) {
         progressDiv.style.display = 'none';
@@ -2305,6 +2353,13 @@ function renderBacktestEquityCurve(equityData, benchmarkData) {
 
     const strategyValues = equityData.map(p => p.equity || p.value || p);
 
+    function formatCompactCurrency(value) {
+        const abs = Math.abs(value);
+        if (abs >= 1_000_000) return (value / 1_000_000).toFixed(1) + 'M';
+        if (abs >= 1_000) return (value / 1_000).toFixed(1) + 'K';
+        return value.toFixed(0);
+    }
+
     // Build datasets
     const datasets = [{
         label: 'Strategy',
@@ -2380,11 +2435,11 @@ function renderBacktestEquityCurve(equityData, benchmarkData) {
                     grid: { color: 'rgba(255, 255, 255, 0.05)' },
                     ticks: {
                         color: '#2ecc71',
-                        callback: value => (value / 1000000).toFixed(1) + 'M'
+                        callback: value => formatCompactCurrency(value)
                     },
                     title: {
                         display: hasBenchmark,
-                        text: 'Strategy ($)',
+                        text: 'Strategy (USDT)',
                         color: '#2ecc71'
                     }
                 },
@@ -2395,11 +2450,11 @@ function renderBacktestEquityCurve(equityData, benchmarkData) {
                     grid: { drawOnChartArea: false },
                     ticks: {
                         color: '#3498db',
-                        callback: value => (value / 1000000).toFixed(1) + 'M'
+                        callback: value => formatCompactCurrency(value)
                     },
                     title: {
                         display: hasBenchmark,
-                        text: 'Buy & Hold ($)',
+                        text: 'Buy & Hold (USDT)',
                         color: '#3498db'
                     }
                 }
@@ -2513,20 +2568,51 @@ async function loadBacktestJob(jobId) {
     try {
         const data = await apiFetch(`/api/backtest/status/${jobId}`);
 
+        // Highlight active item
+        document.querySelectorAll('.backtest-history-item').forEach(el => {
+            el.classList.remove('active');
+        });
+        const activeItem = document.querySelector(`[data-job-id="${jobId}"]`);
+        if (activeItem) {
+            activeItem.classList.add('active');
+        }
+
+        if (data.status === 'running' || data.status === 'pending') {
+            backtestState.currentJobId = data.job_id;
+            const runBtn = document.getElementById('backtest-run-btn');
+            const cancelBtn = document.getElementById('backtest-cancel-btn');
+            const progressDiv = document.getElementById('backtest-progress');
+            const resultsDiv = document.getElementById('backtest-results');
+
+            if (runBtn) {
+                runBtn.disabled = true;
+                runBtn.textContent = 'Running...';
+            }
+            if (cancelBtn) {
+                cancelBtn.style.display = 'inline-block';
+            }
+            if (progressDiv) {
+                progressDiv.style.display = 'block';
+            }
+            if (resultsDiv) {
+                resultsDiv.style.display = 'none';
+            }
+            setBacktestMessage('Resumed job ' + jobId + ' (' + data.status + ').');
+            pollBacktestStatus(jobId);
+            return;
+        }
+
         if (data.status === 'completed' && data.result) {
             renderBacktestResults(data.result);
-
-            // Highlight active item
-            document.querySelectorAll('.backtest-history-item').forEach(el => {
-                el.classList.remove('active');
-            });
-            const activeItem = document.querySelector(`[data-job-id="${jobId}"]`);
-            if (activeItem) {
-                activeItem.classList.add('active');
-            }
+            setBacktestMessage(null);
+        } else if (data.status === 'failed') {
+            setBacktestMessage('Backtest failed: ' + (data.error || 'Unknown error'), 'error');
+        } else if (data.status === 'cancelled') {
+            setBacktestMessage('Backtest cancelled.', 'info');
         }
     } catch (error) {
         console.error('Failed to load backtest job:', error);
+        setBacktestMessage('Failed to load backtest job: ' + error.message, 'error');
     }
 }
 

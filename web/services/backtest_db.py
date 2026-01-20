@@ -123,13 +123,33 @@ def save_backtest(job_id: str, config: dict, status: str,
             'profit_factor': result.get('profit_factor'),
         }
 
-    # Prepare result JSON (exclude large data for storage efficiency)
+    def _downsample_list(values: list, max_len: int) -> list:
+        if len(values) <= max_len:
+            return values
+        step = max(1, len(values) // max_len)
+        return values[::step]
+
+    def _cap_result_for_storage(raw: dict) -> dict:
+        capped = dict(raw)
+
+        equity_curve = capped.get('equity_curve')
+        if isinstance(equity_curve, list):
+            capped['equity_curve'] = _downsample_list(equity_curve, max_len=5000)
+
+        benchmark_curve = capped.get('benchmark_curve')
+        if isinstance(benchmark_curve, list):
+            capped['benchmark_curve'] = _downsample_list(benchmark_curve, max_len=5000)
+
+        trades = capped.get('trades')
+        if isinstance(trades, list):
+            capped['trades'] = trades[:200]
+
+        return capped
+
+    # Prepare result JSON for detail view (cap large arrays)
     result_json = None
     if result:
-        # Store result without equity_curve and trades (too large)
-        result_copy = {k: v for k, v in result.items()
-                       if k not in ('equity_curve', 'trades', 'benchmark_curve')}
-        result_json = json.dumps(result_copy)
+        result_json = json.dumps(_cap_result_for_storage(result))
 
     cursor.execute("""
         INSERT INTO backtest_history (

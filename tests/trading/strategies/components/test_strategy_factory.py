@@ -134,7 +134,7 @@ class TestV35LongFutures:
     def test_get_market_default_from_spec(self, factory):
         """Test get_market returns spec default when no config."""
         market = factory.get_market("v35_long")
-        assert market == "spot"  # Default in STRATEGY_REGISTRY
+        assert market == "futures"  # Default in STRATEGY_REGISTRY
 
 
 class TestSidewaysV2Futures:

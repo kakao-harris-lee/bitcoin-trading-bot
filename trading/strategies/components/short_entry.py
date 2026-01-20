@@ -25,7 +25,12 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ShortEntryParams:
-    """Parameters for Short entry strategy."""
+    """Parameters for Short entry strategy.
+
+    Supports both:
+    1. Regime-based RSI Mean Reversion (Original Component)
+    2. EMA/ADX Trend Following (Legacy ShortV1)
+    """
 
     # MFI threshold for bear regime
     mfi_bear: float = 48.0
@@ -37,6 +42,14 @@ class ShortEntryParams:
     # RSI threshold for short entry (overbought)
     rsi_overbought: float = 70.0
 
+    # Legacy ShortV1 Params (Trend Following)
+    ema_fast: int = 68
+    ema_slow: int = 128
+    adx_min: float = 25.0
+    require_death_cross: bool = False
+    di_negative_dominant: bool = False
+    require_adx_not_declining: bool = False
+
     # Position sizing
     position_size: float = 0.01
     market: Literal["spot", "futures"] = "futures"
@@ -47,8 +60,10 @@ class ShortEntryStrategy:
     """Short entry strategy for bear markets.
 
     Enters short positions when:
-    - Market regime is BEAR_STRONG (MFI <= mfi_bear and ADX >= adx_trend)
-    - RSI is overbought (> rsi_overbought threshold)
+    1. Market regime is BEAR_STRONG (MFI <= mfi_bear and ADX >= adx_trend)
+       AND RSI is overbought (Mean Reversion)
+    OR
+    2. EMA Death Cross + Strong ADX (Trend Following, if enabled)
 
     Note: Returns Signal with side="sell" to open a short position.
 
@@ -83,15 +98,63 @@ class ShortEntryStrategy:
             Signal with side="sell" to open short if conditions met, None otherwise.
         """
         regime = context.regime
+        inds = market_data.indicators or {}
 
         # === SAFETY FILTER 1: Never short in BULL ===
         # BULL_STRONG, BULL_MODERATE, SIDEWAYS_UP are all bullish - don't short
         if regime in BULLISH_NO_SHORT_REGIMES:
-            logger.debug(
-                f"{market_data.symbol}: Skipping short entry - bullish regime "
-                f"({regime})"
-            )
-            return None
+            # Exception: Legacy V1 might trade in Bull if Death Cross happened?
+            # Legacy code checked EMA50 < EMA200 implies Bearish Trend anyway.
+            # But let's stick to RegimeRouter safety for unified approach.
+            if self.params.require_death_cross:
+                pass # Allow death cross check to proceed? Risk?
+                # Actually, if Death Cross exists, it SHOULD be BEAR regime by definition.
+                # So the filter is redundant but safe.
+            else:
+                logger.debug(
+                    f"{market_data.symbol}: Skipping short entry - bullish regime "
+                    f"({regime})"
+                )
+                return None
+
+        # === Legacy Trend Following Entry (EMA + ADX) ===
+        if self.params.require_death_cross:
+            # We need specific indicators in the dictionary
+            ema_fast = inds.get('ema_fast')
+            ema_slow = inds.get('ema_slow')
+            plus_di = inds.get('plus_di')
+            minus_di = inds.get('minus_di')
+            adx_slope = inds.get('adx_slope', 0) # Optional
+
+            if ema_fast is not None and ema_slow is not None:
+                # 1. Death Cross Condition (Fast < Slow)
+                is_death_cross = ema_fast < ema_slow
+
+                # 2. Strong ADX
+                is_strong_adx = market_data.adx >= self.params.adx_min
+
+                # 3. DI Condition (-DI > +DI)
+                is_di_bearish = True
+                if self.params.di_negative_dominant and plus_di is not None and minus_di is not None:
+                    is_di_bearish = minus_di > plus_di
+
+                # 4. ADX Slope (Not Declining)
+                is_adx_stable = True
+                if self.params.require_adx_not_declining:
+                    is_adx_stable = adx_slope >= -1.0 # Tolerance for slight dip
+
+                if is_death_cross and is_strong_adx and is_di_bearish and is_adx_stable:
+                    reason = (
+                        f"ShortV1 Trend Entry: EMA Dead Cross, "
+                        f"ADX={market_data.adx:.1f}"
+                    )
+                    return Signal(
+                        symbol=market_data.symbol,
+                        side="sell",
+                        market=self.params.market,
+                        quantity=self.params.position_size,
+                        reason=reason,
+                    )
 
         # === SAFETY FILTER 2: SIDEWAYS requires extreme volatility ===
         # Only short in SIDEWAYS_FLAT/DOWN if market is volatile

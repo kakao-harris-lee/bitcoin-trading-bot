@@ -407,7 +407,7 @@ class TestPaperExecutorRun:
     @pytest.mark.asyncio
     async def test_run_creates_consumer_group(self):
         """run() should create consumer group on startup."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import MagicMock
         import asyncio
 
         mock_redis = MagicMock()
@@ -417,19 +417,14 @@ class TestPaperExecutorRun:
 
         executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
 
-        # Run briefly then stop
-        async def stop_after_delay():
-            await asyncio.sleep(0.1)
+        # Side effect to stop executor immediately after first consume call
+        async def stop_side_effect(*args, **kwargs):
             executor.stop()
+            return []
 
-        stop_task = asyncio.create_task(stop_after_delay())
+        mock_redis.consume.side_effect = stop_side_effect
 
-        try:
-            await asyncio.wait_for(executor.run(), timeout=1.0)
-        except asyncio.TimeoutError:
-            executor.stop()
-
-        await stop_task
+        await executor.run()
 
         # Verify consumer group was created
         mock_redis.create_consumer_group.assert_called()
@@ -448,19 +443,15 @@ class TestPaperExecutorRun:
 
         executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
 
-        # Run briefly then stop
-        async def stop_after_delay():
-            await asyncio.sleep(0.1)
-            executor.stop()
+        async def stop_side_effect(*args, **kwargs):
+            # Only stop if we are consuming orders (main loop), leave price tracker running ideally or stop global
+            if args[0] == "orders":
+                executor.stop()
+            return []
 
-        stop_task = asyncio.create_task(stop_after_delay())
+        mock_redis.consume.side_effect = stop_side_effect
 
-        try:
-            await asyncio.wait_for(executor.run(), timeout=1.0)
-        except asyncio.TimeoutError:
-            executor.stop()
-
-        await stop_task
+        await executor.run()
 
         # Verify price tracker task was created
         assert executor._price_tracker_task is not None
@@ -492,13 +483,13 @@ class TestPaperExecutorRun:
         mock_redis.get_position = AsyncMock(return_value=None)
         mock_redis.publish = AsyncMock()
 
-        # Return one order then empty
-        order_returned = False
+        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor.last_prices = {"BTC": 50000.0}
 
         async def mock_consume(*args, **kwargs):
-            nonlocal order_returned
-            if not order_returned:
-                order_returned = True
+            # Only verify orders stream
+            if args[0] == "orders":
+                executor.stop() # Stop after serving this batch
                 return [{
                     "_id": "msg-1",
                     "id": "order-1",
@@ -512,22 +503,7 @@ class TestPaperExecutorRun:
 
         mock_redis.consume = AsyncMock(side_effect=mock_consume)
 
-        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
-        executor.last_prices = {"BTC": 50000.0}
-
-        # Stop after brief run
-        async def stop_after_delay():
-            await asyncio.sleep(0.15)
-            executor.stop()
-
-        stop_task = asyncio.create_task(stop_after_delay())
-
-        try:
-            await asyncio.wait_for(executor.run(), timeout=1.0)
-        except asyncio.TimeoutError:
-            executor.stop()
-
-        await stop_task
+        await executor.run()
 
         # Should have acknowledged the order
         mock_redis.ack.assert_called()
@@ -644,22 +620,24 @@ class TestApplySlippage:
     def test_apply_slippage_buy(self):
         """Buy orders get higher price (unfavorable slippage)."""
         from unittest.mock import MagicMock
+        import pytest
 
         mock_redis = MagicMock()
         executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000, "slippage": 0.001})
 
         result = executor._apply_slippage(100000.0, "buy")
-        assert result == 100100.0  # 0.1% higher
+        assert result == pytest.approx(100100.0)  # 0.1% higher
 
     def test_apply_slippage_sell(self):
         """Sell orders get lower price (unfavorable slippage)."""
         from unittest.mock import MagicMock
+        import pytest
 
         mock_redis = MagicMock()
         executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000, "slippage": 0.001})
 
         result = executor._apply_slippage(100000.0, "sell")
-        assert result == 99900.0  # 0.1% lower
+        assert result == pytest.approx(99900.0)  # 0.1% lower
 
 
 class TestPriceTracker:
@@ -677,6 +655,8 @@ class TestPriceTracker:
 
         prices_received = []
 
+        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+
         async def mock_consume(*args, **kwargs):
             if len(prices_received) == 0:
                 prices_received.append(True)
@@ -684,21 +664,16 @@ class TestPriceTracker:
                     {"_id": "p1", "symbol": "BTC", "price": "50000"},
                     {"_id": "p2", "symbol": "ETH", "price": "3000"},
                 ]
-            return []
+            else:
+                executor.stop()
+                return []
 
         mock_redis.consume = AsyncMock(side_effect=mock_consume)
 
-        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
         executor._running = True
 
-        # Run price tracker briefly
-        async def stop_after():
-            await asyncio.sleep(0.1)
-            executor._running = False
-
-        stop_task = asyncio.create_task(stop_after())
-        await asyncio.wait_for(executor._price_tracker(), timeout=1.0)
-        await stop_task
+        # Should finish quickly
+        await executor._price_tracker()
 
         assert executor.last_prices.get("BTC") == 50000.0
         assert executor.last_prices.get("ETH") == 3000.0

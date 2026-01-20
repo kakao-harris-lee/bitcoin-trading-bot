@@ -63,6 +63,10 @@ class MarketData:
     bb_upper: float = 0.0
     bb_lower: float = 0.0
     bb_middle: float = 0.0
+
+    # Generic indicators map for flexible strategies (EMA, BB, etc)
+    indicators: dict[str, float] = None
+    high_water_mark: float | None = None  # Track HWM for trailing stops
     # ATR for volatility measurement
     atr: float = 0.0
     # Historical reference points for breakout/range detection

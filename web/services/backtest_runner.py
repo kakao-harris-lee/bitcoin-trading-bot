@@ -258,6 +258,20 @@ def cancel_job(job_id: str) -> bool:
             job._cancelled = True
             job.status = 'cancelled'
             job.completed_at = datetime.now().isoformat()
+
+            # Persist cancellation so history is accurate even if polling stops.
+            try:
+                backtest_db.save_backtest(
+                    job_id=job.job_id,
+                    config=job.config,
+                    status='cancelled',
+                    created_at=job.created_at,
+                    completed_at=job.completed_at,
+                    result=None,
+                    error=None,
+                )
+            except Exception:
+                traceback.print_exc()
             return True
     return False
 
@@ -283,6 +297,17 @@ def run_backtest(job: BacktestJob) -> None:
                 raise ValueError(f"Invalid strategy: {strategy_id}")
 
             if job._cancelled:
+                job.status = 'cancelled'
+                job.completed_at = datetime.now().isoformat()
+                backtest_db.save_backtest(
+                    job_id=job.job_id,
+                    config=job.config,
+                    status='cancelled',
+                    created_at=job.created_at,
+                    completed_at=job.completed_at,
+                    result=None,
+                    error=None,
+                )
                 return
 
             job.progress = 10
@@ -305,6 +330,17 @@ def run_backtest(job: BacktestJob) -> None:
                 )
 
             if job._cancelled:
+                job.status = 'cancelled'
+                job.completed_at = datetime.now().isoformat()
+                backtest_db.save_backtest(
+                    job_id=job.job_id,
+                    config=job.config,
+                    status='cancelled',
+                    created_at=job.created_at,
+                    completed_at=job.completed_at,
+                    result=None,
+                    error=None,
+                )
                 return
 
             job.progress = 90
@@ -655,7 +691,7 @@ def _run_short_backtest(
         class EnhancedShortStrategyAdapter:
             def __init__(self, config=None):
                 self.config = config or {}
-                self.factory = StrategyFactory(redis_client=None)
+                self.factory = StrategyFactory(redis=None)
                 self.adapter = ComponentStrategyAdapter(self.factory, "short_v1", self.config)
                 self._indicators_added = False
                 self._cached_df = None

@@ -96,26 +96,26 @@ class TestBuildParamsFromConfig:
     def test_build_with_valid_params(self):
         """Test building params with valid config values."""
         config = {
-            "mfi_bull": 55.0,
+            "mfi_bull_strong": 55.0,
             "position_size": 0.02,
             "market": "futures",
         }
         params = build_params_from_config(V35EntryParams, config)
 
-        assert params.mfi_bull == 55.0
+        assert params.mfi_bull_strong == 55.0
         assert params.position_size == 0.02
         assert params.market == "futures"
         # Check defaults are preserved
-        assert params.mfi_bear == 48.0  # default
-        assert params.adx_trend == 20.0  # default
+        assert params.mfi_bear_strong == 34.0  # default
+        assert params.adx_moderate_trend == 18.0  # default
 
     def test_build_with_defaults_only(self):
         """Test building params with no config (use defaults)."""
         params = build_params_from_config(V35EntryParams, {})
 
-        assert params.mfi_bull == 52.0
-        assert params.position_size == 0.01
-        assert params.market == "spot"
+        assert params.mfi_bull_strong == 54.0
+        assert params.position_size == 0.5
+        assert params.market == "futures"
 
     def test_build_with_partial_config(self):
         """Test building params with partial config."""
@@ -123,17 +123,17 @@ class TestBuildParamsFromConfig:
         params = build_params_from_config(V35EntryParams, config)
 
         assert params.market == "futures"
-        assert params.mfi_bull == 52.0  # default
+        assert params.mfi_bull_strong == 54.0  # default
 
     def test_build_with_extra_keys_ignored(self):
         """Test that extra keys in config are ignored."""
         config = {
-            "mfi_bull": 55.0,
+            "mfi_bull_strong": 55.0,
             "unknown_param": "ignored",
         }
         # Should not raise, extra keys are ignored
         params = build_params_from_config(V35EntryParams, config)
-        assert params.mfi_bull == 55.0
+        assert params.mfi_bull_strong == 55.0
 
     def test_build_with_none_params_class(self):
         """Test that None params_class returns None."""
@@ -169,7 +169,7 @@ class TestConfigSchemaValidation:
         config = {
             "entry": {
                 "class": "V35EntryStrategy",
-                "params": {"mfi_bull": 55.0},
+                "params": {"mfi_bull_strong": 55.0},
             }
         }
         warnings = validate_strategy_config("test", config)
@@ -205,7 +205,7 @@ class TestConfigSchemaValidation:
     def test_validate_missing_class_field(self):
         """Test error for missing class field."""
         config = {
-            "entry": {"params": {"mfi_bull": 55.0}}
+            "entry": {"params": {"mfi_bull_strong": 55.0}}
         }
         with pytest.raises(ConfigValidationError, match="missing required 'class' field"):
             validate_strategy_config("test", config)
@@ -239,7 +239,7 @@ class TestNewConfigFormat:
             "entry": {
                 "class": "V35EntryStrategy",
                 "params": {
-                    "mfi_bull": 55.0,
+                    "mfi_bull_strong": 55.0,
                     "position_size": 0.02,
                 },
             },
@@ -249,7 +249,7 @@ class TestNewConfigFormat:
         entry = factory.create_entry("custom_strategy", config)
 
         assert isinstance(entry, V35EntryStrategy)
-        assert entry.params.mfi_bull == 55.0
+        assert entry.params.mfi_bull_strong == 55.0
         assert entry.params.position_size == 0.02
         assert entry.params.market == "futures"
 
@@ -318,6 +318,7 @@ class TestNewConfigFormat:
         # Build context for BULL trend (MFI >= 52)
         context = MarketContext(
             trend="BULL",
+            regime="BULL_STRONG",
             volatility_score=0.01,
             is_extreme_volatility=False,
             adx=25.0,
@@ -408,8 +409,8 @@ class TestLegacyConfigFormat:
         entry = factory.create_entry("v35_long")
 
         assert isinstance(entry, V35EntryStrategy)
-        assert entry.params.position_size == 0.01  # default
-        assert entry.params.market == "spot"  # default from spec
+        assert entry.params.position_size == 0.5  # default
+        assert entry.params.market == "futures"  # default from spec
 
 
 class TestBackwardCompatibility:
@@ -432,7 +433,7 @@ class TestBackwardCompatibility:
         assert exit2 is not None
 
         market = factory.get_market("v35_long")
-        assert market == "spot"
+        assert market == "futures"
 
     def test_strategy_registry_unchanged(self, factory):
         """Test that STRATEGY_REGISTRY entries still work."""

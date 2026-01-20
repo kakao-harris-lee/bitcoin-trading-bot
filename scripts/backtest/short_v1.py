@@ -27,19 +27,28 @@ from scripts.backtest._common import (
     print_yearly_table,
     ShortMarginBacktester,
 )
-from trading.strategy.short_v1 import ShortV1Strategy
+# from trading.strategy.short_v1 import ShortV1Strategy
+from core.component_adapter import ComponentStrategyAdapter
+from trading.strategies.components.strategy_factory import StrategyFactory
+from trading.indicators import add_all_indicators
 
 
 class ShortV1Adapter:
     """Adapter to make ShortV1Strategy compatible with margin backtester."""
 
     def __init__(self, config: dict = None):
-        self.strategy = ShortV1Strategy(strategy_config=config)
+        self.config = config or {}
+        # Initialize component adapter
+        self.adapter = ComponentStrategyAdapter(
+            factory=StrategyFactory(),
+            strategy_name="short_v1",
+            config=self.config
+        )
         self._cached_df = None
 
     @property
     def in_position(self) -> bool:
-        return self.strategy.in_position
+        return self.adapter.current_position is not None
 
     def __call__(self, df, i, params):
         if i < 200:  # EMA200 warmup
@@ -47,7 +56,11 @@ class ShortV1Adapter:
 
         # Cache indicators
         if self._cached_df is None or len(df) != len(self._cached_df):
-            self._cached_df = self.strategy.add_indicators(df)
+            # Use unified indicator function
+            self._cached_df = add_all_indicators(df.copy())
+
+        # Delegate to ComponentStrategyAdapter
+        return self.adapter(self._cached_df, i, params)
 
         signal = self.strategy.generate_signal(self._cached_df, i)
         if signal is None:

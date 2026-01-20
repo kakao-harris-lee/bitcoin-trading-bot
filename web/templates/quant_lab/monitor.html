@@ -4,9 +4,128 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quant Lab - Job Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
-<body>
-    <h1>Quant Lab - Job Monitor</h1>
-    <p>Template placeholder - to be implemented in Task 13</p>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div x-data="jobMonitor()" x-init="init()" class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-400">Job Monitor</h1>
+            <div class="space-x-4">
+                <a href="/quant-lab/" class="text-gray-400 hover:text-white">New Experiment</a>
+                <a href="/" class="text-gray-400 hover:text-white">Dashboard</a>
+            </div>
+        </div>
+
+        <!-- Active Jobs -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Active Jobs</h2>
+            <div x-show="activeJobs.length === 0" class="text-gray-500 text-center py-8">
+                No active jobs. <a href="/quant-lab/" class="text-blue-400 hover:underline">Start an experiment</a>
+            </div>
+            <template x-for="job in activeJobs" :key="job.study_name">
+                <div class="border border-gray-700 rounded-lg p-4 mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold" x-text="job.study_name"></h3>
+                        <span :class="statusClass(job.status)" class="px-2 py-1 rounded text-sm"
+                              x-text="job.status"></span>
+                    </div>
+                    <div x-show="job.status === 'running'" class="mb-4">
+                        <div class="flex justify-between text-sm text-gray-400 mb-1">
+                            <span>Progress</span>
+                            <span x-text="job.current_trial + '/' + (job.max_trials || '?')"></span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full transition-all"
+                                 :style="'width: ' + (job.current_trial / (job.max_trials || 500) * 100) + '%'"></div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-4 text-sm">
+                        <a :href="'/quant-lab/results/' + job.study_name"
+                           class="text-blue-400 hover:underline">View Results</a>
+                        <button @click="cancelJob(job.job_id)" x-show="job.status === 'running'"
+                                class="text-red-400 hover:underline">Cancel</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Completed Experiments -->
+        <div class="bg-gray-800 rounded-lg p-6">
+            <h2 class="text-xl font-semibold mb-4">Completed Experiments</h2>
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-gray-400 border-b border-gray-700">
+                        <th class="pb-2">Name</th>
+                        <th class="pb-2">Trials</th>
+                        <th class="pb-2">Pareto Size</th>
+                        <th class="pb-2">Date</th>
+                        <th class="pb-2">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="exp in completedExperiments" :key="exp.study_name">
+                        <tr class="border-b border-gray-700">
+                            <td class="py-3" x-text="exp.study_name"></td>
+                            <td class="py-3" x-text="exp.n_trials"></td>
+                            <td class="py-3" x-text="exp.pareto_size || '-'"></td>
+                            <td class="py-3" x-text="formatDate(exp.datetime_start)"></td>
+                            <td class="py-3">
+                                <a :href="'/quant-lab/results/' + exp.study_name"
+                                   class="text-blue-400 hover:underline">View</a>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function jobMonitor() {
+            return {
+                activeJobs: [],
+                completedExperiments: [],
+                pollInterval: null,
+
+                async init() {
+                    await this.loadExperiments();
+                    this.pollInterval = setInterval(() => this.loadExperiments(), 5000);
+                },
+
+                async loadExperiments() {
+                    try {
+                        const res = await fetch('/quant-lab/api/experiments');
+                        const data = await res.json();
+                        this.completedExperiments = data.experiments || [];
+                        // TODO: Filter active vs completed based on status
+                    } catch (e) {
+                        console.error('Failed to load experiments:', e);
+                    }
+                },
+
+                statusClass(status) {
+                    return {
+                        'running': 'bg-blue-900 text-blue-300',
+                        'completed': 'bg-green-900 text-green-300',
+                        'failed': 'bg-red-900 text-red-300',
+                        'pending': 'bg-yellow-900 text-yellow-300',
+                    }[status] || 'bg-gray-700';
+                },
+
+                formatDate(isoStr) {
+                    if (!isoStr) return '-';
+                    return new Date(isoStr).toLocaleDateString();
+                },
+
+                async cancelJob(jobId) {
+                    if (!confirm('Cancel this job?')) return;
+                    // TODO: Implement job cancellation
+                    alert('Job cancellation not yet implemented');
+                },
+            };
+        }
+    </script>
 </body>
 </html>

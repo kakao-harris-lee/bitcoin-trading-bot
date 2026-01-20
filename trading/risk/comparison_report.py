@@ -3,6 +3,7 @@ Comparison Report Generator for daily backtest comparison.
 
 Generates reports comparing actual trades against backtested trades
 to identify strategy drift and execution issues.
+Uses StrategyFactory to ensure backtest logic matches live execution logic.
 """
 
 import json
@@ -16,6 +17,9 @@ import pandas as pd
 
 from core.backtester import Backtester, Trade
 from core.data_loader import DataLoader
+from core.component_adapter import ComponentStrategyAdapter
+from trading.strategies.components.strategy_factory import StrategyFactory, STRATEGY_REGISTRY
+from trading.indicators import add_all_indicators
 
 from .comparison_models import (
     DailyComparisonReport,
@@ -41,19 +45,6 @@ _PROJECT_ROOT = Path(__file__).parent.parent.parent
 class ComparisonReportGenerator:
     """Generates daily comparison reports between actual and backtested trades."""
 
-    # Active strategies for comparison
-    ACTIVE_STRATEGIES = ["v35_long", "short_v1"]
-
-    # Strategy to exchange mapping
-    STRATEGY_EXCHANGE_MAP = {
-        "v35_long": "binance",
-        "short_v1": "binance",
-    }
-
-    # Strategy function registry - maps strategy names to their backtest functions
-    # These are simplified versions of the real-time strategies for backtesting
-    STRATEGY_FUNCS = {}
-
     def __init__(
         self,
         db_path: str = None,
@@ -76,90 +67,31 @@ class ComparisonReportGenerator:
         self.trade_logger = TradeLogger(db_path)
         self.trade_comparer = TradeComparer(tolerance_minutes=5)
 
-        # Register strategy functions
-        self._register_strategies()
+        # Strategy Factory
+        self.factory = StrategyFactory(redis=None)
 
         logger.info(f"ComparisonReportGenerator initialized with db: {db_path}")
 
-    def _register_strategies(self):
-        """Register backtest strategy functions."""
-        # Import strategy configs and create backtest functions
-        self.STRATEGY_FUNCS["v35_long"] = self._create_v35_strategy_func()
-        self.STRATEGY_FUNCS["short_v1"] = self._create_short_v1_strategy_func()
+    @property
+    def active_strategies(self) -> List[str]:
+        """Dynamic list of active strategies from Registry."""
+        return list(STRATEGY_REGISTRY.keys())
 
-    def _create_v35_strategy_func(self):
-        """Create V35 long strategy function for backtesting."""
-        def v35_strategy(df: pd.DataFrame, i: int, params: Dict) -> Dict:
-            """V35 Long Strategy (simplified for backtest comparison)."""
-            if i < 30:
-                return {"action": "hold"}
+    def _get_strategy_exchange(self, strategy_name: str) -> str:
+        """Get exchange for strategy based on registry spec."""
+        if strategy_name not in STRATEGY_REGISTRY:
+            return "binance"
+        spec = STRATEGY_REGISTRY[strategy_name]
+        return "binance" if spec.market == "futures" else "upbit"
 
-            # Add indicators if not present
-            if "rsi" not in df.columns:
-                df = _add_indicators(df)
-
-            row = df.iloc[i]
-
-            # Get indicators
-            rsi = row.get("rsi", 50)
-            macd = row.get("macd", 0)
-            macd_signal = row.get("macd_signal", 0)
-            mfi = row.get("mfi", 50)
-            adx = row.get("adx", 20)
-
-            # Simple market state classification
-            is_bull = mfi >= 54 and adx >= 18
-
-            # Entry conditions
-            if is_bull and macd > macd_signal and rsi > 52:
-                return {"action": "buy", "fraction": 0.5}
-
-            # Exit conditions (if in position - tracked by backtester)
-            if macd < macd_signal and rsi < 50:
-                return {"action": "sell", "fraction": 1.0}
-
-            return {"action": "hold"}
-
-        return v35_strategy
-
-    def _create_short_v1_strategy_func(self):
-        """Create Short V1 strategy function for backtesting."""
-        def short_v1_strategy(df: pd.DataFrame, i: int, params: Dict) -> Dict:
-            """Short V1 Strategy (simplified for backtest comparison)."""
-            if i < 30:
-                return {"action": "hold"}
-
-            # Add indicators if not present
-            if "rsi" not in df.columns:
-                df = _add_indicators(df)
-
-            row = df.iloc[i]
-
-            # Get indicators
-            rsi = row.get("rsi", 50)
-            mfi = row.get("mfi", 50)
-            adx = row.get("adx", 20)
-
-            # Bear detection for short entry
-            is_bear = mfi < 49 and adx >= 25
-
-            # Short entry (represented as 'buy' in backtest - opening short)
-            if is_bear and rsi < 45:
-                return {"action": "buy", "fraction": 0.5}
-
-            # Short exit (represented as 'sell' in backtest - closing short)
-            if mfi > 52 or rsi > 55:
-                return {"action": "sell", "fraction": 1.0}
-
-            return {"action": "hold"}
-
-        return short_v1_strategy
-
-    def _get_data_loader(self) -> DataLoader:
+    def _get_data_loader(self, exchange: str = "binance") -> DataLoader:
         """Get or create DataLoader instance."""
         if self._data_loader is None:
-            self._data_loader = DataLoader()
+             self._data_loader = DataLoader(exchange=exchange)
+        elif self._data_loader.exchange != exchange:
+             self._data_loader = DataLoader(exchange=exchange)
         return self._data_loader
+
 
     def generate_report(
         self,
@@ -186,11 +118,13 @@ class ComparisonReportGenerator:
         if report_date > date.today():
             raise ValueError(f"Cannot generate report for future date: {report_date}")
 
+        exchange = self._get_strategy_exchange(strategy_name)
+
         # Get actual trades for the date
         actual_trades_raw = self.trade_logger.get_trades_for_date(
             target_date=report_date,
             strategy_name=strategy_name,
-            exchange=self.STRATEGY_EXCHANGE_MAP.get(strategy_name),
+            exchange=exchange,
         )
 
         actual_trades = [
@@ -201,13 +135,13 @@ class ComparisonReportGenerator:
                 volume=t["volume"],
                 profit=t.get("profit"),
                 profit_pct=t.get("profit_pct"),
-                exchange=t.get("exchange", "binance"),
+                exchange=t.get("exchange", exchange),
             )
             for t in actual_trades_raw
         ]
 
         # Run backtest for the date
-        backtest_trades = self._run_single_day_backtest(report_date, strategy_name)
+        backtest_trades = self._run_single_day_backtest(report_date, strategy_name, exchange)
 
         # Compare trades
         comparison_result = self.trade_comparer.compare_trades(
@@ -262,7 +196,7 @@ class ComparisonReportGenerator:
         """
         reports = []
 
-        for strategy_name in self.ACTIVE_STRATEGIES:
+        for strategy_name in self.active_strategies:
             try:
                 report = self.generate_report(report_date, strategy_name)
                 reports.append(report)
@@ -273,7 +207,7 @@ class ComparisonReportGenerator:
         return reports
 
     def _run_single_day_backtest(
-        self, report_date: date, strategy_name: str
+        self, report_date: date, strategy_name: str, exchange: str
     ) -> List[BacktestTrade]:
         """
         Run backtest for a single day.
@@ -281,32 +215,43 @@ class ComparisonReportGenerator:
         Args:
             report_date: Date to run backtest for
             strategy_name: Strategy identifier
+            exchange: Exchange to load data from (binance/upbit)
 
         Returns:
             List of BacktestTrade from the backtest
         """
         logger.info(f"Running backtest for {report_date} - {strategy_name}")
 
-        # Get strategy function
-        strategy_func = self.STRATEGY_FUNCS.get(strategy_name)
-        if not strategy_func:
-            raise BacktestError(f"Unknown strategy: {strategy_name}")
+        # Check strategy existence
+        if strategy_name not in STRATEGY_REGISTRY:
+             raise BacktestError(f"Unknown strategy: {strategy_name}")
 
-        # Determine exchange for data loading
-        exchange = self.STRATEGY_EXCHANGE_MAP.get(strategy_name, "binance")
+        # Create Adapter
+        config = {}
+        config_path = _PROJECT_ROOT / f"config/strategies/{strategy_name}.json"
+        if config_path.exists():
+             try:
+                 with open(config_path) as f:
+                     config = json.load(f)
+             except Exception:
+                 pass
 
-        # Load market data for the date (include some days before for indicator warmup)
-        warmup_days = 3
+        adapter = ComponentStrategyAdapter(self.factory, strategy_name, config)
+
+        # Load market data
+        warmup_days = 20
         start_date = report_date - timedelta(days=warmup_days)
-        end_date = report_date + timedelta(days=1)  # Include full day
+        end_date = report_date + timedelta(days=1)
+
+        spec = STRATEGY_REGISTRY[strategy_name]
+        timeframe = spec.timeframe
 
         try:
-            loader = self._get_data_loader()
+            loader = self._get_data_loader(exchange)
             df = loader.load_timeframe(
-                "minute60",  # Use hourly data for comparison
+                timeframe=timeframe,
                 start_date=start_date.strftime("%Y-%m-%d"),
                 end_date=end_date.strftime("%Y-%m-%d"),
-                exchange=exchange,
             )
 
             if df.empty:
@@ -318,51 +263,71 @@ class ComparisonReportGenerator:
             raise DataNotFoundError(f"Market database not found for {exchange}")
 
         # Add indicators
-        df = _add_indicators(df)
+        add_all_indicators(df)
 
-        # Run backtester
-        backtester = Backtester(
-            initial_capital=10_000_000,
-            fee_rate=0.0005,
-            slippage=0.0002,
-        )
+        # Run Backtest logic manually
+        adapter.symbol = "BTC"
+        date_str = report_date.strftime("%Y-%m-%d")
 
-        results = backtester.run(df, strategy_func, {})
+        trades = []
+        position_size = 0.0
 
-        # Convert Trade objects to BacktestTrade
-        backtest_trades = []
-        raw_trades: List[Trade] = results.get("trades", [])
+        for i in range(len(df)):
+             signal = adapter(df, i)
+             row = df.iloc[i]
+             ts_str = str(row.get('timestamp', row.name))
+             is_target_day = ts_str.startswith(date_str)
 
-        for trade in raw_trades:
-            # Filter to only trades on the report date
-            trade_date = trade.entry_time.date() if isinstance(trade.entry_time, datetime) else trade.entry_time
+             action = signal.get('action', 'hold')
 
-            if trade_date == report_date:
-                bt_trade = BacktestTrade(
-                    timestamp=trade.entry_time,
-                    action=trade.side,  # "buy" or "sell"
-                    price=trade.entry_price,
-                    quantity=trade.quantity,
-                    profit_loss=trade.profit_loss,
-                    profit_loss_pct=trade.profit_loss_pct,
-                )
-                backtest_trades.append(bt_trade)
+             if not is_target_day:
+                 # Update state but don't log trade
+                 if action in ('buy', 'open_short') and position_size == 0:
+                     position_size = 1.0 if action == 'buy' else -1.0
+                 elif action in ('sell', 'close_short') and position_size != 0:
+                     position_size = 0
+                 continue
 
-                # Also add exit as a trade if present
-                if trade.exit_time:
-                    exit_trade = BacktestTrade(
-                        timestamp=trade.exit_time,
-                        action="sell" if trade.side == "buy" else "buy",
-                        price=trade.exit_price,
-                        quantity=trade.quantity,
-                        profit_loss=trade.profit_loss,
-                        profit_loss_pct=trade.profit_loss_pct,
-                    )
-                    if exit_trade.timestamp.date() == report_date:
-                        backtest_trades.append(exit_trade)
+             # Target day
+             if action == 'buy' and position_size == 0:
+                  position_size = 1.0
+                  trades.append(BacktestTrade(
+                      timestamp=datetime.fromisoformat(ts_str),
+                      action="buy",
+                      price=row['close'],
+                      volume=1.0,
+                      profit=None, profit_pct=None
+                  ))
+             elif action == 'open_short' and position_size == 0:
+                  position_size = -1.0
+                  trades.append(BacktestTrade(
+                      timestamp=datetime.fromisoformat(ts_str),
+                      action="sell", # Short Open as sell
+                      price=row['close'],
+                      volume=1.0,
+                      profit=None, profit_pct=None
+                  ))
+             elif action == 'sell' and position_size > 0:
+                  position_size = 0
+                  trades.append(BacktestTrade(
+                      timestamp=datetime.fromisoformat(ts_str),
+                      action="sell",
+                      price=row['close'],
+                      volume=1.0,
+                      profit=0, profit_pct=0
+                  ))
+             elif action == 'close_short' and position_size < 0:
+                  position_size = 0
+                  trades.append(BacktestTrade(
+                      timestamp=datetime.fromisoformat(ts_str),
+                      action="buy", # Cover
+                      price=row['close'],
+                      volume=1.0,
+                      profit=0, profit_pct=0
+                  ))
 
-        logger.info(f"Backtest complete: {len(backtest_trades)} trades on {report_date}")
-        return backtest_trades
+        logger.info(f"Backtest complete: {len(trades)} trades on {report_date}")
+        return trades
 
     def _calculate_metrics(self, trades: List[Dict]) -> Dict[str, float]:
         """Calculate metrics from actual trades."""

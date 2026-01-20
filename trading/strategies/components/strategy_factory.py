@@ -102,6 +102,7 @@ class StrategySpec:
     exit_params_class: type
     persistent_exit_class: type | None = None
     market: str = "spot"
+    timeframe: str = "day"
 
 
 # Registry of available strategies (legacy format support)
@@ -113,7 +114,8 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
         persistent_exit_class=V35PersistentExitStrategy,
-        market="spot",
+        market="futures",
+        timeframe="day",
     ),
     "sideways_v2": StrategySpec(
         name="sideways_v2",
@@ -123,6 +125,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_params_class=SidewaysExitParams,
         persistent_exit_class=None,  # Stateless, no persistence needed
         market="spot",
+        timeframe="day",
     ),
     "short_v1": StrategySpec(
         name="short_v1",
@@ -132,6 +135,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_params_class=ShortExitParams,
         persistent_exit_class=None,  # Stateless, no persistence needed
         market="futures",
+        timeframe="minute240",
     ),
     "v35_experimental": StrategySpec(
         name="v35_experimental",
@@ -141,6 +145,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_params_class=ExperimentalExitParams,
         persistent_exit_class=None,
         market="spot",
+        timeframe="day",
     ),
 }
 

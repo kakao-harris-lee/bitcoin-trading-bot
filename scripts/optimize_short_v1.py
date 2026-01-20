@@ -19,7 +19,13 @@ warnings.filterwarnings('ignore')
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from trading.strategy.short_v1 import ShortV1Strategy, PositionTier
+# New Component Imports
+from trading.strategies.components.strategy_factory import StrategyFactory
+from core.component_adapter import ComponentStrategyAdapter
+from trading.indicators import add_all_indicators, technical as ta
+
+# Legacy imports removed:
+# from trading.strategy.short_v1 import ShortV1Strategy, PositionTier
 
 
 @dataclass
@@ -62,11 +68,40 @@ def load_binance_data(start_date: str, end_date: str) -> pd.DataFrame:
 
 
 def run_backtest(df: pd.DataFrame, config: Dict, leverage: int = 2) -> BacktestResult:
-    """Run backtest with given config"""
-    strategy = ShortV1Strategy(strategy_config=config)
+    """Run backtest with given config using ComponentStrategyAdapter"""
 
-    # Add indicators
-    df_bt = strategy.add_indicators(df.copy())
+    # Initialize Factory and Adapter
+    factory = StrategyFactory(redis_client=None) # No Redis needed for backtest
+    adapter = ComponentStrategyAdapter(factory, "short_v1", config)
+
+    # Add indicators (Standardized via trading.indicators)
+    # Ensure we have all indicators required by ShortV1 components
+    # add_all_indicators adds standard MFI, ADX, RSI, ATR (14 period)
+    df_bt = df.copy()
+    add_all_indicators(df_bt)
+
+    # Calculate specific EMAs and DIs required by ShortV1
+
+    close = df_bt['close']
+    high = df_bt['high']
+    low = df_bt['low']
+
+    # EMAs
+    ema_fast = config.get('ema_fast', 68)
+    ema_slow = config.get('ema_slow', 128)
+    # Use ta.ema from library
+    df_bt[f'ema_{ema_fast}'] = ta.ema(close, period=ema_fast)
+    df_bt[f'ema_{ema_slow}'] = ta.ema(close, period=ema_slow)
+
+    # ADX/DI specifics if not standard 14
+    adx_period = config.get('adx_period', 14)
+    if adx_period != 14:
+        # Standard add_all_indicators provides ADX(14)
+        # If param differs, recalculate
+        df_bt['adx'], df_bt['plus_di'], df_bt['minus_di'] = ta.adx(high, low, close, period=adx_period)
+
+    # ADX Slope (simple momentum)
+    df_bt['adx_slope'] = df_bt['adx'].diff()
 
     # Simulate trading
     initial_capital = 10000
@@ -74,23 +109,27 @@ def run_backtest(df: pd.DataFrame, config: Dict, leverage: int = 2) -> BacktestR
     position_size = 0
     entry_price = 0
     trades = []
-    equity_curve = [capital]
 
-    min_idx = max(200, strategy._min_buffer_size())
+    # Adapter usage loop
+    min_idx = 200 # Warmup
 
     for i in range(min_idx, len(df_bt)):
-        signal = strategy.generate_signal(df_bt, i)
+        # Call Adapter
+        # Adapter returns: {'action': 'open_short'/'close_short'/'hold', ...}
+        signal = adapter(df_bt, i)
+
         current_price = df_bt.iloc[i]['close']
 
-        if signal:
-            if signal['action'] == 'open_short' and position_size == 0:
+        if signal['action'] != 'hold':
+            action = signal['action']
+
+            if action == 'open_short' and position_size == 0:
                 # Open short position
                 position_size = (capital * leverage) / current_price
                 entry_price = current_price
-                strategy.stop_loss_price = signal.get('stop_loss', 0)
-                strategy.take_profit_price = signal.get('take_profit', 0)
+                # Note: Adapter manages stop/tp internally, we just execute here
 
-            elif signal['action'] in ['close_short', 'partial_close'] and position_size > 0:
+            elif action in ['close_short', 'sell'] and position_size > 0:
                 # Close position
                 fraction = signal.get('fraction', 1.0)
                 close_size = position_size * fraction

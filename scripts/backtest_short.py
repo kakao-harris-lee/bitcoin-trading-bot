@@ -168,12 +168,19 @@ class BasicShortStrategy:
         return {'action': 'hold', 'reason': 'NO_SIGNAL'}
 
 
+from trading.strategies.components.strategy_factory import StrategyFactory
+from core.component_adapter import ComponentStrategyAdapter
+from trading.indicators import add_all_indicators, technical as ta
+
 class EnhancedShortStrategyAdapter:
-    """Adapter for enhanced ShortV1Strategy from trading/strategy/short_v1.py"""
+    """Adapter for Short Strategy using new Component System"""
 
     def __init__(self, config: Dict = None):
-        from trading.strategy.short_v1 import ShortV1Strategy
-        self.strategy = ShortV1Strategy(strategy_config=config)
+        self.config = config or {}
+        # Initialize Factory and Component Adapter
+        self.factory = StrategyFactory(redis_client=None)
+        self.adapter = ComponentStrategyAdapter(self.factory, "short_v1", self.config)
+
         self._indicators_added = False
         self._cached_df = None
 
@@ -182,42 +189,33 @@ class EnhancedShortStrategyAdapter:
         if i < 200:
             return {'action': 'hold', 'reason': 'WARMUP'}
 
-        # Add indicators once
+        # Add indicators once (Idempotent check)
         if not self._indicators_added:
-            self._cached_df = self.strategy.add_indicators(df.copy())
+            # We must work on a copy to avoid SettingWithCopy warnings if df is a slice
+            self._cached_df = df.copy()
+            add_all_indicators(self._cached_df)
+
+            # Calculate custom indicators needed for ShortV1
+            close = self._cached_df['close']
+            high = self._cached_df['high']
+            low = self._cached_df['low']
+
+            ema_fast = self.config.get('ema_fast', 68)
+            ema_slow = self.config.get('ema_slow', 128)
+            self._cached_df[f'ema_{ema_fast}'] = ta.ema(close, period=ema_fast)
+            self._cached_df[f'ema_{ema_slow}'] = ta.ema(close, period=ema_slow)
+
+            adx_period = self.config.get('adx_period', 14)
+            if adx_period != 14:
+                self._cached_df['adx'], self._cached_df['plus_di'], self._cached_df['minus_di'] = ta.adx(high, low, close, period=adx_period)
+
+            self._cached_df['adx_slope'] = self._cached_df['adx'].diff()
+
             self._indicators_added = True
 
-        # Generate signal using enhanced strategy
-        signal = self.strategy.generate_signal(self._cached_df, i)
-
-        if signal is None:
-            return {'action': 'hold', 'reason': 'NO_SIGNAL'}
-
-        action = signal.get('action', 'hold')
-
-        # Map enhanced strategy actions to backtester actions
-        if action == 'open_short':
-            return {
-                'action': 'open_short',
-                'fraction': signal.get('fraction', 0.3),
-                'reason': signal.get('reason', ''),
-                'stop_loss': signal.get('stop_loss', 0),
-                'take_profit': signal.get('take_profit', 0),
-            }
-        elif action == 'close_short':
-            return {
-                'action': 'close_short',
-                'fraction': signal.get('fraction', 1.0),
-                'reason': signal.get('reason', ''),
-                'exit_type': signal.get('exit_type', 'UNKNOWN'),
-            }
-        elif action == 'partial_close':
-            return {
-                'action': 'partial_close',
-                'fraction': signal.get('fraction', 0.5),
-                'reason': signal.get('reason', ''),
-                'exit_type': signal.get('exit_type', 'TAKE_PROFIT_1R'),
-            }
+        # Delegate `execute` to the ComponentStrategyAdapter
+        # ComponentStrategyAdapter takes (df, i) and returns dict with action/fraction/reason
+        return self.adapter(self._cached_df, i)
 
         return {'action': 'hold', 'reason': 'NO_SIGNAL'}
 

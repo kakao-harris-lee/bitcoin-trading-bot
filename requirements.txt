@@ -99,3 +99,8 @@ python-binance
 ccxt>=4.0.0
 cryptography
 pyotp>=2.9.0
+
+# ============================================
+# Background Job Processing
+# ============================================
+rq>=1.15.0

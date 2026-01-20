@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketData, Position, Signal
+from .models import MarketData, Position, Signal, TradingContext
 from .registry import exit_strategy
 
 logger = logging.getLogger(__name__)
@@ -56,18 +56,19 @@ class SidewaysExitStrategy:
 
     def check_exit(
         self,
+        ctx: TradingContext,
         position: Position,
-        market_data: MarketData,
     ) -> Signal | None:
         """Evaluate exit conditions for position.
 
         Args:
+            ctx: Trading context with market data and regime.
             position: Current open position.
-            market_data: Current market state.
 
         Returns:
             Signal to close position, or None to hold.
         """
+        market_data = ctx.market
         symbol = position.symbol
         entry_price = position.entry_price
         quantity = position.quantity

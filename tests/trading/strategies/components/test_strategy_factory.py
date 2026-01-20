@@ -221,9 +221,15 @@ class TestSidewaysV2Futures:
             timestamp=1000001,
         )
 
-        # Note: SidewaysExitStrategy not yet updated to TradingContext (Task 8)
-        # Using old signature (position, market_data) for now
-        signal = exit_strat.check_exit(position, market_data)
+        context = MarketContext(
+            trend="NEUTRAL",
+            regime="SIDEWAYS_NEUTRAL",
+            volatility_score=0.01,
+            is_extreme_volatility=False,
+            adx=15.0,
+        )
+
+        signal = exit_strat.check_exit(TradingContext(symbol="ETH", timestamp=1000001, market=market_data, regime=context, positions={}), position)
 
         assert signal is not None
         assert signal.symbol == "ETH"

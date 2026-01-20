@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketData, Position, Signal
+from .models import MarketData, Position, Signal, TradingContext
 from .v35_trailing_exit import V35TrailingExitStrategy, V35ExitParams
 from .registry import exit_strategy
 

@@ -28,7 +28,7 @@ from trading.strategies.components.v35_entry import V35EntryStrategy, V35EntryPa
 from trading.strategies.components.v35_trailing_exit import V35TrailingExitStrategy, V35ExitParams
 from trading.strategies.components.sideways_entry import SidewaysEntryStrategy
 from trading.strategies.components.sideways_exit import SidewaysExitStrategy
-from trading.strategies.components.models import MarketData, MarketContext
+from trading.strategies.components.models import MarketData, MarketContext, TradingContext
 
 
 @pytest.fixture
@@ -323,7 +323,7 @@ class TestNewConfigFormat:
             is_extreme_volatility=False,
             adx=25.0,
         )
-        signal = entry.check_entry(market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=market_data, regime=context, positions={}))
         assert signal is not None
         assert signal.market == "futures"
 

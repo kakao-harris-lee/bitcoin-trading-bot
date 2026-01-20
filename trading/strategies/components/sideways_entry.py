@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketContext, MarketData, Signal, SIDEWAYS_REGIMES
+from .models import MarketContext, MarketData, Signal, TradingContext, SIDEWAYS_REGIMES
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -57,8 +57,7 @@ class SidewaysEntryStrategy:
 
     def check_entry(
         self,
-        market_data: MarketData,
-        context: MarketContext,
+        ctx: TradingContext,
     ) -> Signal | None:
         """Check entry conditions and return signal if criteria met.
 
@@ -68,12 +67,15 @@ class SidewaysEntryStrategy:
         - Skip if extreme volatility (avoid wild swings)
 
         Args:
-            market_data: Current market state with indicators.
-            context: Pre-analyzed market context (trend, volatility).
+            ctx: Trading context containing market data and regime.
 
         Returns:
             Signal with side="buy" if entry conditions met, None otherwise.
         """
+        # Extract from TradingContext
+        market_data = ctx.market
+        context = ctx.regime
+
         # === SAFETY FILTER 1: High volume ===
         # High volume often precedes breakout/trend start, killing mean reversion
         if context.is_high_volume:

@@ -8,6 +8,7 @@ import pytest
 from trading.strategies.components.models import (
     MarketData,
     MarketContext,
+    TradingContext,
     build_market_context,
 )
 from trading.strategies.components.v35_entry import V35EntryStrategy
@@ -201,7 +202,7 @@ class TestV35ContextFiltering:
             is_extreme_volatility=False,
             adx=25.0,
         )
-        signal = entry.check_entry(bullish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is not None
         assert signal.side == "buy"
 
@@ -214,7 +215,7 @@ class TestV35ContextFiltering:
             is_extreme_volatility=False,
             adx=25.0,
         )
-        signal = entry.check_entry(bullish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is None
 
     def test_allows_neutral_trend(self, entry, bullish_market_data):
@@ -226,7 +227,7 @@ class TestV35ContextFiltering:
             is_extreme_volatility=False,
             adx=25.0,
         )
-        signal = entry.check_entry(bullish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is not None
 
     def test_skips_extreme_volatility(self, entry, bullish_market_data):
@@ -238,7 +239,7 @@ class TestV35ContextFiltering:
             is_extreme_volatility=True,
             adx=25.0,
         )
-        signal = entry.check_entry(bullish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is None
 
     def test_skips_bear_and_extreme_volatility(self, entry, bullish_market_data):
@@ -250,7 +251,7 @@ class TestV35ContextFiltering:
             is_extreme_volatility=True,
             adx=25.0,
         )
-        signal = entry.check_entry(bullish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is None
 
     def test_allows_high_but_not_extreme_volatility(self, entry, bullish_market_data):
@@ -262,7 +263,7 @@ class TestV35ContextFiltering:
             is_extreme_volatility=False,
             adx=25.0,
         )
-        signal = entry.check_entry(bullish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is not None
 
 
@@ -295,7 +296,7 @@ class TestShortContextFiltering:
             is_extreme_volatility=False,
             adx=25.0,
         )
-        signal = entry.check_entry(bearish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
         assert signal is not None
         assert signal.side == "sell"
 
@@ -308,7 +309,7 @@ class TestShortContextFiltering:
             is_extreme_volatility=False,
             adx=25.0,
         )
-        signal = entry.check_entry(bearish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
         assert signal is None
 
     def test_allows_neutral_trend(self, entry, bearish_market_data):
@@ -320,7 +321,7 @@ class TestShortContextFiltering:
             is_extreme_volatility=False,
             adx=25.0,
         )
-        signal = entry.check_entry(bearish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
         # Short strategy requires BEAR_STRONG regime from context
         assert signal is not None
 
@@ -333,7 +334,7 @@ class TestShortContextFiltering:
             is_extreme_volatility=True,
             adx=25.0,
         )
-        signal = entry.check_entry(bearish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
         # Short strategy doesn't check is_extreme_volatility
         assert signal is not None
 
@@ -367,7 +368,7 @@ class TestSidewaysContextFiltering:
             is_extreme_volatility=False,
             adx=15.0,
         )
-        signal = entry.check_entry(sideways_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
         assert signal is not None
         assert signal.side == "buy"
 
@@ -380,7 +381,7 @@ class TestSidewaysContextFiltering:
             is_extreme_volatility=False,
             adx=15.0,
         )
-        signal = entry.check_entry(sideways_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
         assert signal is not None
 
     def test_allows_bear_trend(self, entry, sideways_market_data):
@@ -392,7 +393,7 @@ class TestSidewaysContextFiltering:
             is_extreme_volatility=False,
             adx=15.0,
         )
-        signal = entry.check_entry(sideways_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
         assert signal is not None
 
     def test_skips_extreme_volatility(self, entry, sideways_market_data):
@@ -404,7 +405,7 @@ class TestSidewaysContextFiltering:
             is_extreme_volatility=True,
             adx=15.0,
         )
-        signal = entry.check_entry(sideways_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
         assert signal is None
 
     def test_skips_extreme_volatility_any_trend(self, entry, sideways_market_data):
@@ -418,7 +419,7 @@ class TestSidewaysContextFiltering:
                 is_extreme_volatility=True,
                 adx=15.0,
             )
-            signal = entry.check_entry(sideways_market_data, context)
+            signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
             assert signal is None, f"Should skip entry in {trend} with extreme volatility"
 
 
@@ -519,7 +520,7 @@ class TestV35ADXSafetyFilter:
             is_extreme_volatility=False,
             adx=15.0,  # Below threshold
         )
-        signal = entry.check_entry(bullish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is None
 
     def test_allows_entry_at_adx_threshold(self, entry, bullish_market_data):
@@ -531,7 +532,7 @@ class TestV35ADXSafetyFilter:
             is_extreme_volatility=False,
             adx=18.0,  # At threshold
         )
-        signal = entry.check_entry(bullish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is not None
 
     def test_allows_entry_above_adx_threshold(self, entry, bullish_market_data):
@@ -543,7 +544,7 @@ class TestV35ADXSafetyFilter:
             is_extreme_volatility=False,
             adx=25.0,  # Above threshold
         )
-        signal = entry.check_entry(bullish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is not None
 
 
@@ -578,7 +579,7 @@ class TestSidewaysHighVolumeFilter:
             volume_ratio=2.0,  # High volume
             is_high_volume=True,
         )
-        signal = entry.check_entry(sideways_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
         assert signal is None
 
     def test_allows_entry_normal_volume(self, entry, sideways_market_data):
@@ -592,7 +593,7 @@ class TestSidewaysHighVolumeFilter:
             volume_ratio=1.2,  # Normal volume
             is_high_volume=False,
         )
-        signal = entry.check_entry(sideways_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
         assert signal is not None
 
 
@@ -625,7 +626,7 @@ class TestShortSidewaysVolatilityFilter:
             is_extreme_volatility=True,
             adx=15.0,
         )
-        signal = entry.check_entry(bearish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
         assert signal is not None
 
     def test_skips_sideways_without_extreme_volatility(self, entry, bearish_market_data):
@@ -637,7 +638,7 @@ class TestShortSidewaysVolatilityFilter:
             is_extreme_volatility=False,
             adx=15.0,
         )
-        signal = entry.check_entry(bearish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
         assert signal is None
 
     def test_allows_bear_without_extreme_volatility(self, entry, bearish_market_data):
@@ -649,7 +650,7 @@ class TestShortSidewaysVolatilityFilter:
             is_extreme_volatility=False,
             adx=25.0,
         )
-        signal = entry.check_entry(bearish_market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
         assert signal is not None
 
 

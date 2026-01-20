@@ -9,7 +9,7 @@ from trading.strategies.components.v35_entry import V35EntryStrategy
 from trading.strategies.components.v35_trailing_exit import V35TrailingExitStrategy
 from trading.strategies.components.sideways_entry import SidewaysEntryStrategy
 from trading.strategies.components.sideways_exit import SidewaysExitStrategy
-from trading.strategies.components.models import MarketData, MarketContext, Position
+from trading.strategies.components.models import MarketData, MarketContext, Position, TradingContext
 
 
 @pytest.fixture
@@ -86,7 +86,7 @@ class TestV35LongFutures:
             adx=25.0,
         )
 
-        signal = entry.check_entry(market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=market_data, regime=context, positions={}))
 
         assert signal is not None
         assert signal.symbol == "BTC"
@@ -118,7 +118,15 @@ class TestV35LongFutures:
             timestamp=1000001,
         )
 
-        signal = exit_strat.check_exit(position, market_data)
+        context = MarketContext(
+            trend="BEAR",
+            regime="BEAR_STRONG",
+            volatility_score=0.01,
+            is_extreme_volatility=False,
+            adx=25.0,
+        )
+
+        signal = exit_strat.check_exit(TradingContext(symbol="BTC", timestamp=1000, market=market_data, regime=context, positions={}), position)
 
         assert signal is not None
         assert signal.symbol == "BTC"
@@ -181,7 +189,7 @@ class TestSidewaysV2Futures:
             adx=15.0,
         )
 
-        signal = entry.check_entry(market_data, context)
+        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=market_data, regime=context, positions={}))
 
         assert signal is not None
         assert signal.symbol == "ETH"
@@ -213,6 +221,8 @@ class TestSidewaysV2Futures:
             timestamp=1000001,
         )
 
+        # Note: SidewaysExitStrategy not yet updated to TradingContext (Task 8)
+        # Using old signature (position, market_data) for now
         signal = exit_strat.check_exit(position, market_data)
 
         assert signal is not None
@@ -260,7 +270,7 @@ class TestCreateComponents:
             adx=25.0,
         )
 
-        entry_signal = entry.check_entry(market_data, context)
+        entry_signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=market_data, regime=context, positions={}))
         assert entry_signal is not None
         assert entry_signal.market == "futures"
 
@@ -284,7 +294,7 @@ class TestCreateComponents:
             timestamp=1000001,
         )
 
-        exit_signal = exit_strat.check_exit(position, exit_market_data)
+        exit_signal = exit_strat.check_exit(TradingContext(symbol="BTC", timestamp=1000, market=exit_market_data, regime=context, positions={}), position)
         assert exit_signal is not None
         assert exit_signal.market == "futures"
 

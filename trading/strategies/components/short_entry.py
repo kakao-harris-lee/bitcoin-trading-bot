@@ -14,6 +14,7 @@ from .models import (
     MarketContext,
     MarketData,
     Signal,
+    TradingContext,
     BULLISH_NO_SHORT_REGIMES,
     SIDEWAYS_VOLATILE_REGIMES,
     BEAR_REGIMES,
@@ -80,8 +81,7 @@ class ShortEntryStrategy:
 
     def check_entry(
         self,
-        market_data: MarketData,
-        context: MarketContext,
+        ctx: TradingContext,
     ) -> Signal | None:
         """Check entry conditions and return signal if criteria met.
 
@@ -91,12 +91,15 @@ class ShortEntryStrategy:
         - Allow SIDEWAYS_FLAT/DOWN only with extreme volatility
 
         Args:
-            market_data: Current market state with indicators.
-            context: Pre-analyzed market context (trend, volatility).
+            ctx: Trading context containing market data and regime.
 
         Returns:
             Signal with side="sell" to open short if conditions met, None otherwise.
         """
+        # Extract from TradingContext
+        market_data = ctx.market
+        context = ctx.regime
+
         regime = context.regime
         inds = market_data.indicators or {}
 

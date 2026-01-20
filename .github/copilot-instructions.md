@@ -6,20 +6,21 @@ This is a **dual-exchange Bitcoin trading bot** with:
 
 - **Upbit** (Korea): Spot/long positions (V35, Sideways_V2 strategies)
 - **Binance**: Futures/short positions (Short_V1, H4_Short strategies)
-- **RegimeRouter**: Market state oracle classifying MFI/ADX → 7 states (BULL*STRONG, BULL_MODERATE, SIDEWAYS*_, BEAR\__)
+- **RegimeRouter**: Market state oracle classifying MFI/ADX → 7 states (BULL*STRONG, BULL_MODERATE, SIDEWAYS*\_, BEAR\_\_)
 
 Key insight: `RegimeRouter` is **read-only reference** — strategies decide independently whether to trade based on regime context.
 
 ### Critical Paths
 
-| Component        | Path                            | Purpose                             |
-| ---------------- | ------------------------------- | ----------------------------------- |
-| Entry point      | `run.py`                        | Single entry for paper/live modes   |
-| Engine           | `trading/multi_asset_engine.py` | Orchestrates all components         |
-| Strategies       | `trading/strategy/*.py`         | Inherit from `BaseStrategy`         |
-| Strategy configs | `config/strategies/*.json`      | Hyperparameters (thresholds, exits) |
-| Backtester       | `core/backtester.py`            | Strategy validation                 |
-| Data             | `core/data_loader.py`           | SQLite loader for Upbit/Binance     |
+| Component   | Path                                                | Purpose                              |
+| ----------- | --------------------------------------------------- | ------------------------------------ |
+| Entry point | `run.py`                                            | Single entry for paper/live modes    |
+| Engine      | `trading/engine.py`                                 | Orchestrates feeds & strategies      |
+| Factory     | `trading/strategies/components/strategy_factory.py` | Assembles strategies from components |
+| Components  | `trading/strategies/components/*.py`                | Entry/Exit logic implementations     |
+| Config      | `config/strategies/allocation.json`                 | Strategy composition & params        |
+| Backtester  | `core/backtester.py`                                | Legacy functional backtester         |
+| Adapter     | `core/component_adapter.py`                         | Bridges components to backtester     |
 
 ## Developer Commands
 
@@ -40,13 +41,21 @@ python scripts/optimize.py --strategy v35_long --trials 100
 
 ## Strategy Development Pattern
 
-1. Inherit from `BaseStrategy` in `trading/strategy/base.py`
-2. Add JSON config to `config/strategies/{name}.json`
-3. Use `core.data_loader.DataLoader` for historical data:
-   ```python
-   with DataLoader() as loader:
-       df = loader.load_timeframe('day', start_date='2024-01-01')
-   ```
+**Component-Based Architecture:** Strategies are composed of **Entry** and **Exit** components.
+
+1.  **Entry Component**:
+    - Create `trading/strategies/components/{name}_entry.py`
+    - Implement `IEntryStrategy` interface.
+    - Return `Signal(side="buy")` or `None`.
+2.  **Exit Component**:
+    - Create `trading/strategies/components/{name}_exit.py`
+    - Implement `IExitStrategy` interface.
+    - Return `Signal(side="sell")` or `None`.
+3.  **Registration**:
+    - Import components in `strategy_factory.py`.
+    - Add to `STRATEGY_REGISTRY` mapping.
+4.  **Configuration**:
+    - Define in `allocation.json` to mix & match entry/exit components.
 
 ### Backtesting Standards
 

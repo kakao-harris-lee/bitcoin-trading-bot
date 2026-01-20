@@ -28,6 +28,9 @@ from core.metrics import calculate_benchmark
 
 # Database persistence
 from web.services import backtest_db
+from trading.strategies.components.strategy_factory import StrategyFactory, STRATEGY_REGISTRY
+from core.component_adapter import ComponentStrategyAdapter
+from trading.indicators import add_all_indicators
 
 logger = logging.getLogger(__name__)
 
@@ -186,37 +189,40 @@ class BacktestJob:
 
 
 def get_available_strategies() -> list:
-    """Get list of available strategies for backtesting."""
-    return [
-        {
-            'id': 'v35_long',
-            'name': 'V35 Long (Binance)',
-            'description': 'Momentum-based long strategy for bull markets',
-            'exchange': 'binance',
-            'default_params': {}
-        },
-        {
-            'id': 'sideways_v2',
-            'name': 'Sideways V2 (Binance)',
-            'description': 'Mean-reversion strategy for sideways markets',
-            'exchange': 'binance',
-            'default_params': {}
-        },
-        {
-            'id': 'short_v1',
-            'name': 'Short V1 (Binance)',
-            'description': 'Futures short strategy for bear markets',
-            'exchange': 'binance',
-            'default_params': {}
-        },
-        {
+    """Get list of available strategies dynamically from StrategyFactory."""
+    strategies = []
+
+    # 1. Get strategies from Factory Registry
+    try:
+        factory_strategies = STRATEGY_REGISTRY.keys()
+
+        for name in factory_strategies:
+            spec = STRATEGY_REGISTRY[name]
+            strategies.append({
+                'id': name,
+                'name': name.replace('_', ' ').title(),
+                'description': f"{spec.market.title()} strategy ({name})",
+                'exchange': 'binance',  # System is Binance-only since PR #21
+                'default_params': {}
+            })
+    except Exception as e:
+        print(f"Error loading factory strategies: {e}")
+        # Fallback if registry fails
+
+    # 2. Add legacy hardcoded/baseline strategies if needed
+    # Keeping short_v1_baseline for backward compatibility if it's not in factory
+    existing_ids = [s['id'] for s in strategies]
+
+    if 'short_v1_baseline' not in existing_ids:
+        strategies.append({
             'id': 'short_v1_baseline',
             'name': 'Short V1 Baseline (Binance)',
             'description': 'Simple short strategy with fixed SL/TP',
             'exchange': 'binance',
             'default_params': {}
-        }
-    ]
+        })
+
+    return strategies
 
 
 def create_backtest_job(config: dict) -> BacktestJob:
@@ -268,7 +274,7 @@ def run_backtest(job: BacktestJob) -> None:
             strategy_id = config.get('strategy', 'v35_long')
             start_date = config.get('start_date', '2024-01-01')
             end_date = config.get('end_date', '2024-12-31')
-            initial_capital = config.get('initial_capital', 10000000)
+            initial_capital = config.get('initial_capital', 10000)
 
             # SECURITY: Validate strategy_id
             strategies = get_available_strategies()
@@ -282,13 +288,20 @@ def run_backtest(job: BacktestJob) -> None:
             job.progress = 10
 
             # Route to appropriate backtester
-            if strategy_id in ('short_v1', 'short_v1_baseline'):
+            # 1. Use Generic Backtester for all Factory Strategies
+            if strategy_id in STRATEGY_REGISTRY:
+                results, price_data = _run_generic_backtest(
+                    strategy_id, start_date, end_date, initial_capital, job
+                )
+            # 2. Use specific legacy backtester for baseline (unregistered) strategies
+            elif strategy_id in ('short_v1_baseline',):
                 results, price_data = _run_short_backtest(
                     strategy_id, start_date, end_date, initial_capital, job
                 )
             else:
-                results, price_data = _run_long_backtest(
-                    strategy_id, start_date, end_date, initial_capital, job
+                raise ValueError(
+                    f"No backtest runner available for strategy '{strategy_id}'. "
+                    "This is unexpected because strategy_id was validated earlier."
                 )
 
             if job._cancelled:
@@ -336,6 +349,270 @@ def run_backtest(job: BacktestJob) -> None:
     job._thread.start()
 
 
+def _run_generic_backtest(
+    strategy_id: str,
+    start_date: str,
+    end_date: str,
+    initial_capital: float,
+    job: BacktestJob
+) -> dict:
+    """
+    Run any strategy using ComponentStrategyAdapter and generic loop.
+    Supports both Spot (Long-only) and Futures (Long/Short).
+    """
+    import numpy as np
+    from typing import Dict, List
+    from core.data_loader import DataLoader
+
+    # Check if strategy exists in registry
+    if strategy_id not in STRATEGY_REGISTRY:
+        raise ValueError(f"Strategy {strategy_id} not found in StrategyFactory Registry")
+
+    # 1. Initialize Factory and Adapter
+    factory = StrategyFactory(redis=None)
+
+    # Get market type (spot/futures)
+    spec = STRATEGY_REGISTRY[strategy_id]
+    market_type = spec.market
+
+    # Config parameters
+    config = {}
+
+    # Create Adapter
+    adapter = ComponentStrategyAdapter(factory, strategy_id, config)
+
+    # 2. Set environment based on Market
+    # Note: System is Binance-only since PR #21
+    exchange_name = "binance"
+
+    if market_type == 'futures':
+        leverage = 3.0
+        fee_rate = 0.0004  # 0.04%
+        slippage = 0.0002  # 0.02%
+        timeframe = spec.timeframe
+    else:
+        # Spot
+        leverage = 1.0
+        fee_rate = 0.0005  # 0.05%
+        slippage = 0.0000
+        timeframe = spec.timeframe
+
+    with DataLoader(exchange=exchange_name) as loader:
+        df = loader.load_timeframe(timeframe, start_date, end_date)
+
+    if df.empty:
+        raise ValueError(f"No data available for {start_date} to {end_date}")
+
+    job.progress = 20
+
+    # 4. Pre-calculate indicators (optimization)
+    # Adapter calculates indicators internally usually?
+    # ComponentStrategyAdapter.check_entry calls market_data construction which expects indicators in row
+    # So yes, we must add indicators to DF first.
+    add_all_indicators(df)
+    job.progress = 30
+
+    # 5. Backtest Loop
+    capital = initial_capital
+    position_size = 0.0
+    entry_price = 0.0
+    trades: List[Dict] = []
+    equity_curve: List[float] = []
+
+    adapter.symbol = "BTC"
+
+    for i in range(len(df)):
+        if job._cancelled:
+            return {}
+
+        # Execute Strategy Logic via Adapter
+        signal = adapter(df, i)
+        row = df.iloc[i]
+
+        action = signal.get('action', 'hold')
+        reason = signal.get('reason', '')
+        timestamp = str(row.get('timestamp', row.name))
+
+        # --- Current Value Calculation ---
+        current_equity = capital
+        if position_size > 0:
+            current_price = row['close']
+            if adapter.current_position and adapter.current_position.side == 'short':
+                # Short PnL
+                pnl_ratio = (entry_price - current_price) / entry_price
+                unrealized_pnl = position_size * pnl_ratio
+                current_equity += (position_size / leverage) + unrealized_pnl
+            else:
+                # Long PnL
+                pnl_ratio = (current_price - entry_price) / entry_price
+                unrealized_pnl = position_size * pnl_ratio
+                current_equity += (position_size / leverage) + unrealized_pnl
+
+        equity_curve.append({'date': timestamp[:10], 'equity': current_equity})
+
+        # --- Execution Logic ---
+
+        # OPEN LONG
+        if action == 'buy' and position_size == 0:
+            fraction = signal.get('fraction', 1.0)
+            margin = capital * fraction
+            effective_pos_size = margin * leverage
+            fee = effective_pos_size * fee_rate
+
+            if capital >= (margin + fee):
+                capital -= (margin + fee)
+                position_size = effective_pos_size
+                entry_price = row['close'] * (1 + slippage)
+                trades.append({
+                    'type': 'buy',
+                    'time': timestamp,
+                    'price': entry_price,
+                    'size': position_size,
+                    'reason': reason
+                })
+
+        # OPEN SHORT
+        elif action == 'open_short' and position_size == 0:
+            fraction = signal.get('fraction', 0.3)
+            margin = capital * fraction
+            effective_pos_size = margin * leverage
+            fee = effective_pos_size * fee_rate
+
+            if capital >= (margin + fee):
+                capital -= (margin + fee)
+                position_size = effective_pos_size
+                entry_price = row['close'] * (1 - slippage)
+                trades.append({
+                    'type': 'open_short',
+                    'time': timestamp,
+                    'price': entry_price,
+                    'size': position_size,
+                    'reason': reason
+                })
+
+        # CLOSE LONG (SELL)
+        elif action == 'sell' and position_size > 0:
+            exit_price = row['close'] * (1 - slippage)
+            pnl_ratio = (exit_price - entry_price) / entry_price
+            pnl = position_size * pnl_ratio
+            margin_return = position_size / leverage
+            fee = position_size * fee_rate
+
+            capital += margin_return + pnl - fee
+
+            trades.append({
+                'type': 'sell',
+                'time': timestamp,
+                'entry_price': entry_price,
+                'exit_price': exit_price,
+                'size': position_size,
+                'pnl': pnl,
+                'pnl_pct': pnl_ratio * 100 * leverage,
+                'reason': reason
+            })
+            position_size = 0.0
+            entry_price = 0.0
+
+        # CLOSE SHORT
+        elif action == 'close_short' and position_size > 0:
+             exit_price = row['close'] * (1 + slippage)
+             pnl_ratio = (entry_price - exit_price) / entry_price
+             pnl = position_size * pnl_ratio
+             margin_return = position_size / leverage
+             fee = position_size * fee_rate
+
+             capital += margin_return + pnl - fee
+
+             trades.append({
+                'type': 'close_short',
+                'time': timestamp,
+                'entry_price': entry_price,
+                'exit_price': exit_price,
+                'size': position_size,
+                'pnl': pnl,
+                'pnl_pct': pnl_ratio * 100 * leverage,
+                'reason': reason
+             })
+             position_size = 0.0
+             entry_price = 0.0
+
+    job.progress = 80
+
+    # Force close at end
+    if position_size > 0:
+        last_price = df.iloc[-1]['close']
+        if adapter.current_position and adapter.current_position.side == 'short':
+             pnl_ratio = (entry_price - last_price) / entry_price
+        else:
+             pnl_ratio = (last_price - entry_price) / entry_price
+        pnl = position_size * pnl_ratio
+        capital += (position_size / leverage) + pnl
+
+    # --- Metrics ---
+    final_capital = capital
+    total_return_pct = (final_capital - initial_capital) / initial_capital * 100
+
+    close_trades = [t for t in trades if t['type'] in ('sell', 'close_short', 'partial_close')]
+    profits = [t['pnl'] for t in close_trades]
+    wins = [p for p in profits if p > 0]
+    losses = [p for p in profits if p <= 0]
+
+    win_rate = len(wins) / len(close_trades) * 100 if close_trades else 0
+    profit_factor = sum(wins) / abs(sum(losses)) if losses and sum(losses) != 0 else 0
+
+    # MDD
+    equity_values = [e['equity'] for e in equity_curve]
+    equity_series = pd.Series(equity_values)
+    returns = equity_series.pct_change().dropna()
+    sharpe_ratio = float(returns.mean() / returns.std() * np.sqrt(252)) if len(returns) > 0 and returns.std() > 0 else 0
+
+    peak = equity_series.cummax()
+    drawdown = (equity_series - peak) / peak * 100
+    mdd = float(drawdown.min())
+
+    # Format for Frontend
+    trades_list = []
+    for t in close_trades[:100]:
+        action_label = 'COVER' if t['type'] == 'close_short' else 'SELL'
+        entry_action = 'SHORT' if t['type'] == 'close_short' else 'BUY'
+        trades_list.append({
+            'timestamp': t.get('entry_time') or t.get('time'),  # Using exit time if entry_time missing
+            'symbol': 'BTC',
+            'action': entry_action,
+            'price': t.get('entry_price'),
+            'profit': None
+        })
+        trades_list.append({
+            'timestamp': t.get('time'),
+            'symbol': 'BTC',
+            'action': action_label,
+            'price': t.get('exit_price'),
+            'profit': round(t.get('pnl', 0), 0)
+        })
+
+    return {
+        'strategy': strategy_id,
+        'preset': 'generic',
+        'start_date': start_date,
+        'end_date': end_date,
+        'initial_capital': initial_capital,
+        'final_capital': round(final_capital, 0),
+        'total_return': round(final_capital - initial_capital, 0),
+        'total_return_pct': round(total_return_pct, 2),
+        'leverage': leverage,
+        'total_trades': len(close_trades),
+        'winning_trades': len(wins),
+        'losing_trades': len(losses),
+        'win_rate': round(win_rate, 2),
+        'profit_factor': round(profit_factor, 2),
+        'max_drawdown': round(mdd, 2),
+        'max_drawdown_pct': round(mdd, 2),
+        'sharpe_ratio': round(sharpe_ratio, 2),
+        'equity_curve': equity_curve,
+        'trades': trades_list
+    }, df
+
+
 def _run_short_backtest(
     strategy_id: str,
     start_date: str,
@@ -371,31 +648,43 @@ def _run_short_backtest(
 
     # Import strategy classes (same as script)
     if preset == 'enhanced':
-        from trading.strategy.short_v1 import ShortV1Strategy
+        from trading.strategies.components.strategy_factory import StrategyFactory
+        from core.component_adapter import ComponentStrategyAdapter
+        from trading.indicators import add_all_indicators, technical as ta
 
         class EnhancedShortStrategyAdapter:
             def __init__(self, config=None):
-                self.strategy = ShortV1Strategy(strategy_config=config)
+                self.config = config or {}
+                self.factory = StrategyFactory(redis_client=None)
+                self.adapter = ComponentStrategyAdapter(self.factory, "short_v1", self.config)
                 self._indicators_added = False
                 self._cached_df = None
 
             def execute(self, df, i):
                 if i < 200:
                     return {'action': 'hold', 'reason': 'WARMUP'}
+
                 if not self._indicators_added:
-                    self._cached_df = self.strategy.add_indicators(df.copy())
+                    self._cached_df = df.copy()
+                    add_all_indicators(self._cached_df)
+
+                    close = self._cached_df['close']
+                    high = self._cached_df['high']
+                    low = self._cached_df['low']
+
+                    ema_fast = self.config.get('ema_fast', 68)
+                    ema_slow = self.config.get('ema_slow', 128)
+                    self._cached_df[f'ema_{ema_fast}'] = ta.ema(close, period=ema_fast)
+                    self._cached_df[f'ema_{ema_slow}'] = ta.ema(close, period=ema_slow)
+
+                    adx_period = self.config.get('adx_period', 14)
+                    if adx_period != 14:
+                        self._cached_df['adx'], self._cached_df['plus_di'], self._cached_df['minus_di'] = ta.adx(high, low, close, period=adx_period)
+
+                    self._cached_df['adx_slope'] = self._cached_df['adx'].diff()
                     self._indicators_added = True
-                signal = self.strategy.generate_signal(self._cached_df, i)
-                if signal is None:
-                    return {'action': 'hold', 'reason': 'NO_SIGNAL'}
-                action = signal.get('action', 'hold')
-                if action == 'open_short':
-                    return {'action': 'open_short', 'fraction': signal.get('fraction', 0.3), 'reason': signal.get('reason', '')}
-                elif action == 'close_short':
-                    return {'action': 'close_short', 'fraction': signal.get('fraction', 1.0), 'reason': signal.get('reason', '')}
-                elif action == 'partial_close':
-                    return {'action': 'partial_close', 'fraction': signal.get('fraction', 0.5), 'reason': signal.get('reason', '')}
-                return {'action': 'hold', 'reason': 'NO_SIGNAL'}
+
+                return self.adapter(self._cached_df, i)
 
         strategy = EnhancedShortStrategyAdapter()
     else:
@@ -627,243 +916,7 @@ def _run_short_backtest(
     return results, df
 
 
-def _run_long_backtest(
-    strategy_id: str,
-    start_date: str,
-    end_date: str,
-    initial_capital: float,
-    job: BacktestJob
-) -> dict:
-    """Run long strategy backtest using core/backtester.py (spot trading)."""
-    import numpy as np
-    from core.backtester import Backtester
-    from core.data_loader import DataLoader
-    from trading.strategy.v35_long import V35LongStrategy
 
-    class V35StrategyAdapter:
-        def __init__(self, config=None):
-            self.strategy = V35LongStrategy(config or {})
-            self._indicators_added = False
-
-        def __call__(self, df, i, params):
-            if not self._indicators_added:
-                self.strategy.add_indicators(df)
-                self._indicators_added = True
-            signal = self.strategy.generate_signal(df, i)
-            if signal:
-                action = signal.get('action', 'hold')
-                if action in ('buy', 'sell'):
-                    return {'action': action, 'fraction': signal.get('fraction', 1.0)}
-            return {'action': 'hold', 'fraction': 0}
-
-    class SidewaysV2StrategyAdapter:
-        """Mean-reversion strategy for sideways markets (48 < MFI < 52, ADX < 20)."""
-        def __init__(self, config=None):
-            self.config = config or {}
-            self._indicators_added = False
-            self.in_position = False
-            self.entry_price = 0.0
-            # Thresholds from sideways_v2_task.py
-            self.mfi_bull = 52
-            self.mfi_bear = 48
-            self.adx_trend = 20
-            self.rsi_oversold = 35
-            self.rsi_mean = 50
-            self.take_profit_pct = 1.5
-            self.stop_loss_pct = 1.0
-
-        def _add_indicators(self, df):
-            """Add MFI, ADX, and RSI indicators."""
-            # RSI
-            delta = df['close'].diff()
-            gain = delta.where(delta > 0, 0).rolling(window=14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            rs = gain / loss.replace(0, np.inf)
-            df['rsi'] = 100 - (100 / (1 + rs))
-
-            # MFI (Money Flow Index)
-            typical_price = (df['high'] + df['low'] + df['close']) / 3
-            raw_money_flow = typical_price * df['volume']
-            pos_flow = raw_money_flow.where(typical_price > typical_price.shift(1), 0)
-            neg_flow = raw_money_flow.where(typical_price < typical_price.shift(1), 0)
-            pos_mf = pos_flow.rolling(window=14).sum()
-            neg_mf = neg_flow.rolling(window=14).sum()
-            mf_ratio = pos_mf / neg_mf.replace(0, np.inf)
-            df['mfi'] = 100 - (100 / (1 + mf_ratio))
-
-            # ADX
-            tr = np.maximum(
-                df['high'] - df['low'],
-                np.maximum(
-                    abs(df['high'] - df['close'].shift(1)),
-                    abs(df['low'] - df['close'].shift(1))
-                )
-            )
-            atr = tr.rolling(window=14).mean()
-            plus_dm = df['high'].diff()
-            minus_dm = -df['low'].diff()
-            plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0)
-            minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0)
-            plus_di = 100 * (plus_dm.rolling(14).mean() / atr)
-            minus_di = 100 * (minus_dm.rolling(14).mean() / atr)
-            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
-            df['adx'] = dx.rolling(14).mean()
-
-            return df
-
-        def _is_sideways(self, mfi: float, adx: float) -> bool:
-            """Check if market is in sideways regime."""
-            return self.mfi_bear < mfi < self.mfi_bull and adx < self.adx_trend
-
-        def __call__(self, df, i, params):
-            if i < 100:
-                return {'action': 'hold', 'fraction': 0}
-
-            if not self._indicators_added:
-                df = self._add_indicators(df)
-                self._indicators_added = True
-
-            row = df.iloc[i]
-            mfi = row.get('mfi', 50)
-            adx = row.get('adx', 25)
-            rsi = row.get('rsi', 50)
-            price = row['close']
-
-            if self.in_position:
-                # Check exit conditions
-                pnl_pct = ((price - self.entry_price) / self.entry_price) * 100
-
-                # Take profit
-                if pnl_pct >= self.take_profit_pct:
-                    self.in_position = False
-                    return {'action': 'sell', 'fraction': 1.0}
-
-                # Stop loss
-                if pnl_pct <= -self.stop_loss_pct:
-                    self.in_position = False
-                    return {'action': 'sell', 'fraction': 1.0}
-
-                # RSI mean reversion complete
-                if rsi >= self.rsi_mean:
-                    self.in_position = False
-                    return {'action': 'sell', 'fraction': 1.0}
-
-                return {'action': 'hold', 'fraction': 0}
-
-            # Entry: sideways regime + oversold RSI
-            if self._is_sideways(mfi, adx) and rsi <= self.rsi_oversold:
-                self.in_position = True
-                self.entry_price = price
-                return {'action': 'buy', 'fraction': 1.0}
-
-            return {'action': 'hold', 'fraction': 0}
-
-    job.progress = 20
-
-    # Load data
-    with DataLoader(exchange='binance') as loader:
-        df = loader.load_timeframe('day', start_date, end_date)
-
-    if df.empty:
-        raise ValueError(f"No data available for {start_date} to {end_date}")
-
-    job.progress = 30
-
-    # Select strategy adapter based on strategy_id
-    import json
-    if strategy_id == 'sideways_v2':
-        strategy_func = SidewaysV2StrategyAdapter()
-    else:
-        # Load config if available for v35_long
-        config_path = Path('config/strategies/v35_long.json')
-        v35_config = None
-        if config_path.exists():
-            with open(config_path) as f:
-                raw = json.load(f)
-            v35_config = {}
-            v35_config.update(raw.get('market_classifier', {}))
-            v35_config.update(raw.get('entry_conditions', {}))
-            v35_config.update(raw.get('exit_conditions', {}))
-            v35_config.update(raw.get('position_sizing', {}))
-        strategy_func = V35StrategyAdapter(config=v35_config)
-
-    job.progress = 40
-
-    # Run backtest
-    backtester = Backtester(
-        initial_capital=initial_capital,
-        fee_rate=0.0005,
-        slippage=0.0002
-    )
-    results = backtester.run(df, strategy_func, {})
-
-    job.progress = 80
-
-    # Process results
-    equity_curve = results.get('equity_curve')
-    equity_curve_list = []
-    max_drawdown_pct = 0
-    sharpe_ratio = 0
-
-    if equity_curve is not None and not equity_curve.empty:
-        for _, row in equity_curve.iterrows():
-            ts = row.get('timestamp')
-            date_str = str(ts)[:10] if ts else ''
-            equity_curve_list.append({'date': date_str, 'equity': row.get('total_equity', 0)})
-
-        eq = equity_curve['total_equity']
-        peak = eq.cummax()
-        dd = (eq - peak) / peak
-        max_drawdown_pct = float(dd.min() * 100) if not dd.empty else 0
-
-        rets = eq.pct_change().dropna()
-        if len(rets) > 5 and rets.std() != 0:
-            sharpe_ratio = float((rets.mean() / rets.std()) * np.sqrt(252))
-
-    # Format trades - show both BUY (entry) and SELL (exit) for each trade
-    trades_raw = results.get('trades', [])
-    trades_list = []
-    for t in trades_raw[:50]:  # Limit to 50 round-trips (100 rows)
-        if hasattr(t, 'entry_time') and t.entry_time:
-            # Add BUY entry
-            trades_list.append({
-                'timestamp': str(t.entry_time),
-                'symbol': 'BTC',
-                'action': 'BUY',
-                'price': t.entry_price,
-                'profit': None,  # No P&L on entry
-            })
-        if hasattr(t, 'exit_time') and t.exit_time:
-            # Add SELL exit
-            trades_list.append({
-                'timestamp': str(t.exit_time),
-                'symbol': 'BTC',
-                'action': 'SELL',
-                'price': t.exit_price,
-                'profit': round(t.profit_loss, 0) if t.profit_loss else 0,
-            })
-
-    result_dict = {
-        'strategy': strategy_id,
-        'start_date': start_date,
-        'end_date': end_date,
-        'initial_capital': initial_capital,
-        'final_capital': round(results.get('final_capital', initial_capital), 0),
-        'total_return': round(results.get('final_capital', initial_capital) - initial_capital, 0),
-        'total_return_pct': round(results.get('total_return', 0), 2),
-        'leverage': 1,
-        'total_trades': results.get('total_trades', 0),
-        'winning_trades': results.get('winning_trades', 0),
-        'losing_trades': results.get('losing_trades', 0),
-        'win_rate': round(results.get('win_rate', 0) * 100, 2),
-        'profit_factor': round(results.get('profit_factor', 0), 2),
-        'max_drawdown': round(max_drawdown_pct, 2),
-        'max_drawdown_pct': round(max_drawdown_pct, 2),
-        'sharpe_ratio': round(sharpe_ratio, 2),
-        'equity_curve': equity_curve_list,
-        'trades': trades_list
-    }
-    return result_dict, df
 
 
 def get_running_job_count() -> int:

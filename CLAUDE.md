@@ -1,91 +1,47 @@
 # Bitcoin Trading Bot
 
-# Bitcoin Trading Bot Refactoring Instructions
+# Bitcoin Trading Bot
 
-## 1. Mission Overview
+## 1. System Architecture
 
-Refactor the current monolithic strategy architecture into a modular, component-based system using Strategy, Factory, and Adapter patterns. Simultaneously, implement critical safety features for state persistence and data integrity.
+The system uses a **Component-based Architecture**, utilizing the Factory pattern to dynamically assemble strategies from modular entry and exit components.
 
-## 2. Architectural Pattern Implementation
+### Core Concepts
 
-### A. Separation of Concerns (Entry vs Exit)
+- **CompositeStrategyTask**: The universal runner. It manages Redis I/O, state persistence (`StateManager`), and error handling. It delegates logic to components.
+- **StrategyFactory**: Assembles strategies (`allocation.json` → `CompositeStrategyTask` with specific Entry/Exit classes).
+- **IEntryStrategy**: Pure logic component. Input: `MarketData`. Output: `Signal` (Buy/None).
+- **IExitStrategy**: Position management component. Input: `Position`, `MarketData`. Output: `Signal` (Sell/None).
+- **RegimeRouter**: Oracle that classifies market state (MFI/ADX). Read-only reference.
 
-Split the logic currently inside `evaluate()` and `evaluate_exit()` into distinct components.
+## 2. Critical System Features
 
-- **Create Interface `IEntryStrategy`**:
-  - Method: `check_entry(market_data) -> Signal (Buy/None)`
-  - Responsibility: Only analyzes indicators to find entry points.
-- **Create Interface `IExitStrategy`**:
-  - Method: `check_exit(position, current_price, market_data) -> Signal (Sell/None)`
-  - Responsibility: Manages open positions (Stop Loss, Take Profit, Trailing Stop).
-- **Refactor `BaseStrategyTask`**:
-  - It should act as a **Context** that holds one `IEntryStrategy` and one `IExitStrategy`.
-  - It handles the Redis Stream I/O, while logic is delegated to components.
+### A. Persistence (Redis-backed State)
 
-### B. Factory Pattern for Strategy Management
+- **StateManager**: Automatically saves/loads stateful variables (e.g., `high_water_mark`, `entry_count`).
+- **Key Schema**: `state:{strategy_name}:{symbol}:{variable_name}`.
 
-- **Create `StrategyFactory`**:
-  - Responsibility: Parse `allocation.json`.
-  - Logic: Dynamically instantiate and assemble Entry/Exit components based on config names.
-  - Example Config:
+### B. Dynamic Configuration
 
-    ```json
-    "BTC": {
-      "entry_strategy": "V35Breakout",
-      "exit_strategy": "V35TrailingStop",
-      "params": { ... }
-    }
-    ```
+- Strategies are not hardcoded.
+- `allocation.json` defines which Entry/Exit components to pair.
+- Supports "Mix & Match" (e.g., V35 Entry + Experimental Exit).
 
-### C. Adapter Pattern for Indicators
+### C. Unified Backtesting
 
-- **Create `IndicatorAdapter`**:
-  - Abstract the calculation library (currently `pandas`/`ta-lib`).
-  - Allow switching between `pandas-ta`, `talib`, or custom calculations without changing strategy code.
+- `ComponentStrategyAdapter` bridges the live components to the historical backtester.
+- Ensures `scripts/backtest_experimental.py` runs the *exact same logic* as the live engine.
 
-## 3. Critical System Improvements (High Priority)
+## 3. Implementation Roadmap
 
-### A. State Persistence (Redis-backed State)
+- [x] **Core Refactoring**: `IEntryStrategy` / `IExitStrategy` interfaces.
+- [x] **Component Migration**: Logic extracted from monolithic tasks.
+- [x] **Factory Integration**: `Engine` uses `StrategyFactory`.
+- [x] **Cleanup**: Legacy monolithic tasks (`V35LongTask`, etc.) deleted.
+- [x] **Persistence**: `StateManager` implemented.
+- [ ] **Observability**: Enhance `MetricsService` for component-specific events.
 
-**Problem:** `high_water_mark`, `entry_count` are lost on restart.
-**Solution:**
-
-- Implement a `StateManager` mixin or helper class.
-- All stateful variables in strategies MUST use this manager.
-- **Mechanism:**
-  - Key schema: `state:{strategy_name}:{symbol}:{variable_name}`
-  - On Init: Load values from Redis.
-  - On Update: Write values to Redis immediately.
-- **Target:** Apply specifically to `V35LongTask`'s trailing stop logic first, then generalize.
-
-### B. Data Warm-up (Gap Handling)
-
-**Problem:** Bot waits 180 candles to calculate indicators after restart.
-**Solution:**
-
-- Implement `DataLoader.fetch_recent_candles(limit=200)` using `ccxt` (REST API).
-- On `FeedTask` startup, before processing WebSocket stream, fill the `price_buffer` with this historical data.
-- Ensure indicators are calculated immediately upon start.
-
-### C. Precision Safety
-
-**Problem:** Python `float` precision errors.
-**Solution:**
-
-- Introduce a `PriceUtils` helper.
-- Use `decimal.Decimal` for all PnL and Quantity calculations.
-- Implement `round_down_to_step_size(qty, step_size)` compliant with Binance `exchangeInfo`.
-
-## 4. Implementation Roadmap
-
-1. **Core Refactoring**: Define `IEntryStrategy` and `IExitStrategy` interfaces.
-2. **Component Migration**: Extract `V35LongTask` logic into `V35Entry` and `V35TrailingExit` classes.
-3. **Persistence Layer**: Implement `StateManager` and integrate it into `V35TrailingExit`.
-4. **Factory Integration**: Update `TradingEngine` to use `StrategyFactory` for task creation.
-5. **Data Safety**: Add REST API warm-up logic to `FeedTask`.
-6. **Cleanup**: Remove the old monolithic `V35LongTask` after verification.
-
-## 5. Coding Standards
+## 4. Coding Standards
 
 - **Type Hinting**: Strict usage of Python type hints.
 - **Async**: Keep all I/O non-blocking.
@@ -123,7 +79,7 @@ pytest
 
 ## Architecture Overview
 
-The bot uses a **stream-based architecture** with Redis as the communication backbone:
+The bot uses a **stream-based component architecture** with Redis as the communication backbone:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -142,10 +98,11 @@ The bot uses a **stream-based architecture** with Redis as the communication bac
 │         ┌─────────────────┼─────────────────┐                    │
 │         ▼                 ▼                 ▼                    │
 │  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐            │
-│  │ V35Long     │   │ SidewaysV2  │   │ ShortV1     │            │
-│  │ (async task)│   │ (async task)│   │ (async task)│            │
+│  │RegimeRouter │   │V35 Composite│   │ShortV1 Comp │            │
+│  │(Oracle)     │   │(Task)       │   │(Task)       │            │
 │  └──────┬──────┘   └──────┬──────┘   └──────┬──────┘            │
 │         │                 │                 │                    │
+│         │ (Reads)         │                 │                    │
 │         └─────────────────┼─────────────────┘                    │
 │                           ▼                                      │
 │                 Redis: orders stream                             │
@@ -166,10 +123,10 @@ The bot uses a **stream-based architecture** with Redis as the communication bac
 
 **Key principles:**
 
-- No central orchestrator — each task runs autonomously
-- Redis streams as the only coupling between components
-- Strategies self-classify market conditions (no regime router)
-- Binance-only (spot + futures)
+- **Component Driven**: Strategies are assembled from minimal Entry/Exit classes.
+- **Regime Aware**: `RegimeRouter` publishes market state; Strategies subscribe to it.
+- **Unified Logic**: Same component code runs in Live Engine and Backtester.
+- **Redis Decoupling**: Streams connect Feeds, Strategies, and Executor.
 
 ## Project Structure
 
@@ -177,67 +134,57 @@ The bot uses a **stream-based architecture** with Redis as the communication bac
 bitcoin-trading-bot/
 ├── run.py                          # Entry point
 ├── trading/
-│   ├── engine.py                   # Lightweight orchestrator
+│   ├── engine.py                   # Main Orchestrator
 │   ├── streams/                    # Redis streams infrastructure
 │   │   ├── redis_streams.py        # RedisStreams client
 │   │   ├── feed_task.py            # Base feed task
-│   │   ├── binance_feed.py         # BinanceFeedTask (WebSocket)
-│   │   └── base_strategy.py        # BaseStrategyTask
-│   ├── strategies/                 # Strategy task implementations
-│   │   ├── v35_long_task.py        # V35Long (spot, MFI>=52, ADX>=20)
-│   │   ├── sideways_v2_task.py     # SidewaysV2 (spot, 48<MFI<52)
-│   │   └── short_v1_task.py        # ShortV1 (futures, MFI<=48)
+│   │   └── binance_feed.py         # BinanceFeedTask
+│   ├── strategies/                 # Strategy Logic
+│   │   ├── components/             # >>> NEW COMPONENT SYSTEM <<<
+│   │   │   ├── strategy_factory.py # Assembles strategies
+│   │   │   ├── v35_entry.py        # V35 Logic
+│   │   │   ├── v35_trailing_exit.py# V35 Exit Logic
+│   │   │   └── registry.py         # Component Registry
+│   │   └── ...
 │   ├── executor/                   # Order execution
 │   │   ├── async_executor.py       # Live Binance executor
 │   │   ├── paper_executor.py       # Paper trading simulator
-│   │   └── binance_client.py       # Unified spot+futures client
 │   ├── notification/               # Telegram integration
-│   │   ├── telegram_task.py        # Stream-based notifications
-│   │   ├── telegram_notifier.py    # Legacy notifier
-│   │   └── telegram_commands.py    # Legacy command handler
-│   ├── strategy/                   # Legacy strategies (for backtesting)
 │   ├── risk/                       # Risk management
 │   └── core/                       # Config, base classes
 ├── core/                           # Shared libraries
-│   ├── data_loader.py              # Historical data loading
-│   ├── backtester.py               # Backtesting engine
+│   ├── component_adapter.py        # Adapter for Backtesting
+│   ├── backtester.py               # Historical backtester
 │   └── market_analyzer.py          # Market indicators
 ├── config/
 │   └── strategies/
-│       └── allocation.json         # Main config (symbols, strategies)
-├── scripts/                        # CLI tools
-├── data/                           # Database files
-├── tests/                          # Test suite
-├── web/                            # Dashboard (Flask + Redis)
-│   ├── app.py                      # Flask routes
-│   └── services/
-│       └── metrics_service.py      # Redis-based metrics
-└── docs/
-    └── plans/                      # Design documents
+│       └── allocation.json         # Main config (strategies mapping)
+└── tests/                          # Test suite
 ```
 
 ## Key Files
 
-- `run.py` - Entry point (paper/live mode)
-- `trading/engine.py` - Lightweight orchestrator (~100 lines)
-- `trading/streams/redis_streams.py` - Redis client wrapper
-- `trading/strategies/*_task.py` - Self-classifying strategy tasks
-- `trading/executor/paper_executor.py` - Paper trading simulator
-- `config/strategies/allocation.json` - Main configuration
+- `run.py`: Entry point (paper/live mode).
+- `trading/engine.py`: Orchestrates feeds and `CompositeStrategyTask` instances.
+- `trading/strategies/components/strategy_factory.py`: The brain that builds strategies.
+- `trading/strategies/components/composite_task.py`: The runner for components.
+- `core/component_adapter.py`: Allows components to run in the backtester.
+- `config/strategies/allocation.json`: Configuration of active strategies.
 
 ## Redis Data Structures
 
 ### Streams
 
-- `market:prices` - Price updates from Binance WebSocket
-- `orders` - Order intents from strategies
-- `trades` - Executed trade confirmations
-- `alerts` - System alerts and errors
+- `market:prices`: Price updates from Binance WebSocket.
+- `orders`: Order intents from strategies.
+- `trades`: Executed trade confirmations.
+- `alerts`: System alerts and errors.
 
 ### Hashes
 
-- `positions:{symbol}:{market}` - Position state (qty, entry_price, strategy)
-- `risk` - Risk state (kill_switch, blocked, daily_pnl)
+- `positions:{symbol}:{market}`: Position state (qty, entry_price, strategy).
+- `risk`: Risk state (kill_switch, blocked, daily_pnl).
+- `state:{strategy}:{symbol}`: Persistent strategy state (high_water_mark, etc).
 
 ## Configuration
 
@@ -246,22 +193,12 @@ bitcoin-trading-bot/
 ```json
 {
   "redis_url": "redis://localhost:6379",
-  "symbols": ["BTC", "ETH", "SOL"],
-  "binance": {
-    "api_key": "${BINANCE_API_KEY}",
-    "api_secret": "${BINANCE_API_SECRET}"
-  },
+  "use_component_strategies": true,
   "strategies": {
-    "v35_long": { "position_size": 0.01 },
-    "sideways_v2": { "position_size": 0.01 },
-    "short_v1": { "position_size": 0.01 }
+    "v35_long": { "position_size": 0.01, "market": "futures" },
+    "sideways_v2": { "position_size": 0.01, "market": "futures" }
   },
-  "risk": { "max_daily_loss": 500 },
-  "paper": {
-    "initial_balance": 10000,
-    "fee_rate": 0.001,
-    "slippage": 0.0004
-  }
+  "risk": { "max_daily_loss": 500 }
 }
 ```
 
@@ -279,47 +216,13 @@ bitcoin-trading-bot/
 
 **Never commit new features directly to main.**
 
-### Deployment
+### Component Development
 
-```bash
-# On target server
-cd ~/bitcoin-trading-bot
-git pull origin main
-./bot.sh restart --trend=live
-```
-
-### Strategy Development
-
-1. Create plan: `docs/plans/{DATE}-{name}-design.md`
-2. Wait for user approval
-3. Create feature branch
-4. Implement as a task in `trading/strategies/{name}_task.py`
-5. Self-classify market conditions (MFI/ADX thresholds)
-6. Run backtesting
-7. Create PR and merge
-
-## Strategy Classification
-
-Strategies self-classify market conditions using MFI and ADX:
-
-| Strategy | Market | Entry Conditions |
-|----------|--------|------------------|
-| V35Long | spot | MFI >= 52, ADX >= 20 (BULL) |
-| SidewaysV2 | spot | 48 < MFI < 52, ADX < 20 (SIDEWAYS) |
-| ShortV1 | futures | MFI <= 48, ADX >= 20 (BEAR) |
-
-## Risk Management
-
-- **Kill switch**: `/kill_on`, `/kill_off` via Telegram
-- **Daily loss limit**: Configurable (default $500)
-- **Position conflicts**: First strategy to enter holds position
-
-## Telegram Commands
-
-- `/info` - Show current status (positions, P&L, kill switch)
-- `/kill_on` - Enable kill switch (stop trading)
-- `/kill_off` - Disable kill switch (resume trading)
-- `/help` - Show available commands
+1. **Entry**: Create `trading/strategies/components/{name}_entry.py` (implements `IEntryStrategy`).
+2. **Exit**: Create `trading/strategies/components/{name}_exit.py` (implements `IExitStrategy`).
+3. **Register**: Add to `STRATEGY_REGISTRY` in `registry.py`.
+4. **Test**: Run `pytest tests/` to verify logic.
+5. **Backtest**: Use `scripts/run_unified_backtest.py`.
 
 ## Fee Calculation
 
@@ -372,8 +275,10 @@ REDIS_URL=redis://localhost:6379
 - Day-level active trading
 
 ## Active Technologies
+
 - Python 3.9+ (per requirements.txt) (001-backtest-mlflow-viz)
 - MLflow local file store (./mlruns) for development, configurable for production (001-backtest-mlflow-viz)
 
 ## Recent Changes
+
 - 001-backtest-mlflow-viz: Added Python 3.9+ (per requirements.txt)

@@ -1,6 +1,7 @@
 """Search space definition for regime-based optimization."""
 from dataclasses import dataclass, field
 from typing import Dict, List, Any
+import optuna
 
 # All 7 market regimes
 REGIMES = [
@@ -99,3 +100,65 @@ def build_search_space(config: SearchSpaceConfig) -> Dict[str, Any]:
             "exit_params": {e: COMPONENT_PARAMS.get(e, {}) for e in exits},
         }
     return space
+
+
+def sample_trial_config(
+    trial: optuna.Trial,
+    config: SearchSpaceConfig
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Sample a complete configuration from Optuna trial.
+
+    Args:
+        trial: Optuna trial object
+        config: Search space configuration
+
+    Returns:
+        Dict mapping regime -> {entry, exit, params: {entry: {}, exit: {}}}
+    """
+    result = {}
+    space = build_search_space(config)
+
+    for regime in REGIMES:
+        regime_space = space[regime]
+
+        # Sample entry/exit components
+        entry = trial.suggest_categorical(
+            f"{regime}_entry",
+            regime_space["entry_choices"]
+        )
+        exit_comp = trial.suggest_categorical(
+            f"{regime}_exit",
+            regime_space["exit_choices"]
+        )
+
+        # Sample parameters for selected components
+        entry_params = {}
+        if entry != "None":
+            for param_name, param_config in regime_space["entry_params"].get(entry, {}).items():
+                if param_config["type"] == "float":
+                    entry_params[param_name] = trial.suggest_float(
+                        f"{regime}_{entry}_{param_name}",
+                        param_config["low"],
+                        param_config["high"]
+                    )
+
+        exit_params = {}
+        for param_name, param_config in regime_space["exit_params"].get(exit_comp, {}).items():
+            if param_config["type"] == "float":
+                exit_params[param_name] = trial.suggest_float(
+                    f"{regime}_{exit_comp}_{param_name}",
+                    param_config["low"],
+                    param_config["high"]
+                )
+
+        result[regime] = {
+            "entry": entry,
+            "exit": exit_comp,
+            "params": {
+                "entry": entry_params,
+                "exit": exit_params,
+            }
+        }
+
+    return result

@@ -1,0 +1,9 @@
+{
+  "name": "Full Regime Search",
+  "description": "All Entry/Exit combinations across all 7 regimes",
+  "search_config": null,
+  "default_constraints": {
+    "max_trials": 500,
+    "max_drawdown": 0.30
+  }
+}

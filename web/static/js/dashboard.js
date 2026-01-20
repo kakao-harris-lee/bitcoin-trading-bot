@@ -2128,6 +2128,7 @@ async function cancelBacktest() {
     }
 
     resetBacktestUI();
+    loadBacktestHistory();
 }
 
 function resetBacktestUI() {

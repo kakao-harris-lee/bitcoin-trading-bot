@@ -4,9 +4,205 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quant Lab - Experiment Designer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
-<body>
-    <h1>Quant Lab - Experiment Designer</h1>
-    <p>Template placeholder - to be implemented in Task 12</p>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div x-data="experimentDesigner()" class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-400">Quant Lab</h1>
+            <div class="space-x-4">
+                <a href="/quant-lab/monitor" class="text-gray-400 hover:text-white">Job Monitor</a>
+                <a href="/" class="text-gray-400 hover:text-white">Dashboard</a>
+            </div>
+        </div>
+
+        <!-- Wizard Steps -->
+        <div class="mb-8">
+            <div class="flex items-center justify-center space-x-4">
+                <template x-for="(step, i) in steps" :key="i">
+                    <div class="flex items-center">
+                        <div :class="currentStep >= i ? 'bg-blue-600' : 'bg-gray-700'"
+                             class="w-10 h-10 rounded-full flex items-center justify-center font-bold">
+                            <span x-text="i + 1"></span>
+                        </div>
+                        <span class="ml-2 text-sm" x-text="step"></span>
+                        <div x-show="i < steps.length - 1" class="w-16 h-0.5 bg-gray-700 mx-4"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Step Content -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-8">
+            <!-- Step 1: Templates -->
+            <div x-show="currentStep === 0">
+                <h2 class="text-xl font-semibold mb-4">Choose a Template</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <template x-for="(template, key) in templates" :key="key">
+                        <div @click="selectTemplate(key)"
+                             :class="selectedTemplate === key ? 'border-blue-500 bg-blue-900/30' : 'border-gray-600'"
+                             class="border-2 rounded-lg p-4 cursor-pointer hover:border-blue-400 transition">
+                            <h3 class="font-semibold" x-text="template.name"></h3>
+                            <p class="text-gray-400 text-sm mt-2" x-text="template.description"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Step 2: Data Range -->
+            <div x-show="currentStep === 1">
+                <h2 class="text-xl font-semibold mb-4">Select Data Range</h2>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Start Date</label>
+                        <input type="date" x-model="config.start_date"
+                               class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">End Date</label>
+                        <input type="date" x-model="config.end_date"
+                               class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2">
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <label class="block text-sm text-gray-400 mb-2">Assets</label>
+                    <div class="flex space-x-4">
+                        <template x-for="symbol in ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']" :key="symbol">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" :value="symbol" x-model="config.symbols"
+                                       class="form-checkbox bg-gray-700 border-gray-600 rounded">
+                                <span x-text="symbol.replace('USDT', '')"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Constraints -->
+            <div x-show="currentStep === 2">
+                <h2 class="text-xl font-semibold mb-4">Set Constraints</h2>
+                <div class="space-y-6">
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">Max Trials</label>
+                            <input type="number" x-model.number="config.max_trials"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">Max Hours (optional)</label>
+                            <input type="number" x-model.number="config.max_hours" step="0.5"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Max Drawdown Guardrail (%)</label>
+                        <input type="range" x-model.number="config.max_drawdown" min="10" max="50" step="5"
+                               class="w-full">
+                        <div class="flex justify-between text-sm text-gray-500">
+                            <span>10%</span>
+                            <span x-text="config.max_drawdown + '%'" class="text-blue-400"></span>
+                            <span>50%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Review -->
+            <div x-show="currentStep === 3">
+                <h2 class="text-xl font-semibold mb-4">Review & Launch</h2>
+                <div class="bg-gray-900 rounded-lg p-4 mb-6">
+                    <pre class="text-sm text-gray-300" x-text="JSON.stringify(config, null, 2)"></pre>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Experiment Name</label>
+                    <input type="text" x-model="config.study_name"
+                           class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2"
+                           placeholder="my_experiment">
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between">
+            <button @click="prevStep" x-show="currentStep > 0"
+                    class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded">
+                Back
+            </button>
+            <div class="flex-1"></div>
+            <button @click="nextStep" x-show="currentStep < steps.length - 1"
+                    class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded">
+                Next
+            </button>
+            <button @click="launch" x-show="currentStep === steps.length - 1"
+                    :disabled="launching"
+                    class="px-6 py-2 bg-green-600 hover:bg-green-500 rounded disabled:opacity-50">
+                <span x-show="!launching">Launch Experiment</span>
+                <span x-show="launching">Launching...</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function experimentDesigner() {
+            return {
+                steps: ['Template', 'Data Range', 'Constraints', 'Review'],
+                currentStep: 0,
+                templates: {},
+                selectedTemplate: null,
+                launching: false,
+                config: {
+                    study_name: '',
+                    start_date: '2024-01-01',
+                    end_date: '2024-12-31',
+                    symbols: ['BTCUSDT'],
+                    max_trials: 500,
+                    max_hours: null,
+                    max_drawdown: 30,
+                    search_config: null,
+                },
+
+                async init() {
+                    const res = await fetch('/quant-lab/api/templates');
+                    const data = await res.json();
+                    this.templates = data.templates;
+                },
+
+                selectTemplate(key) {
+                    this.selectedTemplate = key;
+                    this.config.search_config = this.templates[key].config;
+                },
+
+                prevStep() {
+                    if (this.currentStep > 0) this.currentStep--;
+                },
+
+                nextStep() {
+                    if (this.currentStep < this.steps.length - 1) this.currentStep++;
+                },
+
+                async launch() {
+                    this.launching = true;
+                    try {
+                        const res = await fetch('/quant-lab/api/experiments', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(this.config),
+                        });
+                        const data = await res.json();
+                        if (data.job_id) {
+                            window.location.href = '/quant-lab/monitor';
+                        } else {
+                            alert('Error: ' + (data.error || 'Unknown error'));
+                        }
+                    } catch (e) {
+                        alert('Error: ' + e.message);
+                    }
+                    this.launching = false;
+                },
+            };
+        }
+    </script>
 </body>
 </html>

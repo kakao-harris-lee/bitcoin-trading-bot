@@ -1,0 +1,12 @@
+{
+  "mfi_bull_strong": 52.0,
+  "mfi_bull_moderate": 52.0,
+  "adx_strong_trend": 23.0,
+  "adx_moderate_trend": 16.0,
+  "momentum_rsi_bull_strong": 55.0,
+  "momentum_rsi_bull_moderate": 53.0,
+  "position_size": 0.3,
+  "stop_loss_pct": 1.8,
+  "tp_bull_strong_1": 4.5,
+  "trailing_enabled": true
+}

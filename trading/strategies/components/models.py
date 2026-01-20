@@ -300,3 +300,37 @@ class Position:
     side: str = "buy"  # "buy" for long, "sell" for short
     leverage: int = 1  # leverage multiplier
     liquidation_price: float = 0.0  # for futures
+
+
+@dataclass(frozen=True)
+class TradingContext:
+    """Centralized trading decision context.
+
+    Computed once per symbol per tick, shared across all strategies.
+    Contains market data, regime analysis, and cross-strategy position info.
+    """
+
+    symbol: str
+    timestamp: int  # Unix ms
+
+    # Market data (indicators computed once)
+    market: MarketData
+
+    # Pre-analyzed regime (computed once)
+    regime: MarketContext
+
+    # All open positions for this symbol across strategies
+    # Key: strategy_name, Value: Position
+    positions: dict[str, Position]
+
+    def has_position(self, strategy: str) -> bool:
+        """Check if a strategy has an open position."""
+        return strategy in self.positions
+
+    def get_position(self, strategy: str) -> Position | None:
+        """Get position for a strategy, or None if not positioned."""
+        return self.positions.get(strategy)
+
+    def other_strategies_positioned(self, exclude: str) -> list[str]:
+        """Get strategy names holding positions, excluding specified strategy."""
+        return [s for s in self.positions if s != exclude]

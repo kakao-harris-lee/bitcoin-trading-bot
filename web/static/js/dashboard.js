@@ -1993,11 +1993,22 @@ async function startBacktest() {
         return;
     }
 
+    const startDate = startDateInput.value;
+    const endDate = endDateInput.value;
+    if (!startDate || !endDate) {
+        alert('Please select start and end dates');
+        return;
+    }
+    if (startDate > endDate) {
+        alert('Start date must be before end date');
+        return;
+    }
+
     const config = {
         strategy: strategy,
-        start_date: startDateInput.value,
-        end_date: endDateInput.value,
-        initial_capital: parseInt(capitalInput.value) || 10000000
+        start_date: startDate,
+        end_date: endDate,
+        initial_capital: parseFloat(capitalInput.value) || 10000
     };
 
     // Update UI
@@ -2109,6 +2120,11 @@ async function cancelBacktest() {
         });
     } catch (error) {
         console.error('Failed to cancel:', error);
+    }
+
+    if (backtestState.pollInterval) {
+        clearInterval(backtestState.pollInterval);
+        backtestState.pollInterval = null;
     }
 
     resetBacktestUI();

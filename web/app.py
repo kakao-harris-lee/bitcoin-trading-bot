@@ -1354,7 +1354,7 @@ def run_backtest():
         'strategy': strategy,
         'start_date': data.get('start_date', '2024-01-01'),
         'end_date': data.get('end_date', '2024-12-31'),
-        'initial_capital': data.get('initial_capital', 10000000),
+        'initial_capital': data.get('initial_capital', 10000),
     }
 
     # Start backtest (with rate limiting)

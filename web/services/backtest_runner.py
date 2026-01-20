@@ -274,7 +274,7 @@ def run_backtest(job: BacktestJob) -> None:
             strategy_id = config.get('strategy', 'v35_long')
             start_date = config.get('start_date', '2024-01-01')
             end_date = config.get('end_date', '2024-12-31')
-            initial_capital = config.get('initial_capital', 10000000)
+            initial_capital = config.get('initial_capital', 10000)
 
             # SECURITY: Validate strategy_id
             strategies = get_available_strategies()
@@ -299,9 +299,9 @@ def run_backtest(job: BacktestJob) -> None:
                     strategy_id, start_date, end_date, initial_capital, job
                 )
             else:
-                # Fallback to legacy long backtester
-                results, price_data = _run_long_backtest(
-                    strategy_id, start_date, end_date, initial_capital, job
+                raise ValueError(
+                    f"No backtest runner available for strategy '{strategy_id}'. "
+                    "This is unexpected because strategy_id was validated earlier."
                 )
 
             if job._cancelled:
@@ -369,7 +369,7 @@ def _run_generic_backtest(
         raise ValueError(f"Strategy {strategy_id} not found in StrategyFactory Registry")
 
     # 1. Initialize Factory and Adapter
-    factory = StrategyFactory(redis_client=None)
+    factory = StrategyFactory(redis=None)
 
     # Get market type (spot/futures)
     spec = STRATEGY_REGISTRY[strategy_id]

@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketData, Position, Signal, TradingContext
+from .models import MarketData, Position, Signal, TradingContext, BULL_REGIMES
 from .registry import exit_strategy
 
 logger = logging.getLogger(__name__)
@@ -111,8 +111,9 @@ class ShortExitStrategy:
             return self._create_exit_signal(position, reason)
 
         # Exit condition 4: Regime change to bullish (only if in profit)
-        regime = self._classify_regime(market_data.mfi, market_data.adx)
-        if regime == "BULL" and pnl_pct > 0:
+        # Use centralized regime from TradingContext
+        regime = ctx.regime.regime
+        if regime in BULL_REGIMES and pnl_pct > 0:
             reason = f"ShortV1 exit: Regime change to {regime}, locking {pnl_pct:.2f}%"
             logger.info(f"{symbol}: {reason}")
             return self._create_exit_signal(position, reason)
@@ -138,28 +139,6 @@ class ShortExitStrategy:
             symbol: The symbol whose position was closed.
         """
         logger.debug(f"{symbol}: ShortV1 position closed")
-
-    def _classify_regime(self, mfi: float, adx: float) -> str:
-        """Classify market regime for exit decision.
-
-        Args:
-            mfi: Money Flow Index value.
-            adx: Average Directional Index value.
-
-        Returns:
-            Regime classification string.
-        """
-        p = self.params
-
-        if mfi <= p.mfi_bear:
-            if adx >= p.adx_trend:
-                return "BEAR_STRONG"
-            else:
-                return "BEAR_MODERATE"
-        elif mfi >= p.mfi_bull:
-            return "BULL"
-        else:
-            return "SIDEWAYS"
 
     def _create_exit_signal(self, position: Position, reason: str) -> Signal:
         """Create exit signal for short position.

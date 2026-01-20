@@ -26,6 +26,7 @@ import json
 import logging
 import time
 from datetime import datetime
+from types import MappingProxyType
 from typing import Any, TYPE_CHECKING
 
 import pandas as pd
@@ -143,6 +144,9 @@ class CompositeStrategyTask(BaseStrategyTask):
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:
         """Evaluate entry conditions by delegating to entry component.
 
+        Uses TradingContextBuilder for centralized context (if available),
+        which provides cached regime classification and cross-strategy positions.
+
         Args:
             symbol: Trading symbol.
 
@@ -159,20 +163,26 @@ class CompositeStrategyTask(BaseStrategyTask):
         if market_data is None:
             return None
 
-        # Build MarketContext for trend/volatility filtering
-        context = self._build_market_context(market_data)
+        # Use TradingContextBuilder if available (preferred - cached regime)
+        if self.context_builder is not None:
+            ctx = self.context_builder.get_context(symbol, market_data.timestamp)
+            if ctx is None:
+                return None
+            context = ctx.regime
+        else:
+            # Fallback: Build context locally
+            context = self._build_market_context(market_data)
+            ctx = TradingContext(
+                symbol=symbol,
+                timestamp=market_data.timestamp,
+                market=market_data,
+                regime=context,
+                positions=MappingProxyType({}),
+            )
 
         # Record decision at candle close for dashboard visibility
         await self._check_and_record_decision(symbol, market_data, context)
 
-        # Create TradingContext for new interface
-        ctx = TradingContext(
-            symbol=symbol,
-            timestamp=market_data.timestamp,
-            market=market_data,
-            regime=context,
-            positions={},  # No cross-strategy positions yet
-        )
         signal = self.entry_strategy.check_entry(ctx)
 
         # Emit entry evaluation event for observability
@@ -187,6 +197,9 @@ class CompositeStrategyTask(BaseStrategyTask):
 
     async def evaluate_exit(self, symbol: str, position_dict: dict) -> dict[str, Any] | None:
         """Evaluate exit conditions by delegating to exit component.
+
+        Uses TradingContextBuilder for centralized context (if available),
+        which provides cached regime classification and cross-strategy positions.
 
         Args:
             symbol: Trading symbol.
@@ -206,15 +219,29 @@ class CompositeStrategyTask(BaseStrategyTask):
         # Build Position model from dict
         position = self._dict_to_position(position_dict)
 
-        # Build context (includes regime for exit strategies)
-        context = self._build_market_context(market_data)
-        ctx = TradingContext(
-            symbol=symbol,
-            timestamp=market_data.timestamp,
-            market=market_data,
-            regime=context,
-            positions={},
-        )
+        # Use TradingContextBuilder if available (preferred - cached regime)
+        if self.context_builder is not None:
+            ctx = self.context_builder.get_context(symbol, market_data.timestamp)
+            if ctx is None:
+                # Fallback to local context
+                context = self._build_market_context(market_data)
+                ctx = TradingContext(
+                    symbol=symbol,
+                    timestamp=market_data.timestamp,
+                    market=market_data,
+                    regime=context,
+                    positions=MappingProxyType({self.name: position}),
+                )
+        else:
+            # Fallback: Build context locally
+            context = self._build_market_context(market_data)
+            ctx = TradingContext(
+                symbol=symbol,
+                timestamp=market_data.timestamp,
+                market=market_data,
+                regime=context,
+                positions=MappingProxyType({self.name: position}),
+            )
 
         # Delegate to exit component
         # Handle both sync and async exit strategies using proper detection

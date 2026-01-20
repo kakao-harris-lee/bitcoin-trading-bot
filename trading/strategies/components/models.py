@@ -7,7 +7,8 @@ business logic.
 
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Literal
+from types import MappingProxyType
+from typing import Literal, Mapping
 
 # Type-safe regime classification (7-level V35 style)
 # Using Literal provides IDE autocomplete and compile-time validation
@@ -65,7 +66,8 @@ class MarketData:
     bb_middle: float = 0.0
 
     # Generic indicators map for flexible strategies (EMA, BB, etc)
-    indicators: dict[str, float] = None
+    # Note: Optional dict - callers should use `market_data.indicators or {}` for safe access
+    indicators: dict[str, float] | None = None
     high_water_mark: float | None = None  # Track HWM for trailing stops
     # ATR for volatility measurement
     atr: float = 0.0
@@ -308,6 +310,9 @@ class TradingContext:
 
     Computed once per symbol per tick, shared across all strategies.
     Contains market data, regime analysis, and cross-strategy position info.
+
+    Note: positions is typed as Mapping (read-only view) to enforce immutability.
+    Pass MappingProxyType(dict) when constructing to prevent mutation.
     """
 
     symbol: str
@@ -319,9 +324,10 @@ class TradingContext:
     # Pre-analyzed regime (computed once)
     regime: MarketContext
 
-    # All open positions for this symbol across strategies
+    # All open positions for this symbol across strategies (read-only)
     # Key: strategy_name, Value: Position
-    positions: dict[str, Position]
+    # Use Mapping type to signal immutability intent
+    positions: Mapping[str, Position]
 
     def has_position(self, strategy: str) -> bool:
         """Check if a strategy has an open position."""
@@ -334,3 +340,18 @@ class TradingContext:
     def other_strategies_positioned(self, exclude: str) -> list[str]:
         """Get strategy names holding positions, excluding specified strategy."""
         return [s for s in self.positions if s != exclude]
+
+    @property
+    def is_bull_regime(self) -> bool:
+        """Check if current regime is bullish (BULL_STRONG or BULL_MODERATE)."""
+        return self.regime.regime in BULL_REGIMES
+
+    @property
+    def is_bear_regime(self) -> bool:
+        """Check if current regime is bearish (BEAR_STRONG or BEAR_MODERATE)."""
+        return self.regime.regime in BEAR_REGIMES
+
+    @property
+    def is_sideways_regime(self) -> bool:
+        """Check if current regime is sideways."""
+        return self.regime.regime in SIDEWAYS_REGIMES

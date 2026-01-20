@@ -98,3 +98,181 @@ def test_builder_handles_no_market_data(mock_position_manager):
     ctx = builder.get_context("BTC", timestamp=1000)
 
     assert ctx is None
+
+
+def test_update_position_adds_new_position(mock_indicator_service):
+    """update_position() adds a new position to cached context."""
+    builder = TradingContextBuilder(
+        indicator_service=mock_indicator_service,
+        position_manager=None,
+    )
+
+    # First get context (no positions initially)
+    ctx1 = builder.get_context("BTC", timestamp=1000)
+    assert not ctx1.has_position("v35_long")
+
+    # Add a position
+    new_pos = Position(
+        symbol="BTC",
+        entry_price=99000.0,
+        quantity=0.01,
+        strategy="v35_long",
+        market="futures",
+        timestamp=1000,
+    )
+    builder.update_position("BTC", "v35_long", new_pos)
+
+    # Check position is now visible
+    ctx2 = builder.get_context("BTC", timestamp=1000)
+    assert ctx2.has_position("v35_long")
+    assert ctx2.positions["v35_long"].entry_price == 99000.0
+
+
+def test_update_position_removes_position(mock_indicator_service, mock_position_manager):
+    """update_position() with None removes position from cached context."""
+    builder = TradingContextBuilder(
+        indicator_service=mock_indicator_service,
+        position_manager=mock_position_manager,
+    )
+
+    # Get context with position
+    ctx1 = builder.get_context("BTC", timestamp=1000)
+    assert ctx1.has_position("v35_long")
+
+    # Remove the position
+    builder.update_position("BTC", "v35_long", None)
+
+    # Check position is removed
+    ctx2 = builder.get_context("BTC", timestamp=1000)
+    assert not ctx2.has_position("v35_long")
+
+
+def test_update_position_no_op_when_not_cached(mock_indicator_service):
+    """update_position() does nothing when symbol not in cache."""
+    builder = TradingContextBuilder(
+        indicator_service=mock_indicator_service,
+        position_manager=None,
+    )
+
+    # Don't get context first - symbol not cached
+    new_pos = Position(
+        symbol="BTC",
+        entry_price=99000.0,
+        quantity=0.01,
+        strategy="v35_long",
+        market="futures",
+        timestamp=1000,
+    )
+
+    # This should not raise
+    builder.update_position("BTC", "v35_long", new_pos)
+
+    # Now get context - position manager is None so no positions
+    ctx = builder.get_context("BTC", timestamp=1000)
+    assert not ctx.has_position("v35_long")
+
+
+def test_invalidate_single_symbol(mock_indicator_service, mock_position_manager):
+    """invalidate(symbol) clears only that symbol's cache."""
+    builder = TradingContextBuilder(
+        indicator_service=mock_indicator_service,
+        position_manager=mock_position_manager,
+    )
+
+    # Cache BTC context
+    ctx1 = builder.get_context("BTC", timestamp=1000)
+
+    # Invalidate BTC
+    builder.invalidate("BTC")
+
+    # Should rebuild on next call
+    ctx2 = builder.get_context("BTC", timestamp=1000)
+    assert ctx1 is not ctx2
+    assert mock_indicator_service.get_market_data.call_count == 2
+
+
+def test_invalidate_all_symbols(mock_indicator_service, mock_position_manager):
+    """invalidate() without args clears entire cache."""
+    # Setup mock to return different data per symbol
+    def mock_market_data(symbol):
+        return MarketData(
+            symbol=symbol,
+            close=100000.0 if symbol == "BTC" else 3000.0,
+            mfi=55.0,
+            adx=25.0,
+            rsi=60.0,
+            timestamp=1000,
+            atr=1000.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+
+    mock_indicator_service.get_market_data.side_effect = mock_market_data
+
+    builder = TradingContextBuilder(
+        indicator_service=mock_indicator_service,
+        position_manager=mock_position_manager,
+    )
+
+    # Cache both symbols
+    ctx_btc1 = builder.get_context("BTC", timestamp=1000)
+    ctx_eth1 = builder.get_context("ETH", timestamp=1000)
+
+    # Invalidate all
+    builder.invalidate()
+
+    # Both should rebuild
+    ctx_btc2 = builder.get_context("BTC", timestamp=1000)
+    ctx_eth2 = builder.get_context("ETH", timestamp=1000)
+
+    assert ctx_btc1 is not ctx_btc2
+    assert ctx_eth1 is not ctx_eth2
+    assert mock_indicator_service.get_market_data.call_count == 4
+
+
+def test_multi_symbol_cache_isolation(mock_indicator_service, mock_position_manager):
+    """Different symbols have isolated cache entries."""
+    # Setup mock to return different data per symbol
+    def mock_market_data(symbol):
+        prices = {"BTC": 100000.0, "ETH": 3000.0, "SOL": 150.0}
+        return MarketData(
+            symbol=symbol,
+            close=prices.get(symbol, 100.0),
+            mfi=55.0,
+            adx=25.0,
+            rsi=60.0,
+            timestamp=1000,
+            atr=1000.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+
+    mock_indicator_service.get_market_data.side_effect = mock_market_data
+
+    builder = TradingContextBuilder(
+        indicator_service=mock_indicator_service,
+        position_manager=mock_position_manager,
+    )
+
+    # Get context for all three symbols
+    ctx_btc = builder.get_context("BTC", timestamp=1000)
+    ctx_eth = builder.get_context("ETH", timestamp=1000)
+    ctx_sol = builder.get_context("SOL", timestamp=1000)
+
+    # Verify each has correct isolated data
+    assert ctx_btc.market.close == 100000.0
+    assert ctx_eth.market.close == 3000.0
+    assert ctx_sol.market.close == 150.0
+
+    # Verify each is cached independently
+    assert builder.get_context("BTC", timestamp=1000) is ctx_btc
+    assert builder.get_context("ETH", timestamp=1000) is ctx_eth
+    assert builder.get_context("SOL", timestamp=1000) is ctx_sol
+
+    # Invalidate only ETH
+    builder.invalidate("ETH")
+
+    # BTC and SOL should still be cached, ETH should rebuild
+    assert builder.get_context("BTC", timestamp=1000) is ctx_btc
+    assert builder.get_context("SOL", timestamp=1000) is ctx_sol
+    assert builder.get_context("ETH", timestamp=1000) is not ctx_eth

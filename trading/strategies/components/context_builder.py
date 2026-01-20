@@ -8,9 +8,11 @@ to avoid redundant computation across multiple strategies.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
-from .models import TradingContext, build_market_context
+from .models import TradingContext, Position, build_market_context
 
 if TYPE_CHECKING:
     from trading.indicators.indicator_service import IndicatorService
@@ -32,7 +34,7 @@ class PositionManager:
         """
         self._redis = redis_client
 
-    def get_positions_for_symbol(self, symbol: str) -> dict:
+    def get_positions_for_symbol(self, symbol: str) -> dict[str, Position]:
         """Get all positions for a symbol across strategies.
 
         Note: This is a synchronous method that uses cached position data.
@@ -44,10 +46,7 @@ class PositionManager:
         Returns:
             Dict mapping strategy_name -> Position for this symbol.
         """
-        # Import here to avoid circular dependency
-        from .models import Position
-
-        positions = {}
+        positions: dict[str, Position] = {}
 
         # Position key pattern: positions:{symbol}:futures
         # Value is a hash with strategy as the grouping
@@ -148,16 +147,17 @@ class TradingContextBuilder:
         )
 
         # 3. Get positions for cross-strategy awareness
-        positions = {}
+        positions: dict[str, Position] = {}
         if self._positions is not None:
             positions = self._positions.get_positions_for_symbol(symbol)
 
+        # Use MappingProxyType for immutable positions view
         return TradingContext(
             symbol=symbol,
             timestamp=timestamp,
             market=market_data,
             regime=regime,
-            positions=positions,
+            positions=MappingProxyType(positions),
         )
 
     def invalidate(self, symbol: str | None = None) -> None:
@@ -171,7 +171,7 @@ class TradingContextBuilder:
         else:
             self._cache.clear()
 
-    def update_position(self, symbol: str, strategy: str, position) -> None:
+    def update_position(self, symbol: str, strategy: str, position: Position | None) -> None:
         """Update position in cache for cross-strategy awareness.
 
         Called by CompositeStrategyTask when positions change.
@@ -190,6 +190,5 @@ class TradingContextBuilder:
             else:
                 new_positions[strategy] = position
 
-            # Create new context with updated positions
-            from dataclasses import replace
-            self._cache[symbol] = replace(ctx, positions=new_positions)
+            # Create new context with updated positions (immutable)
+            self._cache[symbol] = replace(ctx, positions=MappingProxyType(new_positions))

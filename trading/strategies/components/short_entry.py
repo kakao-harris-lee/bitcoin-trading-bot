@@ -193,28 +193,6 @@ class ShortEntryStrategy:
 
         return None
 
-    def _classify_regime(self, mfi: float, adx: float) -> str:
-        """Classify market regime based on MFI and ADX.
-
-        Args:
-            mfi: Money Flow Index value (0-100)
-            adx: Average Directional Index value
-
-        Returns:
-            Regime classification string.
-        """
-        p = self.params
-
-        if mfi <= p.mfi_bear:
-            if adx >= p.adx_trend:
-                return "BEAR_STRONG"
-            else:
-                return "BEAR_MODERATE"
-        elif mfi >= p.mfi_bull:
-            return "BULL"
-        else:
-            return "SIDEWAYS"
-
     def _should_enter(self, regime: str, is_extreme_volatility: bool = False) -> bool:
         """Check if regime is suitable for short entry.
 

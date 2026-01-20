@@ -3,9 +3,9 @@
 This allows the historical backtester to run the exact same logic as live trading.
 """
 from dataclasses import replace
+from types import MappingProxyType
 from typing import Dict, Any, Callable, Optional
 import pandas as pd
-from trading.strategies.components import StrategyFactory
 from trading.strategies.components.models import MarketData, Position, Signal, MarketContext, TradingContext, build_market_context
 from trading.strategies.components.strategy_factory import StrategyFactory
 from trading.strategies.volatility_tracker import VolatilityTracker
@@ -140,14 +140,14 @@ class ComponentStrategyAdapter:
             # Create new MarketData with updated HWM (frozen dataclass)
             market_data = replace(market_data, high_water_mark=self.high_water_mark)
 
-            # Build TradingContext for new interface
+            # Build TradingContext for new interface (immutable positions)
             positions = {self.strategy_name: self.current_position}
             ctx = TradingContext(
                 symbol=self.symbol,
                 timestamp=market_data.timestamp,
                 market=market_data,
                 regime=context,
-                positions=positions,
+                positions=MappingProxyType(positions),
             )
             signal = self.exit_strategy.check_exit(ctx, self.current_position)
 
@@ -165,13 +165,13 @@ class ComponentStrategyAdapter:
 
         # 3. Check Entries (if no position)
         else:
-            # Build TradingContext for new interface
+            # Build TradingContext for new interface (immutable positions)
             ctx = TradingContext(
                 symbol=self.symbol,
                 timestamp=market_data.timestamp,
                 market=market_data,
                 regime=context,
-                positions={},  # No position when checking entry
+                positions=MappingProxyType({}),  # No position when checking entry
             )
             signal = self.entry_strategy.check_entry(ctx)
 

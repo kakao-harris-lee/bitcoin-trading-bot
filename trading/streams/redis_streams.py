@@ -75,6 +75,21 @@ class RedisStreams:
         """
         return await self._client.xadd(stream, data)
 
+    async def publish_event(
+        self, stream: str, data: dict[str, str], maxlen: int | None = None
+    ) -> str:
+        """Publish event to stream with optional auto-trimming.
+
+        Args:
+            stream: Stream name
+            data: Event data (flat dict with string values)
+            maxlen: Maximum stream length for auto-trimming (None = no limit)
+
+        Returns:
+            Message ID assigned by Redis
+        """
+        return await self._client.xadd(stream, data, maxlen=maxlen)
+
     async def consume(
         self,
         stream: str,

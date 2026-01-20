@@ -187,6 +187,8 @@ bitcoin-trading-bot/
 - `strategy:hwm:updates`: High-water-mark timeline updates (observability).
 - `strategy:safety:events`: Safety filter rejection events (observability).
 
+**Observability stream retention:** Event streams are auto-trimmed to 2000 entries (~24h of data). Enable via `emit_events: true` in `allocation.json`.
+
 ### Hashes
 
 - `positions:{symbol}:futures`: Position state (qty, entry_price, strategy). Futures-only.
@@ -258,6 +260,10 @@ BINANCE_API_SECRET=your_secret
 # Required for Telegram notifications
 TELEGRAM_BOT_TOKEN=your_token
 TELEGRAM_CHAT_ID=your_chat_id
+
+# Required for dashboard
+DASHBOARD_PASSWORD=your_secure_password
+DASHBOARD_USERNAME=admin  # Optional, defaults to "admin"
 
 # Optional
 REDIS_URL=redis://localhost:6379

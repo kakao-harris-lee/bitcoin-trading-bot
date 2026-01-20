@@ -10,6 +10,7 @@ Tests cover:
 - Safety rejection event emission
 """
 
+import asyncio
 import pytest
 import pytest_asyncio
 from datetime import datetime
@@ -23,8 +24,8 @@ pytestmark = pytest.mark.asyncio
 def mock_redis():
     """Create mock RedisStreams."""
     redis = MagicMock()
+    redis.publish_event = AsyncMock(return_value="1234567890-0")
     redis._client = MagicMock()
-    redis._client.xadd = AsyncMock(return_value="1234567890-0")
     redis._client.hgetall = AsyncMock(return_value={})
     return redis
 
@@ -156,10 +157,12 @@ class TestCompositeTaskEntryEventEmission:
 
         # Evaluate (entry strategy returns None = no signal)
         await task.evaluate("BTC")
+        # Allow background event emission tasks to complete
+        await asyncio.sleep(0)
 
         # Verify entry event was emitted
-        mock_redis._client.xadd.assert_called()
-        calls = mock_redis._client.xadd.call_args_list
+        mock_redis.publish_event.assert_called()
+        calls = mock_redis.publish_event.call_args_list
         entry_calls = [c for c in calls if c[0][0] == "strategy:entry:events"]
         assert len(entry_calls) >= 1
 
@@ -198,9 +201,10 @@ class TestCompositeTaskEntryEventEmission:
         task._build_market_data = MagicMock(return_value=mock_market_data)
 
         await task.evaluate("BTC")
+        await asyncio.sleep(0)
 
         # Verify NO entry event was emitted
-        calls = mock_redis._client.xadd.call_args_list
+        calls = mock_redis.publish_event.call_args_list
         entry_calls = [c for c in calls if c[0][0] == "strategy:entry:events"]
         assert len(entry_calls) == 0
 
@@ -253,10 +257,11 @@ class TestCompositeTaskExitEventEmission:
 
         # Evaluate exit (exit strategy returns None = no signal)
         await task.evaluate_exit("BTC", position_dict)
+        await asyncio.sleep(0)
 
         # Verify exit event was emitted
-        mock_redis._client.xadd.assert_called()
-        calls = mock_redis._client.xadd.call_args_list
+        mock_redis.publish_event.assert_called()
+        calls = mock_redis.publish_event.call_args_list
         exit_calls = [c for c in calls if c[0][0] == "strategy:exit:events"]
         assert len(exit_calls) >= 1
 
@@ -313,9 +318,10 @@ class TestCompositeTaskSafetyEventEmission:
         mock_entry_strategy.check_entry.return_value = None
 
         await task.evaluate("BTC")
+        await asyncio.sleep(0)
 
         # Verify safety rejection event was emitted
-        calls = mock_redis._client.xadd.call_args_list
+        calls = mock_redis.publish_event.call_args_list
         safety_calls = [c for c in calls if c[0][0] == "strategy:safety:events"]
         assert len(safety_calls) >= 1
 
@@ -353,8 +359,9 @@ class TestCompositeTaskHWMEventEmission:
         )
 
         await task.event_emitter.emit_hwm_update(event)
+        await asyncio.sleep(0)
 
         # Verify HWM event was emitted
-        calls = mock_redis._client.xadd.call_args_list
+        calls = mock_redis.publish_event.call_args_list
         hwm_calls = [c for c in calls if c[0][0] == "strategy:hwm:updates"]
         assert len(hwm_calls) == 1

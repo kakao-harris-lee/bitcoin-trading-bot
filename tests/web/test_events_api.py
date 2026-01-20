@@ -217,10 +217,17 @@ class TestEventsAPIEndpoints:
 
     @pytest.fixture
     def client(self):
-        """Create Flask test client."""
+        """Create Flask test client with auth credentials."""
+        import os
+        import base64
+        # Set required environment variable for app import
+        os.environ.setdefault("DASHBOARD_PASSWORD", "test_password")
         from web.app import app
         app.config['TESTING'] = True
         with app.test_client() as client:
+            # Add auth header helper
+            credentials = base64.b64encode(b"admin:test_password").decode("utf-8")
+            client.auth_header = {"Authorization": f"Basic {credentials}"}
             yield client
 
     def test_get_entry_events_endpoint(self, client):
@@ -234,7 +241,7 @@ class TestEventsAPIEndpoints:
                 }
             ]
 
-            response = client.get('/api/events/entry')
+            response = client.get('/api/events/entry', headers=client.auth_header)
 
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -246,7 +253,7 @@ class TestEventsAPIEndpoints:
         with patch('web.app.metrics_service') as mock_service:
             mock_service.get_entry_events.return_value = []
 
-            response = client.get('/api/events/entry?symbol=BTC&strategy=v35_long&hours=12&limit=100')
+            response = client.get('/api/events/entry?symbol=BTC&strategy=v35_long&hours=12&limit=100', headers=client.auth_header)
 
             assert response.status_code == 200
             mock_service.get_entry_events.assert_called_once_with(
@@ -265,7 +272,7 @@ class TestEventsAPIEndpoints:
                 }
             ]
 
-            response = client.get('/api/events/exit')
+            response = client.get('/api/events/exit', headers=client.auth_header)
 
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -282,7 +289,7 @@ class TestEventsAPIEndpoints:
                 }
             ]
 
-            response = client.get('/api/events/hwm/BTC/v35_long')
+            response = client.get('/api/events/hwm/BTC/v35_long', headers=client.auth_header)
 
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -300,7 +307,7 @@ class TestEventsAPIEndpoints:
                 }
             ]
 
-            response = client.get('/api/events/safety')
+            response = client.get('/api/events/safety', headers=client.auth_header)
 
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -313,7 +320,7 @@ class TestEventsAPIEndpoints:
             mock_service.get_exit_events.return_value = [{"id": 1}]
             mock_service.get_safety_rejections.return_value = [{"id": 1}, {"id": 2}, {"id": 3}]
 
-            response = client.get('/api/events/summary')
+            response = client.get('/api/events/summary', headers=client.auth_header)
 
             assert response.status_code == 200
             data = json.loads(response.data)

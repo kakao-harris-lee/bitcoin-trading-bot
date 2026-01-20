@@ -13,6 +13,7 @@ Events are opt-in via the `enabled` flag and do not block the trading loop.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, asdict
 from typing import TYPE_CHECKING
@@ -282,14 +283,19 @@ class EventEmitter:
     async def _emit(self, stream: str, data: dict[str, str]) -> None:
         """Internal emit method with error handling.
 
-        Fire-and-forget: logs errors but doesn't raise.
+        Fire-and-forget: uses asyncio.create_task to avoid blocking trading loop.
+        Logs errors but doesn't raise.
 
         Args:
             stream: Redis stream name.
             data: Event data dict (string values for Redis).
         """
-        try:
-            await self.redis._client.xadd(stream, data, maxlen=self.maxlen)
-        except Exception as e:
-            # Fire-and-forget: log error but don't block trading
-            logger.warning(f"Failed to emit event to {stream}: {e}")
+        async def _do_emit() -> None:
+            try:
+                await self.redis.publish_event(stream, data, maxlen=self.maxlen)
+            except Exception as e:
+                # Fire-and-forget: log error but don't block trading
+                logger.warning(f"Failed to emit event to {stream}: {e}")
+
+        # Schedule emission as background task - doesn't block caller
+        asyncio.create_task(_do_emit())

@@ -80,9 +80,11 @@ DEFAULT_DOMAIN = "lchsvr.duckdns.org"
 DEFAULT_PORT = "5080"
 DASHBOARD_PATH = "btc-dashboard"
 
-# 대시보드 인증 정보 (Basic Auth)
-DASHBOARD_USERNAME = "admin"
-DASHBOARD_PASSWORD = "@1tidh6ls6ls"
+# 대시보드 인증 정보 (Basic Auth) - loaded from environment variables
+DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME", "admin")
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD")
+if not DASHBOARD_PASSWORD:
+    raise ValueError("DASHBOARD_PASSWORD environment variable must be set")
 
 
 def check_auth(username, password):
@@ -1786,6 +1788,7 @@ def get_decision_history():
 # =============================================================================
 
 @app.route("/api/events/entry")
+@requires_auth
 def get_entry_events():
     """
     Get entry evaluation events with optional filters.
@@ -1823,6 +1826,7 @@ def get_entry_events():
 
 
 @app.route("/api/events/exit")
+@requires_auth
 def get_exit_events():
     """
     Get exit evaluation events with optional filters.
@@ -1860,6 +1864,7 @@ def get_exit_events():
 
 
 @app.route("/api/events/hwm/<symbol>/<strategy>")
+@requires_auth
 def get_hwm_timeline(symbol: str, strategy: str):
     """
     Get HWM update timeline for a specific position.
@@ -1896,6 +1901,7 @@ def get_hwm_timeline(symbol: str, strategy: str):
 
 
 @app.route("/api/events/safety")
+@requires_auth
 def get_safety_rejections():
     """
     Get safety filter rejection events with optional filters.
@@ -1930,6 +1936,7 @@ def get_safety_rejections():
 
 
 @app.route("/api/events/summary")
+@requires_auth
 def get_events_summary():
     """
     Get aggregated event summary for dashboard overview.
@@ -1976,7 +1983,7 @@ def get_events_summary():
 if __name__ == "__main__":
     print(f"\n{'='*50}")
     print(f"Dashboard available at: http://localhost:5080/{DASHBOARD_PATH}")
-    print(f"Basic Auth required (admin / @1tidh6ls6ls)")
+    print(f"Basic Auth required (credentials from environment)")
     print(f"{'='*50}\n")
 
     # 텔레그램으로 대시보드 URL 알림

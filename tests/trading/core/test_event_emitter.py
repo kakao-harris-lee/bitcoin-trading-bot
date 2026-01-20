@@ -168,11 +168,11 @@ class TestEventEmitterUnit:
 
     async def test_emit_entry_evaluation_when_enabled(self):
         """Test emitting entry evaluation event when enabled."""
+        import asyncio
         from trading.core.event_emitter import EventEmitter, EntryEvaluationEvent
 
         mock_redis = MagicMock()
-        mock_redis._client = MagicMock()
-        mock_redis._client.xadd = AsyncMock(return_value="1234567890-0")
+        mock_redis.publish_event = AsyncMock(return_value="1234567890-0")
 
         emitter = EventEmitter(redis=mock_redis, enabled=True)
 
@@ -201,20 +201,21 @@ class TestEventEmitterUnit:
         )
 
         await emitter.emit_entry_evaluation(event)
+        # Allow background task to complete
+        await asyncio.sleep(0)
 
-        mock_redis._client.xadd.assert_called_once()
-        call_args = mock_redis._client.xadd.call_args
+        mock_redis.publish_event.assert_called_once()
+        call_args = mock_redis.publish_event.call_args
         assert call_args[0][0] == "strategy:entry:events"
-        assert "maxlen" in call_args[1]
         assert call_args[1]["maxlen"] == 2000
 
     async def test_emit_entry_evaluation_when_disabled(self):
         """Test no emission when disabled."""
+        import asyncio
         from trading.core.event_emitter import EventEmitter, EntryEvaluationEvent
 
         mock_redis = MagicMock()
-        mock_redis._client = MagicMock()
-        mock_redis._client.xadd = AsyncMock()
+        mock_redis.publish_event = AsyncMock()
 
         emitter = EventEmitter(redis=mock_redis, enabled=False)
 
@@ -243,16 +244,17 @@ class TestEventEmitterUnit:
         )
 
         await emitter.emit_entry_evaluation(event)
+        await asyncio.sleep(0)
 
-        mock_redis._client.xadd.assert_not_called()
+        mock_redis.publish_event.assert_not_called()
 
     async def test_emit_exit_evaluation_when_enabled(self):
         """Test emitting exit evaluation event when enabled."""
+        import asyncio
         from trading.core.event_emitter import EventEmitter, ExitEvaluationEvent
 
         mock_redis = MagicMock()
-        mock_redis._client = MagicMock()
-        mock_redis._client.xadd = AsyncMock(return_value="1234567890-0")
+        mock_redis.publish_event = AsyncMock(return_value="1234567890-0")
 
         emitter = EventEmitter(redis=mock_redis, enabled=True)
 
@@ -280,18 +282,19 @@ class TestEventEmitterUnit:
         )
 
         await emitter.emit_exit_evaluation(event)
+        await asyncio.sleep(0)
 
-        mock_redis._client.xadd.assert_called_once()
-        call_args = mock_redis._client.xadd.call_args
+        mock_redis.publish_event.assert_called_once()
+        call_args = mock_redis.publish_event.call_args
         assert call_args[0][0] == "strategy:exit:events"
 
     async def test_emit_hwm_update_when_enabled(self):
         """Test emitting HWM update event when enabled."""
+        import asyncio
         from trading.core.event_emitter import EventEmitter, HWMUpdateEvent
 
         mock_redis = MagicMock()
-        mock_redis._client = MagicMock()
-        mock_redis._client.xadd = AsyncMock(return_value="1234567890-0")
+        mock_redis.publish_event = AsyncMock(return_value="1234567890-0")
 
         emitter = EventEmitter(redis=mock_redis, enabled=True)
 
@@ -308,18 +311,19 @@ class TestEventEmitterUnit:
         )
 
         await emitter.emit_hwm_update(event)
+        await asyncio.sleep(0)
 
-        mock_redis._client.xadd.assert_called_once()
-        call_args = mock_redis._client.xadd.call_args
+        mock_redis.publish_event.assert_called_once()
+        call_args = mock_redis.publish_event.call_args
         assert call_args[0][0] == "strategy:hwm:updates"
 
     async def test_emit_safety_rejection_when_enabled(self):
         """Test emitting safety rejection event when enabled."""
+        import asyncio
         from trading.core.event_emitter import EventEmitter, SafetyRejectionEvent
 
         mock_redis = MagicMock()
-        mock_redis._client = MagicMock()
-        mock_redis._client.xadd = AsyncMock(return_value="1234567890-0")
+        mock_redis.publish_event = AsyncMock(return_value="1234567890-0")
 
         emitter = EventEmitter(redis=mock_redis, enabled=True)
 
@@ -337,19 +341,20 @@ class TestEventEmitterUnit:
         )
 
         await emitter.emit_safety_rejection(event)
+        await asyncio.sleep(0)
 
-        mock_redis._client.xadd.assert_called_once()
-        call_args = mock_redis._client.xadd.call_args
+        mock_redis.publish_event.assert_called_once()
+        call_args = mock_redis.publish_event.call_args
         assert call_args[0][0] == "strategy:safety:events"
 
     async def test_fire_and_forget_does_not_block_on_error(self):
         """Test that emit methods don't block or raise on Redis errors."""
+        import asyncio
         from trading.core.event_emitter import EventEmitter, EntryEvaluationEvent
 
         mock_redis = MagicMock()
-        mock_redis._client = MagicMock()
         # Simulate Redis error
-        mock_redis._client.xadd = AsyncMock(side_effect=Exception("Redis connection error"))
+        mock_redis.publish_event = AsyncMock(side_effect=Exception("Redis connection error"))
 
         emitter = EventEmitter(redis=mock_redis, enabled=True)
 
@@ -379,6 +384,8 @@ class TestEventEmitterUnit:
 
         # Should not raise, even though Redis fails
         await emitter.emit_entry_evaluation(event)
+        # Allow background task to complete (and handle error silently)
+        await asyncio.sleep(0)
 
     async def test_event_serialization_to_dict(self):
         """Test that events serialize to Redis-compatible dict."""

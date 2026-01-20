@@ -36,6 +36,7 @@ from .models import build_market_context, MarketContext, MarketData, Position, S
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
+    from trading.core.event_emitter import EventEmitter
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +55,11 @@ class CompositeStrategyTask(BaseStrategyTask):
         redis: RedisStreams,
         entry_strategy: IEntryStrategy,
         exit_strategy: IExitStrategy,
-        market: str = "spot",
+        market: str = "futures",
         buffer_size: int = 500,
         use_smart_exit: bool = False,
         config: dict | None = None,
+        emit_events: bool = False,
     ):
         """Initialize composite strategy task.
 
@@ -71,6 +73,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             buffer_size: Price buffer size.
             use_smart_exit: Use smart exit stream.
             config: Additional configuration.
+            emit_events: Whether to emit observability events to Redis streams.
         """
         super().__init__(
             name=name,
@@ -88,6 +91,12 @@ class CompositeStrategyTask(BaseStrategyTask):
         self.history: dict[str, list[dict]] = {}
         # Track last recorded candle hour per symbol for decision logging
         self.last_decision_hour: dict[str, int] = {}
+        # Event emission for observability
+        self.emit_events = emit_events
+        self.event_emitter: EventEmitter | None = None
+        if emit_events:
+            from trading.core.event_emitter import EventEmitter
+            self.event_emitter = EventEmitter(redis=redis, enabled=True)
 
     async def run(self) -> None:
         """Main loop: warm-up then consume."""
@@ -136,6 +145,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         # Delegate to entry component with context
         signal = self.entry_strategy.check_entry(market_data, context)
 
+        # Emit entry evaluation event for observability
+        await self._emit_entry_evaluation(market_data, context, signal)
+
         if signal:
             # Apply dynamic sizing if configured
             quantity = await self._get_quantity(symbol, market_data.close, signal.quantity)
@@ -171,6 +183,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             signal = await check_exit_method(position, market_data)
         else:
             signal = check_exit_method(position, market_data)
+
+        # Emit exit evaluation event for observability
+        await self._emit_exit_evaluation(position, market_data, signal)
 
         if signal:
             return self._signal_to_dict(signal, signal.quantity)
@@ -527,6 +542,179 @@ class CompositeStrategyTask(BaseStrategyTask):
         except Exception as e:
             logger.error(f"Failed to record decision for {symbol}: {e}")
 
+    async def _emit_entry_evaluation(
+        self,
+        market_data: MarketData,
+        context: MarketContext,
+        signal: Signal | None,
+    ) -> None:
+        """Emit entry evaluation event for observability.
+
+        Args:
+            market_data: Current market state.
+            context: Market context with trend/volatility.
+            signal: Entry signal or None.
+        """
+        if not self.emit_events or self.event_emitter is None:
+            return
+
+        from trading.core.event_emitter import EntryEvaluationEvent, SafetyRejectionEvent
+
+        # Get thresholds from entry strategy params
+        mfi_threshold = 52.0
+        adx_threshold = 20.0
+        volatility_threshold = 0.03
+        if hasattr(self.entry_strategy, 'params'):
+            params = self.entry_strategy.params
+            mfi_threshold = getattr(params, 'mfi_bull', 52.0)
+            adx_threshold = getattr(params, 'adx_trend', 20.0)
+
+        # Determine filter pass status
+        adx_passed = market_data.adx >= adx_threshold
+        mfi_passed = market_data.mfi >= mfi_threshold
+        volatility_passed = context.volatility_score <= volatility_threshold
+        regime_allowed = context.regime in {"BULL_STRONG", "BULL_MODERATE"}
+        macd_crossed = market_data.macd > market_data.macd_signal
+
+        event = EntryEvaluationEvent(
+            timestamp=datetime.now().isoformat(),
+            strategy=self.name,
+            symbol=market_data.symbol,
+            market=self.market,
+            adx=market_data.adx,
+            adx_threshold=adx_threshold,
+            adx_passed=adx_passed,
+            regime=context.regime,
+            regime_allowed=regime_allowed,
+            volatility_score=context.volatility_score,
+            volatility_threshold=volatility_threshold,
+            volatility_passed=volatility_passed,
+            mfi=market_data.mfi,
+            mfi_threshold=mfi_threshold,
+            mfi_passed=mfi_passed,
+            macd=market_data.macd,
+            macd_signal=market_data.macd_signal,
+            macd_crossed=macd_crossed,
+            rsi=market_data.rsi,
+            signal_generated=signal is not None,
+            reason=signal.reason if signal else "No entry signal",
+        )
+
+        await self.event_emitter.emit_entry_evaluation(event)
+
+        # Emit safety rejection event if entry was blocked
+        if signal is None:
+            rejection_type = None
+            reason = ""
+
+            if not adx_passed:
+                rejection_type = "weak_trend"
+                reason = f"ADX={market_data.adx:.1f} < {adx_threshold} threshold"
+            elif not regime_allowed:
+                rejection_type = "wrong_regime"
+                reason = f"Regime {context.regime} not allowed for entry"
+            elif not volatility_passed:
+                rejection_type = "extreme_volatility"
+                reason = f"Volatility {context.volatility_score:.4f} > {volatility_threshold}"
+            elif not mfi_passed:
+                rejection_type = "weak_momentum"
+                reason = f"MFI={market_data.mfi:.1f} < {mfi_threshold}"
+
+            if rejection_type:
+                safety_event = SafetyRejectionEvent(
+                    timestamp=datetime.now().isoformat(),
+                    strategy=self.name,
+                    symbol=market_data.symbol,
+                    market=self.market,
+                    rejection_type=rejection_type,
+                    reason=reason,
+                    adx=market_data.adx,
+                    mfi=market_data.mfi,
+                    regime=context.regime,
+                    volatility_score=context.volatility_score,
+                )
+                await self.event_emitter.emit_safety_rejection(safety_event)
+
+    async def _emit_exit_evaluation(
+        self,
+        position: Position,
+        market_data: MarketData,
+        signal: Signal | None,
+    ) -> None:
+        """Emit exit evaluation event for observability.
+
+        Args:
+            position: Current position.
+            market_data: Current market state.
+            signal: Exit signal or None.
+        """
+        if not self.emit_events or self.event_emitter is None:
+            return
+
+        from trading.core.event_emitter import ExitEvaluationEvent
+
+        # Calculate P&L
+        unrealized_pnl = (market_data.close - position.entry_price) * position.quantity
+        unrealized_pnl_pct = (
+            (market_data.close - position.entry_price) / position.entry_price * 100
+            if position.entry_price > 0 else 0
+        )
+
+        # Get exit parameters if available from strategy
+        stop_loss_price = 0.0
+        take_profit_price = 0.0
+        trailing_stop_price = 0.0
+        high_water_mark = market_data.close
+        drawdown_from_hwm_pct = 0.0
+
+        if hasattr(self.exit_strategy, 'params'):
+            params = self.exit_strategy.params
+            # Calculate stop loss/take profit from params if available
+            stop_loss_pct = getattr(params, 'stop_loss_pct', 0.02)
+            take_profit_pct = getattr(params, 'take_profit_pct', 0.05)
+            stop_loss_price = position.entry_price * (1 - stop_loss_pct)
+            take_profit_price = position.entry_price * (1 + take_profit_pct)
+
+        # Get HWM from exit strategy state if available
+        if hasattr(self.exit_strategy, 'state') and hasattr(self.exit_strategy.state, 'get'):
+            hwm_state = self.exit_strategy.state.get(position.symbol, {})
+            if isinstance(hwm_state, dict):
+                high_water_mark = hwm_state.get('high_water_mark', market_data.close)
+                trailing_stop_price = hwm_state.get('trailing_stop', 0.0)
+                if high_water_mark > 0:
+                    drawdown_from_hwm_pct = (high_water_mark - market_data.close) / high_water_mark * 100
+
+        # Determine trigger status
+        stop_loss_triggered = market_data.close <= stop_loss_price if stop_loss_price > 0 else False
+        take_profit_triggered = market_data.close >= take_profit_price if take_profit_price > 0 else False
+        trailing_stop_triggered = market_data.close <= trailing_stop_price if trailing_stop_price > 0 else False
+        macd_exit_signal = market_data.macd < market_data.macd_signal
+
+        event = ExitEvaluationEvent(
+            timestamp=datetime.now().isoformat(),
+            strategy=self.name,
+            symbol=market_data.symbol,
+            market=self.market,
+            entry_price=position.entry_price,
+            current_price=market_data.close,
+            quantity=position.quantity,
+            unrealized_pnl=unrealized_pnl,
+            unrealized_pnl_pct=unrealized_pnl_pct,
+            stop_loss_price=stop_loss_price,
+            stop_loss_triggered=stop_loss_triggered,
+            take_profit_price=take_profit_price,
+            take_profit_triggered=take_profit_triggered,
+            trailing_stop_price=trailing_stop_price,
+            trailing_stop_triggered=trailing_stop_triggered,
+            macd_exit_signal=macd_exit_signal,
+            high_water_mark=high_water_mark,
+            drawdown_from_hwm_pct=drawdown_from_hwm_pct,
+            signal_generated=signal is not None,
+            reason=signal.reason if signal else f"Holding: P&L {'+' if unrealized_pnl_pct >= 0 else ''}{unrealized_pnl_pct:.2f}%",
+        )
+
+        await self.event_emitter.emit_exit_evaluation(event)
+
 
 async def create_composite_task(
     name: str,
@@ -535,7 +723,7 @@ async def create_composite_task(
     entry_strategy: IEntryStrategy,
     exit_strategy: IExitStrategy,
     config: dict | None = None,
-    market: str = "spot",
+    market: str = "futures",
     use_smart_exit: bool = False,
 ) -> CompositeStrategyTask:
     """Create a CompositeStrategyTask.

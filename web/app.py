@@ -223,7 +223,7 @@ def read_redis_trades(limit: int = 1000) -> list:
                 'symbol': symbol,
                 'price': price,
                 'volume': volume,
-                'market': data.get('market', 'spot'),
+                'market': data.get('market', 'futures'),
                 'exchange': 'binance',
                 'strategy': strategy,
                 'paper': data.get('paper', 'true') == 'true',
@@ -291,7 +291,7 @@ def read_redis_orders(limit: int = 200) -> list:
                 'timestamp': ts_dt.isoformat(),
                 'action': data.get('side', '').upper(),
                 'symbol': data.get('symbol', ''),
-                'market': data.get('market', 'spot'),
+                'market': data.get('market', 'futures'),
                 'strategy': data.get('strategy', ''),
                 'reason': data.get('reason', ''),
                 'exchange': 'binance',
@@ -426,7 +426,7 @@ def get_status():
                 assets = {}
                 for pos in binance_data.get('positions', []):
                     symbol = pos.get('asset', 'BTC')
-                    market = pos.get('market', 'spot')
+                    market = pos.get('market', 'futures')
                     key = f"{symbol}_{market}"
                     assets[key] = {
                         'symbol': symbol,
@@ -436,7 +436,7 @@ def get_status():
                         'price': pos.get('current_price', 0),
                         'position_active': pos.get('qty', 0) > 0,
                         'position_qty': pos.get('qty', 0),
-                        'direction': 'long' if market == 'spot' else 'short',
+                        'direction': pos.get('side', 'long'),
                         'strategy': pos.get('strategy', 'unknown'),
                         'entry_price': pos.get('entry_price', 0),
                         'unrealized_pnl': pos.get('unrealized_pnl', 0),
@@ -446,11 +446,11 @@ def get_status():
                 # If no positions, show symbols with no position (one per symbol)
                 if not assets:
                     for symbol in ['BTC', 'ETH', 'SOL']:
-                        key = f"{symbol}_spot"
+                        key = f"{symbol}_futures"
                         assets[key] = {
                             'symbol': symbol,
                             'exchange': 'binance',
-                            'market': 'spot',
+                            'market': 'futures',
                             'enabled': True,
                             'price': prices.get(f'{symbol}USDT', 0),
                             'position_active': False,
@@ -729,7 +729,7 @@ def get_recent_trades():
             'timestamp': t.get('timestamp', ''),
             'symbol': t.get('symbol', ''),
             'side': t.get('action', '').lower(),
-            'market': t.get('market', 'spot'),
+            'market': t.get('market', 'futures'),
             'quantity': t.get('volume', 0),
             'price': t.get('price', 0),
             'strategy': t.get('strategy', ''),
@@ -880,7 +880,7 @@ def get_signals():
             'strategy': t.get('strategy', ''),
             'action': t.get('action', '').lower(),
             'symbol': t.get('symbol', ''),
-            'market': t.get('market', 'spot'),
+            'market': t.get('market', 'futures'),
             'price': t.get('price', 0),
             'reason': reason,
             'regime': regime,
@@ -1774,6 +1774,198 @@ def get_decision_history():
         return jsonify({
             'decisions': decisions,
             'total_count': len(decisions)
+        })
+    except ValueError:
+        return jsonify({'error': 'Invalid parameter values'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# =============================================================================
+# Event Stream API Endpoints (Observability Feature)
+# =============================================================================
+
+@app.route("/api/events/entry")
+def get_entry_events():
+    """
+    Get entry evaluation events with optional filters.
+
+    Query parameters:
+    - hours: Hours of history (default 24, max 72)
+    - limit: Maximum events (default 50, max 200)
+    - symbol: Filter by symbol (e.g., "BTC")
+    - strategy: Filter by strategy (e.g., "v35_long")
+    """
+    if not metrics_service:
+        return jsonify({'error': 'Metrics service not available'}), 500
+
+    try:
+        hours = max(1, min(int(request.args.get('hours', 24)), 72))
+        limit = max(1, min(int(request.args.get('limit', 50)), 200))
+        symbol = request.args.get('symbol')
+        strategy = request.args.get('strategy')
+
+        events = metrics_service.get_entry_events(
+            hours=hours,
+            limit=limit,
+            symbol=symbol,
+            strategy=strategy,
+        )
+
+        return jsonify({
+            'events': events,
+            'total_count': len(events),
+        })
+    except ValueError:
+        return jsonify({'error': 'Invalid parameter values'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/events/exit")
+def get_exit_events():
+    """
+    Get exit evaluation events with optional filters.
+
+    Query parameters:
+    - hours: Hours of history (default 24, max 72)
+    - limit: Maximum events (default 50, max 200)
+    - symbol: Filter by symbol
+    - strategy: Filter by strategy
+    """
+    if not metrics_service:
+        return jsonify({'error': 'Metrics service not available'}), 500
+
+    try:
+        hours = max(1, min(int(request.args.get('hours', 24)), 72))
+        limit = max(1, min(int(request.args.get('limit', 50)), 200))
+        symbol = request.args.get('symbol')
+        strategy = request.args.get('strategy')
+
+        events = metrics_service.get_exit_events(
+            hours=hours,
+            limit=limit,
+            symbol=symbol,
+            strategy=strategy,
+        )
+
+        return jsonify({
+            'events': events,
+            'total_count': len(events),
+        })
+    except ValueError:
+        return jsonify({'error': 'Invalid parameter values'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/events/hwm/<symbol>/<strategy>")
+def get_hwm_timeline(symbol: str, strategy: str):
+    """
+    Get HWM update timeline for a specific position.
+
+    URL parameters:
+    - symbol: Trading symbol (e.g., "BTC")
+    - strategy: Strategy name (e.g., "v35_long")
+
+    Query parameters:
+    - hours: Hours of history (default 24, max 72)
+    """
+    if not metrics_service:
+        return jsonify({'error': 'Metrics service not available'}), 500
+
+    try:
+        hours = max(1, min(int(request.args.get('hours', 24)), 72))
+
+        timeline = metrics_service.get_hwm_timeline(
+            symbol=symbol,
+            strategy=strategy,
+            hours=hours,
+        )
+
+        return jsonify({
+            'symbol': symbol,
+            'strategy': strategy,
+            'timeline': timeline,
+            'total_count': len(timeline),
+        })
+    except ValueError:
+        return jsonify({'error': 'Invalid parameter values'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/events/safety")
+def get_safety_rejections():
+    """
+    Get safety filter rejection events with optional filters.
+
+    Query parameters:
+    - hours: Hours of history (default 24, max 72)
+    - limit: Maximum events (default 50, max 200)
+    - rejection_type: Filter by type (e.g., "weak_trend", "wrong_regime")
+    """
+    if not metrics_service:
+        return jsonify({'error': 'Metrics service not available'}), 500
+
+    try:
+        hours = max(1, min(int(request.args.get('hours', 24)), 72))
+        limit = max(1, min(int(request.args.get('limit', 50)), 200))
+        rejection_type = request.args.get('rejection_type')
+
+        rejections = metrics_service.get_safety_rejections(
+            hours=hours,
+            limit=limit,
+            rejection_type=rejection_type,
+        )
+
+        return jsonify({
+            'rejections': rejections,
+            'total_count': len(rejections),
+        })
+    except ValueError:
+        return jsonify({'error': 'Invalid parameter values'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/events/summary")
+def get_events_summary():
+    """
+    Get aggregated event summary for dashboard overview.
+
+    Query parameters:
+    - hours: Hours of history (default 24, max 72)
+    """
+    if not metrics_service:
+        return jsonify({'error': 'Metrics service not available'}), 500
+
+    try:
+        hours = max(1, min(int(request.args.get('hours', 24)), 72))
+
+        entry_events = metrics_service.get_entry_events(hours=hours, limit=1000)
+        exit_events = metrics_service.get_exit_events(hours=hours, limit=1000)
+        safety_rejections = metrics_service.get_safety_rejections(hours=hours, limit=1000)
+
+        # Calculate summary stats
+        entry_signals = sum(1 for e in entry_events if e.get('signal_generated') == 'true')
+        exit_signals = sum(1 for e in exit_events if e.get('signal_generated') == 'true')
+
+        # Group rejections by type
+        rejection_by_type = {}
+        for r in safety_rejections:
+            rtype = r.get('rejection_type', 'unknown')
+            rejection_by_type[rtype] = rejection_by_type.get(rtype, 0) + 1
+
+        return jsonify({
+            'hours': hours,
+            'entry_events_count': len(entry_events),
+            'entry_signals_count': entry_signals,
+            'exit_events_count': len(exit_events),
+            'exit_signals_count': exit_signals,
+            'safety_rejections_count': len(safety_rejections),
+            'rejections_by_type': rejection_by_type,
+            'timestamp': datetime.now().isoformat(),
         })
     except ValueError:
         return jsonify({'error': 'Invalid parameter values'}), 400

@@ -87,7 +87,7 @@ class MetricsService:
             for _, data in entries:
                 symbol = data.get("symbol")
                 price_str = data.get("price")
-                market = data.get("market", "spot")
+                market = data.get("market", "futures")
 
                 if symbol and price_str and symbol not in prices:
                     key = f"{symbol}:{market}"
@@ -277,7 +277,7 @@ class MetricsService:
                     'timestamp': data.get('timestamp', ''),
                     'exchange': 'binance',
                     'symbol': data.get('symbol', ''),
-                    'market': data.get('market', 'spot'),
+                    'market': data.get('market', 'futures'),
                     'strategy': data.get('strategy', ''),
                     'decision': data.get('decision', ''),
                     'reason': data.get('reason', ''),
@@ -373,6 +373,180 @@ class MetricsService:
             'recent_decisions': recent_decisions,
             'connection_status': connection_status,
         }
+
+
+    # =============================================================================
+    # Event Stream Methods (for observability feature)
+    # =============================================================================
+
+    def get_entry_events(
+        self,
+        hours: int = 24,
+        limit: int = 50,
+        symbol: Optional[str] = None,
+        strategy: Optional[str] = None,
+    ) -> list[dict]:
+        """
+        Get entry evaluation events from strategy:entry:events stream.
+
+        Args:
+            hours: Number of hours of history to retrieve
+            limit: Maximum number of events to return
+            symbol: Optional filter by symbol
+            strategy: Optional filter by strategy
+
+        Returns:
+            List of entry evaluation event dicts
+        """
+        try:
+            r = self._get_redis()
+
+            # Read from strategy:entry:events stream (newest first)
+            entries = r.xrevrange("strategy:entry:events", count=limit * 2)
+
+            events = []
+            for msg_id, data in entries:
+                # Apply filters
+                if symbol and data.get("symbol") != symbol:
+                    continue
+                if strategy and data.get("strategy") != strategy:
+                    continue
+
+                events.append(data)
+
+                if len(events) >= limit:
+                    break
+
+            return events
+
+        except Exception as e:
+            print(f"Error reading entry events: {e}")
+            return []
+
+    def get_exit_events(
+        self,
+        hours: int = 24,
+        limit: int = 50,
+        symbol: Optional[str] = None,
+        strategy: Optional[str] = None,
+    ) -> list[dict]:
+        """
+        Get exit evaluation events from strategy:exit:events stream.
+
+        Args:
+            hours: Number of hours of history to retrieve
+            limit: Maximum number of events to return
+            symbol: Optional filter by symbol
+            strategy: Optional filter by strategy
+
+        Returns:
+            List of exit evaluation event dicts
+        """
+        try:
+            r = self._get_redis()
+
+            # Read from strategy:exit:events stream (newest first)
+            entries = r.xrevrange("strategy:exit:events", count=limit * 2)
+
+            events = []
+            for msg_id, data in entries:
+                # Apply filters
+                if symbol and data.get("symbol") != symbol:
+                    continue
+                if strategy and data.get("strategy") != strategy:
+                    continue
+
+                events.append(data)
+
+                if len(events) >= limit:
+                    break
+
+            return events
+
+        except Exception as e:
+            print(f"Error reading exit events: {e}")
+            return []
+
+    def get_hwm_timeline(
+        self,
+        symbol: str,
+        strategy: str,
+        hours: int = 24,
+    ) -> list[dict]:
+        """
+        Get HWM update timeline from strategy:hwm:updates stream.
+
+        Returns chronologically ordered (oldest first) HWM updates for a position.
+
+        Args:
+            symbol: Filter by symbol
+            strategy: Filter by strategy
+            hours: Number of hours of history
+
+        Returns:
+            List of HWM update event dicts in chronological order
+        """
+        try:
+            r = self._get_redis()
+
+            # Read from strategy:hwm:updates stream (oldest first for timeline)
+            entries = r.xrange("strategy:hwm:updates", count=1000)
+
+            timeline = []
+            for msg_id, data in entries:
+                # Filter by symbol and strategy
+                if data.get("symbol") != symbol:
+                    continue
+                if data.get("strategy") != strategy:
+                    continue
+
+                timeline.append(data)
+
+            return timeline
+
+        except Exception as e:
+            print(f"Error reading HWM timeline: {e}")
+            return []
+
+    def get_safety_rejections(
+        self,
+        hours: int = 24,
+        limit: int = 50,
+        rejection_type: Optional[str] = None,
+    ) -> list[dict]:
+        """
+        Get safety rejection events from strategy:safety:events stream.
+
+        Args:
+            hours: Number of hours of history to retrieve
+            limit: Maximum number of events to return
+            rejection_type: Optional filter by rejection type
+
+        Returns:
+            List of safety rejection event dicts
+        """
+        try:
+            r = self._get_redis()
+
+            # Read from strategy:safety:events stream (newest first)
+            entries = r.xrevrange("strategy:safety:events", count=limit * 2)
+
+            rejections = []
+            for msg_id, data in entries:
+                # Apply filter
+                if rejection_type and data.get("rejection_type") != rejection_type:
+                    continue
+
+                rejections.append(data)
+
+                if len(rejections) >= limit:
+                    break
+
+            return rejections
+
+        except Exception as e:
+            print(f"Error reading safety rejections: {e}")
+            return []
 
 
 # Singleton instance for use in app.py

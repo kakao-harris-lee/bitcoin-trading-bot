@@ -115,7 +115,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         self.evaluation_interval = self.config.get("evaluation_interval_seconds", 60)
         self._last_evaluation_time: dict[str, float] = {}
         self._market_data_cache: dict[str, MarketData] = {}
-        self._context_cache: dict[str, MarketContext] = {}
+        # Note: _context_cache was removed - it was declared but never used
 
     async def run(self) -> None:
         """Main loop: warm-up then consume."""

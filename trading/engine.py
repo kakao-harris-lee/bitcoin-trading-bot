@@ -18,6 +18,8 @@ from trading.executor import BinanceClient, AsyncExecutor, PaperExecutor
 from trading.notification import TelegramTask
 from trading.risk.leverage_manager import LeverageManager
 from trading.observability import PeriodicLoggerTask
+from trading.indicators.indicator_service import IndicatorService
+from trading.strategies.components.context_builder import TradingContextBuilder, PositionManager
 
 logger = logging.getLogger(__name__)
 
@@ -219,6 +221,11 @@ class TradingEngine:
         Uses StrategyFactory to create Entry/Exit components and
         CompositeStrategyTask to run them.
 
+        Includes centralized IndicatorService for CPU optimization:
+        - Before: 4 strategies × 3 symbols = 12 separate indicator calculations
+        - After: 1 calculation per symbol, shared by all strategies
+        - CPU reduction: ~75% for indicator computation
+
         Args:
             symbols: List of trading symbols.
             strategy_config: Strategy configuration from allocation.json.
@@ -229,6 +236,20 @@ class TradingEngine:
 
         # Determine if we should use persistence (live mode)
         use_persistence = mode == "live"
+
+        # Create shared IndicatorService for CPU optimization
+        # All strategies share the same indicator calculations
+        indicator_cache_ttl = self.config.get("indicator_cache_ttl", 60)
+        indicator_service = IndicatorService(cache_ttl=indicator_cache_ttl)
+        logger.info(f"Created shared IndicatorService (cache_ttl={indicator_cache_ttl}s)")
+
+        # Create shared TradingContextBuilder for centralized context
+        position_manager = PositionManager(self.redis._client)
+        context_builder = TradingContextBuilder(
+            indicator_service=indicator_service,
+            position_manager=position_manager,
+        )
+        logger.info("Created shared TradingContextBuilder")
 
         # Use strategies defined in allocation.json
         # This allows us to enable/disable strategies via config
@@ -249,7 +270,7 @@ class TradingEngine:
                     persistent=use_persistence,
                 )
 
-                # Create composite task
+                # Create composite task with shared indicator service
                 task = await create_composite_task(
                     name=name,
                     symbols=symbols,
@@ -259,6 +280,8 @@ class TradingEngine:
                     config=config,
                     market=factory.get_market(name),
                     use_smart_exit=config.get("use_smart_exit", False),
+                    indicator_service=indicator_service,
+                    context_builder=context_builder,
                 )
 
                 self.tasks.append(asyncio.create_task(task.run()))
@@ -268,4 +291,4 @@ class TradingEngine:
             except Exception as e:
                 logger.error(f"Failed to create strategy {name}: {e}")
 
-        logger.info(f"Started {started} component strategy tasks")
+        logger.info(f"Started {started} component strategy tasks (shared indicator service)")

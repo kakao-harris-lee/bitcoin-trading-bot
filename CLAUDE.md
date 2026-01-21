@@ -58,6 +58,8 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 
 - Futures Trading Architecture → `docs/plans/2026-01-18-futures-trading-overhaul-design.md`
 - Futures Implementation Guide → `docs/plans/2026-01-18-futures-trading-overhaul-implementation.md`
+- Quant Lab Design → `docs/plans/2026-01-20-quant-lab-design.md`
+- Quant Lab Implementation → `docs/plans/2026-01-20-quant-lab-implementation.md`
 - Database Schema → Add Reference Paths Here
 - Troubleshooting → Add Reference Paths Here
 - Setup Guide → Add Reference Paths Here

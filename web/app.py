@@ -69,9 +69,20 @@ except Exception as e:
     print(f"Failed to import metrics_service: {e}")
     metrics_service = None
 
+# Import Quant Lab blueprint
+try:
+    from quant_lab.routes import quant_lab_bp
+except Exception as e:
+    print(f"Failed to import quant_lab: {e}")
+    quant_lab_bp = None
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
 CORS(app)
+
+# Register Quant Lab blueprint
+if quant_lab_bp:
+    app.register_blueprint(quant_lab_bp, url_prefix='/quant-lab')
 
 BASE_DIR = Path(__file__).parent
 

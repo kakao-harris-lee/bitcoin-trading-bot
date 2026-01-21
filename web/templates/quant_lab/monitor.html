@@ -103,10 +103,14 @@
                         const activeData = await activeRes.json();
                         this.activeJobs = activeData.active_jobs || [];
 
-                        // Fetch completed experiments from Optuna
+                        // Get set of active job study names for filtering
+                        const activeNames = new Set(this.activeJobs.map(j => j.study_name));
+
+                        // Fetch all experiments from Optuna, filter out active ones
                         const res = await fetch('/quant-lab/api/experiments');
                         const data = await res.json();
-                        this.completedExperiments = data.experiments || [];
+                        this.completedExperiments = (data.experiments || [])
+                            .filter(exp => !activeNames.has(exp.study_name));
                     } catch (e) {
                         console.error('Failed to load experiments:', e);
                     }

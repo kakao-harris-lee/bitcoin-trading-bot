@@ -4,8 +4,12 @@ import sys
 from redis import Redis
 from rq import Worker, Queue
 
-# Add project root to path
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+# Add web/ directory to path for quant_lab module
+WEB_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, WEB_DIR)
+
+# Also add project root for other imports
+PROJECT_ROOT = os.path.dirname(WEB_DIR)
 sys.path.insert(0, PROJECT_ROOT)
 
 

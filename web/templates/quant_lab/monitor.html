@@ -96,10 +96,15 @@
 
                 async loadExperiments() {
                     try {
+                        // Fetch active jobs from Redis
+                        const activeRes = await fetch('/quant-lab/api/active-jobs');
+                        const activeData = await activeRes.json();
+                        this.activeJobs = activeData.active_jobs || [];
+
+                        // Fetch completed experiments from Optuna
                         const res = await fetch('/quant-lab/api/experiments');
                         const data = await res.json();
                         this.completedExperiments = data.experiments || [];
-                        // TODO: Filter active vs completed based on status
                     } catch (e) {
                         console.error('Failed to load experiments:', e);
                     }

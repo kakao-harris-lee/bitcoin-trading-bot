@@ -167,6 +167,36 @@ def list_experiments():
         return jsonify({"error": str(e)}), 500
 
 
+@quant_lab_bp.route('/api/active-jobs')
+def list_active_jobs():
+    """List all active jobs from Redis."""
+    try:
+        from redis import Redis
+
+        redis_conn = Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379'))
+
+        # Find all quant_lab:job:* keys
+        job_keys = redis_conn.keys('quant_lab:job:*')
+        active_jobs = []
+
+        for key in job_keys:
+            data = redis_conn.hgetall(key)
+            if data:
+                job_data = {k.decode(): json.loads(v.decode()) for k, v in data.items()}
+                # Extract job_id from key
+                job_id = key.decode().split(':')[-1]
+                job_data['job_id'] = job_id
+
+                # Only include running/pending jobs
+                if job_data.get('status') in ['running', 'pending', 'queued']:
+                    active_jobs.append(job_data)
+
+        return jsonify({"active_jobs": active_jobs})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @quant_lab_bp.route('/api/experiments/<study_name>/results')
 def get_experiment_results(study_name: str):
     """Get results for an experiment."""

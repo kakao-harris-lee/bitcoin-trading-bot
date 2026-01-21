@@ -245,13 +245,20 @@ Minimum profit target: 1.4% (10x fees)
 
 ## Environment Setup
 
+**This project uses a Python virtual environment (venv).** Always activate it before running any commands.
+
 ```bash
+# Activate virtual environment (REQUIRED)
 source .venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 
 # Required services
 redis-server  # Redis must be running
 ```
+
+**Important:** The dashboard, bot, and Quant Lab worker all run with the venv Python. Do not use system Python directly.
 
 ## Environment Variables
 

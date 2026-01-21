@@ -93,8 +93,15 @@ def run_optimization(job: OptimizationJob) -> Dict[str, Any]:
         search_config=search_config,
     )
 
-    # Update job status
-    _update_job_status(job.job_id, JobStatus.RUNNING)
+    # Update job status with initial metadata
+    _update_job_status(job.job_id, JobStatus.RUNNING, {
+        "study_name": job.study_name,
+        "max_trials": job.max_trials,
+        "current_trial": 0,
+        "start_date": job.start_date,
+        "end_date": job.end_date,
+        "symbols": job.symbols,
+    })
 
     try:
         # Run optimization
@@ -147,8 +154,9 @@ def _on_trial_complete(job_id: str, study, trial) -> None:
     """Callback after each trial completes."""
     try:
         r = redis.from_url("redis://localhost:6379")
+        # trial.number is 0-indexed, so add 1 for display (trial 0 = "1 of N")
         r.hset(f"quant_lab:job:{job_id}", mapping={
-            "current_trial": str(trial.number),
+            "current_trial": str(trial.number + 1),
             "best_values": json.dumps(study.best_trials[0].values if study.best_trials else None),
         })
     except Exception:

@@ -20,6 +20,16 @@ class StudyManager:
         """
         self.storage_path = storage_path
         self.storage_url = f"sqlite:///{storage_path}"
+        
+        # Configure storage with proper timeouts and connection pooling
+        self.storage = optuna.storages.RDBStorage(
+            url=self.storage_url,
+            engine_kwargs={
+                "connect_args": {"timeout": 30},
+                "pool_pre_ping": True,
+                "pool_recycle": 3600,
+            }
+        )
 
     def create_study(
         self,
@@ -53,7 +63,7 @@ class StudyManager:
 
         study = optuna.create_study(
             study_name=study_name,
-            storage=self.storage_url,
+            storage=self.storage,
             directions=study_directions,
             sampler=optuna.samplers.NSGAIISampler(),
             load_if_exists=True,
@@ -73,7 +83,7 @@ class StudyManager:
         """
         return optuna.load_study(
             study_name=study_name,
-            storage=self.storage_url,
+            storage=self.storage,
         )
 
     def list_studies(self) -> List[optuna.study.StudySummary]:
@@ -83,7 +93,7 @@ class StudyManager:
         Returns:
             List of study summaries
         """
-        return optuna.get_all_study_summaries(storage=self.storage_url)
+        return optuna.get_all_study_summaries(storage=self.storage)
 
     def delete_study(self, study_name: str) -> None:
         """
@@ -94,7 +104,7 @@ class StudyManager:
         """
         optuna.delete_study(
             study_name=study_name,
-            storage=self.storage_url,
+            storage=self.storage,
         )
 
     def get_pareto_front(self, study_name: str) -> List[optuna.trial.FrozenTrial]:

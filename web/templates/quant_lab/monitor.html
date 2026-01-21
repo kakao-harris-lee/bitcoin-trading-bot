@@ -67,13 +67,15 @@
                 <tbody>
                     <template x-for="exp in completedExperiments" :key="exp.study_name">
                         <tr class="border-b border-gray-700">
-                            <td class="py-3" x-text="exp.study_name"></td>
+                            <td class="py-3" x-text="exp.study_name || '(unnamed)'"></td>
                             <td class="py-3" x-text="exp.n_trials"></td>
                             <td class="py-3" x-text="exp.pareto_size || '-'"></td>
                             <td class="py-3" x-text="formatDate(exp.datetime_start)"></td>
                             <td class="py-3">
                                 <a :href="'/quant-lab/results/' + exp.study_name"
+                                   x-show="exp.study_name"
                                    class="text-blue-400 hover:underline">View</a>
+                                <span x-show="!exp.study_name" class="text-gray-500">N/A</span>
                             </td>
                         </tr>
                     </template>

@@ -23,9 +23,10 @@ ENTRY_COMPONENTS = [
 ]
 
 # Available exit strategy components
+# Note: V35PersistentExit is async/Redis-backed, excluded from backtesting
 EXIT_COMPONENTS = [
     "V35TrailingExit",
-    "V35PersistentExit",
+    # "V35PersistentExit",  # Async, not suitable for backtesting
     "ExperimentalExit",
     "SidewaysExit",
 ]

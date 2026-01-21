@@ -90,12 +90,17 @@ def create_experiment():
 
     # Generate job ID
     job_id = str(uuid.uuid4())[:8]
+    
+    # Validate and sanitize study name
+    study_name = data.get('study_name', '').strip()
+    if not study_name:
+        study_name = f'experiment_{job_id}'
 
     # Create job
     job = OptimizationJob(
         job_id=job_id,
-        study_name=data.get('study_name', f'experiment_{job_id}'),
-        data_path=data.get('data_path', 'data/binance.db'),
+        study_name=study_name,
+        data_path=data.get('data_path', 'data/binance_bitcoin.db'),
         start_date=data['start_date'],
         end_date=data['end_date'],
         symbols=data['symbols'],

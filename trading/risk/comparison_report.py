@@ -17,7 +17,8 @@ import pandas as pd
 
 from core.backtester import Backtester, Trade
 from core.data_loader import DataLoader
-from core.component_adapter import ComponentStrategyAdapter
+# NOTE: ComponentStrategyAdapter import is deferred to avoid circular import
+# (component_adapter -> trading.strategies.components -> trading -> trading.risk -> here)
 from trading.strategies.components.strategy_factory import StrategyFactory, STRATEGY_REGISTRY
 from trading.indicators import add_all_indicators
 
@@ -233,6 +234,8 @@ class ComparisonReportGenerator:
              except Exception:
                  pass
 
+        # Lazy import to avoid circular dependency
+        from core.component_adapter import ComponentStrategyAdapter
         adapter = ComponentStrategyAdapter(self.factory, strategy_name, config)
 
         # Load market data

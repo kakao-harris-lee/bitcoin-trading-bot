@@ -50,6 +50,7 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - **Async**: Keep all I/O non-blocking.
 - **Logging**: Log every state change (e.g., "High Water Mark updated: 50000 -> 51000").
 - **Error Handling**: Strategies must fail gracefully (log error, return Neutral signal) rather than crashing the engine.
+- **No Hardcodes**: Never hardcode values that should be computed or passed as parameters. Use existing helper functions (e.g., `build_market_context()`) instead of manually constructing objects with placeholder values.
 
 ## Quick Reference
 

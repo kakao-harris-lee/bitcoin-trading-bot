@@ -6,24 +6,46 @@ import statistics
 
 
 class VolatilityTracker:
-    """Tracks price volatility using rolling window of returns."""
+    """Tracks price volatility using rolling window of returns.
+
+    All thresholds are configurable via constructor parameters.
+    Defaults are calibrated for BTC minute-level returns.
+    """
 
     # Default trail distances by volatility level (percentage)
-    TRAIL_DISTANCES = {
+    DEFAULT_TRAIL_DISTANCES = {
         "low": 0.8,
         "medium": 1.2,
         "high": 1.8,
     }
 
-    # Volatility thresholds (stddev/mean of returns)
+    # Default volatility thresholds (stddev/mean of returns)
     # Calibrated for BTC minute-level returns (25th/75th percentiles)
-    LOW_VOL_THRESHOLD = 0.71
-    HIGH_VOL_THRESHOLD = 0.92
+    DEFAULT_LOW_VOL_THRESHOLD = 0.71
+    DEFAULT_HIGH_VOL_THRESHOLD = 0.92
 
-    def __init__(self, window: int = 20):
-        """Initialize tracker with rolling window size."""
+    def __init__(
+        self,
+        window: int = 20,
+        low_vol_threshold: float | None = None,
+        high_vol_threshold: float | None = None,
+        trail_distances: dict[str, float] | None = None,
+    ):
+        """Initialize tracker with configurable parameters.
+
+        Args:
+            window: Rolling window size for volatility calculation.
+            low_vol_threshold: Threshold below which volatility is "low".
+            high_vol_threshold: Threshold above which volatility is "high".
+            trail_distances: Dict of trail distances by volatility level.
+        """
         self.window = window
         self.prices: deque[float] = deque(maxlen=window + 1)
+
+        # Use provided values or defaults
+        self.LOW_VOL_THRESHOLD = low_vol_threshold or self.DEFAULT_LOW_VOL_THRESHOLD
+        self.HIGH_VOL_THRESHOLD = high_vol_threshold or self.DEFAULT_HIGH_VOL_THRESHOLD
+        self.TRAIL_DISTANCES = trail_distances or self.DEFAULT_TRAIL_DISTANCES.copy()
 
     def add_price(self, price: float) -> None:
         """Add a price point."""

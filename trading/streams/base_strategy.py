@@ -2,6 +2,7 @@
 """Base class for strategy tasks."""
 from __future__ import annotations
 import asyncio
+import time
 import uuid
 import logging
 from abc import ABC, abstractmethod
@@ -13,6 +14,10 @@ if TYPE_CHECKING:
     from .redis_streams import RedisStreams
 
 logger = logging.getLogger(__name__)
+
+# Default evaluation interval in seconds (only evaluate entry/exit at this interval)
+# For strategies using minute+ candles, 5 seconds is plenty fast for entry/exit checks
+DEFAULT_EVALUATION_INTERVAL = 5.0
 
 
 class BaseStrategyTask(ABC):
@@ -41,6 +46,13 @@ class BaseStrategyTask(ABC):
         self._notified_positions: set[str] = set()
         # Track pending exits to avoid duplicate exit signals (for smart exit)
         self._pending_exits: set[str] = set()
+        # Evaluation throttling to reduce CPU usage
+        self._evaluation_interval = DEFAULT_EVALUATION_INTERVAL
+        self._last_evaluation_time: dict[str, float] = {}
+        # Cache for position and blocked status to reduce Redis calls
+        self._position_cache: dict[str, tuple[float, dict | None]] = {}
+        self._blocked_cache: tuple[float, bool] = (0.0, False)
+        self._cache_ttl = 1.0  # Cache TTL in seconds
 
     async def fetch_initial_candles(self, symbol: str, interval: str = "1h", limit: int = 200) -> list[dict]:
         """Fetch historical candles for warm-up."""
@@ -86,8 +98,70 @@ class BaseStrategyTask(ABC):
         """Signal task to stop."""
         self._running = False
 
+    def _should_evaluate(self, symbol: str) -> bool:
+        """Check if enough time has passed to evaluate this symbol.
+
+        Uses time-based throttling to reduce CPU usage from frequent evaluations.
+
+        Args:
+            symbol: Trading symbol.
+
+        Returns:
+            True if evaluation should proceed, False to skip.
+        """
+        current_time = time.time()
+        last_time = self._last_evaluation_time.get(symbol, 0)
+
+        if current_time - last_time >= self._evaluation_interval:
+            self._last_evaluation_time[symbol] = current_time
+            return True
+        return False
+
+    async def _get_cached_blocked(self) -> bool:
+        """Get blocked status with caching to reduce Redis calls.
+
+        Returns:
+            True if blocked, False otherwise.
+        """
+        current_time = time.time()
+        cache_time, cached_value = self._blocked_cache
+
+        if current_time - cache_time < self._cache_ttl:
+            return cached_value
+
+        # Cache expired, fetch from Redis
+        is_blocked = await self.redis.is_blocked()
+        self._blocked_cache = (current_time, is_blocked)
+        return is_blocked
+
+    async def _get_cached_position(self, symbol: str) -> dict | None:
+        """Get position with caching to reduce Redis calls.
+
+        Args:
+            symbol: Trading symbol.
+
+        Returns:
+            Position dict or None.
+        """
+        current_time = time.time()
+        cache_key = f"{symbol}:{self.market}"
+
+        if cache_key in self._position_cache:
+            cache_time, cached_value = self._position_cache[cache_key]
+            if current_time - cache_time < self._cache_ttl:
+                return cached_value
+
+        # Cache expired, fetch from Redis
+        position = await self.redis.get_position(symbol, self.market)
+        self._position_cache[cache_key] = (current_time, position)
+        return position
+
     async def _handle_message(self, msg: dict[str, Any]) -> None:
-        """Handle incoming price message."""
+        """Handle incoming price message with throttling.
+
+        Uses time-based throttling to reduce CPU usage. Price buffer is always
+        updated, but entry/exit evaluation only happens at configured intervals.
+        """
         symbol = msg.get("symbol")
 
         # Filter by symbol
@@ -106,12 +180,17 @@ class BaseStrategyTask(ABC):
         if msg.get("warmup") == "true":
             return
 
-        # Check if blocked
-        if await self.redis.is_blocked():
+        # Throttle evaluation to reduce CPU usage
+        # Only evaluate entry/exit at configured intervals
+        if not self._should_evaluate(symbol):
             return
 
-        # Check if already has position - evaluate exit only for own positions
-        position = await self.redis.get_position(symbol, self.market)
+        # Check if blocked (cached)
+        if await self._get_cached_blocked():
+            return
+
+        # Check if already has position - evaluate exit only for own positions (cached)
+        position = await self._get_cached_position(symbol)
         if not position:
             # Position closed - clear pending exit flag
             if symbol in self._pending_exits:

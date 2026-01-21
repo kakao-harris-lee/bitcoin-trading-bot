@@ -70,4 +70,11 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # ATR
     df['atr'] = ta.atr(df['high'], df['low'], df['close'])
 
+    # Support/Resistance levels (20-period high/low)
+    df['prev_high_20'] = df['high'].rolling(window=20).max()
+    df['prev_low_20'] = df['low'].rolling(window=20).min()
+
+    # Average volume (20-period)
+    df['avg_volume_20'] = df['volume'].rolling(window=20).mean()
+
     return df

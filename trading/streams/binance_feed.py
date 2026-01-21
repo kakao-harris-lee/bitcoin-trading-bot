@@ -99,18 +99,33 @@ class BinanceFeedTask(SymbolFeedTask):
             # Continue anyway - WebSocket will provide live data
 
     def _build_ws_url(self) -> str:
-        """Build WebSocket URL for symbol."""
+        """Build WebSocket URL for symbol.
+
+        Uses @miniTicker stream which updates once per second with price data.
+        This is much more efficient than @trade stream which sends every trade
+        (potentially thousands per second for BTC).
+        """
         pair = f"{self.symbol.lower()}usdt"
-        stream = f"{pair}@trade"
+        # Use miniTicker for efficiency - updates once per second
+        stream = f"{pair}@miniTicker"
 
         if self.market == "futures":
             return f"{BINANCE_FUTURES_WS}/{stream}"
         return f"{BINANCE_SPOT_WS}/{stream}"
 
-    def _parse_trade_message(self, msg: dict[str, Any]) -> dict[str, Any]:
-        """Parse Binance trade message."""
+    def _parse_ticker_message(self, msg: dict[str, Any]) -> dict[str, Any]:
+        """Parse Binance miniTicker message.
+
+        miniTicker fields:
+        - c: Close price (last price)
+        - o: Open price
+        - h: High price
+        - l: Low price
+        - v: Total traded base asset volume
+        - q: Total traded quote asset volume
+        """
         return {
-            "price": msg["p"],
+            "price": msg["c"],  # Close price
             "market": self.market,
         }
 
@@ -126,8 +141,9 @@ class BinanceFeedTask(SymbolFeedTask):
                     async for msg in ws:
                         if msg.type == aiohttp.WSMsgType.TEXT:
                             data = json.loads(msg.data)
-                            if data.get("e") == "trade":
-                                yield self._parse_trade_message(data)
+                            # miniTicker has event type "24hrMiniTicker"
+                            if data.get("e") == "24hrMiniTicker":
+                                yield self._parse_ticker_message(data)
                         elif msg.type == aiohttp.WSMsgType.ERROR:
                             raise ConnectionError(f"WebSocket error: {ws.exception()}")
 

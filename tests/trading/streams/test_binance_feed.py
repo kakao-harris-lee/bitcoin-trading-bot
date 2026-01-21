@@ -12,41 +12,46 @@ def mock_redis():
 
 
 def test_binance_feed_builds_ws_url():
-    """Test WebSocket URL construction."""
+    """Test WebSocket URL construction.
+
+    Uses miniTicker stream for efficiency (1 update/sec vs thousands for @trade).
+    """
     task = BinanceFeedTask(symbol="BTC", redis=AsyncMock())
 
     url = task._build_ws_url()
-    assert "btcusdt@trade" in url
+    assert "btcusdt@miniTicker" in url
     assert "wss://fstream.binance.com" in url
 
 
-def test_binance_feed_parses_trade_message():
-    """Test parsing Binance trade message."""
+def test_binance_feed_parses_ticker_message():
+    """Test parsing Binance miniTicker message."""
     task = BinanceFeedTask(symbol="BTC", redis=AsyncMock())
 
     raw_msg = {
-        "e": "trade",
+        "e": "24hrMiniTicker",
         "s": "BTCUSDT",
-        "p": "43250.50",
-        "T": 1704912345678,
+        "c": "43250.50",  # close price
+        "o": "43000.00",  # open price
+        "h": "43500.00",  # high price
+        "l": "42800.00",  # low price
+        "v": "1000.0",    # volume
     }
 
-    parsed = task._parse_trade_message(raw_msg)
+    parsed = task._parse_ticker_message(raw_msg)
     assert parsed["price"] == "43250.50"
     assert parsed["market"] == "futures"
 
 
 def test_binance_futures_feed_parses_message():
-    """Test parsing Binance futures trade message."""
+    """Test parsing Binance futures miniTicker message."""
     task = BinanceFeedTask(symbol="BTC", redis=AsyncMock(), market="futures")
 
     raw_msg = {
-        "e": "trade",
+        "e": "24hrMiniTicker",
         "s": "BTCUSDT",
-        "p": "43255.00",
-        "T": 1704912345678,
+        "c": "43255.00",  # close price
     }
 
-    parsed = task._parse_trade_message(raw_msg)
+    parsed = task._parse_ticker_message(raw_msg)
     assert parsed["price"] == "43255.00"
     assert parsed["market"] == "futures"

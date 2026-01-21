@@ -805,6 +805,12 @@ footer kbd {
     border-color: var(--accent-cyan);
 }
 
+.tab-btn.tab-link {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
 /* Tab Content */
 .tab-content {
     display: none;

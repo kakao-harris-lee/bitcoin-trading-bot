@@ -281,6 +281,36 @@ def read_redis_trades(limit: int = 1000) -> list:
         return []
 
 
+def get_latest_prices() -> dict:
+    """
+    Get latest prices from Redis market:prices stream.
+
+    Returns:
+        Dict mapping symbol (e.g., 'BTCUSDT') to price
+    """
+    try:
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+
+        # Read recent entries from price stream to get latest for each symbol
+        messages = r.xrevrange('market:prices', count=100)
+
+        prices = {}
+        seen_symbols = set()
+        for msg_id, data in messages:
+            symbol = data.get('symbol', '')
+            if symbol and symbol not in seen_symbols:
+                price = float(data.get('price', 0))
+                if price > 0:
+                    # Store as BTCUSDT format for compatibility
+                    prices[f'{symbol}USDT'] = price
+                    seen_symbols.add(symbol)
+
+        return prices
+    except Exception as e:
+        print(f"Error reading prices from stream: {e}")
+        return {}
+
+
 def read_redis_orders(limit: int = 200) -> list:
     """
     Read order intents/signals from Redis 'orders' stream.
@@ -1228,14 +1258,8 @@ def get_positions():
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
 
-    # Get current prices from Redis
-    prices = {}
-    try:
-        price_data = r.hgetall('market:latest:prices') or {}
-        for key, val in price_data.items():
-            prices[key] = float(val)
-    except Exception:
-        pass
+    # Get current prices from stream
+    prices = get_latest_prices()
 
     # Paper mode: return positions from Redis only
     if mode == 'paper':
@@ -1521,11 +1545,8 @@ def get_exchange_balances():
             spot_balance = float(account.get('spot_balance', 10000))
             futures_balance = float(account.get('futures_balance', 10000))
 
-            # Get prices from Redis
-            prices = {}
-            price_data = r.hgetall('market:latest:prices') or {}
-            for key, val in price_data.items():
-                prices[key] = float(val)
+            # Get prices from stream
+            prices = get_latest_prices()
 
             # Calculate position values
             spot_positions = []

@@ -30,7 +30,8 @@ class PaperExecutor:
     ):
         self.redis = redis
         self.config = config
-        self.balance = config.get("initial_balance", 10000)
+        self.initial_balance = config.get("initial_balance", 10000)
+        self.balance = self.initial_balance  # Will be overwritten by Redis value if exists
         self.fee_rate = config.get("fee_rate", 0.001)  # 0.1%
         self.slippage = config.get("slippage", 0.0004)  # 0.04%
         self.max_daily_loss = config.get("max_daily_loss", 500)
@@ -53,6 +54,12 @@ class PaperExecutor:
         consumer = "paper-executor"
 
         await self.redis.create_consumer_group("orders", group)
+
+        # Load persisted balance from Redis (if exists), otherwise use initial_balance
+        await self._load_balance_from_redis()
+
+        # Sync balance to Redis so dashboard shows correct values
+        await self._sync_balance_to_redis()
         logger.info(f"PaperExecutor started with balance: {self.balance}")
 
         # Store task reference to prevent garbage collection
@@ -100,6 +107,35 @@ class PaperExecutor:
     def stop(self) -> None:
         """Signal executor to stop."""
         self._running = False
+
+    async def _load_balance_from_redis(self) -> None:
+        """Load persisted paper balance from Redis on startup."""
+        try:
+            account = await self.redis.hgetall("account:paper")
+            if account and "futures_balance" in account:
+                saved_balance = float(account["futures_balance"])
+                if saved_balance > 0:
+                    self.balance = saved_balance
+                    logger.info(f"Loaded persisted paper balance from Redis: {self.balance:.2f}")
+                    return
+            # No valid saved balance, use initial
+            logger.info(f"No persisted balance found, using initial: {self.initial_balance}")
+            self.balance = self.initial_balance
+        except Exception as e:
+            logger.warning(f"Failed to load balance from Redis, using initial: {e}")
+            self.balance = self.initial_balance
+
+    async def _sync_balance_to_redis(self) -> None:
+        """Sync paper trading balance to Redis for dashboard display."""
+        try:
+            await self.redis.hset("account:paper", {
+                "futures_balance": str(self.balance),
+                "spot_balance": "0",  # Futures-only, no spot balance
+                "last_sync": str(int(time.time())),
+            })
+            logger.debug(f"Synced paper balance to Redis: {self.balance:.2f}")
+        except Exception as e:
+            logger.error(f"Failed to sync balance to Redis: {e}")
 
     async def _process_order(self, order: dict[str, Any]) -> dict | None:
         """Simulate order execution."""
@@ -162,6 +198,9 @@ class PaperExecutor:
         else:
             # For sells, add to balance (minus fees)
             self.balance += order_value - fees
+
+        # Sync updated balance to Redis for dashboard
+        await self._sync_balance_to_redis()
 
         # Create fill result
         fill = {

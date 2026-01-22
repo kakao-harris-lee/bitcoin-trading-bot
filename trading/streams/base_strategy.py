@@ -332,12 +332,16 @@ class BaseStrategyTask(ABC):
             Position size in asset units
         """
         try:
-            # Get balance from Redis (set by AsyncExecutor)
-            # Futures only - spot trading removed
-            account = await self.redis._client.hgetall("account")
+            # Get balance from Redis (set by executor)
+            # Use mode-specific key: account:paper or account:live
+            risk = await self.redis._client.hgetall("risk")
+            mode = risk.get("mode", "paper") if risk else "paper"
+            account_key = f"account:{mode}"
+
+            account = await self.redis._client.hgetall(account_key)
 
             if not account:
-                logger.warning("No account balance found, using minimum size")
+                logger.warning(f"No account balance found in {account_key}, using minimum size")
                 return min_size
 
             balance = float(account.get("futures_balance", 0))

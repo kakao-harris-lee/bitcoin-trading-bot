@@ -1475,7 +1475,7 @@ def get_exchange_balances():
     # Paper mode: return simulated balances from Redis
     if mode == 'paper':
         try:
-            account = r.hgetall('account') or {}
+            account = r.hgetall('account:paper') or {}
             spot_balance = float(account.get('spot_balance', 10000))
             futures_balance = float(account.get('futures_balance', 10000))
 

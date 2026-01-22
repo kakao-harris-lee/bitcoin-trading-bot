@@ -107,7 +107,7 @@ class AsyncExecutor:
                 logger.info(f"Synced {synced} external positions from Binance")
 
             # Store balance in Redis for strategies to access
-            await self.redis.hset("account", {
+            await self.redis.hset("account:live", {
                 "futures_balance": str(balance.futures_usdt),
                 "last_sync": str(int(time.time())),
             })
@@ -135,7 +135,7 @@ class AsyncExecutor:
                     "last_update": time.time(),
                 }
                 # Update Redis
-                await self.redis.hset("account", {
+                await self.redis.hset("account:live", {
                     "futures_balance": str(balance.futures_usdt),
                     "last_sync": str(int(time.time())),
                 })

@@ -71,9 +71,16 @@ This prevents context loss! Update this file immediately when you create importa
 ./bot.sh start                    # Paper mode (default)
 ./bot.sh start --trend=live       # Live trading
 ./bot.sh stop                     # Stop bot
-./bot.sh restart --trend=live     # Restart
+./bot.sh restart                  # Restart (keeps current mode)
+./bot.sh restart --trend=live     # Restart in live mode
 ./bot.sh status                   # Check status
 ./bot.sh logs                     # View logs
+
+# Dashboard management (use this, NOT systemctl)
+./dashboard.sh start              # Start dashboard
+./dashboard.sh stop               # Stop dashboard
+./dashboard.sh restart            # Restart dashboard
+# Dashboard URL: http://localhost:5080/btc-dashboard
 
 # Direct run (alternative)
 python run.py --trend paper

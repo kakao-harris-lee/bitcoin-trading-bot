@@ -256,8 +256,14 @@ class MetricsService:
         try:
             r = self._get_redis()
 
+            # Get current mode from Redis
+            risk_data = r.hgetall("risk") or {}
+            mode = risk_data.get("mode", "paper")
+            is_paper_mode = (mode == "paper")
+
             # Read from strategy:decisions stream (newest first)
-            entries = r.xrevrange("strategy:decisions", count=limit)
+            # Read more entries to account for mode filtering
+            entries = r.xrevrange("strategy:decisions", count=limit * 2)
 
             # If no entries in stream, fall back to position-based decisions
             if not entries:
@@ -265,6 +271,10 @@ class MetricsService:
 
             decisions = []
             for msg_id, data in entries:
+                # Filter by mode (paper field may not exist in old entries)
+                entry_is_paper = data.get("paper", "true") == "true"
+                if entry_is_paper != is_paper_mode:
+                    continue
                 # Parse position JSON
                 position_data = {}
                 if data.get("position"):
@@ -289,6 +299,10 @@ class MetricsService:
                     },
                     'position': position_data,
                 })
+
+                # Stop when we have enough
+                if len(decisions) >= limit:
+                    break
 
             return decisions
 

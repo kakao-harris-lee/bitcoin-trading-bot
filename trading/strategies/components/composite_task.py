@@ -610,6 +610,10 @@ class CompositeStrategyTask(BaseStrategyTask):
 
             position_data = {"active": False}
 
+        # Get current mode from Redis
+        risk_data = await self.redis._client.hgetall("risk")
+        mode = risk_data.get("mode", "paper") if risk_data else "paper"
+
         # Build decision record
         decision_record = {
             "timestamp": datetime.now().isoformat(),
@@ -623,6 +627,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             "decision": decision,
             "reason": reason,
             "position": json.dumps(position_data),
+            "paper": "true" if mode == "paper" else "false",
         }
 
         # Add context info if available

@@ -683,11 +683,17 @@ def get_trades():
     # Clamp limit
     limit = min(max(1, limit), 500)
 
+    # Get current mode from Redis
+    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    risk_data = r.hgetall('risk') or {}
+    mode = risk_data.get('mode', 'paper')
+    is_paper_mode = (mode == 'paper')
+
     # Read trades from Redis stream (stream architecture)
     redis_trades = read_redis_trades(limit=1000)
 
-    # All trades from Redis (already formatted)
-    all_trades = redis_trades
+    # Filter by mode (paper trades for paper mode, live trades for live mode)
+    all_trades = [t for t in redis_trades if t.get('paper', True) == is_paper_mode]
 
     # Apply filters
     filtered_trades = all_trades
@@ -731,8 +737,15 @@ def get_recent_trades():
     limit = request.args.get('limit', 20, type=int)
     limit = min(max(1, limit), 50)
 
-    # Read trades from Redis stream
-    redis_trades = read_redis_trades(limit=limit)
+    # Get current mode from Redis
+    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    risk_data = r.hgetall('risk') or {}
+    mode = risk_data.get('mode', 'paper')
+    is_paper_mode = (mode == 'paper')
+
+    # Read trades from Redis stream and filter by mode
+    redis_trades = read_redis_trades(limit=limit * 2)  # Read more to account for filtering
+    redis_trades = [t for t in redis_trades if t.get('paper', True) == is_paper_mode][:limit]
 
     # Transform to simplified format
     trades = []
@@ -815,6 +828,12 @@ def get_signals():
     # Clamp limit
     limit = min(max(1, limit), 200)
 
+    # Get current mode from Redis
+    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    risk_data = r.hgetall('risk') or {}
+    mode = risk_data.get('mode', 'paper')
+    is_paper_mode = (mode == 'paper')
+
     # Read order intents from Redis orders stream (has reason/regime data)
     redis_orders = read_redis_orders(limit=limit * 2)  # Get more orders for matching
 
@@ -831,7 +850,9 @@ def get_signals():
             order_reasons[key].append((ts, reason))
 
     # Read executed trades from Redis (these are completed signals)
-    redis_trades = read_redis_trades(limit=limit)
+    redis_trades = read_redis_trades(limit=limit * 2)
+    # Filter by mode (paper trades for paper mode, live trades for live mode)
+    redis_trades = [t for t in redis_trades if t.get('paper', True) == is_paper_mode][:limit]
 
     # Transform trades to signal format, enriching with reason from orders
     signals = []
@@ -944,8 +965,15 @@ def get_analytics():
     if period not in valid_periods:
         period = '30d'
 
-    # Get trades from Redis stream
+    # Get current mode from Redis
+    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    risk_data = r.hgetall('risk') or {}
+    mode = risk_data.get('mode', 'paper')
+    is_paper_mode = (mode == 'paper')
+
+    # Get trades from Redis stream and filter by mode
     all_trades = read_redis_trades(limit=1000)
+    all_trades = [t for t in all_trades if t.get('paper', True) == is_paper_mode]
 
     # Filter by strategy if specified
     if strategy_filter:
@@ -976,8 +1004,15 @@ def get_equity_curve():
 
     max_points = min(max(1, max_points), 500)
 
-    # Get trades from Redis stream
+    # Get current mode from Redis
+    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    risk_data = r.hgetall('risk') or {}
+    mode = risk_data.get('mode', 'paper')
+    is_paper_mode = (mode == 'paper')
+
+    # Get trades from Redis stream and filter by mode
     all_trades = read_redis_trades(limit=1000)
+    all_trades = [t for t in all_trades if t.get('paper', True) == is_paper_mode]
 
     # Calculate equity curve
     if calculate_equity_curve:
@@ -1010,8 +1045,15 @@ def get_daily_analytics():
     if period not in valid_periods:
         period = '30d'
 
-    # Get trades from Redis stream
+    # Get current mode from Redis
+    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    risk_data = r.hgetall('risk') or {}
+    mode = risk_data.get('mode', 'paper')
+    is_paper_mode = (mode == 'paper')
+
+    # Get trades from Redis stream and filter by mode
     all_trades = read_redis_trades(limit=1000)
+    all_trades = [t for t in all_trades if t.get('paper', True) == is_paper_mode]
 
     # Filter by period
     now = datetime.now()

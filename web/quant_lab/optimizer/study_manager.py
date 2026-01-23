@@ -120,6 +120,26 @@ class StudyManager:
         study = self.get_study(study_name)
         return study.best_trials
 
+    def get_trial(self, study_name: str, trial_number: int) -> Optional[optuna.trial.FrozenTrial]:
+        """
+        Get a specific trial from a study.
+
+        Args:
+            study_name: Name of study
+            trial_number: Trial number to retrieve
+
+        Returns:
+            FrozenTrial object or None if not found
+        """
+        try:
+            study = self.get_study(study_name)
+            for trial in study.trials:
+                if trial.number == trial_number:
+                    return trial
+            return None
+        except Exception:
+            return None
+
     def get_trial_config(self, study_name: str, trial_number: int) -> Dict[str, Any]:
         """
         Get the full configuration for a specific trial.

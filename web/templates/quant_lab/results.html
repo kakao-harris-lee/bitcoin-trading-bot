@@ -57,15 +57,69 @@
                                     x-text="(trial.values.total_return * 100).toFixed(2) + '%'"></td>
                                 <td class="py-3 text-red-400"
                                     x-text="(trial.values.max_drawdown * 100).toFixed(1) + '%'"></td>
-                                <td class="py-3">
+                                <td class="py-3 space-x-2">
                                     <button @click.stop="exportConfig(trial)"
                                             class="text-blue-400 hover:underline text-sm">Export</button>
+                                    <button @click.stop="showApplyModal(trial)"
+                                            class="text-green-400 hover:underline text-sm">Apply</button>
                                 </td>
                             </tr>
                         </template>
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <!-- Apply Modal -->
+        <div x-show="applyModalOpen" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+             @click.self="applyModalOpen = false">
+            <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 class="text-xl font-semibold mb-4">Apply Configuration</h3>
+                <p class="text-gray-400 mb-4">
+                    Apply trial <span class="text-blue-400" x-text="applyTrial?.trial_number"></span>
+                    to allocation.json as a new strategy.
+                </p>
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-1">Strategy Name</label>
+                    <input type="text" x-model="applyStrategyName"
+                           class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white"
+                           placeholder="e.g., tuned_v35_optimized">
+                </div>
+                <div class="bg-gray-900 rounded p-3 mb-4 text-sm">
+                    <div class="text-gray-400">Metrics:</div>
+                    <div class="grid grid-cols-3 gap-2 mt-1">
+                        <div>
+                            <span class="text-gray-500">Win Rate:</span>
+                            <span class="text-white" x-text="(applyTrial?.values?.win_rate * 100).toFixed(1) + '%'"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Return:</span>
+                            <span class="text-green-400" x-text="(applyTrial?.values?.total_return * 100).toFixed(2) + '%'"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Max DD:</span>
+                            <span class="text-red-400" x-text="(applyTrial?.values?.max_drawdown * 100).toFixed(1) + '%'"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button @click="applyModalOpen = false"
+                            class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                    <button @click="applyConfig()"
+                            :disabled="applyLoading"
+                            class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white disabled:opacity-50">
+                        <span x-show="!applyLoading">Apply to Allocation</span>
+                        <span x-show="applyLoading">Applying...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success/Error Toast -->
+        <div x-show="toastMessage" x-transition
+             class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50"
+             :class="toastType === 'success' ? 'bg-green-600' : 'bg-red-600'">
+            <span x-text="toastMessage"></span>
         </div>
 
         <!-- Selected Trial Detail -->
@@ -101,6 +155,14 @@
                 selectedTrial: null,
                 sortKey: 'total_return',
                 sortDesc: true,
+                // Apply modal state
+                applyModalOpen: false,
+                applyTrial: null,
+                applyStrategyName: '',
+                applyLoading: false,
+                // Toast notification
+                toastMessage: '',
+                toastType: 'success',
                 regimes: [
                     'BULL_STRONG', 'BULL_MODERATE',
                     'SIDEWAYS_UP', 'SIDEWAYS_FLAT', 'SIDEWAYS_DOWN',
@@ -203,6 +265,54 @@
                     a.href = url;
                     a.download = `${this.studyName}_trial_${trial.trial_number}.json`;
                     a.click();
+                },
+
+                showApplyModal(trial) {
+                    this.applyTrial = trial;
+                    this.applyStrategyName = `tuned_${this.studyName}_${trial.trial_number}`;
+                    this.applyModalOpen = true;
+                },
+
+                async applyConfig() {
+                    if (!this.applyTrial || !this.applyStrategyName.trim()) {
+                        this.showToast('Please enter a strategy name', 'error');
+                        return;
+                    }
+
+                    this.applyLoading = true;
+                    try {
+                        const res = await fetch(
+                            `/quant-lab/api/experiments/${this.studyName}/trials/${this.applyTrial.trial_number}/apply`,
+                            {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({
+                                    strategy_name: this.applyStrategyName.trim(),
+                                }),
+                            }
+                        );
+
+                        const data = await res.json();
+
+                        if (res.ok) {
+                            this.showToast(data.message || 'Configuration applied successfully!', 'success');
+                            this.applyModalOpen = false;
+                        } else {
+                            this.showToast(data.error || 'Failed to apply configuration', 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('Network error: ' + e.message, 'error');
+                    } finally {
+                        this.applyLoading = false;
+                    }
+                },
+
+                showToast(message, type = 'success') {
+                    this.toastMessage = message;
+                    this.toastType = type;
+                    setTimeout(() => {
+                        this.toastMessage = '';
+                    }, 4000);
                 },
             };
         }

@@ -115,7 +115,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_params_class=V35ExitParams,
         persistent_exit_class=V35PersistentExitStrategy,
         market="futures",
-        timeframe="day",
+        timeframe="minute60",  # Hourly - volatility filter calibrated for this
     ),
     "sideways_v2": StrategySpec(
         name="sideways_v2",
@@ -125,7 +125,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_params_class=SidewaysExitParams,
         persistent_exit_class=None,  # Stateless, no persistence needed
         market="futures",
-        timeframe="day",
+        timeframe="minute60",  # Hourly - volatility filter calibrated for this
     ),
     "short_v1": StrategySpec(
         name="short_v1",
@@ -145,7 +145,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_params_class=ExperimentalExitParams,
         persistent_exit_class=None,
         market="futures",
-        timeframe="day",
+        timeframe="minute60",  # Hourly - volatility filter calibrated for this
     ),
 }
 

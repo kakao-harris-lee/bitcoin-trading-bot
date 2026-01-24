@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from typing import List, Optional, Union
 
+import matplotlib
+matplotlib.use('Agg')  # Use thread-safe backend before importing pyplot
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd

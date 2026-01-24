@@ -50,6 +50,21 @@ _visualizer = BacktestVisualizer()
 _mlflow_tracker = MLflowTracker()
 
 
+def _is_tuned_strategy(strategy_id: str) -> bool:
+    """Check if a strategy is a tuned strategy from allocation.json with regime_routing."""
+    import json
+    allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
+    if not allocation_path.exists():
+        return False
+    try:
+        with open(allocation_path, 'r') as f:
+            allocation = json.load(f)
+        strategy_config = allocation.get('strategies', {}).get(strategy_id, {})
+        return 'regime_routing' in strategy_config
+    except Exception:
+        return False
+
+
 def _generate_visualization(
     results: dict,
     price_data: pd.DataFrame,
@@ -189,8 +204,11 @@ class BacktestJob:
 
 
 def get_available_strategies() -> list:
-    """Get list of available strategies dynamically from StrategyFactory."""
+    """Get list of available strategies dynamically from StrategyFactory and allocation.json."""
+    import json
+
     strategies = []
+    existing_ids = set()
 
     # 1. Get strategies from Factory Registry
     try:
@@ -205,14 +223,35 @@ def get_available_strategies() -> list:
                 'exchange': 'binance',  # System is Binance-only since PR #21
                 'default_params': {}
             })
+            existing_ids.add(name)
     except Exception as e:
         print(f"Error loading factory strategies: {e}")
         # Fallback if registry fails
 
-    # 2. Add legacy hardcoded/baseline strategies if needed
-    # Keeping short_v1_baseline for backward compatibility if it's not in factory
-    existing_ids = [s['id'] for s in strategies]
+    # 2. Get tuned strategies from allocation.json
+    try:
+        allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
+        if allocation_path.exists():
+            with open(allocation_path, 'r') as f:
+                allocation = json.load(f)
 
+            for name, config in allocation.get('strategies', {}).items():
+                if name not in existing_ids:
+                    # This is a tuned/custom strategy not in registry
+                    is_tuned = 'tuned_config' in config or 'regime_routing' in config
+                    strategies.append({
+                        'id': name,
+                        'name': name.replace('_', ' ').title(),
+                        'description': f"{'Tuned' if is_tuned else 'Custom'} {config.get('market', 'futures').title()} strategy",
+                        'exchange': 'binance',
+                        'default_params': {},
+                        'is_tuned': is_tuned
+                    })
+                    existing_ids.add(name)
+    except Exception as e:
+        print(f"Error loading allocation.json strategies: {e}")
+
+    # 3. Add legacy hardcoded/baseline strategies if needed
     if 'short_v1_baseline' not in existing_ids:
         strategies.append({
             'id': 'short_v1_baseline',
@@ -313,8 +352,8 @@ def run_backtest(job: BacktestJob) -> None:
             job.progress = 10
 
             # Route to appropriate backtester
-            # 1. Use Generic Backtester for all Factory Strategies
-            if strategy_id in STRATEGY_REGISTRY:
+            # 1. Use Generic Backtester for all Factory Strategies and tuned strategies
+            if strategy_id in STRATEGY_REGISTRY or _is_tuned_strategy(strategy_id):
                 results, price_data = _run_generic_backtest(
                     strategy_id, start_date, end_date, initial_capital, job
                 )
@@ -385,6 +424,313 @@ def run_backtest(job: BacktestJob) -> None:
     job._thread.start()
 
 
+def _run_tuned_strategy_backtest(
+    strategy_id: str,
+    tuned_config: dict,
+    df: 'pd.DataFrame',
+    initial_capital: float,
+    leverage: float,
+    fee_rate: float,
+    slippage: float,
+    job: BacktestJob
+) -> tuple:
+    """
+    Run backtest for tuned strategies with regime_routing config.
+
+    Uses regime-based component routing similar to Quant Lab optimization.
+    """
+    import numpy as np
+    import pandas as pd
+    from typing import Dict, List
+    from types import MappingProxyType
+
+    from trading.strategies.components.registry import (
+        get_entry_class, get_exit_class,
+        get_entry_params_class, get_exit_params_class,
+        build_params_from_config
+    )
+    from trading.strategies.components.models import (
+        MarketData, Position, TradingContext, build_market_context
+    )
+
+    regime_routing = tuned_config.get('regime_routing', {})
+
+    # Build regime strategies from config
+    regime_strategies = {}
+    for regime, regime_config in regime_routing.items():
+        entry_name = regime_config.get('entry')
+        exit_name = regime_config.get('exit')
+
+        if entry_name == 'None' or not entry_name:
+            regime_strategies[regime] = None
+            continue
+
+        try:
+            entry_cls = get_entry_class(entry_name + 'Strategy')
+            exit_cls = get_exit_class(exit_name + 'Strategy')
+
+            entry_params_cls = get_entry_params_class(entry_name + 'Strategy')
+            exit_params_cls = get_exit_params_class(exit_name + 'Strategy')
+
+            entry_params = regime_config.get('entry_params', {})
+            exit_params = regime_config.get('exit_params', {})
+
+            entry_params_obj = build_params_from_config(entry_params_cls, entry_params) if entry_params_cls else None
+            exit_params_obj = build_params_from_config(exit_params_cls, exit_params) if exit_params_cls else None
+
+            regime_strategies[regime] = {
+                'entry': entry_cls(entry_params_obj),
+                'exit': exit_cls(exit_params_obj),
+            }
+        except Exception as e:
+            logger.warning(f"Failed to create components for {regime}: {e}")
+            regime_strategies[regime] = None
+
+    # Backtest loop
+    capital = initial_capital
+    position_size = 0.0
+    entry_price = 0.0
+    current_position_data = None
+    trades: List[Dict] = []
+    equity_curve: List[float] = []
+
+    for i in range(len(df)):
+        if job._cancelled:
+            return {}, df
+
+        if i < 200:  # Warmup period
+            row = df.iloc[i]
+            equity_curve.append({'date': str(row.get('timestamp', row.name))[:10], 'equity': capital})
+            continue
+
+        row = df.iloc[i]
+        timestamp = str(row.get('timestamp', row.name))
+
+        # Determine current regime
+        context = build_market_context(
+            mfi=row.get('mfi', 50.0),
+            adx=row.get('adx', 20.0),
+            atr=row.get('atr', 0.0),
+            close=row['close'],
+            volume=row.get('volume', 0.0),
+            avg_volume=row.get('avg_volume_20', 0.0),
+        )
+        current_regime = context.regime
+
+        # Get strategy components for current regime
+        strategy_components = regime_strategies.get(current_regime)
+
+        # Calculate current equity
+        current_equity = capital
+        if position_size > 0 and current_position_data:
+            pnl_ratio = (row['close'] - entry_price) / entry_price
+            unrealized_pnl = position_size * pnl_ratio
+            current_equity += (position_size / leverage) + unrealized_pnl
+
+        equity_curve.append({'date': timestamp[:10], 'equity': current_equity})
+
+        # No trading in this regime
+        if strategy_components is None:
+            if position_size > 0:
+                # Close position when entering no-trade regime
+                exit_price = row['close'] * (1 - slippage)
+                pnl_ratio = (exit_price - entry_price) / entry_price
+                pnl = position_size * pnl_ratio
+                margin_return = position_size / leverage
+                fee = position_size * fee_rate
+                capital += margin_return + pnl - fee
+
+                trades.append({
+                    'type': 'sell',
+                    'time': timestamp,
+                    'entry_price': entry_price,
+                    'exit_price': exit_price,
+                    'size': position_size,
+                    'pnl': pnl,
+                    'pnl_pct': pnl_ratio * 100 * leverage,
+                    'reason': f'Regime changed to {current_regime} (no trading)'
+                })
+                position_size = 0.0
+                entry_price = 0.0
+                current_position_data = None
+            continue
+
+        entry_strategy = strategy_components['entry']
+        exit_strategy = strategy_components['exit']
+
+        # Build MarketData
+        market_data = MarketData(
+            symbol='BTC',
+            close=row['close'],
+            timestamp=int(row['timestamp'].timestamp() * 1000) if hasattr(row.get('timestamp'), 'timestamp') else 0,
+            mfi=row.get('mfi', 50.0),
+            adx=row.get('adx', 20.0),
+            rsi=row.get('rsi', 50.0),
+            atr=row.get('atr', 0.0),
+            macd=row.get('macd', 0.0),
+            macd_signal=row.get('macd_signal', 0.0),
+            stoch_k=row.get('stoch_k', 50.0),
+            stoch_d=row.get('stoch_d', 50.0),
+            bb_upper=row.get('bb_upper', 0.0),
+            bb_lower=row.get('bb_lower', 0.0),
+            bb_middle=row.get('bb_middle', 0.0),
+            volume=row.get('volume', 0.0),
+            avg_volume_20=row.get('avg_volume_20', 0.0),
+            prev_high_20=row.get('prev_high_20', 0.0),
+            prev_low_20=row.get('prev_low_20', 0.0),
+        )
+
+        # Check exit if we have a position
+        if position_size > 0 and current_position_data:
+            pos = Position(
+                symbol='BTC',
+                entry_price=entry_price,
+                quantity=current_position_data['quantity'],
+                strategy=strategy_id,
+                market='futures',
+                timestamp=current_position_data['timestamp'],
+            )
+
+            exit_trading_ctx = TradingContext(
+                symbol='BTC',
+                timestamp=market_data.timestamp,
+                market=market_data,
+                regime=context,
+                positions=MappingProxyType({strategy_id: pos}),
+            )
+
+            signal = exit_strategy.check_exit(exit_trading_ctx, pos)
+            if signal:
+                exit_price = row['close'] * (1 - slippage)
+                pnl_ratio = (exit_price - entry_price) / entry_price
+                pnl = position_size * pnl_ratio
+                margin_return = position_size / leverage
+                fee = position_size * fee_rate
+                capital += margin_return + pnl - fee
+
+                trades.append({
+                    'type': 'sell',
+                    'time': timestamp,
+                    'entry_price': entry_price,
+                    'exit_price': exit_price,
+                    'size': position_size,
+                    'pnl': pnl,
+                    'pnl_pct': pnl_ratio * 100 * leverage,
+                    'reason': signal.reason
+                })
+                position_size = 0.0
+                entry_price = 0.0
+                current_position_data = None
+            continue
+
+        # Check entry if no position
+        trading_ctx = TradingContext(
+            symbol='BTC',
+            timestamp=market_data.timestamp,
+            market=market_data,
+            regime=context,
+            positions=MappingProxyType({}),
+        )
+
+        signal = entry_strategy.check_entry(trading_ctx)
+        if signal:
+            fraction = 0.3  # Default position size
+            margin = capital * fraction
+            effective_pos_size = margin * leverage
+            fee = effective_pos_size * fee_rate
+
+            if capital >= (margin + fee):
+                capital -= (margin + fee)
+                position_size = effective_pos_size
+                entry_price = row['close'] * (1 + slippage)
+                current_position_data = {
+                    'quantity': signal.quantity,
+                    'timestamp': market_data.timestamp,
+                }
+                trades.append({
+                    'type': 'buy',
+                    'time': timestamp,
+                    'price': entry_price,
+                    'size': position_size,
+                    'reason': signal.reason
+                })
+
+    job.progress = 80
+
+    # Force close at end
+    if position_size > 0:
+        last_price = df.iloc[-1]['close']
+        pnl_ratio = (last_price - entry_price) / entry_price
+        pnl = position_size * pnl_ratio
+        capital += (position_size / leverage) + pnl
+
+    # Calculate metrics
+    final_capital = capital
+    total_return_pct = (final_capital - initial_capital) / initial_capital * 100
+
+    close_trades = [t for t in trades if t['type'] == 'sell']
+    profits = [t['pnl'] for t in close_trades]
+    wins = [p for p in profits if p > 0]
+    losses = [p for p in profits if p <= 0]
+
+    win_rate = len(wins) / len(close_trades) * 100 if close_trades else 0
+    profit_factor = sum(wins) / abs(sum(losses)) if losses and sum(losses) != 0 else 0
+
+    equity_values = [e['equity'] for e in equity_curve]
+    equity_series = pd.Series(equity_values)
+    returns = equity_series.pct_change().dropna()
+
+    import numpy as np
+    sharpe_ratio = float(returns.mean() / returns.std() * np.sqrt(252)) if len(returns) > 0 and returns.std() > 0 else 0
+
+    peak = equity_series.cummax()
+    drawdown = (equity_series - peak) / peak * 100
+    mdd = float(drawdown.min())
+
+    # Format trades for frontend
+    trades_list = []
+    for t in close_trades[:100]:
+        trades_list.append({
+            'timestamp': t.get('time'),
+            'symbol': 'BTC',
+            'action': 'BUY',
+            'price': t.get('entry_price'),
+            'profit': None
+        })
+        trades_list.append({
+            'timestamp': t.get('time'),
+            'symbol': 'BTC',
+            'action': 'SELL',
+            'price': t.get('exit_price'),
+            'profit': round(t.get('pnl', 0), 0)
+        })
+
+    start_date = str(df.iloc[0].get('timestamp', df.index[0]))[:10]
+    end_date = str(df.iloc[-1].get('timestamp', df.index[-1]))[:10]
+
+    return {
+        'strategy': strategy_id,
+        'preset': 'tuned',
+        'start_date': start_date,
+        'end_date': end_date,
+        'initial_capital': initial_capital,
+        'final_capital': round(final_capital, 0),
+        'total_return': round(final_capital - initial_capital, 0),
+        'total_return_pct': round(total_return_pct, 2),
+        'leverage': leverage,
+        'total_trades': len(close_trades),
+        'winning_trades': len(wins),
+        'losing_trades': len(losses),
+        'win_rate': round(win_rate, 2),
+        'profit_factor': round(profit_factor, 2),
+        'max_drawdown': round(mdd, 2),
+        'max_drawdown_pct': round(mdd, 2),
+        'sharpe_ratio': round(sharpe_ratio, 2),
+        'equity_curve': equity_curve,
+        'trades': trades_list
+    }, df
+
+
 def _run_generic_backtest(
     strategy_id: str,
     start_date: str,
@@ -395,43 +741,59 @@ def _run_generic_backtest(
     """
     Run any strategy using ComponentStrategyAdapter and generic loop.
     Supports both Spot (Long-only) and Futures (Long/Short).
+    Also supports tuned strategies from allocation.json with regime_routing.
     """
+    import json
     import numpy as np
     from typing import Dict, List
     from core.data_loader import DataLoader
 
-    # Check if strategy exists in registry
-    if strategy_id not in STRATEGY_REGISTRY:
-        raise ValueError(f"Strategy {strategy_id} not found in StrategyFactory Registry")
+    # Check if strategy exists in registry or allocation.json
+    is_tuned_strategy = False
+    tuned_config = None
 
-    # 1. Initialize Factory and Adapter
+    if strategy_id not in STRATEGY_REGISTRY:
+        # Check if it's a tuned strategy in allocation.json
+        allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
+        if allocation_path.exists():
+            with open(allocation_path, 'r') as f:
+                allocation = json.load(f)
+            if strategy_id in allocation.get('strategies', {}):
+                strategy_config = allocation['strategies'][strategy_id]
+                if 'regime_routing' in strategy_config:
+                    is_tuned_strategy = True
+                    tuned_config = strategy_config
+                else:
+                    raise ValueError(f"Strategy {strategy_id} has no regime_routing config")
+            else:
+                raise ValueError(f"Strategy {strategy_id} not found in registry or allocation.json")
+        else:
+            raise ValueError(f"Strategy {strategy_id} not found in StrategyFactory Registry")
+
+    # 1. Initialize Factory
     factory = StrategyFactory(redis=None)
 
-    # Get market type (spot/futures)
-    spec = STRATEGY_REGISTRY[strategy_id]
-    market_type = spec.market
-
-    # Config parameters
-    config = {}
-
-    # Create Adapter
-    adapter = ComponentStrategyAdapter(factory, strategy_id, config)
-
     # 2. Set environment based on Market
-    # Note: System is Binance-only since PR #21
     exchange_name = "binance"
 
+    if is_tuned_strategy:
+        # Use tuned config from allocation.json
+        market_type = tuned_config.get('market', 'futures')
+        leverage = float(tuned_config.get('leverage', 3))
+        timeframe = 'minute60'  # Default for tuned strategies
+    else:
+        # Use registry spec
+        spec = STRATEGY_REGISTRY[strategy_id]
+        market_type = spec.market
+        leverage = 3.0 if market_type == 'futures' else 1.0
+        timeframe = spec.timeframe
+
     if market_type == 'futures':
-        leverage = 3.0
         fee_rate = 0.0004  # 0.04%
         slippage = 0.0002  # 0.02%
-        timeframe = spec.timeframe
     else:
-        # Spot
-        leverage = 1.0
         fee_rate = 0.0005  # 0.05%
         slippage = 0.0000
-        timeframe = spec.timeframe
 
     with DataLoader(exchange=exchange_name) as loader:
         df = loader.load_timeframe(timeframe, start_date, end_date)
@@ -441,12 +803,19 @@ def _run_generic_backtest(
 
     job.progress = 20
 
-    # 4. Pre-calculate indicators (optimization)
-    # Adapter calculates indicators internally usually?
-    # ComponentStrategyAdapter.check_entry calls market_data construction which expects indicators in row
-    # So yes, we must add indicators to DF first.
+    # Pre-calculate indicators
     add_all_indicators(df)
     job.progress = 30
+
+    # Route to appropriate backtest implementation
+    if is_tuned_strategy:
+        return _run_tuned_strategy_backtest(
+            strategy_id, tuned_config, df, initial_capital, leverage, fee_rate, slippage, job
+        )
+
+    # Regular strategy: use ComponentStrategyAdapter
+    config = {}
+    adapter = ComponentStrategyAdapter(factory, strategy_id, config)
 
     # 5. Backtest Loop
     capital = initial_capital
@@ -491,7 +860,11 @@ def _run_generic_backtest(
         # OPEN LONG
         if action == 'buy' and position_size == 0:
             fraction = signal.get('fraction', 1.0)
-            margin = capital * fraction
+            # Account for fees when calculating margin to avoid silent skips
+            # margin + fee <= capital * fraction, where fee = margin * leverage * fee_rate
+            # margin * (1 + leverage * fee_rate) <= capital * fraction
+            max_margin = capital * fraction / (1 + leverage * fee_rate)
+            margin = max_margin
             effective_pos_size = margin * leverage
             fee = effective_pos_size * fee_rate
 
@@ -510,7 +883,9 @@ def _run_generic_backtest(
         # OPEN SHORT
         elif action == 'open_short' and position_size == 0:
             fraction = signal.get('fraction', 0.3)
-            margin = capital * fraction
+            # Account for fees when calculating margin
+            max_margin = capital * fraction / (1 + leverage * fee_rate)
+            margin = max_margin
             effective_pos_size = margin * leverage
             fee = effective_pos_size * fee_rate
 

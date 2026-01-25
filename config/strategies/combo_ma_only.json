@@ -1,0 +1,27 @@
+{
+  "strategy_name": "combo_ma_only",
+  "version": "v1",
+  "timeframe": "minute60",
+  "description": "Combo entry that trades based on EMA cross only.",
+  "market": "futures",
+  "position_size": 0.01,
+  "entry": {
+    "class": "CombinedEntryStrategy",
+    "params": {
+      "score_threshold": 1,
+      "allow_ma_only": true,
+      "allow_volatility_only": false,
+      "ema_fast": 50,
+      "ema_slow": 200
+    }
+  },
+  "exit": {
+    "class": "CombinedExitStrategy",
+    "params": {
+      "exit_at_day_close": true,
+      "max_hold_hours": 12.0,
+      "take_profit_pct": 3.0,
+      "stop_loss_pct": 1.5
+    }
+  }
+}

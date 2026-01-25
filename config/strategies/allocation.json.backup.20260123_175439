@@ -1,0 +1,90 @@
+{
+  "redis_url": "redis://localhost:6379",
+  "use_component_strategies": true,
+  "symbols": ["BTC", "ETH", "SOL"],
+  "defaults": {
+    "volatility": {
+      "window": 20,
+      "low_threshold": 0.71,
+      "high_threshold": 0.92,
+      "extreme_threshold": 0.03
+    },
+    "volume": {
+      "high_volume_multiplier": 1.5
+    },
+    "market_context": {
+      "mfi_bull": 52.0,
+      "mfi_bear": 48.0,
+      "adx_trend": 20.0
+    }
+  },
+  "binance": {
+    "api_key": "${BINANCE_API_KEY}",
+    "api_secret": "${BINANCE_API_SECRET}"
+  },
+  "futures": {
+    "enabled": true,
+    "default_leverage": 3
+  },
+  "strategies": {
+    "v35_long": {
+      "market": "futures",
+      "leverage": 3,
+      "dynamic_sizing": true,
+      "position_pct": 0.30,
+      "position_size": 0.01,
+      "use_smart_exit": true
+    },
+    "sideways_v2": {
+      "market": "futures",
+      "leverage": 3,
+      "dynamic_sizing": true,
+      "position_pct": 0.20,
+      "position_size": 0.01,
+      "use_smart_exit": true
+    },
+    "short_v1": {
+      "market": "futures",
+      "leverage": 3,
+      "dynamic_sizing": true,
+      "position_pct": 0.20,
+      "position_size": 0.01,
+      "use_smart_exit": true
+    },
+    "v35_experimental": {
+      "market": "futures",
+      "leverage": 3,
+      "dynamic_sizing": true,
+      "position_pct": 0.05,
+      "position_size": 0.01,
+      "use_smart_exit": true
+    }
+  },
+  "smart_executor": {
+    "enabled": true,
+    "trailing": {
+      "volatility_window": 20,
+      "low_vol_trail": 0.8,
+      "med_vol_trail": 1.2,
+      "high_vol_trail": 1.8,
+      "damping_max": 0.2
+    },
+    "split_execution": {
+      "ladder_tiers": [0.05, 0.12, 0.20],
+      "ladder_weights": [0.40, 0.35, 0.25],
+      "phase1_timeout_sec": 75,
+      "max_execution_sec": 105
+    }
+  },
+  "risk": {
+    "max_daily_loss": 500
+  },
+  "paper": {
+    "initial_balance": 10000,
+    "fee_rate": 0.001,
+    "slippage": 0.0004
+  },
+  "observability": {
+    "emit_events": false
+  }
+}

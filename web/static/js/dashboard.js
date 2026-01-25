@@ -898,6 +898,9 @@ function onTabActivated(tabId) {
                 fetchStrategies();
             }
             break;
+        case 'strategies':
+            fetchStrategiesTab();
+            break;
     }
 }
 
@@ -2770,6 +2773,310 @@ async function loadBacktestJob(jobId) {
         console.error('Failed to load backtest job:', error);
         setBacktestMessage('Failed to load backtest job: ' + error.message, 'error');
     }
+}
+
+// =====================
+// Strategies Tab
+// =====================
+
+async function fetchStrategiesTab() {
+    const containerId = 'strategies-container';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = '<p class="loading">Loading strategies...</p>';
+
+    try {
+        const data = await apiFetch('/api/strategies');
+        renderStrategiesTab(data);
+    } catch (error) {
+        console.error('Failed to fetch strategies:', error);
+        container.innerHTML = `<p class="error">Failed to load strategies: ${error.message}</p>`;
+    }
+}
+
+function renderStrategiesTab(data) {
+    const container = document.getElementById('strategies-container');
+    if (!container) return;
+
+    const strategies = data.strategies || [];
+    const symbols = data.symbols || [];
+    const availableStrategies = data.available_strategies || [];
+
+    // Update summary stats
+    const countEl = document.getElementById('strategies-count');
+    const tunedCountEl = document.getElementById('strategies-tuned-count');
+    const positionsCountEl = document.getElementById('strategies-positions-count');
+
+    if (countEl) countEl.textContent = strategies.length;
+    if (tunedCountEl) {
+        const tunedCount = strategies.filter(s => s.is_tuned).length;
+        tunedCountEl.textContent = tunedCount;
+    }
+    if (positionsCountEl) {
+        const totalPositions = strategies.reduce((sum, s) => sum + (s.active_positions?.length || 0), 0);
+        positionsCountEl.textContent = totalPositions;
+    }
+
+    if (strategies.length === 0 && availableStrategies.length === 0) {
+        container.innerHTML = '<p class="no-data">No strategies configured</p>';
+        return;
+    }
+
+    let html = '';
+
+    // Render enabled strategies
+    for (const strategy of strategies) {
+        html += renderStrategyCard(strategy, symbols);
+    }
+
+    // Render available but not enabled strategies
+    if (availableStrategies.length > 0) {
+        html += `
+            <div class="available-strategies-section">
+                <h4>Available (Not Enabled)</h4>
+                <div class="available-strategies-list">
+                    ${availableStrategies.map(name => `
+                        <div class="available-strategy-item">
+                            <span class="strategy-name">${name}</span>
+                            <span class="strategy-badge disabled">Disabled</span>
+                            <button class="btn-enable" data-strategy="${name}" title="Enable strategy">Enable</button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+
+    // Attach event handlers
+    attachStrategyEventHandlers();
+}
+
+function attachStrategyEventHandlers() {
+    // Enable buttons
+    document.querySelectorAll('.btn-enable').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const strategyName = e.target.dataset.strategy;
+            await toggleStrategy(strategyName, 'enable');
+        });
+    });
+
+    // Disable buttons
+    document.querySelectorAll('.btn-disable').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const strategyName = e.target.dataset.strategy;
+            if (confirm(`Disable strategy "${strategyName}"?`)) {
+                await toggleStrategy(strategyName, 'disable');
+            }
+        });
+    });
+}
+
+async function toggleStrategy(strategyName, action) {
+    try {
+        const response = await apiFetch(`/api/strategies/${strategyName}/${action}`, {
+            method: 'POST'
+        });
+
+        if (response.success) {
+            // Refresh strategies tab
+            fetchStrategiesTab();
+            showNotification(`Strategy ${strategyName} ${action}d successfully`, 'success');
+        } else {
+            showNotification(response.error || `Failed to ${action} strategy`, 'error');
+        }
+    } catch (error) {
+        console.error(`Failed to ${action} strategy:`, error);
+        showNotification(error.message || `Failed to ${action} strategy`, 'error');
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Simple notification - could be enhanced with a toast library
+    const existing = document.querySelector('.notification-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = `notification-toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function renderStrategyCard(strategy, symbols) {
+    const name = strategy.name;
+    const market = strategy.market || 'futures';
+    const leverage = strategy.leverage || 1;
+    const positionPct = strategy.position_pct || 0;
+    const isTuned = strategy.is_tuned;
+    const activePositions = strategy.active_positions || [];
+    const liveState = strategy.live_state || {};
+
+    // Status badge
+    let statusBadge = '';
+    if (activePositions.length > 0) {
+        statusBadge = '<span class="strategy-badge active">Active</span>';
+    } else if (isTuned) {
+        statusBadge = '<span class="strategy-badge tuned">Tuned</span>';
+    }
+
+    // Entry/Exit classes
+    const entryClass = strategy.entry_class || 'Unknown';
+    const exitClass = strategy.exit_class || 'Unknown';
+
+    // Regime routing detailed view
+    let regimeHtml = '';
+    if (strategy.regime_routing) {
+        const regimes = Object.entries(strategy.regime_routing);
+
+        // Group by entry type for summary
+        const entryGroups = {};
+        regimes.forEach(([regime, cfg]) => {
+            const entry = cfg.entry || 'Default';
+            if (!entryGroups[entry]) entryGroups[entry] = [];
+            entryGroups[entry].push(regime);
+        });
+
+        regimeHtml = `
+            <div class="strategy-regime-routing">
+                <h5>Regime Routing (${regimes.length} regimes)</h5>
+                <div class="regime-table-container">
+                    <table class="regime-table">
+                        <thead>
+                            <tr>
+                                <th>Regime</th>
+                                <th>Entry</th>
+                                <th>Exit</th>
+                                <th>Key Params</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${regimes.map(([regime, cfg]) => {
+                                const entryParams = cfg.entry_params || {};
+                                const exitParams = cfg.exit_params || {};
+                                const keyParams = [];
+
+                                // Show most important params
+                                if (entryParams.mfi_threshold) keyParams.push(`MFI:${entryParams.mfi_threshold.toFixed(1)}`);
+                                if (entryParams.adx_threshold) keyParams.push(`ADX:${entryParams.adx_threshold.toFixed(1)}`);
+                                if (entryParams.range_threshold) keyParams.push(`Range:${entryParams.range_threshold.toFixed(2)}`);
+                                if (entryParams.rsi_overbought) keyParams.push(`RSI:${entryParams.rsi_overbought.toFixed(1)}`);
+                                if (exitParams.trailing_stop_pct) keyParams.push(`Trail:${exitParams.trailing_stop_pct.toFixed(1)}%`);
+                                if (exitParams.take_profit_pct) keyParams.push(`TP:${exitParams.take_profit_pct.toFixed(1)}%`);
+
+                                return `
+                                    <tr>
+                                        <td><span class="regime-name">${regime}</span></td>
+                                        <td><span class="entry-tag">${cfg.entry || 'Default'}</span></td>
+                                        <td><span class="exit-tag">${cfg.exit || 'Default'}</span></td>
+                                        <td class="params-cell">${keyParams.join(', ') || '-'}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="regime-summary">
+                    <span class="summary-label">Entry mix:</span>
+                    ${Object.entries(entryGroups).map(([entry, regimeList]) =>
+                        `<span class="entry-tag">${entry}</span><span class="regime-count">(${regimeList.length})</span>`
+                    ).join(' ')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Live state per symbol
+    let stateHtml = '';
+    if (Object.keys(liveState).length > 0) {
+        stateHtml = '<div class="strategy-live-state"><h5>Live State</h5><div class="state-grid">';
+        for (const [symbol, state] of Object.entries(liveState)) {
+            const stateItems = Object.entries(state)
+                .map(([k, v]) => {
+                    const formatted = typeof v === 'number' ? formatNumber(v, 4) : v;
+                    return `<span class="state-item"><span class="state-key">${k}:</span> ${formatted}</span>`;
+                })
+                .join('');
+            stateHtml += `<div class="state-symbol"><span class="symbol-label">${symbol}</span>${stateItems}</div>`;
+        }
+        stateHtml += '</div></div>';
+    }
+
+    // Active positions
+    let positionsHtml = '';
+    if (activePositions.length > 0) {
+        positionsHtml = '<div class="strategy-positions"><h5>Active Positions</h5><div class="positions-list">';
+        for (const pos of activePositions) {
+            const sideClass = pos.side === 'long' ? 'long' : 'short';
+            positionsHtml += `
+                <div class="position-item ${sideClass}">
+                    <span class="pos-symbol">${pos.symbol}</span>
+                    <span class="pos-side">${pos.side.toUpperCase()}</span>
+                    <span class="pos-qty">${formatNumber(pos.qty, 4)}</span>
+                    <span class="pos-entry">@ ${formatNumber(pos.entry_price, 2)}</span>
+                </div>
+            `;
+        }
+        positionsHtml += '</div></div>';
+    }
+
+    // Disable button (disabled if has active positions)
+    const hasPositions = activePositions.length > 0;
+    const disableBtn = hasPositions
+        ? `<button class="btn-disable" data-strategy="${name}" disabled title="Cannot disable: has active positions">Disable</button>`
+        : `<button class="btn-disable" data-strategy="${name}" title="Disable strategy">Disable</button>`;
+
+    return `
+        <div class="strategy-card">
+            <div class="strategy-header">
+                <div class="strategy-title">
+                    <h4 class="strategy-name">${name}</h4>
+                    ${statusBadge}
+                </div>
+                ${disableBtn}
+            </div>
+            <div class="strategy-config">
+                <div class="config-row">
+                    <span class="config-label">Market</span>
+                    <span class="config-value">${market.toUpperCase()}</span>
+                </div>
+                <div class="config-row">
+                    <span class="config-label">Leverage</span>
+                    <span class="config-value">${leverage}x</span>
+                </div>
+                <div class="config-row">
+                    <span class="config-label">Position %</span>
+                    <span class="config-value">${(positionPct * 100).toFixed(0)}%</span>
+                </div>
+                <div class="config-row">
+                    <span class="config-label">Entry</span>
+                    <span class="config-value entry-class">${entryClass.replace('Strategy', '')}</span>
+                </div>
+                <div class="config-row">
+                    <span class="config-label">Exit</span>
+                    <span class="config-value exit-class">${exitClass.replace('Strategy', '')}</span>
+                </div>
+            </div>
+            ${regimeHtml}
+            ${stateHtml}
+            ${positionsHtml}
+        </div>
+    `;
+}
+
+function formatNumber(value, decimals = 2) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
+    return value.toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    });
 }
 
 console.log('Multi-Asset Dashboard initialized');

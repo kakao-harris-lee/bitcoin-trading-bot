@@ -139,6 +139,7 @@
             <button class="tab-btn" data-tab="decisions">Decisions</button>
             <button class="tab-btn" data-tab="analytics">Analytics</button>
             <button class="tab-btn" data-tab="backtest">Backtest</button>
+            <button class="tab-btn" data-tab="strategies">Strategies</button>
             <a href="/quant-lab" class="tab-btn tab-link">Quant Lab</a>
         </nav>
 
@@ -399,8 +400,34 @@
             </div>
         </div>
 
+        <!-- Tab Content: Strategies -->
+        <div id="strategies" class="tab-content">
+            <div class="tab-panel">
+                <h3>Active Strategies</h3>
+                <!-- Summary Stats -->
+                <div id="strategies-summary" class="strategies-summary">
+                    <div class="summary-stat">
+                        <span class="label">Total Strategies</span>
+                        <span id="strategies-count" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Tuned Strategies</span>
+                        <span id="strategies-tuned-count" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Active Positions</span>
+                        <span id="strategies-positions-count" class="value">-</span>
+                    </div>
+                </div>
+                <!-- Strategies Grid -->
+                <div id="strategies-container" class="strategies-grid">
+                    <p class="loading">Loading strategies...</p>
+                </div>
+            </div>
+        </div>
+
         <footer>
-            <p>Auto-refresh every 30 seconds | Keys: 1-5 tabs, R refresh</p>
+            <p>Auto-refresh every 30 seconds | Keys: 1-6 tabs, R refresh</p>
         </footer>
     </div>
 

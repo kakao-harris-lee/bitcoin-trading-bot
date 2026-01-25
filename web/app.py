@@ -1395,6 +1395,263 @@ def get_positions():
 
 
 # =====================
+# Strategies API Endpoints
+# ========================
+
+# Import strategy registry for dynamic class lookup
+try:
+    from trading.strategies.components.strategy_factory import STRATEGY_REGISTRY
+except ImportError:
+    STRATEGY_REGISTRY = {}
+
+
+@app.route("/api/strategies")
+@requires_auth
+def get_strategies():
+    """
+    Get all active strategies with configuration and live Redis state.
+    Returns strategy config from allocation.json and runtime state from Redis.
+    Uses STRATEGY_REGISTRY for dynamic entry/exit class lookup.
+    """
+    try:
+        # Load allocation config
+        config = load_allocation_config()
+        if not config:
+            return jsonify({'error': 'Failed to load allocation config'}), 500
+
+        strategies_config = config.get('strategies', {})
+        symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
+        defaults = config.get('defaults', {})
+
+        # Connect to Redis to get live state
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+
+        strategies = []
+        for name, cfg in strategies_config.items():
+            strategy_info = {
+                'name': name,
+                'market': cfg.get('market', 'futures'),
+                'leverage': cfg.get('leverage', 3),
+                'position_pct': cfg.get('position_pct', 0.1),
+                'position_size': cfg.get('position_size', 0.01),
+                'dynamic_sizing': cfg.get('dynamic_sizing', False),
+                'use_smart_exit': cfg.get('use_smart_exit', False),
+            }
+
+            # Entry/Exit classes - use config first, then registry lookup
+            entry_cfg = cfg.get('entry', {})
+            exit_cfg = cfg.get('exit', {})
+
+            # Get classes from config or dynamically from registry
+            if entry_cfg.get('class'):
+                strategy_info['entry_class'] = entry_cfg['class']
+            elif name in STRATEGY_REGISTRY:
+                strategy_info['entry_class'] = STRATEGY_REGISTRY[name].entry_class.__name__
+            else:
+                strategy_info['entry_class'] = 'Unknown'
+
+            if exit_cfg.get('class'):
+                strategy_info['exit_class'] = exit_cfg['class']
+            elif name in STRATEGY_REGISTRY:
+                strategy_info['exit_class'] = STRATEGY_REGISTRY[name].exit_class.__name__
+            else:
+                strategy_info['exit_class'] = 'Unknown'
+
+            # Persistent exit class
+            if exit_cfg.get('persistent_class'):
+                strategy_info['persistent_exit_class'] = exit_cfg['persistent_class']
+            elif name in STRATEGY_REGISTRY and STRATEGY_REGISTRY[name].persistent_exit_class:
+                strategy_info['persistent_exit_class'] = STRATEGY_REGISTRY[name].persistent_exit_class.__name__
+            else:
+                strategy_info['persistent_exit_class'] = None
+
+            # Regime routing
+            regime_routing = cfg.get('regime_routing')
+            if regime_routing:
+                strategy_info['regime_routing'] = {
+                    regime: {
+                        'entry': r_cfg.get('entry'),
+                        'exit': r_cfg.get('exit'),
+                        'entry_params': r_cfg.get('entry_params', {}),
+                        'exit_params': r_cfg.get('exit_params', {}),
+                    }
+                    for regime, r_cfg in regime_routing.items()
+                }
+                strategy_info['is_tuned'] = True
+            else:
+                strategy_info['is_tuned'] = False
+
+            # Tuned config reference
+            if cfg.get('tuned_config'):
+                strategy_info['tuned_config'] = cfg.get('tuned_config')
+
+            # Get live state from Redis for each symbol
+            live_state = {}
+            for symbol in symbols:
+                state_key_pattern = f"state:{name}:{symbol}:*"
+                state_keys = r.keys(state_key_pattern)
+                if state_keys:
+                    symbol_state = {}
+                    for key in state_keys:
+                        var_name = key.split(':')[-1]
+                        value = r.get(key)
+                        if value:
+                            try:
+                                symbol_state[var_name] = float(value)
+                            except (ValueError, TypeError):
+                                symbol_state[var_name] = value
+                    if symbol_state:
+                        live_state[symbol] = symbol_state
+
+            strategy_info['live_state'] = live_state
+
+            # Check if strategy has active positions
+            active_positions = []
+            for symbol in symbols:
+                pos_key = f"positions:{symbol}:futures"
+                pos_data = r.hgetall(pos_key)
+                if pos_data and pos_data.get('strategy') == name:
+                    active_positions.append({
+                        'symbol': symbol,
+                        'qty': float(pos_data.get('qty', 0)),
+                        'entry_price': float(pos_data.get('entry_price', 0)),
+                        'side': pos_data.get('side', 'long'),
+                    })
+            strategy_info['active_positions'] = active_positions
+
+            strategies.append(strategy_info)
+
+        # Also include available strategies from registry not in allocation
+        available_in_registry = set(STRATEGY_REGISTRY.keys()) - set(strategies_config.keys())
+
+        return jsonify({
+            'strategies': strategies,
+            'symbols': symbols,
+            'defaults': defaults,
+            'count': len(strategies),
+            'available_strategies': list(available_in_registry),
+        })
+
+    except Exception as e:
+        print(f"Error in get_strategies: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/strategies/<strategy_name>/enable", methods=["POST"])
+@requires_auth
+def enable_strategy(strategy_name: str):
+    """
+    Enable a strategy by adding it to allocation.json.
+    Only strategies in STRATEGY_REGISTRY can be enabled.
+    """
+    try:
+        if strategy_name not in STRATEGY_REGISTRY:
+            return jsonify({'error': f'Unknown strategy: {strategy_name}'}), 400
+
+        # Load current config
+        config = load_allocation_config()
+        if not config:
+            return jsonify({'error': 'Failed to load allocation config'}), 500
+
+        strategies_config = config.get('strategies', {})
+
+        # Check if already enabled
+        if strategy_name in strategies_config:
+            return jsonify({'message': f'{strategy_name} is already enabled'}), 200
+
+        # Get spec from registry
+        spec = STRATEGY_REGISTRY[strategy_name]
+
+        # Create default config for the strategy
+        new_strategy_config = {
+            'market': spec.market,
+            'leverage': 3,
+            'dynamic_sizing': True,
+            'position_pct': 0.1,
+            'position_size': 0.01,
+            'use_smart_exit': True,
+            'entry': {
+                'class': spec.entry_class.__name__
+            },
+            'exit': {
+                'class': spec.exit_class.__name__
+            }
+        }
+
+        # Add persistent exit class if available
+        if spec.persistent_exit_class:
+            new_strategy_config['exit']['persistent_class'] = spec.persistent_exit_class.__name__
+
+        # Update config
+        strategies_config[strategy_name] = new_strategy_config
+        config['strategies'] = strategies_config
+
+        # Save config
+        config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+
+        return jsonify({
+            'success': True,
+            'message': f'Strategy {strategy_name} enabled',
+            'config': new_strategy_config
+        })
+
+    except Exception as e:
+        print(f"Error enabling strategy: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/strategies/<strategy_name>/disable", methods=["POST"])
+@requires_auth
+def disable_strategy(strategy_name: str):
+    """
+    Disable a strategy by removing it from allocation.json.
+    """
+    try:
+        # Load current config
+        config = load_allocation_config()
+        if not config:
+            return jsonify({'error': 'Failed to load allocation config'}), 500
+
+        strategies_config = config.get('strategies', {})
+
+        # Check if exists
+        if strategy_name not in strategies_config:
+            return jsonify({'message': f'{strategy_name} is already disabled'}), 200
+
+        # Check for active positions before disabling
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
+
+        for symbol in symbols:
+            pos_key = f"positions:{symbol}:futures"
+            pos_data = r.hgetall(pos_key)
+            if pos_data and pos_data.get('strategy') == strategy_name:
+                return jsonify({
+                    'error': f'Cannot disable {strategy_name}: has active position in {symbol}'
+                }), 400
+
+        # Remove from config
+        removed_config = strategies_config.pop(strategy_name)
+        config['strategies'] = strategies_config
+
+        # Save config
+        config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+
+        return jsonify({
+            'success': True,
+            'message': f'Strategy {strategy_name} disabled',
+            'removed_config': removed_config
+        })
+
+    except Exception as e:
+        print(f"Error disabling strategy: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # Backtest API Endpoints
 # =====================
 

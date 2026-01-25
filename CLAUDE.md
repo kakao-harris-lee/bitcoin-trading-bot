@@ -60,9 +60,11 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - Futures Implementation Guide → `docs/plans/2026-01-18-futures-trading-overhaul-implementation.md`
 - Quant Lab Design → `docs/plans/2026-01-20-quant-lab-design.md`
 - Quant Lab Implementation → `docs/plans/2026-01-20-quant-lab-implementation.md`
-- Database Schema → Add Reference Paths Here
-- Troubleshooting → Add Reference Paths Here
-- Setup Guide → Add Reference Paths Here
+- Trading Context Centralization → `docs/plans/2026-01-20-trading-context-centralization-design.md`
+- Smart Executor Design → `docs/plans/2026-01-11-smart-executor-design.md`
+- LSTM Strategy Design → `docs/plans/2026-01-02-lstm-strategy-design.md`
+- Binance Stream Architecture → `docs/plans/2026-01-10-binance-stream-architecture.md`
+- MLflow Optimization → `docs/plans/2026-01-20-optimize-mlflow-improvements.md`
 
 This prevents context loss! Update this file immediately when you create important documentation.
 
@@ -81,6 +83,10 @@ This prevents context loss! Update this file immediately when you create importa
 ./dashboard.sh stop               # Stop dashboard
 ./dashboard.sh restart            # Restart dashboard
 # Dashboard URL: http://localhost:5080/btc-dashboard
+
+# Quant Lab worker (required for hyperparameter optimization)
+cd web && python -m quant_lab.worker.runner  # Start worker
+# Quant Lab URL: http://localhost:5080/btc-dashboard/quant-lab
 
 # Direct run (alternative)
 python run.py --trend paper
@@ -153,25 +159,49 @@ bitcoin-trading-bot/
 │   │   ├── feed_task.py            # Base feed task
 │   │   └── binance_feed.py         # BinanceFeedTask
 │   ├── strategies/                 # Strategy Logic
-│   │   ├── components/             # >>> NEW COMPONENT SYSTEM <<<
-│   │   │   ├── strategy_factory.py # Assembles strategies
-│   │   │   ├── v35_entry.py        # V35 Logic
-│   │   │   ├── v35_trailing_exit.py# V35 Exit Logic
-│   │   │   └── registry.py         # Component Registry
-│   │   └── ...
+│   │   └── components/             # Component system
+│   │       ├── strategy_factory.py # Assembles strategies
+│   │       ├── composite_task.py   # Universal task runner
+│   │       ├── registry.py         # Component Registry
+│   │       ├── v35_entry.py        # V35 Entry Logic
+│   │       ├── v35_trailing_exit.py# V35 Exit Logic
+│   │       ├── v35_persistent_exit.py # V35 Persistent Exit
+│   │       ├── short_entry.py      # Short Entry Logic
+│   │       ├── short_exit.py       # Short Exit Logic
+│   │       ├── sideways_entry.py   # Sideways Entry Logic
+│   │       ├── sideways_exit.py    # Sideways Exit Logic
+│   │       ├── combined_entry.py   # Combined/Ensemble Entry
+│   │       ├── combined_exit.py    # Combined/Ensemble Exit
+│   │       └── state_manager.py    # Redis state persistence
 │   ├── executor/                   # Order execution
 │   │   ├── async_executor.py       # Live Binance executor
 │   │   ├── paper_executor.py       # Paper trading simulator
+│   │   └── smart_executor.py       # Smart execution (laddering)
+│   ├── indicators/                 # Technical indicators
+│   ├── observability/              # Metrics & events
 │   ├── notification/               # Telegram integration
 │   ├── risk/                       # Risk management
 │   └── core/                       # Config, base classes
-├── core/                           # Shared libraries
+├── core/                           # Shared backtesting libraries
 │   ├── component_adapter.py        # Adapter for Backtesting
 │   ├── backtester.py               # Historical backtester
-│   └── market_analyzer.py          # Market indicators
+│   ├── mlflow_tracker.py           # MLflow integration
+│   └── data_loader.py              # Historical data loading
+├── web/                            # Dashboard & Quant Lab
+│   ├── app.py                      # Flask dashboard
+│   └── quant_lab/                  # Hyperparameter optimization
+│       ├── routes.py               # API routes
+│       ├── optimizer/              # Optuna integration
+│       └── worker/                 # Background worker
+├── lstm_trainer/                   # LSTM model training (standalone)
+├── scripts/                        # Utility scripts
+│   ├── backtest/                   # Backtest scripts
+│   ├── collectors/                 # Data collectors
+│   └── migrations/                 # DB migrations
 ├── config/
 │   └── strategies/
-│       └── allocation.json         # Main config (strategies mapping)
+│       └── allocation.json         # Main config
+├── models/                         # Trained model artifacts
 └── tests/                          # Test suite
 ```
 
@@ -181,7 +211,11 @@ bitcoin-trading-bot/
 - `trading/engine.py`: Orchestrates feeds and `CompositeStrategyTask` instances.
 - `trading/strategies/components/strategy_factory.py`: The brain that builds strategies.
 - `trading/strategies/components/composite_task.py`: The runner for components.
+- `trading/executor/smart_executor.py`: Smart order execution with laddering.
 - `core/component_adapter.py`: Allows components to run in the backtester.
+- `core/mlflow_tracker.py`: MLflow experiment tracking.
+- `web/app.py`: Flask dashboard application.
+- `web/quant_lab/routes.py`: Quant Lab API endpoints.
 - `config/strategies/allocation.json`: Configuration of active strategies.
 
 ## Redis Data Structures
@@ -213,13 +247,37 @@ bitcoin-trading-bot/
 {
   "redis_url": "redis://localhost:6379",
   "use_component_strategies": true,
-  "strategies": {
-    "v35_long": { "position_size": 0.01, "market": "futures" },
-    "sideways_v2": { "position_size": 0.01, "market": "futures" }
+  "symbols": ["BTC", "ETH", "SOL"],
+  "defaults": {
+    "volatility": { "window": 20, "low_threshold": 0.71, "high_threshold": 0.92 },
+    "market_context": { "mfi_bull": 52.0, "mfi_bear": 48.0, "adx_trend": 20.0 }
   },
-  "risk": { "max_daily_loss": 500 }
+  "futures": { "enabled": true, "default_leverage": 3 },
+  "strategies": {
+    "v35_long": {
+      "market": "futures",
+      "leverage": 3,
+      "dynamic_sizing": true,
+      "position_pct": 0.3,
+      "use_smart_exit": true
+    },
+    "short_v1": {
+      "market": "futures",
+      "leverage": 3,
+      "position_pct": 0.2
+    }
+  },
+  "smart_executor": {
+    "enabled": true,
+    "trailing": { "low_vol_trail": 0.8, "med_vol_trail": 1.2, "high_vol_trail": 1.8 },
+    "split_execution": { "ladder_tiers": [0.05, 0.12, 0.2], "ladder_weights": [0.4, 0.35, 0.25] }
+  },
+  "risk": { "max_daily_loss": 500 },
+  "observability": { "emit_events": false }
 }
 ```
+
+Tuned strategies can include `regime_routing` for per-regime entry/exit parameters.
 
 ## Development Rules
 
@@ -242,6 +300,17 @@ bitcoin-trading-bot/
 3. **Register**: Add to `STRATEGY_REGISTRY` in `registry.py`.
 4. **Test**: Run `pytest tests/` to verify logic.
 5. **Backtest**: Use `scripts/run_unified_backtest.py`.
+
+### Quant Lab (Hyperparameter Optimization)
+
+Quant Lab uses Optuna for automated hyperparameter tuning with regime-aware optimization.
+
+1. **Start Worker**: `cd web && python -m quant_lab.worker.runner`
+2. **Access UI**: Dashboard → Quant Lab tab
+3. **Create Study**: Select strategy, configure search space, set number of trials
+4. **Apply Results**: Click "Apply" to push best parameters to `allocation.json`
+
+Studies are stored in `web/quant_lab_studies.db` (SQLite).
 
 ## Fee Calculation
 
@@ -306,11 +375,47 @@ REDIS_URL=redis://localhost:6379
 
 ## Active Technologies
 
-- Python 3.9+ (per requirements.txt) (001-backtest-mlflow-viz)
-- MLflow local file store (./mlruns) for development, configurable for production (001-backtest-mlflow-viz)
+- Python 3.9+ (per requirements.txt)
+- MLflow local file store (./mlruns) for development
+- Optuna for hyperparameter optimization (Quant Lab)
+- Redis for state persistence and stream communication
+
+## Structured Trade Logging
+
+Trade events are logged as single-line JSON to `logs/trades.jsonl` for easy analysis:
+
+```bash
+# View recent trades
+tail -20 logs/trades.jsonl | jq .
+
+# Filter by event type
+grep '"event":"EXIT"' logs/trades.jsonl | jq .
+
+# Filter by symbol
+grep '"symbol":"BTC"' logs/trades.jsonl
+
+# Analyze with script
+python scripts/analyze_trades.py                    # Today's summary
+python scripts/analyze_trades.py --last 7           # Last 7 days
+python scripts/analyze_trades.py --filter BTC       # Filter by symbol
+python scripts/analyze_trades.py --event EXIT       # Filter by event
+```
+
+**Event types:** ENTRY, EXIT, FILL, PNL, DECISION, ERROR, BALANCE
+
+**Example log line:**
+```json
+{"ts":"2026-01-25T12:00:00","event":"EXIT","symbol":"BTC","price":101500,"qty":0.01,"pnl":15.0,"pnl_pct":1.5}
+```
 
 ## Recent Changes
 
+- 2026-01-25: Added structured one-line JSON trade logging for analysis
+- 2026-01-25: Synced strategy configs and LSTM updates
+- 2026-01-23: Fixed backtest 0-trade bug and matplotlib threading issues
+- 2026-01-23: Added Quant Lab "Apply" button to push tuned params to allocation.json
+- 2026-01-22: Fixed dashboard paper/live mode separation for account data
+- 2026-01-21: Added Quant Lab integration (hyperparameter optimization)
 - 2026-01-20: Added observability events (entry/exit/HWM/safety) with API endpoints
 - 2026-01-20: Removed spot trading - system now trades futures only
-- 001-backtest-mlflow-viz: Added Python 3.9+ (per requirements.txt)
+- 2026-01-18: Added Smart Executor with ladder execution and volatility-based trailing

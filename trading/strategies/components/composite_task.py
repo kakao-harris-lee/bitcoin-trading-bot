@@ -35,6 +35,7 @@ from trading.indicators import add_all_indicators
 
 from .interfaces import IEntryStrategy, IExitStrategy
 from .models import build_market_context, MarketContext, MarketData, Position, Signal, TradingContext
+from trading.observability.structured_logger import trade_logger
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -671,6 +672,18 @@ class CompositeStrategyTask(BaseStrategyTask):
             log_lines.append(f"{'='*60}")
 
             logger.info("\n".join(log_lines))
+
+            # Structured one-line JSON log for trade analysis
+            trade_logger.decision(
+                symbol=symbol,
+                strategy=self.name,
+                decision=decision,
+                price=market_data.close,
+                mfi=market_data.mfi,
+                adx=market_data.adx,
+                regime=regime,
+                reason=reason[:100] if len(reason) > 100 else reason,
+            )
         except Exception as e:
             logger.error(f"Failed to record decision for {symbol}: {e}")
 

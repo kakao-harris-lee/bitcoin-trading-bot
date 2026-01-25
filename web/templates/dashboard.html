@@ -220,6 +220,7 @@
                 <div class="view-toggle">
                     <button class="view-btn active" data-view="summary">Summary</button>
                     <button class="view-btn" data-view="daily">Daily</button>
+                    <button class="view-btn" data-view="tradelog">Trade Log</button>
                 </div>
                 <!-- Period Selector -->
                 <div class="period-selector">
@@ -261,6 +262,61 @@
                     </div>
                     <!-- Daily Table -->
                     <div id="daily-breakdown" class="daily-breakdown">
+                    </div>
+                </div>
+
+                <!-- Trade Log View -->
+                <div id="analytics-tradelog-view" style="display: none;">
+                    <!-- Filters -->
+                    <div class="tradelog-filters">
+                        <select id="tradelog-event-filter" class="form-select">
+                            <option value="">All Events</option>
+                            <option value="ENTRY">Entry</option>
+                            <option value="EXIT">Exit</option>
+                            <option value="DECISION">Decision</option>
+                            <option value="PNL">P&L</option>
+                        </select>
+                        <select id="tradelog-symbol-filter" class="form-select">
+                            <option value="">All Symbols</option>
+                            <option value="BTC">BTC</option>
+                            <option value="ETH">ETH</option>
+                            <option value="SOL">SOL</option>
+                        </select>
+                        <button id="tradelog-download" class="btn btn-secondary">Download JSONL</button>
+                    </div>
+                    <!-- Summary Stats -->
+                    <div id="tradelog-summary" class="tradelog-summary">
+                        <div class="summary-stat">
+                            <span class="stat-label">Total Entries</span>
+                            <span class="stat-value" id="tradelog-total">-</span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="stat-label">Total P&L</span>
+                            <span class="stat-value" id="tradelog-pnl">-</span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="stat-label">Win Rate</span>
+                            <span class="stat-value" id="tradelog-winrate">-</span>
+                        </div>
+                    </div>
+                    <!-- Log Table -->
+                    <div class="tradelog-table-container">
+                        <table class="tradelog-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Event</th>
+                                    <th>Symbol</th>
+                                    <th>Price</th>
+                                    <th>Qty</th>
+                                    <th>P&L</th>
+                                    <th>Strategy</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tradelog-body">
+                                <tr><td colspan="7" class="loading">Loading trade log...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

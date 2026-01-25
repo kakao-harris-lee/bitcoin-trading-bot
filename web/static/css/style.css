@@ -2521,6 +2521,149 @@ footer kbd {
     background: var(--loss);
 }
 
+/* Trade Log View */
+.tradelog-filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.tradelog-filters .form-select {
+    min-width: 120px;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.tradelog-summary {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.tradelog-summary .summary-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tradelog-summary .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.tradelog-summary .stat-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+}
+
+.tradelog-table-container {
+    overflow-x: auto;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.tradelog-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.tradelog-table th,
+.tradelog-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.tradelog-table th {
+    background: var(--bg-card);
+    position: sticky;
+    top: 0;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+}
+
+.tradelog-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.tradelog-table .time-cell {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.tradelog-table .strategy-cell {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tradelog-table .text-right {
+    text-align: right;
+    font-family: var(--font-mono);
+}
+
+/* Event Badges */
+.event-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.event-badge.event-entry {
+    background: rgba(46, 204, 113, 0.2);
+    color: var(--profit);
+}
+
+.event-badge.event-exit {
+    background: rgba(231, 76, 60, 0.2);
+    color: var(--loss);
+}
+
+.event-badge.event-fill {
+    background: rgba(52, 152, 219, 0.2);
+    color: #3498db;
+}
+
+.event-badge.event-pnl {
+    background: rgba(155, 89, 182, 0.2);
+    color: #9b59b6;
+}
+
+.event-badge.event-decision {
+    background: rgba(241, 196, 15, 0.2);
+    color: #f1c40f;
+}
+
+.event-badge.event-error {
+    background: rgba(231, 76, 60, 0.3);
+    color: var(--loss);
+}
+
+.event-badge.event-default {
+    background: rgba(149, 165, 166, 0.2);
+    color: #95a5a6;
+}
+
 /* Staleness Indicator */
 .last-update.stale {
     color: var(--loss);

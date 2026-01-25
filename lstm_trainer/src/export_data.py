@@ -11,6 +11,7 @@ import pandas as pd
 
 def export_h4_data(
     db_path: str,
+    exchange: str = "upbit",
     output_path: str = "data/processed/h4_candles.parquet",
 ) -> pd.DataFrame:
     """
@@ -27,18 +28,31 @@ def export_h4_data(
 
     conn = sqlite3.connect(db_path)
 
-    # Upbit schema uses different column names
-    query = """
-    SELECT
-        timestamp,
-        opening_price AS open,
-        high_price AS high,
-        low_price AS low,
-        trade_price AS close,
-        candle_acc_trade_volume AS volume
-    FROM bitcoin_minute240
-    ORDER BY timestamp ASC
-    """
+    if exchange == "binance":
+        query = """
+        SELECT
+            timestamp,
+            open,
+            high,
+            low,
+            close,
+            volume
+        FROM binance_minute240
+        ORDER BY timestamp ASC
+        """
+    else:
+        # Upbit schema uses different column names
+        query = """
+        SELECT
+            timestamp,
+            opening_price AS open,
+            high_price AS high,
+            low_price AS low,
+            trade_price AS close,
+            candle_acc_trade_volume AS volume
+        FROM bitcoin_minute240
+        ORDER BY timestamp ASC
+        """
 
     df = pd.read_sql_query(query, conn)
     conn.close()
@@ -64,13 +78,21 @@ def main():
         help="Path to SQLite database",
     )
     parser.add_argument(
+        "--exchange",
+        default=None,
+        help="Exchange type (binance|upbit). Auto-detect if omitted.",
+    )
+    parser.add_argument(
         "--output",
         default="data/processed/h4_candles.parquet",
         help="Output parquet file path",
     )
 
     args = parser.parse_args()
-    export_h4_data(args.db_path, args.output)
+    exchange = args.exchange
+    if exchange is None:
+        exchange = "binance" if "binance" in args.db_path.lower() else "upbit"
+    export_h4_data(args.db_path, exchange, args.output)
 
 
 if __name__ == "__main__":

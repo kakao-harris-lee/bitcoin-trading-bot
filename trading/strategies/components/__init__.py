@@ -114,6 +114,10 @@ from .short_exit import ShortExitParams, ShortExitStrategy
 # Experimental strategy components
 from .experimental_exit import ExperimentalExitParams, ExperimentalExitStrategy
 
+# Combined strategy components
+from .combined_entry import CombinedEntryParams, CombinedEntryStrategy
+from .combined_exit import CombinedExitParams, CombinedExitStrategy
+
 __all__ = [
     # Interfaces
     "IEntryStrategy",
@@ -165,4 +169,9 @@ __all__ = [
     # Experimental implementations
     "ExperimentalExitStrategy",
     "ExperimentalExitParams",
+    # Combined implementations
+    "CombinedEntryStrategy",
+    "CombinedEntryParams",
+    "CombinedExitStrategy",
+    "CombinedExitParams",
 ]

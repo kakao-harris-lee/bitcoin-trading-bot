@@ -1,0 +1,30 @@
+{
+  "strategy_name": "combo_breakout_only",
+  "version": "v1",
+  "timeframe": "minute60",
+  "description": "Combo entry that trades purely on volatility breakout with default exit.",
+  "market": "futures",
+  "position_size": 0.01,
+  "entry": {
+    "class": "CombinedEntryStrategy",
+    "params": {
+      "score_threshold": 1,
+      "breakout_multiplier": 1.1,
+      "allow_volatility_only": true,
+      "lstm_filter_enabled": true,
+      "lstm_filter_min_confidence": 0.6,
+      "lstm_model_path": "models/trading_lstm.pth",
+      "ema_fast": 50,
+      "ema_slow": 200
+    }
+  },
+  "exit": {
+    "class": "CombinedExitStrategy",
+    "params": {
+      "exit_at_day_close": true,
+      "max_hold_hours": 12.0,
+      "take_profit_pct": 3.0,
+      "stop_loss_pct": 1.5
+    }
+  }
+}

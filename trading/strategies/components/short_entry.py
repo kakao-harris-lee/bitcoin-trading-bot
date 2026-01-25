@@ -51,6 +51,9 @@ class ShortEntryParams:
     di_negative_dominant: bool = False
     require_adx_not_declining: bool = False
 
+    # Optional: use params-based regime classification for entry filters
+    use_param_regime: bool = False
+
     # Position sizing
     position_size: float = 0.01
     market: Literal["futures"] = "futures"
@@ -101,6 +104,8 @@ class ShortEntryStrategy:
         context = ctx.regime
 
         regime = context.regime
+        if self.params.use_param_regime:
+            regime = self._classify_regime(market_data.mfi, market_data.adx)
         inds = market_data.indicators or {}
 
         # === SAFETY FILTER 1: Never short in BULL ===
@@ -192,6 +197,23 @@ class ShortEntryStrategy:
             )
 
         return None
+
+    def _classify_regime(self, mfi: float, adx: float) -> str:
+        """Classify regime using ShortEntryParams thresholds.
+
+        This is intentionally simpler than the global regime classification
+        and is used only when use_param_regime=True.
+        """
+        p = self.params
+        if mfi >= p.mfi_bull and adx >= p.adx_trend:
+            return "BULL_MODERATE"
+        if mfi >= p.mfi_bull:
+            return "SIDEWAYS_UP"
+        if mfi <= p.mfi_bear and adx >= p.adx_trend:
+            return "BEAR_STRONG"
+        if mfi <= p.mfi_bear:
+            return "BEAR_MODERATE"
+        return "SIDEWAYS_FLAT"
 
     def _should_enter(self, regime: str, is_extreme_volatility: bool = False) -> bool:
         """Check if regime is suitable for short entry.

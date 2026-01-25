@@ -123,7 +123,7 @@ Position state exists only in memory. Restart loses awareness of open positions.
 | ID | Improvement | Priority | Effort |
 |----|-------------|----------|--------|
 | S1 | Alpha position state persistence | High | 3h |
-| S2 | Hedge position state persistence | High | 2h |
+| S2 | Hedge position state persistence (removed with Kimchi arbitrage) | - | - |
 | S3 | State recovery on startup | High | 2h |
 | S4 | State file integrity checks | Medium | 1h |
 
@@ -131,13 +131,11 @@ Position state exists only in memory. Restart loses awareness of open positions.
 
 **Files to modify:**
 - `trading/execution/multi_asset_alpha_manager.py`
-- `trading/execution/multi_asset_hedge_manager.py`
 
 **State file locations:**
 ```
 logs/
 ├── alpha_state.json      # Upbit long positions
-└── hedge_state.json      # Binance short positions
 ```
 
 **Alpha state format:**

@@ -1,8 +1,10 @@
 # FX Rate Integration Design
 
 **Date:** 2025-12-28
-**Status:** Approved
-**Scope:** Integrate live USD/KRW exchange rate into Kimchi Premium calculation
+**Status:** Deprecated
+**Scope:** Historical plan for integrating USD/KRW exchange rates into Kimchi Premium calculation
+
+> Note: Kimchi premium arbitrage has been removed from the codebase. This plan is kept for historical context only.
 
 ## Problem
 

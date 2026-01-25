@@ -2840,15 +2840,74 @@ function renderStrategiesTab(data) {
                         <div class="available-strategy-item">
                             <span class="strategy-name">${name}</span>
                             <span class="strategy-badge disabled">Disabled</span>
+                            <button class="btn-enable" data-strategy="${name}" title="Enable strategy">Enable</button>
                         </div>
                     `).join('')}
                 </div>
-                <p class="hint">Add to allocation.json to enable</p>
             </div>
         `;
     }
 
     container.innerHTML = html;
+
+    // Attach event handlers
+    attachStrategyEventHandlers();
+}
+
+function attachStrategyEventHandlers() {
+    // Enable buttons
+    document.querySelectorAll('.btn-enable').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const strategyName = e.target.dataset.strategy;
+            await toggleStrategy(strategyName, 'enable');
+        });
+    });
+
+    // Disable buttons
+    document.querySelectorAll('.btn-disable').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const strategyName = e.target.dataset.strategy;
+            if (confirm(`Disable strategy "${strategyName}"?`)) {
+                await toggleStrategy(strategyName, 'disable');
+            }
+        });
+    });
+}
+
+async function toggleStrategy(strategyName, action) {
+    try {
+        const response = await apiFetch(`/api/strategies/${strategyName}/${action}`, {
+            method: 'POST'
+        });
+
+        if (response.success) {
+            // Refresh strategies tab
+            fetchStrategiesTab();
+            showNotification(`Strategy ${strategyName} ${action}d successfully`, 'success');
+        } else {
+            showNotification(response.error || `Failed to ${action} strategy`, 'error');
+        }
+    } catch (error) {
+        console.error(`Failed to ${action} strategy:`, error);
+        showNotification(error.message || `Failed to ${action} strategy`, 'error');
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Simple notification - could be enhanced with a toast library
+    const existing = document.querySelector('.notification-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = `notification-toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 function renderStrategyCard(strategy, symbols) {
@@ -2923,11 +2982,20 @@ function renderStrategyCard(strategy, symbols) {
         positionsHtml += '</div></div>';
     }
 
+    // Disable button (disabled if has active positions)
+    const hasPositions = activePositions.length > 0;
+    const disableBtn = hasPositions
+        ? `<button class="btn-disable" data-strategy="${name}" disabled title="Cannot disable: has active positions">Disable</button>`
+        : `<button class="btn-disable" data-strategy="${name}" title="Disable strategy">Disable</button>`;
+
     return `
         <div class="strategy-card">
             <div class="strategy-header">
-                <h4 class="strategy-name">${name}</h4>
-                ${statusBadge}
+                <div class="strategy-title">
+                    <h4 class="strategy-name">${name}</h4>
+                    ${statusBadge}
+                </div>
+                ${disableBtn}
             </div>
             <div class="strategy-config">
                 <div class="config-row">

@@ -1535,6 +1535,121 @@ def get_strategies():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route("/api/strategies/<strategy_name>/enable", methods=["POST"])
+@requires_auth
+def enable_strategy(strategy_name: str):
+    """
+    Enable a strategy by adding it to allocation.json.
+    Only strategies in STRATEGY_REGISTRY can be enabled.
+    """
+    try:
+        if strategy_name not in STRATEGY_REGISTRY:
+            return jsonify({'error': f'Unknown strategy: {strategy_name}'}), 400
+
+        # Load current config
+        config = load_allocation_config()
+        if not config:
+            return jsonify({'error': 'Failed to load allocation config'}), 500
+
+        strategies_config = config.get('strategies', {})
+
+        # Check if already enabled
+        if strategy_name in strategies_config:
+            return jsonify({'message': f'{strategy_name} is already enabled'}), 200
+
+        # Get spec from registry
+        spec = STRATEGY_REGISTRY[strategy_name]
+
+        # Create default config for the strategy
+        new_strategy_config = {
+            'market': spec.market,
+            'leverage': 3,
+            'dynamic_sizing': True,
+            'position_pct': 0.1,
+            'position_size': 0.01,
+            'use_smart_exit': True,
+            'entry': {
+                'class': spec.entry_class.__name__
+            },
+            'exit': {
+                'class': spec.exit_class.__name__
+            }
+        }
+
+        # Add persistent exit class if available
+        if spec.persistent_exit_class:
+            new_strategy_config['exit']['persistent_class'] = spec.persistent_exit_class.__name__
+
+        # Update config
+        strategies_config[strategy_name] = new_strategy_config
+        config['strategies'] = strategies_config
+
+        # Save config
+        config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+
+        return jsonify({
+            'success': True,
+            'message': f'Strategy {strategy_name} enabled',
+            'config': new_strategy_config
+        })
+
+    except Exception as e:
+        print(f"Error enabling strategy: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/strategies/<strategy_name>/disable", methods=["POST"])
+@requires_auth
+def disable_strategy(strategy_name: str):
+    """
+    Disable a strategy by removing it from allocation.json.
+    """
+    try:
+        # Load current config
+        config = load_allocation_config()
+        if not config:
+            return jsonify({'error': 'Failed to load allocation config'}), 500
+
+        strategies_config = config.get('strategies', {})
+
+        # Check if exists
+        if strategy_name not in strategies_config:
+            return jsonify({'message': f'{strategy_name} is already disabled'}), 200
+
+        # Check for active positions before disabling
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
+
+        for symbol in symbols:
+            pos_key = f"positions:{symbol}:futures"
+            pos_data = r.hgetall(pos_key)
+            if pos_data and pos_data.get('strategy') == strategy_name:
+                return jsonify({
+                    'error': f'Cannot disable {strategy_name}: has active position in {symbol}'
+                }), 400
+
+        # Remove from config
+        removed_config = strategies_config.pop(strategy_name)
+        config['strategies'] = strategies_config
+
+        # Save config
+        config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+
+        return jsonify({
+            'success': True,
+            'message': f'Strategy {strategy_name} disabled',
+            'removed_config': removed_config
+        })
+
+    except Exception as e:
+        print(f"Error disabling strategy: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # Backtest API Endpoints
 # =====================
 

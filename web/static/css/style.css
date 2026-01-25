@@ -2882,6 +2882,14 @@ footer kbd {
     margin-bottom: 15px;
     padding-bottom: 10px;
     border-bottom: 1px solid var(--border-color);
+    gap: 10px;
+}
+
+.strategy-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
 }
 
 .strategy-name {
@@ -3109,11 +3117,73 @@ footer kbd {
     color: #6c757d;
 }
 
-.available-strategies-section .hint {
-    margin: 15px 0 0 0;
+/* Strategy Enable/Disable Buttons */
+.btn-enable,
+.btn-disable {
+    padding: 4px 12px;
     font-size: 0.75rem;
-    color: var(--text-muted);
-    font-style: italic;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-enable {
+    background: rgba(46, 204, 113, 0.15);
+    color: var(--success-color);
+}
+
+.btn-enable:hover {
+    background: rgba(46, 204, 113, 0.3);
+}
+
+.btn-disable {
+    background: rgba(231, 76, 60, 0.15);
+    color: var(--danger-color);
+}
+
+.btn-disable:hover:not(:disabled) {
+    background: rgba(231, 76, 60, 0.3);
+}
+
+.btn-disable:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Notification Toast */
+.notification-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    z-index: 10000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.notification-toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.notification-toast.success {
+    background: var(--success-color);
+    color: white;
+}
+
+.notification-toast.error {
+    background: var(--danger-color);
+    color: white;
+}
+
+.notification-toast.info {
+    background: var(--primary-color);
+    color: white;
 }
 
 @media (max-width: 768px) {

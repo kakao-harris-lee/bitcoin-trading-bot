@@ -3068,6 +3068,54 @@ footer kbd {
     color: var(--text-secondary);
 }
 
+.available-strategies-section {
+    grid-column: 1 / -1;
+    margin-top: 20px;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    border: 1px dashed var(--border-color);
+}
+
+.available-strategies-section h4 {
+    margin: 0 0 15px 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.available-strategies-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.available-strategy-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.available-strategy-item .strategy-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.strategy-badge.disabled {
+    background: rgba(108, 117, 125, 0.2);
+    color: #6c757d;
+}
+
+.available-strategies-section .hint {
+    margin: 15px 0 0 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 @media (max-width: 768px) {
     .strategies-grid {
         grid-template-columns: 1fr;

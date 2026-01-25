@@ -2801,6 +2801,7 @@ function renderStrategiesTab(data) {
 
     const strategies = data.strategies || [];
     const symbols = data.symbols || [];
+    const availableStrategies = data.available_strategies || [];
 
     // Update summary stats
     const countEl = document.getElementById('strategies-count');
@@ -2817,14 +2818,34 @@ function renderStrategiesTab(data) {
         positionsCountEl.textContent = totalPositions;
     }
 
-    if (strategies.length === 0) {
+    if (strategies.length === 0 && availableStrategies.length === 0) {
         container.innerHTML = '<p class="no-data">No strategies configured</p>';
         return;
     }
 
     let html = '';
+
+    // Render enabled strategies
     for (const strategy of strategies) {
         html += renderStrategyCard(strategy, symbols);
+    }
+
+    // Render available but not enabled strategies
+    if (availableStrategies.length > 0) {
+        html += `
+            <div class="available-strategies-section">
+                <h4>Available (Not Enabled)</h4>
+                <div class="available-strategies-list">
+                    ${availableStrategies.map(name => `
+                        <div class="available-strategy-item">
+                            <span class="strategy-name">${name}</span>
+                            <span class="strategy-badge disabled">Disabled</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <p class="hint">Add to allocation.json to enable</p>
+            </div>
+        `;
     }
 
     container.innerHTML = html;

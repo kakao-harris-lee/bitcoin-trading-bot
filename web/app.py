@@ -1398,12 +1398,20 @@ def get_positions():
 # Strategies API Endpoints
 # ========================
 
+# Import strategy registry for dynamic class lookup
+try:
+    from trading.strategies.components.strategy_factory import STRATEGY_REGISTRY
+except ImportError:
+    STRATEGY_REGISTRY = {}
+
+
 @app.route("/api/strategies")
 @requires_auth
 def get_strategies():
     """
     Get all active strategies with configuration and live Redis state.
     Returns strategy config from allocation.json and runtime state from Redis.
+    Uses STRATEGY_REGISTRY for dynamic entry/exit class lookup.
     """
     try:
         # Load allocation config
@@ -1430,12 +1438,32 @@ def get_strategies():
                 'use_smart_exit': cfg.get('use_smart_exit', False),
             }
 
-            # Entry/Exit classes
+            # Entry/Exit classes - use config first, then registry lookup
             entry_cfg = cfg.get('entry', {})
             exit_cfg = cfg.get('exit', {})
-            strategy_info['entry_class'] = entry_cfg.get('class', _infer_entry_class(name))
-            strategy_info['exit_class'] = exit_cfg.get('class', _infer_exit_class(name))
-            strategy_info['persistent_exit_class'] = exit_cfg.get('persistent_class')
+
+            # Get classes from config or dynamically from registry
+            if entry_cfg.get('class'):
+                strategy_info['entry_class'] = entry_cfg['class']
+            elif name in STRATEGY_REGISTRY:
+                strategy_info['entry_class'] = STRATEGY_REGISTRY[name].entry_class.__name__
+            else:
+                strategy_info['entry_class'] = 'Unknown'
+
+            if exit_cfg.get('class'):
+                strategy_info['exit_class'] = exit_cfg['class']
+            elif name in STRATEGY_REGISTRY:
+                strategy_info['exit_class'] = STRATEGY_REGISTRY[name].exit_class.__name__
+            else:
+                strategy_info['exit_class'] = 'Unknown'
+
+            # Persistent exit class
+            if exit_cfg.get('persistent_class'):
+                strategy_info['persistent_exit_class'] = exit_cfg['persistent_class']
+            elif name in STRATEGY_REGISTRY and STRATEGY_REGISTRY[name].persistent_exit_class:
+                strategy_info['persistent_exit_class'] = STRATEGY_REGISTRY[name].persistent_exit_class.__name__
+            else:
+                strategy_info['persistent_exit_class'] = None
 
             # Regime routing
             regime_routing = cfg.get('regime_routing')
@@ -1491,38 +1519,20 @@ def get_strategies():
 
             strategies.append(strategy_info)
 
+        # Also include available strategies from registry not in allocation
+        available_in_registry = set(STRATEGY_REGISTRY.keys()) - set(strategies_config.keys())
+
         return jsonify({
             'strategies': strategies,
             'symbols': symbols,
             'defaults': defaults,
             'count': len(strategies),
+            'available_strategies': list(available_in_registry),
         })
 
     except Exception as e:
         print(f"Error in get_strategies: {e}")
         return jsonify({'error': str(e)}), 500
-
-
-def _infer_entry_class(strategy_name: str) -> str:
-    """Infer entry class from strategy name for legacy configs."""
-    if 'v35' in strategy_name.lower():
-        return 'V35EntryStrategy'
-    elif 'short' in strategy_name.lower():
-        return 'ShortEntryStrategy'
-    elif 'sideways' in strategy_name.lower():
-        return 'SidewaysEntryStrategy'
-    return 'UnknownEntry'
-
-
-def _infer_exit_class(strategy_name: str) -> str:
-    """Infer exit class from strategy name for legacy configs."""
-    if 'v35' in strategy_name.lower():
-        return 'V35TrailingExitStrategy'
-    elif 'short' in strategy_name.lower():
-        return 'ShortExitStrategy'
-    elif 'sideways' in strategy_name.lower():
-        return 'SidewaysExitStrategy'
-    return 'UnknownExit'
 
 
 # Backtest API Endpoints

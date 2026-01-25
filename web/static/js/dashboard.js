@@ -1418,6 +1418,7 @@ function initViewToggle() {
     const viewBtns = document.querySelectorAll('.view-btn');
     const summaryView = document.getElementById('analytics-summary-view');
     const dailyView = document.getElementById('analytics-daily-view');
+    const tradelogView = document.getElementById('analytics-tradelog-view');
 
     viewBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1431,17 +1432,27 @@ function initViewToggle() {
             analyticsState.view = view;
 
             // Toggle views
+            summaryView.style.display = 'none';
+            dailyView.style.display = 'none';
+            if (tradelogView) tradelogView.style.display = 'none';
+
             if (view === 'summary') {
                 summaryView.style.display = 'block';
-                dailyView.style.display = 'none';
                 fetchAnalytics(analyticsState.period);
-            } else {
-                summaryView.style.display = 'none';
+            } else if (view === 'daily') {
                 dailyView.style.display = 'block';
                 fetchDailyAnalytics(analyticsState.period);
+            } else if (view === 'tradelog') {
+                if (tradelogView) {
+                    tradelogView.style.display = 'block';
+                    fetchTradeLog();
+                }
             }
         });
     });
+
+    // Initialize trade log filters and download button
+    initTradeLogControls();
 }
 
 async function fetchAnalytics(period = '30d') {
@@ -1923,6 +1934,151 @@ function showDayDetail(date) {
     // For now, just log it
     console.log(`Day detail requested: ${date}`);
     // Future: Could filter history tab or show modal with day's trades
+}
+
+// =====================
+// Trade Log View
+// =====================
+
+let tradeLogState = {
+    eventFilter: '',
+    symbolFilter: ''
+};
+
+function initTradeLogControls() {
+    const eventFilter = document.getElementById('tradelog-event-filter');
+    const symbolFilter = document.getElementById('tradelog-symbol-filter');
+    const downloadBtn = document.getElementById('tradelog-download');
+
+    if (eventFilter) {
+        eventFilter.addEventListener('change', () => {
+            tradeLogState.eventFilter = eventFilter.value;
+            fetchTradeLog();
+        });
+    }
+
+    if (symbolFilter) {
+        symbolFilter.addEventListener('change', () => {
+            tradeLogState.symbolFilter = symbolFilter.value;
+            fetchTradeLog();
+        });
+    }
+
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+            const period = analyticsState.period;
+            const days = period === 'all' ? 365 : parseInt(period.replace('d', ''));
+            window.location.href = `/api/analytics/trade-log/download?days=${days}`;
+        });
+    }
+}
+
+async function fetchTradeLog() {
+    const container = document.getElementById('tradelog-body');
+    if (!container) return;
+
+    try {
+        container.innerHTML = '<tr><td colspan="7" class="loading">Loading trade log...</td></tr>';
+
+        const period = analyticsState.period;
+        const days = period === 'all' ? 90 : parseInt(period.replace('d', ''));
+
+        let url = `/api/analytics/trade-log?days=${days}&limit=200`;
+        if (tradeLogState.eventFilter) {
+            url += `&event=${tradeLogState.eventFilter}`;
+        }
+        if (tradeLogState.symbolFilter) {
+            url += `&symbol=${tradeLogState.symbolFilter}`;
+        }
+
+        const data = await apiFetch(url);
+
+        renderTradeLogSummary(data.summary);
+        renderTradeLogTable(data.entries);
+    } catch (error) {
+        container.innerHTML = '<tr><td colspan="7" class="error-state">Failed to load trade log</td></tr>';
+    }
+}
+
+function renderTradeLogSummary(summary) {
+    const totalEl = document.getElementById('tradelog-total');
+    const pnlEl = document.getElementById('tradelog-pnl');
+    const winrateEl = document.getElementById('tradelog-winrate');
+
+    if (totalEl) totalEl.textContent = summary.total || 0;
+    if (pnlEl) {
+        const pnl = summary.total_pnl || 0;
+        pnlEl.textContent = formatUSDT(pnl);
+        pnlEl.className = 'stat-value ' + getPnLClass(pnl);
+    }
+    if (winrateEl) {
+        const winrate = summary.win_rate || 0;
+        winrateEl.textContent = `${winrate}%`;
+    }
+}
+
+function renderTradeLogTable(entries) {
+    const container = document.getElementById('tradelog-body');
+    if (!container) return;
+
+    if (!entries || entries.length === 0) {
+        container.innerHTML = '<tr><td colspan="7" class="no-data">No trade log entries found</td></tr>';
+        return;
+    }
+
+    let html = '';
+    for (const entry of entries) {
+        const eventClass = getEventClass(entry.event);
+        const pnl = entry.pnl;
+        const pnlClass = pnl !== undefined ? getPnLClass(pnl) : '';
+        const pnlDisplay = pnl !== undefined ? formatUSDT(pnl) : '-';
+        const priceDisplay = entry.price ? `$${Number(entry.price).toLocaleString()}` : '-';
+        const qtyDisplay = entry.qty ? entry.qty.toFixed(6) : '-';
+
+        html += `
+            <tr>
+                <td class="time-cell">${formatTradeLogTime(entry.ts)}</td>
+                <td><span class="event-badge ${eventClass}">${entry.event}</span></td>
+                <td>${entry.symbol || '-'}</td>
+                <td class="text-right">${priceDisplay}</td>
+                <td class="text-right">${qtyDisplay}</td>
+                <td class="text-right ${pnlClass}">${pnlDisplay}</td>
+                <td class="strategy-cell" title="${entry.strategy || ''}">${truncateStrategy(entry.strategy)}</td>
+            </tr>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+function getEventClass(event) {
+    const classes = {
+        'ENTRY': 'event-entry',
+        'EXIT': 'event-exit',
+        'FILL': 'event-fill',
+        'PNL': 'event-pnl',
+        'DECISION': 'event-decision',
+        'ERROR': 'event-error'
+    };
+    return classes[event] || 'event-default';
+}
+
+function formatTradeLogTime(ts) {
+    if (!ts) return '-';
+    // ts is like "2026-01-25T12:00:00"
+    const parts = ts.split('T');
+    if (parts.length === 2) {
+        return `${parts[0].substring(5)} ${parts[1]}`;
+    }
+    return ts;
+}
+
+function truncateStrategy(strategy) {
+    if (!strategy) return '-';
+    if (strategy.length > 15) {
+        return strategy.substring(0, 12) + '...';
+    }
+    return strategy;
 }
 
 // =====================

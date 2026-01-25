@@ -12,7 +12,7 @@ import json
 import os
 import requests
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import redis
 
@@ -1065,7 +1065,6 @@ def get_daily_analytics():
     Get daily breakdown of trading performance.
     Query params: period (7d, 30d, 90d, all)
     """
-    from datetime import timedelta
     from collections import defaultdict
 
     period = request.args.get('period', '30d')
@@ -2050,6 +2049,173 @@ def get_events_summary():
         })
     except ValueError:
         return jsonify({'error': 'Invalid parameter values'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/analytics/trade-log")
+@requires_auth
+def get_trade_log():
+    """
+    Get structured trade log entries from logs/trades.jsonl.
+
+    Query parameters:
+    - days: Number of days to look back (default 7, max 90)
+    - event: Filter by event type (ENTRY, EXIT, FILL, PNL, DECISION)
+    - symbol: Filter by symbol (BTC, ETH, SOL)
+    - strategy: Filter by strategy name
+    - limit: Max entries to return (default 500, max 2000)
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        days = max(1, min(int(request.args.get('days', 7)), 90))
+        event_filter = request.args.get('event', '').upper()
+        symbol_filter = request.args.get('symbol', '').upper()
+        strategy_filter = request.args.get('strategy', '')
+        limit = max(1, min(int(request.args.get('limit', 500)), 2000))
+
+        # Calculate date cutoff
+        cutoff = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+
+        # Read log file
+        log_path = Path(__file__).parent.parent / 'logs' / 'trades.jsonl'
+        if not log_path.exists():
+            return jsonify({
+                'entries': [],
+                'summary': {'total': 0, 'by_event': {}, 'by_symbol': {}},
+                'message': 'No trade log file found'
+            })
+
+        entries = []
+        by_event = {}
+        by_symbol = {}
+        total_pnl = 0
+        wins = 0
+        losses = 0
+
+        with open(log_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+
+                    # Date filter
+                    ts = entry.get('ts', '')[:10]
+                    if ts < cutoff:
+                        continue
+
+                    # Event filter
+                    event = entry.get('event', '')
+                    if event_filter and event != event_filter:
+                        continue
+
+                    # Symbol filter
+                    symbol = entry.get('symbol', '')
+                    if symbol_filter and symbol != symbol_filter:
+                        continue
+
+                    # Strategy filter
+                    if strategy_filter and strategy_filter not in entry.get('strategy', ''):
+                        continue
+
+                    entries.append(entry)
+
+                    # Aggregate stats
+                    by_event[event] = by_event.get(event, 0) + 1
+                    if symbol:
+                        by_symbol[symbol] = by_symbol.get(symbol, 0) + 1
+
+                    # P&L tracking for exits
+                    if event == 'EXIT':
+                        pnl = entry.get('pnl', 0)
+                        total_pnl += pnl
+                        if pnl > 0:
+                            wins += 1
+                        elif pnl < 0:
+                            losses += 1
+
+                except json.JSONDecodeError:
+                    continue
+
+        # Sort by timestamp descending (most recent first)
+        entries = sorted(entries, key=lambda x: x.get('ts', ''), reverse=True)[:limit]
+
+        return jsonify({
+            'entries': entries,
+            'summary': {
+                'total': len(entries),
+                'by_event': by_event,
+                'by_symbol': by_symbol,
+                'total_pnl': round(total_pnl, 2),
+                'wins': wins,
+                'losses': losses,
+                'win_rate': round(wins / (wins + losses) * 100, 1) if (wins + losses) > 0 else 0,
+            },
+            'filters': {
+                'days': days,
+                'event': event_filter or None,
+                'symbol': symbol_filter or None,
+                'strategy': strategy_filter or None,
+            }
+        })
+
+    except ValueError:
+        return jsonify({'error': 'Invalid parameter values'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/analytics/trade-log/download")
+@requires_auth
+def download_trade_log():
+    """
+    Download trade log as JSONL file.
+
+    Query parameters:
+    - days: Number of days (default 30)
+    """
+    from pathlib import Path
+    from flask import send_file
+    import io
+
+    try:
+        days = max(1, min(int(request.args.get('days', 30)), 365))
+        cutoff = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+
+        log_path = Path(__file__).parent.parent / 'logs' / 'trades.jsonl'
+        if not log_path.exists():
+            return jsonify({'error': 'No trade log file found'}), 404
+
+        # Filter and prepare download
+        output = io.StringIO()
+        with open(log_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    import json
+                    entry = json.loads(line)
+                    ts = entry.get('ts', '')[:10]
+                    if ts >= cutoff:
+                        output.write(line + '\n')
+                except:
+                    continue
+
+        output.seek(0)
+        filename = f"trades_{datetime.now().strftime('%Y%m%d')}.jsonl"
+
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            mimetype='application/x-ndjson',
+            as_attachment=True,
+            download_name=filename
+        )
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

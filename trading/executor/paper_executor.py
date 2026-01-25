@@ -9,6 +9,7 @@ from typing import Any, Optional, TYPE_CHECKING
 
 from trading.risk.trade_logger import TradeLogger
 from trading.risk.liquidation_guard import LiquidationGuard
+from trading.observability.structured_logger import trade_logger
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -230,6 +231,35 @@ class PaperExecutor:
         await self._log_trade_to_db_async(order, fill, profit_data)
 
         logger.info(f"Paper fill: {fill}, balance: {self.balance:.2f}")
+
+        # Structured logging for trade analysis
+        if is_exit and profit_data:
+            position = await self.redis.get_position(order["symbol"], order["market"])
+            entry_price = float(position.get("entry_price", 0)) if position else 0
+            entry_time = int(position.get("entry_time", 0)) if position else 0
+            hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
+            trade_logger.exit(
+                symbol=symbol,
+                price=fill_price,
+                qty=quantity,
+                entry_price=entry_price,
+                strategy=order["strategy"],
+                pnl=profit_data["profit"],
+                pnl_pct=profit_data["profit_pct"],
+                hold_time_sec=hold_time,
+                exit_reason=order.get("reason", ""),
+                mode="paper",
+            )
+        else:
+            trade_logger.entry(
+                symbol=symbol,
+                price=fill_price,
+                qty=quantity,
+                strategy=order["strategy"],
+                leverage=int(order.get("leverage", 1)),
+                mode="paper",
+            )
+
         return fill
 
     async def _log_trade_to_db_async(self, order: dict, fill: dict, profit_data: dict | None) -> None:

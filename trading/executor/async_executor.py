@@ -6,6 +6,8 @@ import logging
 import time
 from typing import Any, Optional, TYPE_CHECKING
 
+from trading.observability.structured_logger import trade_logger
+
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
     from trading.executor.binance_client import BinanceClient
@@ -204,6 +206,34 @@ class AsyncExecutor:
 
             # Publish trade notification (with profit data for exits)
             await self._publish_trade(order, fill, profit_data)
+
+            # Structured logging for trade analysis
+            if is_exit and profit_data:
+                position = await self.redis.get_position(order["symbol"], order["market"])
+                entry_price = float(position.get("entry_price", 0)) if position else 0
+                entry_time = int(position.get("entry_time", 0)) if position else 0
+                hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
+                trade_logger.exit(
+                    symbol=order["symbol"],
+                    price=fill["filled_price"],
+                    qty=fill["filled_qty"],
+                    entry_price=entry_price,
+                    strategy=order["strategy"],
+                    pnl=profit_data["profit"],
+                    pnl_pct=profit_data["profit_pct"],
+                    hold_time_sec=hold_time,
+                    exit_reason=order.get("reason", ""),
+                    mode="live",
+                )
+            else:
+                trade_logger.entry(
+                    symbol=order["symbol"],
+                    price=fill["filled_price"],
+                    qty=fill["filled_qty"],
+                    strategy=order["strategy"],
+                    leverage=allowed_leverage or 1,
+                    mode="live",
+                )
 
             logger.info(f"Order {order['id']} filled: {fill}")
             return fill

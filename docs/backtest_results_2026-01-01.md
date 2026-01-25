@@ -55,14 +55,14 @@ The unified backtesting framework has been completed and tested. Results reveal 
 | **Long Only** | **+10.37** | 20 | 0.36 |
 | Short Only | -13.98 | 15 | 0.29 |
 | Long + Short | -10.44 | 35 | 0.32 |
+| Long + Premium Arb | +10.37 | 20 | 0.36 |
 | Full System | -10.44 | 35 | 0.32 |
-
-> Note: The Kimchi premium arbitrage path has been removed from the codebase; results above cover the remaining alpha strategies only.
 
 ## Key Insights
 
 ### 1. Long Strategy Outperforms
 - Long-only achieves **+10.37%** return in 2024
+- Premium arbitrage adds minimal value (same return as long-only)
 - This validates the V35 long strategy's effectiveness
 
 ### 2. Short Strategy Underperforms
@@ -90,4 +90,5 @@ The unified backtesting framework has been completed and tested. Results reveal 
 
 1. Investigate why short strategy underperforms
 2. Consider disabling short strategy in production
-3. Add more sophisticated entry/exit logic to unified backtester
+3. Tune premium arbitrage thresholds
+4. Add more sophisticated entry/exit logic to unified backtester

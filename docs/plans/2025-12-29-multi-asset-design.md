@@ -6,12 +6,12 @@
 
 ## Objective
 
-Transition the current Bitcoin-centric system into a Multi-Asset Trading Platform. Leverage the AsyncTradingEngine architecture to trade multiple high-liquidity assets (BTC, ETH, SOL) simultaneously and diversify risk.
+Transition the current Bitcoin-centric system into a Multi-Asset Trading Platform. Leverage the AsyncTradingEngine architecture to trade multiple high-liquidity assets (BTC, ETH, SOL) simultaneously, diversifying risk and capturing asset-specific Kimchi Premium spreads.
 
 ## Goals
 
 1. **Diversification** - Spread risk across multiple uncorrelated assets
-2. **Cross-asset opportunities** - Leverage asset-specific signals and liquidity
+2. **Arbitrage opportunities** - Capture different Kimchi premiums per coin
 3. **Capital efficiency** - Deploy idle capital when BTC has no signal
 
 ## Design Decisions

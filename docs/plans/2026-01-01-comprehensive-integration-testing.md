@@ -2,9 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Validate the complete trading system (trend trading) generates appropriate trade frequency and profitability using 2020-2025 historical data.
-
-> Note: Kimchi premium arbitrage has been removed from the codebase. Any premium-related sections below are historical.
+**Goal:** Validate the complete trading system (trend trading + Kimchi Premium arbitrage) generates appropriate trade frequency and profitability using 2020-2025 historical data.
 
 **Architecture:** Unified backtesting framework that simulates the full trading pipeline: RegimeRouter → Strategy Selection → Position Management → Premium Arbitrage → Combined P&L tracking with realistic costs.
 
@@ -568,7 +566,7 @@ Simulates the complete trading system:
 1. RegimeRouter → Market state classification
 2. Strategy Selection → V35/VA02/Short_V1/Sideways_V2
 3. Position Management → Entry/exit with costs
-4. Premium Arbitrage → Kimchi premium hedging (removed)
+4. Premium Arbitrage → Kimchi premium hedging
 5. Combined P&L → KRW-denominated results
 
 Supports:

@@ -102,10 +102,6 @@ class ComponentStrategyAdapter:
             mfi=mfi,
             adx=adx,
             rsi=row.get('rsi', 50.0),
-            # OHLCV for breakout/sequence models
-            high=row.get('high', 0.0) or 0.0,
-            low=row.get('low', 0.0) or 0.0,
-            volume=volume,
             # MACD for momentum entry
             macd=row.get('macd', 0.0),
             macd_signal=row.get('macd_signal', 0.0),
@@ -117,6 +113,7 @@ class ComponentStrategyAdapter:
             bb_lower=row.get('bb_lower', 0.0),
             bb_middle=row.get('bb_middle', 0.0),
             # Volume for breakout entry
+            volume=volume,
             avg_volume_20=avg_volume,
             # Support/resistance levels
             prev_high_20=row.get('prev_high_20', 0.0),
@@ -157,10 +154,6 @@ class ComponentStrategyAdapter:
             if signal:
                 self.current_position = None
                 self.high_water_mark = None
-                try:
-                    self.exit_strategy.on_position_closed(self.symbol)
-                except Exception:
-                    pass
                 action = 'close_short' if not is_long else 'sell'
                 return {
                     'action': action,
@@ -187,11 +180,12 @@ class ComponentStrategyAdapter:
                 pos_side = 'short' if is_short else 'long'
 
                 # Create simulated position
+                # Assuming timestamp is a pandas Timestamp or similar, convert to ms
                 ts_ms = int(row['timestamp'].timestamp() * 1000) if hasattr(row['timestamp'], 'timestamp') else 0
 
                 self.current_position = Position(
                     symbol=self.symbol,
-                    quantity=getattr(signal, "quantity", 1.0) or 1.0,
+                    quantity=1.0,
                     entry_price=row['close'],
                     side=pos_side,
                     strategy=self.strategy_name,
@@ -200,19 +194,12 @@ class ComponentStrategyAdapter:
                 )
                 self.high_water_mark = row['close']
 
-                # Notify exit strategy (stateful exits may track entry)
-                try:
-                    self.exit_strategy.on_position_opened(self.current_position)
-                except Exception:
-                    pass
-
                 # Use action names expected by backtest_runner:
                 # 'buy' for opening long, 'open_short' for opening short
                 action = "open_short" if is_short else "buy"
-                fraction = getattr(signal, "quantity", 1.0) or 1.0
                 return {
                     "action": action,
-                    "fraction": fraction,
+                    "fraction": 1.0,
                     "price": close,
                     "reason": signal.reason,
                 }

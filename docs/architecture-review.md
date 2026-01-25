@@ -21,7 +21,7 @@ The trading bot consists of modular systems coordinated by `MultiAssetTradingEng
 1. **Strategy Factory** - Dynamically assembles strategies
 2. **Composite Tasks** - Validates persistent state and runs component logic
 3. **RegimeRouter** - Market state oracle (read-only reference)
-4. **MultiAssetTradingEngine** - Orchestrates feeds, strategies, and execution
+4. **Kimchi Premium System** - Independent arbitrage trading system
 
 ---
 
@@ -95,7 +95,19 @@ The trading bot consists of modular systems coordinated by `MultiAssetTradingEng
 
 ---
 
-### 3. MultiAssetTradingEngine
+### 3. Kimchi Premium System
+
+**Locations:** `trading/strategies/premium.py`, `trading/execution/multi_asset_hedge_manager.py`
+
+**Role:** Independent arbitrage system.
+
+**Design Rating: A**
+
+- Remains isolated from trend strategies.
+
+---
+
+### 4. MultiAssetTradingEngine
 
 **Location:** `trading/engine.py`
 

@@ -9,8 +9,6 @@ Current system has **double regime filtering** causing reduced trade opportuniti
 
 Result: Trading opportunities blocked in SIDEWAYS_DOWN or technical rebound zones, leading to sharp decline in trade frequency and deteriorating profitability.
 
-> Note: Kimchi premium arbitrage has been removed from the live codebase. References to `PREMIUM` below are historical and should not be re-enabled.
-
 ## Solution: Event-Driven Standalone Strategies
 
 Transform from centralized engine to event-driven architecture where:
@@ -67,7 +65,7 @@ Transform from centralized engine to event-driven architecture where:
 | Signal flow | Redis-mediated | Full decoupling, signals persisted/auditable |
 | Executor role | Hybrid | Dumb per-strategy execution, centralized risk controls |
 | RegimeRouter | Advisory only | Strategies informed but autonomous, no hard gating |
-| Strategy scope | Core 4 strategies | V35, SHORT_V1, SIDEWAYS_V2, H4 (PREMIUM retired) |
+| Strategy scope | All 5 strategies | V35, SHORT_V1, SIDEWAYS_V2, H4, PREMIUM |
 | Entry point | Single orchestrator | One run.py spawns all coroutines |
 | Mode control | Per-exchange flags | --upbit=live --binance=paper (current approach) |
 | Data flow | Per-exchange streams | Strategies subscribe to what they need |
@@ -234,7 +232,8 @@ trading/
 │   ├── v35.py               # V35 standalone
 │   ├── short_v1.py          # SHORT_V1 standalone
 │   ├── sideways_v2.py       # SIDEWAYS_V2 standalone
-│   └── h4.py                # H4_CONSERVATIVE standalone
+│   ├── h4.py                # H4_CONSERVATIVE standalone
+│   └── premium.py           # PREMIUM standalone
 │
 ├── executor/                # Trade execution (new)
 │   ├── __init__.py

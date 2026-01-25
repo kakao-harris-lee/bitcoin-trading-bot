@@ -1,7 +1,5 @@
 # Standalone Strategy Architecture Implementation Plan
 
-> Note: Kimchi premium arbitrage has been removed from the codebase. Premium-related tasks in this plan are historical.
-
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Transform centralized trading engine to event-driven architecture with independent strategy coroutines subscribing to Redis streams.

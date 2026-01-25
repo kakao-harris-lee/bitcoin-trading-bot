@@ -1,11 +1,7 @@
 {
   "redis_url": "redis://localhost:6379",
   "use_component_strategies": true,
-  "symbols": [
-    "BTC",
-    "ETH",
-    "SOL"
-  ],
+  "symbols": ["BTC", "ETH", "SOL"],
   "defaults": {
     "volatility": {
       "window": 20,
@@ -35,7 +31,7 @@
       "market": "futures",
       "leverage": 3,
       "dynamic_sizing": true,
-      "position_pct": 0.3,
+      "position_pct": 0.30,
       "position_size": 0.01,
       "use_smart_exit": true
     },
@@ -43,7 +39,7 @@
       "market": "futures",
       "leverage": 3,
       "dynamic_sizing": true,
-      "position_pct": 0.2,
+      "position_pct": 0.20,
       "position_size": 0.01,
       "use_smart_exit": true
     },
@@ -51,7 +47,7 @@
       "market": "futures",
       "leverage": 3,
       "dynamic_sizing": true,
-      "position_pct": 0.2,
+      "position_pct": 0.20,
       "position_size": 0.01,
       "use_smart_exit": true
     },
@@ -62,204 +58,6 @@
       "position_pct": 0.05,
       "position_size": 0.01,
       "use_smart_exit": true
-    },
-    "tuned_v35_1._18": {
-      "market": "futures",
-      "leverage": 3,
-      "dynamic_sizing": true,
-      "position_pct": 0.1,
-      "position_size": 0.01,
-      "use_smart_exit": true,
-      "entry": {
-        "class": "V35EntryStrategy"
-      },
-      "exit": {
-        "class": "V35TrailingExitStrategy",
-        "persistent_class": "V35PersistentExitStrategy"
-      },
-      "tuned_config": "config/tuned/tuned_v35_1._18.json",
-      "regime_routing": {
-        "BULL_STRONG": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 50.365957169208194,
-            "adx_threshold": 33.571392984889435
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.797895084924075,
-            "take_profit_pct": 1.56100325103067
-          }
-        },
-        "BULL_MODERATE": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 48.767573965468934,
-            "adx_threshold": 31.126817573980116
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.543563754693858,
-            "take_profit_pct": 7.177784304510937
-          }
-        },
-        "SIDEWAYS_UP": {
-          "entry": "SidewaysEntry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "range_threshold": 1.6031428264724927
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.0092168327361435,
-            "take_profit_pct": 7.150074810282249
-          }
-        },
-        "SIDEWAYS_FLAT": {
-          "entry": "ShortEntry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "rsi_overbought": 67.0520481571902
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.601556590005625,
-            "take_profit_pct": 2.9975922214272064
-          }
-        },
-        "SIDEWAYS_DOWN": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 61.26261237421628,
-            "adx_threshold": 23.88208892640788
-          },
-          "exit_params": {
-            "trailing_stop_pct": 0.8908471770112838,
-            "take_profit_pct": 7.789843142803046
-          }
-        },
-        "BEAR_MODERATE": {
-          "entry": "SidewaysEntry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "range_threshold": 0.9919451476777642
-          },
-          "exit_params": {
-            "trailing_stop_pct": 2.59729063535747,
-            "take_profit_pct": 8.983155390999963
-          }
-        },
-        "BEAR_STRONG": {
-          "entry": "SidewaysEntry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "range_threshold": 2.5184392574365955
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.1689503457750465,
-            "take_profit_pct": 9.707253569837661
-          }
-        }
-      }
-    },
-    "tuned_experiment_7143f875_2": {
-      "market": "futures",
-      "leverage": 3,
-      "dynamic_sizing": true,
-      "position_pct": 0.1,
-      "position_size": 0.01,
-      "use_smart_exit": true,
-      "entry": {
-        "class": "V35EntryStrategy"
-      },
-      "exit": {
-        "class": "V35TrailingExitStrategy",
-        "persistent_class": "V35PersistentExitStrategy"
-      },
-      "tuned_config": "config/tuned/tuned_experiment_7143f875_2.json",
-      "regime_routing": {
-        "BULL_STRONG": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 63.937790097967095,
-            "adx_threshold": 20.26368928109132
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.95443339649813,
-            "take_profit_pct": 8.882053870070676
-          }
-        },
-        "BULL_MODERATE": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 57.568818250037,
-            "adx_threshold": 24.74029030772997
-          },
-          "exit_params": {
-            "trailing_stop_pct": 1.1148668022459842,
-            "take_profit_pct": 8.656664617781935
-          }
-        },
-        "SIDEWAYS_UP": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 60.22798069006427,
-            "adx_threshold": 20.95120271631268
-          },
-          "exit_params": {
-            "trailing_stop_pct": 3.8437160739693823,
-            "take_profit_pct": 2.1268229089778075
-          }
-        },
-        "SIDEWAYS_FLAT": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 62.42609143963803,
-            "adx_threshold": 25.82073944040705
-          },
-          "exit_params": {
-            "trailing_stop_pct": 2.232450435621305,
-            "take_profit_pct": 3.829340888247463
-          }
-        },
-        "SIDEWAYS_DOWN": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 58.51888691130814,
-            "adx_threshold": 28.46545164575891
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.219840600239119,
-            "take_profit_pct": 8.637425872968384
-          }
-        },
-        "BEAR_MODERATE": {
-          "entry": "SidewaysEntry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "range_threshold": 0.8277682569837879
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.946077515644547,
-            "take_profit_pct": 3.2300499485766716
-          }
-        },
-        "BEAR_STRONG": {
-          "entry": "SidewaysEntry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "range_threshold": 2.3208465848227133
-          },
-          "exit_params": {
-            "trailing_stop_pct": 2.6987589832916834,
-            "take_profit_pct": 2.1197245617324083
-          }
-        }
-      }
     }
   },
   "smart_executor": {
@@ -272,16 +70,8 @@
       "damping_max": 0.2
     },
     "split_execution": {
-      "ladder_tiers": [
-        0.05,
-        0.12,
-        0.2
-      ],
-      "ladder_weights": [
-        0.4,
-        0.35,
-        0.25
-      ],
+      "ladder_tiers": [0.05, 0.12, 0.20],
+      "ladder_weights": [0.40, 0.35, 0.25],
       "phase1_timeout_sec": 75,
       "max_execution_sec": 105
     }

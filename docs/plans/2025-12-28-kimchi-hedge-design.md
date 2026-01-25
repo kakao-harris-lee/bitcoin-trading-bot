@@ -1,6 +1,4 @@
-# Kimchi Premium Hedge Strategy Design (Deprecated)
-
-> Note: Kimchi premium arbitrage has been removed from the codebase. This design is historical.
+# Kimchi Premium Hedge Strategy Design
 
 **Date:** 2025-12-28
 **Status:** Approved

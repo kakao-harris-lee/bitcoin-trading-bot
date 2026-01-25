@@ -18,7 +18,6 @@ INDICATOR_COLUMNS = [
     'macd',
     'macd_signal',
     'macd_hist',
-    'ema_20',
     'ema_50',
     'ema_200',
     'atr',
@@ -64,8 +63,7 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # MACD
     df['macd'], df['macd_signal'], df['macd_hist'] = ta.macd(df['close'])
 
-    # EMAs (short/mid/long)
-    df['ema_20'] = ta.ema(df['close'], 20)
+    # EMAs
     df['ema_50'] = ta.ema(df['close'], 50)
     df['ema_200'] = ta.ema(df['close'], 200)
 

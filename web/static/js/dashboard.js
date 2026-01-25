@@ -15,6 +15,9 @@ let lastFetchTimes = {};
 const priceHistory = {};
 const PRICE_HISTORY_LENGTH = 60; // Keep last 60 data points
 
+// Entry prices for position indicators (symbol -> entry price)
+const entryPrices = {};
+
 // API Fetch Utility with Error Handling and Retry
 async function apiFetch(endpoint, options = {}, retryCount = 0) {
     const defaultOptions = {
@@ -180,6 +183,35 @@ function formatDateTime(isoString) {
     });
 }
 
+// Format entry time from Unix timestamp (ms) with relative time
+function formatEntryTime(timestamp) {
+    if (!timestamp || timestamp === 0) return '-';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    let relativeStr;
+    if (diffDays > 0) {
+        relativeStr = `${diffDays}d ${diffHours % 24}h ago`;
+    } else if (diffHours > 0) {
+        relativeStr = `${diffHours}h ago`;
+    } else {
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        relativeStr = `${diffMins}m ago`;
+    }
+
+    const dateStr = date.toLocaleString('ko-KR', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    return `${dateStr} (${relativeStr})`;
+}
+
 function formatPrice(price, isUSD = true) {
     if (!price) return '-';
     return new Intl.NumberFormat('en-US', {
@@ -256,8 +288,8 @@ function updatePriceHistory(symbol, price) {
     }
 }
 
-// Draw sparkline chart on canvas
-function drawSparkline(canvasId, data, color = '#58a6ff') {
+// Draw sparkline chart on canvas with optional entry price indicator
+function drawSparkline(canvasId, data, entryPrice = null) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || !data || data.length < 2) return;
 
@@ -269,9 +301,13 @@ function drawSparkline(canvasId, data, color = '#58a6ff') {
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
 
-    // Find min/max for scaling
-    const min = Math.min(...data);
-    const max = Math.max(...data);
+    // Find min/max for scaling (include entry price if present)
+    let min = Math.min(...data);
+    let max = Math.max(...data);
+    if (entryPrice && entryPrice > 0) {
+        min = Math.min(min, entryPrice);
+        max = Math.max(max, entryPrice);
+    }
     const range = max - min || 1;
 
     // Calculate points
@@ -284,6 +320,24 @@ function drawSparkline(canvasId, data, color = '#58a6ff') {
     // Determine line color based on trend
     const isUp = data[data.length - 1] >= data[0];
     const lineColor = isUp ? '#3fb950' : '#f85149';
+
+    // Draw entry price indicator line (dashed horizontal line)
+    if (entryPrice && entryPrice > 0) {
+        const entryY = height - padding - ((entryPrice - min) / range) * (height - padding * 2);
+        ctx.beginPath();
+        ctx.setLineDash([4, 2]);
+        ctx.moveTo(padding, entryY);
+        ctx.lineTo(width - padding, entryY);
+        ctx.strokeStyle = '#f0c000'; // Yellow/gold for entry price
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset dash
+
+        // Draw small "E" label at the right end
+        ctx.font = '8px monospace';
+        ctx.fillStyle = '#f0c000';
+        ctx.fillText('E', width - 10, entryY - 2);
+    }
 
     // Draw gradient fill
     const gradient = ctx.createLinearGradient(0, 0, 0, height);
@@ -323,7 +377,8 @@ function drawSparkline(canvasId, data, color = '#58a6ff') {
 function drawAllSparklines() {
     for (const symbol of Object.keys(priceHistory)) {
         const canvasId = `sparkline-${symbol.toLowerCase()}`;
-        drawSparkline(canvasId, priceHistory[symbol]);
+        const entryPrice = entryPrices[symbol] || null;
+        drawSparkline(canvasId, priceHistory[symbol], entryPrice);
     }
 }
 
@@ -344,12 +399,19 @@ function renderAssetCards(assets) {
         // Update price history for sparkline
         updatePriceHistory(data.symbol, data.price);
 
-        // Position status
+        // Position status and entry price tracking
         let positionStatus = 'None';
         let positionClass = '';
         if (data.position_active) {
             positionClass = 'has-position';
             positionStatus = data.direction === 'short' ? 'SHORT' : 'LONG';
+            // Store entry price for sparkline indicator
+            if (data.entry_price && data.entry_price > 0) {
+                entryPrices[data.symbol] = data.entry_price;
+            }
+        } else {
+            // Clear entry price when no position
+            delete entryPrices[data.symbol];
         }
 
         // Get active strategy from strategies config
@@ -413,6 +475,14 @@ function renderAssetCards(assets) {
                     <div class="info-row">
                         <span class="label">Qty</span>
                         <span class="value">${data.position_qty.toFixed(6)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Entry</span>
+                        <span class="value entry-price">$${formatPrice(data.entry_price, false)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">PnL</span>
+                        <span class="value ${data.unrealized_pnl >= 0 ? 'positive' : 'negative'}">${formatUSD(data.unrealized_pnl)} (${data.unrealized_pnl_pct >= 0 ? '+' : ''}${(data.unrealized_pnl_pct || 0).toFixed(2)}%)</span>
                     </div>
                     ` : ''}
                 </div>
@@ -502,8 +572,6 @@ async function fetchKillSwitch() {
 // Update exchange balances display
 function updateExchangeBalances(data) {
     if (!data.binance) {
-        document.getElementById('spot-status').textContent = 'Error';
-        document.getElementById('spot-status').className = 'exchange-status error';
         document.getElementById('futures-status').textContent = 'Error';
         document.getElementById('futures-status').className = 'exchange-status error';
         return;
@@ -511,49 +579,7 @@ function updateExchangeBalances(data) {
 
     const binance = data.binance;
 
-    // ==================== SPOT SECTION ====================
-    const spot = binance.spot || {};
-    document.getElementById('spot-status').textContent = 'Connected';
-    document.getElementById('spot-status').className = 'exchange-status connected';
-    document.getElementById('spot-usdt').textContent = formatUSD(spot.usdt_balance || 0);
-    document.getElementById('spot-position-value').textContent = formatUSD(spot.position_value || 0);
-    document.getElementById('spot-total').textContent = formatUSD(spot.total || 0);
-
-    // Spot positions
-    const spotPositions = spot.positions || [];
-    const spotPosList = document.getElementById('spot-positions-list');
-    if (spotPositions.length > 0) {
-        let html = '';
-        for (const pos of spotPositions) {
-            html += `
-                <div class="position-item spot">
-                    <div class="position-header">
-                        <span class="position-symbol">${pos.asset}</span>
-                        <span class="position-side long">HOLD</span>
-                    </div>
-                    <div class="position-details">
-                        <div class="detail-row">
-                            <span class="label">Qty</span>
-                            <span class="value">${pos.quantity.toFixed(6)}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="label">Price</span>
-                            <span class="value">$${formatPrice(pos.price, false)}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="label">Value</span>
-                            <span class="value">${formatUSD(pos.value)}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        spotPosList.innerHTML = html;
-    } else {
-        spotPosList.innerHTML = '<span class="no-positions">No spot positions</span>';
-    }
-
-    // ==================== FUTURES SECTION ====================
+    // ==================== FUTURES SECTION (Futures-only system) ====================
     const futures = binance.futures || {};
     document.getElementById('futures-status').textContent = 'Connected';
     document.getElementById('futures-status').className = 'exchange-status connected';
@@ -583,6 +609,8 @@ function updateExchangeBalances(data) {
         for (const pos of futuresPositions) {
             const sideClass = pos.side === 'LONG' ? 'long' : 'short';
             const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
+            // Format entry time
+            const entryTimeStr = pos.entry_time ? formatEntryTime(pos.entry_time) : '-';
             html += `
                 <div class="position-item futures ${sideClass}">
                     <div class="position-header">
@@ -603,6 +631,14 @@ function updateExchangeBalances(data) {
                             <span class="label">Mark</span>
                             <span class="value">$${formatPrice(pos.mark_price, false)}</span>
                         </div>
+                        <div class="detail-row">
+                            <span class="label">Entered</span>
+                            <span class="value entry-time">${entryTimeStr}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Strategy</span>
+                            <span class="value strategy-name">${pos.strategy || 'unknown'}</span>
+                        </div>
                         ${pos.liquidation_price > 0 ? `
                         <div class="detail-row liquidation">
                             <span class="label">Liq.</span>
@@ -622,9 +658,6 @@ function updateExchangeBalances(data) {
         futuresPosList.innerHTML = '<span class="no-positions">No futures positions</span>';
     }
 
-    // ==================== COMBINED TOTAL ====================
-    document.getElementById('binance-total').textContent = formatUSD(binance.total_equity || 0);
-
     // Show errors if any
     if (data.errors && data.errors.length > 0) {
         console.warn('Exchange balance errors:', data.errors);
@@ -640,8 +673,8 @@ async function fetchExchangeBalances() {
         updateExchangeBalances(data);
     } catch (err) {
         console.error('Exchange balances fetch error:', err);
-        document.getElementById('binance-status').textContent = 'Error';
-        document.getElementById('binance-status').className = 'exchange-status error';
+        document.getElementById('futures-status').textContent = 'Error';
+        document.getElementById('futures-status').className = 'exchange-status error';
     }
 }
 

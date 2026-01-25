@@ -1855,6 +1855,8 @@ def get_exchange_balances():
                         'unrealized_pnl': pnl,
                         'leverage': int(futures_pos.get('leverage', 1)),
                         'liquidation_price': 0,
+                        'entry_time': int(futures_pos.get('entry_time', 0)),
+                        'strategy': futures_pos.get('strategy', 'unknown'),
                     })
                     futures_unrealized_pnl += pnl
 
@@ -1965,8 +1967,14 @@ def get_exchange_balances():
                     # Hedge mode: use positionSide directly
                     side = position_side
 
+                # Get entry_time and strategy from Redis
+                asset = pos['symbol'].replace('USDT', '')
+                redis_pos = r.hgetall(f"positions:{asset}:futures")
+                entry_time = int(redis_pos.get('entry_time', 0)) if redis_pos else 0
+                strategy = redis_pos.get('strategy', 'unknown') if redis_pos else 'unknown'
+
                 futures_positions.append({
-                    'symbol': pos['symbol'].replace('USDT', ''),
+                    'symbol': asset,
                     'market': 'futures',
                     'size': size,
                     'side': side,
@@ -1975,6 +1983,8 @@ def get_exchange_balances():
                     'unrealized_pnl': float(pos['unrealizedProfit']),
                     'leverage': int(pos['leverage']),
                     'liquidation_price': float(pos.get('liquidationPrice', 0)),
+                    'entry_time': entry_time,
+                    'strategy': strategy,
                 })
 
         # ==================== COMBINED SUMMARY ====================

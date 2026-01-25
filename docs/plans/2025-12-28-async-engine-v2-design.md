@@ -4,6 +4,8 @@
 **Status:** Draft - Pending Approval
 **Goal:** Full async rewrite of trading engine for maximum speed and real-time responsiveness
 
+> Note: Kimchi premium arbitrage has been removed from the codebase. Premium-specific sections below are historical.
+
 ## Overview
 
 Replace the synchronous `DualPaperTradingEngine` with an event-driven async architecture that:
@@ -39,7 +41,7 @@ Replace the synchronous `DualPaperTradingEngine` with an event-driven async arch
 │  │  • Upbit price (real-time WebSocket)                     │            │
 │  │  • Binance price (real-time WebSocket)                   │            │
 │  │  • USD/KRW rate (5-min refresh)                          │            │
-│  │  • Kimchi Premium (calculated on update)                 │            │
+│  │  • Derived metrics (Kimchi premium removed)              │            │
 │  └─────────────────────────────────────────────────────────┘            │
 │                              │                                           │
 │                              │ asyncio.Queue (in-process)               │

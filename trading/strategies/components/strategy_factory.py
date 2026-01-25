@@ -65,6 +65,8 @@ from .v35_persistent_exit import V35PersistentExitStrategy
 from .sideways_exit import SidewaysExitStrategy, SidewaysExitParams
 from .short_exit import ShortExitStrategy, ShortExitParams
 from .experimental_exit import ExperimentalExitStrategy, ExperimentalExitParams
+from .combined_entry import CombinedEntryStrategy, CombinedEntryParams
+from .combined_exit import CombinedExitStrategy, CombinedExitParams
 
 # Registry and config validation
 from .registry import (
@@ -146,6 +148,37 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         persistent_exit_class=None,
         market="futures",
         timeframe="minute60",  # Hourly - volatility filter calibrated for this
+    ),
+    "combo_ensemble": StrategySpec(
+        name="combo_ensemble",
+        entry_class=CombinedEntryStrategy,
+        entry_params_class=CombinedEntryParams,
+        exit_class=CombinedExitStrategy,
+        exit_params_class=CombinedExitParams,
+        persistent_exit_class=None,
+        market="futures",
+        timeframe="minute60",
+    ),
+    # Tuned variants (use same components as v35_long unless overridden via config)
+    "tuned_v35_1._18": StrategySpec(
+        name="tuned_v35_1._18",
+        entry_class=V35EntryStrategy,
+        entry_params_class=V35EntryParams,
+        exit_class=V35TrailingExitStrategy,
+        exit_params_class=V35ExitParams,
+        persistent_exit_class=V35PersistentExitStrategy,
+        market="futures",
+        timeframe="minute60",
+    ),
+    "tuned_experiment_7143f875_2": StrategySpec(
+        name="tuned_experiment_7143f875_2",
+        entry_class=V35EntryStrategy,
+        entry_params_class=V35EntryParams,
+        exit_class=V35TrailingExitStrategy,
+        exit_params_class=V35ExitParams,
+        persistent_exit_class=V35PersistentExitStrategy,
+        market="futures",
+        timeframe="minute60",
     ),
 }
 

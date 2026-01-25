@@ -2931,18 +2931,63 @@ function renderStrategyCard(strategy, symbols) {
     const entryClass = strategy.entry_class || 'Unknown';
     const exitClass = strategy.exit_class || 'Unknown';
 
-    // Regime routing summary
+    // Regime routing detailed view
     let regimeHtml = '';
     if (strategy.regime_routing) {
-        const regimes = Object.keys(strategy.regime_routing);
+        const regimes = Object.entries(strategy.regime_routing);
+
+        // Group by entry type for summary
+        const entryGroups = {};
+        regimes.forEach(([regime, cfg]) => {
+            const entry = cfg.entry || 'Default';
+            if (!entryGroups[entry]) entryGroups[entry] = [];
+            entryGroups[entry].push(regime);
+        });
+
         regimeHtml = `
             <div class="strategy-regime-routing">
                 <h5>Regime Routing (${regimes.length} regimes)</h5>
-                <div class="regime-list">
-                    ${regimes.map(regime => {
-                        const r = strategy.regime_routing[regime];
-                        return `<span class="regime-tag" title="${r.entry} → ${r.exit}">${regime}</span>`;
-                    }).join('')}
+                <div class="regime-table-container">
+                    <table class="regime-table">
+                        <thead>
+                            <tr>
+                                <th>Regime</th>
+                                <th>Entry</th>
+                                <th>Exit</th>
+                                <th>Key Params</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${regimes.map(([regime, cfg]) => {
+                                const entryParams = cfg.entry_params || {};
+                                const exitParams = cfg.exit_params || {};
+                                const keyParams = [];
+
+                                // Show most important params
+                                if (entryParams.mfi_threshold) keyParams.push(`MFI:${entryParams.mfi_threshold.toFixed(1)}`);
+                                if (entryParams.adx_threshold) keyParams.push(`ADX:${entryParams.adx_threshold.toFixed(1)}`);
+                                if (entryParams.range_threshold) keyParams.push(`Range:${entryParams.range_threshold.toFixed(2)}`);
+                                if (entryParams.rsi_overbought) keyParams.push(`RSI:${entryParams.rsi_overbought.toFixed(1)}`);
+                                if (exitParams.trailing_stop_pct) keyParams.push(`Trail:${exitParams.trailing_stop_pct.toFixed(1)}%`);
+                                if (exitParams.take_profit_pct) keyParams.push(`TP:${exitParams.take_profit_pct.toFixed(1)}%`);
+
+                                return `
+                                    <tr>
+                                        <td><span class="regime-name">${regime}</span></td>
+                                        <td><span class="entry-tag">${cfg.entry || 'Default'}</span></td>
+                                        <td><span class="exit-tag">${cfg.exit || 'Default'}</span></td>
+                                        <td class="params-cell">${keyParams.join(', ') || '-'}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="regime-summary">
+                    <span class="summary-label">Entry mix:</span>
+                    ${Object.entries(entryGroups).map(([entry, regimeList]) =>
+                        `<span class="entry-tag">${entry}</span><span class="regime-count">(${regimeList.length})</span>`
+                    ).join(' ')}
                 </div>
             </div>
         `;

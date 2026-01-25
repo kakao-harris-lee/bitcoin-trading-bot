@@ -2958,6 +2958,85 @@ footer kbd {
     color: var(--text-secondary);
 }
 
+.regime-table-container {
+    overflow-x: auto;
+    margin-bottom: 10px;
+}
+
+.regime-table {
+    width: 100%;
+    font-size: 0.75rem;
+    border-collapse: collapse;
+}
+
+.regime-table th,
+.regime-table td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.regime-table th {
+    color: var(--text-secondary);
+    font-weight: 500;
+    background: var(--bg-primary);
+}
+
+.regime-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.regime-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.entry-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(46, 204, 113, 0.15);
+    color: var(--success-color);
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-family: monospace;
+}
+
+.exit-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(231, 76, 60, 0.15);
+    color: var(--danger-color);
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-family: monospace;
+}
+
+.params-cell {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+
+.regime-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.summary-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.regime-count {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-right: 8px;
+}
+
 .regime-list {
     display: flex;
     flex-wrap: wrap;

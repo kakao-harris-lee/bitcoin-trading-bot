@@ -1472,6 +1472,8 @@ def get_strategies():
                     regime: {
                         'entry': r_cfg.get('entry'),
                         'exit': r_cfg.get('exit'),
+                        'entry_params': r_cfg.get('entry_params', {}),
+                        'exit_params': r_cfg.get('exit_params', {}),
                     }
                     for regime, r_cfg in regime_routing.items()
                 }

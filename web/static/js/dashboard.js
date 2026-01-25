@@ -291,12 +291,29 @@ function updatePriceHistory(symbol, price) {
 // Draw sparkline chart on canvas with optional entry price indicator
 function drawSparkline(canvasId, data, entryPrice = null) {
     const canvas = document.getElementById(canvasId);
-    if (!canvas || !data || data.length < 2) return;
+    if (!canvas || !data || data.length < 1) return;
 
     const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    const padding = 2;
+
+    // Get actual display size from parent container
+    const parent = canvas.parentElement;
+    const displayWidth = parent ? parent.clientWidth : 180;
+    const displayHeight = parent ? parent.clientHeight : 50;
+
+    // Skip if container has no dimensions yet
+    if (displayWidth <= 0 || displayHeight <= 0) return;
+
+    // Set canvas resolution to match display size (for sharp rendering)
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
+    ctx.scale(dpr, dpr);
+
+    const width = displayWidth;
+    const height = displayHeight;
+    const padding = 4;
 
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
@@ -308,17 +325,23 @@ function drawSparkline(canvasId, data, entryPrice = null) {
         min = Math.min(min, entryPrice);
         max = Math.max(max, entryPrice);
     }
-    const range = max - min || 1;
+    // Add some padding to range if flat
+    if (max === min) {
+        const pad = min * 0.001 || 1;
+        min -= pad;
+        max += pad;
+    }
+    const range = max - min;
 
     // Calculate points
-    const stepX = (width - padding * 2) / (data.length - 1);
+    const stepX = data.length > 1 ? (width - padding * 2) / (data.length - 1) : 0;
     const points = data.map((val, i) => ({
         x: padding + i * stepX,
         y: height - padding - ((val - min) / range) * (height - padding * 2)
     }));
 
     // Determine line color based on trend
-    const isUp = data[data.length - 1] >= data[0];
+    const isUp = data.length > 1 ? data[data.length - 1] >= data[0] : true;
     const lineColor = isUp ? '#3fb950' : '#f85149';
 
     // Draw entry price indicator line (dashed horizontal line)
@@ -450,7 +473,7 @@ function renderAssetCards(assets) {
                     <span class="asset-exchange">${data.exchange.toUpperCase()}</span>
                 </div>
                 <div class="asset-chart">
-                    <canvas id="${sparklineId}" width="180" height="50"></canvas>
+                    <canvas id="${sparklineId}"></canvas>
                 </div>
                 <div class="asset-prices">
                     <div class="price-row">
@@ -491,9 +514,11 @@ function renderAssetCards(assets) {
     }
     container.innerHTML = html;
 
-    // Draw sparklines after DOM update
+    // Draw sparklines after DOM update with slight delay for layout
     requestAnimationFrame(() => {
-        drawAllSparklines();
+        setTimeout(() => {
+            drawAllSparklines();
+        }, 50);
     });
 }
 

@@ -179,10 +179,10 @@ section h2 {
     gap: 20px;
 }
 
-/* Futures-only layout - single card takes full width */
+/* Futures-only layout - single card centered */
 .exchange-grid.futures-only {
-    grid-template-columns: 1fr;
-    max-width: 500px;
+    grid-template-columns: minmax(320px, 550px);
+    justify-content: start;
 }
 
 .exchange-card {
@@ -652,11 +652,11 @@ section h2 {
     background: var(--bg-secondary);
     border-radius: 4px;
     overflow: hidden;
+    position: relative;
 }
 
 .asset-chart canvas {
-    width: 100% !important;
-    height: 100% !important;
+    display: block;
 }
 
 .asset-prices {

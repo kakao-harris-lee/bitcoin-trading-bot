@@ -179,6 +179,12 @@ section h2 {
     gap: 20px;
 }
 
+/* Futures-only layout - single card takes full width */
+.exchange-grid.futures-only {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+}
+
 .exchange-card {
     background: var(--bg-card);
     border-radius: 8px;
@@ -384,6 +390,22 @@ section h2 {
 
 .detail-row .value.warning {
     color: #f0b90b;
+}
+
+/* Entry time and price styles */
+.detail-row .value.entry-time {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.detail-row .value.strategy-name {
+    font-size: 0.75rem;
+    color: var(--accent-cyan);
+}
+
+.info-row .value.entry-price {
+    color: #f0c000;
+    font-weight: 600;
 }
 
 /* Futures-specific Styles */

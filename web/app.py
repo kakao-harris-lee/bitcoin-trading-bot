@@ -1395,6 +1395,136 @@ def get_positions():
 
 
 # =====================
+# Strategies API Endpoints
+# ========================
+
+@app.route("/api/strategies")
+@requires_auth
+def get_strategies():
+    """
+    Get all active strategies with configuration and live Redis state.
+    Returns strategy config from allocation.json and runtime state from Redis.
+    """
+    try:
+        # Load allocation config
+        config = load_allocation_config()
+        if not config:
+            return jsonify({'error': 'Failed to load allocation config'}), 500
+
+        strategies_config = config.get('strategies', {})
+        symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
+        defaults = config.get('defaults', {})
+
+        # Connect to Redis to get live state
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+
+        strategies = []
+        for name, cfg in strategies_config.items():
+            strategy_info = {
+                'name': name,
+                'market': cfg.get('market', 'futures'),
+                'leverage': cfg.get('leverage', 3),
+                'position_pct': cfg.get('position_pct', 0.1),
+                'position_size': cfg.get('position_size', 0.01),
+                'dynamic_sizing': cfg.get('dynamic_sizing', False),
+                'use_smart_exit': cfg.get('use_smart_exit', False),
+            }
+
+            # Entry/Exit classes
+            entry_cfg = cfg.get('entry', {})
+            exit_cfg = cfg.get('exit', {})
+            strategy_info['entry_class'] = entry_cfg.get('class', _infer_entry_class(name))
+            strategy_info['exit_class'] = exit_cfg.get('class', _infer_exit_class(name))
+            strategy_info['persistent_exit_class'] = exit_cfg.get('persistent_class')
+
+            # Regime routing
+            regime_routing = cfg.get('regime_routing')
+            if regime_routing:
+                strategy_info['regime_routing'] = {
+                    regime: {
+                        'entry': r_cfg.get('entry'),
+                        'exit': r_cfg.get('exit'),
+                    }
+                    for regime, r_cfg in regime_routing.items()
+                }
+                strategy_info['is_tuned'] = True
+            else:
+                strategy_info['is_tuned'] = False
+
+            # Tuned config reference
+            if cfg.get('tuned_config'):
+                strategy_info['tuned_config'] = cfg.get('tuned_config')
+
+            # Get live state from Redis for each symbol
+            live_state = {}
+            for symbol in symbols:
+                state_key_pattern = f"state:{name}:{symbol}:*"
+                state_keys = r.keys(state_key_pattern)
+                if state_keys:
+                    symbol_state = {}
+                    for key in state_keys:
+                        var_name = key.split(':')[-1]
+                        value = r.get(key)
+                        if value:
+                            try:
+                                symbol_state[var_name] = float(value)
+                            except (ValueError, TypeError):
+                                symbol_state[var_name] = value
+                    if symbol_state:
+                        live_state[symbol] = symbol_state
+
+            strategy_info['live_state'] = live_state
+
+            # Check if strategy has active positions
+            active_positions = []
+            for symbol in symbols:
+                pos_key = f"positions:{symbol}:futures"
+                pos_data = r.hgetall(pos_key)
+                if pos_data and pos_data.get('strategy') == name:
+                    active_positions.append({
+                        'symbol': symbol,
+                        'qty': float(pos_data.get('qty', 0)),
+                        'entry_price': float(pos_data.get('entry_price', 0)),
+                        'side': pos_data.get('side', 'long'),
+                    })
+            strategy_info['active_positions'] = active_positions
+
+            strategies.append(strategy_info)
+
+        return jsonify({
+            'strategies': strategies,
+            'symbols': symbols,
+            'defaults': defaults,
+            'count': len(strategies),
+        })
+
+    except Exception as e:
+        print(f"Error in get_strategies: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def _infer_entry_class(strategy_name: str) -> str:
+    """Infer entry class from strategy name for legacy configs."""
+    if 'v35' in strategy_name.lower():
+        return 'V35EntryStrategy'
+    elif 'short' in strategy_name.lower():
+        return 'ShortEntryStrategy'
+    elif 'sideways' in strategy_name.lower():
+        return 'SidewaysEntryStrategy'
+    return 'UnknownEntry'
+
+
+def _infer_exit_class(strategy_name: str) -> str:
+    """Infer exit class from strategy name for legacy configs."""
+    if 'v35' in strategy_name.lower():
+        return 'V35TrailingExitStrategy'
+    elif 'short' in strategy_name.lower():
+        return 'ShortExitStrategy'
+    elif 'sideways' in strategy_name.lower():
+        return 'SidewaysExitStrategy'
+    return 'UnknownExit'
+
+
 # Backtest API Endpoints
 # =====================
 

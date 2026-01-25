@@ -293,26 +293,19 @@ function drawSparkline(canvasId, data, entryPrice = null) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || !data || data.length < 1) return;
 
+    // Get actual rendered size from bounding rect
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.round(rect.width);
+    const height = Math.round(rect.height);
+
+    // Skip if canvas has no dimensions yet
+    if (width <= 0 || height <= 0) return;
+
+    // Set canvas internal resolution to match CSS display size
+    canvas.width = width;
+    canvas.height = height;
+
     const ctx = canvas.getContext('2d');
-
-    // Get actual display size from parent container
-    const parent = canvas.parentElement;
-    const displayWidth = parent ? parent.clientWidth : 180;
-    const displayHeight = parent ? parent.clientHeight : 50;
-
-    // Skip if container has no dimensions yet
-    if (displayWidth <= 0 || displayHeight <= 0) return;
-
-    // Set canvas resolution to match display size (for sharp rendering)
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = displayWidth * dpr;
-    canvas.height = displayHeight * dpr;
-    canvas.style.width = displayWidth + 'px';
-    canvas.style.height = displayHeight + 'px';
-    ctx.scale(dpr, dpr);
-
-    const width = displayWidth;
-    const height = displayHeight;
     const padding = 4;
 
     // Clear canvas
@@ -391,7 +384,7 @@ function drawSparkline(canvasId, data, entryPrice = null) {
     // Draw end dot
     const lastPoint = points[points.length - 1];
     ctx.beginPath();
-    ctx.arc(lastPoint.x, lastPoint.y, 3, 0, Math.PI * 2);
+    ctx.arc(lastPoint.x, lastPoint.y, 4, 0, Math.PI * 2);
     ctx.fillStyle = lineColor;
     ctx.fill();
 }
@@ -514,12 +507,10 @@ function renderAssetCards(assets) {
     }
     container.innerHTML = html;
 
-    // Draw sparklines after DOM update with slight delay for layout
-    requestAnimationFrame(() => {
-        setTimeout(() => {
-            drawAllSparklines();
-        }, 50);
-    });
+    // Draw sparklines after DOM update - needs time for layout
+    setTimeout(() => {
+        drawAllSparklines();
+    }, 100);
 }
 
 // Update portfolio summary
@@ -626,62 +617,28 @@ function updateExchangeBalances(data) {
         hedgeBadge.style.display = 'none';
     }
 
-    // Futures positions
-    const futuresPositions = futures.positions || [];
-    const futuresPosList = document.getElementById('futures-positions-list');
-    if (futuresPositions.length > 0) {
-        let html = '';
-        for (const pos of futuresPositions) {
-            const sideClass = pos.side === 'LONG' ? 'long' : 'short';
-            const pnlClass = pos.unrealized_pnl >= 0 ? 'positive' : 'negative';
-            // Format entry time
-            const entryTimeStr = pos.entry_time ? formatEntryTime(pos.entry_time) : '-';
-            html += `
-                <div class="position-item futures ${sideClass}">
-                    <div class="position-header">
-                        <span class="position-symbol">${pos.symbol}</span>
-                        <span class="position-side ${sideClass}">${pos.side}</span>
-                        <span class="position-leverage">${pos.leverage}x</span>
-                    </div>
-                    <div class="position-details">
-                        <div class="detail-row">
-                            <span class="label">Size</span>
-                            <span class="value">${Math.abs(pos.size).toFixed(4)}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="label">Entry</span>
-                            <span class="value">$${formatPrice(pos.entry_price, false)}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="label">Mark</span>
-                            <span class="value">$${formatPrice(pos.mark_price, false)}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="label">Entered</span>
-                            <span class="value entry-time">${entryTimeStr}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="label">Strategy</span>
-                            <span class="value strategy-name">${pos.strategy || 'unknown'}</span>
-                        </div>
-                        ${pos.liquidation_price > 0 ? `
-                        <div class="detail-row liquidation">
-                            <span class="label">Liq.</span>
-                            <span class="value warning">$${formatPrice(pos.liquidation_price, false)}</span>
-                        </div>
-                        ` : ''}
-                        <div class="detail-row pnl">
-                            <span class="label">PnL</span>
-                            <span class="value ${pnlClass}">${formatUSD(pos.unrealized_pnl)}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        futuresPosList.innerHTML = html;
-    } else {
-        futuresPosList.innerHTML = '<span class="no-positions">No futures positions</span>';
+    // ==================== UPDATE PORTFOLIO SUMMARY ====================
+    const totalEquity = futures.total || 0;
+    const totalUnrealizedPnl = futures.unrealized_pnl || 0;
+    const positions = futures.positions || [];
+
+    // Calculate total position value
+    let totalPositionValue = 0;
+    for (const pos of positions) {
+        totalPositionValue += Math.abs(pos.size || 0) * (pos.mark_price || 0);
     }
+
+    // Exposure = position value / total equity * 100
+    const exposurePct = totalEquity > 0 ? (totalPositionValue / totalEquity * 100) : 0;
+
+    // Update portfolio summary elements
+    document.getElementById('total-capital').textContent = formatUSD(totalEquity);
+    document.getElementById('total-value').textContent = formatUSD(totalEquity);
+    document.getElementById('exposure-pct').textContent = `${exposurePct.toFixed(1)}%`;
+
+    const portfolioPnlEl = document.getElementById('unrealized-pnl');
+    portfolioPnlEl.textContent = formatUSD(totalUnrealizedPnl);
+    portfolioPnlEl.className = `value ${totalUnrealizedPnl >= 0 ? 'positive' : 'negative'}`;
 
     // Show errors if any
     if (data.errors && data.errors.length > 0) {

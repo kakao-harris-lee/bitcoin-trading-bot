@@ -130,6 +130,10 @@ class CompositeStrategyTask(BaseStrategyTask):
                     persistence=persistence,
                 )
 
+        # Volatility breakout filter config (Larry Williams strategy)
+        self.breakout_k = self.config.get("breakout_k", 0.5)  # k value for target_price
+        self._prev_day_cache: dict[str, tuple[float, float, str]] = {}  # (high, low, date)
+
     async def run(self) -> None:
         """Main loop: warm-up then consume."""
         logger.info(f"Warming up composite strategy {self.name}...")
@@ -326,6 +330,73 @@ class CompositeStrategyTask(BaseStrategyTask):
             return True
         return False
 
+    def _calc_breakout_signal(self, symbol: str, df: pd.DataFrame, current_price: float) -> tuple[int, float]:
+        """Calculate volatility breakout signal from history data.
+
+        Uses Larry Williams' volatility breakout strategy:
+        - target_price = today_open + (prev_day_range × k)
+        - breakout_signal = 1 if close > target_price
+
+        Args:
+            symbol: Trading symbol.
+            df: DataFrame with hourly OHLCV data.
+            current_price: Current close price.
+
+        Returns:
+            Tuple of (breakout_signal, target_price).
+        """
+        try:
+            if len(df) < 48:  # Need at least 2 days of hourly data
+                return 0, 0.0
+
+            # Add date column for grouping
+            if 'timestamp' not in df.columns:
+                return 0, 0.0
+
+            df_copy = df.copy()
+            df_copy['date'] = pd.to_datetime(df_copy['timestamp']).dt.date
+
+            # Get unique dates
+            dates = sorted(df_copy['date'].unique())
+            if len(dates) < 2:
+                return 0, 0.0
+
+            today = dates[-1]
+            yesterday = dates[-2]
+
+            # Check cache
+            cache_key = f"{symbol}_{yesterday}"
+            cached = self._prev_day_cache.get(symbol)
+            if cached and cached[2] == str(yesterday):
+                prev_high, prev_low = cached[0], cached[1]
+            else:
+                # Calculate prev day high/low
+                prev_day_df = df_copy[df_copy['date'] == yesterday]
+                if prev_day_df.empty:
+                    return 0, 0.0
+
+                prev_high = float(prev_day_df['high'].max())
+                prev_low = float(prev_day_df['low'].min())
+                self._prev_day_cache[symbol] = (prev_high, prev_low, str(yesterday))
+
+            # Get today's open
+            today_df = df_copy[df_copy['date'] == today]
+            if today_df.empty:
+                return 0, 0.0
+
+            today_open = float(today_df.iloc[0]['open'])
+
+            # Calculate target price and signal
+            prev_range = prev_high - prev_low
+            target_price = today_open + (prev_range * self.breakout_k)
+            breakout_signal = 1 if current_price > target_price else 0
+
+            return breakout_signal, target_price
+
+        except Exception as e:
+            logger.debug(f"Failed to calculate breakout signal for {symbol}: {e}")
+            return 0, 0.0
+
     def _build_market_data(self, symbol: str, force_recalculate: bool = False) -> MarketData | None:
         """Build MarketData from current indicators.
 
@@ -416,6 +487,9 @@ class CompositeStrategyTask(BaseStrategyTask):
                 prev_low_20 = 0.0
                 avg_volume_20 = 0.0
 
+            # Calculate volatility breakout signal (Larry Williams strategy)
+            breakout_signal, target_price = self._calc_breakout_signal(symbol, df, current_price)
+
             market_data = MarketData(
                 symbol=symbol,
                 close=float(current_price),
@@ -449,6 +523,9 @@ class CompositeStrategyTask(BaseStrategyTask):
                 avg_volume_20=avg_volume_20,
                 # 30-day high for drawdown-based BEAR detection
                 high_30d=float(last_row.get("high_30d", 0)),
+                # Volatility breakout (Larry Williams strategy)
+                breakout_signal=breakout_signal,
+                target_price=target_price,
             )
 
             # Cache the result

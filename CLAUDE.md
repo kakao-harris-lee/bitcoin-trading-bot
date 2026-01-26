@@ -65,6 +65,7 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - LSTM Strategy Design → `docs/plans/2026-01-02-lstm-strategy-design.md`
 - Binance Stream Architecture → `docs/plans/2026-01-10-binance-stream-architecture.md`
 - MLflow Optimization → `docs/plans/2026-01-20-optimize-mlflow-improvements.md`
+- Volatility Breakout & LSTM Scaling → `docs/plans/2026-01-26-volatility-breakout-lstm-scaling-design.md`
 
 This prevents context loss! Update this file immediately when you create important documentation.
 

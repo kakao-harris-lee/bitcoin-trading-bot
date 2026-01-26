@@ -59,6 +59,13 @@ def collect_btc():
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d')
 
+        # Collect daily data first (needed for volatility breakout calculation)
+        try:
+            collector.collect_timeframe("day", start_date, end_date, update_mode=True)
+            print(f"  day: updated")
+        except Exception as e:
+            print(f"  day: ERROR - {e}")
+
         # Collect hourly data (most important for indicators)
         try:
             collector.collect_timeframe("minute60", start_date, end_date, update_mode=True)
@@ -72,6 +79,20 @@ def collect_btc():
             print(f"  funding_rate: updated")
         except Exception as e:
             print(f"  funding_rate: ERROR - {e}")
+
+        # Calculate volatility breakout features (Larry Williams strategy)
+        try:
+            updated = collector.add_volatility_breakout(timeframe='minute60', k=0.5)
+            print(f"  breakout features: {updated} rows updated")
+        except Exception as e:
+            print(f"  breakout features: ERROR - {e}")
+
+        # Update LSTM scaling for recent data (rolling window handles new data)
+        try:
+            added = collector.add_scaled_columns(timeframe='minute60', rolling_window=720)
+            print(f"  scaling: {added} columns maintained")
+        except Exception as e:
+            print(f"  scaling: ERROR - {e}")
 
     finally:
         collector.close()

@@ -411,6 +411,12 @@ section h2 {
     font-weight: 600;
 }
 
+.info-row .value.entry-time,
+.stat-row .value.entry-time {
+    color: var(--text-secondary, #8b949e);
+    font-size: 0.8rem;
+}
+
 /* Position Card Style (Grid Layout) */
 .position-card {
     background: var(--bg-card);
@@ -3080,6 +3086,17 @@ footer kbd {
 .config-value {
     color: var(--text-primary);
     font-weight: 500;
+}
+
+.config-value.editable {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--text-secondary);
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.config-value.editable:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
 .config-value.entry-class,

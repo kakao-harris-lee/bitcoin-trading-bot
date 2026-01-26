@@ -1,0 +1,36 @@
+# Hybrid LSTM + RandomForest Configuration
+# See docs/plans/2026-01-26-hybrid-lstm-rf-design.md for details
+
+model:
+  input_size: 22        # Number of scaled features
+  hidden_size: 64       # LSTM hidden dimension
+  num_layers: 2         # Stacked LSTM layers
+  dropout: 0.2          # Dropout rate (training only)
+  seq_len: 60           # Input sequence length
+
+rf:
+  n_estimators: 100     # Number of trees
+  max_depth: 10         # Maximum tree depth
+  min_samples_leaf: 20  # Minimum samples per leaf
+
+training:
+  batch_size: 64        # Training batch size
+  learning_rate: 0.001  # Adam learning rate
+  weight_decay: 0.0001  # L2 regularization
+  max_epochs: 100       # Maximum epochs
+  early_stopping_patience: 10
+
+online:
+  batch_size: 32        # Mini-batch for online SGD
+  sgd_lr: 0.01          # SGD learning rate
+  sgd_momentum: 0.9     # SGD momentum
+  rf_batch_size: 100    # Samples before RF refit
+
+inference:
+  confidence_threshold: 0.6   # Minimum confidence for signal
+  prediction_threshold: 0.01  # 1% for buy/sell signal
+
+paths:
+  lstm_model: "lstm_trainer/models/hybrid_lstm.pth"
+  rf_model: "lstm_trainer/models/noise_filter_rf.pkl"
+  data: "data/binance_bitcoin.db"

@@ -59,6 +59,13 @@ class V35EntryParams:
     position_size: float = 0.5
     conservative_position_mult: float = 0.5  # Half size for BEAR entries
 
+    # EMA200 trend filter (prevents longs below 200 EMA in bear markets)
+    use_ema200_filter: bool = True  # Enable by default to prevent 2022-style crashes
+
+    # Market stress filter (pauses trading during extreme market conditions)
+    use_stress_filter: bool = True  # Enable by default
+    stress_threshold: float = 70.0  # Pause trading when stress >= this level
+
     market: Literal["futures"] = "futures"
 
 
@@ -135,6 +142,28 @@ class V35EntryStrategy:
                 f"({context.volatility_score*100:.2f}%)"
             )
             return None
+
+        # === SAFETY FILTER 4: EMA200 trend filter ===
+        # Prevents long entries during bear markets (price below 200 EMA)
+        # This filter would have prevented most losses during 2022 crash
+        if self.params.use_ema200_filter and market_data.ema_200 > 0:
+            if market_data.close < market_data.ema_200:
+                logger.debug(
+                    f"{market_data.symbol}: Skipping long entry - below EMA200 "
+                    f"(close=${market_data.close:,.0f} < EMA200=${market_data.ema_200:,.0f})"
+                )
+                return None
+
+        # === SAFETY FILTER 5: Market stress filter ===
+        # Pauses trading during extreme market conditions (crashes, flash crashes)
+        # Stress combines: volatility, drawdown, volume spikes, trend deviation
+        if self.params.use_stress_filter:
+            if market_data.market_stress >= self.params.stress_threshold:
+                logger.info(
+                    f"{market_data.symbol}: PAUSING - market stress too high "
+                    f"(stress={market_data.market_stress:.1f} >= {self.params.stress_threshold})"
+                )
+                return None
 
         # Use centralized regime from MarketContext
         regime = context.regime

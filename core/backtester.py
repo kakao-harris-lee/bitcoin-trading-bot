@@ -265,6 +265,9 @@ class BacktestAdapter:
             prev_high_20=float(row.get('prev_high_20', 0)),
             prev_low_20=float(row.get('prev_low_20', 0)),
             avg_volume_20=float(row.get('avg_volume_20', 0)),
+            ema_200=float(row.get('ema_200', 0)),
+            market_stress=float(row.get('market_stress', 0)),
+            high_30d=float(row.get('high_30d', 0)),
         )
 
     def _build_market_context(self, i: int) -> Any:
@@ -297,6 +300,9 @@ class BacktestAdapter:
         close = float(row['close'])
         volume = float(row.get('volume', 0))
         avg_volume = float(row.get('avg_volume_20', 0))
+        # Use 30-day high for drawdown detection (fall back to 20-period if not available)
+        high_30d = float(row.get('high_30d', 0))
+        recent_high = high_30d if high_30d > 0 else float(row.get('prev_high_20', 0))
 
         return build_market_context(
             mfi=mfi,
@@ -305,6 +311,7 @@ class BacktestAdapter:
             close=close,
             volume=volume,
             avg_volume=avg_volume,
+            recent_high=recent_high,  # For drawdown-based BEAR detection (30-day high)
         )
 
     def _build_position(self) -> Any:

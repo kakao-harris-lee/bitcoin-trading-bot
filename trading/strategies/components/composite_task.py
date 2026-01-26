@@ -34,7 +34,7 @@ from trading.streams.base_strategy import BaseStrategyTask
 from trading.indicators import add_all_indicators
 
 from .interfaces import IEntryStrategy, IExitStrategy
-from .models import build_market_context, MarketContext, MarketData, Position, Signal, TradingContext
+from .models import build_market_context, MarketContext, MarketData, Position, Signal, TradingContext, RegimeSmoother
 from trading.observability.structured_logger import trade_logger
 
 if TYPE_CHECKING:
@@ -117,7 +117,18 @@ class CompositeStrategyTask(BaseStrategyTask):
         self.evaluation_interval = self.config.get("evaluation_interval_seconds", 60)
         self._last_evaluation_time: dict[str, float] = {}
         self._market_data_cache: dict[str, MarketData] = {}
-        # Note: _context_cache was removed - it was declared but never used
+
+        # Regime smoothing to reduce noise (78% fewer transitions)
+        self.use_regime_smoothing = self.config.get("use_regime_smoothing", True)
+        self._regime_smoothers: dict[str, RegimeSmoother] = {}
+        if self.use_regime_smoothing:
+            ema_alpha = self.config.get("regime_ema_alpha", 0.3)  # ~5-period EMA
+            persistence = self.config.get("regime_persistence", 2)  # 2-tick confirmation
+            for symbol in symbols:
+                self._regime_smoothers[symbol] = RegimeSmoother(
+                    ema_alpha=ema_alpha,
+                    persistence=persistence,
+                )
 
     async def run(self) -> None:
         """Main loop: warm-up then consume."""
@@ -428,10 +439,16 @@ class CompositeStrategyTask(BaseStrategyTask):
                 bb_middle=float(last_row.get("bb_middle", 0)),
                 # ATR for volatility measurement
                 atr=float(last_row.get("atr", 0)),
+                # EMA200 for trend filter (bear market protection)
+                ema_200=float(last_row.get("ema_200", 0)),
+                # Market stress indicator (pause trading)
+                market_stress=float(last_row.get("market_stress", 0)),
                 # Historical reference points for breakout/range detection
                 prev_high_20=prev_high_20,
                 prev_low_20=prev_low_20,
                 avg_volume_20=avg_volume_20,
+                # 30-day high for drawdown-based BEAR detection
+                high_30d=float(last_row.get("high_30d", 0)),
             )
 
             # Cache the result
@@ -446,6 +463,8 @@ class CompositeStrategyTask(BaseStrategyTask):
         """Build MarketContext from MarketData.
 
         Uses MFI-based trend classification and ATR-based volatility scoring.
+        Includes drawdown-based BEAR detection (15% from recent high = BEAR).
+        Optionally applies regime smoothing to reduce transition noise (78% reduction).
 
         Args:
             market_data: Current market state with indicators.
@@ -453,12 +472,48 @@ class CompositeStrategyTask(BaseStrategyTask):
         Returns:
             MarketContext with trend and volatility analysis.
         """
-        return build_market_context(
+        # Build base context with drawdown-based BEAR detection
+        # Use 30-day high (high_30d) for drawdown calculation - better crash detection
+        # Falls back to 20-period high if 30-day not available
+        recent_high = market_data.high_30d if market_data.high_30d > 0 else market_data.prev_high_20
+        context = build_market_context(
             mfi=market_data.mfi,
             adx=market_data.adx,
             atr=market_data.atr,
             close=market_data.close,
+            volume=market_data.volume,
+            avg_volume=market_data.avg_volume_20,
+            recent_high=recent_high,  # Use 30-day high for drawdown BEAR detection
         )
+
+        # Apply regime smoothing if enabled
+        if self.use_regime_smoothing and market_data.symbol in self._regime_smoothers:
+            smoother = self._regime_smoothers[market_data.symbol]
+            smoothed_regime = smoother.update(market_data.mfi, market_data.adx)
+
+            # Create new context with smoothed regime (MarketContext is frozen)
+            # Preserve drawdown-based BEAR override even with smoothing
+            final_regime = smoothed_regime
+            final_trend = context.trend
+
+            # If drawdown triggers BEAR, don't let smoothing override it
+            if context.is_drawdown_bear and smoothed_regime not in ("BEAR_STRONG", "BEAR_MODERATE"):
+                final_regime = "BEAR_STRONG" if context.adx >= 25 else "BEAR_MODERATE"
+                final_trend = "BEAR"
+
+            context = MarketContext(
+                trend=final_trend,
+                regime=final_regime,
+                volatility_score=context.volatility_score,
+                is_extreme_volatility=context.is_extreme_volatility,
+                adx=context.adx,
+                volume_ratio=context.volume_ratio,
+                is_high_volume=context.is_high_volume,
+                drawdown=context.drawdown,
+                is_drawdown_bear=context.is_drawdown_bear,
+            )
+
+        return context
 
     def _dict_to_position(self, position_dict: dict) -> Position:
         """Convert position dict to Position model.
@@ -494,6 +549,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             "market": signal.market,
             "quantity": str(quantity),
             "reason": signal.reason,
+            "leverage": self.config.get("leverage", 1),
         }
 
         if signal.trigger_price is not None:

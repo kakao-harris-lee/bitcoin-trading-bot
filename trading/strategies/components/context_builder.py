@@ -137,6 +137,9 @@ class TradingContextBuilder:
             return None
 
         # 2. Build regime context (computed once here)
+        # Includes drawdown-based BEAR detection (15% from 30-day high = BEAR override)
+        # Use 30-day high for better crash detection (falls back to 20-period if not available)
+        recent_high = market_data.high_30d if market_data.high_30d > 0 else market_data.prev_high_20
         regime = build_market_context(
             mfi=market_data.mfi,
             adx=market_data.adx,
@@ -144,6 +147,7 @@ class TradingContextBuilder:
             close=market_data.close,
             volume=market_data.volume,
             avg_volume=market_data.avg_volume_20,
+            recent_high=recent_high,  # For drawdown-based BEAR detection
         )
 
         # 3. Get positions for cross-strategy awareness

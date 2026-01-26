@@ -56,6 +56,7 @@ class ComponentStrategyAdapter:
         avg_volume = row.get('avg_volume_20', 0.0)
 
         # Build Context using the standard function (ensures consistent regime/trend classification)
+        # Includes drawdown-based BEAR detection (15% from recent high = BEAR override)
         context = build_market_context(
             mfi=mfi,
             adx=adx,
@@ -63,6 +64,8 @@ class ComponentStrategyAdapter:
             close=close,
             volume=volume,
             avg_volume=avg_volume,
+            # Use 30-day high for drawdown detection (fall back to 20-period if not available)
+            recent_high=row.get('high_30d', 0.0) or row.get('prev_high_20', 0.0),
         )
 
         # Extract indicators
@@ -123,6 +126,12 @@ class ComponentStrategyAdapter:
             prev_low_20=row.get('prev_low_20', 0.0),
             # ATR for volatility
             atr=atr,
+            # EMA200 for trend filter
+            ema_200=row.get('ema_200', 0.0),
+            # Market stress indicator
+            market_stress=row.get('market_stress', 0.0),
+            # 30-day high for drawdown-based BEAR detection
+            high_30d=row.get('high_30d', 0.0),
             # Indicators map and HWM
             indicators=indicators,
             high_water_mark=self.high_water_mark

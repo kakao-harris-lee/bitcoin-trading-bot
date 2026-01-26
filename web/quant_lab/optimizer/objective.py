@@ -161,6 +161,10 @@ class RegimeBacktestObjective:
             row = df_data.iloc[i]
             
             # Determine current regime using build_market_context
+            # Includes drawdown-based BEAR detection (15% from 30-day high = BEAR override)
+            # Use 30-day high for better crash detection (falls back to 20-period if not available)
+            high_30d = row.get("high_30d", 0.0)
+            recent_high = high_30d if high_30d > 0 else row.get("prev_high_20", 0.0)
             context = build_market_context(
                 mfi=row.get("mfi", 50.0),
                 adx=row.get("adx", 20.0),
@@ -168,6 +172,7 @@ class RegimeBacktestObjective:
                 close=row["close"],
                 volume=row.get("volume", 0.0),
                 avg_volume=row.get("avg_volume_20", 0.0),
+                recent_high=recent_high,
             )
             current_regime = context.regime
             

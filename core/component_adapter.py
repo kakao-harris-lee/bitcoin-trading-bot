@@ -132,6 +132,9 @@ class ComponentStrategyAdapter:
             market_stress=row.get('market_stress', 0.0),
             # 30-day high for drawdown-based BEAR detection
             high_30d=row.get('high_30d', 0.0),
+            # Volatility breakout (Larry Williams strategy)
+            breakout_signal=int(row.get('breakout_signal', 0)) if pd.notna(row.get('breakout_signal')) else 0,
+            target_price=float(row.get('target_price', 0.0)) if pd.notna(row.get('target_price')) else 0.0,
             # Indicators map and HWM
             indicators=indicators,
             high_water_mark=self.high_water_mark

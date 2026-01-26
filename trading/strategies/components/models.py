@@ -81,6 +81,9 @@ class MarketData:
     ema_200: float = 0.0  # 200-period EMA for bear market filter
     # Market stress indicator (0-100, higher = more stress)
     market_stress: float = 0.0  # Composite stress score for pause trading
+    # Volatility breakout (Larry Williams strategy)
+    breakout_signal: int = 0  # 1 if close > target_price (prev_day_range * k)
+    target_price: float = 0.0  # open + (prev_day_range * k)
 
 
 @dataclass(frozen=True)

@@ -66,6 +66,10 @@ class V35EntryParams:
     use_stress_filter: bool = True  # Enable by default
     stress_threshold: float = 70.0  # Pause trading when stress >= this level
 
+    # Volatility breakout filter (Larry Williams strategy)
+    # Only enter when breakout_signal == 1 (close > target_price)
+    use_breakout_filter: bool = False  # Disabled by default (requires data collection)
+
     market: Literal["futures"] = "futures"
 
 
@@ -162,6 +166,17 @@ class V35EntryStrategy:
                 logger.info(
                     f"{market_data.symbol}: PAUSING - market stress too high "
                     f"(stress={market_data.market_stress:.1f} >= {self.params.stress_threshold})"
+                )
+                return None
+
+        # === SAFETY FILTER 6: Volatility breakout filter (Larry Williams) ===
+        # Only enter when breakout_signal == 1 (close > target_price)
+        # This filters for momentum days when price exceeds yesterday's range
+        if self.params.use_breakout_filter:
+            if market_data.breakout_signal != 1:
+                logger.debug(
+                    f"{market_data.symbol}: Skipping entry - no breakout signal "
+                    f"(close=${market_data.close:,.0f}, target=${market_data.target_price:,.0f})"
                 )
                 return None
 

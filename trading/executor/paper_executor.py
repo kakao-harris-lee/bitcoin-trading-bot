@@ -13,6 +13,7 @@ from trading.observability.structured_logger import trade_logger
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
+    from trading.risk.leverage_manager import LeverageManager
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +29,11 @@ class PaperExecutor:
         self,
         redis: RedisStreams,
         config: dict,
+        leverage_manager: Optional[LeverageManager] = None,
     ):
         self.redis = redis
         self.config = config
+        self.leverage_manager = leverage_manager
         self.initial_balance = config.get("initial_balance", 10000)
         self.balance = self.initial_balance  # Will be overwritten by Redis value if exists
         self.fee_rate = config.get("fee_rate", 0.001)  # 0.1%
@@ -62,6 +65,15 @@ class PaperExecutor:
         # Sync balance to Redis so dashboard shows correct values
         await self._sync_balance_to_redis()
         logger.info(f"PaperExecutor started with balance: {self.balance}")
+
+        # Initialize LeverageManager with paper balance
+        if self.leverage_manager:
+            await self.leverage_manager.initialize(initial_equity=self.balance)
+            logger.info(
+                f"LeverageManager initialized: equity=${self.balance:,.2f}, "
+                f"tier={self.leverage_manager.current_tier.name} "
+                f"({self.leverage_manager.current_tier.leverage}x)"
+            )
 
         # Store task reference to prevent garbage collection
         self._price_tracker_task = asyncio.create_task(self._price_tracker())
@@ -172,9 +184,36 @@ class PaperExecutor:
         # Check risk gates
         if not await self._pass_risk_gates():
             logger.warning(f"Paper order {order['id']} blocked by risk gates")
+            await self._publish_rejection(order, "risk_blocked")
             return None
 
         symbol = order["symbol"]
+        market = order["market"]
+
+        # Check if this is an exit (closing an existing position)
+        is_exit = await self._is_exit_order(order)
+
+        # Check leverage allowance for futures entry orders
+        allowed_leverage = None
+        if market == "futures" and not is_exit and self.leverage_manager:
+            allowed_leverage = await self.leverage_manager.get_allowed_leverage()
+            if allowed_leverage == 0:
+                logger.warning(
+                    f"Paper order {order['id']} blocked: leverage halted "
+                    f"(drawdown={self.leverage_manager.get_drawdown_pct():.1f}%)"
+                )
+                await self._publish_rejection(order, "leverage_halted")
+                return None
+
+            # Use minimum of allowed leverage and order leverage
+            order_leverage = int(order.get("leverage", 1))
+            effective_leverage = min(order_leverage, allowed_leverage)
+            if effective_leverage != order_leverage:
+                logger.info(
+                    f"Leverage adjusted: {order_leverage}x -> {effective_leverage}x "
+                    f"(risk tier: {self.leverage_manager.current_tier.name})"
+                )
+            order["leverage"] = effective_leverage
 
         # Get current price
         price = self.last_prices.get(symbol)
@@ -194,6 +233,7 @@ class PaperExecutor:
             total_cost = order_value + fees
             if total_cost > self.balance:
                 logger.warning(f"Insufficient balance: {self.balance} < {total_cost}")
+                await self._publish_rejection(order, f"insufficient_balance:{self.balance:.2f}")
                 return None
             self.balance -= total_cost
         else:
@@ -215,12 +255,21 @@ class PaperExecutor:
             "fees": fees,
         }
 
-        # Check if exit and calculate P&L
+        # Calculate P&L for exits, update position for entries
         profit_data = None
-        is_exit = await self._is_exit_order(order)
         if is_exit:
             profit_data = await self._calculate_exit_pnl(order, fill)
             await self.redis.clear_position(order["symbol"], order["market"])
+
+            # Update LeverageManager equity after P&L realized
+            if profit_data and self.leverage_manager:
+                pnl = profit_data.get("profit", 0)
+                await self.leverage_manager.update_equity(pnl)
+                logger.info(
+                    f"LeverageManager updated: equity=${self.leverage_manager.current_equity:,.2f}, "
+                    f"drawdown={self.leverage_manager.get_drawdown_pct():.1f}%, "
+                    f"tier={self.leverage_manager.current_tier.name} ({self.leverage_manager.current_tier.leverage}x)"
+                )
         else:
             await self._update_position(order, fill)
 
@@ -405,6 +454,16 @@ class PaperExecutor:
         direction = "Long" if pos_side == "buy" else "Short"
         logger.info(f"Paper P&L ({direction}): {symbol} {pnl_with_leverage:+.2f} USDT ({pnl_pct:+.2f}%)")
 
+        # Publish P&L alert (same as live trading)
+        await self.redis.publish("alerts", {
+            "type": "pnl_realized",
+            "symbol": symbol,
+            "pnl": str(pnl_with_leverage),
+            "daily_pnl": str(daily_pnl),
+            "timestamp": str(int(time.time() * 1000)),
+            "paper": "true",
+        })
+
         return {"profit": pnl_with_leverage, "profit_pct": pnl_pct}
 
     async def _publish_trade(self, order: dict, fill: dict, profit_data: dict | None = None) -> None:
@@ -428,3 +487,14 @@ class PaperExecutor:
             trade["profit_pct"] = str(profit_data["profit_pct"])
 
         await self.redis.publish("trades", trade)
+
+    async def _publish_rejection(self, order: dict, reason: str) -> None:
+        """Publish order rejection to alerts stream."""
+        await self.redis.publish("alerts", {
+            "type": "order_rejected",
+            "order_id": order.get("id", "unknown"),
+            "symbol": order.get("symbol", "unknown"),
+            "reason": reason,
+            "timestamp": str(int(time.time() * 1000)),
+            "paper": "true",
+        })

@@ -1198,7 +1198,8 @@ def _get_paper_positions(r, prices: dict) -> dict:
                 'unrealized_pnl': unrealized_pnl,
                 'unrealized_pnl_pct': unrealized_pnl_pct,
                 'strategy': spot_pos.get('strategy', 'unknown'),
-                'leverage': 1
+                'leverage': 1,
+                'entry_time': int(spot_pos.get('entry_time', 0))
             })
             result['total_value'] += value
             result['total_unrealized_pnl'] += unrealized_pnl
@@ -1237,7 +1238,8 @@ def _get_paper_positions(r, prices: dict) -> dict:
                 'unrealized_pnl': unrealized_pnl,
                 'unrealized_pnl_pct': unrealized_pnl_pct,
                 'strategy': futures_pos.get('strategy', 'unknown'),
-                'leverage': int(futures_pos.get('leverage', 1))
+                'leverage': int(futures_pos.get('leverage', 1)),
+                'entry_time': int(futures_pos.get('entry_time', 0))
             })
             result['total_value'] += value
             result['total_unrealized_pnl'] += unrealized_pnl
@@ -1649,6 +1651,68 @@ def disable_strategy(strategy_name: str):
 
     except Exception as e:
         print(f"Error disabling strategy: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/strategies/<strategy_name>/config", methods=["POST"])
+@requires_auth
+def update_strategy_config(strategy_name: str):
+    """
+    Update strategy configuration (position_pct, leverage).
+    Request body: { position_pct?: number, leverage?: number }
+    """
+    try:
+        data = request.get_json() or {}
+
+        # Load current config
+        config = load_allocation_config()
+        if not config:
+            return jsonify({'error': 'Failed to load allocation config'}), 500
+
+        strategies_config = config.get('strategies', {})
+
+        # Check if strategy exists
+        if strategy_name not in strategies_config:
+            return jsonify({'error': f'Strategy {strategy_name} not found'}), 404
+
+        strategy_cfg = strategies_config[strategy_name]
+        updated_fields = []
+
+        # Update position_pct if provided
+        if 'position_pct' in data:
+            new_pct = float(data['position_pct'])
+            if not 0 < new_pct <= 1.0:
+                return jsonify({'error': 'position_pct must be between 0 and 1'}), 400
+            strategy_cfg['position_pct'] = new_pct
+            updated_fields.append(f'position_pct={new_pct:.2%}')
+
+        # Update leverage if provided
+        if 'leverage' in data:
+            new_leverage = int(data['leverage'])
+            if not 1 <= new_leverage <= 20:
+                return jsonify({'error': 'leverage must be between 1 and 20'}), 400
+            strategy_cfg['leverage'] = new_leverage
+            updated_fields.append(f'leverage={new_leverage}x')
+
+        if not updated_fields:
+            return jsonify({'error': 'No valid fields to update'}), 400
+
+        # Save config
+        config['strategies'][strategy_name] = strategy_cfg
+        config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+
+        return jsonify({
+            'success': True,
+            'message': f'Updated {strategy_name}: {", ".join(updated_fields)}',
+            'config': strategy_cfg
+        })
+
+    except ValueError as e:
+        return jsonify({'error': f'Invalid value: {e}'}), 400
+    except Exception as e:
+        print(f"Error updating strategy config: {e}")
         return jsonify({'error': str(e)}), 500
 
 

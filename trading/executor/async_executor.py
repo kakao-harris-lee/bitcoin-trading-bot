@@ -7,6 +7,7 @@ import time
 from typing import Any, Optional, TYPE_CHECKING
 
 from trading.observability.structured_logger import trade_logger
+from trading.risk.liquidation_guard import LiquidationGuard
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -35,6 +36,7 @@ class AsyncExecutor:
         self.min_balance = config.get("min_balance", 100)  # Minimum USDT to trade
         self._running = False
         self._balance_cache = {"futures": 0.0, "last_update": 0}
+        self.liquidation_guard = LiquidationGuard()
 
     async def run(self) -> None:
         """Main loop: consume and execute orders."""
@@ -167,7 +169,7 @@ class AsyncExecutor:
             is_exit = await self._is_exit_order(order)
 
             # Check leverage allowance for futures entry orders
-            allowed_leverage = None
+            effective_leverage = None
             if market == "futures" and not is_exit and self.leverage_manager:
                 allowed_leverage = await self.leverage_manager.get_allowed_leverage()
                 if allowed_leverage == 0:
@@ -178,10 +180,20 @@ class AsyncExecutor:
                     await self._publish_rejection(order, "leverage_halted")
                     return None
 
+                # Use minimum of allowed leverage and order leverage
+                order_leverage = int(order.get("leverage", 1))
+                effective_leverage = min(order_leverage, allowed_leverage)
+                if effective_leverage != order_leverage:
+                    logger.info(
+                        f"Leverage adjusted: {order_leverage}x -> {effective_leverage}x "
+                        f"(risk tier: {self.leverage_manager.current_tier.name})"
+                    )
+                order["leverage"] = effective_leverage
+
                 # Set leverage on Binance before order
                 symbol = order["symbol"]
-                await self.client.set_leverage(symbol, allowed_leverage)
-                logger.info(f"Set leverage for {symbol}: {allowed_leverage}x")
+                await self.client.set_leverage(symbol, effective_leverage)
+                logger.info(f"Set leverage for {symbol}: {effective_leverage}x")
 
             # Determine position_side for futures hedge mode
             position_side = await self._get_position_side(order, is_exit)
@@ -313,25 +325,34 @@ class AsyncExecutor:
         exit_price = fill["filled_price"]
         quantity = fill["filled_qty"]
         side = position.get("side", "buy")
+        leverage = int(position.get("leverage", 1))
 
-        # Calculate P&L
+        if entry_price <= 0 or quantity <= 0:
+            return None
+
+        # Calculate P&L based on position direction
         if side == "buy":  # Long position
             pnl = (exit_price - entry_price) * quantity
-            pnl_pct = ((exit_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+            price_change_pct = ((exit_price - entry_price) / entry_price) * 100
         else:  # Short position
             pnl = (entry_price - exit_price) * quantity
-            pnl_pct = ((entry_price - exit_price) / entry_price * 100) if entry_price > 0 else 0
+            price_change_pct = ((entry_price - exit_price) / entry_price) * 100
+
+        # Apply leverage to P&L (same as paper trading)
+        pnl_with_leverage = pnl * leverage
+        pnl_pct = price_change_pct * leverage
 
         # Update daily P&L
         risk = await self.redis.get_risk()
-        daily_pnl = float(risk.get("daily_pnl", 0)) + pnl
+        daily_pnl = float(risk.get("daily_pnl", 0)) + pnl_with_leverage
         await self.redis.hset("risk", {"daily_pnl": str(daily_pnl)})
 
-        logger.info(f"Recorded P&L: {symbol} {pnl:+.2f} USDT ({pnl_pct:+.2f}%) (daily total: {daily_pnl:+.2f})")
+        direction = "Long" if side == "buy" else "Short"
+        logger.info(f"Recorded P&L ({direction}): {symbol} {pnl_with_leverage:+.2f} USDT ({pnl_pct:+.2f}%) (daily total: {daily_pnl:+.2f})")
 
         # Update LeverageManager equity
         if self.leverage_manager:
-            await self.leverage_manager.update_equity(pnl)
+            await self.leverage_manager.update_equity(pnl_with_leverage)
             logger.info(
                 f"LeverageManager updated: equity=${self.leverage_manager.current_equity:,.2f}, "
                 f"drawdown={self.leverage_manager.get_drawdown_pct():.1f}%, "
@@ -342,12 +363,12 @@ class AsyncExecutor:
         await self.redis.publish("alerts", {
             "type": "pnl_realized",
             "symbol": symbol,
-            "pnl": str(pnl),
+            "pnl": str(pnl_with_leverage),
             "daily_pnl": str(daily_pnl),
             "timestamp": str(int(time.time() * 1000)),
         })
 
-        return {"profit": pnl, "profit_pct": pnl_pct}
+        return {"profit": pnl_with_leverage, "profit_pct": pnl_pct}
 
     async def _pass_risk_gates(self) -> bool:
         """Check all risk conditions."""
@@ -378,14 +399,35 @@ class AsyncExecutor:
         return True
 
     async def _update_position(self, order: dict, fill: dict) -> None:
-        """Update position in Redis."""
+        """Update position in Redis with leverage and liquidation price."""
+        leverage = int(order.get("leverage", 1))
+        position_value = fill["filled_price"] * fill["filled_qty"]
+
+        # Calculate liquidation price for futures positions
+        liq_price = 0.0
+        if order.get("market") == "futures" and leverage > 1:
+            liq_price = self.liquidation_guard.calculate_liquidation_price(
+                entry_price=fill["filled_price"],
+                leverage=leverage,
+                side=order["side"],
+                position_value=position_value,
+            )
+
         await self.redis.set_position(order["symbol"], order["market"], {
             "quantity": str(fill["filled_qty"]),
             "entry_price": str(fill["filled_price"]),
             "strategy": order["strategy"],
             "entry_time": str(int(time.time() * 1000)),
             "side": order["side"],
+            "leverage": str(leverage),
+            "liquidation_price": str(liq_price),
         })
+
+        if liq_price > 0:
+            logger.info(
+                f"Position opened: {order['symbol']} {order['side'].upper()} "
+                f"{leverage}x @ {fill['filled_price']}, liq: {liq_price:.2f}"
+            )
 
     async def _publish_trade(self, order: dict, fill: dict, profit_data: dict | None = None) -> None:
         """Publish trade to trades stream.

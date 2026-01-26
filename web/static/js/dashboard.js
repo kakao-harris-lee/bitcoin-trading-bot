@@ -231,6 +231,17 @@ function formatDate(dateStr) {
     });
 }
 
+// Format Unix timestamp (ms) to short date (MM/DD HH:mm)
+function formatEntryTime(timestampMs) {
+    if (!timestampMs || timestampMs === 0) return '-';
+    const date = new Date(timestampMs);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${month}/${day} ${hours}:${minutes}`;
+}
+
 // Format number with commas
 function formatNumber(value, decimals = 0) {
     if (value === null || value === undefined) return '-';
@@ -495,6 +506,10 @@ function renderAssetCards(assets) {
                     <div class="info-row">
                         <span class="label">Entry</span>
                         <span class="value entry-price">$${formatPrice(data.entry_price, false)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Opened</span>
+                        <span class="value entry-time">${formatEntryTime(data.entry_time)}</span>
                     </div>
                     <div class="info-row">
                         <span class="label">PnL</span>
@@ -971,6 +986,10 @@ function renderPositions(data) {
                     <div class="stat-row">
                         <span class="label">Entry Price</span>
                         <span class="value">$${formatPrice(pos.entry_price, false)}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Opened</span>
+                        <span class="value entry-time">${formatEntryTime(pos.entry_time)}</span>
                     </div>
                     <div class="stat-row">
                         <span class="label">Current Price</span>
@@ -3064,11 +3083,11 @@ function renderStrategyCard(strategy, symbols) {
                 </div>
                 <div class="config-row">
                     <span class="config-label">Leverage</span>
-                    <span class="config-value">${leverage}x</span>
+                    <span class="config-value editable" onclick="editStrategyLeverage('${name}', ${leverage})" title="Click to edit">${leverage}x</span>
                 </div>
                 <div class="config-row">
                     <span class="config-label">Position %</span>
-                    <span class="config-value">${(positionPct * 100).toFixed(0)}%</span>
+                    <span class="config-value editable" onclick="editStrategyPositionPct('${name}', ${positionPct})" title="Click to edit">${(positionPct * 100).toFixed(0)}%</span>
                 </div>
                 <div class="config-row">
                     <span class="config-label">Entry</span>
@@ -3092,6 +3111,82 @@ function formatNumber(value, decimals = 2) {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals
     });
+}
+
+// Strategy config editing functions
+async function editStrategyLeverage(strategyName, currentValue) {
+    const newValue = prompt(`Enter new leverage for ${strategyName} (1-20):`, currentValue);
+    if (newValue === null) return; // Cancelled
+
+    const leverage = parseInt(newValue, 10);
+    if (isNaN(leverage) || leverage < 1 || leverage > 20) {
+        alert('Invalid leverage. Must be between 1 and 20.');
+        return;
+    }
+
+    await updateStrategyConfig(strategyName, { leverage });
+}
+
+async function editStrategyPositionPct(strategyName, currentValue) {
+    const currentPct = (currentValue * 100).toFixed(0);
+    const newValue = prompt(`Enter new position % for ${strategyName} (1-100):`, currentPct);
+    if (newValue === null) return; // Cancelled
+
+    const pct = parseInt(newValue, 10);
+    if (isNaN(pct) || pct < 1 || pct > 100) {
+        alert('Invalid position %. Must be between 1 and 100.');
+        return;
+    }
+
+    await updateStrategyConfig(strategyName, { position_pct: pct / 100 });
+}
+
+async function updateStrategyConfig(strategyName, updates) {
+    try {
+        const response = await apiFetch(`/api/strategies/${strategyName}/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        });
+
+        if (response.success) {
+            showNotification(`Updated ${strategyName}: ${response.message}`, 'success');
+            // Refresh strategies tab
+            fetchStrategiesTab();
+        } else {
+            showNotification(`Failed to update: ${response.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error updating strategy config:', error);
+        showNotification(`Error: ${error.message}`, 'error');
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        color: white;
+        font-size: 14px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease-out;
+        background: ${type === 'success' ? '#3fb950' : type === 'error' ? '#f85149' : '#58a6ff'};
+    `;
+
+    document.body.appendChild(notification);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 console.log('Multi-Asset Dashboard initialized');

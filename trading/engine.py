@@ -15,6 +15,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 from trading.streams import RedisStreams, BinanceFeedTask
 from trading.strategies.components import StrategyFactory, create_composite_task
 from trading.executor import BinanceClient, AsyncExecutor, PaperExecutor
+from trading.executor.paper_smart_executor import PaperSmartExecutor
 from trading.notification import TelegramTask
 from trading.risk.leverage_manager import LeverageManager
 from trading.observability import PeriodicLoggerTask
@@ -102,9 +103,20 @@ class TradingEngine:
 
         # 3. Start executor
         if mode == "paper":
+            # Create LeverageManager for paper trading (same as live)
+            leverage_manager = None
+            leverage_config = self.config.get("leverage_manager", {})
+            if leverage_config.get("enabled", True):
+                leverage_manager = LeverageManager(
+                    redis_url=self.config.get("redis_url", "redis://localhost:6379"),
+                    daily_loss_limit=leverage_config.get("daily_loss_limit", 0.05),
+                )
+                logger.info("LeverageManager created for paper trading")
+
             executor = PaperExecutor(
                 redis=self.redis,
                 config=self.config.get("paper", {"initial_balance": 10000}),
+                leverage_manager=leverage_manager,
             )
         else:
             # Get futures config for leverage
@@ -143,16 +155,25 @@ class TradingEngine:
         self.tasks.append(asyncio.create_task(executor.run()))
         logger.info(f"Started {mode} executor")
 
-        # 3b. Start SmartExecutor if enabled (live mode only)
-        if mode == "live" and self.config.get("smart_executor", {}).get("enabled", False):
-            from trading.executor.smart_executor import SmartExecutor
-            smart_executor = SmartExecutor(
-                redis=self.redis,
-                binance_client=client,
-                config=self.config,
-            )
-            self.tasks.append(asyncio.create_task(smart_executor.run()))
-            logger.info("Started SmartExecutor")
+        # 3b. Start SmartExecutor if enabled
+        if self.config.get("smart_executor", {}).get("enabled", False):
+            if mode == "live":
+                from trading.executor.smart_executor import SmartExecutor
+                smart_executor = SmartExecutor(
+                    redis=self.redis,
+                    binance_client=client,
+                    config=self.config,
+                )
+                self.tasks.append(asyncio.create_task(smart_executor.run()))
+                logger.info("Started SmartExecutor (live)")
+            else:
+                # Paper mode: use simplified forwarder for exit signals
+                paper_smart_executor = PaperSmartExecutor(
+                    redis=self.redis,
+                    config=self.config,
+                )
+                self.tasks.append(asyncio.create_task(paper_smart_executor.run()))
+                logger.info("Started PaperSmartExecutor")
 
         # 4. Start periodic logger (5-minute system state logging)
         periodic_logger_interval = self.config.get("periodic_logger", {}).get(

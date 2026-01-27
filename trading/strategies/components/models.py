@@ -331,41 +331,44 @@ def _classify_regime(
 class RegimeSmoother:
     """Smooths regime transitions to reduce noise.
 
-    Combines two techniques:
-    1. EMA smoothing on MFI/ADX before classification
-    2. Persistence filter (require N consistent readings before switching)
+    Uses persistence filter on REGIME classification (not raw MFI/ADX values).
+    This prevents getting stuck when EMA smoothing prevents threshold crossings.
 
-    This reduces regime transitions by ~78% while maintaining accuracy.
+    The persistence filter requires N consecutive readings of the same regime
+    before confirming a transition. This reduces noisy regime changes while
+    remaining responsive to actual market shifts.
 
     Usage:
-        smoother = RegimeSmoother(ema_alpha=0.3, persistence=2)
+        smoother = RegimeSmoother(persistence=2)
         for tick in data:
             regime = smoother.update(mfi, adx)
     """
 
     def __init__(
         self,
-        ema_alpha: float = 0.3,  # EMA smoothing factor (0.3 ≈ 5-period EMA)
+        ema_alpha: float = 0.3,  # Kept for backward compat, but no longer used
         persistence: int = 2,    # Require N ticks before confirming regime change
     ):
         """Initialize smoother.
 
         Args:
-            ema_alpha: EMA smoothing factor (higher = less smoothing)
-            persistence: Number of consistent ticks required to confirm change
+            ema_alpha: Deprecated, kept for backward compatibility.
+            persistence: Number of consistent ticks required to confirm change.
         """
-        self.ema_alpha = ema_alpha
+        self.ema_alpha = ema_alpha  # Kept for API compat but unused
         self.persistence = persistence
 
         # State
-        self._mfi_ema: float | None = None
-        self._adx_ema: float | None = None
         self._confirmed_regime: Regime | None = None
         self._pending_regime: Regime | None = None
         self._pending_count: int = 0
 
     def update(self, mfi: float, adx: float) -> Regime:
         """Update with new MFI/ADX values and return smoothed regime.
+
+        Classifies using RAW values (no EMA), then applies persistence filter
+        on the regime classification. This prevents getting stuck when EMA
+        smoothing makes threshold crossings too slow.
 
         Args:
             mfi: Current MFI value (0-100)
@@ -374,23 +377,15 @@ class RegimeSmoother:
         Returns:
             Smoothed regime classification
         """
-        # Apply EMA smoothing
-        if self._mfi_ema is None:
-            self._mfi_ema = mfi
-            self._adx_ema = adx
-        else:
-            self._mfi_ema = self.ema_alpha * mfi + (1 - self.ema_alpha) * self._mfi_ema
-            self._adx_ema = self.ema_alpha * adx + (1 - self.ema_alpha) * self._adx_ema
-
-        # Classify using smoothed values
-        raw_regime = _classify_regime(self._mfi_ema, self._adx_ema)
+        # Classify using RAW values (no EMA smoothing)
+        raw_regime = _classify_regime(mfi, adx)
 
         # Initialize if first call
         if self._confirmed_regime is None:
             self._confirmed_regime = raw_regime
             return raw_regime
 
-        # Apply persistence filter
+        # Apply persistence filter on regime (not raw values)
         if raw_regime == self._confirmed_regime:
             # Same as confirmed, reset pending
             self._pending_regime = None
@@ -412,8 +407,6 @@ class RegimeSmoother:
 
     def reset(self) -> None:
         """Reset smoother state."""
-        self._mfi_ema = None
-        self._adx_ema = None
         self._confirmed_regime = None
         self._pending_regime = None
         self._pending_count = 0

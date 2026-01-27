@@ -119,6 +119,16 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         market="futures",
         timeframe="minute60",  # Hourly - volatility filter calibrated for this
     ),
+    "v35_long_v2": StrategySpec(
+        name="v35_long_v2",
+        entry_class=V35EntryStrategy,
+        entry_params_class=V35EntryParams,
+        exit_class=V35TrailingExitStrategy,
+        exit_params_class=V35ExitParams,
+        persistent_exit_class=V35PersistentExitStrategy,
+        market="futures",
+        timeframe="minute60",  # Same as v35_long, uses regime_version="v2" in config
+    ),
     "sideways_v2": StrategySpec(
         name="sideways_v2",
         entry_class=SidewaysEntryStrategy,

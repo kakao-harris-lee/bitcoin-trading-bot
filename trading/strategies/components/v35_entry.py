@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Literal
 
-from .models import MarketContext, MarketData, Signal, BEAR_REGIMES, TradingContext
+from .models import MarketContext, MarketData, Signal, BEAR_REGIMES, TradingContext, _classify_regime
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -366,6 +366,31 @@ class V35EntryStrategy:
             'strategy': 'CONSERVATIVE_BEAR_ENTRY',
             'quantity': p.position_size * p.conservative_position_mult,
         }
+
+    def _classify_regime(self, mfi: float, adx: float) -> str:
+        """Classify regime using V35EntryParams thresholds.
+
+        Used by CompositeStrategyTask for decision logging.
+
+        Args:
+            mfi: Money Flow Index value.
+            adx: Average Directional Index value.
+
+        Returns:
+            Regime classification string.
+        """
+        p = self.params
+        return _classify_regime(
+            mfi,
+            adx,
+            mfi_bull_strong=p.mfi_bull_strong,
+            mfi_bull_moderate=p.mfi_bull_moderate,
+            mfi_sideways_up=p.mfi_sideways_up,
+            mfi_bear_moderate=p.mfi_bear_moderate,
+            mfi_bear_strong=p.mfi_bear_strong,
+            adx_strong_trend=p.adx_strong_trend,
+            adx_moderate_trend=p.adx_moderate_trend,
+        )
 
     def _should_enter(self, regime: str) -> bool:
         """Check if regime is suitable for long entry.

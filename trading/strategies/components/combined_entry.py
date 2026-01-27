@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
-from .models import MarketData, Signal, TradingContext
+from .models import MarketData, Signal, TradingContext, _classify_regime
 from .registry import entry_strategy
 from trading.strategy.lstm_price import LSTMPricePredictor
 
@@ -229,3 +229,18 @@ class CombinedEntryStrategy:
 
         prev_fast, prev_slow = prev
         return prev_fast <= prev_slow and ema_fast > ema_slow
+
+    def _classify_regime(self, mfi: float, adx: float) -> str:
+        """Classify regime for decision logging.
+
+        Uses default V35 thresholds since CombinedEntryStrategy
+        doesn't have regime-specific parameters.
+
+        Args:
+            mfi: Money Flow Index value.
+            adx: Average Directional Index value.
+
+        Returns:
+            Regime classification string.
+        """
+        return _classify_regime(mfi, adx)

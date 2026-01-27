@@ -135,3 +135,126 @@ class BBWFilter:
         """
         pct = self.get_percentile()
         return self.block_threshold <= pct < self.confirm_threshold
+
+
+@dataclass
+class MTFCandle:
+    """Candle data for MTF aggregation.
+
+    Holds OHLCV plus MFI/ADX for regime calculation at higher timeframes.
+    """
+
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+    mfi: float
+    adx: float
+
+
+class MTFFilter:
+    """Multi-Timeframe direction filter.
+
+    Aggregates minute60 candles into minute240 (4h) and checks
+    if regime direction is aligned between timeframes.
+
+    Direction Groups:
+    - BULL: BULL_STRONG, BULL_MODERATE, SIDEWAYS_UP
+    - BEAR: BEAR_STRONG, BEAR_MODERATE, SIDEWAYS_DOWN
+    - NEUTRAL: SIDEWAYS_FLAT
+
+    Rules:
+    - Same direction: aligned (allow transition)
+    - Upper is NEUTRAL: aligned (follow lower)
+    - Different direction: not aligned (block transition)
+    """
+
+    def __init__(self, candles_per_period: int = 4):
+        """Initialize MTF filter.
+
+        Args:
+            candles_per_period: Number of candles to aggregate (4 for 4h from 1h)
+        """
+        self.candles_per_period = candles_per_period
+        self._candle_buffer: deque[MTFCandle] = deque(maxlen=candles_per_period)
+
+    def aggregate_candles(self, candles: list[MTFCandle]) -> MTFCandle:
+        """Aggregate multiple candles into one higher timeframe candle.
+
+        Args:
+            candles: List of candles to aggregate (oldest first)
+
+        Returns:
+            Aggregated candle with OHLCV and averaged MFI/ADX
+        """
+        if not candles:
+            raise ValueError("Cannot aggregate empty candle list")
+
+        return MTFCandle(
+            open=candles[0].open,
+            high=max(c.high for c in candles),
+            low=min(c.low for c in candles),
+            close=candles[-1].close,
+            volume=sum(c.volume for c in candles),
+            mfi=sum(c.mfi for c in candles) / len(candles),
+            adx=sum(c.adx for c in candles) / len(candles),
+        )
+
+    def add_candle(self, candle: MTFCandle) -> MTFCandle | None:
+        """Add a candle and return aggregated if buffer full.
+
+        Args:
+            candle: New minute60 candle
+
+        Returns:
+            Aggregated minute240 candle if buffer full, else None
+        """
+        self._candle_buffer.append(candle)
+        if len(self._candle_buffer) == self.candles_per_period:
+            return self.aggregate_candles(list(self._candle_buffer))
+        return None
+
+    def get_direction(self, regime: Regime) -> str:
+        """Get direction group for a regime.
+
+        Args:
+            regime: Regime classification
+
+        Returns:
+            "BULL", "BEAR", or "NEUTRAL"
+        """
+        if regime in BULL_DIRECTION:
+            return "BULL"
+        elif regime in BEAR_DIRECTION:
+            return "BEAR"
+        else:
+            return "NEUTRAL"
+
+    def is_direction_aligned(
+        self,
+        lower_regime: Regime,
+        upper_regime: Regime,
+    ) -> bool:
+        """Check if lower and upper timeframe directions are aligned.
+
+        Rules:
+        - Same direction: aligned
+        - Upper is NEUTRAL: aligned (follow lower)
+        - Different direction: not aligned
+
+        Args:
+            lower_regime: minute60 regime
+            upper_regime: minute240 regime
+
+        Returns:
+            True if directions are aligned
+        """
+        upper_dir = self.get_direction(upper_regime)
+
+        # Neutral upper allows any lower
+        if upper_dir == "NEUTRAL":
+            return True
+
+        lower_dir = self.get_direction(lower_regime)
+        return lower_dir == upper_dir

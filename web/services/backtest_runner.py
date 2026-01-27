@@ -819,13 +819,75 @@ def _run_generic_backtest(
         )
 
     # Regular strategy: use ComponentStrategyAdapter
+    # Load strategy config from allocation.json for regime_version and other params
+    allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
     config = {}
+    if allocation_path.exists():
+        with open(allocation_path, 'r') as f:
+            allocation = json.load(f)
+        strategy_config = allocation.get('strategies', {}).get(strategy_id, {})
+        # Pass relevant config params to adapter (regime filtering, etc.)
+        config = {
+            'regime_version': strategy_config.get('regime_version', 'v1'),
+            'bbw_block_threshold': strategy_config.get('bbw_block_threshold', 25),
+            'bbw_confirm_threshold': strategy_config.get('bbw_confirm_threshold', 50),
+            'volume_block_ratio': strategy_config.get('volume_block_ratio', 0.8),
+            'volume_boost_ratio': strategy_config.get('volume_boost_ratio', 1.2),
+            'mtf_enabled': strategy_config.get('mtf_enabled', True),
+            # Stop loss cooldown: candles to wait after stop loss before re-entry
+            'stop_loss_cooldown': strategy_config.get('stop_loss_cooldown', 24),
+            # Trailing stop settings
+            'trailing_enabled': strategy_config.get('trailing_enabled', False),
+            'trailing_activation': strategy_config.get('trailing_activation', 3.0),
+            'trailing_distance': strategy_config.get('trailing_distance', 2.0),
+            # ATR-based dynamic stop loss
+            'atr_stop_enabled': strategy_config.get('atr_stop_enabled', False),
+            'atr_stop_multiplier': strategy_config.get('atr_stop_multiplier', 2.0),
+            'atr_stop_min_pct': strategy_config.get('atr_stop_min_pct', 1.5),
+            'atr_stop_max_pct': strategy_config.get('atr_stop_max_pct', 4.0),
+            # Dynamic leverage based on regime confidence
+            'dynamic_leverage': strategy_config.get('dynamic_leverage', False),
+            'leverage_bull_strong': strategy_config.get('leverage_bull_strong', 3.0),
+            'leverage_bull_moderate': strategy_config.get('leverage_bull_moderate', 2.0),
+            'leverage_sideways': strategy_config.get('leverage_sideways', 1.0),
+            'leverage_bear': strategy_config.get('leverage_bear', 0.0),
+            # Cash strategy: no trading in unfavorable conditions
+            'cash_in_bear': strategy_config.get('cash_in_bear', False),
+            'cash_below_ema200': strategy_config.get('cash_below_ema200', False),
+            # Consecutive loss prevention
+            'max_consecutive_losses': strategy_config.get('max_consecutive_losses', 3),
+            'loss_pause_candles': strategy_config.get('loss_pause_candles', 48),
+            # Dynamic drawdown response
+            'drawdown_warning_pct': strategy_config.get('drawdown_warning_pct', 8.0),
+            'drawdown_reduce_pct': strategy_config.get('drawdown_reduce_pct', 10.0),
+            'drawdown_exit_pct': strategy_config.get('drawdown_exit_pct', 12.0),
+            # V2 filter exit for existing positions
+            'v2_exit_on_filter': strategy_config.get('v2_exit_on_filter', False),
+            # Bull probability filter (MFI-based): block entry if MFI/100 < threshold
+            'bull_prob_threshold': strategy_config.get('bull_prob_threshold', 0.0),
+            # MA120 panic sell: force exit AND block entry when price < EMA120
+            'panic_sell_below_ma120': strategy_config.get('panic_sell_below_ma120', False),
+            # Probability-based leverage: adjust leverage based on MFI
+            'prob_leverage_enabled': strategy_config.get('prob_leverage_enabled', False),
+            'prob_leverage_max': strategy_config.get('prob_leverage_max', 3.0),
+            'prob_leverage_high': strategy_config.get('prob_leverage_high', 2.5),
+            'prob_leverage_mid': strategy_config.get('prob_leverage_mid', 2.0),
+            'prob_leverage_low': strategy_config.get('prob_leverage_low', 1.0),
+            'prob_leverage_min': strategy_config.get('prob_leverage_min', 0.5),
+        }
+        # Also merge defaults from allocation if present
+        defaults = allocation.get('defaults', {}).get('regime_v2', {})
+        for key in ['bbw_block_threshold', 'bbw_confirm_threshold', 'volume_block_ratio', 'volume_boost_ratio', 'mtf_enabled']:
+            if key not in strategy_config and key in defaults:
+                config[key] = defaults[key]
+
     adapter = ComponentStrategyAdapter(factory, strategy_id, config)
 
     # 5. Backtest Loop
     capital = initial_capital
     position_size = 0.0
     entry_price = 0.0
+    position_leverage = leverage  # Track leverage used for current position
     trades: List[Dict] = []
     equity_curve: List[float] = []
 
@@ -851,12 +913,12 @@ def _run_generic_backtest(
                 # Short PnL
                 pnl_ratio = (entry_price - current_price) / entry_price
                 unrealized_pnl = position_size * pnl_ratio
-                current_equity += (position_size / leverage) + unrealized_pnl
+                current_equity += (position_size / position_leverage) + unrealized_pnl
             else:
                 # Long PnL
                 pnl_ratio = (current_price - entry_price) / entry_price
                 unrealized_pnl = position_size * pnl_ratio
-                current_equity += (position_size / leverage) + unrealized_pnl
+                current_equity += (position_size / position_leverage) + unrealized_pnl
 
         equity_curve.append({'date': timestamp[:10], 'equity': current_equity})
 
@@ -865,45 +927,53 @@ def _run_generic_backtest(
         # OPEN LONG
         if action == 'buy' and position_size == 0:
             fraction = signal.get('fraction', 1.0)
+            # Use dynamic leverage from signal if provided, else use fixed leverage
+            effective_leverage = signal.get('leverage', leverage)
             # Account for fees when calculating margin to avoid silent skips
-            # margin + fee <= capital * fraction, where fee = margin * leverage * fee_rate
-            # margin * (1 + leverage * fee_rate) <= capital * fraction
-            max_margin = capital * fraction / (1 + leverage * fee_rate)
+            # margin + fee <= capital * fraction, where fee = margin * effective_leverage * fee_rate
+            # margin * (1 + effective_leverage * fee_rate) <= capital * fraction
+            max_margin = capital * fraction / (1 + effective_leverage * fee_rate)
             margin = max_margin
-            effective_pos_size = margin * leverage
+            effective_pos_size = margin * effective_leverage
             fee = effective_pos_size * fee_rate
 
             if capital >= (margin + fee):
                 capital -= (margin + fee)
                 position_size = effective_pos_size
+                position_leverage = effective_leverage  # Track leverage for this position
                 entry_price = row['close'] * (1 + slippage)
                 trades.append({
                     'type': 'buy',
                     'time': timestamp,
                     'price': entry_price,
                     'size': position_size,
-                    'reason': reason
+                    'reason': reason,
+                    'leverage': effective_leverage,
                 })
 
         # OPEN SHORT
         elif action == 'open_short' and position_size == 0:
             fraction = signal.get('fraction', 0.3)
+            # Use dynamic leverage from signal if provided, else use fixed leverage
+            effective_leverage = signal.get('leverage', leverage)
             # Account for fees when calculating margin
-            max_margin = capital * fraction / (1 + leverage * fee_rate)
+            max_margin = capital * fraction / (1 + effective_leverage * fee_rate)
             margin = max_margin
-            effective_pos_size = margin * leverage
+            effective_pos_size = margin * effective_leverage
             fee = effective_pos_size * fee_rate
 
             if capital >= (margin + fee):
                 capital -= (margin + fee)
                 position_size = effective_pos_size
+                position_leverage = effective_leverage  # Track leverage for this position
                 entry_price = row['close'] * (1 - slippage)
                 trades.append({
                     'type': 'open_short',
                     'time': timestamp,
                     'price': entry_price,
                     'size': position_size,
-                    'reason': reason
+                    'reason': reason,
+                    'leverage': effective_leverage,
                 })
 
         # CLOSE LONG (SELL)
@@ -911,7 +981,7 @@ def _run_generic_backtest(
             exit_price = row['close'] * (1 - slippage)
             pnl_ratio = (exit_price - entry_price) / entry_price
             pnl = position_size * pnl_ratio
-            margin_return = position_size / leverage
+            margin_return = position_size / position_leverage
             fee = position_size * fee_rate
 
             capital += margin_return + pnl - fee
@@ -923,8 +993,9 @@ def _run_generic_backtest(
                 'exit_price': exit_price,
                 'size': position_size,
                 'pnl': pnl,
-                'pnl_pct': pnl_ratio * 100 * leverage,
-                'reason': reason
+                'pnl_pct': pnl_ratio * 100 * position_leverage,
+                'reason': reason,
+                'leverage': position_leverage,
             })
             position_size = 0.0
             entry_price = 0.0
@@ -934,7 +1005,7 @@ def _run_generic_backtest(
              exit_price = row['close'] * (1 + slippage)
              pnl_ratio = (entry_price - exit_price) / entry_price
              pnl = position_size * pnl_ratio
-             margin_return = position_size / leverage
+             margin_return = position_size / position_leverage
              fee = position_size * fee_rate
 
              capital += margin_return + pnl - fee
@@ -946,8 +1017,9 @@ def _run_generic_backtest(
                 'exit_price': exit_price,
                 'size': position_size,
                 'pnl': pnl,
-                'pnl_pct': pnl_ratio * 100 * leverage,
-                'reason': reason
+                'pnl_pct': pnl_ratio * 100 * position_leverage,
+                'reason': reason,
+                'leverage': position_leverage,
              })
              position_size = 0.0
              entry_price = 0.0
@@ -962,7 +1034,7 @@ def _run_generic_backtest(
         else:
              pnl_ratio = (last_price - entry_price) / entry_price
         pnl = position_size * pnl_ratio
-        capital += (position_size / leverage) + pnl
+        capital += (position_size / position_leverage) + pnl
 
     # --- Metrics ---
     final_capital = capital

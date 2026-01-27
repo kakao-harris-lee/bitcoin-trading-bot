@@ -1,6 +1,10 @@
 """Adapter to bridge Component-based Strategies with the Functional Backtester.
 
 This allows the historical backtester to run the exact same logic as live trading.
+
+Supports regime filtering:
+- v1: Basic regime classification (default)
+- v2: EnhancedRegimeRouter with BBW + Volume + MTF filters
 """
 from dataclasses import replace
 from types import MappingProxyType
@@ -9,9 +13,19 @@ import pandas as pd
 from trading.strategies.components.models import MarketData, Position, Signal, MarketContext, TradingContext, build_market_context
 from trading.strategies.components.strategy_factory import StrategyFactory
 from trading.strategies.volatility_tracker import VolatilityTracker
+from trading.strategies.components.regime_filter import EnhancedRegimeRouter
 
 class ComponentStrategyAdapter:
-    """Adapts a StrategyFactory strategy into a Backtester-compatible function."""
+    """Adapts a StrategyFactory strategy into a Backtester-compatible function.
+
+    Supports regime filtering via config:
+    - regime_version: "v1" (default) or "v2" (EnhancedRegimeRouter)
+    - bbw_block_threshold: BBW percentile below which to block (default 25)
+    - bbw_confirm_threshold: BBW percentile requiring confirmation (default 50)
+    - volume_block_ratio: Volume ratio below which to block (default 0.8)
+    - volume_boost_ratio: Volume ratio above which to boost confidence (default 1.2)
+    - mtf_enabled: Whether to check 4h direction alignment (default True)
+    """
 
     def __init__(self, factory: StrategyFactory, strategy_name: str, config: Dict[str, Any]):
         """
@@ -33,6 +47,79 @@ class ComponentStrategyAdapter:
         self.symbol = "BTC" # Default, will be updated if possible
         self.vol_tracker = VolatilityTracker(window=20)
 
+        # Initialize regime filter based on regime_version config
+        self._regime_router: Optional[EnhancedRegimeRouter] = None
+        self._v2_entry_allowed: bool = True  # Default: allow entry
+        regime_version = config.get('regime_version', 'v1')
+        if regime_version == 'v2':
+            self._regime_router = EnhancedRegimeRouter(
+                bbw_block_threshold=config.get('bbw_block_threshold', 25),
+                bbw_confirm_threshold=config.get('bbw_confirm_threshold', 50),
+                bbw_window=config.get('bbw_window', 100),
+                volume_block_ratio=config.get('volume_block_ratio', 0.8),
+                volume_boost_ratio=config.get('volume_boost_ratio', 1.2),
+                mtf_enabled=config.get('mtf_enabled', True),
+            )
+
+        # Stop loss cooldown: prevent rapid re-entry after stop loss
+        # Default: 24 candles (1 day for hourly data)
+        self._cooldown_candles: int = config.get('stop_loss_cooldown', 24)
+        self._cooldown_remaining: int = 0  # Candles remaining in cooldown
+
+        # Dynamic leverage based on regime confidence
+        # BULL_STRONG = max leverage, BEAR = no trade (cash)
+        self._dynamic_leverage_enabled: bool = config.get('dynamic_leverage', False)
+        self._leverage_bull_strong: float = config.get('leverage_bull_strong', 3.0)
+        self._leverage_bull_moderate: float = config.get('leverage_bull_moderate', 2.0)
+        self._leverage_sideways: float = config.get('leverage_sideways', 1.0)
+        self._leverage_bear: float = config.get('leverage_bear', 0.0)  # 0 = no trade
+
+        # Cash strategy: block entries in unfavorable conditions
+        self._cash_in_bear: bool = config.get('cash_in_bear', False)  # No entry in BEAR
+        self._cash_below_ema200: bool = config.get('cash_below_ema200', False)  # No entry below EMA200
+        self._current_leverage: float = 3.0  # Current leverage (updated dynamically)
+
+        # === NEW: Consecutive Loss Prevention ===
+        # Track recent trade outcomes to pause after consecutive losses
+        self._consecutive_losses: int = 0
+        self._max_consecutive_losses: int = config.get('max_consecutive_losses', 3)
+        self._loss_pause_candles: int = config.get('loss_pause_candles', 48)  # 48h pause after 3 losses
+        self._loss_pause_remaining: int = 0
+
+        # === NEW: Dynamic Drawdown Response ===
+        # Graduated response to portfolio drawdown (not just price drawdown)
+        self._drawdown_warning_pct: float = config.get('drawdown_warning_pct', 8.0)  # 8%: reduce leverage
+        self._drawdown_reduce_pct: float = config.get('drawdown_reduce_pct', 10.0)   # 10%: exit 50%
+        self._drawdown_exit_pct: float = config.get('drawdown_exit_pct', 12.0)       # 12%: full exit
+        self._peak_equity: float = 0.0  # Track peak for drawdown calculation
+        self._current_equity: float = 0.0
+        self._partial_exit_done: bool = False  # Track if 50% exit was triggered
+
+        # === NEW: V2 Filter Exit for Existing Positions ===
+        self._v2_exit_on_filter: bool = config.get('v2_exit_on_filter', False)  # Exit when v2 blocks
+
+        # === NEW: Regime Probability Filter ===
+        # Use MFI (0-100) as proxy for bullish probability (MFI/100)
+        # Block entry if bull probability < threshold
+        self._bull_prob_threshold: float = config.get('bull_prob_threshold', 0.0)  # 0 = disabled
+        self._bull_prob_enabled: bool = self._bull_prob_threshold > 0
+
+        # === NEW: Probability-based Leverage ===
+        # Adjust leverage based on MFI (bull probability proxy)
+        # Higher MFI = higher confidence = higher leverage
+        self._prob_leverage_enabled: bool = config.get('prob_leverage_enabled', False)
+        self._prob_leverage_max: float = config.get('prob_leverage_max', 3.0)      # MFI >= 70
+        self._prob_leverage_high: float = config.get('prob_leverage_high', 2.5)    # MFI 60-70
+        self._prob_leverage_mid: float = config.get('prob_leverage_mid', 2.0)      # MFI 50-60
+        self._prob_leverage_low: float = config.get('prob_leverage_low', 1.0)      # MFI 40-50
+        self._prob_leverage_min: float = config.get('prob_leverage_min', 0.5)      # MFI 30-40
+        # MFI < 30 = no entry (leverage 0)
+
+        # === NEW: MA120 Panic Sell ===
+        # Force exit all positions when price drops below EMA120
+        # More aggressive than EMA200 filter for MDD defense
+        self._panic_sell_below_ma120: bool = config.get('panic_sell_below_ma120', False)
+
     def _determine_regime(self, mfi: float, adx: float) -> str:
         """Determine market regime using strategy-specific logic if available."""
         # Try to use the component's internal classification logic
@@ -46,6 +133,14 @@ class ComponentStrategyAdapter:
         """Callable interface for Backtester.run(strategy_func)."""
 
         row = df.iloc[i]
+
+        # Decrement cooldown counter each candle
+        if self._cooldown_remaining > 0:
+            self._cooldown_remaining -= 1
+
+        # Decrement loss pause counter each candle
+        if self._loss_pause_remaining > 0:
+            self._loss_pause_remaining -= 1
 
         # Extract indicators for context building
         mfi = row.get('mfi', 50.0)
@@ -67,6 +162,33 @@ class ComponentStrategyAdapter:
             # Use 30-day high for drawdown detection (fall back to 20-period if not available)
             recent_high=row.get('high_30d', 0.0) or row.get('prev_high_20', 0.0),
         )
+
+        # Regime v2 filtering: Use as entry gate, NOT regime replacement
+        # The filter tracks BBW history and checks transition validity
+        # We still use raw regime for classification, but check filter for BULL entries
+        self._v2_entry_allowed = True  # Default: allow entry
+        if self._regime_router is not None:
+            bb_upper = row.get('bb_upper', 0.0)
+            bb_lower = row.get('bb_lower', 0.0)
+            bb_middle = row.get('bb_middle', 0.0)
+            volume_ratio = volume / avg_volume if avg_volume > 0 else 1.0
+
+            # Update BBW history (important for percentile calculation)
+            bbw = self._regime_router._bbw_filter.calculate_bbw(bb_upper, bb_lower, bb_middle)
+            self._regime_router._bbw_filter.update_bbw(bbw)
+
+            # Check if BULL entry should be blocked
+            # Only block if we're trying to enter in a BULL regime
+            if context.regime in ("BULL_STRONG", "BULL_MODERATE"):
+                # Check volume filter (blocks low volume BULL entries)
+                if self._regime_router._volume_filter.should_block(volume_ratio, context.regime):
+                    self._v2_entry_allowed = False
+
+                # Check BBW filter (blocks low volatility entries)
+                # But high volume can relax this requirement
+                bbw_boosted = self._regime_router._volume_filter.is_boosted(volume_ratio)
+                if not bbw_boosted and self._regime_router._bbw_filter.should_block():
+                    self._v2_entry_allowed = False
 
         # Extract indicators
         indicators = {}
@@ -106,6 +228,7 @@ class ComponentStrategyAdapter:
             adx=adx,
             rsi=row.get('rsi', 50.0),
             # OHLCV for breakout/sequence models
+            open=float(row.get('open', close)) if pd.notna(row.get('open', close)) else close,
             high=row.get('high', 0.0) or 0.0,
             low=row.get('low', 0.0) or 0.0,
             volume=volume,
@@ -126,7 +249,8 @@ class ComponentStrategyAdapter:
             prev_low_20=row.get('prev_low_20', 0.0),
             # ATR for volatility
             atr=atr,
-            # EMA200 for trend filter
+            # EMA for trend filter
+            ema_120=row.get('ema_120', 0.0),
             ema_200=row.get('ema_200', 0.0),
             # Market stress indicator
             market_stress=row.get('market_stress', 0.0),
@@ -155,6 +279,53 @@ class ComponentStrategyAdapter:
             # Create new MarketData with updated HWM (frozen dataclass)
             market_data = replace(market_data, high_water_mark=self.high_water_mark)
 
+            # === NEW: V2 Filter Exit for Existing Positions ===
+            # If v2 filter blocks AND we have a position, exit to protect capital
+            if self._v2_exit_on_filter and self._regime_router is not None and not self._v2_entry_allowed:
+                self.current_position = None
+                self.high_water_mark = None
+                try:
+                    self.exit_strategy.on_position_closed(self.symbol)
+                except Exception:
+                    pass
+                return {
+                    'action': 'sell' if is_long else 'close_short',
+                    'fraction': 1.0,
+                    'reason': 'v2_filter_protective_exit'
+                }
+
+            # === MA120 Panic Sell: Force exit when price < EMA120 ===
+            # More aggressive MDD defense than EMA200
+            ema_120 = row.get('ema_120', 0.0)
+            if self._panic_sell_below_ma120 and is_long and ema_120 > 0 and close < ema_120:
+                self.current_position = None
+                self.high_water_mark = None
+                try:
+                    self.exit_strategy.on_position_closed(self.symbol)
+                except Exception:
+                    pass
+                return {
+                    'action': 'sell',
+                    'fraction': 1.0,
+                    'reason': f'MA120 panic_sell: close={close:.0f} < ema120={ema_120:.0f}'
+                }
+
+            # EMA200 protective exit: close long positions when price drops below EMA200
+            # This defends against major drawdowns in bear markets
+            ema_200 = row.get('ema_200', 0.0)
+            if self._cash_below_ema200 and is_long and ema_200 > 0 and close < ema_200:
+                self.current_position = None
+                self.high_water_mark = None
+                try:
+                    self.exit_strategy.on_position_closed(self.symbol)
+                except Exception:
+                    pass
+                return {
+                    'action': 'sell',
+                    'fraction': 1.0,
+                    'reason': f'EMA200 protective exit: close={close:.0f} < ema200={ema_200:.0f}'
+                }
+
             # Build TradingContext for new interface (immutable positions)
             positions = {self.strategy_name: self.current_position}
             ctx = TradingContext(
@@ -173,17 +344,100 @@ class ComponentStrategyAdapter:
                     self.exit_strategy.on_position_closed(self.symbol)
                 except Exception:
                     pass
+
+                # Detect stop loss exit and trigger cooldown + consecutive loss tracking
+                reason = signal.reason or ""
+                is_stop_loss = "stop loss" in reason.lower() or "stoploss" in reason.lower()
+
+                if is_stop_loss:
+                    self._cooldown_remaining = self._cooldown_candles
+                    # Track consecutive losses
+                    self._consecutive_losses += 1
+                    if self._consecutive_losses >= self._max_consecutive_losses:
+                        # Trigger extended pause after multiple consecutive losses
+                        self._loss_pause_remaining = self._loss_pause_candles
+                        self._consecutive_losses = 0  # Reset counter after pause
+                else:
+                    # Profitable exit or non-stop-loss exit resets consecutive loss counter
+                    self._consecutive_losses = 0
+
                 action = 'close_short' if not is_long else 'sell'
                 return {
                     'action': action,
                     'fraction': 1.0,
-                    'reason': signal.reason
+                    'reason': reason,
+                    'consecutive_losses': self._consecutive_losses,
                 }
 
             return {'action': 'hold'}
 
         # 3. Check Entries (if no position)
         else:
+            # === NEW: Loss pause check (after consecutive losses) ===
+            if self._loss_pause_remaining > 0:
+                return {'action': 'hold', 'reason': f'loss_pause:{self._loss_pause_remaining}'}
+
+            # Stop loss cooldown: block entry if still in cooldown period
+            if self._cooldown_remaining > 0:
+                return {'action': 'hold', 'reason': f'cooldown:{self._cooldown_remaining}'}
+
+            # Cash strategy: no entry in BEAR regime
+            current_regime = context.regime
+            if self._cash_in_bear and current_regime in ("BEAR_STRONG", "BEAR_MODERATE"):
+                return {'action': 'hold', 'reason': 'cash_bear_regime'}
+
+            # Cash strategy: no entry below EMA200
+            ema_200 = row.get('ema_200', 0.0)
+            if self._cash_below_ema200 and ema_200 > 0 and close < ema_200:
+                return {'action': 'hold', 'reason': 'cash_below_ema200'}
+
+            # === NEW: Bull Probability Filter ===
+            # Use MFI (0-100) as proxy for bullish probability
+            # Block entry if bull_prob < threshold (e.g., 0.6 = 60%)
+            if self._bull_prob_enabled:
+                bull_prob = mfi / 100.0  # MFI 0-100 -> 0.0-1.0
+                if bull_prob < self._bull_prob_threshold:
+                    return {'action': 'hold', 'reason': f'bull_prob_low:{bull_prob:.2f}<{self._bull_prob_threshold:.2f}'}
+
+            # NOTE: MA120 is used for EXIT only (panic sell), not for entry blocking
+            # Entry blocking is handled by cash_below_ema200 (EMA200 filter)
+
+            # Calculate dynamic leverage based on regime
+            if self._dynamic_leverage_enabled:
+                if current_regime == "BULL_STRONG":
+                    self._current_leverage = self._leverage_bull_strong
+                elif current_regime == "BULL_MODERATE":
+                    self._current_leverage = self._leverage_bull_moderate
+                elif current_regime in ("SIDEWAYS_UP", "SIDEWAYS_FLAT", "SIDEWAYS_DOWN"):
+                    self._current_leverage = self._leverage_sideways
+                else:  # BEAR regimes
+                    self._current_leverage = self._leverage_bear
+                    if self._current_leverage == 0:
+                        return {'action': 'hold', 'reason': 'dynamic_lev_zero'}
+            else:
+                self._current_leverage = 3.0  # Default
+
+            # === NEW: Probability-based leverage adjustment ===
+            # Override leverage based on MFI (bull probability proxy)
+            # Higher MFI = higher confidence = allow higher leverage
+            if self._prob_leverage_enabled:
+                if mfi >= 70:
+                    self._current_leverage = min(self._current_leverage, self._prob_leverage_max)
+                elif mfi >= 60:
+                    self._current_leverage = min(self._current_leverage, self._prob_leverage_high)
+                elif mfi >= 50:
+                    self._current_leverage = min(self._current_leverage, self._prob_leverage_mid)
+                elif mfi >= 40:
+                    self._current_leverage = min(self._current_leverage, self._prob_leverage_low)
+                elif mfi >= 30:
+                    self._current_leverage = min(self._current_leverage, self._prob_leverage_min)
+                else:  # MFI < 30: no entry
+                    return {'action': 'hold', 'reason': f'prob_lev_zero:mfi={mfi:.1f}'}
+
+            # Regime v2 filter: Block entry if filters reject (BBW/Volume)
+            if self._regime_router is not None and not self._v2_entry_allowed:
+                return {'action': 'hold', 'reason': 'v2_filter_blocked'}
+
             # Build TradingContext for new interface (immutable positions)
             ctx = TradingContext(
                 symbol=self.symbol,
@@ -227,6 +481,8 @@ class ComponentStrategyAdapter:
                     "fraction": fraction,
                     "price": close,
                     "reason": signal.reason,
+                    "leverage": self._current_leverage,  # Dynamic leverage
+                    "regime": current_regime,  # For debugging
                 }
 
         return {"action": "hold"}

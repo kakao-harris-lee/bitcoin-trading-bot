@@ -79,6 +79,7 @@ INDICATOR_COLUMNS = [
     'macd_hist',
     'ema_20',
     'ema_50',
+    'ema_120',
     'ema_200',
     'atr',
     'market_stress',
@@ -127,6 +128,7 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # EMAs (short/mid/long)
     df['ema_20'] = ta.ema(df['close'], 20)
     df['ema_50'] = ta.ema(df['close'], 50)
+    df['ema_120'] = ta.ema(df['close'], 120)  # For MA120 panic sell
     df['ema_200'] = ta.ema(df['close'], 200)
 
     # ATR

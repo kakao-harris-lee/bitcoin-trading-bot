@@ -51,6 +51,7 @@ class MarketData:
     rsi: float
     timestamp: int  # Unix timestamp in milliseconds
     # OHLCV data for calculations
+    open: float = 0.0
     high: float = 0.0
     low: float = 0.0
     volume: float = 0.0
@@ -78,6 +79,7 @@ class MarketData:
     # 30-day high for drawdown-based BEAR detection (720 periods for hourly data)
     high_30d: float = 0.0  # 30-day rolling high for drawdown calculation
     # EMA for trend filtering
+    ema_120: float = 0.0  # 120-period EMA for MA120 panic sell
     ema_200: float = 0.0  # 200-period EMA for bear market filter
     # Market stress indicator (0-100, higher = more stress)
     market_stress: float = 0.0  # Composite stress score for pause trading

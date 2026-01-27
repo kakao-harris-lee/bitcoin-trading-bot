@@ -14,6 +14,8 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Literal
 
+from .models import _classify_regime
+
 # 7-level regime classification (matches models.py)
 Regime = Literal[
     "BULL_STRONG",
@@ -328,3 +330,182 @@ class VolumeFilter:
             True if volume is above boost threshold
         """
         return volume_ratio > self.boost_ratio
+
+
+@dataclass
+class EnhancedRegimeConfig:
+    """Configuration for EnhancedRegimeRouter."""
+
+    bbw_block_threshold: int = 25
+    bbw_confirm_threshold: int = 50
+    bbw_window: int = 100
+    volume_block_ratio: float = 0.8
+    volume_boost_ratio: float = 1.2
+    mtf_enabled: bool = True
+
+
+class EnhancedRegimeRouter:
+    """Enhanced regime router with BBW, MTF, and Volume filters.
+
+    Applies filters sequentially to reduce noisy regime transitions:
+    1. MTF direction check (if enabled)
+    2. BBW percentile check
+    3. Volume confirmation check
+
+    All filters must pass for a transition to occur.
+
+    Configuration parameters:
+    - bbw_block_threshold: BBW percentile below which to block (default 25)
+    - bbw_confirm_threshold: BBW percentile requiring confirmation (default 50)
+    - volume_block_ratio: Volume ratio below which to block (default 0.8)
+    - volume_boost_ratio: Volume ratio above which to relax BBW (default 1.2)
+    - mtf_enabled: Whether to check 4-hour direction alignment (default True)
+    """
+
+    def __init__(
+        self,
+        bbw_block_threshold: int = 25,
+        bbw_confirm_threshold: int = 50,
+        bbw_window: int = 100,
+        volume_block_ratio: float = 0.8,
+        volume_boost_ratio: float = 1.2,
+        mtf_enabled: bool = True,
+    ):
+        """Initialize EnhancedRegimeRouter.
+
+        Args:
+            bbw_block_threshold: BBW percentile below which to block
+            bbw_confirm_threshold: BBW percentile requiring 2-candle confirm
+            bbw_window: Rolling window for BBW percentile calculation
+            volume_block_ratio: Volume ratio below which to block
+            volume_boost_ratio: Volume ratio above which to boost confidence
+            mtf_enabled: Whether to check MTF direction alignment
+        """
+        self._bbw_filter = BBWFilter(
+            block_threshold=bbw_block_threshold,
+            confirm_threshold=bbw_confirm_threshold,
+            window=bbw_window,
+        )
+        self._volume_filter = VolumeFilter(
+            block_ratio=volume_block_ratio,
+            boost_ratio=volume_boost_ratio,
+        )
+        self._mtf_filter = MTFFilter()
+        self._mtf_enabled = mtf_enabled
+        self._mtf_regime: Regime | None = None
+        self._prev_regime: Regime | None = None
+        self._pending_regime: Regime | None = None
+        self._pending_count: int = 0
+
+    def set_mtf_regime(self, regime: Regime) -> None:
+        """Set the 4-hour timeframe regime.
+
+        Call this when a new 4h candle completes.
+
+        Args:
+            regime: Current 4h regime classification
+        """
+        self._mtf_regime = regime
+
+    def get_regime(
+        self,
+        mfi: float,
+        adx: float,
+        bb_upper: float,
+        bb_lower: float,
+        bb_middle: float,
+        volume_ratio: float,
+        prev_regime: Regime | None = None,
+    ) -> Regime:
+        """Get filtered regime classification.
+
+        Applies filters sequentially:
+        1. Calculate candidate regime from MFI/ADX
+        2. If no change from prev_regime, return immediately
+        3. MTF direction check (if enabled and MTF regime set)
+        4. BBW percentile check (bypassed if high volume)
+        5. Volume confirmation check (bypassed for BEAR/SIDEWAYS)
+
+        Args:
+            mfi: Money Flow Index (0-100)
+            adx: Average Directional Index
+            bb_upper: Upper Bollinger Band
+            bb_lower: Lower Bollinger Band
+            bb_middle: Middle Bollinger Band
+            volume_ratio: current_volume / avg_volume_20
+            prev_regime: Previous regime (uses internal state if None)
+
+        Returns:
+            Filtered regime classification
+        """
+        # Calculate candidate regime using standard classification
+        candidate = _classify_regime(mfi, adx)
+
+        # Use provided prev_regime or internal state
+        if prev_regime is not None:
+            self._prev_regime = prev_regime
+
+        # Initialize if first call
+        if self._prev_regime is None:
+            self._prev_regime = candidate
+            return candidate
+
+        # No change, no filtering needed
+        if candidate == self._prev_regime:
+            self._pending_regime = None
+            self._pending_count = 0
+            return candidate
+
+        # Update BBW for history
+        bbw = self._bbw_filter.calculate_bbw(bb_upper, bb_lower, bb_middle)
+        self._bbw_filter.update_bbw(bbw)
+
+        # Check if volume boosts confidence (relaxes BBW)
+        bbw_boosted = self._volume_filter.is_boosted(volume_ratio)
+
+        # Filter 1: MTF direction check
+        if self._mtf_enabled and self._mtf_regime is not None:
+            if not self._mtf_filter.is_direction_aligned(candidate, self._mtf_regime):
+                return self._prev_regime  # Block: direction conflict
+
+        # Filter 2: BBW check (bypassed if high volume)
+        if not bbw_boosted and self._bbw_filter.should_block():
+            return self._prev_regime  # Block: low volatility
+
+        # Filter 3: Volume check (with BEAR/SIDEWAYS exceptions)
+        if self._volume_filter.should_block(volume_ratio, candidate):
+            return self._prev_regime  # Block: low volume
+
+        # Check if needs confirmation (BBW between thresholds)
+        if self._bbw_filter.needs_confirmation() and not bbw_boosted:
+            if candidate == self._pending_regime:
+                self._pending_count += 1
+                if self._pending_count >= 2:
+                    # Confirmed after 2 candles
+                    self._prev_regime = candidate
+                    self._pending_regime = None
+                    self._pending_count = 0
+                    return candidate
+            else:
+                # New pending regime
+                self._pending_regime = candidate
+                self._pending_count = 1
+            return self._prev_regime  # Needs more confirmation
+
+        # All filters passed - allow transition
+        self._prev_regime = candidate
+        self._pending_regime = None
+        self._pending_count = 0
+        return candidate
+
+    def reset(self) -> None:
+        """Reset router state.
+
+        Call when starting a new trading session or after long gaps.
+        """
+        self._prev_regime = None
+        self._mtf_regime = None
+        self._pending_regime = None
+        self._pending_count = 0
+        self._bbw_filter._bbw_history.clear()
+        self._bbw_filter._current_bbw = 0.0

@@ -10,6 +10,7 @@ from trading.strategies.components.regime_filter import (
     MTFFilter,
     MTFCandle,
     VolumeFilter,
+    EnhancedRegimeRouter,
 )
 
 
@@ -188,3 +189,190 @@ class TestVolumeFilter:
         assert f.is_boosted(volume_ratio=1.0) is False
         assert f.is_boosted(volume_ratio=1.2) is False
         assert f.is_boosted(volume_ratio=0.9) is False
+
+
+class TestEnhancedRegimeRouter:
+    """Tests for combined EnhancedRegimeRouter."""
+
+    def test_no_change_returns_same(self):
+        """No regime change should return candidate immediately."""
+        router = EnhancedRegimeRouter()
+        # First call sets prev_regime
+        result = router.get_regime(
+            mfi=55,
+            adx=26,
+            bb_upper=105,
+            bb_lower=95,
+            bb_middle=100,
+            volume_ratio=1.0,
+        )
+        # Should be BULL based on MFI=55, ADX=26
+        assert result in ["BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP"]
+
+        # Second call with same values should return same
+        result2 = router.get_regime(
+            mfi=55,
+            adx=26,
+            bb_upper=105,
+            bb_lower=95,
+            bb_middle=100,
+            volume_ratio=1.0,
+        )
+        assert result2 == result
+
+    def test_low_bbw_blocks_transition(self):
+        """Low BBW percentile should block regime change."""
+        router = EnhancedRegimeRouter()
+        # Prime BBW history with high values
+        for _ in range(100):
+            router._bbw_filter.update_bbw(15.0)
+
+        # Set initial regime
+        router._prev_regime = "BULL_STRONG"
+
+        # Now try transition with very low BBW (would be BEAR)
+        result = router.get_regime(
+            mfi=30,
+            adx=26,
+            bb_upper=101,
+            bb_lower=99,
+            bb_middle=100,  # BBW = 2% (very low)
+            volume_ratio=1.0,
+        )
+        # Should be blocked due to low BBW
+        assert result == "BULL_STRONG"
+
+    def test_mtf_conflict_blocks_transition(self):
+        """MTF direction conflict should block."""
+        router = EnhancedRegimeRouter(mtf_enabled=True)
+        router.set_mtf_regime("BEAR_STRONG")  # 4h is bearish
+
+        # Set initial regime
+        router._prev_regime = "SIDEWAYS_FLAT"
+
+        # Prime BBW with high values to allow transition (won't block)
+        for _ in range(100):
+            router._bbw_filter.update_bbw(5.0)
+
+        result = router.get_regime(
+            mfi=60,
+            adx=26,  # Would be BULL
+            bb_upper=115,
+            bb_lower=85,
+            bb_middle=100,  # High BBW = 30%
+            volume_ratio=1.5,  # High volume
+        )
+        # Should be blocked due to MTF conflict (trying BULL but 4h is BEAR)
+        assert result == "SIDEWAYS_FLAT"
+
+    def test_low_volume_blocks_bull_transition(self):
+        """Low volume should block BULL transition."""
+        router = EnhancedRegimeRouter(mtf_enabled=False)
+
+        # Set initial regime
+        router._prev_regime = "SIDEWAYS_FLAT"
+
+        # Prime BBW with low values (so current high BBW passes)
+        for _ in range(100):
+            router._bbw_filter.update_bbw(5.0)
+
+        result = router.get_regime(
+            mfi=60,
+            adx=26,  # Would be BULL
+            bb_upper=115,
+            bb_lower=85,
+            bb_middle=100,  # High BBW
+            volume_ratio=0.5,  # Low volume
+        )
+        # Should be blocked due to low volume
+        assert result == "SIDEWAYS_FLAT"
+
+    def test_low_volume_allows_bear_transition(self):
+        """Low volume should NOT block BEAR transition (exception)."""
+        router = EnhancedRegimeRouter(mtf_enabled=False)
+
+        # Set initial regime
+        router._prev_regime = "SIDEWAYS_FLAT"
+
+        # Prime BBW with low values
+        for _ in range(100):
+            router._bbw_filter.update_bbw(5.0)
+
+        result = router.get_regime(
+            mfi=30,
+            adx=28,  # Would be BEAR
+            bb_upper=115,
+            bb_lower=85,
+            bb_middle=100,  # High BBW
+            volume_ratio=0.5,  # Low volume (but BEAR bypasses)
+        )
+        # Should be allowed - BEAR bypasses volume check
+        assert result in ["BEAR_STRONG", "BEAR_MODERATE"]
+
+    def test_all_filters_pass_allows_transition(self):
+        """All filters passing should allow transition."""
+        router = EnhancedRegimeRouter(mtf_enabled=True)
+        router.set_mtf_regime("BULL_MODERATE")  # 4h is bullish
+
+        # Set initial regime
+        router._prev_regime = "SIDEWAYS_FLAT"
+
+        # Prime BBW with low values so current high BBW is high percentile
+        for _ in range(100):
+            router._bbw_filter.update_bbw(5.0)
+
+        result = router.get_regime(
+            mfi=60,
+            adx=28,  # BULL_STRONG
+            bb_upper=115,
+            bb_lower=85,
+            bb_middle=100,  # BBW = 30% (high)
+            volume_ratio=1.5,  # High volume
+        )
+        # All filters pass - should transition
+        assert result in ["BULL_STRONG", "BULL_MODERATE"]
+
+    def test_mtf_disabled_skips_check(self):
+        """MTF check should be skipped when disabled."""
+        router = EnhancedRegimeRouter(mtf_enabled=False)
+        router.set_mtf_regime("BEAR_STRONG")  # Would conflict
+
+        # Set initial regime
+        router._prev_regime = "SIDEWAYS_FLAT"
+
+        # Prime BBW with low values
+        for _ in range(100):
+            router._bbw_filter.update_bbw(5.0)
+
+        result = router.get_regime(
+            mfi=60,
+            adx=28,  # BULL
+            bb_upper=115,
+            bb_lower=85,
+            bb_middle=100,  # High BBW
+            volume_ratio=1.5,  # High volume
+        )
+        # MTF disabled, so BULL transition should be allowed
+        assert result in ["BULL_STRONG", "BULL_MODERATE"]
+
+    def test_high_volume_relaxes_bbw(self):
+        """High volume should relax BBW threshold (bypass BBW block)."""
+        router = EnhancedRegimeRouter(mtf_enabled=False)
+
+        # Prime BBW history with high values (so current low BBW would block)
+        for _ in range(100):
+            router._bbw_filter.update_bbw(15.0)
+
+        # Set initial regime
+        router._prev_regime = "SIDEWAYS_FLAT"
+
+        result = router.get_regime(
+            mfi=60,
+            adx=28,  # BULL
+            bb_upper=102,
+            bb_lower=98,
+            bb_middle=100,  # BBW = 4% (very low, would block)
+            volume_ratio=1.5,  # High volume (boosts, relaxes BBW)
+        )
+        # High volume should bypass BBW block
+        assert result in ["BULL_STRONG", "BULL_MODERATE"]

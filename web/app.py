@@ -2384,6 +2384,118 @@ def get_events_summary():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route("/api/ab-test/status")
+@requires_auth
+def get_ab_test_status():
+    """
+    Get A/B test status comparing v35_long (v1) vs v35_long_v2 (v2).
+
+    Returns metrics for both strategies including:
+    - Trade counts
+    - Win rates
+    - Total PnL
+    - Regime distribution
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        # Connect to Redis
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+
+        # Get allocation config for strategy details
+        config = load_allocation_config()
+        strategies_config = config.get('strategies', {}) if config else {}
+
+        # Define the A/B test strategies
+        ab_strategies = ['v35_long', 'v35_long_v2']
+        results = {}
+
+        for strategy_name in ab_strategies:
+            strat_config = strategies_config.get(strategy_name, {})
+            regime_version = strat_config.get('regime_version', 'v1')
+
+            # Get trades from jsonl log
+            log_path = Path(__file__).parent.parent / 'logs' / 'trades.jsonl'
+            trades = []
+            if log_path.exists():
+                with open(log_path, 'r') as f:
+                    for line in f:
+                        try:
+                            entry = json.loads(line.strip())
+                            if entry.get('strategy') == strategy_name:
+                                trades.append(entry)
+                        except json.JSONDecodeError:
+                            continue
+
+            # Calculate metrics
+            exit_trades = [t for t in trades if t.get('event') == 'EXIT']
+            entry_trades = [t for t in trades if t.get('event') == 'ENTRY']
+
+            total_pnl = sum(t.get('pnl', 0) for t in exit_trades)
+            wins = sum(1 for t in exit_trades if t.get('pnl', 0) > 0)
+            losses = sum(1 for t in exit_trades if t.get('pnl', 0) < 0)
+            win_rate = (wins / len(exit_trades) * 100) if exit_trades else 0
+
+            # Get active positions
+            active_positions = []
+            symbols = config.get('symbols', ['BTC', 'ETH', 'SOL']) if config else ['BTC', 'ETH', 'SOL']
+            for symbol in symbols:
+                pos_key = f"positions:{symbol}:futures"
+                pos_data = r.hgetall(pos_key)
+                if pos_data and pos_data.get('strategy') == strategy_name:
+                    active_positions.append({
+                        'symbol': symbol,
+                        'qty': float(pos_data.get('qty', 0)),
+                        'entry_price': float(pos_data.get('entry_price', 0)),
+                        'side': pos_data.get('side', 'long'),
+                    })
+
+            # Get recent regime distribution from decision events
+            regime_counts = {}
+            decision_trades = [t for t in trades if t.get('event') == 'DECISION']
+            for t in decision_trades[-100:]:  # Last 100 decisions
+                regime = t.get('regime', 'UNKNOWN')
+                regime_counts[regime] = regime_counts.get(regime, 0) + 1
+
+            results[strategy_name] = {
+                'regime_version': regime_version,
+                'config': {
+                    'position_pct': strat_config.get('position_pct', 0),
+                    'leverage': strat_config.get('leverage', 3),
+                    'bbw_block_threshold': strat_config.get('bbw_block_threshold'),
+                    'volume_block_ratio': strat_config.get('volume_block_ratio'),
+                },
+                'metrics': {
+                    'total_trades': len(exit_trades),
+                    'entry_count': len(entry_trades),
+                    'wins': wins,
+                    'losses': losses,
+                    'win_rate': round(win_rate, 1),
+                    'total_pnl': round(total_pnl, 2),
+                    'avg_pnl': round(total_pnl / len(exit_trades), 2) if exit_trades else 0,
+                },
+                'active_positions': active_positions,
+                'regime_distribution': regime_counts,
+            }
+
+        # Determine which is performing better
+        v1_pnl = results.get('v35_long', {}).get('metrics', {}).get('total_pnl', 0)
+        v2_pnl = results.get('v35_long_v2', {}).get('metrics', {}).get('total_pnl', 0)
+        leader = 'v35_long' if v1_pnl >= v2_pnl else 'v35_long_v2'
+
+        return jsonify({
+            'strategies': results,
+            'leader': leader,
+            'pnl_diff': round(abs(v1_pnl - v2_pnl), 2),
+            'timestamp': datetime.now().isoformat(),
+        })
+
+    except Exception as e:
+        print(f"Error in get_ab_test_status: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route("/api/analytics/trade-log")
 @requires_auth
 def get_trade_log():

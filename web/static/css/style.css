@@ -3438,3 +3438,231 @@ footer kbd {
         flex-wrap: wrap;
     }
 }
+
+/* =====================
+   A/B Test Tab Styles
+   ===================== */
+
+.ab-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.ab-summary {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
+}
+
+.ab-leader {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ab-leader .label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.ab-leader .value.leader {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.ab-leader .value.leader.v1 {
+    color: var(--accent-cyan);
+}
+
+.ab-leader .value.leader.v2 {
+    color: var(--accent-purple);
+}
+
+.ab-leader .pnl-diff {
+    color: var(--profit);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+}
+
+.ab-comparison {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.ab-card {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.ab-card.leader {
+    border-color: var(--profit);
+    box-shadow: 0 0 20px rgba(63, 185, 80, 0.2);
+}
+
+.ab-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ab-card-header h4 {
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.regime-badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.regime-badge.v1 {
+    background: var(--accent-cyan);
+    color: var(--bg-primary);
+}
+
+.regime-badge.v2 {
+    background: var(--accent-purple);
+    color: white;
+}
+
+.ab-status {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.ab-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.ab-metric {
+    display: flex;
+    flex-direction: column;
+}
+
+.ab-metric .label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ab-metric .value {
+    font-size: 1.1rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ab-metric .value.positive {
+    color: var(--profit);
+}
+
+.ab-metric .value.negative {
+    color: var(--loss);
+}
+
+.ab-positions {
+    margin-bottom: 0.75rem;
+}
+
+.ab-positions .label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.ab-positions .positions-list {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+}
+
+.position-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-right: 0.5rem;
+}
+
+.position-badge.long {
+    background: rgba(63, 185, 80, 0.2);
+    color: var(--profit);
+}
+
+.position-badge.short {
+    background: rgba(248, 81, 73, 0.2);
+    color: var(--loss);
+}
+
+.ab-config {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.ab-config .label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.ab-config .config-details {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.ab-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.ab-footer .refresh-btn {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.ab-footer .refresh-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-cyan);
+}
+
+@media (max-width: 768px) {
+    .ab-comparison {
+        grid-template-columns: 1fr;
+    }
+}

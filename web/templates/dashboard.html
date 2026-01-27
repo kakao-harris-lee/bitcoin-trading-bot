@@ -99,6 +99,7 @@
             <button class="tab-btn" data-tab="signals">Signals</button>
             <button class="tab-btn" data-tab="decisions">Decisions</button>
             <button class="tab-btn" data-tab="analytics">Analytics</button>
+            <button class="tab-btn" data-tab="abtest">A/B Test</button>
             <button class="tab-btn" data-tab="backtest">Backtest</button>
             <button class="tab-btn" data-tab="strategies">Strategies</button>
             <a href="/quant-lab" class="tab-btn tab-link">Quant Lab</a>
@@ -280,6 +281,96 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: A/B Test -->
+        <div id="abtest" class="tab-content">
+            <div class="tab-panel">
+                <h3>A/B Test: Regime v1 vs v2</h3>
+                <p class="ab-description">Comparing v35_long (v1: persistence smoothing) vs v35_long_v2 (v2: BBW + Volume filters)</p>
+
+                <!-- A/B Test Summary -->
+                <div id="ab-summary" class="ab-summary">
+                    <div class="ab-leader">
+                        <span class="label">Current Leader</span>
+                        <span id="ab-leader-name" class="value leader">-</span>
+                        <span id="ab-pnl-diff" class="pnl-diff">-</span>
+                    </div>
+                </div>
+
+                <!-- Strategy Comparison Cards -->
+                <div class="ab-comparison">
+                    <!-- v1 Card -->
+                    <div class="ab-card" id="ab-card-v1">
+                        <div class="ab-card-header">
+                            <h4>v35_long <span class="regime-badge v1">v1</span></h4>
+                            <span class="ab-status">Persistence Smoothing</span>
+                        </div>
+                        <div class="ab-metrics">
+                            <div class="ab-metric">
+                                <span class="label">Trades</span>
+                                <span id="ab-v1-trades" class="value">-</span>
+                            </div>
+                            <div class="ab-metric">
+                                <span class="label">Win Rate</span>
+                                <span id="ab-v1-winrate" class="value">-</span>
+                            </div>
+                            <div class="ab-metric">
+                                <span class="label">Total PnL</span>
+                                <span id="ab-v1-pnl" class="value">-</span>
+                            </div>
+                            <div class="ab-metric">
+                                <span class="label">Avg PnL</span>
+                                <span id="ab-v1-avgpnl" class="value">-</span>
+                            </div>
+                        </div>
+                        <div class="ab-positions">
+                            <span class="label">Active Positions</span>
+                            <div id="ab-v1-positions" class="positions-list">-</div>
+                        </div>
+                    </div>
+
+                    <!-- v2 Card -->
+                    <div class="ab-card" id="ab-card-v2">
+                        <div class="ab-card-header">
+                            <h4>v35_long_v2 <span class="regime-badge v2">v2</span></h4>
+                            <span class="ab-status">BBW + Volume Filters</span>
+                        </div>
+                        <div class="ab-metrics">
+                            <div class="ab-metric">
+                                <span class="label">Trades</span>
+                                <span id="ab-v2-trades" class="value">-</span>
+                            </div>
+                            <div class="ab-metric">
+                                <span class="label">Win Rate</span>
+                                <span id="ab-v2-winrate" class="value">-</span>
+                            </div>
+                            <div class="ab-metric">
+                                <span class="label">Total PnL</span>
+                                <span id="ab-v2-pnl" class="value">-</span>
+                            </div>
+                            <div class="ab-metric">
+                                <span class="label">Avg PnL</span>
+                                <span id="ab-v2-avgpnl" class="value">-</span>
+                            </div>
+                        </div>
+                        <div class="ab-positions">
+                            <span class="label">Active Positions</span>
+                            <div id="ab-v2-positions" class="positions-list">-</div>
+                        </div>
+                        <div class="ab-config">
+                            <span class="label">v2 Config</span>
+                            <div id="ab-v2-config" class="config-details">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Last Updated -->
+                <div class="ab-footer">
+                    <span>Last updated: <span id="ab-last-update">-</span></span>
+                    <button id="ab-refresh-btn" class="refresh-btn">Refresh</button>
                 </div>
             </div>
         </div>

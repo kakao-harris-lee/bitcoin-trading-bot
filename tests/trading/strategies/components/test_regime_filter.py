@@ -5,7 +5,12 @@ Tests BBW, MTF, and Volume filters for enhanced regime detection.
 
 import pytest
 
-from trading.strategies.components.regime_filter import BBWFilter, MTFFilter, MTFCandle
+from trading.strategies.components.regime_filter import (
+    BBWFilter,
+    MTFFilter,
+    MTFCandle,
+    VolumeFilter,
+)
 
 
 class TestBBWFilter:
@@ -132,3 +137,54 @@ class TestMTFFilter:
         assert f.get_direction("SIDEWAYS_DOWN") == "BEAR"
         assert f.get_direction("BEAR_MODERATE") == "BEAR"
         assert f.get_direction("BEAR_STRONG") == "BEAR"
+
+
+class TestVolumeFilter:
+    """Tests for Volume confirmation filter."""
+
+    def test_low_volume_blocks(self):
+        """Volume ratio < 0.8 should block."""
+        f = VolumeFilter(block_ratio=0.8)
+        assert f.should_block(volume_ratio=0.5) is True
+        assert f.should_block(volume_ratio=0.7) is True
+        assert f.should_block(volume_ratio=0.79) is True
+
+    def test_normal_volume_allows(self):
+        """Volume ratio >= 0.8 should allow."""
+        f = VolumeFilter(block_ratio=0.8)
+        assert f.should_block(volume_ratio=0.8) is False
+        assert f.should_block(volume_ratio=1.0) is False
+        assert f.should_block(volume_ratio=1.5) is False
+
+    def test_bear_regime_bypasses(self):
+        """BEAR regimes should bypass volume check."""
+        f = VolumeFilter(block_ratio=0.8)
+        assert f.should_block(volume_ratio=0.5, target_regime="BEAR_STRONG") is False
+        assert f.should_block(volume_ratio=0.5, target_regime="BEAR_MODERATE") is False
+
+    def test_sideways_regime_bypasses(self):
+        """SIDEWAYS regimes should bypass volume check."""
+        f = VolumeFilter(block_ratio=0.8)
+        assert f.should_block(volume_ratio=0.5, target_regime="SIDEWAYS_FLAT") is False
+        assert f.should_block(volume_ratio=0.5, target_regime="SIDEWAYS_UP") is False
+        assert f.should_block(volume_ratio=0.5, target_regime="SIDEWAYS_DOWN") is False
+
+    def test_bull_regime_not_bypassed(self):
+        """BULL regimes should NOT bypass volume check."""
+        f = VolumeFilter(block_ratio=0.8)
+        assert f.should_block(volume_ratio=0.5, target_regime="BULL_STRONG") is True
+        assert f.should_block(volume_ratio=0.5, target_regime="BULL_MODERATE") is True
+
+    def test_high_volume_boosts(self):
+        """High volume (>1.2) should signal boost."""
+        f = VolumeFilter(boost_ratio=1.2)
+        assert f.is_boosted(volume_ratio=1.5) is True
+        assert f.is_boosted(volume_ratio=1.3) is True
+        assert f.is_boosted(volume_ratio=1.21) is True
+
+    def test_normal_volume_not_boosted(self):
+        """Normal volume should not signal boost."""
+        f = VolumeFilter(boost_ratio=1.2)
+        assert f.is_boosted(volume_ratio=1.0) is False
+        assert f.is_boosted(volume_ratio=1.2) is False
+        assert f.is_boosted(volume_ratio=0.9) is False

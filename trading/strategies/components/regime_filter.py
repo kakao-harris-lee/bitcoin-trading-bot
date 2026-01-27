@@ -258,3 +258,73 @@ class MTFFilter:
 
         lower_dir = self.get_direction(lower_regime)
         return lower_dir == upper_dir
+
+
+class VolumeFilter:
+    """Volume confirmation filter.
+
+    Blocks transitions when volume is below average.
+    Price movement without volume is "unconvinced movement."
+
+    volume_ratio = current_volume / SMA(volume, 20)
+
+    Rules:
+    - volume_ratio < 0.8: Block transition
+    - volume_ratio 0.8-1.2: Normal, combine with BBW filter
+    - volume_ratio > 1.2: High volume boosts confidence
+
+    Exceptions (bypass volume check):
+    - BEAR transitions: Panic sells can have low volume
+    - SIDEWAYS transitions: Low volume is normal
+    """
+
+    def __init__(
+        self,
+        block_ratio: float = 0.8,
+        boost_ratio: float = 1.2,
+    ):
+        """Initialize Volume filter.
+
+        Args:
+            block_ratio: Volume ratio below which to block transitions
+            boost_ratio: Volume ratio above which to boost confidence
+        """
+        self.block_ratio = block_ratio
+        self.boost_ratio = boost_ratio
+
+    def should_block(
+        self,
+        volume_ratio: float,
+        target_regime: Regime | None = None,
+    ) -> bool:
+        """Check if transition should be blocked due to low volume.
+
+        Args:
+            volume_ratio: current_volume / avg_volume_20
+            target_regime: The regime we're transitioning TO (for exceptions)
+
+        Returns:
+            True if volume is too low (and no exception applies)
+        """
+        # BEAR transitions: panic sells can have low volume
+        if target_regime in BEAR_REGIMES:
+            return False
+
+        # SIDEWAYS transitions: low volume is normal
+        if target_regime in SIDEWAYS_REGIMES:
+            return False
+
+        return volume_ratio < self.block_ratio
+
+    def is_boosted(self, volume_ratio: float) -> bool:
+        """Check if volume is high enough to boost confidence.
+
+        High volume can relax BBW threshold.
+
+        Args:
+            volume_ratio: current_volume / avg_volume_20
+
+        Returns:
+            True if volume is above boost threshold
+        """
+        return volume_ratio > self.boost_ratio

@@ -303,6 +303,7 @@ class TradingEngine:
                     use_smart_exit=config.get("use_smart_exit", False),
                     indicator_service=indicator_service,
                     context_builder=context_builder,
+                    regime_version=config.get("regime_version", "v1"),
                 )
 
                 self.tasks.append(asyncio.create_task(task.run()))

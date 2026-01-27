@@ -35,6 +35,7 @@ from trading.indicators import add_all_indicators
 
 from .interfaces import IEntryStrategy, IExitStrategy
 from .models import build_market_context, MarketContext, MarketData, Position, Signal, TradingContext, RegimeSmoother
+from .regime_filter import EnhancedRegimeRouter
 from trading.observability.structured_logger import trade_logger
 
 if TYPE_CHECKING:
@@ -67,6 +68,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         emit_events: bool = False,
         indicator_service: IndicatorService | None = None,
         context_builder: TradingContextBuilder | None = None,
+        regime_version: str = "v1",
     ):
         """Initialize composite strategy task.
 
@@ -82,6 +84,8 @@ class CompositeStrategyTask(BaseStrategyTask):
             config: Additional configuration.
             emit_events: Whether to emit observability events to Redis streams.
             indicator_service: Shared indicator calculation service (reduces CPU).
+            context_builder: Shared context builder for TradingContext.
+            regime_version: Regime detection version ("v1" or "v2" enhanced).
         """
         super().__init__(
             name=name,
@@ -119,9 +123,31 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._market_data_cache: dict[str, MarketData] = {}
 
         # Regime smoothing to reduce noise (78% fewer transitions)
+        # v1: Original RegimeSmoother (EMA + persistence)
+        # v2: EnhancedRegimeRouter (BBW + MTF + Volume filters)
+        self.regime_version = regime_version
         self.use_regime_smoothing = self.config.get("use_regime_smoothing", True)
         self._regime_smoothers: dict[str, RegimeSmoother] = {}
-        if self.use_regime_smoothing:
+        self._enhanced_routers: dict[str, EnhancedRegimeRouter] = {}
+
+        if self.regime_version == "v2":
+            # Enhanced regime detection with BBW, MTF, and Volume filters
+            bbw_block = self.config.get("bbw_block_threshold", 25)
+            bbw_confirm = self.config.get("bbw_confirm_threshold", 50)
+            volume_block = self.config.get("volume_block_ratio", 0.8)
+            volume_boost = self.config.get("volume_boost_ratio", 1.2)
+            mtf_enabled = self.config.get("mtf_enabled", True)
+            for symbol in symbols:
+                self._enhanced_routers[symbol] = EnhancedRegimeRouter(
+                    bbw_block_threshold=bbw_block,
+                    bbw_confirm_threshold=bbw_confirm,
+                    volume_block_ratio=volume_block,
+                    volume_boost_ratio=volume_boost,
+                    mtf_enabled=mtf_enabled,
+                )
+            logger.info(f"{self.name} using enhanced regime detection v2")
+        elif self.use_regime_smoothing:
+            # Original v1 regime smoothing
             ema_alpha = self.config.get("regime_ema_alpha", 0.3)  # ~5-period EMA
             persistence = self.config.get("regime_persistence", 2)  # 2-tick confirmation
             for symbol in symbols:
@@ -563,8 +589,55 @@ class CompositeStrategyTask(BaseStrategyTask):
             recent_high=recent_high,  # Use 30-day high for drawdown BEAR detection
         )
 
-        # Apply regime smoothing if enabled
-        if self.use_regime_smoothing and market_data.symbol in self._regime_smoothers:
+        # Apply regime filtering/smoothing based on version
+        if self.regime_version == "v2" and market_data.symbol in self._enhanced_routers:
+            # Enhanced regime detection v2: BBW + MTF + Volume filters
+            router = self._enhanced_routers[market_data.symbol]
+            volume_ratio = (
+                market_data.volume / market_data.avg_volume_20
+                if market_data.avg_volume_20 > 0
+                else 1.0
+            )
+            filtered_regime = router.get_regime(
+                mfi=market_data.mfi,
+                adx=market_data.adx,
+                bb_upper=market_data.bb_upper,
+                bb_lower=market_data.bb_lower,
+                bb_middle=market_data.bb_middle,
+                volume_ratio=volume_ratio,
+            )
+
+            # Create new context with filtered regime
+            final_regime = filtered_regime
+            final_trend = context.trend
+
+            # Preserve drawdown-based BEAR override
+            if context.is_drawdown_bear and filtered_regime not in ("BEAR_STRONG", "BEAR_MODERATE"):
+                final_regime = "BEAR_STRONG" if context.adx >= 25 else "BEAR_MODERATE"
+                final_trend = "BEAR"
+
+            # Determine trend from regime
+            if final_regime in ("BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP"):
+                final_trend = "BULL"
+            elif final_regime in ("BEAR_STRONG", "BEAR_MODERATE", "SIDEWAYS_DOWN"):
+                final_trend = "BEAR"
+            else:
+                final_trend = "SIDEWAYS"
+
+            context = MarketContext(
+                trend=final_trend,
+                regime=final_regime,
+                volatility_score=context.volatility_score,
+                is_extreme_volatility=context.is_extreme_volatility,
+                adx=context.adx,
+                volume_ratio=context.volume_ratio,
+                is_high_volume=context.is_high_volume,
+                drawdown=context.drawdown,
+                is_drawdown_bear=context.is_drawdown_bear,
+            )
+
+        elif self.use_regime_smoothing and market_data.symbol in self._regime_smoothers:
+            # v1: Original regime smoothing (EMA + persistence)
             smoother = self._regime_smoothers[market_data.symbol]
             smoothed_regime = smoother.update(market_data.mfi, market_data.adx)
 
@@ -1014,6 +1087,7 @@ async def create_composite_task(
     use_smart_exit: bool = False,
     indicator_service: IndicatorService | None = None,
     context_builder: TradingContextBuilder | None = None,
+    regime_version: str = "v1",
 ) -> CompositeStrategyTask:
     """Create a CompositeStrategyTask.
 
@@ -1029,6 +1103,8 @@ async def create_composite_task(
         market: Market type.
         use_smart_exit: Use smart exit.
         indicator_service: Shared indicator service for CPU optimization.
+        context_builder: Shared context builder for TradingContext.
+        regime_version: Regime detection version ("v1" or "v2" enhanced).
 
     Returns:
         Initialized CompositeStrategyTask.
@@ -1044,6 +1120,7 @@ async def create_composite_task(
         use_smart_exit=use_smart_exit,
         indicator_service=indicator_service,
         context_builder=context_builder,
+        regime_version=regime_version,
     )
 
     # Initialize persistent exit strategy state

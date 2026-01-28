@@ -936,6 +936,11 @@ def _run_generic_backtest(
         # Pass relevant config params to adapter (regime filtering, etc.)
         config = {
             'regime_version': strategy_config.get('regime_version', 'v1'),
+            # Position sizing: fraction of capital to use per trade
+            'position_size': strategy_config.get('position_size', 0.5),
+            'position_pct': strategy_config.get('position_pct', 0.3),
+            # Entry filters
+            'use_breakout_filter': strategy_config.get('use_breakout_filter', True),
             'bbw_block_threshold': strategy_config.get('bbw_block_threshold', 25),
             'bbw_confirm_threshold': strategy_config.get('bbw_confirm_threshold', 50),
             'volume_block_ratio': strategy_config.get('volume_block_ratio', 0.8),

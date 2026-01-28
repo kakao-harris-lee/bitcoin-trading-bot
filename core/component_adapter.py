@@ -87,14 +87,17 @@ class ComponentStrategyAdapter:
         self._loss_pause_candles: int = config.get('loss_pause_candles', 48)  # 48h pause after 3 losses
         self._loss_pause_remaining: int = 0
 
-        # === NEW: Dynamic Drawdown Response ===
+        # === Dynamic Drawdown Response ===
         # Graduated response to portfolio drawdown (not just price drawdown)
         self._drawdown_warning_pct: float = config.get('drawdown_warning_pct', 8.0)  # 8%: reduce leverage
         self._drawdown_reduce_pct: float = config.get('drawdown_reduce_pct', 10.0)   # 10%: exit 50%
         self._drawdown_exit_pct: float = config.get('drawdown_exit_pct', 12.0)       # 12%: full exit
+        self._drawdown_enabled: bool = config.get('drawdown_enabled', True)  # Enable drawdown protection
         self._peak_equity: float = 0.0  # Track peak for drawdown calculation
         self._current_equity: float = 0.0
+        self._current_drawdown_pct: float = 0.0  # Current drawdown percentage
         self._partial_exit_done: bool = False  # Track if 50% exit was triggered
+        self._drawdown_leverage_reduction: float = 0.5  # Reduce leverage by 50% at warning
 
         # === NEW: V2 Filter Exit for Existing Positions ===
         self._v2_exit_on_filter: bool = config.get('v2_exit_on_filter', False)  # Exit when v2 blocks
@@ -138,6 +141,28 @@ class ComponentStrategyAdapter:
         # Force exit all positions when price drops below EMA120
         # More aggressive than EMA200 filter for MDD defense
         self._panic_sell_below_ma120: bool = config.get('panic_sell_below_ma120', False)
+
+    def update_equity(self, equity: float) -> None:
+        """Update portfolio equity tracking for drawdown protection.
+
+        Call this at the START of each candle BEFORE calling __call__().
+        Tracks peak equity and calculates current drawdown percentage.
+
+        Args:
+            equity: Current portfolio equity (capital + unrealized PnL)
+        """
+        self._current_equity = equity
+
+        # Update peak (only when equity increases)
+        if equity > self._peak_equity:
+            self._peak_equity = equity
+            self._partial_exit_done = False  # Reset partial exit flag on new peak
+
+        # Calculate current drawdown
+        if self._peak_equity > 0:
+            self._current_drawdown_pct = (self._peak_equity - equity) / self._peak_equity * 100
+        else:
+            self._current_drawdown_pct = 0.0
 
     def precompute_rf_predictions(self, df: pd.DataFrame) -> None:
         """Pre-compute RF predictions for entire DataFrame (backtest optimization).
@@ -353,7 +378,41 @@ class ComponentStrategyAdapter:
             # Create new MarketData with updated HWM (frozen dataclass)
             market_data = replace(market_data, high_water_mark=self.high_water_mark)
 
-            # === NEW: V2 Filter Exit for Existing Positions ===
+            # === PORTFOLIO DRAWDOWN PROTECTION ===
+            # Graduated response to portfolio-level drawdown (capital preservation)
+            # This is CRITICAL for MDD control - triggers BEFORE other exit logic
+            if self._drawdown_enabled and self._current_drawdown_pct > 0:
+                # Level 3: FULL EXIT at drawdown_exit_pct (default 12%)
+                if self._current_drawdown_pct >= self._drawdown_exit_pct:
+                    self.current_position = None
+                    self.high_water_mark = None
+                    try:
+                        self.exit_strategy.on_position_closed(self.symbol)
+                    except Exception:
+                        pass
+                    # Trigger extended pause after drawdown exit
+                    self._loss_pause_remaining = self._loss_pause_candles
+                    return {
+                        'action': 'sell' if is_long else 'close_short',
+                        'fraction': 1.0,
+                        'reason': f'DRAWDOWN_EXIT: {self._current_drawdown_pct:.1f}% >= {self._drawdown_exit_pct:.1f}%'
+                    }
+
+                # Level 2: PARTIAL EXIT (50%) at drawdown_reduce_pct (default 10%)
+                if self._current_drawdown_pct >= self._drawdown_reduce_pct and not self._partial_exit_done:
+                    self._partial_exit_done = True
+                    # Don't clear position - just reduce by 50%
+                    return {
+                        'action': 'sell' if is_long else 'close_short',
+                        'fraction': 0.5,  # Exit half the position
+                        'reason': f'DRAWDOWN_REDUCE: {self._current_drawdown_pct:.1f}% >= {self._drawdown_reduce_pct:.1f}%'
+                    }
+
+                # Level 1: WARNING at drawdown_warning_pct (default 8%)
+                # This reduces leverage for FUTURE entries (not immediate action)
+                # The leverage reduction is applied when checking entry below
+
+            # === V2 Filter Exit for Existing Positions ===
             # If v2 filter blocks AND we have a position, exit to protect capital
             if self._v2_exit_on_filter and self._regime_router is not None and not self._v2_entry_allowed:
                 self.current_position = None
@@ -497,6 +556,14 @@ class ComponentStrategyAdapter:
                         return {'action': 'hold', 'reason': 'dynamic_lev_zero'}
             else:
                 self._current_leverage = 3.0  # Default
+
+            # === DRAWDOWN WARNING: Reduce leverage when approaching drawdown limits ===
+            # Apply leverage reduction when in warning zone (8%+ drawdown)
+            if self._drawdown_enabled and self._current_drawdown_pct >= self._drawdown_warning_pct:
+                original_leverage = self._current_leverage
+                self._current_leverage *= self._drawdown_leverage_reduction
+                # Log reduction (reason will be visible in backtest)
+                # At 8%+ drawdown, reduce risk by cutting leverage in half
 
             # === NEW: Probability-based leverage adjustment ===
             # Override leverage based on MFI (bull probability proxy)

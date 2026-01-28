@@ -1013,15 +1013,11 @@ def _run_generic_backtest(
         if job._cancelled:
             return {}, df
 
-        # Execute Strategy Logic via Adapter
-        signal = adapter(df, i)
         row = df.iloc[i]
-
-        action = signal.get('action', 'hold')
-        reason = signal.get('reason', '')
         timestamp = str(row.get('timestamp', row.name))
 
-        # --- Current Value Calculation ---
+        # --- Calculate Current Equity BEFORE strategy call ---
+        # This enables portfolio-level drawdown protection in the adapter
         current_equity = capital
         if position_size > 0:
             current_price = row['close']
@@ -1035,6 +1031,15 @@ def _run_generic_backtest(
                 pnl_ratio = (current_price - entry_price) / entry_price
                 unrealized_pnl = position_size * pnl_ratio
                 current_equity += (position_size / position_leverage) + unrealized_pnl
+
+        # Update adapter with current equity for drawdown protection
+        adapter.update_equity(current_equity)
+
+        # Execute Strategy Logic via Adapter (now with drawdown awareness)
+        signal = adapter(df, i)
+
+        action = signal.get('action', 'hold')
+        reason = signal.get('reason', '')
 
         equity_curve.append({'date': timestamp[:10], 'equity': current_equity})
 
@@ -1092,13 +1097,16 @@ def _run_generic_backtest(
                     'leverage': effective_leverage,
                 })
 
-        # CLOSE LONG (SELL)
+        # CLOSE LONG (SELL) - supports partial exits via fraction
         elif action == 'sell' and position_size > 0:
+            exit_fraction = signal.get('fraction', 1.0)
+            exit_size = position_size * exit_fraction
+
             exit_price = row['close'] * (1 - slippage)
             pnl_ratio = (exit_price - entry_price) / entry_price
-            pnl = position_size * pnl_ratio
-            margin_return = position_size / position_leverage
-            fee = position_size * fee_rate
+            pnl = exit_size * pnl_ratio
+            margin_return = exit_size / position_leverage
+            fee = exit_size * fee_rate
 
             capital += margin_return + pnl - fee
 
@@ -1107,22 +1115,30 @@ def _run_generic_backtest(
                 'time': timestamp,
                 'entry_price': entry_price,
                 'exit_price': exit_price,
-                'size': position_size,
+                'size': exit_size,
                 'pnl': pnl,
                 'pnl_pct': pnl_ratio * 100 * position_leverage,
                 'reason': reason,
                 'leverage': position_leverage,
             })
-            position_size = 0.0
-            entry_price = 0.0
 
-        # CLOSE SHORT
+            # Update position for partial exit or clear for full exit
+            if exit_fraction >= 1.0:
+                position_size = 0.0
+                entry_price = 0.0
+            else:
+                position_size -= exit_size  # Keep remaining position
+
+        # CLOSE SHORT - supports partial exits via fraction
         elif action == 'close_short' and position_size > 0:
+             exit_fraction = signal.get('fraction', 1.0)
+             exit_size = position_size * exit_fraction
+
              exit_price = row['close'] * (1 + slippage)
              pnl_ratio = (entry_price - exit_price) / entry_price
-             pnl = position_size * pnl_ratio
-             margin_return = position_size / position_leverage
-             fee = position_size * fee_rate
+             pnl = exit_size * pnl_ratio
+             margin_return = exit_size / position_leverage
+             fee = exit_size * fee_rate
 
              capital += margin_return + pnl - fee
 
@@ -1131,12 +1147,19 @@ def _run_generic_backtest(
                 'time': timestamp,
                 'entry_price': entry_price,
                 'exit_price': exit_price,
-                'size': position_size,
+                'size': exit_size,
                 'pnl': pnl,
                 'pnl_pct': pnl_ratio * 100 * position_leverage,
                 'reason': reason,
                 'leverage': position_leverage,
              })
+
+             # Update position for partial exit or clear for full exit
+             if exit_fraction >= 1.0:
+                 position_size = 0.0
+                 entry_price = 0.0
+             else:
+                 position_size -= exit_size  # Keep remaining position
              position_size = 0.0
              entry_price = 0.0
 

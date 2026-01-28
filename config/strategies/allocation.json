@@ -43,18 +43,18 @@
       "market": "futures",
       "leverage": 3,
       "dynamic_sizing": true,
-      "position_pct": 0.2,
+      "position_pct": 0.3,
       "position_size": 0.01,
       "use_smart_exit": true,
       "use_breakout_filter": true,
       "regime_version": "v1"
     },
     "v35_long_v2": {
-      "_comment": "Optuna-optimized params (100 trials, full history 2022-2024, Solution 2: +156% return, 64% MDD)",
+      "_comment": "Optuna-optimized params (100 trials, 2020-2024, Solution 2: +1392% return, 65% MDD)",
       "market": "futures",
       "leverage": 3,
       "dynamic_sizing": true,
-      "position_pct": 0.15,
+      "position_pct": 0.3,
       "position_size": 0.01,
       "use_smart_exit": true,
       "use_breakout_filter": true,
@@ -66,151 +66,37 @@
       "mtf_enabled": true,
       "stop_loss_cooldown": 6,
       "trailing_enabled": true,
-      "trailing_activation": 3.0,
+      "trailing_activation": 2.5,
       "trailing_distance": 0.5,
       "atr_stop_enabled": true,
-      "atr_stop_multiplier": 4.0,
-      "atr_stop_min_pct": 3.0,
-      "atr_stop_max_pct": 9.0,
+      "atr_stop_multiplier": 3.0,
+      "atr_stop_min_pct": 2.0,
+      "atr_stop_max_pct": 5.0,
       "dynamic_leverage": true,
       "leverage_bull_strong": 3.0,
       "leverage_bull_moderate": 2.0,
-      "leverage_sideways": 0.75,
-      "leverage_bear": 0.0,
+      "leverage_sideways": 1.75,
+      "leverage_bear": 1.0,
       "cash_in_bear": true,
-      "cash_below_ema200": false,
-      "max_consecutive_losses": 4,
-      "loss_pause_candles": 24,
+      "cash_below_ema200": true,
+      "max_consecutive_losses": 2,
+      "loss_pause_candles": 72,
+      "drawdown_enabled": false,
       "drawdown_warning_pct": 8.0,
       "drawdown_reduce_pct": 10.0,
       "drawdown_exit_pct": 12.0,
       "v2_exit_on_filter": false,
-      "bull_prob_threshold": 0.5,
+      "bull_prob_threshold": 0.45,
       "panic_sell_below_ma120": false,
       "use_rf_probability": true,
       "lstm_model_path": "lstm_trainer/models/hybrid_lstm.pth",
       "rf_model_path": "lstm_trainer/models/noise_filter_rf.pkl"
     },
-    "sideways_v2": {
-      "market": "futures",
-      "leverage": 3,
-      "dynamic_sizing": true,
-      "position_pct": 0.2,
-      "position_size": 0.01,
-      "use_smart_exit": true
-    },
-    "short_v1": {
-      "market": "futures",
-      "leverage": 3,
-      "dynamic_sizing": true,
-      "position_pct": 0.2,
-      "position_size": 0.01,
-      "use_smart_exit": true
-    },
-    "tuned_v35_1._18": {
-      "market": "futures",
-      "leverage": 3,
-      "dynamic_sizing": true,
-      "position_pct": 0.2,
-      "position_size": 0.01,
-      "use_smart_exit": true,
-      "use_breakout_filter": true,
-      "entry": {
-        "class": "V35EntryStrategy"
-      },
-      "exit": {
-        "class": "V35TrailingExitStrategy",
-        "persistent_class": "V35PersistentExitStrategy"
-      },
-      "tuned_config": "config/tuned/tuned_v35_1._18.json",
-      "regime_routing": {
-        "BULL_STRONG": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 50.365957169208194,
-            "adx_threshold": 33.571392984889435
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.797895084924075,
-            "take_profit_pct": 1.56100325103067
-          }
-        },
-        "BULL_MODERATE": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 48.767573965468934,
-            "adx_threshold": 31.126817573980116
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.543563754693858,
-            "take_profit_pct": 7.177784304510937
-          }
-        },
-        "SIDEWAYS_UP": {
-          "entry": "SidewaysEntry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "range_threshold": 1.6031428264724927
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.0092168327361435,
-            "take_profit_pct": 7.150074810282249
-          }
-        },
-        "SIDEWAYS_FLAT": {
-          "entry": "ShortEntry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "rsi_overbought": 67.0520481571902
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.601556590005625,
-            "take_profit_pct": 2.9975922214272064
-          }
-        },
-        "SIDEWAYS_DOWN": {
-          "entry": "V35Entry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "mfi_threshold": 61.26261237421628,
-            "adx_threshold": 23.88208892640788
-          },
-          "exit_params": {
-            "trailing_stop_pct": 0.8908471770112838,
-            "take_profit_pct": 7.789843142803046
-          }
-        },
-        "BEAR_MODERATE": {
-          "entry": "SidewaysEntry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "range_threshold": 0.9919451476777642
-          },
-          "exit_params": {
-            "trailing_stop_pct": 2.59729063535747,
-            "take_profit_pct": 8.983155390999963
-          }
-        },
-        "BEAR_STRONG": {
-          "entry": "SidewaysEntry",
-          "exit": "V35TrailingExit",
-          "entry_params": {
-            "range_threshold": 2.5184392574365955
-          },
-          "exit_params": {
-            "trailing_stop_pct": 4.1689503457750465,
-            "take_profit_pct": 9.707253569837661
-          }
-        }
-      }
-    },
     "combo_ensemble": {
       "market": "futures",
       "leverage": 3,
       "dynamic_sizing": true,
-      "position_pct": 0.2,
+      "position_pct": 0.3,
       "position_size": 0.01,
       "use_smart_exit": true,
       "entry": {

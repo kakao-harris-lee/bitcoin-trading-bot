@@ -50,7 +50,7 @@
       "regime_version": "v1"
     },
     "v35_long_v2": {
-      "_comment": "Trial 207 exit params with conservative entry filters",
+      "_comment": "Dynamic position sizing based on RF confidence",
       "market": "futures",
       "leverage": 3,
       "dynamic_sizing": true,
@@ -88,9 +88,15 @@
       "v2_exit_on_filter": false,
       "bull_prob_threshold": 0.0,
       "panic_sell_below_ma120": false,
-      "use_rf_probability": false,
+      "use_rf_probability": true,
       "lstm_model_path": "lstm_trainer/models/hybrid_lstm.pth",
-      "rf_model_path": "lstm_trainer/models/noise_filter_rf.pkl"
+      "rf_model_path": "lstm_trainer/models/noise_filter_rf.pkl",
+      "dynamic_position_sizing": true,
+      "position_size_high": 0.30,
+      "position_size_mid": 0.15,
+      "position_size_low": 0.05,
+      "position_conf_low": 0.50,
+      "position_conf_high": 0.70
     },
     "combo_ensemble": {
       "market": "futures",

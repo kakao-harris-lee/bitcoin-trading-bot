@@ -126,6 +126,16 @@ class ComponentStrategyAdapter:
         # RF prediction cache for backtesting (populated by precompute_rf_predictions)
         self._rf_cache: dict[int, dict] | None = None
 
+        # === NEW: Dynamic Position Sizing based on RF Confidence ===
+        # Scale position size based on model confidence:
+        # High confidence (>70%) → large position, Low confidence (<50%) → small position
+        self._dynamic_position_sizing: bool = config.get('dynamic_position_sizing', False)
+        self._position_size_high: float = config.get('position_size_high', 0.30)   # 30% at high confidence
+        self._position_size_mid: float = config.get('position_size_mid', 0.15)     # 15% at medium confidence
+        self._position_size_low: float = config.get('position_size_low', 0.05)     # 5% at low confidence
+        self._position_conf_low: float = config.get('position_conf_low', 0.50)     # Below this = low
+        self._position_conf_high: float = config.get('position_conf_high', 0.70)   # Above this = high
+
         # === NEW: Probability-based Leverage ===
         # Adjust leverage based on MFI (bull probability proxy)
         # Higher MFI = higher confidence = higher leverage
@@ -624,13 +634,39 @@ class ComponentStrategyAdapter:
                 # 'buy' for opening long, 'open_short' for opening short
                 action = "open_short" if is_short else "buy"
                 fraction = getattr(signal, "quantity", 1.0) or 1.0
+
+                # === Dynamic Position Sizing based on RF Confidence ===
+                # Scale position based on model confidence level
+                position_reason = ""
+                if self._dynamic_position_sizing:
+                    # Get RF confidence from context (already calculated above)
+                    rf_conf = context.rf_confidence if context.rf_confidence > 0 else 0.0
+
+                    if rf_conf >= self._position_conf_high:
+                        # High confidence: use large position
+                        fraction = self._position_size_high
+                        position_reason = f"pos_high:{rf_conf:.2f}>={self._position_conf_high:.2f}"
+                    elif rf_conf >= self._position_conf_low:
+                        # Medium confidence: use medium position
+                        fraction = self._position_size_mid
+                        position_reason = f"pos_mid:{rf_conf:.2f}>={self._position_conf_low:.2f}"
+                    else:
+                        # Low/no confidence: use small position
+                        fraction = self._position_size_low
+                        position_reason = f"pos_low:{rf_conf:.2f}<{self._position_conf_low:.2f}"
+
+                reason = signal.reason or ""
+                if position_reason:
+                    reason = f"{reason} | {position_reason}" if reason else position_reason
+
                 return {
                     "action": action,
                     "fraction": fraction,
                     "price": close,
-                    "reason": signal.reason,
+                    "reason": reason,
                     "leverage": self._current_leverage,  # Dynamic leverage
                     "regime": current_regime,  # For debugging
+                    "rf_confidence": context.rf_confidence,  # For tracking
                 }
 
         return {"action": "hold"}

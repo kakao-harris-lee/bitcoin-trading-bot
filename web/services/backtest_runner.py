@@ -431,7 +431,7 @@ def run_backtest(job: BacktestJob) -> None:
             job.progress = 0
 
             config = job.config
-            strategy_id = config.get('strategy', 'v35_long')
+            strategy_id = config.get('strategy_id') or config.get('strategy', 'v35_long')
             start_date = config.get('start_date', '2024-01-01')
             end_date = config.get('end_date', '2024-12-31')
             initial_capital = config.get('initial_capital', 10000)
@@ -990,6 +990,13 @@ def _run_generic_backtest(
             'use_rf_probability': strategy_config.get('use_rf_probability', False),
             'lstm_model_path': strategy_config.get('lstm_model_path', 'lstm_trainer/models/hybrid_lstm.pth'),
             'rf_model_path': strategy_config.get('rf_model_path', 'lstm_trainer/models/noise_filter_rf.pkl'),
+            # Dynamic position sizing based on RF confidence
+            'dynamic_position_sizing': strategy_config.get('dynamic_position_sizing', False),
+            'position_size_high': strategy_config.get('position_size_high', 0.30),
+            'position_size_mid': strategy_config.get('position_size_mid', 0.15),
+            'position_size_low': strategy_config.get('position_size_low', 0.05),
+            'position_conf_low': strategy_config.get('position_conf_low', 0.50),
+            'position_conf_high': strategy_config.get('position_conf_high', 0.70),
         }
         # Also merge defaults from allocation if present
         defaults = allocation.get('defaults', {}).get('regime_v2', {})

@@ -91,7 +91,7 @@
       "use_rf_probability": true,
       "lstm_model_path": "lstm_trainer/models/hybrid_lstm.pth",
       "rf_model_path": "lstm_trainer/models/noise_filter_rf.pkl",
-      "dynamic_position_sizing": true,
+      "dynamic_position_sizing": false,
       "position_size_high": 0.30,
       "position_size_mid": 0.15,
       "position_size_low": 0.05,

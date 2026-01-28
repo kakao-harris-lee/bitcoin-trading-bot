@@ -248,8 +248,13 @@ class BacktestAdapter:
         if pd.isna(row.get('mfi')) or pd.isna(row.get('adx')):
             return None
 
+        open_val = row.get('open', row['close'])
+        if pd.isna(open_val):
+            open_val = row['close']
+
         return MarketData(
             symbol=self.symbol,
+            open=float(open_val),
             close=float(row['close']),
             mfi=float(row.get('mfi', 50)),
             adx=float(row.get('adx', 20)),
@@ -268,6 +273,8 @@ class BacktestAdapter:
             ema_200=float(row.get('ema_200', 0)),
             market_stress=float(row.get('market_stress', 0)),
             high_30d=float(row.get('high_30d', 0)),
+            breakout_signal=int(row.get('breakout_signal', 0)) if pd.notna(row.get('breakout_signal')) else 0,
+            target_price=float(row.get('target_price', 0.0)) if pd.notna(row.get('target_price')) else 0.0,
         )
 
     def _build_market_context(self, i: int) -> Any:

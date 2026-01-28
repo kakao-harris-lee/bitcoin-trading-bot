@@ -109,3 +109,17 @@ class TestDataLoaderParameterizedQueries:
         """Verify invalid timeframe raises ValueError."""
         with pytest.raises(ValueError, match="지원하지 않는 타임프레임"):
             mock_loader._load_binance_timeframe('invalid_timeframe')
+
+    def test_selects_requested_columns(self, mock_loader, mock_df):
+        """Verify columns parameter selects requested fields."""
+        df = mock_df.copy()
+        df["target_price"] = [110.0]
+        df["breakout_signal"] = [1]
+
+        with patch('pandas.read_sql_query', return_value=df):
+            result = mock_loader._load_binance_timeframe(
+                'minute60',
+                columns=["timestamp", "open", "target_price", "breakout_signal"],
+            )
+
+        assert list(result.columns) == ["timestamp", "open", "target_price", "breakout_signal"]

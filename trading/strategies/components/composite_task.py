@@ -518,6 +518,7 @@ class CompositeStrategyTask(BaseStrategyTask):
 
             market_data = MarketData(
                 symbol=symbol,
+                open=float(last_row.get("open", current_price)),
                 close=float(current_price),
                 mfi=float(last_row.get("mfi", 50)),
                 adx=float(last_row.get("adx", 20)),

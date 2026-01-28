@@ -138,6 +138,10 @@ class MarketContext:
     # Drawdown analysis for BEAR detection
     drawdown: float = 0.0  # Current drawdown from recent high (0.0 to 1.0)
     is_drawdown_bear: bool = False  # True if regime was overridden to BEAR due to drawdown
+    # RF probability from HybridPredictor (LSTM + RandomForest)
+    rf_confidence: float = 0.0  # RF confidence score (0-1), 0 = not available
+    rf_direction: str = "SIDEWAYS"  # RF predicted direction (UP/DOWN/SIDEWAYS)
+    rf_signal: str = "HOLD"  # RF trading signal (BUY/SELL/HOLD)
 
 
 def build_market_context(
@@ -151,6 +155,10 @@ def build_market_context(
     high_volume_threshold: float = 1.5,  # 1.5x average = high volume
     recent_high: float = 0.0,  # Recent high for drawdown calculation
     drawdown_bear_threshold: float = 0.15,  # 15% drawdown = BEAR override
+    # RF probability from HybridPredictor (optional)
+    rf_confidence: float = 0.0,  # RF confidence score (0-1)
+    rf_direction: str = "SIDEWAYS",  # RF predicted direction
+    rf_signal: str = "HOLD",  # RF trading signal
 ) -> MarketContext:
     """Build MarketContext from indicators.
 
@@ -239,6 +247,9 @@ def build_market_context(
         is_high_volume=is_high_volume,
         drawdown=drawdown,
         is_drawdown_bear=is_drawdown_bear,
+        rf_confidence=rf_confidence,
+        rf_direction=rf_direction,
+        rf_signal=rf_signal,
     )
 
 

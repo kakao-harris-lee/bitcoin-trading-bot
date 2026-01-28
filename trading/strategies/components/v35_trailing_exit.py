@@ -33,6 +33,13 @@ class V35ExitParams:
     # Optuna found wider stop loss works better (~2-5%)
     stop_loss_pct: float = 2.1  # -2.1% from v35_long.json
 
+    # ATR-based dynamic stop loss (adapts to volatility)
+    # High volatility = wider stop (avoid noise), Low volatility = tighter stop
+    atr_stop_enabled: bool = False  # Enable ATR-based stop loss
+    atr_stop_multiplier: float = 2.0  # Stop at entry - (ATR * multiplier)
+    atr_stop_min_pct: float = 1.5  # Minimum stop loss % (floor)
+    atr_stop_max_pct: float = 4.0  # Maximum stop loss % (ceiling)
+
     # Take profit levels for BULL_STRONG (aggressive targets)
     tp_bull_strong_1: float = 5.3   # First TP at +5.3%
     tp_bull_strong_2: float = 10.7  # Second TP at +10.7%
@@ -144,9 +151,19 @@ class V35TrailingExitStrategy:
         hwm = self._high_water_mark.get(symbol, entry_price)
         hwm_pnl = ((hwm - entry_price) / entry_price) * 100
 
-        # Exit condition 1: Stop loss
-        if pnl_pct <= -p.stop_loss_pct:
-            reason = f"V35 exit: Stop loss {pnl_pct:.2f}%"
+        # Exit condition 1: Stop loss (fixed or ATR-based)
+        if p.atr_stop_enabled and market_data.atr > 0 and entry_price > 0:
+            # ATR-based dynamic stop loss
+            # High volatility = wider stop, Low volatility = tighter stop
+            atr_pct = (market_data.atr / entry_price) * 100
+            dynamic_stop_pct = p.atr_stop_multiplier * atr_pct
+            # Clamp to min/max bounds
+            effective_stop_pct = max(p.atr_stop_min_pct, min(p.atr_stop_max_pct, dynamic_stop_pct))
+        else:
+            effective_stop_pct = p.stop_loss_pct
+
+        if pnl_pct <= -effective_stop_pct:
+            reason = f"V35 exit: Stop loss {pnl_pct:.2f}% (limit: -{effective_stop_pct:.1f}%)"
             logger.info(f"{symbol}: {reason}")
             self._clear_state(symbol)
             return self._create_exit_signal(position, reason, quantity)

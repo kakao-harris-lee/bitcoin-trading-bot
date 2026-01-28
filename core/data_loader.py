@@ -65,7 +65,8 @@ class DataLoader:
         timeframe: str,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        exchange: Optional[str] = None
+        exchange: Optional[str] = None,
+        columns: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """
         특정 타임프레임 데이터 로드
@@ -75,17 +76,19 @@ class DataLoader:
             start_date: 시작일 (YYYY-MM-DD 또는 YYYY-MM-DD HH:MM:SS)
             end_date: 종료일 (YYYY-MM-DD 또는 YYYY-MM-DD HH:MM:SS)
             exchange: 거래소 지정 (None이면 인스턴스 설정 사용)
+            columns: 반환할 컬럼 목록 (None이면 기본 OHLCV만 반환)
 
         Returns:
             DataFrame with columns: timestamp, open, high, low, close, volume
         """
-        return self._load_binance_timeframe(timeframe, start_date, end_date)
+        return self._load_binance_timeframe(timeframe, start_date, end_date, columns=columns)
 
     def _load_binance_timeframe(
         self,
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
+        columns: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """Binance 데이터 로드 with parameterized queries."""
         if timeframe not in self.BINANCE_TABLE_MAP:
@@ -115,9 +118,15 @@ class DataLoader:
         # Binance 컬럼명은 이미 표준 형식
         df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-        # 필요한 컬럼만 선택 (funding_rate 등 추가 컬럼 제외)
-        cols = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
-        df = df[[c for c in cols if c in df.columns]]
+        if columns is None:
+            # 필요한 컬럼만 선택 (funding_rate 등 추가 컬럼 제외)
+            cols = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            df = df[[c for c in cols if c in df.columns]]
+        else:
+            cols = [c for c in columns if c in df.columns]
+            if 'timestamp' in df.columns and 'timestamp' not in cols:
+                cols = ['timestamp'] + cols
+            df = df[cols]
 
         return df
 
@@ -125,10 +134,11 @@ class DataLoader:
         self,
         timeframe: str,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
+        columns: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """Binance 데이터 로드 (편의 메서드)"""
-        return self._load_binance_timeframe(timeframe, start_date, end_date)
+        return self._load_binance_timeframe(timeframe, start_date, end_date, columns=columns)
 
     def get_date_range(self, timeframe: str) -> Tuple[str, str]:
         """

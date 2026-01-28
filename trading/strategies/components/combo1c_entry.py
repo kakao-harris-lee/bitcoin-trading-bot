@@ -41,6 +41,7 @@ class Combo1CEntryParams:
     lstm_input_size: int = 22  # Number of scaled features (must match model)
     lstm_hidden_size: int = 64  # LSTM hidden state dimension (must match model)
     rf_confidence_threshold: float = 0.6  # Minimum RF confidence (60% as per paper)
+    scaler_rolling_window: int = 720  # Rolling window for LiveScaler (match training)
 
     # Position sizing
     position_size: float = 0.01
@@ -69,6 +70,7 @@ class Combo1CEntryStrategy:
 
         # History buffer for LSTM input (raw OHLC)
         self._seq_history: dict[str, deque] = {}
+        self._history_window = max(self.params.lstm_seq_len, self.params.scaler_rolling_window)
 
         # Day state for VBS (fallback if MarketData.target_price is not set)
         self._day_state: dict[str, dict[str, float]] = {}
@@ -290,7 +292,7 @@ class Combo1CEntryStrategy:
 
             self._scaler = LiveScaler(
                 db_path=self.params.db_path,
-                rolling_window=720,
+                rolling_window=self.params.scaler_rolling_window,
                 feature_columns=feature_columns or [],
             )
             logger.info("[Combo1C] LiveScaler initialized")
@@ -361,7 +363,7 @@ class Combo1CEntryStrategy:
         if state is None:
             self._day_state[symbol] = {
                 "day": day,
-                "day_open": m.close,
+                "day_open": m.open or m.close,
                 "day_high": m.high or m.close,
                 "day_low": m.low or m.close,
                 "prev_range": None,
@@ -373,7 +375,7 @@ class Combo1CEntryStrategy:
             prev_range = float(state["day_high"]) - float(state["day_low"])
             state["prev_range"] = max(prev_range, 0.0)
             state["day"] = day
-            state["day_open"] = m.close
+            state["day_open"] = m.open or m.close
             state["day_high"] = m.high or m.close
             state["day_low"] = m.low or m.close
             return
@@ -392,12 +394,12 @@ class Combo1CEntryStrategy:
             m: Current market data.
         """
         history = self._seq_history.setdefault(
-            symbol, deque(maxlen=self.params.lstm_seq_len)
+            symbol, deque(maxlen=self._history_window)
         )
 
         # Store raw OHLC data - LiveScaler will handle scaling
         row = {
-            "open": m.close,  # Approximate open with close (not available in MarketData)
+            "open": m.open or m.close,
             "high": m.high or m.close,
             "low": m.low or m.close,
             "close": m.close,

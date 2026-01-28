@@ -300,8 +300,9 @@ class HybridPredictor:
         input_size = checkpoint.get("input_size", 22)
         hidden_size = checkpoint.get("hidden_size", 64)
         seq_len = checkpoint.get("seq_len", 60)
+        feature_columns = checkpoint.get("feature_columns", None)
 
-        return cls(
+        instance = cls(
             model_path=model_path,
             rf_path=rf_path,
             input_size=input_size,
@@ -309,3 +310,10 @@ class HybridPredictor:
             seq_len=seq_len,
             device=device,
         )
+
+        # Use saved feature columns if available
+        if feature_columns:
+            instance.scaled_columns = feature_columns
+            logger.info(f"Loaded {len(feature_columns)} feature columns from checkpoint")
+
+        return instance

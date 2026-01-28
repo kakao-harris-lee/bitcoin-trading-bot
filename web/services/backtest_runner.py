@@ -34,6 +34,113 @@ from trading.indicators import add_all_indicators
 
 logger = logging.getLogger(__name__)
 
+
+def add_rf_predictions(df: pd.DataFrame, config: dict) -> None:
+    """Pre-compute RF predictions for entire DataFrame (adds columns in-place).
+
+    Scales the ENTIRE DataFrame once, then runs LSTM+RF predictions using slices.
+    This avoids the O(n*window) scaling overhead of per-prediction scaling.
+
+    Args:
+        df: DataFrame with OHLCV and indicators.
+        config: Strategy config with lstm_model_path, rf_model_path.
+    """
+    # Initialize columns with defaults
+    df['rf_confidence'] = 0.0
+    df['rf_direction'] = 'SIDEWAYS'
+    df['rf_signal'] = 'HOLD'
+
+    try:
+        from trading.strategies.components.rf_probability_service import RFProbabilityService
+
+        service = RFProbabilityService.get_instance(
+            lstm_path=config.get('lstm_model_path', 'lstm_trainer/models/hybrid_lstm.pth'),
+            rf_path=config.get('rf_model_path', 'lstm_trainer/models/noise_filter_rf.pkl'),
+        )
+
+        if not service.is_available():
+            logger.warning("RF model not available, skipping predictions")
+            return
+
+        logger.info(f"Pre-computing RF predictions for {len(df):,} rows...")
+
+        # === STEP 1: Scale entire DataFrame ONCE ===
+        from lstm_trainer.src.live_scaler import LiveScaler
+
+        feature_cols = getattr(service._predictor, "scaled_columns", None)
+        scaler = LiveScaler(rolling_window=720, feature_columns=feature_cols) if feature_cols else LiveScaler(rolling_window=720)
+
+        # Convert to history format
+        col_map = {c: c.lower() for c in df.columns}
+        df_norm = df.rename(columns=col_map)
+        cols = ['open', 'high', 'low', 'close']
+        available_cols = [c for c in cols if c in df_norm.columns]
+        full_history = df_norm[available_cols].to_dict('records')
+        if 'volume' in df_norm.columns:
+            vol_values = df_norm['volume'].tolist()
+            for idx, h in enumerate(full_history):
+                h['volume'] = float(vol_values[idx])
+
+        # Scale entire history once (this is the key optimization)
+        logger.info("Scaling entire dataset...")
+        full_scaled_df = scaler.prepare_sequence(full_history)
+        if full_scaled_df is None:
+            logger.warning("Failed to scale data")
+            return
+        logger.info(f"Scaled data shape: {full_scaled_df.shape}")
+
+        # === STEP 2: Run predictions using slices of pre-scaled data ===
+        min_history = 60
+        sample_interval = 6  # Predict every 6 candles
+
+        last_result = {'confidence': 0.0, 'direction': 'SIDEWAYS', 'signal': 'HOLD'}
+        processed = 0
+
+        for i in range(min_history, len(df), sample_interval):
+            try:
+                # Slice from pre-scaled data (no re-scaling!)
+                scaled_slice = full_scaled_df.iloc[max(0, i-60):i+1]
+
+                if len(scaled_slice) < min_history:
+                    continue
+
+                row = df.iloc[i]
+                close = float(row.get('close', 0))
+                atr = float(row.get('atr', 0))
+                volatility = atr / close if close > 0 else 0.0
+
+                market_context = {
+                    "mfi": float(row.get('mfi', 50.0)),
+                    "adx": float(row.get('adx', 20.0)),
+                    "volatility": volatility,
+                    "regime": str(row.get('regime', 'SIDEWAYS_FLAT')),
+                    "breakout_signal": int(row.get('breakout_signal', 0)),
+                }
+
+                result = service._predictor.predict(scaled_slice, market_context)
+                last_result = {
+                    'confidence': result.get('confidence', 0.0),
+                    'direction': result.get('direction', 'SIDEWAYS'),
+                    'signal': result.get('signal', 'HOLD'),
+                }
+                processed += 1
+
+            except Exception as e:
+                logger.debug(f"RF prediction failed at {i}: {e}")
+
+            # Fill this sample and gap with result
+            end_idx = min(i + sample_interval, len(df))
+            df.loc[df.index[i:end_idx], 'rf_confidence'] = last_result['confidence']
+            df.loc[df.index[i:end_idx], 'rf_direction'] = last_result['direction']
+            df.loc[df.index[i:end_idx], 'rf_signal'] = last_result['signal']
+
+        logger.info(f"RF predictions complete: {processed} inferences for {len(df):,} rows")
+
+    except ImportError as e:
+        logger.warning(f"RF dependencies not available: {e}")
+    except Exception as e:
+        logger.error(f"RF prediction failed: {e}")
+
 # Job storage (in-memory for now)
 _backtest_jobs: dict = {}
 _jobs_lock = threading.Lock()
@@ -874,12 +981,21 @@ def _run_generic_backtest(
             'prob_leverage_mid': strategy_config.get('prob_leverage_mid', 2.0),
             'prob_leverage_low': strategy_config.get('prob_leverage_low', 1.0),
             'prob_leverage_min': strategy_config.get('prob_leverage_min', 0.5),
+            # RF probability: use actual RF confidence instead of MFI proxy
+            'use_rf_probability': strategy_config.get('use_rf_probability', False),
+            'lstm_model_path': strategy_config.get('lstm_model_path', 'lstm_trainer/models/hybrid_lstm.pth'),
+            'rf_model_path': strategy_config.get('rf_model_path', 'lstm_trainer/models/noise_filter_rf.pkl'),
         }
         # Also merge defaults from allocation if present
         defaults = allocation.get('defaults', {}).get('regime_v2', {})
         for key in ['bbw_block_threshold', 'bbw_confirm_threshold', 'volume_block_ratio', 'volume_boost_ratio', 'mtf_enabled']:
             if key not in strategy_config and key in defaults:
                 config[key] = defaults[key]
+
+    # Pre-compute RF predictions as DataFrame columns (if RF is enabled)
+    if config.get('use_rf_probability', False):
+        add_rf_predictions(df, config)
+        job.progress = 40
 
     adapter = ComponentStrategyAdapter(factory, strategy_id, config)
 
@@ -895,7 +1011,7 @@ def _run_generic_backtest(
 
     for i in range(len(df)):
         if job._cancelled:
-            return {}
+            return {}, df
 
         # Execute Strategy Logic via Adapter
         signal = adapter(df, i)
@@ -1252,7 +1368,7 @@ def _run_short_backtest(
 
     for i in range(len(df)):
         if job._cancelled:
-            return {}
+            return {}, df
 
         signal = strategy.execute(df, i)
         row = df.iloc[i]

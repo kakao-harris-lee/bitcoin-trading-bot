@@ -14,6 +14,7 @@ from trading.strategies.components.models import MarketData, Position, Signal, M
 from trading.strategies.components.strategy_factory import StrategyFactory
 from trading.strategies.volatility_tracker import VolatilityTracker
 from trading.strategies.components.regime_filter import EnhancedRegimeRouter
+from trading.strategies.components.rf_probability_service import RFProbabilityService
 
 class ComponentStrategyAdapter:
     """Adapts a StrategyFactory strategy into a Backtester-compatible function.
@@ -99,10 +100,28 @@ class ComponentStrategyAdapter:
         self._v2_exit_on_filter: bool = config.get('v2_exit_on_filter', False)  # Exit when v2 blocks
 
         # === NEW: Regime Probability Filter ===
-        # Use MFI (0-100) as proxy for bullish probability (MFI/100)
+        # Use RF confidence (if available) or MFI proxy for bullish probability
         # Block entry if bull probability < threshold
         self._bull_prob_threshold: float = config.get('bull_prob_threshold', 0.0)  # 0 = disabled
         self._bull_prob_enabled: bool = self._bull_prob_threshold > 0
+
+        # === NEW: RF Probability Integration ===
+        # Use actual RF (RandomForest) confidence from HybridPredictor instead of MFI proxy
+        self._use_rf_probability: bool = config.get('use_rf_probability', False)
+        self._rf_service: RFProbabilityService | None = None
+        self._rf_available: bool = False
+        self._df_history: list = []  # Store recent candles for RF input
+        self._rf_history_size: int = 720  # Rolling window for RF (matches LiveScaler)
+
+        if self._use_rf_probability:
+            self._rf_service = RFProbabilityService.get_instance(
+                lstm_path=config.get('lstm_model_path', 'lstm_trainer/models/hybrid_lstm.pth'),
+                rf_path=config.get('rf_model_path', 'lstm_trainer/models/noise_filter_rf.pkl'),
+            )
+            self._rf_available = self._rf_service.is_available()
+
+        # RF prediction cache for backtesting (populated by precompute_rf_predictions)
+        self._rf_cache: dict[int, dict] | None = None
 
         # === NEW: Probability-based Leverage ===
         # Adjust leverage based on MFI (bull probability proxy)
@@ -119,6 +138,25 @@ class ComponentStrategyAdapter:
         # Force exit all positions when price drops below EMA120
         # More aggressive than EMA200 filter for MDD defense
         self._panic_sell_below_ma120: bool = config.get('panic_sell_below_ma120', False)
+
+    def precompute_rf_predictions(self, df: pd.DataFrame) -> None:
+        """Pre-compute RF predictions for entire DataFrame (backtest optimization).
+
+        Call this BEFORE running backtest loop to cache all RF predictions.
+        Reduces backtest time from O(n*inference_time) to O(n) + O(batch_time).
+
+        Args:
+            df: Full DataFrame with OHLCV and indicators for backtest.
+        """
+        if not self._use_rf_probability or not self._rf_available or self._rf_service is None:
+            return
+
+        self._rf_cache = self._rf_service.precompute_batch(
+            df=df,
+            indicators_df=df,  # Same df has indicators
+            window_size=self._rf_history_size,
+            min_history=60,
+        )
 
     def _determine_regime(self, mfi: float, adx: float) -> str:
         """Determine market regime using strategy-specific logic if available."""
@@ -150,6 +188,38 @@ class ComponentStrategyAdapter:
         volume = row.get('volume', 0.0)
         avg_volume = row.get('avg_volume_20', 0.0)
 
+        # === RF Probability Calculation ===
+        # Get RF confidence from pre-computed columns (backtest) or live computation
+        rf_confidence = 0.0
+        rf_direction = "SIDEWAYS"
+        rf_signal = "HOLD"
+
+        if self._use_rf_probability:
+            # Option 1: Read from pre-computed DataFrame columns (backtest mode)
+            if 'rf_confidence' in df.columns:
+                rf_confidence = float(row.get('rf_confidence', 0.0))
+                rf_direction = str(row.get('rf_direction', 'SIDEWAYS'))
+                rf_signal = str(row.get('rf_signal', 'HOLD'))
+            # Option 2: Live mode - compute on-the-fly
+            elif self._rf_available and self._rf_service is not None:
+                start_idx = max(0, i - self._rf_history_size)
+                df_slice = df.iloc[start_idx:i+1]
+
+                if len(df_slice) >= 60:
+                    volatility = atr / close if close > 0 else 0.0
+                    rf_result = self._rf_service.get_probability(
+                        df=df_slice,
+                        mfi=mfi,
+                        adx=adx,
+                        volatility=volatility,
+                        regime=str(row.get('regime', 'SIDEWAYS_FLAT')),
+                        breakout_signal=int(row.get('breakout_signal', 0)),
+                    )
+                    if rf_result.get('available', False):
+                        rf_confidence = rf_result.get('confidence', 0.0)
+                        rf_direction = rf_result.get('direction', 'SIDEWAYS')
+                        rf_signal = rf_result.get('signal', 'HOLD')
+
         # Build Context using the standard function (ensures consistent regime/trend classification)
         # Includes drawdown-based BEAR detection (15% from recent high = BEAR override)
         context = build_market_context(
@@ -161,6 +231,10 @@ class ComponentStrategyAdapter:
             avg_volume=avg_volume,
             # Use 30-day high for drawdown detection (fall back to 20-period if not available)
             recent_high=row.get('high_30d', 0.0) or row.get('prev_high_20', 0.0),
+            # RF probability from HybridPredictor
+            rf_confidence=rf_confidence,
+            rf_direction=rf_direction,
+            rf_signal=rf_signal,
         )
 
         # Regime v2 filtering: Use as entry gate, NOT regime replacement
@@ -391,13 +465,20 @@ class ComponentStrategyAdapter:
             if self._cash_below_ema200 and ema_200 > 0 and close < ema_200:
                 return {'action': 'hold', 'reason': 'cash_below_ema200'}
 
-            # === NEW: Bull Probability Filter ===
-            # Use MFI (0-100) as proxy for bullish probability
+            # === Bull Probability Filter ===
+            # Use RF confidence (if available) or MFI proxy for bullish probability
             # Block entry if bull_prob < threshold (e.g., 0.6 = 60%)
             if self._bull_prob_enabled:
-                bull_prob = mfi / 100.0  # MFI 0-100 -> 0.0-1.0
+                # Use RF confidence if available, otherwise fall back to MFI proxy
+                if self._use_rf_probability and context.rf_confidence > 0:
+                    bull_prob = context.rf_confidence
+                    prob_source = "rf"
+                else:
+                    bull_prob = mfi / 100.0  # MFI 0-100 -> 0.0-1.0
+                    prob_source = "mfi"
+
                 if bull_prob < self._bull_prob_threshold:
-                    return {'action': 'hold', 'reason': f'bull_prob_low:{bull_prob:.2f}<{self._bull_prob_threshold:.2f}'}
+                    return {'action': 'hold', 'reason': f'bull_prob_low({prob_source}):{bull_prob:.2f}<{self._bull_prob_threshold:.2f}'}
 
             # NOTE: MA120 is used for EXIT only (panic sell), not for entry blocking
             # Entry blocking is handled by cash_below_ema200 (EMA200 filter)

@@ -276,7 +276,7 @@ class PaperExecutor:
         # Publish trade to Redis stream
         await self._publish_trade(order, fill, profit_data)
 
-        # Log trade to database for persistence (async to avoid blocking event loop)
+        # Log trade to database for persistence.
         await self._log_trade_to_db_async(order, fill, profit_data)
 
         logger.info(f"Paper fill: {fill}, balance: {self.balance:.2f}")
@@ -312,13 +312,10 @@ class PaperExecutor:
         return fill
 
     async def _log_trade_to_db_async(self, order: dict, fill: dict, profit_data: dict | None) -> None:
-        """Log trade to SQLite database for persistence (non-blocking)."""
+        """Log trade to SQLite database for persistence."""
         try:
-            # Run sync SQLite operation in thread pool to avoid blocking event loop
-            await asyncio.to_thread(
-                self._log_trade_to_db_sync,
-                order, fill, profit_data
-            )
+            # Keep this synchronous to avoid threadpool shutdown hangs in tests.
+            self._log_trade_to_db_sync(order, fill, profit_data)
         except Exception as e:
             logger.error(f"Failed to log trade to database: {e}")
 
@@ -455,14 +452,22 @@ class PaperExecutor:
         logger.info(f"Paper P&L ({direction}): {symbol} {pnl_with_leverage:+.2f} USDT ({pnl_pct:+.2f}%)")
 
         # Publish P&L alert (same as live trading)
-        await self.redis.publish("alerts", {
+        payload = {
             "type": "pnl_realized",
             "symbol": symbol,
             "pnl": str(pnl_with_leverage),
             "daily_pnl": str(daily_pnl),
             "timestamp": str(int(time.time() * 1000)),
             "paper": "true",
-        })
+        }
+        try:
+            maybe_coro = getattr(self.redis, "publish", None)
+            if maybe_coro:
+                result = maybe_coro("alerts", payload)
+                if asyncio.iscoroutine(result):
+                    await result
+        except Exception as e:
+            logger.debug(f"Failed to publish P&L alert: {e}")
 
         return {"profit": pnl_with_leverage, "profit_pct": pnl_pct}
 

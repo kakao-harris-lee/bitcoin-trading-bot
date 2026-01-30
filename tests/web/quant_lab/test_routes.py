@@ -1,5 +1,8 @@
 """Tests for Quant Lab Flask routes."""
 import pytest
+
+pytest.importorskip("flask")
+
 from flask import Flask
 from web.quant_lab.routes import quant_lab_bp
 

@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 import json
 
+pytest.importorskip("flask")
+
 
 class TestMetricsServiceEventMethods:
     """Test MetricsService event reading methods."""

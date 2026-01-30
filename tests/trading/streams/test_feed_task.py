@@ -8,7 +8,7 @@ from trading.streams.feed_task import SymbolFeedTask
 @pytest.fixture
 def mock_redis():
     redis = AsyncMock()
-    redis.publish = AsyncMock(return_value="1234-0")
+    redis.publish_event = AsyncMock(return_value="1234-0")
     return redis
 
 
@@ -23,8 +23,8 @@ async def test_feed_task_publishes_price(mock_redis):
         "market": "futures",
     })
 
-    mock_redis.publish.assert_called_once()
-    call_args = mock_redis.publish.call_args
+    mock_redis.publish_event.assert_called_once()
+    call_args = mock_redis.publish_event.call_args
     assert call_args[0][0] == "market:prices"
     assert call_args[0][1]["symbol"] == "BTC"
     assert call_args[0][1]["price"] == "43250.50"

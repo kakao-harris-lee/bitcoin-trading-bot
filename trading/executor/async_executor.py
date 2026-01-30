@@ -79,6 +79,7 @@ class AsyncExecutor:
         try:
             # Get balance
             balance = await self.client.get_balance()
+            total_equity = getattr(balance, "total_usdt", balance.futures_usdt)
             self._balance_cache = {
                 "futures": balance.futures_usdt,
                 "last_update": time.time(),
@@ -170,6 +171,7 @@ class AsyncExecutor:
 
             # Check leverage allowance for futures entry orders
             effective_leverage = None
+            allowed_leverage: int | None = None
             if market == "futures" and not is_exit and self.leverage_manager:
                 allowed_leverage = await self.leverage_manager.get_allowed_leverage()
                 if allowed_leverage == 0:
@@ -238,12 +240,18 @@ class AsyncExecutor:
                     mode="live",
                 )
             else:
+                logged_leverage = 1
+                if market == "futures":
+                    try:
+                        logged_leverage = int(order.get("leverage", 1) or 1)
+                    except (TypeError, ValueError):
+                        logged_leverage = 1
                 trade_logger.entry(
                     symbol=order["symbol"],
                     price=fill["filled_price"],
                     qty=fill["filled_qty"],
                     strategy=order["strategy"],
-                    leverage=allowed_leverage or 1,
+                    leverage=logged_leverage,
                     mode="live",
                 )
 

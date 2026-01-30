@@ -29,6 +29,7 @@ EXIT_COMPONENTS = [
     # "V35PersistentExit",  # Async, not suitable for backtesting
     "ExperimentalExit",
     "SidewaysExit",
+    "ShortExit",
 ]
 
 # Parameter bounds for each component
@@ -55,6 +56,11 @@ COMPONENT_PARAMS = {
     },
     "SidewaysExit": {
         "profit_target_pct": {"type": "float", "low": 0.5, "high": 3.0},
+    },
+    "ShortExit": {
+        "stop_loss_pct": {"type": "float", "low": 0.5, "high": 5.0},
+        "take_profit_pct": {"type": "float", "low": 0.5, "high": 8.0},
+        "rsi_oversold": {"type": "float", "low": 20.0, "high": 40.0},
     },
     "None": {},  # No parameters for None
 }

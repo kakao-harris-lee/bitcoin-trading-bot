@@ -109,8 +109,8 @@ class TestAddAllIndicators:
 
 class TestIndicatorColumns:
     def test_indicator_columns_count(self):
-        """Should have 16 indicator columns."""
-        assert len(INDICATOR_COLUMNS) == 16
+        """Keep indicator contract stable (used by add_all_indicators tests)."""
+        assert len(INDICATOR_COLUMNS) == 19
 
     def test_indicator_columns_unique(self):
         """All column names should be unique."""

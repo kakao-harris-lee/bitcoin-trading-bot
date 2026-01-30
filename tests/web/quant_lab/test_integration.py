@@ -1,5 +1,8 @@
 """Integration tests for Quant Lab."""
 import pytest
+
+pytest.importorskip("flask")
+
 from flask import Flask
 from web.quant_lab.routes import quant_lab_bp
 from web.quant_lab.optimizer.search_space import SearchSpaceConfig, build_search_space, sample_trial_config

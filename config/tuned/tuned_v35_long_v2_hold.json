@@ -1,0 +1,52 @@
+{
+  "strategy": "tuned_v35_long_v2_hold",
+  "description": "Regime-hold entry to stay invested through bull/sideways regimes",
+  "regime_version": "v2",
+  "leverage": 3,
+  "position_pct": 0.4,
+  "dynamic_position_sizing": true,
+  "position_size_high": 0.55,
+  "position_size_mid": 0.35,
+  "position_size_low": 0.2,
+  "position_conf_low": 0.45,
+  "position_conf_high": 0.65,
+  "drawdown_warning_pct": 12.0,
+  "drawdown_reduce_pct": 16.0,
+  "drawdown_exit_pct": 20.0,
+  "drawdown_partial_exit_fraction": 0.15,
+  "entry_params": {
+    "allowed_regimes": [
+      "BULL_STRONG",
+      "BULL_MODERATE",
+      "SIDEWAYS_UP",
+      "SIDEWAYS_FLAT"
+    ],
+    "min_adx": 0.0,
+    "allow_extreme_volatility": true,
+    "position_size": 0.01
+  },
+  "exit_params": {
+    "stop_loss_pct": 10.0,
+    "atr_stop_enabled": true,
+    "atr_stop_multiplier": 4.5,
+    "atr_stop_min_pct": 8.0,
+    "atr_stop_max_pct": 18.0,
+    "tp_bull_strong_1": 30.0,
+    "tp_bull_strong_2": 70.0,
+    "tp_bull_strong_3": 140.0,
+    "tp_bull_moderate_1": 25.0,
+    "tp_bull_moderate_2": 60.0,
+    "tp_bull_moderate_3": 120.0,
+    "tp_sideways_1": 12.0,
+    "tp_sideways_2": 30.0,
+    "tp_sideways_3": 60.0,
+    "exit_fraction_1": 0.05,
+    "exit_fraction_2": 0.05,
+    "exit_fraction_3": 0.9,
+    "trailing_enabled": true,
+    "trailing_activation": 20.0,
+    "trailing_distance": 12.0,
+    "macd_exit_enabled": false,
+    "min_profit_for_macd_exit": 20.0
+  }
+}

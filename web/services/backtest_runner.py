@@ -939,6 +939,18 @@ def _run_generic_backtest(
             # Position sizing: fraction of capital to use per trade
             'position_size': strategy_config.get('position_size', 0.5),
             'position_pct': strategy_config.get('position_pct', 0.3),
+            'dynamic_sizing': strategy_config.get('dynamic_sizing', False),
+            # Core hold overlay (optional)
+            'core_hold_pct': strategy_config.get('core_hold_pct', 0.0),
+            'core_exit_on_ema200': strategy_config.get('core_exit_on_ema200', False),
+            'core_ema_hours': strategy_config.get('core_ema_hours', 0),
+            'core_ema_timeframe': strategy_config.get('core_ema_timeframe', ''),
+            'core_ema_span': strategy_config.get('core_ema_span', 0),
+            'core_reentry_on_ema200': strategy_config.get('core_reentry_on_ema200', True),
+            'core_fee_rate': strategy_config.get('core_fee_rate', fee_rate),
+            'core_slippage': strategy_config.get('core_slippage', slippage),
+            'core_drawdown_exit_pct': strategy_config.get('core_drawdown_exit_pct', 0.0),
+            'core_drawdown_reentry_pct': strategy_config.get('core_drawdown_reentry_pct', 0.0),
             # Entry filters
             'use_breakout_filter': strategy_config.get('use_breakout_filter', True),
             'bbw_block_threshold': strategy_config.get('bbw_block_threshold', 25),
@@ -970,9 +982,12 @@ def _run_generic_backtest(
             'max_consecutive_losses': strategy_config.get('max_consecutive_losses', 3),
             'loss_pause_candles': strategy_config.get('loss_pause_candles', 48),
             # Dynamic drawdown response
+            'drawdown_enabled': strategy_config.get('drawdown_enabled', True),
             'drawdown_warning_pct': strategy_config.get('drawdown_warning_pct', 8.0),
             'drawdown_reduce_pct': strategy_config.get('drawdown_reduce_pct', 10.0),
             'drawdown_exit_pct': strategy_config.get('drawdown_exit_pct', 12.0),
+            'drawdown_leverage_reduction': strategy_config.get('drawdown_leverage_reduction', 0.5),
+            'drawdown_partial_exit_fraction': strategy_config.get('drawdown_partial_exit_fraction', 0.5),
             # V2 filter exit for existing positions
             'v2_exit_on_filter': strategy_config.get('v2_exit_on_filter', False),
             # Bull probability filter (MFI-based): block entry if MFI/100 < threshold
@@ -1012,7 +1027,61 @@ def _run_generic_backtest(
     adapter = ComponentStrategyAdapter(factory, strategy_id, config)
 
     # 5. Backtest Loop
-    capital = initial_capital
+    core_hold_pct = float(config.get("core_hold_pct", 0.0))
+    core_hold_pct = max(min(core_hold_pct, 0.95), 0.0)
+    core_exit_on_ema200 = bool(config.get("core_exit_on_ema200", False))
+    core_ema_hours = int(config.get("core_ema_hours", 0))
+    core_ema_timeframe = str(config.get("core_ema_timeframe", "")).lower()
+    core_ema_span = int(config.get("core_ema_span", 0))
+    core_reentry_on_ema200 = bool(config.get("core_reentry_on_ema200", True))
+    core_fee_rate = float(config.get("core_fee_rate", fee_rate))
+    core_slippage = float(config.get("core_slippage", slippage))
+    core_drawdown_exit_pct = float(config.get("core_drawdown_exit_pct", 0.0))
+    core_drawdown_reentry_pct = float(config.get("core_drawdown_reentry_pct", 0.0))
+
+    core_cash = initial_capital * core_hold_pct
+    capital = initial_capital - core_cash
+    core_qty = 0.0
+    core_active = False
+    core_peak_price = 0.0
+
+    if core_hold_pct > 0:
+        if core_ema_timeframe in ("day", "daily"):
+            core_span = core_ema_span if core_ema_span > 0 else 200
+            with DataLoader(exchange=exchange_name) as core_loader:
+                day_df = core_loader.load_timeframe("day", start_date, end_date)
+            if not day_df.empty:
+                day_df = day_df.copy()
+                day_df["date"] = day_df["timestamp"].dt.date
+                day_df["core_ema"] = day_df["close"].ewm(span=core_span, adjust=False).mean()
+                df = df.copy()
+                df["date"] = df["timestamp"].dt.date
+                df = df.merge(day_df[["date", "core_ema"]], on="date", how="left")
+                df.drop(columns=["date"], inplace=True)
+                df["core_ema"] = df["core_ema"].ffill()
+        elif core_ema_hours > 0:
+            df = df.copy()
+            df["core_ema"] = df["close"].ewm(span=core_ema_hours, adjust=False).mean()
+
+    if core_hold_pct > 0 and not df.empty:
+        first_row = df.iloc[0]
+        ema_200 = float(first_row.get("ema_200", 0.0) or 0.0)
+        core_ema = float(first_row.get("core_ema", 0.0) or 0.0)
+        price = float(first_row["close"])
+        can_enter = True
+        if core_ema > 0 and price < core_ema:
+            can_enter = False
+        elif core_exit_on_ema200 and ema_200 > 0 and price < ema_200:
+            can_enter = False
+
+        if can_enter and core_cash > 0:
+            entry_price = price * (1 + core_slippage)
+            core_qty = core_cash / (entry_price * (1 + core_fee_rate))
+            cost = core_qty * entry_price * (1 + core_fee_rate)
+            core_cash -= cost
+            core_active = core_qty > 0
+            core_peak_price = price
+
     position_size = 0.0
     entry_price = 0.0
     position_leverage = leverage  # Track leverage used for current position
@@ -1027,6 +1096,50 @@ def _run_generic_backtest(
 
         row = df.iloc[i]
         timestamp = str(row.get('timestamp', row.name))
+
+        # Core hold management (EMA200 filter)
+        if core_hold_pct > 0:
+            ema_200 = float(row.get("ema_200", 0.0) or 0.0)
+            core_ema = float(row.get("core_ema", 0.0) or 0.0)
+            price = float(row["close"])
+
+            if core_active:
+                if price > core_peak_price:
+                    core_peak_price = price
+
+                core_drawdown_pct = 0.0
+                if core_peak_price > 0:
+                    core_drawdown_pct = (core_peak_price - price) / core_peak_price * 100
+
+                exit_on_core_ema = core_ema > 0 and price < core_ema
+                exit_on_ema200 = core_exit_on_ema200 and ema_200 > 0 and price < ema_200
+                exit_on_drawdown = core_drawdown_exit_pct > 0 and core_drawdown_pct >= core_drawdown_exit_pct
+
+                if exit_on_drawdown or exit_on_core_ema or exit_on_ema200:
+                    exit_price = price * (1 - core_slippage)
+                    proceeds = core_qty * exit_price * (1 - core_fee_rate)
+                    core_cash += proceeds
+                    core_qty = 0.0
+                    core_active = False
+
+            elif (not core_active) and core_reentry_on_ema200:
+                can_reenter = True
+                if core_ema > 0 and price < core_ema:
+                    can_reenter = False
+                elif core_exit_on_ema200 and ema_200 > 0 and price < ema_200:
+                    can_reenter = False
+                if core_drawdown_reentry_pct > 0:
+                    if core_peak_price > 0:
+                        drawdown_pct = (core_peak_price - price) / core_peak_price * 100
+                        if drawdown_pct > core_drawdown_reentry_pct:
+                            can_reenter = False
+                if can_reenter and core_cash > 0:
+                    entry_price = price * (1 + core_slippage)
+                    core_qty = core_cash / (entry_price * (1 + core_fee_rate))
+                    cost = core_qty * entry_price * (1 + core_fee_rate)
+                    core_cash -= cost
+                    core_active = core_qty > 0
+                    core_peak_price = price
 
         # --- Calculate Current Equity BEFORE strategy call ---
         # This enables portfolio-level drawdown protection in the adapter
@@ -1043,6 +1156,9 @@ def _run_generic_backtest(
                 pnl_ratio = (current_price - entry_price) / entry_price
                 unrealized_pnl = position_size * pnl_ratio
                 current_equity += (position_size / position_leverage) + unrealized_pnl
+
+        if core_hold_pct > 0:
+            current_equity += core_cash + (core_qty * row['close'])
 
         # Update adapter with current equity for drawdown protection
         adapter.update_equity(current_equity)
@@ -1186,6 +1302,11 @@ def _run_generic_backtest(
              pnl_ratio = (last_price - entry_price) / entry_price
         pnl = position_size * pnl_ratio
         capital += (position_size / position_leverage) + pnl
+
+    # Final capital includes core hold value
+    if core_hold_pct > 0:
+        last_price = df.iloc[-1]['close']
+        capital += core_cash + (core_qty * last_price)
 
     # --- Metrics ---
     final_capital = capital

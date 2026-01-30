@@ -34,8 +34,18 @@ from trading.streams.base_strategy import BaseStrategyTask
 from trading.indicators import add_all_indicators
 
 from .interfaces import IEntryStrategy, IExitStrategy
-from .models import build_market_context, MarketContext, MarketData, Position, Signal, TradingContext, RegimeSmoother
+from .models import (
+    build_market_context,
+    MarketContext,
+    MarketData,
+    Position,
+    Signal,
+    TradingContext,
+    RegimeSmoother,
+    BEAR_REGIMES,
+)
 from .regime_filter import EnhancedRegimeRouter
+from .rf_probability_service import RFProbabilityService
 from trading.observability.structured_logger import trade_logger
 
 if TYPE_CHECKING:
@@ -156,6 +166,63 @@ class CompositeStrategyTask(BaseStrategyTask):
                     persistence=persistence,
                 )
 
+        # RF probability integration (optional)
+        self._use_rf_probability = self.config.get("use_rf_probability", False)
+        self._rf_service: RFProbabilityService | None = None
+        self._rf_available = False
+        self._rf_history_size = int(self.config.get("rf_history_size", 720))
+        self._rf_min_history = int(self.config.get("rf_min_history", 60))
+        if self._use_rf_probability:
+            self._rf_service = RFProbabilityService.get_instance(
+                lstm_path=self.config.get("lstm_model_path", "lstm_trainer/models/hybrid_lstm.pth"),
+                rf_path=self.config.get("rf_model_path", "lstm_trainer/models/noise_filter_rf.pkl"),
+            )
+            self._rf_available = self._rf_service.is_available()
+
+        # Entry gating and leverage controls
+        self._cash_in_bear = self.config.get("cash_in_bear", False)
+        self._cash_below_ema200 = self.config.get("cash_below_ema200", False)
+        self._cooldown_candles = int(self.config.get("stop_loss_cooldown", 24))
+        self._cooldown_remaining: dict[str, int] = {}
+        self._max_consecutive_losses = int(self.config.get("max_consecutive_losses", 3))
+        self._consecutive_losses: dict[str, int] = {}
+        self._loss_pause_candles = int(self.config.get("loss_pause_candles", 48))
+        self._loss_pause_remaining: dict[str, int] = {}
+        self._v2_exit_on_filter = self.config.get("v2_exit_on_filter", False)
+        self._panic_sell_below_ma120 = self.config.get("panic_sell_below_ma120", False)
+
+        self._dynamic_leverage_enabled = self.config.get("dynamic_leverage", False)
+        self._leverage_bull_strong = float(self.config.get("leverage_bull_strong", 3.0))
+        self._leverage_bull_moderate = float(self.config.get("leverage_bull_moderate", 2.0))
+        self._leverage_sideways = float(self.config.get("leverage_sideways", 1.0))
+        self._leverage_bear = float(self.config.get("leverage_bear", 0.0))
+
+        self._prob_leverage_enabled = self.config.get("prob_leverage_enabled", False)
+        self._prob_leverage_max = float(self.config.get("prob_leverage_max", 3.0))
+        self._prob_leverage_high = float(self.config.get("prob_leverage_high", 2.5))
+        self._prob_leverage_mid = float(self.config.get("prob_leverage_mid", 2.0))
+        self._prob_leverage_low = float(self.config.get("prob_leverage_low", 1.0))
+        self._prob_leverage_min = float(self.config.get("prob_leverage_min", 0.5))
+
+        self._bull_prob_threshold = float(self.config.get("bull_prob_threshold", 0.0))
+        self._bull_prob_enabled = self._bull_prob_threshold > 0
+
+        self._dynamic_position_sizing = self.config.get("dynamic_position_sizing", False)
+        self._position_size_high = float(self.config.get("position_size_high", 0.30))
+        self._position_size_mid = float(self.config.get("position_size_mid", 0.15))
+        self._position_size_low = float(self.config.get("position_size_low", 0.05))
+        self._position_conf_low = float(self.config.get("position_conf_low", 0.50))
+        self._position_conf_high = float(self.config.get("position_conf_high", 0.70))
+
+        # Drawdown protection (portfolio-level)
+        self._drawdown_enabled = self.config.get("drawdown_enabled", False)
+        self._drawdown_warning_pct = float(self.config.get("drawdown_warning_pct", 8.0))
+        self._drawdown_reduce_pct = float(self.config.get("drawdown_reduce_pct", 10.0))
+        self._drawdown_exit_pct = float(self.config.get("drawdown_exit_pct", 12.0))
+        self._drawdown_leverage_reduction = float(self.config.get("drawdown_leverage_reduction", 0.5))
+        self._drawdown_partial_exit_done: dict[str, bool] = {}
+        self._drawdown_cache: tuple[float, float] = (0.0, 0.0)
+
         # Volatility breakout filter config (Larry Williams strategy)
         self.breakout_k = self.config.get("breakout_k", 0.5)  # k value for target_price
         self._prev_day_cache: dict[str, tuple[float, float, str]] = {}  # (high, low, date)
@@ -200,30 +267,90 @@ class CompositeStrategyTask(BaseStrategyTask):
         if len(buffer) < self.min_data_points:
             return None
 
+        self._decrement_entry_blocks(symbol)
+
         # Build MarketData from indicators
         market_data = self._build_market_data(symbol)
         if market_data is None:
             return None
 
-        # Use TradingContextBuilder if available (preferred - cached regime)
+        # Build context locally to ensure v2 regime + RF features are applied
+        context = self._build_market_context(market_data)
+        positions = MappingProxyType({})
         if self.context_builder is not None:
-            ctx = self.context_builder.get_context(symbol, market_data.timestamp)
-            if ctx is None:
-                return None
-            context = ctx.regime
-        else:
-            # Fallback: Build context locally
-            context = self._build_market_context(market_data)
-            ctx = TradingContext(
-                symbol=symbol,
-                timestamp=market_data.timestamp,
-                market=market_data,
-                regime=context,
-                positions=MappingProxyType({}),
-            )
+            cached_ctx = self.context_builder.get_context(symbol, market_data.timestamp)
+            if cached_ctx is not None:
+                positions = cached_ctx.positions
+
+        ctx = TradingContext(
+            symbol=symbol,
+            timestamp=market_data.timestamp,
+            market=market_data,
+            regime=context,
+            positions=positions,
+        )
 
         # Record decision at candle close for dashboard visibility
         await self._check_and_record_decision(symbol, market_data, context)
+
+        # Entry gating (optional risk controls)
+        if self._cash_in_bear and context.regime in BEAR_REGIMES:
+            return None
+
+        if self._cash_below_ema200 and market_data.ema_200 > 0:
+            if market_data.close < market_data.ema_200:
+                return None
+
+        if self._loss_pause_remaining.get(symbol, 0) > 0:
+            return None
+
+        if self._cooldown_remaining.get(symbol, 0) > 0:
+            return None
+
+        if self._bull_prob_enabled:
+            if self._use_rf_probability and context.rf_confidence > 0:
+                bull_prob = context.rf_confidence
+            else:
+                bull_prob = market_data.mfi / 100.0
+            if bull_prob < self._bull_prob_threshold:
+                return None
+
+        leverage = float(self.config.get("leverage", 1))
+        if self._dynamic_leverage_enabled:
+            if context.regime == "BULL_STRONG":
+                leverage = self._leverage_bull_strong
+            elif context.regime == "BULL_MODERATE":
+                leverage = self._leverage_bull_moderate
+            elif context.regime in ("SIDEWAYS_UP", "SIDEWAYS_FLAT", "SIDEWAYS_DOWN"):
+                leverage = self._leverage_sideways
+            else:
+                leverage = self._leverage_bear
+                if leverage <= 0:
+                    return None
+
+        if self._drawdown_enabled:
+            drawdown_pct = await self._get_drawdown_pct()
+            if drawdown_pct >= self._drawdown_warning_pct:
+                leverage *= self._drawdown_leverage_reduction
+
+        if self._prob_leverage_enabled:
+            mfi = market_data.mfi
+            if mfi >= 70:
+                leverage = min(leverage, self._prob_leverage_max)
+            elif mfi >= 60:
+                leverage = min(leverage, self._prob_leverage_high)
+            elif mfi >= 50:
+                leverage = min(leverage, self._prob_leverage_mid)
+            elif mfi >= 40:
+                leverage = min(leverage, self._prob_leverage_low)
+            elif mfi >= 30:
+                leverage = min(leverage, self._prob_leverage_min)
+            else:
+                return None
+
+        # Leverage must be >= 1 for futures; treat fractional leverage as 1x
+        if 0 < leverage < 1:
+            leverage = 1.0
 
         signal = self.entry_strategy.check_entry(ctx)
 
@@ -232,8 +359,8 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         if signal:
             # Apply dynamic sizing if configured
-            quantity = await self._get_quantity(symbol, market_data.close, signal.quantity)
-            return self._signal_to_dict(signal, quantity)
+            quantity = await self._get_quantity(symbol, market_data.close, signal.quantity, context)
+            return self._signal_to_dict(signal, quantity, leverage=leverage)
 
         return None
 
@@ -255,35 +382,95 @@ class CompositeStrategyTask(BaseStrategyTask):
         if market_data is None:
             return None
 
+        self._decrement_entry_blocks(symbol)
+
         # Record decision at candle close for dashboard visibility (with position)
         await self._check_and_record_decision(symbol, market_data)
 
         # Build Position model from dict
         position = self._dict_to_position(position_dict)
 
-        # Use TradingContextBuilder if available (preferred - cached regime)
+        # Build context locally to ensure v2 regime + RF features are applied
+        context = self._build_market_context(market_data)
+        positions = {self.name: position}
         if self.context_builder is not None:
-            ctx = self.context_builder.get_context(symbol, market_data.timestamp)
-            if ctx is None:
-                # Fallback to local context
-                context = self._build_market_context(market_data)
-                ctx = TradingContext(
-                    symbol=symbol,
-                    timestamp=market_data.timestamp,
-                    market=market_data,
-                    regime=context,
-                    positions=MappingProxyType({self.name: position}),
+            cached_ctx = self.context_builder.get_context(symbol, market_data.timestamp)
+            if cached_ctx is not None:
+                positions = {**cached_ctx.positions, self.name: position}
+
+        ctx = TradingContext(
+            symbol=symbol,
+            timestamp=market_data.timestamp,
+            market=market_data,
+            regime=context,
+            positions=MappingProxyType(positions),
+        )
+
+        # Drawdown-based exits (portfolio-level protection)
+        if self._drawdown_enabled:
+            drawdown_pct = await self._get_drawdown_pct()
+            if drawdown_pct >= self._drawdown_exit_pct:
+                if self._loss_pause_candles > 0:
+                    self._loss_pause_remaining[symbol] = self._loss_pause_candles
+                return {
+                    "symbol": symbol,
+                    "side": "sell",
+                    "market": self.market,
+                    "quantity": str(position.quantity),
+                    "reason": f"DRAWDOWN_EXIT:{drawdown_pct:.1f}%>={self._drawdown_exit_pct:.1f}%",
+                }
+
+            if (
+                drawdown_pct >= self._drawdown_reduce_pct
+                and not self._drawdown_partial_exit_done.get(symbol, False)
+            ):
+                self._drawdown_partial_exit_done[symbol] = True
+                exit_qty = position.quantity * 0.5
+                if exit_qty > 0:
+                    return {
+                        "symbol": symbol,
+                        "side": "sell",
+                        "market": self.market,
+                        "quantity": str(exit_qty),
+                        "reason": f"DRAWDOWN_REDUCE:{drawdown_pct:.1f}%>={self._drawdown_reduce_pct:.1f}%",
+                    }
+
+        # V2 filter protective exit (optional)
+        if self._v2_exit_on_filter and self.regime_version == "v2":
+            router = self._enhanced_routers.get(symbol)
+            if router is not None:
+                volume_ratio = (
+                    market_data.volume / market_data.avg_volume_20
+                    if market_data.avg_volume_20 > 0
+                    else 1.0
                 )
-        else:
-            # Fallback: Build context locally
-            context = self._build_market_context(market_data)
-            ctx = TradingContext(
-                symbol=symbol,
-                timestamp=market_data.timestamp,
-                market=market_data,
-                regime=context,
-                positions=MappingProxyType({self.name: position}),
-            )
+                v2_entry_allowed = True
+                if context.regime in ("BULL_STRONG", "BULL_MODERATE"):
+                    if router._volume_filter.should_block(volume_ratio, context.regime):
+                        v2_entry_allowed = False
+                    bbw_boosted = router._volume_filter.is_boosted(volume_ratio)
+                    if not bbw_boosted and router._bbw_filter.should_block():
+                        v2_entry_allowed = False
+
+                if not v2_entry_allowed:
+                    return {
+                        "symbol": symbol,
+                        "side": "sell",
+                        "market": self.market,
+                        "quantity": str(position.quantity),
+                        "reason": "v2_filter_protective_exit",
+                    }
+
+        # MA120 panic sell (optional)
+        if self._panic_sell_below_ma120 and market_data.ema_120 > 0:
+            if market_data.close < market_data.ema_120:
+                return {
+                    "symbol": symbol,
+                    "side": "sell",
+                    "market": self.market,
+                    "quantity": str(position.quantity),
+                    "reason": f"MA120 panic_sell: close={market_data.close:.0f} < ema120={market_data.ema_120:.0f}",
+                }
 
         # Delegate to exit component
         # Handle both sync and async exit strategies using proper detection
@@ -297,6 +484,19 @@ class CompositeStrategyTask(BaseStrategyTask):
         await self._emit_exit_evaluation(position, market_data, signal)
 
         if signal:
+            reason = signal.reason or ""
+            is_stop_loss = "stop loss" in reason.lower() or "stoploss" in reason.lower()
+            if is_stop_loss:
+                if self._cooldown_candles > 0:
+                    self._cooldown_remaining[symbol] = self._cooldown_candles
+                losses = self._consecutive_losses.get(symbol, 0) + 1
+                if losses >= self._max_consecutive_losses:
+                    if self._loss_pause_candles > 0:
+                        self._loss_pause_remaining[symbol] = self._loss_pause_candles
+                    losses = 0
+                self._consecutive_losses[symbol] = losses
+            else:
+                self._consecutive_losses[symbol] = 0
             return self._signal_to_dict(signal, signal.quantity)
 
         return None
@@ -311,6 +511,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             position_dict: Position dict from Redis.
         """
         position = self._dict_to_position(position_dict)
+
+        # Reset drawdown partial-exit tracking for this symbol
+        self._drawdown_partial_exit_done[symbol] = False
 
         # Notify exit strategy (for state initialization)
         on_opened_method = self.exit_strategy.on_position_opened
@@ -327,6 +530,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         Args:
             symbol: Trading symbol.
         """
+        # Clear drawdown partial-exit tracking for this symbol
+        self._drawdown_partial_exit_done.pop(symbol, None)
+
         on_closed_method = self.exit_strategy.on_position_closed
         if asyncio.iscoroutinefunction(on_closed_method):
             await on_closed_method(symbol)
@@ -540,6 +746,8 @@ class CompositeStrategyTask(BaseStrategyTask):
                 bb_middle=float(last_row.get("bb_middle", 0)),
                 # ATR for volatility measurement
                 atr=float(last_row.get("atr", 0)),
+                # EMA120 for MA120 panic sell
+                ema_120=float(last_row.get("ema_120", 0)),
                 # EMA200 for trend filter (bear market protection)
                 ema_200=float(last_row.get("ema_200", 0)),
                 # Market stress indicator (pause trading)
@@ -561,7 +769,99 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         except Exception as e:
             logger.error(f"Failed to build MarketData for {symbol}: {e}")
+        return None
+
+    def _decrement_entry_blocks(self, symbol: str) -> None:
+        """Decrement cooldown and loss pause counters for a symbol."""
+        cooldown = self._cooldown_remaining.get(symbol, 0)
+        if cooldown > 0:
+            cooldown -= 1
+            if cooldown <= 0:
+                self._cooldown_remaining.pop(symbol, None)
+            else:
+                self._cooldown_remaining[symbol] = cooldown
+
+        pause = self._loss_pause_remaining.get(symbol, 0)
+        if pause > 0:
+            pause -= 1
+            if pause <= 0:
+                self._loss_pause_remaining.pop(symbol, None)
+            else:
+                self._loss_pause_remaining[symbol] = pause
+
+    def _get_rf_history_df(self, symbol: str) -> pd.DataFrame | None:
+        """Get recent candle history for RF probability calculation."""
+        if self.indicator_service is not None:
+            df = self.indicator_service.get_history_df(symbol, limit=self._rf_history_size)
+        else:
+            history = self.history.get(symbol, [])
+            if not history:
+                return None
+            df = pd.DataFrame(history[-self._rf_history_size:])
+
+        if df is None or df.empty:
             return None
+        return df
+
+    def _get_rf_probability(self, symbol: str, market_data: MarketData, regime: str) -> dict[str, Any]:
+        """Compute RF probability using recent candle history."""
+        default_result = {
+            "confidence": 0.0,
+            "direction": "SIDEWAYS",
+            "signal": "HOLD",
+            "available": False,
+        }
+
+        if not self._use_rf_probability or self._rf_service is None or not self._rf_available:
+            return default_result
+
+        df = self._get_rf_history_df(symbol)
+        if df is None or len(df) < self._rf_min_history:
+            return default_result
+
+        try:
+            idx = df.index[-1]
+            if "close" in df.columns:
+                df.at[idx, "close"] = market_data.close
+            if "high" in df.columns:
+                df.at[idx, "high"] = max(df.at[idx, "high"], market_data.close)
+            if "low" in df.columns:
+                df.at[idx, "low"] = min(df.at[idx, "low"], market_data.close)
+        except Exception:
+            # Non-fatal if we can't update the last candle
+            pass
+
+        volatility = market_data.atr / market_data.close if market_data.close > 0 else 0.0
+        return self._rf_service.get_probability(
+            df=df,
+            mfi=market_data.mfi,
+            adx=market_data.adx,
+            volatility=volatility,
+            regime=regime,
+            breakout_signal=market_data.breakout_signal,
+        )
+
+    async def _get_drawdown_pct(self) -> float:
+        """Fetch portfolio drawdown percentage from Redis (cached)."""
+        now = time.time()
+        cache_time, cached_value = self._drawdown_cache
+        if now - cache_time < self._cache_ttl:
+            return cached_value
+
+        drawdown_pct = 0.0
+        try:
+            state = await self.redis._client.hgetall("leverage:state")
+            if state and "drawdown_pct" in state:
+                drawdown_pct = float(state.get("drawdown_pct", 0.0))
+            else:
+                risk_state = await self.redis._client.hgetall("risk:state:daily")
+                if risk_state and "current_drawdown" in risk_state:
+                    drawdown_pct = float(risk_state.get("current_drawdown", 0.0))
+        except Exception as e:
+            logger.debug(f"Failed to read drawdown state: {e}")
+
+        self._drawdown_cache = (now, drawdown_pct)
+        return drawdown_pct
 
     def _build_market_context(self, market_data: MarketData) -> MarketContext:
         """Build MarketContext from MarketData.
@@ -589,6 +889,22 @@ class CompositeStrategyTask(BaseStrategyTask):
             avg_volume=market_data.avg_volume_20,
             recent_high=recent_high,  # Use 30-day high for drawdown BEAR detection
         )
+
+        if self._use_rf_probability:
+            rf_result = self._get_rf_probability(market_data.symbol, market_data, context.regime)
+            if rf_result.get("available", False):
+                context = build_market_context(
+                    mfi=market_data.mfi,
+                    adx=market_data.adx,
+                    atr=market_data.atr,
+                    close=market_data.close,
+                    volume=market_data.volume,
+                    avg_volume=market_data.avg_volume_20,
+                    recent_high=recent_high,
+                    rf_confidence=rf_result.get("confidence", 0.0),
+                    rf_direction=rf_result.get("direction", "SIDEWAYS"),
+                    rf_signal=rf_result.get("signal", "HOLD"),
+                )
 
         # Apply regime filtering/smoothing based on version
         if self.regime_version == "v2" and market_data.symbol in self._enhanced_routers:
@@ -635,6 +951,9 @@ class CompositeStrategyTask(BaseStrategyTask):
                 is_high_volume=context.is_high_volume,
                 drawdown=context.drawdown,
                 is_drawdown_bear=context.is_drawdown_bear,
+                rf_confidence=context.rf_confidence,
+                rf_direction=context.rf_direction,
+                rf_signal=context.rf_signal,
             )
 
         elif self.use_regime_smoothing and market_data.symbol in self._regime_smoothers:
@@ -662,6 +981,9 @@ class CompositeStrategyTask(BaseStrategyTask):
                 is_high_volume=context.is_high_volume,
                 drawdown=context.drawdown,
                 is_drawdown_bear=context.is_drawdown_bear,
+                rf_confidence=context.rf_confidence,
+                rf_direction=context.rf_direction,
+                rf_signal=context.rf_signal,
             )
 
         return context
@@ -684,7 +1006,12 @@ class CompositeStrategyTask(BaseStrategyTask):
             timestamp=position_dict.get("timestamp", 0),
         )
 
-    def _signal_to_dict(self, signal: Signal, quantity: float) -> dict[str, Any]:
+    def _signal_to_dict(
+        self,
+        signal: Signal,
+        quantity: float,
+        leverage: float | None = None,
+    ) -> dict[str, Any]:
         """Convert Signal model to order intent dict.
 
         Args:
@@ -700,7 +1027,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             "market": signal.market,
             "quantity": str(quantity),
             "reason": signal.reason,
-            "leverage": self.config.get("leverage", 1),
+            "leverage": self.config.get("leverage", 1) if leverage is None else leverage,
         }
 
         if signal.trigger_price is not None:
@@ -713,6 +1040,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         symbol: str,
         price: float,
         default_quantity: float,
+        context: MarketContext | None = None,
     ) -> float:
         """Get position quantity, using dynamic sizing if configured.
 
@@ -725,12 +1053,21 @@ class CompositeStrategyTask(BaseStrategyTask):
             Final quantity.
         """
         use_dynamic = self.config.get("dynamic_sizing", False)
+        position_pct = float(self.config.get("position_pct", 0.02))
+
+        if self._dynamic_position_sizing and use_dynamic and context is not None:
+            rf_conf = context.rf_confidence if context.rf_confidence > 0 else 0.0
+            if rf_conf >= self._position_conf_high:
+                position_pct = self._position_size_high
+            elif rf_conf >= self._position_conf_low:
+                position_pct = self._position_size_mid
+            else:
+                position_pct = self._position_size_low
 
         if use_dynamic:
-            position_pct = self.config.get("position_pct", 0.02)
             return await self.get_dynamic_position_size(symbol, price, position_pct)
-        else:
-            return self.config.get("position_size", default_quantity)
+
+        return self.config.get("position_size", default_quantity)
 
     async def _check_and_record_decision(
         self,

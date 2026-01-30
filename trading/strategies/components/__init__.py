@@ -108,6 +108,7 @@ from .config_schema import (
 
 # V35 Long strategy components
 from .v35_entry import V35EntryParams, V35EntryStrategy
+from .regime_hold_entry import RegimeHoldEntryParams, RegimeHoldEntryStrategy
 from .v35_trailing_exit import V35ExitParams, V35TrailingExitStrategy
 from .v35_persistent_exit import V35PersistentExitStrategy
 
@@ -165,6 +166,8 @@ __all__ = [
     # V35 Long implementations
     "V35EntryStrategy",
     "V35EntryParams",
+    "RegimeHoldEntryStrategy",
+    "RegimeHoldEntryParams",
     "V35TrailingExitStrategy",
     "V35PersistentExitStrategy",
     "V35ExitParams",

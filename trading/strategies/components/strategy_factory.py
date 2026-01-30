@@ -56,12 +56,12 @@ from .models import MarketData, Position, Signal
 
 # Entry strategies (imports trigger registration via decorators)
 from .v35_entry import V35EntryStrategy, V35EntryParams
+from .regime_hold_entry import RegimeHoldEntryStrategy, RegimeHoldEntryParams
 from .sideways_entry import SidewaysEntryStrategy, SidewaysEntryParams
 from .short_entry import ShortEntryStrategy, ShortEntryParams
 
 # Exit strategies (imports trigger registration via decorators)
 from .v35_trailing_exit import V35TrailingExitStrategy, V35ExitParams
-from .v35_persistent_exit import V35PersistentExitStrategy
 from .sideways_exit import SidewaysExitStrategy, SidewaysExitParams
 from .short_exit import ShortExitStrategy, ShortExitParams
 from .experimental_exit import ExperimentalExitStrategy, ExperimentalExitParams
@@ -115,7 +115,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         entry_params_class=V35EntryParams,
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
-        persistent_exit_class=V35PersistentExitStrategy,
+        persistent_exit_class=None,
         market="futures",
         timeframe="minute60",  # Hourly - volatility filter calibrated for this
     ),
@@ -125,7 +125,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         entry_params_class=V35EntryParams,
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
-        persistent_exit_class=V35PersistentExitStrategy,
+        persistent_exit_class=None,
         market="futures",
         timeframe="minute60",  # Same as v35_long, uses regime_version="v2" in config
     ),
@@ -176,7 +176,47 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         entry_params_class=V35EntryParams,
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
-        persistent_exit_class=V35PersistentExitStrategy,
+        persistent_exit_class=None,
+        market="futures",
+        timeframe="minute60",
+    ),
+    "tuned_v35_long_v2_growth": StrategySpec(
+        name="tuned_v35_long_v2_growth",
+        entry_class=V35EntryStrategy,
+        entry_params_class=V35EntryParams,
+        exit_class=V35TrailingExitStrategy,
+        exit_params_class=V35ExitParams,
+        persistent_exit_class=None,
+        market="futures",
+        timeframe="minute60",
+    ),
+    "tuned_v35_long_v2_hold": StrategySpec(
+        name="tuned_v35_long_v2_hold",
+        entry_class=RegimeHoldEntryStrategy,
+        entry_params_class=RegimeHoldEntryParams,
+        exit_class=V35TrailingExitStrategy,
+        exit_params_class=V35ExitParams,
+        persistent_exit_class=None,
+        market="futures",
+        timeframe="minute60",
+    ),
+    "tuned_v35_long_v2_core_overlay": StrategySpec(
+        name="tuned_v35_long_v2_core_overlay",
+        entry_class=V35EntryStrategy,
+        entry_params_class=V35EntryParams,
+        exit_class=V35TrailingExitStrategy,
+        exit_params_class=V35ExitParams,
+        persistent_exit_class=None,
+        market="futures",
+        timeframe="minute60",
+    ),
+    "tuned_v35_long_v2_core_overlay_v2": StrategySpec(
+        name="tuned_v35_long_v2_core_overlay_v2",
+        entry_class=V35EntryStrategy,
+        entry_params_class=V35EntryParams,
+        exit_class=V35TrailingExitStrategy,
+        exit_params_class=V35ExitParams,
+        persistent_exit_class=None,
         market="futures",
         timeframe="minute60",
     ),
@@ -186,7 +226,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         entry_params_class=V35EntryParams,
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
-        persistent_exit_class=V35PersistentExitStrategy,
+        persistent_exit_class=None,
         market="futures",
         timeframe="minute60",
     ),

@@ -225,6 +225,10 @@ class IndicatorService:
                 bb_lower=float(last_row.get("bb_lower", 0)),
                 bb_middle=float(last_row.get("bb_middle", 0)),
                 atr=float(last_row.get("atr", 0)),
+                ema_120=float(last_row.get("ema_120", 0)),
+                ema_200=float(last_row.get("ema_200", 0)),
+                high_30d=float(last_row.get("high_30d", 0)),
+                market_stress=float(last_row.get("market_stress", 0)),
                 prev_high_20=prev_high_20,
                 prev_low_20=prev_low_20,
                 avg_volume_20=avg_volume_20,
@@ -260,3 +264,22 @@ class IndicatorService:
             "hit_rate": f"{hit_rate:.1%}",
             "cached_symbols": list(self._cache.keys()),
         }
+
+    def get_history_df(self, symbol: str, limit: int | None = None) -> pd.DataFrame | None:
+        """Get a DataFrame copy of cached candle history for a symbol.
+
+        Args:
+            symbol: Trading symbol.
+            limit: Optional number of most-recent rows to return.
+
+        Returns:
+            DataFrame of candle history, or None if no history is cached.
+        """
+        history = self._history.get(symbol)
+        if not history:
+            return None
+
+        df = pd.DataFrame(history)
+        if limit:
+            return df.tail(limit)
+        return df

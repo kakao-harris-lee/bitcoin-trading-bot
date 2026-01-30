@@ -97,7 +97,16 @@ class ComponentStrategyAdapter:
         self._current_equity: float = 0.0
         self._current_drawdown_pct: float = 0.0  # Current drawdown percentage
         self._partial_exit_done: bool = False  # Track if 50% exit was triggered
-        self._drawdown_leverage_reduction: float = 0.5  # Reduce leverage by 50% at warning
+        self._drawdown_partial_exit_fraction: float = float(
+            config.get('drawdown_partial_exit_fraction', 0.5)
+        )
+        if self._drawdown_partial_exit_fraction <= 0:
+            self._drawdown_partial_exit_fraction = 0.5
+        elif self._drawdown_partial_exit_fraction > 1:
+            self._drawdown_partial_exit_fraction = 1.0
+        self._drawdown_leverage_reduction: float = float(
+            config.get('drawdown_leverage_reduction', 0.5)
+        )  # Reduce leverage by 50% at warning
 
         # === NEW: V2 Filter Exit for Existing Positions ===
         self._v2_exit_on_filter: bool = config.get('v2_exit_on_filter', False)  # Exit when v2 blocks
@@ -272,29 +281,57 @@ class ComponentStrategyAdapter:
             rf_signal=rf_signal,
         )
 
-        # Regime v2 filtering: Use as entry gate, NOT regime replacement
-        # The filter tracks BBW history and checks transition validity
-        # We still use raw regime for classification, but check filter for BULL entries
-        self._v2_entry_allowed = True  # Default: allow entry
+        # Regime v2 filtering: replace regime classification (matches live task behavior)
+        self._v2_entry_allowed = True  # Used only for optional v2_exit_on_filter
+        volume_ratio = volume / avg_volume if avg_volume > 0 else 1.0
         if self._regime_router is not None:
             bb_upper = row.get('bb_upper', 0.0)
             bb_lower = row.get('bb_lower', 0.0)
             bb_middle = row.get('bb_middle', 0.0)
-            volume_ratio = volume / avg_volume if avg_volume > 0 else 1.0
 
-            # Update BBW history (important for percentile calculation)
-            bbw = self._regime_router._bbw_filter.calculate_bbw(bb_upper, bb_lower, bb_middle)
-            self._regime_router._bbw_filter.update_bbw(bbw)
+            filtered_regime = self._regime_router.get_regime(
+                mfi=mfi,
+                adx=adx,
+                bb_upper=bb_upper,
+                bb_lower=bb_lower,
+                bb_middle=bb_middle,
+                volume_ratio=volume_ratio,
+            )
 
-            # Check if BULL entry should be blocked
-            # Only block if we're trying to enter in a BULL regime
+            final_regime = filtered_regime
+            final_trend = context.trend
+
+            if context.is_drawdown_bear and filtered_regime not in ("BEAR_STRONG", "BEAR_MODERATE"):
+                final_regime = "BEAR_STRONG" if context.adx >= 25 else "BEAR_MODERATE"
+                final_trend = "BEAR"
+            else:
+                if final_regime in ("BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP"):
+                    final_trend = "BULL"
+                elif final_regime in ("BEAR_STRONG", "BEAR_MODERATE", "SIDEWAYS_DOWN"):
+                    final_trend = "BEAR"
+                else:
+                    final_trend = "SIDEWAYS"
+
+            context = MarketContext(
+                trend=final_trend,
+                regime=final_regime,
+                volatility_score=context.volatility_score,
+                is_extreme_volatility=context.is_extreme_volatility,
+                adx=context.adx,
+                volume_ratio=context.volume_ratio,
+                is_high_volume=context.is_high_volume,
+                drawdown=context.drawdown,
+                is_drawdown_bear=context.is_drawdown_bear,
+                rf_confidence=context.rf_confidence,
+                rf_direction=context.rf_direction,
+                rf_signal=context.rf_signal,
+            )
+
+        if self._v2_exit_on_filter and self._regime_router is not None:
             if context.regime in ("BULL_STRONG", "BULL_MODERATE"):
-                # Check volume filter (blocks low volume BULL entries)
                 if self._regime_router._volume_filter.should_block(volume_ratio, context.regime):
                     self._v2_entry_allowed = False
 
-                # Check BBW filter (blocks low volatility entries)
-                # But high volume can relax this requirement
                 bbw_boosted = self._regime_router._volume_filter.is_boosted(volume_ratio)
                 if not bbw_boosted and self._regime_router._bbw_filter.should_block():
                     self._v2_entry_allowed = False
@@ -408,14 +445,17 @@ class ComponentStrategyAdapter:
                         'reason': f'DRAWDOWN_EXIT: {self._current_drawdown_pct:.1f}% >= {self._drawdown_exit_pct:.1f}%'
                     }
 
-                # Level 2: PARTIAL EXIT (50%) at drawdown_reduce_pct (default 10%)
+                # Level 2: PARTIAL EXIT at drawdown_reduce_pct (default 10%)
                 if self._current_drawdown_pct >= self._drawdown_reduce_pct and not self._partial_exit_done:
                     self._partial_exit_done = True
-                    # Don't clear position - just reduce by 50%
+                    # Don't clear position - just reduce by configured fraction
                     return {
                         'action': 'sell' if is_long else 'close_short',
-                        'fraction': 0.5,  # Exit half the position
-                        'reason': f'DRAWDOWN_REDUCE: {self._current_drawdown_pct:.1f}% >= {self._drawdown_reduce_pct:.1f}%'
+                        'fraction': self._drawdown_partial_exit_fraction,
+                        'reason': (
+                            f'DRAWDOWN_REDUCE: {self._current_drawdown_pct:.1f}% >= '
+                            f'{self._drawdown_reduce_pct:.1f}%'
+                        )
                     }
 
                 # Level 1: WARNING at drawdown_warning_pct (default 8%)
@@ -481,6 +521,32 @@ class ComponentStrategyAdapter:
             signal = self.exit_strategy.check_exit(ctx, self.current_position)
 
             if signal:
+                action = 'close_short' if not is_long else 'sell'
+                reason = signal.reason or ""
+
+                # Support partial exits: use signal.quantity vs current_position.quantity
+                exit_qty = getattr(signal, "quantity", None)
+                if exit_qty is not None and self.current_position and self.current_position.quantity > 0:
+                    try:
+                        exit_qty = float(exit_qty)
+                        current_qty = float(self.current_position.quantity)
+                    except Exception:
+                        exit_qty = None
+                        current_qty = 0.0
+
+                    if exit_qty is not None and current_qty > 0:
+                        fraction = max(min(exit_qty / current_qty, 1.0), 0.0)
+                        if fraction < 1.0:
+                            remaining_qty = max(current_qty - exit_qty, 0.0)
+                            self.current_position = replace(self.current_position, quantity=remaining_qty)
+                            return {
+                                'action': action,
+                                'fraction': fraction,
+                                'reason': reason,
+                                'consecutive_losses': self._consecutive_losses,
+                            }
+
+                # Full exit
                 self.current_position = None
                 self.high_water_mark = None
                 try:
@@ -489,7 +555,6 @@ class ComponentStrategyAdapter:
                     pass
 
                 # Detect stop loss exit and trigger cooldown + consecutive loss tracking
-                reason = signal.reason or ""
                 is_stop_loss = "stop loss" in reason.lower() or "stoploss" in reason.lower()
 
                 if is_stop_loss:
@@ -504,7 +569,6 @@ class ComponentStrategyAdapter:
                     # Profitable exit or non-stop-loss exit resets consecutive loss counter
                     self._consecutive_losses = 0
 
-                action = 'close_short' if not is_long else 'sell'
                 return {
                     'action': action,
                     'fraction': 1.0,
@@ -592,10 +656,6 @@ class ComponentStrategyAdapter:
                 else:  # MFI < 30: no entry
                     return {'action': 'hold', 'reason': f'prob_lev_zero:mfi={mfi:.1f}'}
 
-            # Regime v2 filter: Block entry if filters reject (BBW/Volume)
-            if self._regime_router is not None and not self._v2_entry_allowed:
-                return {'action': 'hold', 'reason': 'v2_filter_blocked'}
-
             # Build TradingContext for new interface (immutable positions)
             ctx = TradingContext(
                 symbol=self.symbol,
@@ -635,25 +695,26 @@ class ComponentStrategyAdapter:
                 action = "open_short" if is_short else "buy"
                 fraction = getattr(signal, "quantity", 1.0) or 1.0
 
-                # === Dynamic Position Sizing based on RF Confidence ===
-                # Scale position based on model confidence level
+                # Align sizing with live task behavior
+                use_dynamic = self.config.get("dynamic_sizing", False)
+                position_pct = float(self.config.get("position_pct", 0.02))
                 position_reason = ""
-                if self._dynamic_position_sizing:
-                    # Get RF confidence from context (already calculated above)
+                if self._dynamic_position_sizing and use_dynamic:
                     rf_conf = context.rf_confidence if context.rf_confidence > 0 else 0.0
-
                     if rf_conf >= self._position_conf_high:
-                        # High confidence: use large position
-                        fraction = self._position_size_high
+                        position_pct = self._position_size_high
                         position_reason = f"pos_high:{rf_conf:.2f}>={self._position_conf_high:.2f}"
                     elif rf_conf >= self._position_conf_low:
-                        # Medium confidence: use medium position
-                        fraction = self._position_size_mid
+                        position_pct = self._position_size_mid
                         position_reason = f"pos_mid:{rf_conf:.2f}>={self._position_conf_low:.2f}"
                     else:
-                        # Low/no confidence: use small position
-                        fraction = self._position_size_low
+                        position_pct = self._position_size_low
                         position_reason = f"pos_low:{rf_conf:.2f}<{self._position_conf_low:.2f}"
+
+                if use_dynamic:
+                    fraction = position_pct
+                else:
+                    fraction = self.config.get("position_size", fraction)
 
                 reason = signal.reason or ""
                 if position_reason:

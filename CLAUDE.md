@@ -463,6 +463,8 @@ python scripts/analyze_trades.py --event EXIT       # Filter by event
 
 ## Recent Changes
 
+- 2026-01-31: Added V35 unified tuning APIs with growth-focused optimization (MDD ≤25% cap)
+- 2026-01-31: Added Quant Lab security hardening (auth, input validation, path traversal protection)
 - 2026-01-31: Restored spot trading for V35 strategies (hybrid spot/futures mode)
 - 2026-01-31: Added hybrid dashboard view with spot/futures separation
 - 2026-01-31: Added enhanced backtest judgment charts and metrics

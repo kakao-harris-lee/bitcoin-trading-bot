@@ -145,6 +145,38 @@ class TestV35LongFutures:
         assert market == "futures"  # Default in STRATEGY_REGISTRY
 
 
+class TestSpotMarketMigration:
+    """Test V35 strategies migrated to spot market."""
+
+    def test_v35_strategies_use_spot_market(self, factory):
+        """Test all V35 strategies return spot from get_market()."""
+        v35_strategies = [
+            "v35_long",
+            "v35_long_v2",
+            "tuned_v35_long_v2_growth",
+            "tuned_v35_long_v2_hold",
+            "tuned_v35_long_v2_core_overlay",
+            "tuned_v35_long_v2_core_overlay_v2",
+        ]
+
+        for strategy in v35_strategies:
+            config = {"market": "spot"}  # After migration, config should have spot
+            market = factory.get_market(strategy, config)
+            assert market == "spot", f"{strategy} should use spot market"
+
+    def test_short_sideways_use_futures_market(self, factory):
+        """Test short/sideways strategies remain on futures."""
+        futures_strategies = [
+            ("short_v1", {"market": "futures"}),
+            ("sideways_v2", {"market": "futures"}),
+            ("combo_ensemble", {"market": "futures"}),
+        ]
+
+        for strategy, config in futures_strategies:
+            market = factory.get_market(strategy, config)
+            assert market == "futures", f"{strategy} should use futures market"
+
+
 class TestSidewaysV2Futures:
     """Test SidewaysV2 strategy with futures market."""
 

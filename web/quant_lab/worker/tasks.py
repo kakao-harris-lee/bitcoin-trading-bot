@@ -161,3 +161,135 @@ def _on_trial_complete(job_id: str, study, trial) -> None:
         })
     except Exception:
         pass
+
+
+# =============================================================================
+# V35 Unified Tuning Tasks
+# =============================================================================
+
+def run_v35_optimization(
+    strategy_name: str,
+    param_groups: List[str],
+    n_trials: int = 100,
+    capital: float = 10_000.0,
+    start_date: str = "2024-01-01",
+    end_date: str = "2024-12-31",
+    symbol: str = "BTC",
+) -> Dict[str, Any]:
+    """Run V35 parameter optimization with Optuna.
+
+    Uses GrowthObjective for growth-focused optimization with MDD constraints.
+    Leverages ComponentStrategyAdapter for full V35 feature support.
+
+    Args:
+        strategy_name: V35 strategy to optimize (e.g., "v35_long_v2").
+        param_groups: List of parameter groups to tune (e.g., ["risk", "sizing"]).
+        n_trials: Number of optimization trials (default 100).
+        capital: Initial capital in USD (default $10,000).
+        start_date: Backtest start date (default "2024-01-01").
+        end_date: Backtest end date (default "2024-12-31").
+        symbol: Trading symbol (default "BTC").
+
+    Returns:
+        Dict with best params, score, and optimization stats.
+
+    Raises:
+        FileNotFoundError: If data file not found.
+        ValueError: If strategy_name not recognized.
+    """
+    import os
+    import sys
+    from pathlib import Path
+    import optuna
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Ensure project root in path
+    project_root = Path(__file__).parent.parent.parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    from ..optimizer.v35_objective import GrowthObjective, create_v35_study
+    from ..optimizer.v35_search_space import V35_STRATEGY_PARAMS
+
+    # Validate strategy
+    if strategy_name not in V35_STRATEGY_PARAMS:
+        raise ValueError(f"Unknown strategy: {strategy_name}")
+
+    # Find data path
+    data_path = project_root / "data" / "btc_data.db"
+    if not data_path.exists():
+        # Try alternative paths
+        alt_paths = [
+            project_root / "data" / "binance_bitcoin.db",
+            project_root / "data" / "bitcoin_data.db",
+        ]
+        for alt in alt_paths:
+            if alt.exists():
+                data_path = alt
+                break
+
+    if not data_path.exists():
+        raise FileNotFoundError(f"Data file not found: {data_path}")
+
+    logger.info(f"Starting V35 optimization: {strategy_name}")
+    logger.info(f"  Param groups: {param_groups}")
+    logger.info(f"  Trials: {n_trials}, Capital: ${capital:,.0f}")
+    logger.info(f"  Period: {start_date} to {end_date}")
+
+    # Create objective
+    objective = GrowthObjective(
+        strategy_name=strategy_name,
+        data_path=str(data_path),
+        start_date=start_date,
+        end_date=end_date,
+        symbol=symbol,
+        capital=capital,
+        enabled_groups=param_groups if param_groups else None,
+    )
+
+    # Create study with SQLite persistence
+    db_path = Path(__file__).parent.parent / "quant_lab_studies.db"
+    storage = f"sqlite:///{db_path}"
+
+    study = create_v35_study(
+        strategy_name=strategy_name,
+        start_date=start_date,
+        end_date=end_date,
+        storage=storage,
+        sampler_seed=42,
+    )
+
+    # Run optimization
+    study.optimize(
+        objective,
+        n_trials=n_trials,
+        show_progress_bar=True,
+        callbacks=[
+            lambda s, t: logger.info(
+                f"Trial {t.number}: score={t.value:.4f}" if t.value else f"Trial {t.number}: pruned"
+            )
+        ],
+    )
+
+    # Get results
+    best = study.best_trial
+
+    result = {
+        "strategy": strategy_name,
+        "best_score": best.value,
+        "best_params": best.params,
+        "n_trials": len(study.trials),
+        "n_completed": len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]),
+        "n_pruned": len([t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]),
+        "param_groups": param_groups,
+        "capital": capital,
+        "period": f"{start_date} to {end_date}",
+        "study_name": study.study_name,
+    }
+
+    logger.info(f"Optimization complete: best_score={best.value:.4f}")
+    logger.info(f"  Best params: {best.params}")
+
+    return result

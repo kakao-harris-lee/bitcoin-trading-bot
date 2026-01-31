@@ -67,7 +67,7 @@
       "position_pct": 0.12,
       "position_size": 0.01,
       "use_smart_exit": true,
-      "use_breakout_filter": false,
+      "use_breakout_filter": true,
       "regime_version": "v2",
       "bbw_block_threshold": 0,
       "bbw_confirm_threshold": 0,

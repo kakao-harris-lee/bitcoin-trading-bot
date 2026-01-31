@@ -76,3 +76,6 @@ MagicMock/
 mlruns/
 mlartifacts/
 web/static/charts/*.png
+
+# Backtest output charts
+outputs/

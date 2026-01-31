@@ -1,4 +1,5 @@
 """Integration tests for Quant Lab."""
+import base64
 import pytest
 
 pytest.importorskip("flask")
@@ -10,6 +11,20 @@ from web.quant_lab.optimizer.study_manager import StudyManager
 from unittest.mock import MagicMock
 import tempfile
 import os
+
+
+@pytest.fixture(autouse=True)
+def setup_env():
+    """Set up environment variables for tests."""
+    os.environ["DASHBOARD_PASSWORD"] = "testpass"
+    os.environ["DASHBOARD_USERNAME"] = "admin"
+    yield
+
+
+def get_auth_headers():
+    """Create authentication headers."""
+    credentials = base64.b64encode(b"admin:testpass").decode("utf-8")
+    return {"Authorization": f"Basic {credentials}"}
 
 
 class TestFullWorkflow:
@@ -57,24 +72,25 @@ class TestFullWorkflow:
             assert stats["pareto_front_size"] == 0
 
     def test_flask_routes_available(self):
-        """All Quant Lab routes should be accessible."""
+        """All Quant Lab routes should be accessible with auth."""
         app = Flask(__name__)
         app.config['TESTING'] = True
         app.register_blueprint(quant_lab_bp, url_prefix='/quant-lab')
         client = app.test_client()
+        auth_headers = get_auth_headers()
 
-        # Index
+        # Index (no auth required for HTML pages)
         response = client.get('/quant-lab/')
         assert response.status_code == 200
 
-        # Templates API
-        response = client.get('/quant-lab/api/templates')
+        # Templates API (auth required)
+        response = client.get('/quant-lab/api/templates', headers=auth_headers)
         assert response.status_code == 200
         data = response.get_json()
         assert 'templates' in data
 
-        # Search space API
-        response = client.get('/quant-lab/api/search-space')
+        # Search space API (auth required)
+        response = client.get('/quant-lab/api/search-space', headers=auth_headers)
         assert response.status_code == 200
         data = response.get_json()
         assert 'regimes' in data

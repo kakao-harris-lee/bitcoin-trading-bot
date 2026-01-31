@@ -410,7 +410,7 @@ class TestLegacyConfigFormat:
 
         assert isinstance(entry, V35EntryStrategy)
         assert entry.params.position_size == 0.5  # default
-        assert entry.params.market == "futures"  # default from spec
+        assert entry.params.market == "spot"  # V35 now uses spot (no leverage benefit)
 
 
 class TestBackwardCompatibility:
@@ -433,7 +433,7 @@ class TestBackwardCompatibility:
         assert exit2 is not None
 
         market = factory.get_market("v35_long")
-        assert market == "futures"
+        assert market == "spot"  # V35 now uses spot (no leverage benefit)
 
     def test_strategy_registry_unchanged(self, factory):
         """Test that STRATEGY_REGISTRY entries still work."""

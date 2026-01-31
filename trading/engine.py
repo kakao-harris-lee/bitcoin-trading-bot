@@ -78,9 +78,13 @@ class TradingEngine:
 
         # 1. Create feed instances and run warmup BEFORE starting strategies
         # This ensures warmup data is in Redis before strategy consumer groups are created
+        #
+        # Hybrid mode: Uses futures price feeds for both spot and futures strategies.
+        # Rationale: Spot and perpetual futures prices are nearly identical (arbitrage
+        # keeps them within ~0.1%). Using a single feed per symbol reduces WebSocket
+        # connections and complexity without meaningful accuracy loss.
         feeds: list[BinanceFeedTask] = []
         for symbol in symbols:
-            # Futures feed only (spot trading removed)
             futures_feed = BinanceFeedTask(symbol=symbol, redis=self.redis, market="futures")
             feeds.append(futures_feed)
 

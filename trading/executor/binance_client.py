@@ -1,5 +1,5 @@
 # trading/executor/binance_client.py
-"""Binance client for futures trading (spot trading removed)."""
+"""Unified Binance client for spot and futures trading."""
 from __future__ import annotations
 import asyncio
 import logging
@@ -72,7 +72,7 @@ class Balance:
 
 
 class BinanceClient:
-    """Async client for Binance futures trading."""
+    """Async client for Binance spot and futures trading."""
 
     # Default leverage for futures trading
     DEFAULT_LEVERAGE = 1
@@ -247,8 +247,10 @@ class BinanceClient:
             return []
 
     async def get_all_positions(self) -> list[dict[str, Any]]:
-        """Get all positions (futures only - spot holdings excluded)."""
-        return await self.get_futures_positions()
+        """Get all positions (both spot and futures)."""
+        spot = await self.get_spot_positions()
+        futures = await self.get_futures_positions()
+        return spot + futures
 
     async def set_leverage(self, symbol: str, leverage: int) -> bool:
         """Set leverage for a futures symbol.
@@ -369,46 +371,64 @@ class BinanceClient:
         market: str = "futures",
         position_side: str | None = None,
     ) -> dict[str, Any]:
-        """Execute market order on futures.
+        """Execute market order on spot or futures.
 
         Args:
             symbol: Trading symbol (e.g., "BTC").
             side: Order side ("buy" or "sell").
             quantity: Order quantity.
-            market: Market type (must be "futures").
+            market: Market type ("spot" or "futures").
             position_side: Position side for hedge mode ("LONG" or "SHORT").
                           Required for futures in hedge mode.
         """
-        if market != "futures":
-            raise ValueError(f"Spot trading not supported. Got market='{market}'")
-
         pair = f"{symbol}USDT"
 
         try:
-            order_params = {
-                "symbol": pair,
-                "side": side.upper(),
-                "type": "MARKET",
-                "quantity": quantity,
-            }
-            # Add positionSide for hedge mode
-            if self._hedge_mode_enabled and position_side:
-                order_params["positionSide"] = position_side.upper()
+            if market == "spot":
+                # Spot market order
+                result = await self._spot_client.create_order(
+                    symbol=pair,
+                    side=side.upper(),
+                    type="MARKET",
+                    quantity=quantity,
+                )
+                filled_price = float(result["cummulativeQuoteQty"]) / float(result["executedQty"])
 
-            result = await self._futures_client.futures_create_order(**order_params)
-            filled_price = float(result.get("avgPrice", 0)) or \
-                           float(result["cumQuote"]) / float(result["executedQty"])
+                return {
+                    "order_id": result["orderId"],
+                    "symbol": symbol,
+                    "side": side,
+                    "market": market,
+                    "filled_qty": float(result["executedQty"]),
+                    "filled_price": filled_price,
+                    "status": result["status"],
+                }
+            else:
+                # Futures market order
+                order_params = {
+                    "symbol": pair,
+                    "side": side.upper(),
+                    "type": "MARKET",
+                    "quantity": quantity,
+                }
+                # Add positionSide for hedge mode
+                if self._hedge_mode_enabled and position_side:
+                    order_params["positionSide"] = position_side.upper()
 
-            return {
-                "order_id": result["orderId"],
-                "symbol": symbol,
-                "side": side,
-                "market": market,
-                "filled_qty": float(result["executedQty"]),
-                "filled_price": filled_price,
-                "status": result["status"],
-                "position_side": position_side,
-            }
+                result = await self._futures_client.futures_create_order(**order_params)
+                filled_price = float(result.get("avgPrice", 0)) or \
+                               float(result["cumQuote"]) / float(result["executedQty"])
+
+                return {
+                    "order_id": result["orderId"],
+                    "symbol": symbol,
+                    "side": side,
+                    "market": market,
+                    "filled_qty": float(result["executedQty"]),
+                    "filled_price": filled_price,
+                    "status": result["status"],
+                    "position_side": position_side,
+                }
 
         except Exception as e:
             logger.error(f"Order failed: {e}")
@@ -424,48 +444,68 @@ class BinanceClient:
         market: str = "futures",
         position_side: str | None = None,
     ) -> dict[str, Any]:
-        """Place limit order on futures.
+        """Place limit order on spot or futures.
 
         Args:
             symbol: Trading symbol (e.g., "BTC").
             side: Order side ("buy" or "sell").
             quantity: Order quantity.
             price: Limit price.
-            market: Market type (must be "futures").
+            market: Market type ("spot" or "futures").
             position_side: Position side for hedge mode ("LONG" or "SHORT").
                           Required for futures in hedge mode.
         """
-        if market != "futures":
-            raise ValueError(f"Spot trading not supported. Got market='{market}'")
-
         pair = f"{symbol}USDT"
 
         try:
-            order_params = {
-                "symbol": pair,
-                "side": side.upper(),
-                "type": "LIMIT",
-                "quantity": quantity,
-                "price": price,
-                "timeInForce": "GTC",
-            }
-            # Add positionSide for hedge mode
-            if self._hedge_mode_enabled and position_side:
-                order_params["positionSide"] = position_side.upper()
+            if market == "spot":
+                # Spot limit order
+                result = await self._spot_client.create_order(
+                    symbol=pair,
+                    side=side.upper(),
+                    type="LIMIT",
+                    quantity=quantity,
+                    price=price,
+                    timeInForce="GTC",
+                )
 
-            result = await self._futures_client.futures_create_order(**order_params)
+                return {
+                    "order_id": result["orderId"],
+                    "symbol": symbol,
+                    "side": side,
+                    "market": market,
+                    "price": float(result.get("price", price)),
+                    "quantity": quantity,
+                    "filled_qty": float(result.get("executedQty", 0)),
+                    "status": result["status"],
+                }
+            else:
+                # Futures limit order
+                order_params = {
+                    "symbol": pair,
+                    "side": side.upper(),
+                    "type": "LIMIT",
+                    "quantity": quantity,
+                    "price": price,
+                    "timeInForce": "GTC",
+                }
+                # Add positionSide for hedge mode
+                if self._hedge_mode_enabled and position_side:
+                    order_params["positionSide"] = position_side.upper()
 
-            return {
-                "order_id": result["orderId"],
-                "symbol": symbol,
-                "side": side,
-                "market": market,
-                "price": float(result.get("price", price)),
-                "quantity": quantity,
-                "filled_qty": float(result.get("executedQty", 0)),
-                "status": result["status"],
-                "position_side": position_side,
-            }
+                result = await self._futures_client.futures_create_order(**order_params)
+
+                return {
+                    "order_id": result["orderId"],
+                    "symbol": symbol,
+                    "side": side,
+                    "market": market,
+                    "price": float(result.get("price", price)),
+                    "quantity": quantity,
+                    "filled_qty": float(result.get("executedQty", 0)),
+                    "status": result["status"],
+                    "position_side": position_side,
+                }
 
         except Exception as e:
             logger.error(f"Limit order failed: {e}")
@@ -478,17 +518,20 @@ class BinanceClient:
         order_id: int,
         market: str = "futures",
     ) -> dict[str, Any]:
-        """Cancel an open futures order."""
-        if market != "futures":
-            raise ValueError(f"Spot trading not supported. Got market='{market}'")
-
+        """Cancel an open spot or futures order."""
         pair = f"{symbol}USDT"
 
         try:
-            result = await self._futures_client.futures_cancel_order(
-                symbol=pair,
-                orderId=order_id,
-            )
+            if market == "spot":
+                result = await self._spot_client.cancel_order(
+                    symbol=pair,
+                    orderId=order_id,
+                )
+            else:
+                result = await self._futures_client.futures_cancel_order(
+                    symbol=pair,
+                    orderId=order_id,
+                )
 
             return {
                 "order_id": result["orderId"],
@@ -506,17 +549,20 @@ class BinanceClient:
         order_id: int,
         market: str = "futures",
     ) -> dict[str, Any]:
-        """Get futures order status."""
-        if market != "futures":
-            raise ValueError(f"Spot trading not supported. Got market='{market}'")
-
+        """Get spot or futures order status."""
         pair = f"{symbol}USDT"
 
         try:
-            result = await self._futures_client.futures_get_order(
-                symbol=pair,
-                orderId=order_id,
-            )
+            if market == "spot":
+                result = await self._spot_client.get_order(
+                    symbol=pair,
+                    orderId=order_id,
+                )
+            else:
+                result = await self._futures_client.futures_get_order(
+                    symbol=pair,
+                    orderId=order_id,
+                )
 
             return {
                 "order_id": result["orderId"],

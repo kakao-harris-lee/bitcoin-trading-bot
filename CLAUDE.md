@@ -2,7 +2,14 @@
 
 ## Trading Mode
 
-**Futures-only trading.** Spot trading has been removed from the codebase. All strategies execute on Binance Futures (USDT-M perpetual contracts).
+**Hybrid trading mode.** V35 strategies execute on Binance Spot, Short/Sideways strategies execute on Binance Futures.
+
+| Market | Strategies | Characteristics |
+|--------|------------|-----------------|
+| **Spot** | V35 strategies (6 variants) | No leverage (1x), 0.1% fee, no liquidation risk |
+| **Futures** | Short, Sideways | Leverage (1-3x), 0.05% fee, hedging capability |
+
+**Why Hybrid?** V35 strategy analysis showed effectiveness only at 1% position sizing—scaling with leverage provided no benefit while adding complexity (funding costs, liquidation risk).
 
 ## 1. System Architecture
 
@@ -41,7 +48,7 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - [x] **Factory Integration**: `Engine` uses `StrategyFactory`.
 - [x] **Cleanup**: Legacy monolithic tasks (`V35LongTask`, etc.) deleted.
 - [x] **Persistence**: `StateManager` implemented.
-- [x] **Futures-Only**: Spot trading removed, all strategies use futures.
+- [x] **Hybrid Mode**: V35 strategies on spot, Short/Sideways on futures.
 - [x] **Observability**: Enhance `MetricsService` for component-specific events.
 
 ## 4. Coding Standards
@@ -68,6 +75,8 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - Volatility Breakout & LSTM Scaling → `docs/plans/2026-01-26-volatility-breakout-lstm-scaling-design.md`
 - Enhanced Regime Detection v2 → `docs/plans/2026-01-27-enhanced-regime-detection-design.md`
 - Risk-Based Position Sizing → `docs/plans/2026-01-30-risk-based-position-sizing-design.md`
+- Spot Trading Restoration Design → `docs/plans/2026-01-31-spot-trading-restoration-design.md`
+- Spot Trading Restoration Implementation → `docs/plans/2026-01-31-spot-trading-restoration-implementation.md`
 
 This prevents context loss! Update this file immediately when you create important documentation.
 
@@ -238,7 +247,10 @@ bitcoin-trading-bot/
 
 ### Hashes
 
-- `positions:{symbol}:futures`: Position state (qty, entry_price, strategy). Futures-only.
+- `positions:{symbol}:spot`: Spot position state (qty, entry_price, strategy).
+- `positions:{symbol}:futures`: Futures position state (qty, entry_price, leverage, liquidation_price).
+- `balance:spot:usdt`: Spot USDT balance.
+- `balance:futures:usdt`: Futures USDT balance.
 - `risk`: Risk state (kill_switch, blocked, daily_pnl).
 - `state:{strategy}:{symbol}`: Persistent strategy state (high_water_mark, etc).
 
@@ -255,6 +267,7 @@ bitcoin-trading-bot/
     "volatility": { "window": 20, "low_threshold": 0.71, "high_threshold": 0.92 },
     "market_context": { "mfi_bull": 52.0, "mfi_bear": 48.0, "adx_trend": 20.0 }
   },
+  "spot": { "enabled": true, "fee_rate": 0.001 },
   "futures": { "enabled": true, "default_leverage": 3 },
   "strategies": {
     "v35_long": {
@@ -317,10 +330,14 @@ Studies are stored in `web/quant_lab_studies.db` (SQLite).
 
 ## Fee Calculation
 
-```
-Cost per trade = 0.05% (entry) + 0.05% (exit) + 0.04% (slippage) = 0.14%
-Minimum profit target: 1.4% (10x fees)
-```
+| Market | Fee Rate | Round Trip | With Slippage |
+|--------|----------|------------|---------------|
+| **Spot** | 0.10% | 0.20% | ~0.24% |
+| **Futures** | 0.05% | 0.10% | ~0.14% |
+
+Minimum profit targets:
+- Spot: 2.4% (10x fees)
+- Futures: 1.4% (10x fees)
 
 ## Risk-Based Position Sizing
 
@@ -446,6 +463,9 @@ python scripts/analyze_trades.py --event EXIT       # Filter by event
 
 ## Recent Changes
 
+- 2026-01-31: Restored spot trading for V35 strategies (hybrid spot/futures mode)
+- 2026-01-31: Added hybrid dashboard view with spot/futures separation
+- 2026-01-31: Added enhanced backtest judgment charts and metrics
 - 2026-01-30: Added risk-based position sizing (1% risk per trade, 5% total risk cap)
 - 2026-01-25: Added structured one-line JSON trade logging for analysis
 - 2026-01-25: Synced strategy configs and LSTM updates
@@ -454,5 +474,5 @@ python scripts/analyze_trades.py --event EXIT       # Filter by event
 - 2026-01-22: Fixed dashboard paper/live mode separation for account data
 - 2026-01-21: Added Quant Lab integration (hyperparameter optimization)
 - 2026-01-20: Added observability events (entry/exit/HWM/safety) with API endpoints
-- 2026-01-20: Removed spot trading - system now trades futures only
+- 2026-01-20: (Reverted 2026-01-31) Removed spot trading - system now trades futures only
 - 2026-01-18: Added Smart Executor with ladder execution and volatility-based trailing

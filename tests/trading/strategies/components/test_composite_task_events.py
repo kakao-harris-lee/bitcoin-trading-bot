@@ -25,6 +25,7 @@ def mock_redis():
     """Create mock RedisStreams."""
     redis = MagicMock()
     redis.publish_event = AsyncMock(return_value="1234567890-0")
+    redis.get_position = AsyncMock(return_value={})
     redis._client = MagicMock()
     redis._client.hgetall = AsyncMock(return_value={})
     return redis

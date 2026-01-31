@@ -20,6 +20,19 @@ logger = logging.getLogger(__name__)
 DEFAULT_EVALUATION_INTERVAL = 5.0
 
 
+def get_position_key(symbol: str, market: str) -> str:
+    """Get Redis key for position.
+
+    Args:
+        symbol: Trading symbol (e.g., "BTC")
+        market: Market type ("spot" or "futures")
+
+    Returns:
+        Redis key like "positions:BTC:spot" or "positions:BTC:futures"
+    """
+    return f"positions:{symbol}:{market}"
+
+
 class BaseStrategyTask(ABC):
     """Base class for autonomous strategy tasks."""
 

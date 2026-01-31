@@ -38,10 +38,13 @@
     "enabled": true,
     "default_leverage": 3
   },
+  "spot": {
+    "enabled": true,
+    "fee_rate": 0.001
+  },
   "strategies": {
     "v35_long": {
-      "market": "futures",
-      "leverage": 3,
+      "market": "spot",
       "dynamic_sizing": true,
       "position_pct": 0.3,
       "position_size": 0.01,
@@ -51,8 +54,7 @@
     },
     "v35_long_v2": {
       "_comment": "Risk-based sizing: 1% risk per trade, 5% max total risk",
-      "market": "futures",
-      "leverage": 3,
+      "market": "spot",
       "risk_based_sizing": true,
       "risk_per_trade_pct": 0.01,
       "max_total_risk_pct": 0.05,
@@ -115,8 +117,7 @@
     },
     "tuned_v35_long_v2_growth": {
       "_comment": "Aggressive long capture aiming for near buy-and-hold returns with ~20% MDD cap",
-      "market": "futures",
-      "leverage": 3,
+      "market": "spot",
       "dynamic_sizing": true,
       "position_pct": 0.3,
       "position_size": 0.01,
@@ -205,8 +206,7 @@
     },
     "tuned_v35_long_v2_hold": {
       "_comment": "Regime-hold entry to stay invested through bull/sideways regimes",
-      "market": "futures",
-      "leverage": 3,
+      "market": "spot",
       "dynamic_sizing": true,
       "position_pct": 0.4,
       "position_size": 0.01,
@@ -282,8 +282,7 @@
     },
     "tuned_v35_long_v2_core_overlay": {
       "_comment": "Core hold + v35 overlay to target near buy-and-hold returns with ~20% MDD",
-      "market": "futures",
-      "leverage": 3,
+      "market": "spot",
       "core_hold_pct": 0.55,
       "core_exit_on_ema200": false,
       "core_ema_timeframe": "day",
@@ -359,8 +358,7 @@
     },
     "tuned_v35_long_v2_core_overlay_v2": {
       "_comment": "Core hold + v35 overlay with daily EMA filter and tighter drawdown guard",
-      "market": "futures",
-      "leverage": 3,
+      "market": "spot",
       "core_hold_pct": 0.7,
       "core_exit_on_ema200": true,
       "core_ema_timeframe": "day",

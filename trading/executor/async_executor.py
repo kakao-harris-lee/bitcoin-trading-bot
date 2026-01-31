@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Approximate prices for balance estimation (used before order execution)
+APPROX_PRICES = {"BTC": 90000, "ETH": 3000, "SOL": 130}
+
 
 class AsyncExecutor:
     """Consumes orders stream and executes via Binance API."""
@@ -35,7 +38,7 @@ class AsyncExecutor:
         self.position_pct = config.get("position_pct", 0.02)  # 2% of balance per trade
         self.min_balance = config.get("min_balance", 100)  # Minimum USDT to trade
         self._running = False
-        self._balance_cache = {"futures": 0.0, "last_update": 0}
+        self._balance_cache = {"spot": 0.0, "futures": 0.0, "last_update": 0}
         self.liquidation_guard = LiquidationGuard()
 
     async def run(self) -> None:
@@ -77,14 +80,18 @@ class AsyncExecutor:
         logger.info("Syncing account with Binance...")
 
         try:
-            # Get balance
+            # Get balance (both spot and futures)
             balance = await self.client.get_balance()
-            total_equity = getattr(balance, "total_usdt", balance.futures_usdt)
+            spot_balance = getattr(balance, "spot_usdt", 0.0)
+            futures_balance = balance.futures_usdt
+            total_equity = spot_balance + futures_balance
+
             self._balance_cache = {
-                "futures": balance.futures_usdt,
+                "spot": spot_balance,
+                "futures": futures_balance,
                 "last_update": time.time(),
             }
-            logger.info(f"Futures Balance: ${balance.futures_usdt:.2f}")
+            logger.info(f"Spot Balance: ${spot_balance:.2f}, Futures Balance: ${futures_balance:.2f}")
 
             # Get positions and sync to Redis
             positions = await self.client.get_all_positions()
@@ -113,7 +120,9 @@ class AsyncExecutor:
 
             # Store balance in Redis for strategies to access
             await self.redis.hset("account:live", {
-                "futures_balance": str(balance.futures_usdt),
+                "spot_balance": str(spot_balance),
+                "futures_balance": str(futures_balance),
+                "total_equity": str(total_equity),
                 "last_sync": str(int(time.time())),
             })
 
@@ -130,33 +139,40 @@ class AsyncExecutor:
             logger.error(f"Account sync failed: {e}")
 
     async def _balance_refresh_loop(self) -> None:
-        """Periodically refresh balance cache."""
+        """Periodically refresh balance cache (spot and futures)."""
         while self._running:
             try:
                 await asyncio.sleep(60)  # Refresh every minute
                 balance = await self.client.get_balance()
+                spot_balance = getattr(balance, "spot_usdt", 0.0)
+                futures_balance = balance.futures_usdt
+
                 self._balance_cache = {
-                    "futures": balance.futures_usdt,
+                    "spot": spot_balance,
+                    "futures": futures_balance,
                     "last_update": time.time(),
                 }
                 # Update Redis
                 await self.redis.hset("account:live", {
-                    "futures_balance": str(balance.futures_usdt),
+                    "spot_balance": str(spot_balance),
+                    "futures_balance": str(futures_balance),
+                    "total_equity": str(spot_balance + futures_balance),
                     "last_sync": str(int(time.time())),
                 })
             except Exception as e:
                 logger.warning(f"Balance refresh failed: {e}")
 
     async def _process_order(self, order: dict[str, Any]) -> dict | None:
-        """Process single order."""
-        # Check risk gates
-        if not await self._pass_risk_gates():
+        """Process single order - routes to spot or futures execution."""
+        market = order.get("market", "futures")
+
+        # Check risk gates (market-specific)
+        if not await self._pass_risk_gates(market):
             logger.warning(f"Order {order['id']} blocked by risk gates")
             await self._publish_rejection(order, "risk_blocked")
             return None
 
         # Check balance before order
-        market = order.get("market", "futures")
         required_balance = self._estimate_order_value(order)
         available = self._balance_cache.get(market, 0)
 
@@ -166,102 +182,170 @@ class AsyncExecutor:
             return None
 
         try:
-            # Check if this is an exit (closing an existing position)
-            is_exit = await self._is_exit_order(order)
-
-            # Check leverage allowance for futures entry orders
-            effective_leverage = None
-            allowed_leverage: int | None = None
-            if market == "futures" and not is_exit and self.leverage_manager:
-                allowed_leverage = await self.leverage_manager.get_allowed_leverage()
-                if allowed_leverage == 0:
-                    logger.warning(
-                        f"Order {order['id']} blocked: leverage halted "
-                        f"(drawdown={self.leverage_manager.get_drawdown_pct():.1f}%)"
-                    )
-                    await self._publish_rejection(order, "leverage_halted")
-                    return None
-
-                # Use minimum of allowed leverage and order leverage
-                order_leverage = int(order.get("leverage", 1))
-                effective_leverage = min(order_leverage, allowed_leverage)
-                if effective_leverage != order_leverage:
-                    logger.info(
-                        f"Leverage adjusted: {order_leverage}x -> {effective_leverage}x "
-                        f"(risk tier: {self.leverage_manager.current_tier.name})"
-                    )
-                order["leverage"] = effective_leverage
-
-                # Set leverage on Binance before order
-                symbol = order["symbol"]
-                await self.client.set_leverage(symbol, effective_leverage)
-                logger.info(f"Set leverage for {symbol}: {effective_leverage}x")
-
-            # Determine position_side for futures hedge mode
-            position_side = await self._get_position_side(order, is_exit)
-
-            # Execute order
-            fill = await self.client.market_order(
-                symbol=order["symbol"],
-                side=order["side"],
-                quantity=float(order["quantity"]),
-                market=order["market"],
-                position_side=position_side,
-            )
-
-            # Update position
-            profit_data = None
-            if is_exit:
-                # Calculate realized P&L (must be done before clearing position)
-                profit_data = await self._record_exit_pnl(order, fill)
-                await self.redis.clear_position(order["symbol"], order["market"])
+            # Route to appropriate execution based on market type
+            if market == "spot":
+                return await self._execute_spot_order(order)
             else:
-                await self._update_position(order, fill)
-
-            # Publish trade notification (with profit data for exits)
-            await self._publish_trade(order, fill, profit_data)
-
-            # Structured logging for trade analysis
-            if is_exit and profit_data:
-                position = await self.redis.get_position(order["symbol"], order["market"])
-                entry_price = float(position.get("entry_price", 0)) if position else 0
-                entry_time = int(position.get("entry_time", 0)) if position else 0
-                hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
-                trade_logger.exit(
-                    symbol=order["symbol"],
-                    price=fill["filled_price"],
-                    qty=fill["filled_qty"],
-                    entry_price=entry_price,
-                    strategy=order["strategy"],
-                    pnl=profit_data["profit"],
-                    pnl_pct=profit_data["profit_pct"],
-                    hold_time_sec=hold_time,
-                    exit_reason=order.get("reason", ""),
-                    mode="live",
-                )
-            else:
-                logged_leverage = 1
-                if market == "futures":
-                    try:
-                        logged_leverage = int(order.get("leverage", 1) or 1)
-                    except (TypeError, ValueError):
-                        logged_leverage = 1
-                trade_logger.entry(
-                    symbol=order["symbol"],
-                    price=fill["filled_price"],
-                    qty=fill["filled_qty"],
-                    strategy=order["strategy"],
-                    leverage=logged_leverage,
-                    mode="live",
-                )
-
-            logger.info(f"Order {order['id']} filled: {fill}")
-            return fill
+                return await self._execute_futures_order(order)
 
         except Exception as e:
             logger.error(f"Order {order['id']} failed: {e}")
             await self._publish_rejection(order, str(e))
             return None
+
+    async def _execute_spot_order(self, order: dict[str, Any]) -> dict | None:
+        """Execute spot order - no leverage, no liquidation."""
+        # Check if this is an exit (closing an existing position)
+        is_exit = await self._is_exit_order(order)
+
+        # Execute order (spot markets don't need position_side)
+        fill = await self.client.market_order(
+            symbol=order["symbol"],
+            side=order["side"],
+            quantity=float(order["quantity"]),
+            market="spot",
+            position_side=None,
+        )
+
+        # Update position
+        profit_data = None
+        if is_exit:
+            # Capture position data BEFORE clearing
+            position = await self.redis.get_position(order["symbol"], "spot")
+            entry_price = float(position.get("entry_price", 0)) if position else 0
+            entry_time = int(position.get("entry_time", 0)) if position else 0
+
+            # Calculate realized P&L (must be done before clearing position)
+            profit_data = await self._record_exit_pnl(order, fill)
+            await self.redis.clear_position(order["symbol"], "spot")
+        else:
+            await self._update_spot_position(order, fill)
+
+        # Publish trade notification (with profit data for exits)
+        await self._publish_trade(order, fill, profit_data)
+
+        # Structured logging for trade analysis
+        if is_exit and profit_data:
+            hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
+            trade_logger.exit(
+                symbol=order["symbol"],
+                price=fill["filled_price"],
+                qty=fill["filled_qty"],
+                entry_price=entry_price,
+                strategy=order["strategy"],
+                pnl=profit_data["profit"],
+                pnl_pct=profit_data["profit_pct"],
+                hold_time_sec=hold_time,
+                exit_reason=order.get("reason", ""),
+                mode="live",
+            )
+        else:
+            trade_logger.entry(
+                symbol=order["symbol"],
+                price=fill["filled_price"],
+                qty=fill["filled_qty"],
+                strategy=order["strategy"],
+                leverage=1,  # Spot always 1x
+                mode="live",
+            )
+
+        logger.info(f"Spot order {order['id']} filled: {fill}")
+        return fill
+
+    async def _execute_futures_order(self, order: dict[str, Any]) -> dict | None:
+        """Execute futures order - with leverage and liquidation checks."""
+        # Check if this is an exit (closing an existing position)
+        is_exit = await self._is_exit_order(order)
+
+        # Check leverage allowance for futures entry orders
+        effective_leverage = None
+        allowed_leverage: int | None = None
+        if not is_exit and self.leverage_manager:
+            allowed_leverage = await self.leverage_manager.get_allowed_leverage()
+            if allowed_leverage == 0:
+                logger.warning(
+                    f"Order {order['id']} blocked: leverage halted "
+                    f"(drawdown={self.leverage_manager.get_drawdown_pct():.1f}%)"
+                )
+                await self._publish_rejection(order, "leverage_halted")
+                return None
+
+            # Use minimum of allowed leverage and order leverage
+            order_leverage = int(order.get("leverage", 1))
+            effective_leverage = min(order_leverage, allowed_leverage)
+            if effective_leverage != order_leverage:
+                logger.info(
+                    f"Leverage adjusted: {order_leverage}x -> {effective_leverage}x "
+                    f"(risk tier: {self.leverage_manager.current_tier.name})"
+                )
+            order["leverage"] = effective_leverage
+
+            # Set leverage on Binance before order
+            symbol = order["symbol"]
+            await self.client.set_leverage(symbol, effective_leverage)
+            logger.info(f"Set leverage for {symbol}: {effective_leverage}x")
+
+        # Determine position_side for futures hedge mode
+        position_side = await self._get_position_side(order, is_exit)
+
+        # Execute order
+        fill = await self.client.market_order(
+            symbol=order["symbol"],
+            side=order["side"],
+            quantity=float(order["quantity"]),
+            market=order["market"],
+            position_side=position_side,
+        )
+
+        # Update position
+        profit_data = None
+        if is_exit:
+            # Capture position data BEFORE clearing
+            position = await self.redis.get_position(order["symbol"], order["market"])
+            entry_price = float(position.get("entry_price", 0)) if position else 0
+            entry_time = int(position.get("entry_time", 0)) if position else 0
+
+            # Calculate realized P&L (must be done before clearing position)
+            profit_data = await self._record_exit_pnl(order, fill)
+            await self.redis.clear_position(order["symbol"], order["market"])
+        else:
+            await self._update_position(order, fill)
+
+        # Publish trade notification (with profit data for exits)
+        await self._publish_trade(order, fill, profit_data)
+
+        # Structured logging for trade analysis
+        if is_exit and profit_data:
+            hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
+            trade_logger.exit(
+                symbol=order["symbol"],
+                price=fill["filled_price"],
+                qty=fill["filled_qty"],
+                entry_price=entry_price,
+                strategy=order["strategy"],
+                pnl=profit_data["profit"],
+                pnl_pct=profit_data["profit_pct"],
+                hold_time_sec=hold_time,
+                exit_reason=order.get("reason", ""),
+                mode="live",
+            )
+        else:
+            logged_leverage = 1
+            try:
+                logged_leverage = int(order.get("leverage", 1) or 1)
+            except (TypeError, ValueError):
+                logged_leverage = 1
+            trade_logger.entry(
+                symbol=order["symbol"],
+                price=fill["filled_price"],
+                qty=fill["filled_qty"],
+                strategy=order["strategy"],
+                leverage=logged_leverage,
+                mode="live",
+            )
+
+        logger.info(f"Futures order {order['id']} filled: {fill}")
+        return fill
 
     def _estimate_order_value(self, order: dict) -> float:
         """Estimate USDT value of order."""
@@ -269,8 +353,7 @@ class AsyncExecutor:
         # Use approximate price (we don't have real-time price here)
         # This is a rough estimate for balance check
         symbol = order.get("symbol", "BTC")
-        approx_prices = {"BTC": 90000, "ETH": 3000, "SOL": 130}
-        price = approx_prices.get(symbol, 100)
+        price = APPROX_PRICES.get(symbol, 100)
         return quantity * price * 1.01  # 1% buffer for slippage
 
     async def _is_exit_order(self, order: dict) -> bool:
@@ -378,8 +461,12 @@ class AsyncExecutor:
 
         return {"profit": pnl_with_leverage, "profit_pct": pnl_pct}
 
-    async def _pass_risk_gates(self) -> bool:
-        """Check all risk conditions."""
+    async def _pass_risk_gates(self, market: str = "futures") -> bool:
+        """Check all risk conditions for the specified market.
+
+        Args:
+            market: "spot" or "futures". Default "futures" for backwards compatibility.
+        """
         risk = await self.redis.get_risk()
 
         # Kill switch
@@ -398,16 +485,16 @@ class AsyncExecutor:
             logger.warning(f"Daily loss limit exceeded: {daily_pnl}")
             return False
 
-        # Minimum balance check
-        futures = self._balance_cache.get("futures", 0)
-        if futures < self.min_balance:
-            logger.warning(f"Futures balance too low: {futures}")
+        # Minimum balance check (market-specific)
+        balance = self._balance_cache.get(market, 0)
+        if balance < self.min_balance:
+            logger.warning(f"{market.capitalize()} balance too low: {balance}")
             return False
 
         return True
 
     async def _update_position(self, order: dict, fill: dict) -> None:
-        """Update position in Redis with leverage and liquidation price."""
+        """Update futures position in Redis with leverage and liquidation price."""
         leverage = int(order.get("leverage", 1))
         position_value = fill["filled_price"] * fill["filled_qty"]
 
@@ -436,6 +523,23 @@ class AsyncExecutor:
                 f"Position opened: {order['symbol']} {order['side'].upper()} "
                 f"{leverage}x @ {fill['filled_price']}, liq: {liq_price:.2f}"
             )
+
+    async def _update_spot_position(self, order: dict, fill: dict) -> None:
+        """Update spot position in Redis - no leverage, no liquidation."""
+        await self.redis.set_position(order["symbol"], "spot", {
+            "quantity": str(fill["filled_qty"]),
+            "entry_price": str(fill["filled_price"]),
+            "strategy": order["strategy"],
+            "entry_time": str(int(time.time() * 1000)),
+            "side": order["side"],
+            "leverage": "1",
+            "liquidation_price": "0",
+        })
+
+        logger.info(
+            f"Spot position opened: {order['symbol']} {order['side'].upper()} "
+            f"@ {fill['filled_price']}"
+        )
 
     async def _publish_trade(self, order: dict, fill: dict, profit_data: dict | None = None) -> None:
         """Publish trade to trades stream.

@@ -943,6 +943,18 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._drawdown_cache = (now, drawdown_pct)
         return drawdown_pct
 
+    async def _get_position(self, symbol: str) -> dict | None:
+        """Get current position for symbol.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC")
+
+        Returns:
+            Position dict or None if no position exists.
+        """
+        position = await self.redis.get_position(symbol, self.market)
+        return position if position else None
+
     def _build_market_context(self, market_data: MarketData) -> MarketContext:
         """Build MarketContext from MarketData.
 
@@ -1239,8 +1251,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             regime = self.entry_strategy._classify_regime(market_data.mfi, market_data.adx)
 
         # Determine decision and reason based on position state
-        position_key = f"positions:{symbol}:{self.market}"
-        position = await self.redis._client.hgetall(position_key)
+        position = await self._get_position(symbol)
 
         # Get entry thresholds for detailed logging
         mfi_bull = 52.0

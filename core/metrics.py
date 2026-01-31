@@ -190,3 +190,81 @@ def calculate_profit_factor(
     if abs_loss == 0:
         return float("inf") if winning_profit > 0 else 0.0
     return winning_profit / abs_loss
+
+
+def calculate_cagr(equity_curve: pd.DataFrame, years: float) -> float:
+    """Calculate Compound Annual Growth Rate.
+
+    Args:
+        equity_curve: DataFrame with 'total_equity' column
+        years: Number of years in the backtest period
+
+    Returns:
+        CAGR as percentage (e.g., 15.5 for 15.5%)
+    """
+    if years <= 0:
+        return 0.0
+
+    if equity_curve.empty or 'total_equity' not in equity_curve.columns:
+        return 0.0
+
+    start = equity_curve['total_equity'].iloc[0]
+    end = equity_curve['total_equity'].iloc[-1]
+
+    if start <= 0:
+        return 0.0
+
+    return (pow(end / start, 1 / years) - 1) * 100
+
+
+def calculate_sortino_ratio(equity_curve: pd.DataFrame, risk_free: float = 0.0) -> float:
+    """Calculate Sortino ratio (downside risk only).
+
+    Args:
+        equity_curve: DataFrame with 'total_equity' column
+        risk_free: Annual risk-free rate (default 0)
+
+    Returns:
+        Sortino ratio
+    """
+    if equity_curve.empty or 'total_equity' not in equity_curve.columns:
+        return 0.0
+
+    returns = equity_curve['total_equity'].pct_change().dropna()
+
+    if len(returns) < 2:
+        return 0.0
+
+    excess = returns - risk_free / 252
+    downside_returns = returns[returns < 0]
+
+    if len(downside_returns) == 0:
+        return 0.0
+
+    downside = downside_returns.std() * np.sqrt(252)
+
+    if downside == 0 or np.isnan(downside):
+        return 0.0
+
+    sortino = (returns.mean() * 252 - risk_free) / downside
+
+    # Return 0 if result is NaN or infinite
+    if np.isnan(sortino) or np.isinf(sortino):
+        return 0.0
+
+    return float(sortino)
+
+
+def calculate_calmar_ratio(cagr: float, max_drawdown: float) -> float:
+    """Calculate Calmar ratio (CAGR / MDD).
+
+    Args:
+        cagr: Compound Annual Growth Rate (%)
+        max_drawdown: Maximum drawdown (positive percentage)
+
+    Returns:
+        Calmar ratio
+    """
+    if max_drawdown == 0:
+        return 0.0
+    return cagr / abs(max_drawdown)

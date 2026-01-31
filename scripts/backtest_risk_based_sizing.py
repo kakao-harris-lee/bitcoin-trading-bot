@@ -32,7 +32,14 @@ import matplotlib.dates as mdates
 
 from core.data_loader import DataLoader
 from core.component_adapter import ComponentStrategyAdapter
-from core.metrics import calculate_benchmark, calculate_sharpe_ratio, calculate_max_drawdown
+from core.metrics import (
+    calculate_benchmark,
+    calculate_sharpe_ratio,
+    calculate_max_drawdown,
+    calculate_cagr,
+    calculate_sortino_ratio,
+    calculate_calmar_ratio,
+)
 from trading.strategies.components import StrategyFactory
 from trading.indicators import add_all_indicators
 from trading.risk.position_sizer import (
@@ -55,14 +62,25 @@ class RiskBasedBacktester:
     def __init__(
         self,
         initial_capital: float = 10000.0,
-        fee_rate: float = 0.0005,
+        fee_rate: float = None,  # Auto-detect from market if None
         slippage: float = 0.0002,
         risk_per_trade: float = 0.01,  # 1% risk per trade
+        market: str = "futures",
     ):
         self.initial_capital = initial_capital
-        self.fee_rate = fee_rate
+        self.market = market
+
+        # Auto-detect fee rate based on market
+        if fee_rate is None:
+            self.fee_rate = 0.001 if market == "spot" else 0.0005
+        else:
+            self.fee_rate = fee_rate
+
         self.slippage = slippage
         self.risk_per_trade = risk_per_trade
+
+        # Spot has no leverage
+        self.leverage = 1 if market == "spot" else 3
 
         # State
         self.cash = initial_capital
@@ -456,6 +474,121 @@ def create_drawdown_chart(
     return output_path
 
 
+def create_judgment_chart(
+    results: Dict[str, Any],
+    df: pd.DataFrame,
+    initial_capital: float,
+    output_path: str,
+) -> str:
+    """Create 4-panel judgment chart.
+
+    Panels:
+    1. Equity curve vs Buy & Hold benchmark
+    2. Drawdown comparison
+    3. Trade distribution histogram
+    4. Summary statistics
+
+    Args:
+        results: Backtest results
+        df: Original price DataFrame
+        initial_capital: Initial capital
+        output_path: Output file path
+
+    Returns:
+        Path to saved chart
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+
+    equity_df = results['equity_curve']
+    timestamps = pd.to_datetime(equity_df['timestamp'])
+
+    # Panel 1: Equity vs Benchmark
+    ax1 = axes[0, 0]
+    benchmark_curve, benchmark_return = calculate_benchmark(df, initial_capital, 'close')
+    bench_timestamps = pd.to_datetime(df['timestamp'])
+
+    ax1.plot(timestamps, equity_df['total_equity'], label='Strategy', color='#2563eb', linewidth=1.5)
+    ax1.plot(bench_timestamps, benchmark_curve.values, label='Buy & Hold', color='#dc2626', alpha=0.7, linewidth=1.5, linestyle='--')
+    ax1.set_title('Equity Curve vs Benchmark')
+    ax1.legend()
+    ax1.set_ylabel('Equity ($)')
+    ax1.grid(True, alpha=0.3)
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    ax1.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+    plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45)
+
+    # Panel 2: Drawdown comparison
+    ax2 = axes[0, 1]
+    equity = equity_df['total_equity'].values
+    peak = np.maximum.accumulate(equity)
+    drawdown = (peak - equity) / peak * 100
+
+    ax2.fill_between(timestamps, 0, -drawdown, alpha=0.5, color='#dc2626', label='Strategy DD')
+    ax2.set_title('Drawdown Analysis')
+    ax2.set_ylabel('Drawdown (%)')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+    ax2.axhline(y=-10, color='orange', linestyle='--', alpha=0.5)
+    ax2.axhline(y=-20, color='red', linestyle='--', alpha=0.5)
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    ax2.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+    plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45)
+
+    # Panel 3: Trade distribution
+    ax3 = axes[1, 0]
+    if results['trades']:
+        pnl_values = [t.get('pnl_pct', 0) for t in results['trades']]
+        ax3.hist(pnl_values, bins=30, edgecolor='black', alpha=0.7, color='#2563eb')
+        ax3.axvline(x=0, color='red', linestyle='--', linewidth=2)
+    ax3.set_title('Trade P&L Distribution')
+    ax3.set_xlabel('P&L (%)')
+    ax3.set_ylabel('Frequency')
+    ax3.grid(True, alpha=0.3)
+
+    # Panel 4: Summary stats
+    ax4 = axes[1, 1]
+    ax4.axis('off')
+
+    stats_text = f"""
+    Total Return:       {results['total_return']:.2f}%
+    Benchmark (B&H):    {benchmark_return:.2f}%
+    Alpha:              {results['total_return'] - benchmark_return:.2f}%
+
+    Max Drawdown:       {results['max_drawdown_pct']:.2f}%
+    Win Rate:           {results['win_rate']*100:.1f}%
+    Total Trades:       {results['total_trades']}
+
+    Sharpe Ratio:       {results.get('sharpe_ratio', 0):.2f}
+    Profit Factor:      {results.get('profit_factor', 0):.2f}
+    """
+
+    ax4.text(0.1, 0.5, stats_text, fontsize=14, family='monospace',
+             verticalalignment='center')
+    ax4.set_title('Summary Statistics', fontsize=14, fontweight='bold')
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+    return output_path
+
+
+def print_judgment_summary(results: Dict[str, Any], benchmark_return: float):
+    """Print detailed judgment metrics."""
+    print("\n" + "="*60)
+    print("              JUDGMENT METRICS SUMMARY")
+    print("="*60)
+    print(f"Strategy Return:     {results['total_return']:.2f}%")
+    print(f"Benchmark (B&H):     {benchmark_return:.2f}%")
+    print(f"Outperformance:      {results['total_return'] - benchmark_return:.2f}%")
+    print("-"*60)
+    print(f"Max Drawdown:        {results['max_drawdown_pct']:.2f}%")
+    print(f"Win Rate:            {results['win_rate']*100:.1f}%")
+    print(f"Sharpe Ratio:        {results.get('sharpe_ratio', 0):.2f}")
+    print(f"Profit Factor:       {results.get('profit_factor', 0):.2f}")
+    print("="*60)
+
+
 def print_results(results: Dict[str, Any], strategy_name: str):
     """Print formatted results."""
     print("\n" + "="*60)
@@ -532,6 +665,10 @@ def main():
 
     config = allocation['strategies'].get(strategy_name, {})
 
+    # Get market from config
+    market = config.get("market", "futures")
+    print(f"  market: {market}")
+
     # Override with risk-based sizing parameters for testing
     config['risk_based_sizing'] = True
     config['risk_per_trade_pct'] = 0.01
@@ -570,9 +707,10 @@ def main():
     print("\nRunning backtest with risk-based sizing...")
     backtester = RiskBasedBacktester(
         initial_capital=args.capital,
-        fee_rate=0.0005,  # 0.05%
+        fee_rate=0.001 if market == "spot" else 0.0005,
         slippage=0.0002,  # 0.02%
         risk_per_trade=config.get('risk_per_trade_pct', 0.01),
+        market=market,
     )
 
     results = backtester.run(df, adapter, symbol=args.symbol)
@@ -582,11 +720,9 @@ def main():
 
     # Calculate and print benchmark
     benchmark_curve, benchmark_return = calculate_benchmark(df, args.capital, 'close')
-    print(f"\nBenchmark (Buy & Hold): {benchmark_return:+.2f}%")
 
-    # Alpha
-    alpha = results['total_return'] - benchmark_return
-    print(f"Alpha vs B&H:           {alpha:+.2f}%")
+    # Print judgment summary
+    print_judgment_summary(results, benchmark_return)
 
     # Generate charts
     print("\nGenerating charts...")
@@ -608,6 +744,11 @@ def main():
     dd_chart_path = output_dir / f"backtest_{strategy_name}_drawdown_{timestamp}.png"
     create_drawdown_chart(results, str(dd_chart_path))
     print(f"  Drawdown chart: {dd_chart_path}")
+
+    # 4-panel judgment chart
+    judgment_chart_path = output_dir / f"backtest_{strategy_name}_judgment_{timestamp}.png"
+    create_judgment_chart(results, df, args.capital, str(judgment_chart_path))
+    print(f"  Judgment chart: {judgment_chart_path}")
 
     # Print sample trades
     if results['trades']:

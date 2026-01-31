@@ -661,18 +661,79 @@ function updateExchangeBalances(data) {
     }
 }
 
-// Fetch exchange balances
+// Fetch exchange balances (hybrid: spot + futures)
 async function fetchExchangeBalances() {
     try {
-        const response = await fetch('/api/exchange_balances', { credentials: 'include' });
-        if (!response.ok) throw new Error('Exchange balances fetch failed');
+        // Fetch summary endpoint for hybrid view
+        const response = await fetch('/api/summary', { credentials: 'include' });
+        if (!response.ok) throw new Error('Summary fetch failed');
         const data = await response.json();
-        updateExchangeBalances(data);
+        updateHybridSummary(data);
     } catch (err) {
-        console.error('Exchange balances fetch error:', err);
-        document.getElementById('futures-status').textContent = 'Error';
-        document.getElementById('futures-status').className = 'exchange-status error';
+        console.error('Summary fetch error:', err);
+        // Fallback to old API for backwards compatibility
+        try {
+            const response = await fetch('/api/exchange_balances', { credentials: 'include' });
+            if (!response.ok) throw new Error('Exchange balances fetch failed');
+            const data = await response.json();
+            updateExchangeBalances(data);
+        } catch (fallbackErr) {
+            console.error('Fallback exchange balances fetch error:', fallbackErr);
+            document.getElementById('futures-status').textContent = 'Error';
+            document.getElementById('futures-status').className = 'exchange-status error';
+        }
     }
+}
+
+// Update hybrid summary (spot + futures)
+function updateHybridSummary(data) {
+    // Total equity
+    document.getElementById('total-equity').textContent = formatUSD(data.total_equity || 0);
+
+    // Spot card
+    const spot = data.spot || {};
+    document.getElementById('spot-status').textContent = 'Connected';
+    document.getElementById('spot-status').className = 'exchange-status connected';
+    document.getElementById('spot-balance').textContent = formatUSD(spot.balance || 0);
+    document.getElementById('spot-positions-count').textContent = spot.positions || 0;
+
+    // Futures card
+    const futures = data.futures || {};
+    document.getElementById('futures-status').textContent = 'Connected';
+    document.getElementById('futures-status').className = 'exchange-status connected';
+    document.getElementById('futures-usdt').textContent = formatUSD(futures.balance || 0);
+
+    const unrealizedPnlEl = document.getElementById('futures-unrealized-pnl');
+    const unrealizedPnl = futures.unrealized_pnl || 0;
+    unrealizedPnlEl.textContent = formatUSD(unrealizedPnl);
+    unrealizedPnlEl.className = `value ${unrealizedPnl >= 0 ? 'positive' : 'negative'}`;
+
+    document.getElementById('futures-positions-count').textContent = futures.positions || 0;
+    document.getElementById('futures-total').textContent = formatUSD(futures.balance || 0);
+
+    // Hedge mode badge (futures)
+    const hedgeBadge = document.getElementById('hedge-mode-badge');
+    if (futures.hedge_mode) {
+        hedgeBadge.style.display = 'inline-block';
+    } else {
+        hedgeBadge.style.display = 'none';
+    }
+
+    // Update portfolio summary
+    const totalEquity = data.total_equity || 0;
+    const totalUnrealizedPnl = unrealizedPnl; // Currently only futures has unrealized PnL
+
+    document.getElementById('total-capital').textContent = formatUSD(totalEquity);
+    document.getElementById('total-value').textContent = formatUSD(totalEquity);
+
+    const portfolioPnlEl = document.getElementById('unrealized-pnl');
+    portfolioPnlEl.textContent = formatUSD(totalUnrealizedPnl);
+    portfolioPnlEl.className = `value ${totalUnrealizedPnl >= 0 ? 'positive' : 'negative'}`;
+
+    // Calculate exposure (futures only for now)
+    const futuresPositionValue = (futures.positions || 0) * 1000; // Rough estimate
+    const exposurePct = totalEquity > 0 ? (futuresPositionValue / totalEquity * 100) : 0;
+    document.getElementById('exposure-pct').textContent = `${exposurePct.toFixed(1)}%`;
 }
 
 // Fetch leverage state
@@ -790,6 +851,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize backtest
     initBacktest();
+
+    // Initialize market filter tabs
+    initMarketFilterTabs();
 
     // Fetch initial data
     fetchAll();
@@ -943,16 +1007,73 @@ function onTabActivated(tabId) {
 
 let positionsData = null;
 
+// Initialize market filter tabs
+function initMarketFilterTabs() {
+    const marketTabs = document.querySelectorAll('.market-tab');
+
+    marketTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const market = tab.dataset.market;
+
+            // Update active tab
+            marketTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Filter positions
+            filterPositionsByMarket(market);
+        });
+    });
+}
+
+// Filter positions by market (all, spot, futures)
+function filterPositionsByMarket(market) {
+    const positionCards = document.querySelectorAll('.position-card');
+
+    positionCards.forEach(card => {
+        if (market === 'all' || card.dataset.market === market) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
 async function fetchPositions() {
     const containerId = 'positions-container';
 
     try {
         renderLoading(containerId);
-        const data = await apiFetch('/api/positions');
-        positionsData = data;
-        renderPositions(data);
-        updatePositionsSummary(data);
+
+        // Fetch both spot and futures positions in parallel
+        const [futuresData, spotData] = await Promise.all([
+            apiFetch('/api/positions').catch(err => {
+                console.error('Futures positions fetch error:', err);
+                return { positions: [], total_value: 0, total_unrealized_pnl: 0 };
+            }),
+            apiFetch('/api/spot/positions').catch(err => {
+                console.error('Spot positions fetch error:', err);
+                return { positions: [], total_value: 0 };
+            })
+        ]);
+
+        // Merge positions with market indicator
+        const futuresPositions = (futuresData.positions || []).map(p => ({ ...p, market: 'futures' }));
+        const spotPositions = (spotData.positions || []).map(p => ({ ...p, market: 'spot' }));
+
+        const allPositions = [...futuresPositions, ...spotPositions];
+
+        // Combined data
+        const combinedData = {
+            positions: allPositions,
+            total_value: (futuresData.total_value || 0) + (spotData.total_value || 0),
+            total_unrealized_pnl: futuresData.total_unrealized_pnl || 0 // Spot doesn't have unrealized PnL
+        };
+
+        positionsData = combinedData;
+        renderPositions(combinedData);
+        updatePositionsSummary(combinedData);
     } catch (error) {
+        console.error('Positions fetch error:', error);
         renderError(containerId, 'Failed to load positions', 'fetchPositions');
     }
 }
@@ -967,17 +1088,20 @@ function renderPositions(data) {
 
     let html = '';
 
-    // Render all positions (Binance-only)
+    // Render all positions (spot + futures)
     for (const pos of data.positions) {
         const pnlClass = getPnLClass(pos.unrealized_pnl);
         const sideClass = pos.side.toLowerCase();
+        const market = pos.market || 'futures'; // Default to futures for backwards compatibility
+        const marketBadge = market === 'spot' ? '<span class="market-badge spot">SPOT</span>' : '<span class="market-badge futures">FUTURES</span>';
 
         html += `
-            <div class="position-card ${pos.exchange}">
+            <div class="position-card ${pos.exchange}" data-market="${market}">
                 <div class="card-header">
                     <div>
                         <span class="symbol">${pos.symbol}</span>
                         <span class="side-badge ${sideClass}">${pos.side}</span>
+                        ${marketBadge}
                     </div>
                     <span class="exchange-badge ${pos.exchange}">${pos.exchange}</span>
                 </div>
@@ -1014,6 +1138,7 @@ function renderPositions(data) {
                         <span class="value">$${formatPrice(pos.liquidation_price, false)}</span>
                     </div>
                     ` : ''}
+                    ${pos.unrealized_pnl !== undefined && pos.unrealized_pnl !== null ? `
                     <div class="stat-row pnl-row">
                         <span class="label">Unrealized P&L</span>
                         <span class="pnl-value ${pnlClass}">
@@ -1021,6 +1146,7 @@ function renderPositions(data) {
                             (${formatPercent(pos.unrealized_pnl_pct)})
                         </span>
                     </div>
+                    ` : ''}
                 </div>
             </div>
         `;

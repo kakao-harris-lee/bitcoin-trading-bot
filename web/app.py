@@ -15,6 +15,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 import redis
+from redis import ConnectionPool
 
 # Load .env file from project root
 from dotenv import load_dotenv
@@ -86,6 +87,22 @@ if quant_lab_bp:
 
 BASE_DIR = Path(__file__).parent
 
+# Valid exchange names (prevents path traversal attacks)
+VALID_EXCHANGES = {"binance"}
+
+# Redis connection pool (shared across all requests)
+_redis_pool = ConnectionPool.from_url(
+    os.getenv('REDIS_URL', 'redis://localhost:6379'),
+    decode_responses=True,
+    max_connections=20
+)
+
+
+def get_redis() -> redis.Redis:
+    """Get a Redis connection from the pool."""
+    return redis.Redis(connection_pool=_redis_pool)
+
+
 # 대시보드 고정 경로
 DEFAULT_DOMAIN = "lchsvr.duckdns.org"
 DEFAULT_PORT = "5080"
@@ -154,7 +171,19 @@ KILL_SWITCH_FILE = Path(
 
 
 def load_trading_log(exchange: str):
-    """Trading 로그 로드 (v2 engine 우선, 없으면 paper fallback)."""
+    """Trading 로그 로드 (v2 engine 우선, 없으면 paper fallback).
+
+    Args:
+        exchange: Exchange name (must be in VALID_EXCHANGES)
+
+    Returns:
+        Loaded JSON data or None if not found/invalid
+    """
+    # Validate exchange to prevent path traversal
+    if exchange not in VALID_EXCHANGES:
+        print(f"Invalid exchange: {exchange}")
+        return None
+
     candidates = [
         LOG_DIR / f"v2_engine_{exchange}.json",
         LOG_DIR / f"paper_trading_{exchange}.json",
@@ -209,7 +238,7 @@ def read_redis_trades(limit: int = 1000) -> list:
         For SELL trades without profit data, calculates profit from matching BUY trades.
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         # Read from trades stream (oldest first for pairing)
         messages = r.xrange('trades', count=limit)
@@ -289,7 +318,7 @@ def get_latest_prices() -> dict:
         Dict mapping symbol (e.g., 'BTCUSDT') to price
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         # Read recent entries from price stream to get latest for each symbol
         messages = r.xrevrange('market:prices', count=100)
@@ -319,7 +348,7 @@ def read_redis_orders(limit: int = 200) -> list:
         List of signal dicts
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         # Read from orders stream (pending signals)
         messages = r.xrevrange('orders', count=limit)
@@ -438,7 +467,7 @@ def get_status():
     # Get current prices from Redis market:prices stream
     prices = {}
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         # Read most recent prices from stream
         price_msgs = r.xrevrange('market:prices', count=100)
         seen_symbols = set()
@@ -453,7 +482,7 @@ def get_status():
     # Get risk data from Redis
     risk = {}
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         risk = r.hgetall('risk') or {}
     except Exception as e:
         print(f"Error reading risk from Redis: {e}")
@@ -714,7 +743,7 @@ def get_trades():
     limit = min(max(1, limit), 500)
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -768,7 +797,7 @@ def get_recent_trades():
     limit = min(max(1, limit), 50)
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -859,7 +888,7 @@ def get_signals():
     limit = min(max(1, limit), 200)
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -996,7 +1025,7 @@ def get_analytics():
         period = '30d'
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -1035,7 +1064,7 @@ def get_equity_curve():
     max_points = min(max(1, max_points), 500)
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -1075,7 +1104,7 @@ def get_daily_analytics():
         period = '30d'
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -1255,7 +1284,7 @@ def get_positions():
     In paper mode, returns positions from Redis only.
     """
     # Check mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
 
@@ -1300,7 +1329,7 @@ def get_positions():
         spot_account = client.get_account(recvWindow=60000)
 
         # Get entry prices from Redis (tracked by trading bot)
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         for balance in spot_account['balances']:
             asset = balance['asset']
@@ -1397,6 +1426,314 @@ def get_positions():
 
 
 # =====================
+# Spot Trading API Endpoints
+# ========================
+
+@app.route("/api/summary")
+@requires_auth
+def get_summary():
+    """
+    Get combined spot + futures summary.
+    Returns total equity, balances, and position counts for both markets.
+    """
+    try:
+        r = get_redis()
+        risk_data = r.hgetall('risk') or {}
+        mode = risk_data.get('mode', 'paper')
+        prices = get_latest_prices()
+
+        # Initialize summary
+        summary = {
+            'timestamp': datetime.now().isoformat(),
+            'mode': mode,
+            'spot': {
+                'balance': 0.0,
+                'position_value': 0.0,
+                'total': 0.0,
+                'positions': 0,
+            },
+            'futures': {
+                'balance': 0.0,
+                'unrealized_pnl': 0.0,
+                'total': 0.0,
+                'positions': 0,
+            },
+            'total_equity': 0.0,
+            'positions': [],
+        }
+
+        if mode == 'paper':
+            # Paper mode: get from Redis
+            account = r.hgetall('account:paper') or {}
+            spot_balance = float(account.get('spot_balance', 10000))
+            futures_balance = float(account.get('futures_balance', 10000))
+
+            summary['spot']['balance'] = spot_balance
+            summary['futures']['balance'] = futures_balance
+
+            # Get positions
+            symbols = ['BTC', 'ETH', 'SOL']
+            for symbol in symbols:
+                # Spot positions
+                spot_pos = r.hgetall(f"positions:{symbol}:spot")
+                if spot_pos and float(spot_pos.get('quantity', 0)) > 0:
+                    qty = float(spot_pos['quantity'])
+                    entry_price = float(spot_pos['entry_price'])
+                    current_price = prices.get(f'{symbol}USDT', entry_price)
+                    value = qty * current_price
+                    pnl = (current_price - entry_price) * qty
+
+                    summary['spot']['position_value'] += value
+                    summary['spot']['positions'] += 1
+                    summary['positions'].append({
+                        'symbol': f'{symbol}USDT',
+                        'market': 'spot',
+                        'side': 'LONG',
+                        'quantity': qty,
+                        'entry_price': entry_price,
+                        'current_price': current_price,
+                        'value': value,
+                        'unrealized_pnl': pnl,
+                        'strategy': spot_pos.get('strategy', 'unknown'),
+                    })
+
+                # Futures positions
+                futures_pos = r.hgetall(f"positions:{symbol}:futures")
+                if futures_pos and float(futures_pos.get('quantity', 0)) != 0:
+                    qty = float(futures_pos['quantity'])
+                    entry_price = float(futures_pos['entry_price'])
+                    current_price = prices.get(f'{symbol}USDT', entry_price)
+                    side = futures_pos.get('side', 'buy').upper()
+                    if side == 'BUY':
+                        side = 'LONG'
+                    elif side == 'SELL':
+                        side = 'SHORT'
+
+                    abs_qty = abs(qty)
+                    if side == 'LONG':
+                        pnl = (current_price - entry_price) * abs_qty
+                    else:
+                        pnl = (entry_price - current_price) * abs_qty
+
+                    summary['futures']['unrealized_pnl'] += pnl
+                    summary['futures']['positions'] += 1
+                    summary['positions'].append({
+                        'symbol': f'{symbol}USDT',
+                        'market': 'futures',
+                        'side': side,
+                        'quantity': abs_qty,
+                        'entry_price': entry_price,
+                        'current_price': current_price,
+                        'unrealized_pnl': pnl,
+                        'leverage': int(futures_pos.get('leverage', 1)),
+                        'strategy': futures_pos.get('strategy', 'unknown'),
+                    })
+
+            summary['spot']['total'] = spot_balance + summary['spot']['position_value']
+            summary['futures']['total'] = futures_balance + summary['futures']['unrealized_pnl']
+            summary['total_equity'] = summary['spot']['total'] + summary['futures']['total']
+
+        else:
+            # Live mode: fetch from Binance
+            from binance.client import Client
+            import time
+
+            api_key = os.getenv('BINANCE_API_KEY')
+            api_secret = os.getenv('BINANCE_API_SECRET')
+
+            if not api_key or not api_secret:
+                return jsonify({'error': 'Binance credentials not configured'}), 500
+
+            client = Client(api_key, api_secret)
+            server_time = client.get_server_time()
+            local_time = int(time.time() * 1000)
+            client.timestamp_offset = server_time['serverTime'] - local_time
+
+            # Spot account
+            spot_account = client.get_account(recvWindow=60000)
+            spot_usdt = 0.0
+            spot_position_value = 0.0
+
+            for balance in spot_account['balances']:
+                asset = balance['asset']
+                total = float(balance['free']) + float(balance['locked'])
+
+                if total > 0:
+                    if asset == 'USDT':
+                        spot_usdt = total
+                    elif asset in ['BTC', 'ETH', 'SOL']:
+                        symbol = f"{asset}USDT"
+                        price = prices.get(symbol, 0)
+                        value = total * price
+
+                        if value > 1:
+                            spot_position_value += value
+                            summary['spot']['positions'] += 1
+
+                            redis_pos = r.hgetall(f"positions:{asset}:spot")
+                            entry_price = float(redis_pos.get('entry_price', price)) if redis_pos else price
+                            pnl = (price - entry_price) * total if entry_price > 0 else 0
+
+                            summary['positions'].append({
+                                'symbol': symbol,
+                                'market': 'spot',
+                                'side': 'LONG',
+                                'quantity': total,
+                                'entry_price': entry_price,
+                                'current_price': price,
+                                'value': value,
+                                'unrealized_pnl': pnl,
+                                'strategy': redis_pos.get('strategy', 'manual') if redis_pos else 'manual',
+                            })
+
+            summary['spot']['balance'] = spot_usdt
+            summary['spot']['position_value'] = spot_position_value
+
+            # Futures account
+            futures_account = client.futures_account(recvWindow=60000)
+            futures_usdt = 0.0
+            futures_unrealized_pnl = 0.0
+
+            for asset in futures_account['assets']:
+                if asset['asset'] == 'USDT':
+                    futures_usdt = float(asset['walletBalance'])
+                    futures_unrealized_pnl = float(asset['unrealizedProfit'])
+                    break
+
+            for pos in futures_account['positions']:
+                size = float(pos['positionAmt'])
+                if size != 0:
+                    position_side = pos.get('positionSide', 'BOTH')
+                    if position_side == 'BOTH':
+                        side = 'LONG' if size > 0 else 'SHORT'
+                    else:
+                        side = position_side
+
+                    asset = pos['symbol'].replace('USDT', '')
+                    redis_pos = r.hgetall(f"positions:{asset}:futures")
+
+                    summary['futures']['positions'] += 1
+                    summary['positions'].append({
+                        'symbol': pos['symbol'],
+                        'market': 'futures',
+                        'side': side,
+                        'quantity': abs(size),
+                        'entry_price': float(pos['entryPrice']),
+                        'current_price': float(pos['markPrice']),
+                        'unrealized_pnl': float(pos['unrealizedProfit']),
+                        'leverage': int(pos['leverage']),
+                        'strategy': redis_pos.get('strategy', 'manual') if redis_pos else 'manual',
+                    })
+
+            summary['spot']['total'] = spot_usdt + spot_position_value
+            summary['futures']['balance'] = futures_usdt
+            summary['futures']['unrealized_pnl'] = futures_unrealized_pnl
+            summary['futures']['total'] = futures_usdt + futures_unrealized_pnl
+            summary['total_equity'] = summary['spot']['total'] + summary['futures']['total']
+
+        return jsonify(summary)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/spot/positions")
+@requires_auth
+def get_spot_positions_api():
+    """
+    Get spot positions from Redis.
+    Returns positions with current market value and P&L.
+    """
+    try:
+        r = get_redis()
+        prices = get_latest_prices()
+
+        positions = []
+        symbols = ['BTC', 'ETH', 'SOL']
+
+        for symbol in symbols:
+            spot_pos = r.hgetall(f"positions:{symbol}:spot")
+            if spot_pos and float(spot_pos.get('quantity', 0)) > 0:
+                qty = float(spot_pos['quantity'])
+                entry_price = float(spot_pos['entry_price'])
+                current_price = prices.get(f'{symbol}USDT', entry_price)
+                value = qty * current_price
+                pnl = (current_price - entry_price) * qty
+                pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+
+                positions.append({
+                    'symbol': f'{symbol}USDT',
+                    'market': 'spot',
+                    'side': 'LONG',
+                    'quantity': qty,
+                    'entry_price': entry_price,
+                    'current_price': current_price,
+                    'value': value,
+                    'unrealized_pnl': pnl,
+                    'unrealized_pnl_pct': pnl_pct,
+                    'strategy': spot_pos.get('strategy', 'unknown'),
+                    'entry_time': int(spot_pos.get('entry_time', 0)),
+                })
+
+        return jsonify({
+            'timestamp': datetime.now().isoformat(),
+            'positions': positions,
+            'count': len(positions),
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/spot/balance")
+@requires_auth
+def get_spot_balance_api():
+    """
+    Get spot USDT balance.
+    In paper mode, returns Redis balance. In live mode, returns Binance balance.
+    """
+    try:
+        r = get_redis()
+        risk_data = r.hgetall('risk') or {}
+        mode = risk_data.get('mode', 'paper')
+
+        if mode == 'paper':
+            account = r.hgetall('account:paper') or {}
+            balance = float(account.get('spot_balance', 10000))
+        else:
+            from binance.client import Client
+            import time
+
+            api_key = os.getenv('BINANCE_API_KEY')
+            api_secret = os.getenv('BINANCE_API_SECRET')
+
+            if not api_key or not api_secret:
+                return jsonify({'error': 'Binance credentials not configured'}), 500
+
+            client = Client(api_key, api_secret)
+            server_time = client.get_server_time()
+            local_time = int(time.time() * 1000)
+            client.timestamp_offset = server_time['serverTime'] - local_time
+
+            spot_account = client.get_account(recvWindow=60000)
+            balance = 0.0
+
+            for bal in spot_account['balances']:
+                if bal['asset'] == 'USDT':
+                    balance = float(bal['free']) + float(bal['locked'])
+                    break
+
+        return jsonify({
+            'timestamp': datetime.now().isoformat(),
+            'mode': mode,
+            'balance': balance,
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================
 # Strategies API Endpoints
 # ========================
 
@@ -1426,7 +1763,7 @@ def get_strategies():
         defaults = config.get('defaults', {})
 
         # Connect to Redis to get live state
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         strategies = []
         for name, cfg in strategies_config.items():
@@ -1623,7 +1960,7 @@ def disable_strategy(strategy_name: str):
             return jsonify({'message': f'{strategy_name} is already disabled'}), 200
 
         # Check for active positions before disabling
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
 
         for symbol in symbols:
@@ -1848,7 +2185,7 @@ def get_exchange_balances():
     In paper mode, returns simulated balances from Redis.
     """
     # Check mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
 
@@ -2124,7 +2461,7 @@ def get_leverage_state():
     - tiers: All defined tiers with active indicator
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         state = r.hgetall("leverage:state")
 
         if not state:
@@ -2401,7 +2738,7 @@ def get_ab_test_status():
 
     try:
         # Connect to Redis
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         # Get allocation config for strategy details
         config = load_allocation_config()

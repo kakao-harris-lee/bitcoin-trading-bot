@@ -732,3 +732,227 @@ class TestPublishTrade:
         trade_data = mock_redis.publish.call_args[0][1]
         assert trade_data["profit"] == "20.0"
         assert trade_data["profit_pct"] == "4.0"
+
+
+class TestSpotSimulation:
+    """Test spot trading simulation."""
+
+    @pytest.mark.asyncio
+    async def test_simulate_spot_buy(self):
+        """_simulate_spot_fill should handle spot buy orders."""
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.get_risk = AsyncMock(return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"})
+        mock_redis.publish = AsyncMock()
+        mock_redis.hset = AsyncMock()
+        mock_redis.get_position = AsyncMock(return_value=None)  # No existing position for buy
+        mock_redis.set_position = AsyncMock()
+
+        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor.last_prices = {"BTC": 50000.0}
+
+        initial_spot_balance = executor.spot_balance
+
+        order = {
+            "id": "spot-buy-1",
+            "symbol": "BTC",
+            "side": "buy",
+            "market": "spot",
+            "quantity": "0.1",
+            "strategy": "spot_test",
+        }
+
+        result = await executor._process_order(order)
+
+        # Verify fill result
+        assert result is not None
+        assert result["market"] == "spot"
+        assert result["status"] == "FILLED"
+        assert result["filled_qty"] == 0.1
+
+        # Verify balance decreased
+        assert executor.spot_balance < initial_spot_balance
+
+        # Verify position added
+        assert "BTC" in executor.spot_positions
+        assert executor.spot_positions["BTC"] == 0.1
+
+    @pytest.mark.asyncio
+    async def test_simulate_spot_sell(self):
+        """_simulate_spot_fill should handle spot sell orders."""
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.get_risk = AsyncMock(return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"})
+        mock_redis.publish = AsyncMock()
+        mock_redis.hset = AsyncMock()
+        # Mock existing spot position with entry price for P&L calculation
+        mock_redis.get_position = AsyncMock(return_value={"entry_price": "49000", "entry_time": "1000000", "side": "buy"})
+        mock_redis.clear_position = AsyncMock()
+
+        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor.last_prices = {"BTC": 50000.0}
+
+        # Setup existing spot position
+        executor.spot_positions["BTC"] = 0.1
+
+        initial_spot_balance = executor.spot_balance
+
+        order = {
+            "id": "spot-sell-1",
+            "symbol": "BTC",
+            "side": "sell",
+            "market": "spot",
+            "quantity": "0.1",
+            "strategy": "spot_test",
+        }
+
+        result = await executor._process_order(order)
+
+        # Verify fill result
+        assert result is not None
+        assert result["market"] == "spot"
+        assert result["status"] == "FILLED"
+
+        # Verify balance increased
+        assert executor.spot_balance > initial_spot_balance
+
+        # Verify position removed
+        assert "BTC" not in executor.spot_positions
+
+    @pytest.mark.asyncio
+    async def test_spot_buy_insufficient_balance(self):
+        """Spot buy should fail with insufficient balance."""
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.get_risk = AsyncMock(return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"})
+        mock_redis.publish = AsyncMock()
+        mock_redis.get_position = AsyncMock(return_value=None)  # No existing position
+
+        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 100})
+        executor.spot_balance = 100  # Only $100
+        executor.last_prices = {"BTC": 50000.0}
+
+        order = {
+            "id": "spot-buy-1",
+            "symbol": "BTC",
+            "side": "buy",
+            "market": "spot",
+            "quantity": "1.0",  # Way too much
+            "strategy": "spot_test",
+        }
+
+        result = await executor._process_order(order)
+
+        # Should reject
+        assert result is None
+        mock_redis.publish.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_spot_sell_insufficient_position(self):
+        """Spot sell should fail with insufficient position."""
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.get_risk = AsyncMock(return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"})
+        mock_redis.publish = AsyncMock()
+        mock_redis.get_position = AsyncMock(return_value=None)  # No existing position
+
+        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor.last_prices = {"BTC": 50000.0}
+
+        # No position
+        order = {
+            "id": "spot-sell-1",
+            "symbol": "BTC",
+            "side": "sell",
+            "market": "spot",
+            "quantity": "0.1",
+            "strategy": "spot_test",
+        }
+
+        result = await executor._process_order(order)
+
+        # Should reject
+        assert result is None
+        mock_redis.publish.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_spot_fee_rate_is_higher(self):
+        """Spot orders should use higher fee rate (0.1% vs 0.05%)."""
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.get_risk = AsyncMock(return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"})
+        mock_redis.publish = AsyncMock()
+        mock_redis.hset = AsyncMock()
+        mock_redis.get_position = AsyncMock(return_value=None)  # No existing position
+        mock_redis.set_position = AsyncMock()
+
+        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor.last_prices = {"BTC": 50000.0}
+
+        order = {
+            "id": "spot-buy-1",
+            "symbol": "BTC",
+            "side": "buy",
+            "market": "spot",
+            "quantity": "0.1",
+            "strategy": "spot_test",
+        }
+
+        await executor._process_order(order)
+
+        # Spot fee: 0.1% = 0.001
+        # Futures fee: 0.05% = 0.0005
+        assert executor.spot_fee_rate == 0.001
+        assert executor.fee_rate == 0.0005
+
+    @pytest.mark.asyncio
+    async def test_spot_pnl_calculation(self):
+        """Spot sell should correctly calculate P&L based on entry price."""
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.get_risk = AsyncMock(return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"})
+        mock_redis.publish = AsyncMock()
+        mock_redis.hset = AsyncMock()
+        # Entry price was $49000, exit at $50000 (with slippage)
+        mock_redis.get_position = AsyncMock(return_value={
+            "entry_price": "49000",
+            "entry_time": "1000000",
+            "side": "buy",
+            "leverage": "1",
+        })
+        mock_redis.clear_position = AsyncMock()
+
+        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor.last_prices = {"BTC": 50000.0}
+
+        # Setup existing spot position
+        executor.spot_positions["BTC"] = 0.1
+        initial_spot_balance = executor.spot_balance
+
+        order = {
+            "id": "spot-sell-1",
+            "symbol": "BTC",
+            "side": "sell",
+            "market": "spot",
+            "quantity": "0.1",
+            "strategy": "spot_test",
+        }
+
+        result = await executor._process_order(order)
+
+        # Verify fill result has P&L data
+        assert result is not None
+        assert result["market"] == "spot"
+
+        # Verify hset was called to update daily P&L
+        hset_calls = [call for call in mock_redis.hset.call_args_list if call[0][0] == "risk"]
+        assert len(hset_calls) > 0, "Should have updated daily P&L in Redis"
+
+        # Verify clear_position was called
+        mock_redis.clear_position.assert_called_once()

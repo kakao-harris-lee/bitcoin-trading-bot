@@ -11,17 +11,35 @@ def test_binance_client_init():
 
 
 @pytest.mark.asyncio
-async def test_spot_market_order_raises_error():
-    """Test spot market order raises ValueError (spot trading removed)."""
+async def test_spot_market_order():
+    """Test spot market order execution."""
     client = BinanceClient(api_key="test", api_secret="secret")
+    client._spot_client = AsyncMock()
+    client._spot_client.create_order = AsyncMock(return_value={
+        "orderId": 12345,
+        "executedQty": "0.1",
+        "cummulativeQuoteQty": "9500.0",
+        "status": "FILLED",
+    })
 
-    with pytest.raises(ValueError, match="Spot trading not supported"):
-        await client.market_order(
-            symbol="BTC",
-            side="buy",
-            quantity=0.01,
-            market="spot",
-        )
+    result = await client.market_order(
+        symbol="BTC",
+        side="buy",
+        quantity=0.1,
+        market="spot",
+    )
+
+    assert result["order_id"] == 12345
+    assert result["market"] == "spot"
+    assert result["filled_qty"] == 0.1
+    assert result["filled_price"] == 95000.0
+    assert result["status"] == "FILLED"
+    client._spot_client.create_order.assert_called_once_with(
+        symbol="BTCUSDT",
+        side="BUY",
+        type="MARKET",
+        quantity=0.1,
+    )
 
 
 @pytest.mark.asyncio
@@ -61,16 +79,28 @@ def mock_client():
 
 
 @pytest.mark.asyncio
-async def test_limit_order_spot_raises_error(mock_client):
-    """Test placing spot limit order raises ValueError (spot trading removed)."""
-    with pytest.raises(ValueError, match="Spot trading not supported"):
-        await mock_client.limit_order(
-            symbol="BTC",
-            side="sell",
-            quantity=0.01,
-            price=95000.0,
-            market="spot",
-        )
+async def test_limit_order_spot(mock_client):
+    """Test placing spot limit order."""
+    mock_client._spot_client.create_order = AsyncMock(return_value={
+        "orderId": 54321,
+        "executedQty": "0.0",
+        "status": "NEW",
+        "price": "95000.00",
+    })
+
+    result = await mock_client.limit_order(
+        symbol="BTC",
+        side="sell",
+        quantity=0.01,
+        price=95000.0,
+        market="spot",
+    )
+
+    assert result["order_id"] == 54321
+    assert result["status"] == "NEW"
+    assert result["price"] == 95000.0
+    assert result["market"] == "spot"
+    mock_client._spot_client.create_order.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -100,14 +130,21 @@ async def test_limit_order_futures(mock_client):
 
 
 @pytest.mark.asyncio
-async def test_cancel_order_spot_raises_error(mock_client):
-    """Test canceling spot order raises ValueError (spot trading removed)."""
-    with pytest.raises(ValueError, match="Spot trading not supported"):
-        await mock_client.cancel_order(
-            symbol="BTC",
-            order_id=12345,
-            market="spot",
-        )
+async def test_cancel_order_spot(mock_client):
+    """Test canceling spot order."""
+    mock_client._spot_client.cancel_order = AsyncMock(return_value={
+        "orderId": 12345,
+        "status": "CANCELED",
+    })
+
+    result = await mock_client.cancel_order(
+        symbol="BTC",
+        order_id=12345,
+        market="spot",
+    )
+
+    assert result["status"] == "CANCELED"
+    mock_client._spot_client.cancel_order.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -129,14 +166,25 @@ async def test_cancel_order_futures(mock_client):
 
 
 @pytest.mark.asyncio
-async def test_get_order_status_spot_raises_error(mock_client):
-    """Test getting spot order status raises ValueError (spot trading removed)."""
-    with pytest.raises(ValueError, match="Spot trading not supported"):
-        await mock_client.get_order(
-            symbol="BTC",
-            order_id=12345,
-            market="spot",
-        )
+async def test_get_order_status_spot(mock_client):
+    """Test getting spot order status."""
+    mock_client._spot_client.get_order = AsyncMock(return_value={
+        "orderId": 12345,
+        "status": "FILLED",
+        "executedQty": "0.01",
+        "price": "95000.00",
+    })
+
+    result = await mock_client.get_order(
+        symbol="BTC",
+        order_id=12345,
+        market="spot",
+    )
+
+    assert result["status"] == "FILLED"
+    assert result["filled_qty"] == 0.01
+    assert result["price"] == 95000.0
+    mock_client._spot_client.get_order.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -407,15 +455,25 @@ async def test_futures_limit_order_with_position_side(mock_client):
 
 
 @pytest.mark.asyncio
-async def test_spot_order_with_position_side_raises_error(mock_client):
-    """Test spot orders raise error (spot trading removed)."""
-    mock_client._hedge_mode_enabled = True
+async def test_spot_order_ignores_position_side(mock_client):
+    """Test spot orders ignore position_side parameter (not applicable to spot)."""
+    mock_client._spot_client.create_order = AsyncMock(return_value={
+        "orderId": 99999,
+        "executedQty": "0.01",
+        "cummulativeQuoteQty": "950.0",
+        "status": "FILLED",
+    })
 
-    with pytest.raises(ValueError, match="Spot trading not supported"):
-        await mock_client.market_order(
-            symbol="BTC",
-            side="buy",
-            quantity=0.01,
-            market="spot",
-            position_side="LONG",
-        )
+    result = await mock_client.market_order(
+        symbol="BTC",
+        side="buy",
+        quantity=0.01,
+        market="spot",
+        position_side="LONG",  # Should be ignored for spot
+    )
+
+    assert result["market"] == "spot"
+    assert result["status"] == "FILLED"
+    # Verify position_side was not passed to spot API
+    call_kwargs = mock_client._spot_client.create_order.call_args.kwargs
+    assert "positionSide" not in call_kwargs

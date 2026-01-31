@@ -83,7 +83,40 @@ INDICATOR_COLUMNS = [
     'ema_200',
     'atr',
     'market_stress',
+    'breakout_signal',
+    'target_price',
 ]
+
+
+def calculate_breakout_signal(df: pd.DataFrame, k: float = 0.55) -> tuple[pd.Series, pd.Series]:
+    """Calculate Larry Williams volatility breakout signal.
+
+    The volatility breakout strategy enters when price breaks above:
+    target_price = open + (previous_range * k)
+
+    Where:
+    - previous_range = high[t-1] - low[t-1]
+    - k = expansion factor (typically 0.5-0.6)
+
+    Args:
+        df: DataFrame with open, high, low, close columns
+        k: Expansion factor for range (default 0.55)
+
+    Returns:
+        Tuple of (breakout_signal, target_price) Series
+        - breakout_signal: 1 if close > target_price, 0 otherwise
+        - target_price: The breakout target level
+    """
+    # Previous day's range (shifted by 1)
+    prev_range = (df['high'] - df['low']).shift(1)
+
+    # Target price = today's open + (previous range * k)
+    target_price = df['open'] + (prev_range * k)
+
+    # Signal = 1 if close exceeds target price
+    breakout_signal = (df['close'] > target_price).astype(int)
+
+    return breakout_signal, target_price
 
 
 def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
@@ -147,5 +180,8 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     # Market stress indicator (0-100)
     df['market_stress'] = calculate_market_stress(df)
+
+    # Larry Williams volatility breakout signal
+    df['breakout_signal'], df['target_price'] = calculate_breakout_signal(df)
 
     return df

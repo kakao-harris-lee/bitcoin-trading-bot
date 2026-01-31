@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import AsyncMock
 from collections import deque
-from trading.streams.base_strategy import BaseStrategyTask
+from trading.streams.base_strategy import BaseStrategyTask, get_position_key
 
 
 class TestStrategy(BaseStrategyTask):
@@ -253,3 +253,25 @@ async def test_exit_signal_adds_trigger_price_from_buffer(mock_redis):
     assert len(calls) == 1
     exit_signal = calls[0][0][1]
     assert exit_signal["trigger_price"] == "42500"
+
+
+def test_get_position_key():
+    """Test position key generation helper."""
+    # Test spot position key
+    key = get_position_key("BTC", "spot")
+    assert key == "positions:BTC:spot"
+
+    # Test futures position key
+    key = get_position_key("ETH", "futures")
+    assert key == "positions:ETH:futures"
+
+    # Test other symbols
+    key = get_position_key("SOL", "spot")
+    assert key == "positions:SOL:spot"
+
+    # Verify spot and futures keys are different
+    spot_key = get_position_key("BTC", "spot")
+    futures_key = get_position_key("BTC", "futures")
+    assert spot_key != futures_key
+    assert spot_key == "positions:BTC:spot"
+    assert futures_key == "positions:BTC:futures"

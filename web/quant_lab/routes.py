@@ -114,9 +114,17 @@ def validate_data_path(data_path: str) -> str:
     else:
         resolved = Path(data_path).resolve()
 
-    # Check if path is within allowed directories
+    # Check if path is within allowed directories using proper containment check
+    # (string prefix check is vulnerable to sibling directory attacks like data_evil/)
+    def _is_path_within(path: Path, allowed_dir: Path) -> bool:
+        try:
+            path.relative_to(allowed_dir)
+            return True
+        except ValueError:
+            return False
+
     is_allowed = any(
-        str(resolved).startswith(str(allowed_dir))
+        _is_path_within(resolved, allowed_dir)
         for allowed_dir in ALLOWED_DATA_DIRS
     )
 

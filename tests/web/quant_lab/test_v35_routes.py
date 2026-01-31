@@ -11,10 +11,25 @@ from web.quant_lab.routes import quant_lab_bp
 @pytest.fixture(autouse=True)
 def setup_env():
     """Set up environment variables for tests."""
+    # Save original values
+    orig_password = os.environ.get("DASHBOARD_PASSWORD")
+    orig_username = os.environ.get("DASHBOARD_USERNAME")
+
+    # Set test values
     os.environ["DASHBOARD_PASSWORD"] = "testpass"
     os.environ["DASHBOARD_USERNAME"] = "admin"
     yield
-    # Cleanup is handled by pytest
+
+    # Restore original values
+    if orig_password is not None:
+        os.environ["DASHBOARD_PASSWORD"] = orig_password
+    elif "DASHBOARD_PASSWORD" in os.environ:
+        del os.environ["DASHBOARD_PASSWORD"]
+
+    if orig_username is not None:
+        os.environ["DASHBOARD_USERNAME"] = orig_username
+    elif "DASHBOARD_USERNAME" in os.environ:
+        del os.environ["DASHBOARD_USERNAME"]
 
 
 @pytest.fixture

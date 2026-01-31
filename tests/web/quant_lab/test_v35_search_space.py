@@ -83,7 +83,8 @@ class TestGetStrategyParamGroups:
         assert "risk" in groups
         assert "sizing" in groups
         assert "trailing" in groups
-        assert "leverage" in groups
+        # V35 runs on spot with no leverage per CLAUDE.md
+        assert "leverage" not in groups
         assert "core_overlay" not in groups
 
     def test_returns_correct_groups_for_core_overlay(self):

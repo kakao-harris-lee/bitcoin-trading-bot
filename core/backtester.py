@@ -348,19 +348,19 @@ class Backtester:
 
     def __init__(
         self,
-        initial_capital: float = 10_000_000,
+        initial_capital: float = 10_000,
         fee_rate: float = None,  # Auto-detect from market if None
-        slippage: float = 0.0002,   # 0.02%
-        min_order_amount: float = 10_000,
+        slippage: float = 0.0004,   # 0.04%
+        min_order_amount: float = 10,
         market: str = "futures",
     ):
         """
         Args:
-            initial_capital: 초기 자본 (원)
-            fee_rate: 수수료율 (None일 경우 시장에 따라 자동 설정)
-            slippage: 슬리피지
-            min_order_amount: 최소 주문 금액 (원)
-            market: 시장 유형 ("spot" 또는 "futures")
+            initial_capital: Initial capital in USD (default $10,000).
+            fee_rate: Fee rate (None = auto-detect: spot=0.1%, futures=0.05%).
+            slippage: Slippage rate (default 0.04%).
+            min_order_amount: Minimum order amount in USD (default $10).
+            market: Market type ("spot" or "futures").
         """
         self.initial_capital = initial_capital
         self.market = market

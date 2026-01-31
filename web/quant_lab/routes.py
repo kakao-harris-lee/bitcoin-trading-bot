@@ -1,13 +1,23 @@
 """Flask blueprint for Quant Lab."""
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, Response
+from functools import wraps
 import uuid
 import json
 import os
+import re
+from pathlib import Path
 from typing import Dict, Any
 
 from .worker.tasks import OptimizationJob, JobStatus
 from .optimizer.study_manager import StudyManager
 from .optimizer.search_space import REGIMES, ENTRY_COMPONENTS, EXIT_COMPONENTS, COMPONENT_PARAMS
+from .optimizer.v35_search_space import (
+    V35_STRATEGY_PARAMS,
+    V35_PARAM_GROUPS,
+    get_strategy_param_groups,
+    get_all_strategies,
+    build_full_search_space,
+)
 
 quant_lab_bp = Blueprint(
     'quant_lab',
@@ -15,6 +25,115 @@ quant_lab_bp = Blueprint(
     template_folder='../templates/quant_lab',
     static_folder='../static/quant_lab',
 )
+
+
+# =============================================================================
+# Security: Authentication
+# =============================================================================
+
+def _check_auth(username: str, password: str) -> bool:
+    """Check if username/password is valid."""
+    expected_user = os.environ.get('DASHBOARD_USERNAME', 'admin')
+    expected_pass = os.environ.get('DASHBOARD_PASSWORD')
+    if not expected_pass:
+        return False  # No password set = deny all
+    return username == expected_user and password == expected_pass
+
+
+def _authenticate():
+    """Return 401 response."""
+    return Response(
+        'Authentication required.', 401,
+        {'WWW-Authenticate': 'Basic realm="Quant Lab"'}
+    )
+
+
+def requires_auth(f):
+    """Decorator for routes that require authentication."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not _check_auth(auth.username, auth.password):
+            return _authenticate()
+        return f(*args, **kwargs)
+    return decorated
+
+
+# =============================================================================
+# Security: Input Validation
+# =============================================================================
+
+# Resource limits
+MAX_TRIALS = 5000
+MAX_HOURS = 48
+MIN_TRIALS = 1
+
+# Allowed data directory (relative to project root)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+ALLOWED_DATA_DIRS = [
+    PROJECT_ROOT / "data",
+]
+
+
+def sanitize_strategy_name(name: str) -> str:
+    """Sanitize strategy name to prevent path traversal.
+
+    Only allows alphanumeric characters, underscores, and hyphens.
+    Raises ValueError if name contains invalid characters.
+    """
+    if not name:
+        raise ValueError("Strategy name cannot be empty")
+
+    # Only allow alphanumeric, underscore, hyphen
+    if not re.match(r'^[a-zA-Z0-9_-]+$', name):
+        raise ValueError(
+            f"Invalid strategy name: '{name}'. "
+            "Only alphanumeric characters, underscores, and hyphens are allowed."
+        )
+
+    # Prevent names that could be confused with paths
+    if name.startswith('.') or name.startswith('-'):
+        raise ValueError(f"Strategy name cannot start with '.' or '-': '{name}'")
+
+    return name
+
+
+def validate_data_path(data_path: str) -> str:
+    """Validate data path to prevent path traversal.
+
+    Ensures the path resolves to within allowed data directories.
+    Returns the resolved absolute path if valid.
+    Raises ValueError if path is outside allowed directories.
+    """
+    if not data_path:
+        data_path = "data/binance_bitcoin.db"
+
+    # Resolve the path relative to project root
+    if not os.path.isabs(data_path):
+        resolved = (PROJECT_ROOT / data_path).resolve()
+    else:
+        resolved = Path(data_path).resolve()
+
+    # Check if path is within allowed directories using proper containment check
+    # (string prefix check is vulnerable to sibling directory attacks like data_evil/)
+    def _is_path_within(path: Path, allowed_dir: Path) -> bool:
+        try:
+            path.relative_to(allowed_dir)
+            return True
+        except ValueError:
+            return False
+
+    is_allowed = any(
+        _is_path_within(resolved, allowed_dir)
+        for allowed_dir in ALLOWED_DATA_DIRS
+    )
+
+    if not is_allowed:
+        raise ValueError(
+            f"Data path must be within allowed directories: {data_path}"
+        )
+
+    return str(resolved)
 
 
 # Experiment templates
@@ -67,12 +186,14 @@ def index():
 
 
 @quant_lab_bp.route('/api/templates')
+@requires_auth
 def get_templates():
     """Get available experiment templates."""
     return jsonify({"templates": TEMPLATES})
 
 
 @quant_lab_bp.route('/api/search-space')
+@requires_auth
 def get_search_space():
     """Get search space configuration options."""
     return jsonify({
@@ -84,28 +205,51 @@ def get_search_space():
 
 
 @quant_lab_bp.route('/api/experiments', methods=['POST'])
+@requires_auth
 def create_experiment():
     """Create a new optimization experiment."""
     data = request.get_json()
 
-    # Generate job ID
-    job_id = str(uuid.uuid4())[:8]
-    
+    # Generate job ID (full UUID for security)
+    job_id = str(uuid.uuid4())
+
     # Validate and sanitize study name
     study_name = data.get('study_name', '').strip()
     if not study_name:
-        study_name = f'experiment_{job_id}'
+        study_name = f'experiment_{job_id[:8]}'
+    else:
+        try:
+            study_name = sanitize_strategy_name(study_name)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+
+    # Validate data path (prevent path traversal)
+    try:
+        validated_data_path = validate_data_path(
+            data.get('data_path', 'data/binance_bitcoin.db')
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    # Validate and limit resource consumption
+    max_trials = min(data.get('max_trials', 500), MAX_TRIALS)
+    max_trials = max(max_trials, MIN_TRIALS)
+
+    max_hours = data.get('max_hours')
+    if max_hours is not None:
+        max_hours = min(float(max_hours), MAX_HOURS)
+        max_hours = max(max_hours, 0.1)
 
     # Create job
     job = OptimizationJob(
         job_id=job_id,
         study_name=study_name,
-        data_path=data.get('data_path', 'data/binance_bitcoin.db'),
+        data_path=validated_data_path,
         start_date=data['start_date'],
         end_date=data['end_date'],
         symbols=data['symbols'],
-        max_trials=data.get('max_trials', 500),
-        max_hours=data.get('max_hours'),
+        max_trials=max_trials,
+        max_hours=max_hours,
         search_config=data.get('search_config'),
         constraints=data.get('constraints'),
         mlflow_experiment=data.get('mlflow_experiment', 'quant_lab'),
@@ -133,6 +277,7 @@ def create_experiment():
 
 
 @quant_lab_bp.route('/api/experiments/<job_id>')
+@requires_auth
 def get_experiment_status(job_id: str):
     """Get status of an optimization experiment."""
     try:
@@ -151,6 +296,7 @@ def get_experiment_status(job_id: str):
 
 
 @quant_lab_bp.route('/api/experiments')
+@requires_auth
 def list_experiments():
     """List all experiments."""
     try:
@@ -173,6 +319,7 @@ def list_experiments():
 
 
 @quant_lab_bp.route('/api/active-jobs')
+@requires_auth
 def list_active_jobs():
     """List all active jobs from Redis."""
     try:
@@ -203,6 +350,7 @@ def list_active_jobs():
 
 
 @quant_lab_bp.route('/api/experiments/<study_name>/results')
+@requires_auth
 def get_experiment_results(study_name: str):
     """Get results for an experiment."""
     try:
@@ -243,6 +391,7 @@ def results(study_name: str):
 
 
 @quant_lab_bp.route('/api/experiments/<study_name>/trials/<int:trial_number>/apply', methods=['POST'])
+@requires_auth
 def apply_trial_config(study_name: str, trial_number: int):
     """Apply a trial's configuration to allocation.json.
 
@@ -254,7 +403,13 @@ def apply_trial_config(study_name: str, trial_number: int):
         import shutil
 
         data = request.get_json() or {}
-        strategy_name = data.get('strategy_name', f'tuned_{study_name}_{trial_number}')
+        raw_strategy_name = data.get('strategy_name', f'tuned_{study_name}_{trial_number}')
+
+        # Sanitize strategy name to prevent path traversal
+        try:
+            strategy_name = sanitize_strategy_name(raw_strategy_name)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
         # Get the trial from the study
         manager = StudyManager()
@@ -369,3 +524,242 @@ def _transform_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[st
             config['regime_routing'][regime] = regime_config
 
     return config
+
+
+# =============================================================================
+# V35 Unified Tuning API Endpoints
+# =============================================================================
+
+@quant_lab_bp.route('/api/v35/strategies')
+@requires_auth
+def get_v35_strategies():
+    """List available V35 strategies for tuning.
+
+    Returns:
+        JSON with list of V35 strategy names.
+    """
+    return jsonify({
+        "strategies": get_all_strategies(),
+        "default": "v35_long_v2",
+    })
+
+
+@quant_lab_bp.route('/api/v35/param-groups/<strategy_name>')
+@requires_auth
+def get_v35_param_groups_route(strategy_name: str):
+    """Get applicable parameter groups for a V35 strategy.
+
+    Args:
+        strategy_name: Name of the V35 strategy.
+
+    Returns:
+        JSON with groups list and parameter definitions.
+    """
+    if strategy_name not in V35_STRATEGY_PARAMS:
+        return jsonify({"error": f"Unknown strategy: {strategy_name}"}), 404
+
+    groups = get_strategy_param_groups(strategy_name)
+    params = {g: V35_PARAM_GROUPS.get(g, {}) for g in groups}
+
+    return jsonify({
+        "strategy": strategy_name,
+        "groups": groups,
+        "params": params,
+    })
+
+
+@quant_lab_bp.route('/api/v35/search-space/<strategy_name>')
+@requires_auth
+def get_v35_search_space(strategy_name: str):
+    """Get complete search space for a V35 strategy.
+
+    Args:
+        strategy_name: Name of the V35 strategy.
+
+    Returns:
+        JSON with full search space definition.
+    """
+    if strategy_name not in V35_STRATEGY_PARAMS:
+        return jsonify({"error": f"Unknown strategy: {strategy_name}"}), 404
+
+    space = build_full_search_space(strategy_name)
+    return jsonify({
+        "strategy": strategy_name,
+        "search_space": space,
+    })
+
+
+@quant_lab_bp.route('/api/v35/optimize', methods=['POST'])
+@requires_auth
+def start_v35_optimization():
+    """Start V35 parameter optimization job.
+
+    Request body:
+        strategy: V35 strategy name (required)
+        param_groups: List of parameter groups to tune (optional)
+        n_trials: Number of optimization trials (default 100, max 5000)
+        capital: Initial capital in USD (default 10000)
+        start_date: Backtest start date (default "2024-01-01")
+        end_date: Backtest end date (default "2024-12-31")
+        symbol: Trading symbol (default "BTC")
+
+    Returns:
+        JSON with job_id and status.
+    """
+    from redis import Redis
+    from rq import Queue
+
+    data = request.get_json() or {}
+    strategy_name = data.get("strategy")
+    param_groups = data.get("param_groups", [])
+
+    # Validate and limit n_trials (prevent DoS)
+    n_trials = data.get("n_trials", 100)
+    try:
+        n_trials = int(n_trials)
+        n_trials = min(n_trials, MAX_TRIALS)
+        n_trials = max(n_trials, MIN_TRIALS)
+    except (TypeError, ValueError):
+        return jsonify({"error": "n_trials must be a positive integer"}), 400
+
+    capital = data.get("capital", 10_000)
+    start_date = data.get("start_date", "2024-01-01")
+    end_date = data.get("end_date", "2024-12-31")
+    symbol = data.get("symbol", "BTC")
+
+    # Validate strategy
+    if not strategy_name:
+        return jsonify({"error": "strategy is required"}), 400
+
+    if strategy_name not in V35_STRATEGY_PARAMS:
+        return jsonify({
+            "error": f"Unknown strategy: {strategy_name}",
+            "available": get_all_strategies(),
+        }), 400
+
+    # Use default groups if none specified
+    if not param_groups:
+        param_groups = get_strategy_param_groups(strategy_name)
+
+    try:
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
+        redis_conn = Redis.from_url(redis_url)
+        q = Queue("quant_lab", connection=redis_conn)
+
+        from .worker.tasks import run_v35_optimization
+
+        job = q.enqueue(
+            run_v35_optimization,
+            strategy_name=strategy_name,
+            param_groups=param_groups,
+            n_trials=n_trials,
+            capital=capital,
+            start_date=start_date,
+            end_date=end_date,
+            symbol=symbol,
+            job_timeout="4h",
+        )
+
+        return jsonify({
+            "job_id": job.id,
+            "strategy": strategy_name,
+            "param_groups": param_groups,
+            "n_trials": n_trials,
+            "capital": capital,
+            "status": "queued",
+        }), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@quant_lab_bp.route('/api/v35/experiments/<study_name>/apply', methods=['POST'])
+@requires_auth
+def apply_v35_best_params(study_name: str):
+    """Apply best parameters from a V35 optimization study to allocation.json.
+
+    Args:
+        study_name: Name of the optimization study.
+
+    Request body:
+        strategy_name: Target strategy name in allocation.json (optional)
+
+    Returns:
+        JSON with success status and backup file path.
+    """
+    try:
+        import optuna
+        from datetime import datetime
+        import shutil
+
+        data = request.get_json() or {}
+
+        # Load study
+        db_path = os.path.join(os.path.dirname(__file__), "quant_lab_studies.db")
+        storage = f"sqlite:///{db_path}"
+
+        try:
+            study = optuna.load_study(study_name=study_name, storage=storage)
+        except KeyError:
+            return jsonify({"error": f"Study not found: {study_name}"}), 404
+
+        if len(study.trials) == 0:
+            return jsonify({"error": "Study has no completed trials"}), 400
+
+        # Get best trial
+        best = study.best_trial
+
+        # Extract strategy name from study name (e.g., "v35_v35_long_v2_2024-01-01_2024-12-31")
+        parts = study_name.split("_")
+        if len(parts) >= 3:
+            # Join parts between first "v35" and date
+            raw_strategy_name = data.get("strategy_name") or "_".join(parts[1:-2])
+        else:
+            raw_strategy_name = data.get("strategy_name", study_name)
+
+        # Sanitize strategy name to prevent path traversal
+        try:
+            strategy_name = sanitize_strategy_name(raw_strategy_name)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+
+        # Load allocation.json
+        allocation_path = os.path.join(
+            os.path.dirname(__file__), "../../config/strategies/allocation.json"
+        )
+
+        with open(allocation_path, "r") as f:
+            allocation = json.load(f)
+
+        # Backup before modifying
+        backup_path = allocation_path + f'.backup.{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+        shutil.copy(allocation_path, backup_path)
+
+        # Merge best params into strategy config
+        if strategy_name in allocation.get("strategies", {}):
+            base_config = allocation["strategies"][strategy_name]
+        else:
+            base_config = {}
+
+        # Apply tuned parameters
+        tuned_config = {**base_config, **best.params}
+        tuned_config["_tuned_from"] = study_name
+        tuned_config["_tuned_score"] = best.value
+        tuned_config["_tuned_at"] = datetime.now().isoformat()
+
+        allocation["strategies"][strategy_name] = tuned_config
+
+        # Save updated allocation.json
+        with open(allocation_path, "w") as f:
+            json.dump(allocation, f, indent=2)
+
+        return jsonify({
+            "success": True,
+            "strategy_name": strategy_name,
+            "best_score": best.value,
+            "params_applied": len(best.params),
+            "backup_file": backup_path,
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

@@ -233,18 +233,24 @@ class ComponentStrategyAdapter:
         avg_volume = row.get('avg_volume_20', 0.0)
 
         # === RF Probability Calculation ===
-        # Get RF confidence from pre-computed columns (backtest) or live computation
+        # Get RF confidence from pre-computed cache (backtest) or live computation
         rf_confidence = 0.0
         rf_direction = "SIDEWAYS"
         rf_signal = "HOLD"
 
         if self._use_rf_probability:
-            # Option 1: Read from pre-computed DataFrame columns (backtest mode)
-            if 'rf_confidence' in df.columns:
+            # Option 1: Read from pre-computed cache (backtest mode - fastest)
+            if self._rf_cache is not None and i in self._rf_cache:
+                cached_result = self._rf_cache[i]
+                rf_confidence = cached_result.get('confidence', 0.0)
+                rf_direction = cached_result.get('direction', 'SIDEWAYS')
+                rf_signal = cached_result.get('signal', 'HOLD')
+            # Option 2: Read from pre-computed DataFrame columns (alternative)
+            elif 'rf_confidence' in df.columns:
                 rf_confidence = float(row.get('rf_confidence', 0.0))
                 rf_direction = str(row.get('rf_direction', 'SIDEWAYS'))
                 rf_signal = str(row.get('rf_signal', 'HOLD'))
-            # Option 2: Live mode - compute on-the-fly
+            # Option 3: Live mode - compute on-the-fly (slowest)
             elif self._rf_available and self._rf_service is not None:
                 start_idx = max(0, i - self._rf_history_size)
                 df_slice = df.iloc[start_idx:i+1]

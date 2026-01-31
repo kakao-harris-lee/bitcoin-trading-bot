@@ -64,7 +64,12 @@ class LSTMPricePredictor:
         )
         if not self.model_path.exists():
             raise FileNotFoundError(f"Model file not found: {self.model_path}")
-        state = torch.load(self.model_path, map_location="cpu")
+        checkpoint = torch.load(self.model_path, map_location="cpu", weights_only=False)
+        # Handle both checkpoint format (dict with model_state_dict) and direct state_dict
+        if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+            state = checkpoint["model_state_dict"]
+        else:
+            state = checkpoint
         self._model.load_state_dict(state)
         self._model.eval()
 

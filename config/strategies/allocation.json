@@ -439,6 +439,7 @@
       "position_pct": 0.3,
       "position_size": 0.01,
       "use_smart_exit": true,
+      "lstm_model_path": "models/trading_lstm_price.pth",
       "entry": {
         "class": "CombinedEntryStrategy"
       },

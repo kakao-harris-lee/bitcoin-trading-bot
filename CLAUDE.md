@@ -67,6 +67,7 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - MLflow Optimization → `docs/plans/2026-01-20-optimize-mlflow-improvements.md`
 - Volatility Breakout & LSTM Scaling → `docs/plans/2026-01-26-volatility-breakout-lstm-scaling-design.md`
 - Enhanced Regime Detection v2 → `docs/plans/2026-01-27-enhanced-regime-detection-design.md`
+- Risk-Based Position Sizing → `docs/plans/2026-01-30-risk-based-position-sizing-design.md`
 
 This prevents context loss! Update this file immediately when you create important documentation.
 
@@ -321,6 +322,39 @@ Cost per trade = 0.05% (entry) + 0.05% (exit) + 0.04% (slippage) = 0.14%
 Minimum profit target: 1.4% (10x fees)
 ```
 
+## Risk-Based Position Sizing
+
+v35_long_v2 전략은 **리스크 기반 포지션 사이징**을 사용합니다:
+
+```
+핵심 공식: qty = risk_budget / (stop_distance × entry_price)
+
+예시 ($10,000 자산, 1% 리스크, 3% 손절):
+- risk_budget = $10,000 × 1% = $100
+- qty = $100 / (3% × $100,000) = 0.033 BTC
+- 최대 손실 = 항상 $100 (자산의 1%)
+```
+
+**allocation.json 설정**:
+```json
+{
+  "v35_long_v2": {
+    "risk_based_sizing": true,
+    "risk_per_trade_pct": 0.01,     // 트레이드당 1% 리스크
+    "max_total_risk_pct": 0.05,     // 전체 포트폴리오 5% 리스크 캡
+    "max_open_positions": 5,
+    "correlation_filter": true,
+    "corr_threshold": 0.75          // BTC-ETH 상관관계 > 0.75면 진입 차단
+  }
+}
+```
+
+**관련 파일**:
+- `trading/risk/position_sizer.py`: 리스크 기반 수량 계산
+- `trading/risk/portfolio_risk_manager.py`: 포트폴리오 리스크 캡
+- `trading/risk/correlation_filter.py`: 상관관계 필터
+- `docs/plans/2026-01-30-risk-based-position-sizing-design.md`: 전체 설계 문서
+
 ## Environment Setup
 
 **This project uses a Python virtual environment (venv).** Always activate it before running any commands.
@@ -412,6 +446,7 @@ python scripts/analyze_trades.py --event EXIT       # Filter by event
 
 ## Recent Changes
 
+- 2026-01-30: Added risk-based position sizing (1% risk per trade, 5% total risk cap)
 - 2026-01-25: Added structured one-line JSON trade logging for analysis
 - 2026-01-25: Synced strategy configs and LSTM updates
 - 2026-01-23: Fixed backtest 0-trade bug and matplotlib threading issues

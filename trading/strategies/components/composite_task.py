@@ -47,6 +47,9 @@ from .models import (
 from .regime_filter import EnhancedRegimeRouter
 from .rf_probability_service import RFProbabilityService
 from trading.observability.structured_logger import trade_logger
+from trading.risk.position_sizer import PositionSizer, RiskSizingConfig
+from trading.risk.portfolio_risk_manager import PortfolioRiskManager, RiskCapConfig
+from trading.risk.correlation_filter import CorrelationFilter, CorrelationConfig
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -227,6 +230,32 @@ class CompositeStrategyTask(BaseStrategyTask):
         self.breakout_k = self.config.get("breakout_k", 0.5)  # k value for target_price
         self._prev_day_cache: dict[str, tuple[float, float, str]] = {}  # (high, low, date)
 
+        # Risk-based position sizing (replaces percentage-based sizing)
+        self._risk_based_sizing = self.config.get("risk_based_sizing", False)
+        self._position_sizer: PositionSizer | None = None
+        self._portfolio_risk_mgr: PortfolioRiskManager | None = None
+
+        if self._risk_based_sizing:
+            sizing_config = RiskSizingConfig.from_dict(self.config)
+            self._position_sizer = PositionSizer(sizing_config)
+
+            # Portfolio risk manager with correlation filter
+            risk_cap_config = RiskCapConfig.from_dict(self.config)
+
+            corr_filter = None
+            if self.config.get("correlation_filter", True):
+                corr_config = CorrelationConfig.from_dict(self.config)
+                corr_filter = CorrelationFilter(corr_config, redis)
+
+            self._portfolio_risk_mgr = PortfolioRiskManager(
+                risk_cap_config, redis, corr_filter
+            )
+            logger.info(
+                f"{self.name}: Risk-based sizing enabled "
+                f"(risk={sizing_config.risk_per_trade_pct*100:.1f}%, "
+                f"max_total={risk_cap_config.max_total_risk_pct*100:.1f}%)"
+            )
+
     async def run(self) -> None:
         """Main loop: warm-up then consume."""
         logger.info(f"Warming up composite strategy {self.name}...")
@@ -358,9 +387,60 @@ class CompositeStrategyTask(BaseStrategyTask):
         await self._emit_entry_evaluation(market_data, context, signal)
 
         if signal:
-            # Apply dynamic sizing if configured
-            quantity = await self._get_quantity(symbol, market_data.close, signal.quantity, context)
-            return self._signal_to_dict(signal, quantity, leverage=leverage)
+            # Get quantity (risk-based or legacy)
+            quantity, stop_price = await self._get_quantity(
+                symbol, market_data.close, signal.quantity, context, market_data
+            )
+
+            if quantity <= 0:
+                logger.debug(f"{symbol}: Quantity too small, skipping entry")
+                return None
+
+            # Portfolio risk check (if risk-based sizing enabled)
+            if self._portfolio_risk_mgr and self._risk_based_sizing:
+                equity = await self._get_account_equity()
+                if equity <= 0:
+                    logger.warning(f"{symbol}: Cannot get equity, skipping entry")
+                    return None
+
+                # Calculate proposed risk
+                if stop_price and stop_price > 0:
+                    stop_pct = abs(market_data.close - stop_price) / market_data.close
+                else:
+                    stop_pct = 0.03  # Default 3% if no stop
+
+                proposed_risk = quantity * market_data.close * stop_pct
+
+                risk_check = await self._portfolio_risk_mgr.can_open_trade(
+                    symbol=symbol,
+                    proposed_risk=proposed_risk,
+                    equity=equity,
+                )
+
+                if not risk_check.allowed:
+                    logger.info(
+                        f"{symbol}: Entry blocked by portfolio risk - {risk_check.reason}"
+                    )
+                    return None
+
+                # If correlation filter suggests reduced risk, recalculate quantity
+                if risk_check.adjusted_risk_pct and self._position_sizer:
+                    original_risk_pct = self.config.get("risk_per_trade_pct", 0.01)
+                    reduction_factor = risk_check.adjusted_risk_pct / original_risk_pct
+                    quantity = quantity * reduction_factor
+                    logger.info(
+                        f"{symbol}: Quantity reduced by correlation filter "
+                        f"({reduction_factor:.2f}x) -> {quantity:.6f}"
+                    )
+
+            # Create order with stop_price for position tracking
+            order = self._signal_to_dict(signal, quantity, leverage=leverage)
+
+            # Include stop price for position tracking
+            if stop_price and stop_price > 0:
+                order["stop_price"] = stop_price
+
+            return order
 
         return None
 
@@ -1041,17 +1121,61 @@ class CompositeStrategyTask(BaseStrategyTask):
         price: float,
         default_quantity: float,
         context: MarketContext | None = None,
-    ) -> float:
-        """Get position quantity, using dynamic sizing if configured.
+        market_data: MarketData | None = None,
+    ) -> tuple[float, float | None]:
+        """Get position quantity using risk-based or legacy sizing.
 
         Args:
             symbol: Trading symbol.
             price: Current price.
             default_quantity: Default quantity from signal.
+            context: Market context for RF confidence.
+            market_data: Market data for ATR-based stop calculation.
 
         Returns:
-            Final quantity.
+            Tuple of (quantity, stop_price). stop_price is None for legacy sizing.
         """
+        # === Risk-based sizing (preferred) ===
+        if self._risk_based_sizing and self._position_sizer and market_data:
+            equity = await self._get_account_equity()
+            if equity <= 0:
+                logger.warning(f"{symbol}: Cannot get equity for risk sizing")
+                return (0.0, None)
+
+            # Get ATR for stop calculation
+            atr = market_data.atr
+            if atr <= 0:
+                atr = price * 0.02  # Fallback: 2% of price
+
+            leverage = int(self.config.get("leverage", 1))
+
+            # Size position based on risk
+            result = self._position_sizer.size_position(
+                equity=equity,
+                entry_price=price,
+                atr=atr,
+                symbol=symbol,
+                leverage=leverage,
+                direction="long",
+            )
+
+            if result.quantity == 0:
+                logger.info(
+                    f"{symbol}: Risk sizing rejected - {result.rejection_reason}"
+                )
+                return (0.0, None)
+
+            # Calculate stop price for position tracking
+            stop_price = price * (1 - result.stop_distance_pct / 100)
+
+            logger.info(
+                f"{symbol}: Risk-sized qty={result.quantity:.6f}, "
+                f"risk=${result.risk_amount:.2f}, stop={result.stop_distance_pct:.1f}%"
+            )
+
+            return (result.quantity, stop_price)
+
+        # === Legacy: Percentage-based sizing ===
         use_dynamic = self.config.get("dynamic_sizing", False)
         position_pct = float(self.config.get("position_pct", 0.02))
 
@@ -1065,9 +1189,25 @@ class CompositeStrategyTask(BaseStrategyTask):
                 position_pct = self._position_size_low
 
         if use_dynamic:
-            return await self.get_dynamic_position_size(symbol, price, position_pct)
+            qty = await self.get_dynamic_position_size(symbol, price, position_pct)
+            return (qty, None)
 
-        return self.config.get("position_size", default_quantity)
+        return (self.config.get("position_size", default_quantity), None)
+
+    async def _get_account_equity(self) -> float:
+        """Get current account equity from Redis.
+
+        Returns:
+            Account equity in USDT, or 0 if unavailable.
+        """
+        try:
+            data = await self.redis._client.hgetall("account:live")
+            if data:
+                return float(data.get("futures_balance", 0))
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Failed to get account equity: {e}")
+            return 0.0
 
     async def _check_and_record_decision(
         self,

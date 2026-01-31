@@ -68,6 +68,7 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - Volatility Breakout & LSTM Scaling → `docs/plans/2026-01-26-volatility-breakout-lstm-scaling-design.md`
 - Enhanced Regime Detection v2 → `docs/plans/2026-01-27-enhanced-regime-detection-design.md`
 - Risk-Based Position Sizing → `docs/plans/2026-01-30-risk-based-position-sizing-design.md`
+- Spot Trading Restoration → `docs/plans/2026-01-31-spot-trading-restoration-design.md`
 
 This prevents context loss! Update this file immediately when you create important documentation.
 

@@ -217,13 +217,17 @@ class TestMetricsServiceEventMethods:
 class TestEventsAPIEndpoints:
     """Test API endpoints for events."""
 
+    @pytest.fixture(autouse=True)
+    def patch_auth(self):
+        """Patch auth credentials for all tests."""
+        with patch('web.app.DASHBOARD_PASSWORD', 'test_password'), \
+             patch('web.app.DASHBOARD_USERNAME', 'admin'):
+            yield
+
     @pytest.fixture
-    def client(self):
+    def client(self, patch_auth):
         """Create Flask test client with auth credentials."""
-        import os
         import base64
-        # Set required environment variable for app import
-        os.environ.setdefault("DASHBOARD_PASSWORD", "test_password")
         from web.app import app
         app.config['TESTING'] = True
         with app.test_client() as client:

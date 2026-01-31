@@ -4,15 +4,22 @@ Test spot trading API endpoints.
 import pytest
 import json
 import os
+import base64
 from unittest.mock import Mock, patch
-from web.app import app
+
+
+@pytest.fixture(autouse=True)
+def patch_auth():
+    """Patch auth credentials for all tests."""
+    with patch('web.app.DASHBOARD_PASSWORD', 'test'), \
+         patch('web.app.DASHBOARD_USERNAME', 'admin'):
+        yield
 
 
 @pytest.fixture
-def client():
+def client(patch_auth):
     """Flask test client with auth."""
-    os.environ['DASHBOARD_PASSWORD'] = 'test'
-    os.environ['DASHBOARD_USERNAME'] = 'admin'
+    from web.app import app
     app.config['TESTING'] = True
     with app.test_client() as client:
         yield client
@@ -29,9 +36,8 @@ def auth_headers():
 @pytest.fixture
 def mock_redis():
     """Mock Redis client."""
-    with patch('redis.from_url') as mock:
-        redis_mock = Mock()
-        mock.return_value = redis_mock
+    redis_mock = Mock()
+    with patch('web.app.get_redis', return_value=redis_mock):
         yield redis_mock
 
 
@@ -216,7 +222,7 @@ class TestErrorHandling:
 
     def test_redis_error(self, client, auth_headers):
         """Test handling of Redis connection errors."""
-        with patch('redis.from_url') as mock:
+        with patch('web.app.get_redis') as mock:
             mock.side_effect = Exception('Redis connection failed')
 
             response = client.get('/api/spot/balance', headers=auth_headers)

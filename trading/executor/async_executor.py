@@ -35,7 +35,7 @@ class AsyncExecutor:
         self.position_pct = config.get("position_pct", 0.02)  # 2% of balance per trade
         self.min_balance = config.get("min_balance", 100)  # Minimum USDT to trade
         self._running = False
-        self._balance_cache = {"futures": 0.0, "last_update": 0}
+        self._balance_cache = {"spot": 0.0, "futures": 0.0, "last_update": 0}
         self.liquidation_guard = LiquidationGuard()
 
     async def run(self) -> None:
@@ -195,6 +195,11 @@ class AsyncExecutor:
         # Update position
         profit_data = None
         if is_exit:
+            # Capture position data BEFORE clearing
+            position = await self.redis.get_position(order["symbol"], "spot")
+            entry_price = float(position.get("entry_price", 0)) if position else 0
+            entry_time = int(position.get("entry_time", 0)) if position else 0
+
             # Calculate realized P&L (must be done before clearing position)
             profit_data = await self._record_exit_pnl(order, fill)
             await self.redis.clear_position(order["symbol"], "spot")
@@ -206,9 +211,6 @@ class AsyncExecutor:
 
         # Structured logging for trade analysis
         if is_exit and profit_data:
-            position = await self.redis.get_position(order["symbol"], "spot")
-            entry_price = float(position.get("entry_price", 0)) if position else 0
-            entry_time = int(position.get("entry_time", 0)) if position else 0
             hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
             trade_logger.exit(
                 symbol=order["symbol"],
@@ -285,6 +287,11 @@ class AsyncExecutor:
         # Update position
         profit_data = None
         if is_exit:
+            # Capture position data BEFORE clearing
+            position = await self.redis.get_position(order["symbol"], order["market"])
+            entry_price = float(position.get("entry_price", 0)) if position else 0
+            entry_time = int(position.get("entry_time", 0)) if position else 0
+
             # Calculate realized P&L (must be done before clearing position)
             profit_data = await self._record_exit_pnl(order, fill)
             await self.redis.clear_position(order["symbol"], order["market"])
@@ -296,9 +303,6 @@ class AsyncExecutor:
 
         # Structured logging for trade analysis
         if is_exit and profit_data:
-            position = await self.redis.get_position(order["symbol"], order["market"])
-            entry_price = float(position.get("entry_price", 0)) if position else 0
-            entry_time = int(position.get("entry_time", 0)) if position else 0
             hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
             trade_logger.exit(
                 symbol=order["symbol"],

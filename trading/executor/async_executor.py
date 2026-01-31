@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Approximate prices for balance estimation (used before order execution)
+APPROX_PRICES = {"BTC": 90000, "ETH": 3000, "SOL": 130}
+
 
 class AsyncExecutor:
     """Consumes orders stream and executes via Binance API."""
@@ -251,8 +254,6 @@ class AsyncExecutor:
 
     async def _execute_futures_order(self, order: dict[str, Any]) -> dict | None:
         """Execute futures order - with leverage and liquidation checks."""
-        market = order.get("market", "futures")
-
         # Check if this is an exit (closing an existing position)
         is_exit = await self._is_exit_order(order)
 
@@ -352,8 +353,7 @@ class AsyncExecutor:
         # Use approximate price (we don't have real-time price here)
         # This is a rough estimate for balance check
         symbol = order.get("symbol", "BTC")
-        approx_prices = {"BTC": 90000, "ETH": 3000, "SOL": 130}
-        price = approx_prices.get(symbol, 100)
+        price = APPROX_PRICES.get(symbol, 100)
         return quantity * price * 1.01  # 1% buffer for slippage
 
     async def _is_exit_order(self, order: dict) -> bool:

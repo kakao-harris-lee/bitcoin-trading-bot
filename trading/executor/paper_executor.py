@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)
 # Valid order sides and markets for validation
 VALID_SIDES = {"buy", "sell"}
 VALID_MARKETS = {"futures", "spot"}  # Support both futures and spot
+VALID_SYMBOLS = {"BTC", "ETH", "SOL"}  # Supported trading symbols
+
+# Default configuration values
+DEFAULT_PAPER_BALANCE = 10000  # Default initial balance in USDT
 
 
 class PaperExecutor:
@@ -34,7 +38,7 @@ class PaperExecutor:
         self.redis = redis
         self.config = config
         self.leverage_manager = leverage_manager
-        self.initial_balance = config.get("initial_balance", 10000)
+        self.initial_balance = config.get("initial_balance", DEFAULT_PAPER_BALANCE)
         self.balance = self.initial_balance  # Futures balance - will be overwritten by Redis value if exists
         self.fee_rate = config.get("fee_rate", 0.0005)  # 0.05% (futures default)
         self.slippage = config.get("slippage", 0.0004)  # 0.04%
@@ -186,6 +190,12 @@ class PaperExecutor:
         market = order["market"]
         if market not in VALID_MARKETS:
             logger.error(f"Invalid market type: {market}")
+            return None
+
+        # Validate symbol
+        symbol = order["symbol"]
+        if symbol not in VALID_SYMBOLS:
+            logger.error(f"Invalid symbol: {symbol}")
             return None
 
         # Validate quantity
@@ -361,7 +371,9 @@ class PaperExecutor:
         fees = order_value * self.spot_fee_rate
 
         # Check if this is an exit (selling existing spot position)
-        is_exit = symbol in self.spot_positions and side == "sell"
+        # Also check Redis for position (in case of restart)
+        redis_position = await self.redis.get_position(symbol, "spot")
+        is_exit = (symbol in self.spot_positions or redis_position) and side == "sell"
 
         if side == "buy":
             # Spot buy: deduct from spot balance
@@ -376,6 +388,17 @@ class PaperExecutor:
             # Add to spot positions
             current_qty = self.spot_positions.get(symbol, 0.0)
             self.spot_positions[symbol] = current_qty + quantity
+
+            # Store entry price in Redis for P&L calculation
+            await self.redis.set_position(symbol, "spot", {
+                "quantity": str(self.spot_positions[symbol]),
+                "entry_price": str(fill_price),
+                "strategy": order["strategy"],
+                "entry_time": str(int(time.time() * 1000)),
+                "side": "buy",
+                "leverage": "1",
+                "liquidation_price": "0",
+            })
 
             logger.info(f"Spot buy: {symbol} {quantity} @ {fill_price}, new position: {self.spot_positions[symbol]}")
 
@@ -414,11 +437,31 @@ class PaperExecutor:
 
         # Calculate P&L for exits
         profit_data = None
+        entry_price = 0.0
+        entry_time = 0
         if is_exit:
-            # For spot, we don't track entry price in Redis positions yet
-            # Just publish the trade without P&L calculation for now
-            # TODO: Track spot entry prices for P&L calculation
-            pass
+            # Get entry price from Redis position
+            position = await self.redis.get_position(symbol, "spot")
+            if position:
+                entry_price = float(position.get("entry_price", 0))
+                entry_time = int(position.get("entry_time", 0))
+
+                if entry_price > 0:
+                    # Calculate spot P&L (no leverage)
+                    pnl = (fill_price - entry_price) * quantity
+                    pnl_pct = ((fill_price - entry_price) / entry_price) * 100
+
+                    profit_data = {"profit": pnl, "profit_pct": pnl_pct}
+
+                    # Update daily P&L
+                    risk = await self.redis.get_risk()
+                    daily_pnl = float(risk.get("daily_pnl", 0)) + pnl
+                    await self.redis.hset("risk", {"daily_pnl": str(daily_pnl)})
+
+                    logger.info(f"Spot P&L: {symbol} {pnl:+.2f} USDT ({pnl_pct:+.2f}%)")
+
+            # Clear Redis position
+            await self.redis.clear_position(symbol, "spot")
 
         # Publish trade to Redis stream
         await self._publish_trade(order, fill, profit_data)
@@ -430,15 +473,16 @@ class PaperExecutor:
 
         # Structured logging
         if is_exit and profit_data:
+            hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
             trade_logger.exit(
                 symbol=symbol,
                 price=fill_price,
                 qty=quantity,
-                entry_price=0,  # TODO: track entry price
+                entry_price=entry_price,
                 strategy=order["strategy"],
                 pnl=profit_data.get("profit", 0),
                 pnl_pct=profit_data.get("profit_pct", 0),
-                hold_time_sec=0,
+                hold_time_sec=hold_time,
                 exit_reason=order.get("reason", ""),
                 mode="paper",
             )

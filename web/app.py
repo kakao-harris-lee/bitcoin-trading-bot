@@ -87,6 +87,9 @@ if quant_lab_bp:
 
 BASE_DIR = Path(__file__).parent
 
+# Valid exchange names (prevents path traversal attacks)
+VALID_EXCHANGES = {"binance"}
+
 # Redis connection pool (shared across all requests)
 _redis_pool = ConnectionPool.from_url(
     os.getenv('REDIS_URL', 'redis://localhost:6379'),
@@ -168,7 +171,19 @@ KILL_SWITCH_FILE = Path(
 
 
 def load_trading_log(exchange: str):
-    """Trading 로그 로드 (v2 engine 우선, 없으면 paper fallback)."""
+    """Trading 로그 로드 (v2 engine 우선, 없으면 paper fallback).
+
+    Args:
+        exchange: Exchange name (must be in VALID_EXCHANGES)
+
+    Returns:
+        Loaded JSON data or None if not found/invalid
+    """
+    # Validate exchange to prevent path traversal
+    if exchange not in VALID_EXCHANGES:
+        print(f"Invalid exchange: {exchange}")
+        return None
+
     candidates = [
         LOG_DIR / f"v2_engine_{exchange}.json",
         LOG_DIR / f"paper_trading_{exchange}.json",

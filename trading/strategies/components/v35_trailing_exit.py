@@ -69,12 +69,17 @@ class V35ExitParams:
     macd_exit_enabled: bool = True
     min_profit_for_macd_exit: float = 1.5  # Min profit % for MACD exit
 
+    # Regime change exit (optional, disabled in V35TrailingExitStrategy)
+    # Minimum profit required to trigger regime-based exit
+    # Prevents exiting on small profits during volatile regime swings
+    min_profit_for_regime_exit: float = 5.0  # Only exit on regime change if P&L >= 5%
+
     # Regime classification for exit (same thresholds as entry)
     mfi_bull: float = 54.0
     mfi_bear: float = 41.0
     adx_trend: float = 18.0
 
-    market: Literal["futures"] = "futures"
+    market: Literal["spot", "futures"] = "spot"
 
 
 @exit_strategy(params_class=V35ExitParams)

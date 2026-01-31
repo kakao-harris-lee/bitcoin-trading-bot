@@ -67,6 +67,14 @@ from .short_exit import ShortExitStrategy, ShortExitParams
 from .experimental_exit import ExperimentalExitStrategy, ExperimentalExitParams
 from .combined_entry import CombinedEntryStrategy, CombinedEntryParams
 from .combined_exit import CombinedExitStrategy, CombinedExitParams
+from .hybrid_lstm_entry import HybridLSTMEntryStrategy, HybridLSTMEntryParams
+from .hybrid_lstm_exit import HybridLSTMExitStrategy, HybridLSTMExitParams
+from .v35_simple_entry import V35SimpleEntryStrategy, V35SimpleEntryParams
+from .v35_simple_exit import V35SimpleExitStrategy, V35SimpleExitParams
+from .v35_classic_entry import V35ClassicEntryStrategy, V35ClassicEntryParams
+from .v35_classic_exit import V35ClassicExitStrategy, V35ClassicExitParams
+from .v35_optuna_entry import V35OptunaEntryStrategy, V35OptunaEntryParams
+from .v35_optuna_exit import V35OptunaExitStrategy, V35OptunaExitParams
 
 # Registry and config validation
 from .registry import (
@@ -228,6 +236,99 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_params_class=V35ExitParams,
         persistent_exit_class=None,
         market="spot",  # V35 uses spot trading
+        timeframe="minute60",
+    ),
+    # Hybrid LSTM + RF strategy
+    "hybrid_lstm": StrategySpec(
+        name="hybrid_lstm",
+        entry_class=HybridLSTMEntryStrategy,
+        entry_params_class=HybridLSTMEntryParams,
+        exit_class=HybridLSTMExitStrategy,
+        exit_params_class=HybridLSTMExitParams,
+        persistent_exit_class=None,
+        market="spot",  # Uses RF confidence for sizing
+        timeframe="minute60",
+    ),
+    # V35 Simple - Optimized minimal filter strategy (2020-2026 backtested)
+    # +140% return, 22% MDD vs +12% for original V35
+    "v35_simple": StrategySpec(
+        name="v35_simple",
+        entry_class=V35SimpleEntryStrategy,
+        entry_params_class=V35SimpleEntryParams,
+        exit_class=V35SimpleExitStrategy,
+        exit_params_class=V35SimpleExitParams,
+        persistent_exit_class=None,
+        market="spot",
+        timeframe="minute60",
+    ),
+    "v35_simple_trailing": StrategySpec(
+        name="v35_simple_trailing",
+        entry_class=V35SimpleEntryStrategy,
+        entry_params_class=V35SimpleEntryParams,
+        exit_class=V35SimpleExitStrategy,
+        exit_params_class=V35SimpleExitParams,
+        persistent_exit_class=None,
+        market="spot",
+        timeframe="minute60",
+    ),
+    "v35_simple_wide": StrategySpec(
+        name="v35_simple_wide",
+        entry_class=V35SimpleEntryStrategy,
+        entry_params_class=V35SimpleEntryParams,
+        exit_class=V35SimpleExitStrategy,
+        exit_params_class=V35SimpleExitParams,
+        persistent_exit_class=None,
+        market="spot",
+        timeframe="minute60",
+    ),
+    "v35_classic": StrategySpec(
+        name="v35_classic",
+        entry_class=V35ClassicEntryStrategy,
+        entry_params_class=V35ClassicEntryParams,
+        exit_class=V35ClassicExitStrategy,
+        exit_params_class=V35ClassicExitParams,
+        persistent_exit_class=None,
+        market="spot",
+        timeframe="minute60",
+    ),
+    "v35_classic_wide": StrategySpec(
+        name="v35_classic_wide",
+        entry_class=V35ClassicEntryStrategy,
+        entry_params_class=V35ClassicEntryParams,
+        exit_class=V35ClassicExitStrategy,
+        exit_params_class=V35ClassicExitParams,
+        persistent_exit_class=None,
+        market="spot",
+        timeframe="minute60",
+    ),
+    "v35_optuna": StrategySpec(
+        name="v35_optuna",
+        entry_class=V35OptunaEntryStrategy,
+        entry_params_class=V35OptunaEntryParams,
+        exit_class=V35OptunaExitStrategy,
+        exit_params_class=V35OptunaExitParams,
+        persistent_exit_class=None,
+        market="spot",
+        timeframe="minute60",
+    ),
+    "v35_optuna_no_partial": StrategySpec(
+        name="v35_optuna_no_partial",
+        entry_class=V35OptunaEntryStrategy,
+        entry_params_class=V35OptunaEntryParams,
+        exit_class=V35ClassicExitStrategy,  # Simple exit without partial
+        exit_params_class=V35ClassicExitParams,
+        persistent_exit_class=None,
+        market="spot",
+        timeframe="minute60",
+    ),
+    "v35_optuna_balanced": StrategySpec(
+        name="v35_optuna_balanced",
+        entry_class=V35OptunaEntryStrategy,
+        entry_params_class=V35OptunaEntryParams,
+        exit_class=V35ClassicExitStrategy,
+        exit_params_class=V35ClassicExitParams,
+        persistent_exit_class=None,
+        market="spot",
         timeframe="minute60",
     ),
 }

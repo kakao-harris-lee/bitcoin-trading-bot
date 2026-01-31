@@ -139,10 +139,12 @@ class V35PersistentExitStrategy:
                 await self._clear_state(symbol)
                 return self._create_exit_signal(position, reason, trailing_stop_price)
 
-        # Exit condition 4: Regime change to bearish (only if in profit)
+        # Exit condition 4: Regime change to bearish (only if in sufficient profit)
+        # Uses min_profit_for_regime_exit to prevent exiting on volatile regime swings
         regime = self._classify_regime(market_data.mfi, market_data.adx)
-        if regime in ("BEAR_STRONG", "BEAR_MODERATE") and pnl_pct > 0:
-            reason = f"V35 exit: Regime change to {regime}, locking {pnl_pct:.2f}%"
+        min_profit = getattr(p, 'min_profit_for_regime_exit', 5.0)
+        if regime in ("BEAR_STRONG", "BEAR_MODERATE") and pnl_pct >= min_profit:
+            reason = f"V35 exit: Regime change to {regime}, locking {pnl_pct:.2f}% (min={min_profit}%)"
             logger.info(f"{symbol}: {reason}")
             await self._clear_state(symbol)
             return self._create_exit_signal(position, reason)

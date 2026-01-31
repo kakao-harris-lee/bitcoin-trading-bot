@@ -70,7 +70,7 @@ class V35EntryParams:
     # Only enter when breakout_signal == 1 (close > target_price)
     use_breakout_filter: bool = False  # Disabled by default (requires data collection)
 
-    market: Literal["futures"] = "futures"
+    market: Literal["spot", "futures"] = "spot"
 
 
 @entry_strategy(params_class=V35EntryParams)

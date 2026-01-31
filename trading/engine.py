@@ -284,8 +284,11 @@ class TradingEngine:
         for name in strategy_names:
             # Skip if disabled or not configured to run
             config = strategy_config.get(name, {})
-            # Basic check: if config is empty, maybe skip?
-            # But the factory acts as the registry check.
+
+            # Check if strategy is explicitly disabled
+            if config.get("enabled") is False:
+                logger.info(f"Skipping disabled strategy: {name}")
+                continue
 
             try:
                 # Create entry and exit components

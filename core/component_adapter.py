@@ -161,6 +161,12 @@ class ComponentStrategyAdapter:
         # More aggressive than EMA200 filter for MDD defense
         self._panic_sell_below_ma120: bool = config.get('panic_sell_below_ma120', False)
 
+        # === Configurable Drawdown BEAR Threshold ===
+        # Override regime to BEAR when price drops below this % from 30-day high
+        # Default 0.15 (15%) can be too aggressive for bear markets
+        # Set to 1.0 to effectively disable drawdown-based BEAR override
+        self._drawdown_bear_threshold: float = config.get('drawdown_bear_threshold', 0.15)
+
     def update_equity(self, equity: float) -> None:
         """Update portfolio equity tracking for drawdown protection.
 
@@ -271,7 +277,7 @@ class ComponentStrategyAdapter:
                         rf_signal = rf_result.get('signal', 'HOLD')
 
         # Build Context using the standard function (ensures consistent regime/trend classification)
-        # Includes drawdown-based BEAR detection (15% from recent high = BEAR override)
+        # Includes drawdown-based BEAR detection (configurable threshold)
         context = build_market_context(
             mfi=mfi,
             adx=adx,
@@ -281,6 +287,8 @@ class ComponentStrategyAdapter:
             avg_volume=avg_volume,
             # Use 30-day high for drawdown detection (fall back to 20-period if not available)
             recent_high=row.get('high_30d', 0.0) or row.get('prev_high_20', 0.0),
+            # Configurable drawdown threshold (default 15%, set higher to be less aggressive)
+            drawdown_bear_threshold=self._drawdown_bear_threshold,
             # RF probability from HybridPredictor
             rf_confidence=rf_confidence,
             rf_direction=rf_direction,
@@ -544,13 +552,18 @@ class ComponentStrategyAdapter:
                         fraction = max(min(exit_qty / current_qty, 1.0), 0.0)
                         if fraction < 1.0:
                             remaining_qty = max(current_qty - exit_qty, 0.0)
-                            self.current_position = replace(self.current_position, quantity=remaining_qty)
-                            return {
-                                'action': action,
-                                'fraction': fraction,
-                                'reason': reason,
-                                'consecutive_losses': self._consecutive_losses,
-                            }
+                            # Treat near-zero quantity as full exit (prevents floating-point ghost positions)
+                            if remaining_qty < 1e-10:
+                                # Full exit - will be handled by code below
+                                pass
+                            else:
+                                self.current_position = replace(self.current_position, quantity=remaining_qty)
+                                return {
+                                    'action': action,
+                                    'fraction': fraction,
+                                    'reason': reason,
+                                    'consecutive_losses': self._consecutive_losses,
+                                }
 
                 # Full exit
                 self.current_position = None

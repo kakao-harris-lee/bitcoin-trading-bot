@@ -55,14 +55,25 @@ class RiskBasedBacktester:
     def __init__(
         self,
         initial_capital: float = 10000.0,
-        fee_rate: float = 0.0005,
+        fee_rate: float = None,  # Auto-detect from market if None
         slippage: float = 0.0002,
         risk_per_trade: float = 0.01,  # 1% risk per trade
+        market: str = "futures",
     ):
         self.initial_capital = initial_capital
-        self.fee_rate = fee_rate
+        self.market = market
+
+        # Auto-detect fee rate based on market
+        if fee_rate is None:
+            self.fee_rate = 0.001 if market == "spot" else 0.0005
+        else:
+            self.fee_rate = fee_rate
+
         self.slippage = slippage
         self.risk_per_trade = risk_per_trade
+
+        # Spot has no leverage
+        self.leverage = 1 if market == "spot" else 3
 
         # State
         self.cash = initial_capital
@@ -532,6 +543,10 @@ def main():
 
     config = allocation['strategies'].get(strategy_name, {})
 
+    # Get market from config
+    market = config.get("market", "futures")
+    print(f"  market: {market}")
+
     # Override with risk-based sizing parameters for testing
     config['risk_based_sizing'] = True
     config['risk_per_trade_pct'] = 0.01
@@ -570,9 +585,10 @@ def main():
     print("\nRunning backtest with risk-based sizing...")
     backtester = RiskBasedBacktester(
         initial_capital=args.capital,
-        fee_rate=0.0005,  # 0.05%
+        fee_rate=0.001 if market == "spot" else 0.0005,
         slippage=0.0002,  # 0.02%
         risk_per_trade=config.get('risk_per_trade_pct', 0.01),
+        market=market,
     )
 
     results = backtester.run(df, adapter, symbol=args.symbol)

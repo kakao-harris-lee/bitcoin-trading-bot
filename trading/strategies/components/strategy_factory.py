@@ -116,7 +116,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
         persistent_exit_class=None,
-        market="futures",
+        market="spot",  # V35 uses spot trading (no leverage benefit)
         timeframe="minute60",  # Hourly - volatility filter calibrated for this
     ),
     "v35_long_v2": StrategySpec(
@@ -126,7 +126,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
         persistent_exit_class=None,
-        market="futures",
+        market="spot",  # V35 uses spot trading (no leverage benefit)
         timeframe="minute60",  # Same as v35_long, uses regime_version="v2" in config
     ),
     "sideways_v2": StrategySpec(
@@ -156,7 +156,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=ExperimentalExitStrategy,
         exit_params_class=ExperimentalExitParams,
         persistent_exit_class=None,
-        market="futures",
+        market="spot",  # V35 uses spot trading (no leverage benefit)
         timeframe="minute60",  # Hourly - volatility filter calibrated for this
     ),
     "combo_ensemble": StrategySpec(
@@ -177,7 +177,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
         persistent_exit_class=None,
-        market="futures",
+        market="spot",  # V35 uses spot trading
         timeframe="minute60",
     ),
     "tuned_v35_long_v2_growth": StrategySpec(
@@ -187,7 +187,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
         persistent_exit_class=None,
-        market="futures",
+        market="spot",  # V35 uses spot trading
         timeframe="minute60",
     ),
     "tuned_v35_long_v2_hold": StrategySpec(
@@ -197,7 +197,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
         persistent_exit_class=None,
-        market="futures",
+        market="spot",  # V35 uses spot trading
         timeframe="minute60",
     ),
     "tuned_v35_long_v2_core_overlay": StrategySpec(
@@ -207,7 +207,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
         persistent_exit_class=None,
-        market="futures",
+        market="spot",  # V35 uses spot trading
         timeframe="minute60",
     ),
     "tuned_v35_long_v2_core_overlay_v2": StrategySpec(
@@ -217,7 +217,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
         persistent_exit_class=None,
-        market="futures",
+        market="spot",  # V35 uses spot trading
         timeframe="minute60",
     ),
     "tuned_experiment_7143f875_2": StrategySpec(
@@ -227,7 +227,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_class=V35TrailingExitStrategy,
         exit_params_class=V35ExitParams,
         persistent_exit_class=None,
-        market="futures",
+        market="spot",  # V35 uses spot trading
         timeframe="minute60",
     ),
 }

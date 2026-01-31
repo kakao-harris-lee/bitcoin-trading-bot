@@ -77,14 +77,18 @@ class AsyncExecutor:
         logger.info("Syncing account with Binance...")
 
         try:
-            # Get balance
+            # Get balance (both spot and futures)
             balance = await self.client.get_balance()
-            total_equity = getattr(balance, "total_usdt", balance.futures_usdt)
+            spot_balance = getattr(balance, "spot_usdt", 0.0)
+            futures_balance = balance.futures_usdt
+            total_equity = spot_balance + futures_balance
+
             self._balance_cache = {
-                "futures": balance.futures_usdt,
+                "spot": spot_balance,
+                "futures": futures_balance,
                 "last_update": time.time(),
             }
-            logger.info(f"Futures Balance: ${balance.futures_usdt:.2f}")
+            logger.info(f"Spot Balance: ${spot_balance:.2f}, Futures Balance: ${futures_balance:.2f}")
 
             # Get positions and sync to Redis
             positions = await self.client.get_all_positions()
@@ -113,7 +117,9 @@ class AsyncExecutor:
 
             # Store balance in Redis for strategies to access
             await self.redis.hset("account:live", {
-                "futures_balance": str(balance.futures_usdt),
+                "spot_balance": str(spot_balance),
+                "futures_balance": str(futures_balance),
+                "total_equity": str(total_equity),
                 "last_sync": str(int(time.time())),
             })
 
@@ -130,18 +136,24 @@ class AsyncExecutor:
             logger.error(f"Account sync failed: {e}")
 
     async def _balance_refresh_loop(self) -> None:
-        """Periodically refresh balance cache."""
+        """Periodically refresh balance cache (spot and futures)."""
         while self._running:
             try:
                 await asyncio.sleep(60)  # Refresh every minute
                 balance = await self.client.get_balance()
+                spot_balance = getattr(balance, "spot_usdt", 0.0)
+                futures_balance = balance.futures_usdt
+
                 self._balance_cache = {
-                    "futures": balance.futures_usdt,
+                    "spot": spot_balance,
+                    "futures": futures_balance,
                     "last_update": time.time(),
                 }
                 # Update Redis
                 await self.redis.hset("account:live", {
-                    "futures_balance": str(balance.futures_usdt),
+                    "spot_balance": str(spot_balance),
+                    "futures_balance": str(futures_balance),
+                    "total_equity": str(spot_balance + futures_balance),
                     "last_sync": str(int(time.time())),
                 })
             except Exception as e:

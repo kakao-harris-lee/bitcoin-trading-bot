@@ -283,7 +283,14 @@ class PaperExecutor:
 
         # Calculate P&L for exits, update position for entries
         profit_data = None
+        entry_price = 0.0
+        entry_time = 0
         if is_exit:
+            # Capture position data BEFORE clearing
+            position = await self.redis.get_position(order["symbol"], order["market"])
+            entry_price = float(position.get("entry_price", 0)) if position else 0
+            entry_time = int(position.get("entry_time", 0)) if position else 0
+
             profit_data = await self._calculate_exit_pnl(order, fill)
             await self.redis.clear_position(order["symbol"], order["market"])
 
@@ -307,11 +314,8 @@ class PaperExecutor:
 
         logger.info(f"Paper fill: {fill}, balance: {self.balance:.2f}")
 
-        # Structured logging for trade analysis
+        # Structured logging for trade analysis (using captured data from before clear)
         if is_exit and profit_data:
-            position = await self.redis.get_position(order["symbol"], order["market"])
-            entry_price = float(position.get("entry_price", 0)) if position else 0
-            entry_time = int(position.get("entry_time", 0)) if position else 0
             hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
             trade_logger.exit(
                 symbol=symbol,

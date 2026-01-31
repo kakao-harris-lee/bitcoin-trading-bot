@@ -15,6 +15,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 import redis
+from redis import ConnectionPool
 
 # Load .env file from project root
 from dotenv import load_dotenv
@@ -85,6 +86,19 @@ if quant_lab_bp:
     app.register_blueprint(quant_lab_bp, url_prefix='/quant-lab')
 
 BASE_DIR = Path(__file__).parent
+
+# Redis connection pool (shared across all requests)
+_redis_pool = ConnectionPool.from_url(
+    os.getenv('REDIS_URL', 'redis://localhost:6379'),
+    decode_responses=True,
+    max_connections=20
+)
+
+
+def get_redis() -> redis.Redis:
+    """Get a Redis connection from the pool."""
+    return redis.Redis(connection_pool=_redis_pool)
+
 
 # 대시보드 고정 경로
 DEFAULT_DOMAIN = "lchsvr.duckdns.org"
@@ -209,7 +223,7 @@ def read_redis_trades(limit: int = 1000) -> list:
         For SELL trades without profit data, calculates profit from matching BUY trades.
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         # Read from trades stream (oldest first for pairing)
         messages = r.xrange('trades', count=limit)
@@ -289,7 +303,7 @@ def get_latest_prices() -> dict:
         Dict mapping symbol (e.g., 'BTCUSDT') to price
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         # Read recent entries from price stream to get latest for each symbol
         messages = r.xrevrange('market:prices', count=100)
@@ -319,7 +333,7 @@ def read_redis_orders(limit: int = 200) -> list:
         List of signal dicts
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         # Read from orders stream (pending signals)
         messages = r.xrevrange('orders', count=limit)
@@ -438,7 +452,7 @@ def get_status():
     # Get current prices from Redis market:prices stream
     prices = {}
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         # Read most recent prices from stream
         price_msgs = r.xrevrange('market:prices', count=100)
         seen_symbols = set()
@@ -453,7 +467,7 @@ def get_status():
     # Get risk data from Redis
     risk = {}
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         risk = r.hgetall('risk') or {}
     except Exception as e:
         print(f"Error reading risk from Redis: {e}")
@@ -714,7 +728,7 @@ def get_trades():
     limit = min(max(1, limit), 500)
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -768,7 +782,7 @@ def get_recent_trades():
     limit = min(max(1, limit), 50)
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -859,7 +873,7 @@ def get_signals():
     limit = min(max(1, limit), 200)
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -996,7 +1010,7 @@ def get_analytics():
         period = '30d'
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -1035,7 +1049,7 @@ def get_equity_curve():
     max_points = min(max(1, max_points), 500)
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -1075,7 +1089,7 @@ def get_daily_analytics():
         period = '30d'
 
     # Get current mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
     is_paper_mode = (mode == 'paper')
@@ -1255,7 +1269,7 @@ def get_positions():
     In paper mode, returns positions from Redis only.
     """
     # Check mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
 
@@ -1300,7 +1314,7 @@ def get_positions():
         spot_account = client.get_account(recvWindow=60000)
 
         # Get entry prices from Redis (tracked by trading bot)
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         for balance in spot_account['balances']:
             asset = balance['asset']
@@ -1408,7 +1422,7 @@ def get_summary():
     Returns total equity, balances, and position counts for both markets.
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         risk_data = r.hgetall('risk') or {}
         mode = risk_data.get('mode', 'paper')
         prices = get_latest_prices()
@@ -1616,7 +1630,7 @@ def get_spot_positions_api():
     Returns positions with current market value and P&L.
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         prices = get_latest_prices()
 
         positions = []
@@ -1664,7 +1678,7 @@ def get_spot_balance_api():
     In paper mode, returns Redis balance. In live mode, returns Binance balance.
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         risk_data = r.hgetall('risk') or {}
         mode = risk_data.get('mode', 'paper')
 
@@ -1734,7 +1748,7 @@ def get_strategies():
         defaults = config.get('defaults', {})
 
         # Connect to Redis to get live state
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         strategies = []
         for name, cfg in strategies_config.items():
@@ -1931,7 +1945,7 @@ def disable_strategy(strategy_name: str):
             return jsonify({'message': f'{strategy_name} is already disabled'}), 200
 
         # Check for active positions before disabling
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
 
         for symbol in symbols:
@@ -2156,7 +2170,7 @@ def get_exchange_balances():
     In paper mode, returns simulated balances from Redis.
     """
     # Check mode from Redis
-    r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+    r = get_redis()
     risk_data = r.hgetall('risk') or {}
     mode = risk_data.get('mode', 'paper')
 
@@ -2432,7 +2446,7 @@ def get_leverage_state():
     - tiers: All defined tiers with active indicator
     """
     try:
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
         state = r.hgetall("leverage:state")
 
         if not state:
@@ -2709,7 +2723,7 @@ def get_ab_test_status():
 
     try:
         # Connect to Redis
-        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        r = get_redis()
 
         # Get allocation config for strategy details
         config = load_allocation_config()

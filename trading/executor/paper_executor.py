@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Valid order sides and markets for validation
 VALID_SIDES = {"buy", "sell"}
-VALID_MARKETS = {"futures"}  # Spot trading removed
+VALID_MARKETS = {"futures", "spot"}  # Support both futures and spot
 
 
 class PaperExecutor:
@@ -35,12 +35,17 @@ class PaperExecutor:
         self.config = config
         self.leverage_manager = leverage_manager
         self.initial_balance = config.get("initial_balance", 10000)
-        self.balance = self.initial_balance  # Will be overwritten by Redis value if exists
-        self.fee_rate = config.get("fee_rate", 0.001)  # 0.1%
+        self.balance = self.initial_balance  # Futures balance - will be overwritten by Redis value if exists
+        self.fee_rate = config.get("fee_rate", 0.0005)  # 0.05% (futures default)
         self.slippage = config.get("slippage", 0.0004)  # 0.04%
         self.max_daily_loss = config.get("max_daily_loss", 500)
         self.last_prices: dict[str, float] = {}
         self._running = False
+
+        # Spot trading balances
+        self.spot_balance: float = self.initial_balance  # Separate spot balance
+        self.spot_positions: dict[str, float] = {}  # {symbol: quantity}
+        self.spot_fee_rate: float = 0.001  # 0.1% (spot fee)
 
         # Initialize trade logger for database persistence
         self.trade_logger = TradeLogger(strategy_name="paper_trading")
@@ -125,28 +130,40 @@ class PaperExecutor:
         """Load persisted paper balance from Redis on startup."""
         try:
             account = await self.redis.hgetall("account:paper")
-            if account and "futures_balance" in account:
-                saved_balance = float(account["futures_balance"])
-                if saved_balance > 0:
-                    self.balance = saved_balance
-                    logger.info(f"Loaded persisted paper balance from Redis: {self.balance:.2f}")
-                    return
+            if account:
+                # Load futures balance
+                if "futures_balance" in account:
+                    saved_balance = float(account["futures_balance"])
+                    if saved_balance > 0:
+                        self.balance = saved_balance
+                        logger.info(f"Loaded persisted futures balance from Redis: {self.balance:.2f}")
+
+                # Load spot balance
+                if "spot_balance" in account:
+                    saved_spot = float(account["spot_balance"])
+                    if saved_spot > 0:
+                        self.spot_balance = saved_spot
+                        logger.info(f"Loaded persisted spot balance from Redis: {self.spot_balance:.2f}")
+
+                return
             # No valid saved balance, use initial
             logger.info(f"No persisted balance found, using initial: {self.initial_balance}")
             self.balance = self.initial_balance
+            self.spot_balance = self.initial_balance
         except Exception as e:
             logger.warning(f"Failed to load balance from Redis, using initial: {e}")
             self.balance = self.initial_balance
+            self.spot_balance = self.initial_balance
 
     async def _sync_balance_to_redis(self) -> None:
         """Sync paper trading balance to Redis for dashboard display."""
         try:
             await self.redis.hset("account:paper", {
                 "futures_balance": str(self.balance),
-                "spot_balance": "0",  # Futures-only, no spot balance
+                "spot_balance": str(self.spot_balance),
                 "last_sync": str(int(time.time())),
             })
-            logger.debug(f"Synced paper balance to Redis: {self.balance:.2f}")
+            logger.debug(f"Synced paper balances to Redis - futures: {self.balance:.2f}, spot: {self.spot_balance:.2f}")
         except Exception as e:
             logger.error(f"Failed to sync balance to Redis: {e}")
 
@@ -187,15 +204,24 @@ class PaperExecutor:
             await self._publish_rejection(order, "risk_blocked")
             return None
 
+        # Route by market type
+        if market == "spot":
+            return await self._simulate_spot_fill(order)
+        else:
+            return await self._simulate_futures_fill(order)
+
+    async def _simulate_futures_fill(self, order: dict[str, Any]) -> dict | None:
+        """Simulate futures order fill."""
         symbol = order["symbol"]
-        market = order["market"]
+        side = order["side"]
+        quantity = float(order["quantity"])
 
         # Check if this is an exit (closing an existing position)
         is_exit = await self._is_exit_order(order)
 
         # Check leverage allowance for futures entry orders
         allowed_leverage = None
-        if market == "futures" and not is_exit and self.leverage_manager:
+        if not is_exit and self.leverage_manager:
             allowed_leverage = await self.leverage_manager.get_allowed_leverage()
             if allowed_leverage == 0:
                 logger.warning(
@@ -232,7 +258,7 @@ class PaperExecutor:
         if side == "buy":
             total_cost = order_value + fees
             if total_cost > self.balance:
-                logger.warning(f"Insufficient balance: {self.balance} < {total_cost}")
+                logger.warning(f"Insufficient futures balance: {self.balance} < {total_cost}")
                 await self._publish_rejection(order, f"insufficient_balance:{self.balance:.2f}")
                 return None
             self.balance -= total_cost
@@ -306,6 +332,119 @@ class PaperExecutor:
                 qty=quantity,
                 strategy=order["strategy"],
                 leverage=int(order.get("leverage", 1)),
+                mode="paper",
+            )
+
+        return fill
+
+    async def _simulate_spot_fill(self, order: dict[str, Any]) -> dict | None:
+        """Simulate spot order fill."""
+        symbol = order["symbol"]
+        side = order["side"]
+        quantity = float(order["quantity"])
+
+        # Get current price
+        price = self.last_prices.get(symbol)
+        if price is None:
+            logger.warning(f"No price available for {symbol}")
+            return None
+
+        # Apply slippage
+        fill_price = self._apply_slippage(price, side)
+
+        # Calculate order value and fees (spot uses higher fee rate)
+        order_value = fill_price * quantity
+        fees = order_value * self.spot_fee_rate
+
+        # Check if this is an exit (selling existing spot position)
+        is_exit = symbol in self.spot_positions and side == "sell"
+
+        if side == "buy":
+            # Spot buy: deduct from spot balance
+            total_cost = order_value + fees
+            if total_cost > self.spot_balance:
+                logger.warning(f"Insufficient spot balance: {self.spot_balance} < {total_cost}")
+                await self._publish_rejection(order, f"insufficient_spot_balance:{self.spot_balance:.2f}")
+                return None
+
+            self.spot_balance -= total_cost
+
+            # Add to spot positions
+            current_qty = self.spot_positions.get(symbol, 0.0)
+            self.spot_positions[symbol] = current_qty + quantity
+
+            logger.info(f"Spot buy: {symbol} {quantity} @ {fill_price}, new position: {self.spot_positions[symbol]}")
+
+        else:  # sell
+            # Check if we have enough spot holdings
+            current_qty = self.spot_positions.get(symbol, 0.0)
+            if current_qty < quantity:
+                logger.warning(f"Insufficient spot position: {current_qty} < {quantity}")
+                await self._publish_rejection(order, f"insufficient_spot_position:{current_qty}")
+                return None
+
+            # Spot sell: add to spot balance (minus fees)
+            self.spot_balance += order_value - fees
+
+            # Reduce spot position
+            self.spot_positions[symbol] = current_qty - quantity
+            if self.spot_positions[symbol] <= 0:
+                del self.spot_positions[symbol]
+
+            logger.info(f"Spot sell: {symbol} {quantity} @ {fill_price}, remaining: {self.spot_positions.get(symbol, 0)}")
+
+        # Sync updated balance to Redis for dashboard
+        await self._sync_balance_to_redis()
+
+        # Create fill result
+        fill = {
+            "order_id": str(uuid.uuid4().int)[:8],
+            "symbol": symbol,
+            "side": side,
+            "market": "spot",
+            "filled_qty": quantity,
+            "filled_price": fill_price,
+            "status": "FILLED",
+            "fees": fees,
+        }
+
+        # Calculate P&L for exits
+        profit_data = None
+        if is_exit:
+            # For spot, we don't track entry price in Redis positions yet
+            # Just publish the trade without P&L calculation for now
+            # TODO: Track spot entry prices for P&L calculation
+            pass
+
+        # Publish trade to Redis stream
+        await self._publish_trade(order, fill, profit_data)
+
+        # Log trade to database
+        await self._log_trade_to_db_async(order, fill, profit_data)
+
+        logger.info(f"Spot paper fill: {fill}, balance: {self.spot_balance:.2f}")
+
+        # Structured logging
+        if is_exit and profit_data:
+            trade_logger.exit(
+                symbol=symbol,
+                price=fill_price,
+                qty=quantity,
+                entry_price=0,  # TODO: track entry price
+                strategy=order["strategy"],
+                pnl=profit_data.get("profit", 0),
+                pnl_pct=profit_data.get("profit_pct", 0),
+                hold_time_sec=0,
+                exit_reason=order.get("reason", ""),
+                mode="paper",
+            )
+        else:
+            trade_logger.entry(
+                symbol=symbol,
+                price=fill_price,
+                qty=quantity,
+                strategy=order["strategy"],
+                leverage=1,  # Spot always 1x
                 mode="paper",
             )
 

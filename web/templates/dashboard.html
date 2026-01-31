@@ -6,6 +6,98 @@
     <title>Multi-Asset Trading Bot - Live Dashboard</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <style>
+        /* Hybrid View Styles */
+        .total-equity-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .total-equity-banner .label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .total-equity-banner .value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .exchange-grid.hybrid-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .exchange-card.spot-card {
+            border-left: 4px solid #10b981;
+        }
+
+        /* Market Filter Tabs */
+        .market-filter-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+
+        .market-tab {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .market-tab:hover {
+            color: #374151;
+        }
+
+        .market-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        /* Position card market indicator */
+        .position-card[data-market="spot"] {
+            border-left: 4px solid #10b981;
+        }
+
+        .position-card[data-market="futures"] {
+            border-left: 4px solid #3b82f6;
+        }
+
+        /* Market badge in position cards */
+        .market-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .market-badge.spot {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .market-badge.futures {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -21,14 +113,40 @@
             </div>
         </header>
 
-        <!-- Exchange Balances Section (Futures Only) -->
+        <!-- Exchange Balances Section (Hybrid: Spot + Futures) -->
         <section class="exchange-section">
-            <h2>Binance Futures</h2>
-            <div class="exchange-grid futures-only">
+            <h2>Account Summary</h2>
+
+            <!-- Total Equity -->
+            <div class="total-equity-banner">
+                <span class="label">Total Equity (Spot + Futures)</span>
+                <span class="value" id="total-equity">-</span>
+            </div>
+
+            <!-- Spot & Futures Cards -->
+            <div class="exchange-grid hybrid-view">
+                <!-- Spot Card -->
+                <div class="exchange-card spot-card">
+                    <div class="exchange-header">
+                        <span class="exchange-name">Spot</span>
+                        <span class="exchange-status" id="spot-status">Loading...</span>
+                    </div>
+                    <div class="exchange-balances">
+                        <div class="balance-row">
+                            <span class="label">Balance</span>
+                            <span class="value" id="spot-balance">-</span>
+                        </div>
+                        <div class="balance-row">
+                            <span class="label">Positions</span>
+                            <span class="value" id="spot-positions-count">-</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Binance Futures Card -->
                 <div class="exchange-card binance-futures">
                     <div class="exchange-header">
-                        <span class="exchange-name">Binance Futures</span>
+                        <span class="exchange-name">Futures</span>
                         <span class="hedge-mode-badge" id="hedge-mode-badge" style="display: none;">HEDGE</span>
                         <span class="exchange-status" id="futures-status">Loading...</span>
                     </div>
@@ -40,6 +158,10 @@
                         <div class="balance-row">
                             <span class="label">Unrealized P&L</span>
                             <span class="value" id="futures-unrealized-pnl">-</span>
+                        </div>
+                        <div class="balance-row">
+                            <span class="label">Positions</span>
+                            <span class="value" id="futures-positions-count">-</span>
                         </div>
                         <div class="balance-row total">
                             <span class="label">Total Equity</span>
@@ -109,6 +231,14 @@
         <div id="positions" class="tab-content active">
             <div class="tab-panel">
                 <h3>Open Positions</h3>
+
+                <!-- Market Filter Tabs -->
+                <div class="market-filter-tabs">
+                    <button class="market-tab active" data-market="all">All</button>
+                    <button class="market-tab" data-market="spot">Spot</button>
+                    <button class="market-tab" data-market="futures">Futures</button>
+                </div>
+
                 <!-- Portfolio Summary -->
                 <div id="positions-summary" class="positions-summary">
                     <div class="summary-stat">

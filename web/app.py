@@ -1397,6 +1397,314 @@ def get_positions():
 
 
 # =====================
+# Spot Trading API Endpoints
+# ========================
+
+@app.route("/api/summary")
+@requires_auth
+def get_summary():
+    """
+    Get combined spot + futures summary.
+    Returns total equity, balances, and position counts for both markets.
+    """
+    try:
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        risk_data = r.hgetall('risk') or {}
+        mode = risk_data.get('mode', 'paper')
+        prices = get_latest_prices()
+
+        # Initialize summary
+        summary = {
+            'timestamp': datetime.now().isoformat(),
+            'mode': mode,
+            'spot': {
+                'balance': 0.0,
+                'position_value': 0.0,
+                'total': 0.0,
+                'positions': 0,
+            },
+            'futures': {
+                'balance': 0.0,
+                'unrealized_pnl': 0.0,
+                'total': 0.0,
+                'positions': 0,
+            },
+            'total_equity': 0.0,
+            'positions': [],
+        }
+
+        if mode == 'paper':
+            # Paper mode: get from Redis
+            account = r.hgetall('account:paper') or {}
+            spot_balance = float(account.get('spot_balance', 10000))
+            futures_balance = float(account.get('futures_balance', 10000))
+
+            summary['spot']['balance'] = spot_balance
+            summary['futures']['balance'] = futures_balance
+
+            # Get positions
+            symbols = ['BTC', 'ETH', 'SOL']
+            for symbol in symbols:
+                # Spot positions
+                spot_pos = r.hgetall(f"positions:{symbol}:spot")
+                if spot_pos and float(spot_pos.get('quantity', 0)) > 0:
+                    qty = float(spot_pos['quantity'])
+                    entry_price = float(spot_pos['entry_price'])
+                    current_price = prices.get(f'{symbol}USDT', entry_price)
+                    value = qty * current_price
+                    pnl = (current_price - entry_price) * qty
+
+                    summary['spot']['position_value'] += value
+                    summary['spot']['positions'] += 1
+                    summary['positions'].append({
+                        'symbol': f'{symbol}USDT',
+                        'market': 'spot',
+                        'side': 'LONG',
+                        'quantity': qty,
+                        'entry_price': entry_price,
+                        'current_price': current_price,
+                        'value': value,
+                        'unrealized_pnl': pnl,
+                        'strategy': spot_pos.get('strategy', 'unknown'),
+                    })
+
+                # Futures positions
+                futures_pos = r.hgetall(f"positions:{symbol}:futures")
+                if futures_pos and float(futures_pos.get('quantity', 0)) != 0:
+                    qty = float(futures_pos['quantity'])
+                    entry_price = float(futures_pos['entry_price'])
+                    current_price = prices.get(f'{symbol}USDT', entry_price)
+                    side = futures_pos.get('side', 'buy').upper()
+                    if side == 'BUY':
+                        side = 'LONG'
+                    elif side == 'SELL':
+                        side = 'SHORT'
+
+                    abs_qty = abs(qty)
+                    if side == 'LONG':
+                        pnl = (current_price - entry_price) * abs_qty
+                    else:
+                        pnl = (entry_price - current_price) * abs_qty
+
+                    summary['futures']['unrealized_pnl'] += pnl
+                    summary['futures']['positions'] += 1
+                    summary['positions'].append({
+                        'symbol': f'{symbol}USDT',
+                        'market': 'futures',
+                        'side': side,
+                        'quantity': abs_qty,
+                        'entry_price': entry_price,
+                        'current_price': current_price,
+                        'unrealized_pnl': pnl,
+                        'leverage': int(futures_pos.get('leverage', 1)),
+                        'strategy': futures_pos.get('strategy', 'unknown'),
+                    })
+
+            summary['spot']['total'] = spot_balance + summary['spot']['position_value']
+            summary['futures']['total'] = futures_balance + summary['futures']['unrealized_pnl']
+            summary['total_equity'] = summary['spot']['total'] + summary['futures']['total']
+
+        else:
+            # Live mode: fetch from Binance
+            from binance.client import Client
+            import time
+
+            api_key = os.getenv('BINANCE_API_KEY')
+            api_secret = os.getenv('BINANCE_API_SECRET')
+
+            if not api_key or not api_secret:
+                return jsonify({'error': 'Binance credentials not configured'}), 500
+
+            client = Client(api_key, api_secret)
+            server_time = client.get_server_time()
+            local_time = int(time.time() * 1000)
+            client.timestamp_offset = server_time['serverTime'] - local_time
+
+            # Spot account
+            spot_account = client.get_account(recvWindow=60000)
+            spot_usdt = 0.0
+            spot_position_value = 0.0
+
+            for balance in spot_account['balances']:
+                asset = balance['asset']
+                total = float(balance['free']) + float(balance['locked'])
+
+                if total > 0:
+                    if asset == 'USDT':
+                        spot_usdt = total
+                    elif asset in ['BTC', 'ETH', 'SOL']:
+                        symbol = f"{asset}USDT"
+                        price = prices.get(symbol, 0)
+                        value = total * price
+
+                        if value > 1:
+                            spot_position_value += value
+                            summary['spot']['positions'] += 1
+
+                            redis_pos = r.hgetall(f"positions:{asset}:spot")
+                            entry_price = float(redis_pos.get('entry_price', price)) if redis_pos else price
+                            pnl = (price - entry_price) * total if entry_price > 0 else 0
+
+                            summary['positions'].append({
+                                'symbol': symbol,
+                                'market': 'spot',
+                                'side': 'LONG',
+                                'quantity': total,
+                                'entry_price': entry_price,
+                                'current_price': price,
+                                'value': value,
+                                'unrealized_pnl': pnl,
+                                'strategy': redis_pos.get('strategy', 'manual') if redis_pos else 'manual',
+                            })
+
+            summary['spot']['balance'] = spot_usdt
+            summary['spot']['position_value'] = spot_position_value
+
+            # Futures account
+            futures_account = client.futures_account(recvWindow=60000)
+            futures_usdt = 0.0
+            futures_unrealized_pnl = 0.0
+
+            for asset in futures_account['assets']:
+                if asset['asset'] == 'USDT':
+                    futures_usdt = float(asset['walletBalance'])
+                    futures_unrealized_pnl = float(asset['unrealizedProfit'])
+                    break
+
+            for pos in futures_account['positions']:
+                size = float(pos['positionAmt'])
+                if size != 0:
+                    position_side = pos.get('positionSide', 'BOTH')
+                    if position_side == 'BOTH':
+                        side = 'LONG' if size > 0 else 'SHORT'
+                    else:
+                        side = position_side
+
+                    asset = pos['symbol'].replace('USDT', '')
+                    redis_pos = r.hgetall(f"positions:{asset}:futures")
+
+                    summary['futures']['positions'] += 1
+                    summary['positions'].append({
+                        'symbol': pos['symbol'],
+                        'market': 'futures',
+                        'side': side,
+                        'quantity': abs(size),
+                        'entry_price': float(pos['entryPrice']),
+                        'current_price': float(pos['markPrice']),
+                        'unrealized_pnl': float(pos['unrealizedProfit']),
+                        'leverage': int(pos['leverage']),
+                        'strategy': redis_pos.get('strategy', 'manual') if redis_pos else 'manual',
+                    })
+
+            summary['spot']['total'] = spot_usdt + spot_position_value
+            summary['futures']['balance'] = futures_usdt
+            summary['futures']['unrealized_pnl'] = futures_unrealized_pnl
+            summary['futures']['total'] = futures_usdt + futures_unrealized_pnl
+            summary['total_equity'] = summary['spot']['total'] + summary['futures']['total']
+
+        return jsonify(summary)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/spot/positions")
+@requires_auth
+def get_spot_positions_api():
+    """
+    Get spot positions from Redis.
+    Returns positions with current market value and P&L.
+    """
+    try:
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        prices = get_latest_prices()
+
+        positions = []
+        symbols = ['BTC', 'ETH', 'SOL']
+
+        for symbol in symbols:
+            spot_pos = r.hgetall(f"positions:{symbol}:spot")
+            if spot_pos and float(spot_pos.get('quantity', 0)) > 0:
+                qty = float(spot_pos['quantity'])
+                entry_price = float(spot_pos['entry_price'])
+                current_price = prices.get(f'{symbol}USDT', entry_price)
+                value = qty * current_price
+                pnl = (current_price - entry_price) * qty
+                pnl_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+
+                positions.append({
+                    'symbol': f'{symbol}USDT',
+                    'market': 'spot',
+                    'side': 'LONG',
+                    'quantity': qty,
+                    'entry_price': entry_price,
+                    'current_price': current_price,
+                    'value': value,
+                    'unrealized_pnl': pnl,
+                    'unrealized_pnl_pct': pnl_pct,
+                    'strategy': spot_pos.get('strategy', 'unknown'),
+                    'entry_time': int(spot_pos.get('entry_time', 0)),
+                })
+
+        return jsonify({
+            'timestamp': datetime.now().isoformat(),
+            'positions': positions,
+            'count': len(positions),
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/spot/balance")
+@requires_auth
+def get_spot_balance_api():
+    """
+    Get spot USDT balance.
+    In paper mode, returns Redis balance. In live mode, returns Binance balance.
+    """
+    try:
+        r = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), decode_responses=True)
+        risk_data = r.hgetall('risk') or {}
+        mode = risk_data.get('mode', 'paper')
+
+        if mode == 'paper':
+            account = r.hgetall('account:paper') or {}
+            balance = float(account.get('spot_balance', 10000))
+        else:
+            from binance.client import Client
+            import time
+
+            api_key = os.getenv('BINANCE_API_KEY')
+            api_secret = os.getenv('BINANCE_API_SECRET')
+
+            if not api_key or not api_secret:
+                return jsonify({'error': 'Binance credentials not configured'}), 500
+
+            client = Client(api_key, api_secret)
+            server_time = client.get_server_time()
+            local_time = int(time.time() * 1000)
+            client.timestamp_offset = server_time['serverTime'] - local_time
+
+            spot_account = client.get_account(recvWindow=60000)
+            balance = 0.0
+
+            for bal in spot_account['balances']:
+                if bal['asset'] == 'USDT':
+                    balance = float(bal['free']) + float(bal['locked'])
+                    break
+
+        return jsonify({
+            'timestamp': datetime.now().isoformat(),
+            'mode': mode,
+            'balance': balance,
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================
 # Strategies API Endpoints
 # ========================
 

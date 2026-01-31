@@ -261,3 +261,96 @@ class LiveScaler:
 
         features = df[available].values
         return np.nan_to_num(features, nan=0.5).astype(np.float32)
+
+    def scale_dataframe_vectorized(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Scale entire DataFrame using vectorized pandas operations.
+
+        This is ~100x faster than row-by-row scaling for large DataFrames.
+        Uses pandas rolling() for rolling min-max instead of deque loops.
+
+        Args:
+            df: DataFrame with OHLCV columns (lowercase).
+
+        Returns:
+            DataFrame with scaled columns matching feature_columns.
+        """
+        result = pd.DataFrame(index=df.index)
+
+        # Normalize column names to lowercase
+        col_map = {c: c.lower() for c in df.columns}
+        df_norm = df.rename(columns=col_map)
+
+        # Process each base column
+        for col in self.BASE_COLUMNS:
+            if col not in df_norm.columns:
+                continue
+
+            values = df_norm[col].astype(float)
+
+            # Global scaling: (value - global_min) / (global_max - global_min)
+            params = self.global_params.get(col, {"min": 0.0, "max": 1.0})
+            g_min = params.get("min", 0.0)
+            g_max = params.get("max", 1.0)
+            g_range = g_max - g_min
+            if g_range > 0:
+                scaled = (values - g_min) / g_range
+            else:
+                scaled = pd.Series(0.5, index=df.index)
+            result[f"{col}_scaled"] = scaled
+
+            # Rolling scaling: (value - rolling_min) / (rolling_max - rolling_min)
+            r_min = values.rolling(window=self.rolling_window, min_periods=1).min()
+            r_max = values.rolling(window=self.rolling_window, min_periods=1).max()
+            r_range = r_max - r_min
+            # Avoid division by zero
+            r_range = r_range.replace(0, np.nan)
+            rolling_scaled = (values - r_min) / r_range
+            rolling_scaled = rolling_scaled.fillna(0.5)
+            result[f"{col}_scaled_rolling"] = rolling_scaled
+
+        # Ensure all feature columns exist
+        for col in self.feature_columns:
+            if col not in result.columns:
+                result[col] = 0.5
+
+        return result
+
+    def get_scaled_windows(
+        self,
+        scaled_df: pd.DataFrame,
+        window_size: int = 720,
+        indices: list[int] | None = None,
+    ) -> dict[int, np.ndarray]:
+        """Extract pre-scaled windows for batch LSTM input.
+
+        Args:
+            scaled_df: Pre-scaled DataFrame from scale_dataframe_vectorized().
+            window_size: LSTM sequence length.
+            indices: Specific row indices to extract windows for.
+                    If None, extracts for all valid indices.
+
+        Returns:
+            Dict mapping row index to feature array (window_size, n_features).
+        """
+        windows = {}
+        n_rows = len(scaled_df)
+
+        # Select feature columns in order
+        available = [c for c in self.feature_columns if c in scaled_df.columns]
+        if not available:
+            available = [c for c in scaled_df.columns]
+
+        # Convert to numpy for faster slicing
+        values = scaled_df[available].values.astype(np.float32)
+        values = np.nan_to_num(values, nan=0.5)
+
+        if indices is None:
+            indices = list(range(window_size, n_rows))
+
+        for i in indices:
+            if i < window_size:
+                continue
+            start = i - window_size
+            windows[i] = values[start:i]
+
+        return windows

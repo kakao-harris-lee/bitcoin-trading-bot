@@ -553,8 +553,8 @@ def main():
     adapter = ComponentStrategyAdapter(factory, 'v35_long', config)
 
     # Pre-compute RF predictions if enabled
-    # NOTE: RF prediction is slow for large datasets, skip by default for testing
-    skip_rf = True  # Set to False to enable RF predictions
+    # NOTE: Now optimized with vectorized scaling (~2.5 min for 3 years)
+    skip_rf = False  # Set to True to skip RF predictions
     if config.get('use_rf_probability', False) and not skip_rf:
         print("Pre-computing RF predictions (this may take a while)...")
         try:

@@ -15,7 +15,15 @@ from typing import Literal
 
 import numpy as np
 
-from .models import MarketData, Signal, TradingContext, BEAR_REGIMES
+from .models import (
+    MarketData,
+    Signal,
+    TradingContext,
+    BEAR_REGIMES,
+    MLP_LABEL_HOLD,
+    MLP_LABEL_BUY,
+    MLP_LABEL_SELL,
+)
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -63,11 +71,6 @@ class MLPDirectionEntryStrategy:
     5. Price >= EMA200 (if use_ema200_filter)
     """
 
-    # Label constants
-    LABEL_HOLD = 0
-    LABEL_BUY = 1
-    LABEL_SELL = 2
-
     def __init__(self, params: MLPDirectionEntryParams | None = None):
         self.params = params or MLPDirectionEntryParams()
         self._model = None
@@ -89,12 +92,22 @@ class MLPDirectionEntryStrategy:
                 self._model_available = False
                 return False
 
-            self._model = MLPDirectionClassifier.load(str(model_path), device="cpu")
+            # Load with path validation enabled for security
+            self._model = MLPDirectionClassifier.load(
+                str(model_path), device="cpu", validate_path=True
+            )
             self._model.eval()
             self._feature_extractor = extract_single_features
             self._model_available = True
             logger.info(f"MLPDirectionEntry: Model loaded from {model_path}")
 
+        except ValueError as e:
+            # Path validation failed - security issue
+            logger.error(f"MLPDirectionEntry: Invalid model path: {e}")
+            self._model_available = False
+        except ImportError as e:
+            logger.error(f"MLPDirectionEntry: Missing dependency: {e}")
+            self._model_available = False
         except Exception as e:
             logger.error(f"MLPDirectionEntry: Failed to load model: {e}")
             self._model_available = False
@@ -209,7 +222,7 @@ class MLPDirectionEntryStrategy:
             mlp_prediction, mlp_confidence = self._predict(features)
 
         # === MLP FILTER 1: Prediction must be BUY ===
-        if mlp_prediction != self.LABEL_BUY:
+        if mlp_prediction != MLP_LABEL_BUY:
             logger.debug(
                 f"{market_data.symbol}: Skip - MLP prediction is "
                 f"{self._label_name(mlp_prediction)}, not BUY"
@@ -262,7 +275,7 @@ class MLPDirectionEntryStrategy:
 
         except Exception as e:
             logger.error(f"MLP prediction failed: {e}")
-            return self.LABEL_HOLD, 0.0
+            return MLP_LABEL_HOLD, 0.0
 
     @staticmethod
     def _label_name(label: int) -> str:

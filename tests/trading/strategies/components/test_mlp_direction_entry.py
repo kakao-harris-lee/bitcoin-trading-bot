@@ -57,13 +57,14 @@ class TestMLPDirectionEntryParams:
     """Test MLPDirectionEntryParams dataclass."""
 
     def test_default_values(self):
-        """Test default parameter values."""
+        """Test default parameter values (relaxed for more trades)."""
         params = MLPDirectionEntryParams()
 
-        assert params.buy_confidence_threshold == 0.60
-        assert params.skip_bear_regime is True
-        assert params.adx_min == 18.0
-        assert params.use_ema200_filter is True
+        # Relaxed defaults to increase trade frequency
+        assert params.buy_confidence_threshold == 0.40
+        assert params.skip_bear_regime is False
+        assert params.adx_min == 0.0
+        assert params.use_ema200_filter is False
         assert params.position_size == 0.01
         assert params.market == "spot"
 
@@ -102,7 +103,9 @@ class TestMLPDirectionEntryStrategy:
 
     def test_no_signal_in_bear_regime(self):
         """Entry returns None in BEAR regime when skip_bear_regime is True."""
-        strategy = MLPDirectionEntryStrategy()
+        # Explicitly enable bear regime filter (relaxed defaults don't skip bear)
+        params = MLPDirectionEntryParams(skip_bear_regime=True)
+        strategy = MLPDirectionEntryStrategy(params=params)
         ctx = _make_context(mfi=30.0, adx=26.0)  # BEAR regime
 
         signal = strategy.check_entry(ctx)
@@ -111,7 +114,9 @@ class TestMLPDirectionEntryStrategy:
 
     def test_no_signal_weak_adx(self):
         """Entry returns None when ADX is below threshold."""
-        strategy = MLPDirectionEntryStrategy()
+        # Explicitly set ADX threshold (relaxed defaults have adx_min=0.0)
+        params = MLPDirectionEntryParams(adx_min=18.0)
+        strategy = MLPDirectionEntryStrategy(params=params)
         ctx = _make_context(mfi=55.0, adx=15.0)  # Weak ADX
 
         signal = strategy.check_entry(ctx)
@@ -120,7 +125,9 @@ class TestMLPDirectionEntryStrategy:
 
     def test_no_signal_below_ema200(self):
         """Entry returns None when price is below EMA200."""
-        strategy = MLPDirectionEntryStrategy()
+        # Explicitly enable EMA200 filter (relaxed defaults have it disabled)
+        params = MLPDirectionEntryParams(use_ema200_filter=True)
+        strategy = MLPDirectionEntryStrategy(params=params)
         ctx = _make_context(
             mfi=55.0,
             adx=25.0,
@@ -232,9 +239,9 @@ class TestMLPDirectionEntryWithMockedModel:
         """Entry returns None when BUY confidence is below threshold."""
         strategy = strategy_with_mock_model
 
-        # Change mock to return BUY with low confidence (below 0.60 threshold)
+        # Change mock to return BUY with low confidence (below 0.40 default threshold)
         mock_probs = MagicMock()
-        mock_probs.cpu.return_value.numpy.return_value = np.array([[0.45, 0.50, 0.05]])
+        mock_probs.cpu.return_value.numpy.return_value = np.array([[0.65, 0.30, 0.05]])  # 30% < 40%
         strategy._model.predict_proba.return_value = mock_probs
 
         ctx = _make_context(mfi=55.0, adx=25.0)
@@ -282,3 +289,117 @@ class TestMLPDirectionEntryIntegration:
         spec = STRATEGY_REGISTRY["mlp_direction"]
         assert spec.entry_class == MLPDirectionEntryStrategy
         assert spec.entry_params_class == MLPDirectionEntryParams
+
+
+class TestExtractFeatures:
+    """Test _extract_features method."""
+
+    def test_extract_features_returns_array(self):
+        """Test that feature extraction returns numpy array."""
+        strategy = MLPDirectionEntryStrategy()
+
+        # Mock the feature extractor
+        strategy._feature_extractor = lambda data, ind: np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+
+        market = MarketData(
+            symbol="BTC",
+            close=100000.0,
+            mfi=55.0,
+            adx=25.0,
+            rsi=60.0,
+            timestamp=1000,
+            atr=1000.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+
+        features = strategy._extract_features(market, {})
+
+        assert features is not None
+        assert isinstance(features, np.ndarray)
+        assert len(features) == 13
+
+    def test_extract_features_none_without_extractor(self):
+        """Test that feature extraction returns None without extractor."""
+        strategy = MLPDirectionEntryStrategy()
+        strategy._feature_extractor = None
+
+        market = MarketData(
+            symbol="BTC",
+            close=100000.0,
+            mfi=55.0,
+            adx=25.0,
+            rsi=60.0,
+            timestamp=1000,
+            atr=1000.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+
+        features = strategy._extract_features(market, {})
+
+        assert features is None
+
+    def test_extract_features_uses_indicators(self):
+        """Test that feature extraction uses provided indicators."""
+        strategy = MLPDirectionEntryStrategy()
+
+        captured_indicators = {}
+
+        def mock_extractor(data, ind):
+            captured_indicators.update(ind)
+            return np.zeros(13)
+
+        strategy._feature_extractor = mock_extractor
+
+        market = MarketData(
+            symbol="BTC",
+            close=100000.0,
+            mfi=55.0,
+            adx=25.0,
+            rsi=60.0,
+            timestamp=1000,
+            atr=1000.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+
+        indicators = {"bollinger_pct_b": 0.75, "ultosc": 55.0}
+        strategy._extract_features(market, indicators)
+
+        assert captured_indicators.get("bollinger_pct_b") == 0.75
+        assert captured_indicators.get("ultosc") == 55.0
+
+
+class TestModelLoadingFailures:
+    """Test model loading failure scenarios."""
+
+    def test_model_not_found_sets_unavailable(self):
+        """Test that missing model file sets model unavailable."""
+        params = MLPDirectionEntryParams(model_path="/nonexistent/path/model.pt")
+        strategy = MLPDirectionEntryStrategy(params=params)
+
+        # Force model loading attempt
+        result = strategy._ensure_model()
+
+        assert result is False
+        assert strategy._model_available is False
+
+    def test_predict_returns_hold_on_error(self):
+        """Test that prediction errors return HOLD with zero confidence."""
+        from trading.strategies.components.models import MLP_LABEL_HOLD
+
+        strategy = MLPDirectionEntryStrategy()
+
+        # Mock model that raises exception
+        mock_model = MagicMock()
+        mock_model.predict_proba.side_effect = RuntimeError("Test error")
+
+        strategy._model = mock_model
+        strategy._model_available = True
+
+        # Should return HOLD, 0.0 on error
+        label, confidence = strategy._predict(np.zeros(13))
+
+        assert label == MLP_LABEL_HOLD
+        assert confidence == 0.0

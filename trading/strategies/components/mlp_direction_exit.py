@@ -18,7 +18,15 @@ from typing import Literal
 import numpy as np
 
 from .base_exit import BaseExitStrategy
-from .models import MarketData, Position, Signal, TradingContext
+from .models import (
+    MarketData,
+    Position,
+    Signal,
+    TradingContext,
+    MLP_LABEL_HOLD,
+    MLP_LABEL_BUY,
+    MLP_LABEL_SELL,
+)
 from .registry import exit_strategy
 from trading.utils.pnl import calculate_pnl_pct, calculate_hwm_pnl_pct
 
@@ -89,11 +97,6 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
     Inherits from BaseExitStrategy for common functionality.
     """
 
-    # Label constants
-    LABEL_HOLD = 0
-    LABEL_BUY = 1
-    LABEL_SELL = 2
-
     def __init__(self, params: MLPDirectionExitParams | None = None):
         """Initialize with exit parameters.
 
@@ -126,12 +129,22 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
                 self._model_available = False
                 return False
 
-            self._model = MLPDirectionClassifier.load(str(model_path), device="cpu")
+            # Load with path validation enabled for security
+            self._model = MLPDirectionClassifier.load(
+                str(model_path), device="cpu", validate_path=True
+            )
             self._model.eval()
             self._feature_extractor = extract_single_features
             self._model_available = True
             logger.info(f"MLPDirectionExit: Model loaded from {model_path}")
 
+        except ValueError as e:
+            # Path validation failed - security issue
+            logger.error(f"MLPDirectionExit: Invalid model path: {e}")
+            self._model_available = False
+        except ImportError as e:
+            logger.error(f"MLPDirectionExit: Missing dependency: {e}")
+            self._model_available = False
         except Exception as e:
             logger.error(f"MLPDirectionExit: Failed to load model: {e}")
             self._model_available = False
@@ -324,7 +337,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             return None
 
         # Check for SELL prediction with sufficient confidence
-        if mlp_prediction == self.LABEL_SELL and mlp_confidence >= p.sell_confidence_threshold:
+        if mlp_prediction == MLP_LABEL_SELL and mlp_confidence >= p.sell_confidence_threshold:
             reason = (
                 f"MLPDirection exit: SELL prediction (conf={mlp_confidence:.2f}) "
                 f"P&L={pnl_pct:.2f}%"
@@ -362,9 +375,11 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             symbol: The symbol whose position was closed.
         """
         super().on_position_closed(symbol)
-        # Clean up entry timestamp
-        key = f"{symbol}:long"
-        self._entry_timestamps.pop(key, None)
+        # Clean up entry timestamps for all possible key patterns
+        # (symbol:strategy_name or symbol:long)
+        keys_to_remove = [k for k in self._entry_timestamps if k.startswith(f"{symbol}:")]
+        for key in keys_to_remove:
+            self._entry_timestamps.pop(key, None)
         logger.debug(f"{symbol}: MLPDirection position closed")
 
     def _clear_state(self, key: str) -> None:

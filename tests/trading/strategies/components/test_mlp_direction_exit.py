@@ -63,10 +63,12 @@ class TestMLPDirectionExitParams:
     """Test MLPDirectionExitParams dataclass."""
 
     def test_default_values(self):
-        """Test default parameter values match paper (10% stop loss)."""
+        """Test default parameter values match paper (10% stop loss, FWin exit)."""
         params = MLPDirectionExitParams()
 
         assert params.stop_loss_pct == 10.0
+        assert params.fwin_exit_enabled is True  # Paper methodology
+        assert params.fwin_periods == 2  # Exit after 2 candles (8H for 4H timeframe)
         assert params.atr_stop_enabled is False
         assert params.trailing_enabled is False
         assert params.use_mlp_sell_exit is False
@@ -284,22 +286,208 @@ class TestMLPDirectionExitATRStop:
         assert signal2 is not None
         assert "Stop loss" in signal2.reason
 
-    def test_atr_stop_respects_min_max(self):
-        """ATR-based stop loss respects min/max bounds."""
+    def test_atr_stop_respects_min_bound(self):
+        """ATR-based stop loss respects minimum bound."""
         params = MLPDirectionExitParams(
             atr_stop_enabled=True,
             atr_stop_multiplier=2.0,
             atr_stop_min_pct=5.0,  # Minimum 5%
+            atr_stop_max_pct=15.0,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+
+        # Very low ATR (100) -> computed stop = 2 * (100/100000) * 100 = 0.2%
+        # Should clamp to min (5%)
+        ctx = _make_context(close=94000.0, atr=100.0)  # -6% loss > 5% min
+        signal = strategy.check_exit(ctx, position)
+
+        assert signal is not None
+        assert "Stop loss" in signal.reason
+
+    def test_atr_stop_respects_max_bound(self):
+        """ATR-based stop loss respects maximum bound."""
+        params = MLPDirectionExitParams(
+            atr_stop_enabled=True,
+            atr_stop_multiplier=2.0,
+            atr_stop_min_pct=5.0,
             atr_stop_max_pct=8.0,  # Maximum 8%
         )
         strategy = MLPDirectionExitStrategy(params=params)
         position = _make_position(entry_price=100000.0)
 
-        # Very low ATR would compute below min, should use min (5%)
-        ctx = _make_context(close=94000.0, atr=100.0)  # -6% loss > 5% min
+        # Very high ATR (10000) -> computed stop = 2 * (10000/100000) * 100 = 20%
+        # Should clamp to max (8%)
+        ctx = _make_context(close=91000.0, atr=10000.0)  # -9% loss > 8% max
         signal = strategy.check_exit(ctx, position)
 
         assert signal is not None
+        assert "Stop loss" in signal.reason
+
+
+class TestMLPDirectionExitFWin:
+    """Test Forward Window (FWin) exit - paper methodology."""
+
+    def test_fwin_exit_after_periods_elapsed(self):
+        """Exit triggers after FWin periods have elapsed."""
+        params = MLPDirectionExitParams(
+            fwin_exit_enabled=True,
+            fwin_periods=2,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+
+        # Open position with entry timestamp
+        entry_ts = 1000000  # Entry at t=1000000ms
+        strategy.on_position_opened(position, entry_timestamp=entry_ts)
+
+        # 4H candle = 4 * 60 * 60 * 1000 = 14400000 ms
+        # After 2 candles = 28800000 ms later
+        candle_ms = 4 * 60 * 60 * 1000
+        elapsed_ts = entry_ts + (2 * candle_ms)  # 2 candles elapsed
+
+        market = MarketData(
+            symbol="BTC",
+            close=100500.0,  # Small profit
+            high=101000.0,
+            mfi=55.0,
+            adx=25.0,
+            rsi=50.0,
+            timestamp=elapsed_ts,
+            atr=1000.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+        regime = build_market_context(mfi=55.0, adx=25.0, atr=1000.0, close=100500.0)
+        ctx = TradingContext(symbol="BTC", timestamp=elapsed_ts, market=market, regime=regime, positions={})
+
+        signal = strategy.check_exit(ctx, position)
+
+        assert signal is not None
+        assert "FWin exit" in signal.reason
+
+    def test_fwin_exit_not_triggered_before_periods(self):
+        """Exit does not trigger before FWin periods have elapsed."""
+        params = MLPDirectionExitParams(
+            fwin_exit_enabled=True,
+            fwin_periods=2,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+
+        # Open position with entry timestamp
+        entry_ts = 1000000
+        strategy.on_position_opened(position, entry_timestamp=entry_ts)
+
+        # Only 1 candle elapsed (not 2)
+        candle_ms = 4 * 60 * 60 * 1000
+        elapsed_ts = entry_ts + (1 * candle_ms)
+
+        market = MarketData(
+            symbol="BTC",
+            close=100500.0,
+            high=101000.0,
+            mfi=55.0,
+            adx=25.0,
+            rsi=50.0,
+            timestamp=elapsed_ts,
+            atr=1000.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+        regime = build_market_context(mfi=55.0, adx=25.0, atr=1000.0, close=100500.0)
+        ctx = TradingContext(symbol="BTC", timestamp=elapsed_ts, market=market, regime=regime, positions={})
+
+        signal = strategy.check_exit(ctx, position)
+
+        assert signal is None  # Not yet time to exit
+
+    def test_fwin_disabled_no_exit(self):
+        """FWin exit does not trigger when disabled."""
+        params = MLPDirectionExitParams(
+            fwin_exit_enabled=False,
+            fwin_periods=2,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+
+        entry_ts = 1000000
+        strategy.on_position_opened(position, entry_timestamp=entry_ts)
+
+        # 10 candles elapsed (way past FWin)
+        candle_ms = 4 * 60 * 60 * 1000
+        elapsed_ts = entry_ts + (10 * candle_ms)
+
+        market = MarketData(
+            symbol="BTC",
+            close=100500.0,
+            high=101000.0,
+            mfi=55.0,
+            adx=25.0,
+            rsi=50.0,
+            timestamp=elapsed_ts,
+            atr=1000.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+        regime = build_market_context(mfi=55.0, adx=25.0, atr=1000.0, close=100500.0)
+        ctx = TradingContext(symbol="BTC", timestamp=elapsed_ts, market=market, regime=regime, positions={})
+
+        signal = strategy.check_exit(ctx, position)
+
+        assert signal is None  # FWin disabled
+
+    def test_stop_loss_takes_priority_over_fwin(self):
+        """Stop loss triggers before FWin if loss exceeds threshold."""
+        params = MLPDirectionExitParams(
+            fwin_exit_enabled=True,
+            fwin_periods=2,
+            stop_loss_pct=10.0,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+
+        entry_ts = 1000000
+        strategy.on_position_opened(position, entry_timestamp=entry_ts)
+
+        # Only 1 candle elapsed, but price dropped 11%
+        candle_ms = 4 * 60 * 60 * 1000
+        elapsed_ts = entry_ts + (1 * candle_ms)
+
+        market = MarketData(
+            symbol="BTC",
+            close=89000.0,  # -11% loss
+            high=90000.0,
+            mfi=55.0,
+            adx=25.0,
+            rsi=50.0,
+            timestamp=elapsed_ts,
+            atr=1000.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+        regime = build_market_context(mfi=55.0, adx=25.0, atr=1000.0, close=89000.0)
+        ctx = TradingContext(symbol="BTC", timestamp=elapsed_ts, market=market, regime=regime, positions={})
+
+        signal = strategy.check_exit(ctx, position)
+
+        assert signal is not None
+        assert "Stop loss" in signal.reason  # Stop loss, not FWin
+
+    def test_entry_timestamp_cleared_on_position_close(self):
+        """Entry timestamp is cleared when position is closed."""
+        strategy = MLPDirectionExitStrategy()
+        position = _make_position(entry_price=100000.0)
+
+        strategy.on_position_opened(position, entry_timestamp=1000000)
+
+        key = f"{position.symbol}:{position.strategy}"
+        assert key in strategy._entry_timestamps
+
+        strategy.on_position_closed(position.symbol)
+
+        # Key should be cleared (we use :long for cleanup)
+        assert f"{position.symbol}:long" not in strategy._entry_timestamps
 
 
 class TestMLPDirectionExitIntegration:

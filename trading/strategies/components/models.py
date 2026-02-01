@@ -35,6 +35,12 @@ BULLISH_NO_SHORT_REGIMES: frozenset[Regime] = frozenset({"BULL_STRONG", "BULL_MO
 # Sideways regimes that may allow shorting with extreme volatility
 SIDEWAYS_VOLATILE_REGIMES: frozenset[Regime] = frozenset({"SIDEWAYS_FLAT", "SIDEWAYS_DOWN"})
 
+# MLP Direction Classifier label constants (Parente & Rizzuti 2025)
+# 3-class classification: Hold(0), Buy(1), Sell(2)
+MLP_LABEL_HOLD: int = 0
+MLP_LABEL_BUY: int = 1
+MLP_LABEL_SELL: int = 2
+
 
 @dataclass(frozen=True)
 class MarketData:

@@ -23,6 +23,9 @@ from core.mlp_labeling import (
 @pytest.fixture
 def sample_price_df():
     """Create sample price DataFrame for testing."""
+    # Use fixed seed for reproducibility
+    rng = np.random.default_rng(seed=42)
+
     n = 200
 
     # Create trending price data
@@ -35,14 +38,14 @@ def sample_price_df():
 
     for i in range(1, n):
         if i < 50:  # Uptrend
-            close[i] = close[i - 1] * (1 + np.random.uniform(0.01, 0.03))
+            close[i] = close[i - 1] * (1 + rng.uniform(0.01, 0.03))
         elif i < 100:  # Downtrend
-            close[i] = close[i - 1] * (1 - np.random.uniform(0.01, 0.03))
+            close[i] = close[i - 1] * (1 - rng.uniform(0.01, 0.03))
         else:  # Sideways
-            close[i] = close[i - 1] * (1 + np.random.uniform(-0.005, 0.005))
+            close[i] = close[i - 1] * (1 + rng.uniform(-0.005, 0.005))
 
     # Generate open from close
-    open_price = close * (1 + np.random.uniform(-0.005, 0.005, n))
+    open_price = close * (1 + rng.uniform(-0.005, 0.005, n))
 
     return pd.DataFrame(
         {
@@ -338,12 +341,64 @@ class TestLabelingParams:
         assert params.fee == 0.001
 
     def test_adjusted_beta(self):
-        """Test beta adjustment for different forward windows."""
+        """Test beta adjustment for different forward windows.
+
+        Formula: beta + (forward_window - 1) * beta_increment
+        where beta_increment = 0.024 (default)
+        """
         params = LabelingParams(forward_window=1)
+        # fwin=1: 0.24 + (1-1) * 0.024 = 0.24
         assert params.get_adjusted_beta() == 0.24
 
         params = LabelingParams(forward_window=2)
-        assert params.get_adjusted_beta() == 0.264  # 0.24 + 0.024
+        # fwin=2: 0.24 + (2-1) * 0.024 = 0.264
+        assert params.get_adjusted_beta() == 0.264
 
         params = LabelingParams(forward_window=3)
-        assert params.get_adjusted_beta() == 0.288  # 0.24 + 2*0.024
+        # fwin=3: 0.24 + (3-1) * 0.024 = 0.288
+        assert params.get_adjusted_beta() == 0.288
+
+
+class TestEdgeCases:
+    """Test edge cases and boundary conditions."""
+
+    def test_empty_dataframe(self):
+        """Test handling of empty DataFrame."""
+        empty_df = pd.DataFrame({"open": [], "close": []})
+
+        # Should return empty array without error
+        labels = compute_labels(empty_df, alpha=0.038, beta=0.24)
+        assert len(labels) == 0
+
+    def test_single_row_dataframe(self):
+        """Test handling of single-row DataFrame."""
+        single_df = pd.DataFrame({"open": [100.0], "close": [105.0]})
+
+        labels = compute_labels(single_df, alpha=0.038, beta=0.24, fwin=1)
+        # Can't compute return with single row
+        assert len(labels) == 1
+        assert labels[0] == LABEL_HOLD
+
+    def test_dataframe_smaller_than_fwin(self):
+        """Test handling of DataFrame smaller than forward window."""
+        small_df = pd.DataFrame({
+            "open": [100.0, 101.0],
+            "close": [100.5, 101.5],
+        })
+
+        # fwin=3 but only 2 rows
+        labels = compute_labels(small_df, alpha=0.038, beta=0.24, fwin=3)
+        # All should be HOLD since we can't compute forward returns
+        assert len(labels) == 2
+        assert all(label == LABEL_HOLD for label in labels)
+
+    def test_nan_handling(self):
+        """Test that NaN values are handled gracefully."""
+        nan_df = pd.DataFrame({
+            "open": [100.0, np.nan, 102.0, 103.0, 104.0],
+            "close": [100.5, 101.5, np.nan, 103.5, 104.5],
+        })
+
+        # Should not raise error
+        labels = compute_labels(nan_df, alpha=0.038, beta=0.24)
+        assert len(labels) == 5

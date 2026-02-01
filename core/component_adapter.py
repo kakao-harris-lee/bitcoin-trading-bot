@@ -7,10 +7,13 @@ Supports regime filtering:
 - v2: EnhancedRegimeRouter with BBW + Volume + MTF filters
 """
 from dataclasses import replace
+import logging
 from types import MappingProxyType
 from typing import Dict, Any, Callable, Optional
 import pandas as pd
 from trading.strategies.components.models import MarketData, Position, Signal, MarketContext, TradingContext, build_market_context
+
+logger = logging.getLogger(__name__)
 from trading.strategies.components.strategy_factory import StrategyFactory
 from trading.strategies.volatility_tracker import VolatilityTracker
 from trading.strategies.components.regime_filter import EnhancedRegimeRouter
@@ -545,8 +548,8 @@ class ComponentStrategyAdapter:
                     self.high_water_mark = None
                     try:
                         self.exit_strategy.on_position_closed(self.symbol)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"on_position_closed failed: {e}")
                     # Trigger extended pause after drawdown exit
                     self._loss_pause_remaining = self._loss_pause_candles
                     return {
@@ -579,8 +582,8 @@ class ComponentStrategyAdapter:
                 self.high_water_mark = None
                 try:
                     self.exit_strategy.on_position_closed(self.symbol)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"on_position_closed failed: {e}")
                 return {
                     'action': 'sell' if is_long else 'close_short',
                     'fraction': 1.0,
@@ -595,8 +598,8 @@ class ComponentStrategyAdapter:
                 self.high_water_mark = None
                 try:
                     self.exit_strategy.on_position_closed(self.symbol)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"on_position_closed failed: {e}")
                 return {
                     'action': 'sell',
                     'fraction': 1.0,
@@ -611,8 +614,8 @@ class ComponentStrategyAdapter:
                 self.high_water_mark = None
                 try:
                     self.exit_strategy.on_position_closed(self.symbol)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"on_position_closed failed: {e}")
                 return {
                     'action': 'sell',
                     'fraction': 1.0,
@@ -668,8 +671,8 @@ class ComponentStrategyAdapter:
                 self.high_water_mark = None
                 try:
                     self.exit_strategy.on_position_closed(self.symbol)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"on_position_closed failed: {e}")
 
                 # Detect stop loss exit and trigger cooldown + consecutive loss tracking
                 is_stop_loss = "stop loss" in reason.lower() or "stoploss" in reason.lower()
@@ -812,8 +815,8 @@ class ComponentStrategyAdapter:
                 except TypeError:
                     # Fallback for exit strategies without entry_timestamp param
                     self.exit_strategy.on_position_opened(self.current_position)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"on_position_opened failed: {e}")
 
                 # Use action names expected by backtest_runner:
                 # 'buy' for opening long, 'open_short' for opening short

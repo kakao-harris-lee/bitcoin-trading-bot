@@ -497,17 +497,29 @@ class BacktestVisualizer:
         if equity_curve and len(equity_curve) > 0:
             try:
                 equity_df = pd.DataFrame(equity_curve)
-                equity_df['date'] = pd.to_datetime(equity_df['date'])
-                equity_df.set_index('date', inplace=True)
+                equity_df['date'] = pd.to_datetime(equity_df['date']).dt.date
 
                 # Calculate cumulative return percentage
                 initial_equity = equity_df['equity'].iloc[0]
                 if initial_equity > 0:
                     equity_df['return_pct'] = ((equity_df['equity'] / initial_equity) - 1) * 100
 
-                    # Align with price data index (forward fill for missing dates)
-                    aligned_returns = equity_df['return_pct'].reindex(df.index, method='ffill')
-                    aligned_returns = aligned_returns.fillna(0)
+                    # Create date-to-return mapping
+                    date_to_return = dict(zip(equity_df['date'], equity_df['return_pct']))
+
+                    # Map each price bar's date to the corresponding return %
+                    # Handle both datetime index and timestamp column
+                    if isinstance(df.index, pd.DatetimeIndex):
+                        price_dates = df.index.date
+                    else:
+                        price_dates = pd.to_datetime(df.index).date
+
+                    aligned_returns = pd.Series(
+                        [date_to_return.get(d, np.nan) for d in price_dates],
+                        index=df.index
+                    )
+                    # Forward fill any missing values
+                    aligned_returns = aligned_returns.ffill().fillna(0)
 
                     # Add as secondary y-axis overlay on main panel
                     addplots.append(mpf.make_addplot(

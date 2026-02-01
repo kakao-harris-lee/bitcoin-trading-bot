@@ -405,14 +405,14 @@ class BacktestVisualizer:
         """Create mplfinance-based regime analysis chart.
 
         Generates a compact 3-panel chart:
-        - Main panel: Candlestick + EMA200 + Bollinger Bands + trade markers + equity overlay
+        - Main panel: Candlestick + Bollinger Bands + trade markers + equity overlay
         - Panel 2: MFI + ADX overlay
         - Panel 3: Volume + Regime color background
 
         Args:
             df: DataFrame with OHLCV and indicator columns.
                 Required: open, high, low, close, volume
-                Optional: ema_200, bb_upper, bb_lower, mfi, adx, regime
+                Optional: bb_upper, bb_lower, mfi, adx, regime
             trades: List of trade dicts with 'timestamp', 'action', 'price'
             equity_curve: List of dicts with 'date' and 'equity' for profit overlay
             output_path: Path to save chart. Auto-generated if None.
@@ -453,13 +453,7 @@ class BacktestVisualizer:
         # Build addplot list for overlays
         addplots = []
 
-        # === Main Panel (0): EMA200 + Bollinger Bands ===
-        if 'ema_200' in df.columns:
-            addplots.append(mpf.make_addplot(
-                df['ema_200'], panel=0, color='#1565C0', width=1.5,
-                linestyle='-', label='EMA200'
-            ))
-
+        # === Main Panel (0): Bollinger Bands ===
         if 'bb_upper' in df.columns and 'bb_lower' in df.columns:
             addplots.append(mpf.make_addplot(
                 df['bb_upper'], panel=0, color='gray', width=0.8,

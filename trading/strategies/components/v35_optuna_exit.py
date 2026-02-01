@@ -6,15 +6,16 @@ Key findings:
 - Trailing DISABLED (Optuna found it hurts)
 - 3-tier partial exits (37.5% + 40.3% + remaining)
 """
-
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from typing import Literal
 
+from .base_exit import BaseExitStrategy
 from .models import Position, Signal, TradingContext
 from .registry import exit_strategy
+from trading.utils.pnl import calculate_pnl_pct, calculate_hwm_pnl_pct
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ class V35OptunaExitParams:
 
 
 @exit_strategy(params_class=V35OptunaExitParams)
-class V35OptunaExitStrategy:
+class V35OptunaExitStrategy(BaseExitStrategy):
     """V35 Optuna exit strategy - original optimized parameters.
 
     Exit conditions (checked in order):
@@ -75,37 +76,35 @@ class V35OptunaExitStrategy:
     - NO trailing stop (Optuna found it hurts)
     - WIDER stop loss (4.9% vs 1.5-2.1%)
     - Regime-specific take profit levels
+
+    Inherits from BaseExitStrategy for common functionality.
     """
 
     def __init__(self, params: V35OptunaExitParams | None = None):
+        super().__init__()
         self.params = params or V35OptunaExitParams()
-        self._high_water_marks: dict[str, float] = {}
-        self._exit_stage: dict[str, int] = {}  # Track partial exit stage
 
     def check_exit(self, ctx: TradingContext, position: Position) -> Signal | None:
         """Check exit conditions."""
         market_data = ctx.market
         p = self.params
         symbol = position.symbol
-
-        close = market_data.close
         entry = position.entry_price
 
         if entry <= 0:
             return None
 
-        # Calculate PnL percentage
-        pnl_pct = ((close - entry) / entry) * 100
+        close = market_data.close
+        key = self._get_position_key(position)
 
-        # Get position key and current stage
-        key = f"{symbol}:{position.strategy}"
-        stage = self._exit_stage.get(key, 0)
+        # Calculate PnL using utility
+        pnl_pct = calculate_pnl_pct(close, entry, "long")
+
+        # Get current exit stage
+        stage = self._get_exit_stage(key)
 
         # Update high water mark
-        hwm = self._high_water_marks.get(key, entry)
-        if close > hwm:
-            hwm = close
-            self._high_water_marks[key] = hwm
+        hwm = self._update_hwm(key, close, entry)
 
         # Determine current regime for TP levels
         regime = self._classify_regime(market_data.mfi)
@@ -116,35 +115,35 @@ class V35OptunaExitStrategy:
             reason = f"V35Optuna: Stop loss {pnl_pct:.2f}% (limit: -{p.stop_loss_pct:.1f}%)"
             logger.info(f"{symbol}: {reason}")
             self._clear_state(key)
-            return self._create_exit_signal(symbol, reason, quantity=1.0)
+            return self._create_exit_signal(position, reason, quantity=1.0)
 
         # === EXIT 2: Take Profit 1 (partial) ===
         if stage == 0 and pnl_pct >= tp1:
-            self._exit_stage[key] = 1
+            self._set_exit_stage(key, 1)
             reason = f"V35Optuna: TP1 {pnl_pct:.2f}% (target: {tp1:.1f}%), exit {p.exit_fraction_1*100:.0f}%"
             logger.info(f"{symbol}: {reason}")
-            return self._create_exit_signal(symbol, reason, quantity=p.exit_fraction_1)
+            return self._create_exit_signal(position, reason, quantity=p.exit_fraction_1)
 
         # === EXIT 3: Take Profit 2 (partial) ===
         if stage == 1 and pnl_pct >= tp2:
-            self._exit_stage[key] = 2
+            self._set_exit_stage(key, 2)
             # Adjust fraction for remaining position
             remaining_after_tp1 = 1.0 - p.exit_fraction_1
             adjusted_fraction = p.exit_fraction_2 / remaining_after_tp1
             reason = f"V35Optuna: TP2 {pnl_pct:.2f}% (target: {tp2:.1f}%), exit {p.exit_fraction_2*100:.0f}%"
             logger.info(f"{symbol}: {reason}")
-            return self._create_exit_signal(symbol, reason, quantity=adjusted_fraction)
+            return self._create_exit_signal(position, reason, quantity=adjusted_fraction)
 
         # === EXIT 4: Take Profit 3 (full) ===
         if stage >= 1 and pnl_pct >= tp3:
             reason = f"V35Optuna: TP3 {pnl_pct:.2f}% (target: {tp3:.1f}%), full exit"
             logger.info(f"{symbol}: {reason}")
             self._clear_state(key)
-            return self._create_exit_signal(symbol, reason, quantity=1.0)
+            return self._create_exit_signal(position, reason, quantity=1.0)
 
         # === EXIT 5: Trailing Stop (if enabled) ===
         if p.trailing_enabled:
-            hwm_pnl = ((hwm - entry) / entry) * 100
+            hwm_pnl = calculate_hwm_pnl_pct(hwm, entry)
             if hwm_pnl >= p.trailing_activation:
                 trail_stop = hwm * (1 - p.trailing_distance / 100)
                 if close < trail_stop:
@@ -155,7 +154,7 @@ class V35OptunaExitStrategy:
                     )
                     logger.info(f"{symbol}: {reason}")
                     self._clear_state(key)
-                    return self._create_exit_signal(symbol, reason, quantity=1.0)
+                    return self._create_exit_signal(position, reason, quantity=1.0)
 
         return None
 
@@ -181,30 +180,12 @@ class V35OptunaExitStrategy:
         else:  # SIDEWAYS or BEAR
             return p.tp_sideways_1, p.tp_sideways_2, p.tp_sideways_3
 
-    def _create_exit_signal(self, symbol: str, reason: str, quantity: float) -> Signal:
-        """Create exit signal."""
+    def _create_exit_signal(self, position: Position, reason: str, quantity: float) -> Signal:
+        """Create exit signal with correct market from params."""
         return Signal(
-            symbol=symbol,
+            symbol=position.symbol,
             side="sell",
             market=self.params.market,
             quantity=quantity,
             reason=reason,
         )
-
-    def _clear_state(self, key: str) -> None:
-        """Clear state for position."""
-        self._high_water_marks.pop(key, None)
-        self._exit_stage.pop(key, None)
-
-    def on_position_opened(self, position: Position) -> None:
-        """Called when a new position is opened."""
-        key = f"{position.symbol}:{position.strategy}"
-        self._high_water_marks[key] = position.entry_price
-        self._exit_stage[key] = 0
-
-    def on_position_closed(self, symbol: str) -> None:
-        """Called when a position is closed."""
-        keys_to_remove = [k for k in self._high_water_marks if k.startswith(f"{symbol}:")]
-        for k in keys_to_remove:
-            self._high_water_marks.pop(k, None)
-            self._exit_stage.pop(k, None)

@@ -18,6 +18,8 @@ import threading
 
 import pandas as pd
 
+from trading.config.constants import TimePeriods
+
 logger = logging.getLogger(__name__)
 
 # Default model paths
@@ -121,14 +123,14 @@ class RFProbabilityService:
                 feature_cols = getattr(self._predictor, "scaled_columns", None)
                 if feature_cols:
                     self._scaler = LiveScaler(
-                        rolling_window=720,
+                        rolling_window=TimePeriods.RF_HISTORY_WINDOW,
                         feature_columns=feature_cols,
                     )
                     logger.info(
                         f"LiveScaler initialized with {len(feature_cols)} feature columns"
                     )
                 else:
-                    self._scaler = LiveScaler(rolling_window=720)
+                    self._scaler = LiveScaler(rolling_window=TimePeriods.RF_HISTORY_WINDOW)
                     logger.info("LiveScaler initialized with default columns")
             except ImportError:
                 logger.warning("LiveScaler not available, using raw features")
@@ -269,7 +271,7 @@ class RFProbabilityService:
         df: pd.DataFrame,
         indicators_df: pd.DataFrame | None = None,
         window_size: int = 720,
-        min_history: int = 60,
+        min_history: int = TimePeriods.MIN_HISTORY_REQUIRED,
         sample_interval: int = 6,
     ) -> dict[int, dict[str, Any]]:
         """Pre-compute RF predictions for entire DataFrame (backtest optimization).

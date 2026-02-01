@@ -14,6 +14,10 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# Standard trading days per year for annualized calculations
+# See also: trading.config.constants.TimePeriods.TRADING_DAYS_PER_YEAR
+TRADING_DAYS_PER_YEAR = 252
+
 
 def calculate_benchmark(
     price_data: pd.DataFrame,
@@ -241,7 +245,7 @@ def calculate_sortino_ratio(equity_curve: pd.DataFrame, risk_free: float = 0.0) 
     if len(downside_returns) == 0:
         return 0.0
 
-    downside = downside_returns.std() * np.sqrt(252)
+    downside = downside_returns.std() * np.sqrt(TRADING_DAYS_PER_YEAR)
 
     if downside == 0 or np.isnan(downside):
         return 0.0

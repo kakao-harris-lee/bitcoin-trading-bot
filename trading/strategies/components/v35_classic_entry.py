@@ -6,13 +6,13 @@ No complex filters (MACD, RSI, breakout, stress).
 
 Philosophy: Simple rules that work across market conditions.
 """
-
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from typing import Literal
 
+from .entry_filters import EntryFilters
 from .models import Signal, TradingContext
 from .registry import entry_strategy
 
@@ -56,6 +56,8 @@ class V35ClassicEntryStrategy:
 
     No MACD, RSI, breakout, or other complex filters.
     Simplicity is the key.
+
+    Uses EntryFilters for reusable filter checks.
     """
 
     def __init__(self, params: V35ClassicEntryParams | None = None):
@@ -75,14 +77,11 @@ class V35ClassicEntryStrategy:
         market_data = ctx.market
         p = self.params
 
-        # EMA200 filter (optional but recommended)
-        if p.use_ema200_filter and market_data.ema_200 > 0:
-            if market_data.close < market_data.ema_200:
-                logger.debug(
-                    f"{market_data.symbol}: Skip - below EMA200 "
-                    f"({market_data.close:.0f} < {market_data.ema_200:.0f})"
-                )
-                return None
+        # EMA200 filter using EntryFilters utility
+        ema_result = EntryFilters.check_ema200(market_data, p.use_ema200_filter)
+        if not ema_result.passed:
+            logger.debug(f"{market_data.symbol}: Skip - {ema_result.reason}")
+            return None
 
         # Classify regime using MFI and ADX
         regime = self._classify_regime(market_data.mfi, market_data.adx)
@@ -94,7 +93,7 @@ class V35ClassicEntryStrategy:
                 f"MFI={market_data.mfi:.1f}, ADX={market_data.adx:.1f}"
             )
             if p.use_ema200_filter:
-                reason += f", above EMA200"
+                reason += ", above EMA200"
 
             logger.info(f"{market_data.symbol}: {reason}")
 

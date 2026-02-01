@@ -32,6 +32,7 @@ from typing import Any, TYPE_CHECKING
 import pandas as pd
 from trading.streams.base_strategy import BaseStrategyTask
 from trading.indicators import add_all_indicators
+from trading.config.constants import TimePeriods
 
 from .interfaces import IEntryStrategy, IExitStrategy
 from .models import (
@@ -174,7 +175,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._rf_service: RFProbabilityService | None = None
         self._rf_available = False
         self._rf_history_size = int(self.config.get("rf_history_size", 720))
-        self._rf_min_history = int(self.config.get("rf_min_history", 60))
+        self._rf_min_history = int(self.config.get("rf_min_history", TimePeriods.MIN_HISTORY_REQUIRED))
         if self._use_rf_probability:
             self._rf_service = RFProbabilityService.get_instance(
                 lstm_path=self.config.get("lstm_model_path", "lstm_trainer/models/hybrid_lstm.pth"),

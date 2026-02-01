@@ -15,6 +15,7 @@ from trading.strategies.components.strategy_factory import StrategyFactory
 from trading.strategies.volatility_tracker import VolatilityTracker
 from trading.strategies.components.regime_filter import EnhancedRegimeRouter
 from trading.strategies.components.rf_probability_service import RFProbabilityService
+from trading.config.constants import TimePeriods, LeverageDefaults
 
 class ComponentStrategyAdapter:
     """Adapts a StrategyFactory strategy into a Backtester-compatible function.
@@ -123,7 +124,7 @@ class ComponentStrategyAdapter:
         self._rf_service: RFProbabilityService | None = None
         self._rf_available: bool = False
         self._df_history: list = []  # Store recent candles for RF input
-        self._rf_history_size: int = 720  # Rolling window for RF (matches LiveScaler)
+        self._rf_history_size: int = TimePeriods.RF_HISTORY_WINDOW  # Rolling window for RF (matches LiveScaler)
 
         if self._use_rf_probability:
             self._rf_service = RFProbabilityService.get_instance(
@@ -205,7 +206,7 @@ class ComponentStrategyAdapter:
             df=df,
             indicators_df=df,  # Same df has indicators
             window_size=self._rf_history_size,
-            min_history=60,
+            min_history=TimePeriods.MIN_HISTORY_REQUIRED,
         )
 
     def _determine_regime(self, mfi: float, adx: float) -> str:
@@ -261,7 +262,7 @@ class ComponentStrategyAdapter:
                 start_idx = max(0, i - self._rf_history_size)
                 df_slice = df.iloc[start_idx:i+1]
 
-                if len(df_slice) >= 60:
+                if len(df_slice) >= TimePeriods.MIN_HISTORY_REQUIRED:
                     volatility = atr / close if close > 0 else 0.0
                     rf_result = self._rf_service.get_probability(
                         df=df_slice,
@@ -648,7 +649,7 @@ class ComponentStrategyAdapter:
                     if self._current_leverage == 0:
                         return {'action': 'hold', 'reason': 'dynamic_lev_zero'}
             else:
-                self._current_leverage = 3.0  # Default
+                self._current_leverage = LeverageDefaults.MAX  # Default
 
             # === DRAWDOWN WARNING: Reduce leverage when approaching drawdown limits ===
             # Apply leverage reduction when in warning zone (8%+ drawdown)

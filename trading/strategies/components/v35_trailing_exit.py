@@ -18,6 +18,7 @@ from typing import Literal
 
 from .models import MarketData, Position, Signal, TradingContext
 from .registry import exit_strategy
+from trading.utils.pnl import calculate_pnl_pct, calculate_hwm_pnl_pct
 
 logger = logging.getLogger(__name__)
 
@@ -147,14 +148,14 @@ class V35TrailingExitStrategy:
 
         p = self.params
 
-        # Calculate P&L percentage
-        pnl_pct = ((current_price - entry_price) / entry_price) * 100
+        # Calculate P&L percentage using utility
+        pnl_pct = calculate_pnl_pct(current_price, entry_price, "long")
 
         # Update high water mark using the HIGH price (true peak)
         check_price = market_data.high if market_data.high > 0 else current_price
         self._update_high_water_mark(symbol, check_price)
         hwm = self._high_water_mark.get(symbol, entry_price)
-        hwm_pnl = ((hwm - entry_price) / entry_price) * 100
+        hwm_pnl = calculate_hwm_pnl_pct(hwm, entry_price)
 
         # Exit condition 1: Stop loss (fixed or ATR-based)
         if p.atr_stop_enabled and market_data.atr > 0 and entry_price > 0:

@@ -31,6 +31,7 @@ from web.services import backtest_db
 from trading.strategies.components.strategy_factory import StrategyFactory, STRATEGY_REGISTRY
 from core.component_adapter import ComponentStrategyAdapter
 from trading.indicators import add_all_indicators
+from trading.config.constants import FeeRates, TimePeriods
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ def add_rf_predictions(df: pd.DataFrame, config: dict) -> None:
         from lstm_trainer.src.live_scaler import LiveScaler
 
         feature_cols = getattr(service._predictor, "scaled_columns", None)
-        scaler = LiveScaler(rolling_window=720, feature_columns=feature_cols) if feature_cols else LiveScaler(rolling_window=720)
+        scaler = LiveScaler(rolling_window=TimePeriods.RF_HISTORY_WINDOW, feature_columns=feature_cols) if feature_cols else LiveScaler(rolling_window=TimePeriods.RF_HISTORY_WINDOW)
 
         # Convert to history format
         col_map = {c: c.lower() for c in df.columns}
@@ -90,7 +91,7 @@ def add_rf_predictions(df: pd.DataFrame, config: dict) -> None:
         logger.info(f"Scaled data shape: {full_scaled_df.shape}")
 
         # === STEP 2: Run predictions using slices of pre-scaled data ===
-        min_history = 60
+        min_history = TimePeriods.MIN_HISTORY_REQUIRED
         sample_interval = 6  # Predict every 6 candles
 
         last_result = {'confidence': 0.0, 'direction': 'SIDEWAYS', 'signal': 'HOLD'}
@@ -605,7 +606,7 @@ def _run_tuned_strategy_backtest(
         if job._cancelled:
             return {}, df
 
-        if i < 200:  # Warmup period
+        if i < TimePeriods.BACKTEST_WARMUP:  # Warmup period
             row = df.iloc[i]
             equity_curve.append({'date': str(row.get('timestamp', row.name))[:10], 'equity': capital})
             continue
@@ -793,7 +794,7 @@ def _run_tuned_strategy_backtest(
     returns = equity_series.pct_change().dropna()
 
     import numpy as np
-    sharpe_ratio = float(returns.mean() / returns.std() * np.sqrt(252)) if len(returns) > 0 and returns.std() > 0 else 0
+    sharpe_ratio = float(returns.mean() / returns.std() * np.sqrt(TimePeriods.TRADING_DAYS_PER_YEAR)) if len(returns) > 0 and returns.std() > 0 else 0
 
     peak = equity_series.cummax()
     drawdown = (equity_series - peak) / peak * 100
@@ -901,11 +902,11 @@ def _run_generic_backtest(
         timeframe = spec.timeframe
 
     if market_type == 'futures':
-        fee_rate = 0.0004  # 0.04%
-        slippage = 0.0002  # 0.02%
+        fee_rate = FeeRates.FUTURES
+        slippage = FeeRates.FUTURES_SLIPPAGE
     else:
-        fee_rate = 0.0005  # 0.05%
-        slippage = 0.0000
+        fee_rate = FeeRates.SPOT
+        slippage = FeeRates.SPOT_SLIPPAGE
 
     with DataLoader(exchange=exchange_name) as loader:
         df = loader.load_timeframe(timeframe, start_date, end_date)
@@ -1320,7 +1321,7 @@ def _run_generic_backtest(
     equity_values = [e['equity'] for e in equity_curve]
     equity_series = pd.Series(equity_values)
     returns = equity_series.pct_change().dropna()
-    sharpe_ratio = float(returns.mean() / returns.std() * np.sqrt(252)) if len(returns) > 0 and returns.std() > 0 else 0
+    sharpe_ratio = float(returns.mean() / returns.std() * np.sqrt(TimePeriods.TRADING_DAYS_PER_YEAR)) if len(returns) > 0 and returns.std() > 0 else 0
 
     peak = equity_series.cummax()
     drawdown = (equity_series - peak) / peak * 100
@@ -1508,8 +1509,8 @@ def _run_short_backtest(
     job.progress = 40
 
     # Run backtest using ShortBacktester logic (same as script)
-    fee_rate = 0.0004
-    slippage = 0.0002
+    fee_rate = FeeRates.FUTURES
+    slippage = FeeRates.FUTURES_SLIPPAGE
 
     capital = initial_capital
     position_size = 0.0
@@ -1621,7 +1622,7 @@ def _run_short_backtest(
     equity_values = [e['equity'] for e in equity_curve]
     equity_series = pd.Series(equity_values)
     returns = equity_series.pct_change().dropna()
-    sharpe = float(returns.mean() / returns.std() * np.sqrt(252)) if len(returns) > 0 and returns.std() > 0 else 0
+    sharpe = float(returns.mean() / returns.std() * np.sqrt(TimePeriods.TRADING_DAYS_PER_YEAR)) if len(returns) > 0 and returns.std() > 0 else 0
 
     peak = equity_series.cummax()
     drawdown = (equity_series - peak) / peak * 100

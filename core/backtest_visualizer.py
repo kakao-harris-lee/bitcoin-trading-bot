@@ -549,7 +549,13 @@ class BacktestVisualizer:
         style = mpf.make_mpf_style(
             base_mpf_style='charles',
             marketcolors=mc,
-            rc={'font.size': 9}
+            rc={
+                'font.size': 7,
+                'axes.titlesize': 8,
+                'axes.labelsize': 7,
+                'xtick.labelsize': 6,
+                'ytick.labelsize': 6,
+            }
         )
 
         # Generate output path
@@ -697,8 +703,8 @@ class BacktestVisualizer:
         fig.legend(
             handles=legend_patches,
             loc='upper right',
-            fontsize=8,
+            fontsize=6,
             framealpha=0.9,
             title='Regime',
-            title_fontsize=9
+            title_fontsize=7
         )

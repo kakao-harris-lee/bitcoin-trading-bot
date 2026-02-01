@@ -1322,8 +1322,6 @@ def _run_generic_backtest(
                  entry_price = 0.0
              else:
                  position_size -= exit_size  # Keep remaining position
-             position_size = 0.0
-             entry_price = 0.0
 
     job.progress = 80
 

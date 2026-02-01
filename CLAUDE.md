@@ -77,6 +77,8 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - Risk-Based Position Sizing → `docs/plans/2026-01-30-risk-based-position-sizing-design.md`
 - Spot Trading Restoration Design → `docs/plans/2026-01-31-spot-trading-restoration-design.md`
 - Spot Trading Restoration Implementation → `docs/plans/2026-01-31-spot-trading-restoration-implementation.md`
+- MLP Direction Strategy Design → `docs/plans/2026-02-01-mlp-direction-strategy-design.md`
+- MLP Direction Strategy Implementation → `docs/plans/2026-02-01-mlp-direction-strategy-implementation.md`
 
 This prevents context loss! Update this file immediately when you create important documentation.
 

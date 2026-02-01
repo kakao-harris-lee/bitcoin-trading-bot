@@ -69,6 +69,8 @@ from .combined_entry import CombinedEntryStrategy, CombinedEntryParams
 from .combined_exit import CombinedExitStrategy, CombinedExitParams
 from .hybrid_lstm_entry import HybridLSTMEntryStrategy, HybridLSTMEntryParams
 from .hybrid_lstm_exit import HybridLSTMExitStrategy, HybridLSTMExitParams
+from .mlp_direction_entry import MLPDirectionEntryStrategy, MLPDirectionEntryParams
+from .mlp_direction_exit import MLPDirectionExitStrategy, MLPDirectionExitParams
 from .v35_simple_entry import V35SimpleEntryStrategy, V35SimpleEntryParams
 from .v35_simple_exit import V35SimpleExitStrategy, V35SimpleExitParams
 from .v35_classic_entry import V35ClassicEntryStrategy, V35ClassicEntryParams
@@ -248,6 +250,18 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         persistent_exit_class=None,
         market="spot",  # Uses RF confidence for sizing
         timeframe="minute60",
+    ),
+    # MLP Direction Classifier strategy (Parente & Rizzuti 2025)
+    # 3-class prediction (Hold/Buy/Sell) with 10% stop loss
+    "mlp_direction": StrategySpec(
+        name="mlp_direction",
+        entry_class=MLPDirectionEntryStrategy,
+        entry_params_class=MLPDirectionEntryParams,
+        exit_class=MLPDirectionExitStrategy,
+        exit_params_class=MLPDirectionExitParams,
+        persistent_exit_class=None,
+        market="spot",  # Multi-asset trained, uses 4h timeframe
+        timeframe="hour4",  # Paper uses 4-hour candles
     ),
     # V35 Simple - Optimized minimal filter strategy (2020-2026 backtested)
     # +140% return, 22% MDD vs +12% for original V35

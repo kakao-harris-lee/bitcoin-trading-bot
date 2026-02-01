@@ -29,19 +29,30 @@ class ComponentStrategyAdapter:
     - mtf_enabled: Whether to check 4h direction alignment (default True)
     """
 
-    def __init__(self, factory: StrategyFactory, strategy_name: str, config: Dict[str, Any]):
+    def __init__(
+        self,
+        factory: StrategyFactory,
+        strategy_name: str,
+        config: Dict[str, Any],
+        entry_overrides: Dict[str, Any] | None = None,
+        exit_overrides: Dict[str, Any] | None = None,
+    ):
         """
         Args:
             factory: Initialized StrategyFactory
             strategy_name: Name of the strategy to run (e.g., "v35_long")
             config: Configuration dictionary for the strategy
+            entry_overrides: Parameter overrides for entry strategy
+            exit_overrides: Parameter overrides for exit strategy
         """
         self.strategy_name = strategy_name
         self.config = config
         self.entry_strategy, self.exit_strategy = factory.create_components(
             strategy_name=strategy_name,
             config=config,
-            persistent=False  # Backtesting is always non-persistent (stateless run)
+            persistent=False,  # Backtesting is always non-persistent (stateless run)
+            entry_overrides=entry_overrides,
+            exit_overrides=exit_overrides,
         )
         self.market = factory.get_market(strategy_name)
         self.current_position: Optional[Position] = None
@@ -136,6 +147,12 @@ class ComponentStrategyAdapter:
         # RF prediction cache for backtesting (populated by precompute_rf_predictions)
         self._rf_cache: dict[int, dict] | None = None
 
+        # MLP Direction prediction cache for backtesting
+        # Populated by precompute_mlp_predictions()
+        self._mlp_cache: dict[int, dict] | None = None
+        self._mlp_model = None
+        self._mlp_available: bool | None = None
+
         # === NEW: Dynamic Position Sizing based on RF Confidence ===
         # Scale position size based on model confidence:
         # High confidence (>70%) → large position, Low confidence (<50%) → small position
@@ -209,6 +226,73 @@ class ComponentStrategyAdapter:
             min_history=TimePeriods.MIN_HISTORY_REQUIRED,
         )
 
+    def precompute_mlp_predictions(self, df: pd.DataFrame) -> None:
+        """Pre-compute MLP Direction predictions for entire DataFrame (backtest optimization).
+
+        Call this BEFORE running backtest loop to cache all MLP predictions.
+        Only relevant for 'mlp_direction' strategy.
+
+        Args:
+            df: Full DataFrame with OHLCV and indicators for backtest.
+        """
+        # Only precompute for mlp_direction strategy
+        if self.strategy_name != "mlp_direction":
+            return
+
+        try:
+            from mlp_trainer.src.mlp_model import MLPDirectionClassifier
+            from trading.indicators.mlp_features import calculate_mlp_features
+            import torch
+            from pathlib import Path
+
+            model_path = Path(self.config.get("model_path", "models/mlp_direction/model_final.pt"))
+            if not model_path.exists():
+                return
+
+            # Load model once
+            if self._mlp_model is None:
+                self._mlp_model = MLPDirectionClassifier.load(str(model_path), device="cpu")
+                self._mlp_model.eval()
+                self._mlp_available = True
+
+            if not self._mlp_available:
+                return
+
+            # Calculate MLP features for entire DataFrame
+            mlp_features = calculate_mlp_features(df, bwin=5, include_temporal=True)
+
+            # Batch predict
+            self._mlp_cache = {}
+            valid_indices = mlp_features.dropna().index
+
+            if len(valid_indices) == 0:
+                return
+
+            # Prepare feature matrix
+            X = mlp_features.loc[valid_indices].values
+            X_tensor = torch.FloatTensor(X)
+
+            with torch.no_grad():
+                probs = self._mlp_model.predict_proba(X_tensor).cpu().numpy()
+
+            # Store predictions in cache
+            for idx, (df_idx, prob) in enumerate(zip(valid_indices, probs)):
+                # Get integer position in original DataFrame
+                iloc_pos = df.index.get_loc(df_idx)
+                pred_class = prob.argmax()
+                confidence = prob[pred_class]
+
+                self._mlp_cache[iloc_pos] = {
+                    "prediction": int(pred_class),
+                    "confidence": float(confidence),
+                    "probs": prob.tolist(),
+                }
+
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"MLP precompute failed: {e}")
+            self._mlp_available = False
+
     def _determine_regime(self, mfi: float, adx: float) -> str:
         """Determine market regime using strategy-specific logic if available."""
         # Try to use the component's internal classification logic
@@ -276,6 +360,17 @@ class ComponentStrategyAdapter:
                         rf_confidence = rf_result.get('confidence', 0.0)
                         rf_direction = rf_result.get('direction', 'SIDEWAYS')
                         rf_signal = rf_result.get('signal', 'HOLD')
+
+        # === MLP Direction Prediction ===
+        # Get MLP prediction from pre-computed cache (backtest) for mlp_direction strategy
+        mlp_prediction: int | None = None
+        mlp_confidence: float | None = None
+
+        if self.strategy_name == "mlp_direction" and self._mlp_cache is not None:
+            if i in self._mlp_cache:
+                cached_mlp = self._mlp_cache[i]
+                mlp_prediction = cached_mlp.get("prediction")
+                mlp_confidence = cached_mlp.get("confidence")
 
         # Build Context using the standard function (ensures consistent regime/trend classification)
         # Includes drawdown-based BEAR detection (configurable threshold)
@@ -532,6 +627,8 @@ class ComponentStrategyAdapter:
                 market=market_data,
                 regime=context,
                 positions=MappingProxyType(positions),
+                mlp_prediction=mlp_prediction,
+                mlp_confidence=mlp_confidence,
             )
             signal = self.exit_strategy.check_exit(ctx, self.current_position)
 
@@ -683,6 +780,8 @@ class ComponentStrategyAdapter:
                 market=market_data,
                 regime=context,
                 positions=MappingProxyType({}),  # No position when checking entry
+                mlp_prediction=mlp_prediction,
+                mlp_confidence=mlp_confidence,
             )
             signal = self.entry_strategy.check_entry(ctx)
 
@@ -706,6 +805,12 @@ class ComponentStrategyAdapter:
 
                 # Notify exit strategy (stateful exits may track entry)
                 try:
+                    # Pass entry timestamp for FWin-based exits (MLP Direction)
+                    self.exit_strategy.on_position_opened(
+                        self.current_position, entry_timestamp=ts_ms
+                    )
+                except TypeError:
+                    # Fallback for exit strategies without entry_timestamp param
                     self.exit_strategy.on_position_opened(self.current_position)
                 except Exception:
                     pass

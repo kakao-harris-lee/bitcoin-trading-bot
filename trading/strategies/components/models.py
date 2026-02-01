@@ -473,6 +473,11 @@ class TradingContext:
     # Use Mapping type to signal immutability intent
     positions: Mapping[str, Position]
 
+    # MLP Direction predictions (optional, for mlp_direction strategy)
+    # Pre-computed by ComponentStrategyAdapter.precompute_mlp_predictions()
+    mlp_prediction: int | None = None  # 0=HOLD, 1=BUY, 2=SELL
+    mlp_confidence: float | None = None  # Confidence score (0.0-1.0)
+
     def has_position(self, strategy: str) -> bool:
         """Check if a strategy has an open position."""
         return strategy in self.positions

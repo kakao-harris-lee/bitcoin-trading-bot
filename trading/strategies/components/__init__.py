@@ -131,6 +131,10 @@ from .combined_exit import CombinedExitParams, CombinedExitStrategy
 from .combo1c_entry import Combo1CEntryParams, Combo1CEntryStrategy
 from .combo1c_exit import Combo1CExitParams, Combo1CExitStrategy
 
+# MLP Direction strategy components (Parente & Rizzuti 2025)
+from .mlp_direction_entry import MLPDirectionEntryParams, MLPDirectionEntryStrategy
+from .mlp_direction_exit import MLPDirectionExitParams, MLPDirectionExitStrategy
+
 __all__ = [
     # Interfaces
     "IEntryStrategy",
@@ -194,4 +198,9 @@ __all__ = [
     "Combo1CEntryParams",
     "Combo1CExitStrategy",
     "Combo1CExitParams",
+    # MLP Direction implementations (Parente & Rizzuti 2025)
+    "MLPDirectionEntryStrategy",
+    "MLPDirectionEntryParams",
+    "MLPDirectionExitStrategy",
+    "MLPDirectionExitParams",
 ]

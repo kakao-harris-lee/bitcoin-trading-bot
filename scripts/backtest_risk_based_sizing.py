@@ -98,6 +98,11 @@ class RiskBasedBacktester:
         self.position_stop_price = 0.0
         self.trades = []
         self.equity_curve = []
+        # Core+Overlay state
+        self.core_position = 0.0
+        self.core_entry_price = 0.0
+        self.core_cash = 0.0
+        self.overlay_cash = 0.0
 
     def run(
         self,
@@ -132,21 +137,112 @@ class RiskBasedBacktester:
         # Get leverage from config
         leverage = config.get('leverage', 3)
 
+        # Core+Overlay setup
+        core_hold_pct = config.get('core_hold_pct', 0.0)
+        is_core_overlay = core_hold_pct > 0
+        core_exit_on_ema200 = config.get('core_exit_on_ema200', False)
+        core_reentry_on_ema200 = config.get('core_reentry_on_ema200', True)
+        core_drawdown_exit_pct = config.get('core_drawdown_exit_pct', 20.0) / 100
+        core_drawdown_reentry_pct = config.get('core_drawdown_reentry_pct', 10.0) / 100
+        core_high_water_mark = 0.0
+        core_exited_for_drawdown = False
+        # Use confirmation period to avoid whipsaws (24 hours = 1 day confirmation)
+        core_ema_confirm_hours = 24
+        core_below_ema_count = 0
+        core_above_ema_count = 0
+
+        if is_core_overlay:
+            # Allocate capital: core gets core_hold_pct, overlay gets rest
+            first_price = float(df.iloc[0]['close'])
+            self.core_cash = self.initial_capital * core_hold_pct
+            self.overlay_cash = self.initial_capital * (1 - core_hold_pct)
+            self.cash = self.overlay_cash  # Overlay cash for V35 trading
+
+            # Buy core position at start (with fees)
+            core_cost = self.core_cash * (1 - self.fee_rate)  # Subtract fees
+            self.core_position = core_cost / first_price
+            self.core_entry_price = first_price
+            core_high_water_mark = first_price
+            self.core_cash = 0  # All invested in core
+
+            print(f"\n  Core+Overlay Mode: {core_hold_pct*100:.0f}% core, {(1-core_hold_pct)*100:.0f}% overlay")
+            print(f"  Core: {self.core_position:.6f} BTC @ ${first_price:,.0f}")
+            print(f"  Overlay capital: ${self.overlay_cash:,.2f}")
+            if core_exit_on_ema200:
+                print(f"  Core EMA200 filter: ENABLED (exit below, re-enter above)")
+
         for i in range(len(df)):
             row = df.iloc[i]
             timestamp = row['timestamp']
             price = float(row['close'])
             atr = float(row.get('atr', 0)) or price * 0.02  # Default 2% ATR if missing
 
-            # Current equity
+            # Current equity (overlay position only for V35 strategy)
             if self.position > 0:
-                position_value = self.position * price
+                overlay_position_value = self.position * price
             else:
-                position_value = 0.0
-            current_equity = self.cash + position_value
+                overlay_position_value = 0.0
+            overlay_equity = self.cash + overlay_position_value
 
-            # Update adapter's equity tracking for drawdown protection
-            adapter.update_equity(current_equity)
+            # Core position management (EMA200 filter + drawdown protection)
+            if is_core_overlay:
+                ema_200 = float(row.get('ema_200', 0))
+
+                # Update core high water mark
+                if self.core_position > 0 and price > core_high_water_mark:
+                    core_high_water_mark = price
+
+                # Check core drawdown exit
+                if self.core_position > 0 and core_high_water_mark > 0:
+                    core_drawdown = (core_high_water_mark - price) / core_high_water_mark
+                    if core_drawdown >= core_drawdown_exit_pct and not core_exited_for_drawdown:
+                        # Exit core position for drawdown protection
+                        core_proceeds = self.core_position * price * (1 - self.fee_rate)
+                        self.core_cash += core_proceeds
+                        self.core_position = 0
+                        core_exited_for_drawdown = True
+
+                # Check EMA200 filter for core position (with confirmation to avoid whipsaws)
+                if core_exit_on_ema200 and ema_200 > 0:
+                    # Track consecutive hours below/above EMA200
+                    if price < ema_200:
+                        core_below_ema_count += 1
+                        core_above_ema_count = 0
+                    else:
+                        core_above_ema_count += 1
+                        core_below_ema_count = 0
+
+                    # Exit core only after confirmed below EMA200 for N hours
+                    if self.core_position > 0 and core_below_ema_count >= core_ema_confirm_hours:
+                        core_proceeds = self.core_position * price * (1 - self.fee_rate)
+                        self.core_cash += core_proceeds
+                        self.core_position = 0
+
+                    # Re-enter core only after confirmed above EMA200 for N hours
+                    elif self.core_position == 0 and self.core_cash > 0 and core_above_ema_count >= core_ema_confirm_hours:
+                        if core_reentry_on_ema200:
+                            # Check drawdown recovery
+                            if core_exited_for_drawdown:
+                                recovery = (price - core_high_water_mark * (1 - core_drawdown_exit_pct)) / (core_high_water_mark * core_drawdown_exit_pct)
+                                if recovery >= (core_drawdown_reentry_pct / core_drawdown_exit_pct):
+                                    core_exited_for_drawdown = False  # Allow re-entry
+
+                            if not core_exited_for_drawdown:
+                                core_buy_cost = self.core_cash * (1 - self.fee_rate)
+                                self.core_position = core_buy_cost / price
+                                self.core_entry_price = price
+                                core_high_water_mark = price  # Reset HWM
+                                self.core_cash = 0
+
+            # Core position value (if core+overlay mode)
+            core_value = self.core_position * price if is_core_overlay else 0.0
+            core_cash_value = self.core_cash if is_core_overlay else 0.0
+
+            # Total equity (for reporting)
+            current_equity = overlay_equity + core_value + core_cash_value
+
+            # Update adapter's equity tracking for drawdown protection (overlay only)
+            adapter.update_equity(overlay_equity)
 
             # Get strategy signal
             signal = adapter(df, i, {})
@@ -234,19 +330,22 @@ class RiskBasedBacktester:
             elif action == 'close_short':
                 pass  # Skip
 
-            # Record equity curve
-            if self.position > 0:
-                position_value = self.position * price
-            else:
-                position_value = 0.0
-            total_equity = self.cash + position_value
+            # Record equity curve (including core position for core+overlay mode)
+            overlay_pos_value = self.position * price if self.position > 0 else 0.0
+            core_pos_value = self.core_position * price if is_core_overlay else 0.0
+            core_cash_val = self.core_cash if is_core_overlay else 0.0
+            total_equity = self.cash + overlay_pos_value + core_pos_value + core_cash_val
 
             self.equity_curve.append({
                 'timestamp': timestamp,
                 'cash': self.cash,
-                'position_value': position_value,
+                'position_value': overlay_pos_value + core_pos_value,
                 'total_equity': total_equity,
                 'position': self.position,
+                'core_position': self.core_position if is_core_overlay else 0.0,
+                'core_value': core_pos_value,
+                'core_cash': core_cash_val,
+                'overlay_value': overlay_pos_value,
                 'price': price,
             })
 
@@ -276,7 +375,10 @@ class RiskBasedBacktester:
 
     def _generate_results(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Generate results dictionary."""
-        final_equity = self.cash
+        # Final equity includes core position value (sold at final price) and core cash
+        final_price = float(df.iloc[-1]['close'])
+        core_final_value = self.core_position * final_price if self.core_position > 0 else 0.0
+        final_equity = self.cash + core_final_value + self.core_cash
         total_return = ((final_equity - self.initial_capital) / self.initial_capital) * 100
 
         equity_df = pd.DataFrame(self.equity_curve)
@@ -619,6 +721,7 @@ def main():
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to backtest')
     parser.add_argument('--capital', type=float, default=10000.0, help='Initial capital')
     parser.add_argument('--output', type=str, default='outputs', help='Output directory')
+    parser.add_argument('--strategy', type=str, default='tuned_v35_long_v2_growth', help='Strategy name from allocation.json')
     args = parser.parse_args()
 
     # Create output directory
@@ -655,8 +758,7 @@ def main():
     print(f"After dropping NaN: {len(df)} rows (dropped {original_len - len(df)})")
 
     # Load strategy config
-    # Use tuned_v35_long_v2_growth which has less strict filters
-    strategy_name = 'tuned_v35_long_v2_growth'
+    strategy_name = args.strategy
 
     print(f"\nLoading {strategy_name} config...")
     config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"

@@ -79,3 +79,5 @@ web/static/charts/*.png
 
 # Backtest output charts
 outputs/
+
+.serena/project.yml

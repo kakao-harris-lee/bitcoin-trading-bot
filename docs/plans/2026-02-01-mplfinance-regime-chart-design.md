@@ -19,6 +19,7 @@
 │  - EMA200 (파란선)                               │
 │  - Bollinger Bands (회색 음영)                   │
 │  - 매수/매도 신호 마커 (▲/▼)                     │
+│  - 수익률 곡선 (핑크선, 보조 Y축) ✅             │
 │                                          (70%)  │
 ├─────────────────────────────────────────────────┤
 │  [MFI + ADX 오버레이]                            │
@@ -68,10 +69,12 @@
    - `_add_regime_legend()` 헬퍼 메서드 추가
    - `REGIME_COLORS` 상수 추가
    - mplfinance 의존성 추가 (조건부 임포트)
+   - **수익률 곡선 오버레이 추가 (보조 Y축, 핑크선 #E91E63)** ✅
 
 2. **web/services/backtest_runner.py** ✅
    - `_generate_visualization()` 함수에 레짐 차트 생성 추가
    - `regime_chart_path` 결과에 추가
+   - **equity_curve 데이터 전달 추가** ✅
 
 3. **web/templates/dashboard.html** ✅
    - `backtest-regime-chart` 컨테이너 추가
@@ -90,6 +93,7 @@ def create_regime_chart(
     self,
     df: pd.DataFrame,
     trades: list[dict] | None = None,
+    equity_curve: list[dict] | None = None,
     output_path: str | None = None,
     title: str = "Regime Analysis Chart",
 ) -> str | None:
@@ -98,6 +102,7 @@ def create_regime_chart(
     Args:
         df: OHLCV + 지표 데이터프레임
         trades: 매매 내역 (선택)
+        equity_curve: 수익 곡선 데이터 [{'date': str, 'equity': float}, ...]
         output_path: 저장 경로 (선택)
         title: 차트 제목
 

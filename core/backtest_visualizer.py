@@ -398,13 +398,14 @@ class BacktestVisualizer:
         self,
         df: pd.DataFrame,
         trades: Optional[List[dict]] = None,
+        equity_curve: Optional[List[dict]] = None,
         output_path: Optional[str] = None,
         title: str = "Regime Analysis Chart",
     ) -> Optional[str]:
         """Create mplfinance-based regime analysis chart.
 
         Generates a compact 3-panel chart:
-        - Main panel: Candlestick + EMA200 + Bollinger Bands + trade markers
+        - Main panel: Candlestick + EMA200 + Bollinger Bands + trade markers + equity overlay
         - Panel 2: MFI + ADX overlay
         - Panel 3: Volume + Regime color background
 
@@ -413,6 +414,7 @@ class BacktestVisualizer:
                 Required: open, high, low, close, volume
                 Optional: ema_200, bb_upper, bb_lower, mfi, adx, regime
             trades: List of trade dicts with 'timestamp', 'action', 'price'
+            equity_curve: List of dicts with 'date' and 'equity' for profit overlay
             output_path: Path to save chart. Auto-generated if None.
             title: Chart title.
 
@@ -489,6 +491,32 @@ class BacktestVisualizer:
                     sell_signals, panel=0, type='scatter',
                     marker='v', markersize=100, color='#F44336'
                 ))
+
+        # Add equity curve overlay (cumulative return %)
+        has_equity = False
+        if equity_curve and len(equity_curve) > 0:
+            try:
+                equity_df = pd.DataFrame(equity_curve)
+                equity_df['date'] = pd.to_datetime(equity_df['date'])
+                equity_df.set_index('date', inplace=True)
+
+                # Calculate cumulative return percentage
+                initial_equity = equity_df['equity'].iloc[0]
+                if initial_equity > 0:
+                    equity_df['return_pct'] = ((equity_df['equity'] / initial_equity) - 1) * 100
+
+                    # Align with price data index (forward fill for missing dates)
+                    aligned_returns = equity_df['return_pct'].reindex(df.index, method='ffill')
+                    aligned_returns = aligned_returns.fillna(0)
+
+                    # Add as secondary y-axis overlay on main panel
+                    addplots.append(mpf.make_addplot(
+                        aligned_returns, panel=0, color='#E91E63', width=1.5,
+                        linestyle='-', secondary_y=True, ylabel='Return %'
+                    ))
+                    has_equity = True
+            except Exception as e:
+                logger.warning(f"Failed to add equity overlay: {e}")
 
         # Determine panel configuration
         has_mfi_adx = 'mfi' in df.columns or 'adx' in df.columns

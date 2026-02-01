@@ -274,6 +274,7 @@ def _generate_visualization(
                 saved_regime_path = _visualizer.create_regime_chart(
                     price_data,
                     trades=trades_for_chart if trades_for_chart else None,
+                    equity_curve=results.get('equity_curve'),
                     output_path=str(regime_path),
                     title=f"{strategy_id} Regime Analysis"
                 )

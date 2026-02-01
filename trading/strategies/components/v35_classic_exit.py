@@ -6,15 +6,16 @@ No partial exits, no MACD, no complex conditions.
 
 Philosophy: Simple exit rules with room to breathe.
 """
-
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketData, Position, Signal, TradingContext
+from .base_exit import BaseExitStrategy
+from .models import Position, Signal, TradingContext
 from .registry import exit_strategy
+from trading.utils.pnl import calculate_pnl_pct, calculate_hwm_pnl_pct
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ class V35ClassicExitParams:
 
 
 @exit_strategy(params_class=V35ClassicExitParams)
-class V35ClassicExitStrategy:
+class V35ClassicExitStrategy(BaseExitStrategy):
     """V35 Classic exit strategy - simple and effective.
 
     Exit conditions (checked in order):
@@ -62,11 +63,16 @@ class V35ClassicExitStrategy:
     4. Regime Change: Exit on bearish MFI if in profit
 
     No partial exits. Full position exit only.
+
+    Inherits from BaseExitStrategy for common functionality:
+    - High water mark tracking
+    - PnL calculations
+    - State management
     """
 
     def __init__(self, params: V35ClassicExitParams | None = None):
+        super().__init__()
         self.params = params or V35ClassicExitParams()
-        self._high_water_marks: dict[str, float] = {}
 
     def check_exit(self, ctx: TradingContext, position: Position) -> Signal | None:
         """Check exit conditions.
@@ -81,38 +87,34 @@ class V35ClassicExitStrategy:
         market_data = ctx.market
         p = self.params
         symbol = position.symbol
-
-        close = market_data.close
         entry = position.entry_price
 
         if entry <= 0:
             return None
 
-        # Calculate PnL percentage
-        pnl_pct = ((close - entry) / entry) * 100
+        close = market_data.close
+        key = self._get_position_key(position)
 
-        # Update high water mark
-        key = f"{symbol}:{position.strategy}"
-        hwm = self._high_water_marks.get(key, entry)
-        if close > hwm:
-            hwm = close
-            self._high_water_marks[key] = hwm
+        # Calculate PnL using utility
+        pnl_pct = calculate_pnl_pct(close, entry, "long")
 
-        hwm_pnl = ((hwm - entry) / entry) * 100
+        # Update high water mark using base class method
+        hwm = self._update_hwm(key, close, entry)
+        hwm_pnl = calculate_hwm_pnl_pct(hwm, entry)
 
         # === EXIT 1: Stop Loss ===
         if pnl_pct <= -p.stop_loss_pct:
             reason = f"V35Classic: Stop loss {pnl_pct:.2f}% (limit: -{p.stop_loss_pct:.1f}%)"
             logger.info(f"{symbol}: {reason}")
-            self._clear_state(symbol, position.strategy)
-            return self._create_exit_signal(symbol, reason)
+            self._clear_state(key)
+            return self._create_exit_signal(position, reason)
 
         # === EXIT 2: Take Profit ===
         if pnl_pct >= p.take_profit_pct:
             reason = f"V35Classic: Take profit {pnl_pct:.2f}% (target: +{p.take_profit_pct:.1f}%)"
             logger.info(f"{symbol}: {reason}")
-            self._clear_state(symbol, position.strategy)
-            return self._create_exit_signal(symbol, reason)
+            self._clear_state(key)
+            return self._create_exit_signal(position, reason)
 
         # === EXIT 3: Trailing Stop ===
         if p.trailing_enabled and hwm_pnl >= p.trailing_activation:
@@ -124,8 +126,8 @@ class V35ClassicExitStrategy:
                     f"(HWM={hwm_pnl:.1f}%, locked={locked_pnl:.1f}%)"
                 )
                 logger.info(f"{symbol}: {reason}")
-                self._clear_state(symbol, position.strategy)
-                return self._create_exit_signal(symbol, reason)
+                self._clear_state(key)
+                return self._create_exit_signal(position, reason)
 
         # === EXIT 4: Regime Change (Bearish) ===
         if p.regime_exit_enabled and pnl_pct >= p.min_profit_for_regime_exit:
@@ -135,33 +137,17 @@ class V35ClassicExitStrategy:
                     f"(MFI={market_data.mfi:.1f}, profit={pnl_pct:.2f}%)"
                 )
                 logger.info(f"{symbol}: {reason}")
-                self._clear_state(symbol, position.strategy)
-                return self._create_exit_signal(symbol, reason)
+                self._clear_state(key)
+                return self._create_exit_signal(position, reason)
 
         return None
 
-    def _create_exit_signal(self, symbol: str, reason: str) -> Signal:
-        """Create exit signal."""
+    def _create_exit_signal(self, position: Position, reason: str) -> Signal:
+        """Create exit signal with correct market from params."""
         return Signal(
-            symbol=symbol,
+            symbol=position.symbol,
             side="sell",
             market=self.params.market,
             quantity=1.0,  # Full exit
             reason=reason,
         )
-
-    def _clear_state(self, symbol: str, strategy: str) -> None:
-        """Clear state for position."""
-        key = f"{symbol}:{strategy}"
-        self._high_water_marks.pop(key, None)
-
-    def on_position_opened(self, position: Position) -> None:
-        """Called when a new position is opened."""
-        key = f"{position.symbol}:{position.strategy}"
-        self._high_water_marks[key] = position.entry_price
-
-    def on_position_closed(self, symbol: str) -> None:
-        """Called when a position is closed."""
-        keys_to_remove = [k for k in self._high_water_marks if k.startswith(f"{symbol}:")]
-        for k in keys_to_remove:
-            self._high_water_marks.pop(k, None)

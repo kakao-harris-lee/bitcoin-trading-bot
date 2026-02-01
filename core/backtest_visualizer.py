@@ -438,6 +438,44 @@ class BacktestVisualizer:
             logger.warning("DataFrame needs timestamp column or DatetimeIndex")
             return None
 
+        # Resample to daily if data is too dense (> 1000 points)
+        if len(df) > 1000:
+            logger.info(f"Resampling {len(df)} data points to daily for better visibility")
+            # OHLCV aggregation rules
+            ohlcv_agg = {
+                'open': 'first',
+                'high': 'max',
+                'low': 'min',
+                'close': 'last',
+                'volume': 'sum',
+            }
+            # Indicator aggregation (use last value of day)
+            indicator_cols = ['mfi', 'adx', 'bb_upper', 'bb_lower', 'bb_middle',
+                              'ema_200', 'macd', 'macd_signal', 'regime']
+            indicator_agg = {col: 'last' for col in indicator_cols if col in df.columns}
+
+            agg_dict = {**ohlcv_agg, **indicator_agg}
+            # Only include columns that exist
+            agg_dict = {k: v for k, v in agg_dict.items() if k in df.columns}
+
+            df = df.resample('D').agg(agg_dict).dropna(subset=['close'])
+
+            # Also aggregate trades to daily level
+            if trades:
+                daily_trades = {}
+                for t in trades:
+                    ts = pd.to_datetime(t.get('timestamp'))
+                    day = ts.normalize()  # Start of day
+                    action = t.get('action', '').lower()
+                    price = t.get('price', 0)
+                    # Keep first buy/sell of each day
+                    key = (day, action)
+                    if key not in daily_trades:
+                        daily_trades[key] = {'timestamp': day, 'action': action, 'price': price}
+                trades = list(daily_trades.values())
+
+            logger.info(f"Resampled to {len(df)} daily bars")
+
         # Validate required columns
         required_cols = ['open', 'high', 'low', 'close', 'volume']
         # Handle case-insensitive column names

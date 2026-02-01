@@ -531,13 +531,16 @@ class BacktestVisualizer:
                 equity_df = pd.DataFrame(equity_curve)
                 equity_df['date'] = pd.to_datetime(equity_df['date']).dt.date
 
+                # Aggregate to daily: take last equity value of each day
+                daily_equity = equity_df.groupby('date')['equity'].last().reset_index()
+
                 # Calculate cumulative return percentage
-                initial_equity = equity_df['equity'].iloc[0]
+                initial_equity = daily_equity['equity'].iloc[0]
                 if initial_equity > 0:
-                    equity_df['return_pct'] = ((equity_df['equity'] / initial_equity) - 1) * 100
+                    daily_equity['return_pct'] = ((daily_equity['equity'] / initial_equity) - 1) * 100
 
                     # Create date-to-return mapping
-                    date_to_return = dict(zip(equity_df['date'], equity_df['return_pct']))
+                    date_to_return = dict(zip(daily_equity['date'], daily_equity['return_pct']))
 
                     # Map each price bar's date to the corresponding return %
                     # Handle both datetime index and timestamp column

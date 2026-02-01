@@ -16,6 +16,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
+from .base_exit import BaseExitStrategy
 from .models import MarketData, Position, Signal, TradingContext
 from .registry import exit_strategy
 from trading.utils.pnl import calculate_pnl_pct, calculate_hwm_pnl_pct
@@ -84,7 +85,7 @@ class V35ExitParams:
 
 
 @exit_strategy(params_class=V35ExitParams)
-class V35TrailingExitStrategy:
+class V35TrailingExitStrategy(BaseExitStrategy):
     """V35 Exit strategy with partial exits and optional trailing stop.
 
     Exit conditions (checked in order):
@@ -100,12 +101,15 @@ class V35TrailingExitStrategy:
     - -87% total loss from this exit type
     - Trades perform better when allowed to run to TP or MACD exit
 
-    State:
-    - high_water_mark: Tracks highest price since position opened
-    - partial_exits: Tracks number of partial exits taken (0-2)
-    - entry_market_state: Market state when position was opened
+    State (inherited from BaseExitStrategy):
+    - _high_water_marks: Tracks highest price since position opened
+    - _exit_stages: Tracks partial exit stage (maps to _partial_exits)
 
-    Implements IExitStrategy protocol (structural subtyping).
+    Additional state:
+    - _entry_market_state: Market state when position was opened
+    - _initial_quantity: Original position quantity for partial exit calculation
+
+    Inherits from BaseExitStrategy for common functionality.
     """
 
     def __init__(self, params: V35ExitParams | None = None):
@@ -114,10 +118,9 @@ class V35TrailingExitStrategy:
         Args:
             params: Exit parameters. Uses defaults if not provided.
         """
+        super().__init__()
         self.params = params or V35ExitParams()
-        # Track state per symbol
-        self._high_water_mark: dict[str, float] = {}
-        self._partial_exits: dict[str, int] = {}
+        # Additional state not provided by base class
         self._entry_market_state: dict[str, str] = {}
         self._initial_quantity: dict[str, float] = {}
 
@@ -135,9 +138,8 @@ class V35TrailingExitStrategy:
         Returns:
             Signal to close position (full or partial), or None to hold.
         """
-        # Extract market_data from TradingContext
         market_data = ctx.market
-
+        key = self._get_position_key(position)
         symbol = position.symbol
         entry_price = position.entry_price
         quantity = position.quantity
@@ -153,8 +155,7 @@ class V35TrailingExitStrategy:
 
         # Update high water mark using the HIGH price (true peak)
         check_price = market_data.high if market_data.high > 0 else current_price
-        self._update_high_water_mark(symbol, check_price)
-        hwm = self._high_water_mark.get(symbol, entry_price)
+        hwm = self._update_hwm(key, check_price, entry_price)
         hwm_pnl = calculate_hwm_pnl_pct(hwm, entry_price)
 
         # Exit condition 1: Stop loss (fixed or ATR-based)
@@ -171,13 +172,11 @@ class V35TrailingExitStrategy:
         if pnl_pct <= -effective_stop_pct:
             reason = f"V35 exit: Stop loss {pnl_pct:.2f}% (limit: -{effective_stop_pct:.1f}%)"
             logger.info(f"{symbol}: {reason}")
-            self._clear_state(symbol)
-            return self._create_exit_signal(position, reason, quantity)
+            self._clear_all_state(key)
+            return self._create_exit_signal(position, reason)
 
         # Exit condition 2: Partial take profits
-        partial_signal = self._check_partial_exit(
-            position, market_data, pnl_pct
-        )
+        partial_signal = self._check_partial_exit(position, market_data, pnl_pct, key)
         if partial_signal:
             return partial_signal
 
@@ -186,8 +185,8 @@ class V35TrailingExitStrategy:
             if market_data.macd < market_data.macd_signal:
                 reason = f"V35 exit: MACD dead cross {pnl_pct:.2f}%"
                 logger.info(f"{symbol}: {reason}")
-                self._clear_state(symbol)
-                return self._create_exit_signal(position, reason, quantity)
+                self._clear_all_state(key)
+                return self._create_exit_signal(position, reason)
 
         # Exit condition 4: Trailing stop (if enabled)
         if p.trailing_enabled and hwm_pnl >= p.trailing_activation:
@@ -196,10 +195,8 @@ class V35TrailingExitStrategy:
                 locked_pnl = ((trailing_stop_price - entry_price) / entry_price) * 100
                 reason = f"V35 exit: Trailing stop {locked_pnl:.2f}% (HWM={hwm_pnl:.2f}%)"
                 logger.info(f"{symbol}: {reason}")
-                self._clear_state(symbol)
-                return self._create_exit_signal(
-                    position, reason, quantity, trailing_stop_price
-                )
+                self._clear_all_state(key)
+                return self._create_exit_signal(position, reason)
 
         # NOTE: Regime change exit is intentionally DISABLED
         # See class docstring for analysis showing it hurts performance
@@ -211,6 +208,7 @@ class V35TrailingExitStrategy:
         position: Position,
         market_data: MarketData,
         pnl_pct: float,
+        key: str,
     ) -> Signal | None:
         """Check for partial take profit exit.
 
@@ -220,6 +218,7 @@ class V35TrailingExitStrategy:
             position: Current position.
             market_data: Current market state.
             pnl_pct: Current P&L percentage.
+            key: Position key for state tracking.
 
         Returns:
             Partial exit signal or None.
@@ -227,22 +226,22 @@ class V35TrailingExitStrategy:
         symbol = position.symbol
         p = self.params
 
-        # Get current partial exit count
-        partial_count = self._partial_exits.get(symbol, 0)
+        # Get current partial exit count (using base class exit_stages)
+        partial_count = self._get_exit_stage(key)
         if partial_count >= 3:
             return None  # All partials taken
 
         # Get TP levels based on entry market state
-        market_state = self._entry_market_state.get(symbol, "SIDEWAYS")
+        market_state = self._entry_market_state.get(key, "SIDEWAYS")
         tp_levels = self._get_tp_levels(market_state)
 
         # Check if we should take a partial exit
         for level, (tp_pct, fraction) in enumerate(tp_levels):
             if level == partial_count and pnl_pct >= tp_pct:
-                self._partial_exits[symbol] = partial_count + 1
+                self._set_exit_stage(key, partial_count + 1)
 
                 # Calculate exit quantity
-                initial_qty = self._initial_quantity.get(symbol, position.quantity)
+                initial_qty = self._initial_quantity.get(key, position.quantity)
                 exit_qty = initial_qty * fraction
 
                 # Don't exit more than remaining
@@ -253,9 +252,9 @@ class V35TrailingExitStrategy:
 
                 # If this is the last partial, clear state
                 if partial_count + 1 >= 3:
-                    self._clear_state(symbol)
+                    self._clear_all_state(key)
 
-                return self._create_exit_signal(position, reason, exit_qty)
+                return self._create_exit_signal(position, reason, quantity=exit_qty)
 
         return None
 
@@ -291,6 +290,18 @@ class V35TrailingExitStrategy:
                 (p.tp_sideways_3, p.exit_fraction_3),
             ]
 
+    def _clear_all_state(self, key: str) -> None:
+        """Clear all state for a position including V35-specific state.
+
+        Args:
+            key: Position key to clear.
+        """
+        # Clear base class state
+        self._clear_state(key)
+        # Clear V35-specific state
+        self._entry_market_state.pop(key, None)
+        self._initial_quantity.pop(key, None)
+
     def on_position_opened(self, position: Position) -> None:
         """Initialize state when position is opened.
 
@@ -299,10 +310,11 @@ class V35TrailingExitStrategy:
         Args:
             position: The newly opened position.
         """
-        symbol = position.symbol
-        self._high_water_mark[symbol] = position.entry_price
-        self._partial_exits[symbol] = 0
-        self._initial_quantity[symbol] = position.quantity
+        # Initialize base class state
+        super().on_position_opened(position)
+
+        key = self._get_position_key(position)
+        self._initial_quantity[key] = position.quantity
 
         # Determine market state from position reason if available
         market_state = "SIDEWAYS"  # Default
@@ -314,10 +326,10 @@ class V35TrailingExitStrategy:
         elif "SIDEWAYS" in reason or "BREAKOUT" in reason or "RANGE" in reason:
             market_state = "SIDEWAYS"
 
-        self._entry_market_state[symbol] = market_state
+        self._entry_market_state[key] = market_state
 
         logger.debug(
-            f"{symbol}: Position opened at {position.entry_price:.2f}, "
+            f"{position.symbol}: Position opened at {position.entry_price:.2f}, "
             f"market_state={market_state}, HWM initialized"
         )
 
@@ -327,71 +339,23 @@ class V35TrailingExitStrategy:
         Args:
             symbol: The symbol whose position was closed.
         """
-        self._clear_state(symbol)
+        # Clear V35-specific state for all matching keys
+        keys_to_clear = [k for k in self._entry_market_state if k.startswith(f"{symbol}:")]
+        for k in keys_to_clear:
+            self._entry_market_state.pop(k, None)
+            self._initial_quantity.pop(k, None)
+
+        # Clear base class state
+        super().on_position_closed(symbol)
+
         logger.debug(f"{symbol}: Position closed, state cleared")
-
-    def _update_high_water_mark(self, symbol: str, current_price: float) -> None:
-        """Update high water mark if current price is higher.
-
-        Args:
-            symbol: Trading symbol.
-            current_price: Current market price (or high).
-        """
-        if symbol not in self._high_water_mark:
-            self._high_water_mark[symbol] = current_price
-        else:
-            old_hwm = self._high_water_mark[symbol]
-            new_hwm = max(old_hwm, current_price)
-            if new_hwm > old_hwm:
-                logger.debug(
-                    f"{symbol}: HWM updated {old_hwm:.2f} -> {new_hwm:.2f}"
-                )
-            self._high_water_mark[symbol] = new_hwm
-
-    def _clear_state(self, symbol: str) -> None:
-        """Clear all state for symbol.
-
-        Args:
-            symbol: Trading symbol.
-        """
-        self._high_water_mark.pop(symbol, None)
-        self._partial_exits.pop(symbol, None)
-        self._entry_market_state.pop(symbol, None)
-        self._initial_quantity.pop(symbol, None)
-
-    def _create_exit_signal(
-        self,
-        position: Position,
-        reason: str,
-        quantity: float,
-        trigger_price: float | None = None,
-    ) -> Signal:
-        """Create exit signal for position.
-
-        Args:
-            position: Position to close.
-            reason: Exit reason for logging.
-            quantity: Quantity to exit.
-            trigger_price: Optional trigger price for trailing stop.
-
-        Returns:
-            Signal to close the position.
-        """
-        return Signal(
-            symbol=position.symbol,
-            side="sell",
-            market=position.market,
-            quantity=quantity,
-            reason=reason,
-            trigger_price=trigger_price,
-        )
 
     @property
     def high_water_mark(self) -> dict[str, float]:
         """Get current high water marks (read-only view)."""
-        return self._high_water_mark.copy()
+        return self._high_water_marks.copy()
 
     @property
     def partial_exits(self) -> dict[str, int]:
         """Get current partial exit counts (read-only view)."""
-        return self._partial_exits.copy()
+        return self._exit_stages.copy()

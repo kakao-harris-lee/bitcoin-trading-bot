@@ -115,7 +115,7 @@ class TestBuildParamsFromConfig:
 
         assert params.mfi_bull_strong == 54.0
         assert params.position_size == 0.5
-        assert params.market == "futures"
+        assert params.market == "spot"  # Default is spot for V35 strategies
 
     def test_build_with_partial_config(self):
         """Test building params with partial config."""

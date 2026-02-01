@@ -933,86 +933,82 @@ def _run_generic_backtest(
         with open(allocation_path, 'r') as f:
             allocation = json.load(f)
         strategy_config = allocation.get('strategies', {}).get(strategy_id, {})
-        # Pass relevant config params to adapter (regime filtering, etc.)
-        config = {
-            'regime_version': strategy_config.get('regime_version', 'v1'),
-            # Position sizing: fraction of capital to use per trade
-            'position_size': strategy_config.get('position_size', 0.5),
-            'position_pct': strategy_config.get('position_pct', 0.3),
-            'dynamic_sizing': strategy_config.get('dynamic_sizing', False),
-            # Core hold overlay (optional)
-            'core_hold_pct': strategy_config.get('core_hold_pct', 0.0),
-            'core_exit_on_ema200': strategy_config.get('core_exit_on_ema200', False),
-            'core_ema_hours': strategy_config.get('core_ema_hours', 0),
-            'core_ema_timeframe': strategy_config.get('core_ema_timeframe', ''),
-            'core_ema_span': strategy_config.get('core_ema_span', 0),
-            'core_reentry_on_ema200': strategy_config.get('core_reentry_on_ema200', True),
-            'core_fee_rate': strategy_config.get('core_fee_rate', fee_rate),
-            'core_slippage': strategy_config.get('core_slippage', slippage),
-            'core_drawdown_exit_pct': strategy_config.get('core_drawdown_exit_pct', 0.0),
-            'core_drawdown_reentry_pct': strategy_config.get('core_drawdown_reentry_pct', 0.0),
-            # Entry filters
-            'use_breakout_filter': strategy_config.get('use_breakout_filter', True),
-            'bbw_block_threshold': strategy_config.get('bbw_block_threshold', 25),
-            'bbw_confirm_threshold': strategy_config.get('bbw_confirm_threshold', 50),
-            'volume_block_ratio': strategy_config.get('volume_block_ratio', 0.8),
-            'volume_boost_ratio': strategy_config.get('volume_boost_ratio', 1.2),
-            'mtf_enabled': strategy_config.get('mtf_enabled', True),
-            # Stop loss cooldown: candles to wait after stop loss before re-entry
-            'stop_loss_cooldown': strategy_config.get('stop_loss_cooldown', 24),
-            # Trailing stop settings
-            'trailing_enabled': strategy_config.get('trailing_enabled', False),
-            'trailing_activation': strategy_config.get('trailing_activation', 3.0),
-            'trailing_distance': strategy_config.get('trailing_distance', 2.0),
-            # ATR-based dynamic stop loss
-            'atr_stop_enabled': strategy_config.get('atr_stop_enabled', False),
-            'atr_stop_multiplier': strategy_config.get('atr_stop_multiplier', 2.0),
-            'atr_stop_min_pct': strategy_config.get('atr_stop_min_pct', 1.5),
-            'atr_stop_max_pct': strategy_config.get('atr_stop_max_pct', 4.0),
-            # Dynamic leverage based on regime confidence
-            'dynamic_leverage': strategy_config.get('dynamic_leverage', False),
-            'leverage_bull_strong': strategy_config.get('leverage_bull_strong', 3.0),
-            'leverage_bull_moderate': strategy_config.get('leverage_bull_moderate', 2.0),
-            'leverage_sideways': strategy_config.get('leverage_sideways', 1.0),
-            'leverage_bear': strategy_config.get('leverage_bear', 0.0),
-            # Cash strategy: no trading in unfavorable conditions
-            'cash_in_bear': strategy_config.get('cash_in_bear', False),
-            'cash_below_ema200': strategy_config.get('cash_below_ema200', False),
-            # Consecutive loss prevention
-            'max_consecutive_losses': strategy_config.get('max_consecutive_losses', 3),
-            'loss_pause_candles': strategy_config.get('loss_pause_candles', 48),
-            # Dynamic drawdown response
-            'drawdown_enabled': strategy_config.get('drawdown_enabled', True),
-            'drawdown_warning_pct': strategy_config.get('drawdown_warning_pct', 8.0),
-            'drawdown_reduce_pct': strategy_config.get('drawdown_reduce_pct', 10.0),
-            'drawdown_exit_pct': strategy_config.get('drawdown_exit_pct', 12.0),
-            'drawdown_leverage_reduction': strategy_config.get('drawdown_leverage_reduction', 0.5),
-            'drawdown_partial_exit_fraction': strategy_config.get('drawdown_partial_exit_fraction', 0.5),
-            # V2 filter exit for existing positions
-            'v2_exit_on_filter': strategy_config.get('v2_exit_on_filter', False),
-            # Bull probability filter (MFI-based): block entry if MFI/100 < threshold
-            'bull_prob_threshold': strategy_config.get('bull_prob_threshold', 0.0),
-            # MA120 panic sell: force exit AND block entry when price < EMA120
-            'panic_sell_below_ma120': strategy_config.get('panic_sell_below_ma120', False),
-            # Probability-based leverage: adjust leverage based on MFI
-            'prob_leverage_enabled': strategy_config.get('prob_leverage_enabled', False),
-            'prob_leverage_max': strategy_config.get('prob_leverage_max', 3.0),
-            'prob_leverage_high': strategy_config.get('prob_leverage_high', 2.5),
-            'prob_leverage_mid': strategy_config.get('prob_leverage_mid', 2.0),
-            'prob_leverage_low': strategy_config.get('prob_leverage_low', 1.0),
-            'prob_leverage_min': strategy_config.get('prob_leverage_min', 0.5),
-            # RF probability: use actual RF confidence instead of MFI proxy
-            'use_rf_probability': strategy_config.get('use_rf_probability', False),
-            'lstm_model_path': strategy_config.get('lstm_model_path', 'lstm_trainer/models/hybrid_lstm.pth'),
-            'rf_model_path': strategy_config.get('rf_model_path', 'lstm_trainer/models/noise_filter_rf.pkl'),
-            # Dynamic position sizing based on RF confidence
-            'dynamic_position_sizing': strategy_config.get('dynamic_position_sizing', False),
-            'position_size_high': strategy_config.get('position_size_high', 0.30),
-            'position_size_mid': strategy_config.get('position_size_mid', 0.15),
-            'position_size_low': strategy_config.get('position_size_low', 0.05),
-            'position_conf_low': strategy_config.get('position_conf_low', 0.50),
-            'position_conf_high': strategy_config.get('position_conf_high', 0.70),
+
+        # CRITICAL: Pass ALL strategy config params to adapter
+        # This ensures strategy-specific parameters (mfi_bull_strong, position_size_bull_strong,
+        # stop_loss_pct, take_profit_pct, etc.) are correctly passed to Entry/Exit components.
+        # Start with full strategy_config, then apply adapter-specific defaults.
+        config = dict(strategy_config)  # Copy all strategy params
+
+        # Apply adapter-specific defaults for params not in strategy_config
+        adapter_defaults = {
+            'regime_version': 'v1',
+            'position_size': 0.5,
+            'position_pct': 0.3,
+            'dynamic_sizing': False,
+            'core_hold_pct': 0.0,
+            'core_exit_on_ema200': False,
+            'core_ema_hours': 0,
+            'core_ema_timeframe': '',
+            'core_ema_span': 0,
+            'core_reentry_on_ema200': True,
+            'core_fee_rate': fee_rate,
+            'core_slippage': slippage,
+            'core_drawdown_exit_pct': 0.0,
+            'core_drawdown_reentry_pct': 0.0,
+            'use_breakout_filter': True,
+            'bbw_block_threshold': 25,
+            'bbw_confirm_threshold': 50,
+            'volume_block_ratio': 0.8,
+            'volume_boost_ratio': 1.2,
+            'mtf_enabled': True,
+            'stop_loss_cooldown': 24,
+            'trailing_enabled': False,
+            'trailing_activation': 3.0,
+            'trailing_distance': 2.0,
+            'atr_stop_enabled': False,
+            'atr_stop_multiplier': 2.0,
+            'atr_stop_min_pct': 1.5,
+            'atr_stop_max_pct': 4.0,
+            'dynamic_leverage': False,
+            'leverage_bull_strong': 3.0,
+            'leverage_bull_moderate': 2.0,
+            'leverage_sideways': 1.0,
+            'leverage_bear': 0.0,
+            'cash_in_bear': False,
+            'cash_below_ema200': False,
+            'max_consecutive_losses': 3,
+            'loss_pause_candles': 48,
+            'drawdown_enabled': True,
+            'drawdown_warning_pct': 8.0,
+            'drawdown_reduce_pct': 10.0,
+            'drawdown_exit_pct': 12.0,
+            'drawdown_leverage_reduction': 0.5,
+            'drawdown_partial_exit_fraction': 0.5,
+            'v2_exit_on_filter': False,
+            'bull_prob_threshold': 0.0,
+            'panic_sell_below_ma120': False,
+            'prob_leverage_enabled': False,
+            'prob_leverage_max': 3.0,
+            'prob_leverage_high': 2.5,
+            'prob_leverage_mid': 2.0,
+            'prob_leverage_low': 1.0,
+            'prob_leverage_min': 0.5,
+            'use_rf_probability': False,
+            'lstm_model_path': 'lstm_trainer/models/hybrid_lstm.pth',
+            'rf_model_path': 'lstm_trainer/models/noise_filter_rf.pkl',
+            'dynamic_position_sizing': False,
+            'position_size_high': 0.30,
+            'position_size_mid': 0.15,
+            'position_size_low': 0.05,
+            'position_conf_low': 0.50,
+            'position_conf_high': 0.70,
         }
+        # Apply defaults only for missing keys
+        for key, default_val in adapter_defaults.items():
+            if key not in config:
+                config[key] = default_val
+
         # Also merge defaults from allocation if present
         defaults = allocation.get('defaults', {}).get('regime_v2', {})
         for key in ['bbw_block_threshold', 'bbw_confirm_threshold', 'volume_block_ratio', 'volume_boost_ratio', 'mtf_enabled']:

@@ -2591,6 +2591,9 @@ function renderBacktestResults(result) {
     // Render chart image if available
     renderBacktestChartImage(result.chart_path);
 
+    // Render regime analysis chart if available
+    renderBacktestRegimeChart(result.regime_chart_path);
+
     // Render MLflow link if available
     renderMLflowLink(result.mlflow_run_id, result.mlflow_url);
 
@@ -2609,6 +2612,23 @@ function renderBacktestChartImage(chartPath) {
             <h4>Strategy vs Benchmark Chart</h4>
             <img src="${chartPath}" alt="Backtest Chart">
             <a href="${chartPath}" target="_blank" class="download-link">Open Full Size</a>
+        `;
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function renderBacktestRegimeChart(regimeChartPath) {
+    const container = document.getElementById('backtest-regime-chart');
+    if (!container) return;
+
+    if (regimeChartPath) {
+        container.innerHTML = `
+            <h4>Regime Analysis Chart</h4>
+            <p class="chart-description">MFI/ADX indicators with regime background coloring</p>
+            <img src="${regimeChartPath}" alt="Regime Analysis Chart">
+            <a href="${regimeChartPath}" target="_blank" class="download-link">Open Full Size</a>
         `;
         container.style.display = 'block';
     } else {

@@ -1,4 +1,7 @@
-"""Backtest visualization with dual-axis charts for strategy vs benchmark comparison."""
+"""Backtest visualization with dual-axis charts for strategy vs benchmark comparison.
+
+Includes mplfinance-based regime charts for indicator analysis.
+"""
 
 import logging
 import re
@@ -9,12 +12,32 @@ import matplotlib
 matplotlib.use('Agg')  # Use thread-safe backend before importing pyplot
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import numpy as np
 import pandas as pd
+
+try:
+    import mplfinance as mpf
+    HAS_MPLFINANCE = True
+except ImportError:
+    HAS_MPLFINANCE = False
 
 from core.backtest_config import VisualizationConfig
 from core.backtest_result import BacktestResult
 
 logger = logging.getLogger(__name__)
+
+# Regime color mapping for visualization
+REGIME_COLORS = {
+    'BULL_STRONG': '#4CAF50',     # Dark green
+    'BULL_MODERATE': '#81C784',   # Light green
+    'SIDEWAYS_UP': '#B0BEC5',     # Light gray-green
+    'SIDEWAYS_FLAT': '#90A4AE',   # Gray
+    'SIDEWAYS_DOWN': '#FFAB91',   # Light gray-red
+    'BEAR_MODERATE': '#EF5350',   # Light red
+    'BEAR_STRONG': '#C62828',     # Dark red
+    'UNKNOWN': '#9E9E9E',         # Gray
+}
 
 # Allowed output formats for chart generation
 ALLOWED_FORMATS = {"png", "svg", "pdf", "jpg", "jpeg"}
@@ -370,3 +393,312 @@ class BacktestVisualizer:
 
         logger.info(f"Comparison chart saved to: {safe_path}")
         return str(safe_path)
+
+    def create_regime_chart(
+        self,
+        df: pd.DataFrame,
+        trades: Optional[List[dict]] = None,
+        output_path: Optional[str] = None,
+        title: str = "Regime Analysis Chart",
+    ) -> Optional[str]:
+        """Create mplfinance-based regime analysis chart.
+
+        Generates a compact 3-panel chart:
+        - Main panel: Candlestick + EMA200 + Bollinger Bands + trade markers
+        - Panel 2: MFI + ADX overlay
+        - Panel 3: Volume + Regime color background
+
+        Args:
+            df: DataFrame with OHLCV and indicator columns.
+                Required: open, high, low, close, volume
+                Optional: ema_200, bb_upper, bb_lower, mfi, adx, regime
+            trades: List of trade dicts with 'timestamp', 'action', 'price'
+            output_path: Path to save chart. Auto-generated if None.
+            title: Chart title.
+
+        Returns:
+            Path to saved chart file, or None if generation failed.
+        """
+        if not HAS_MPLFINANCE:
+            logger.error("mplfinance not installed. Run: pip install mplfinance")
+            return None
+
+        if df is None or df.empty:
+            logger.warning("No data provided for regime chart")
+            return None
+
+        # Ensure DataFrame has DatetimeIndex for mplfinance
+        df = df.copy()
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df.set_index('timestamp', inplace=True)
+        elif not isinstance(df.index, pd.DatetimeIndex):
+            logger.warning("DataFrame needs timestamp column or DatetimeIndex")
+            return None
+
+        # Validate required columns
+        required_cols = ['open', 'high', 'low', 'close', 'volume']
+        # Handle case-insensitive column names
+        col_map = {c.lower(): c for c in df.columns}
+        for req in required_cols:
+            if req not in col_map:
+                logger.warning(f"Missing required column: {req}")
+                return None
+
+        # Normalize column names to lowercase
+        df.columns = df.columns.str.lower()
+
+        # Build addplot list for overlays
+        addplots = []
+
+        # === Main Panel (0): EMA200 + Bollinger Bands ===
+        if 'ema_200' in df.columns:
+            addplots.append(mpf.make_addplot(
+                df['ema_200'], panel=0, color='#1565C0', width=1.5,
+                linestyle='-', label='EMA200'
+            ))
+
+        if 'bb_upper' in df.columns and 'bb_lower' in df.columns:
+            addplots.append(mpf.make_addplot(
+                df['bb_upper'], panel=0, color='gray', width=0.8,
+                linestyle='--', alpha=0.7
+            ))
+            addplots.append(mpf.make_addplot(
+                df['bb_lower'], panel=0, color='gray', width=0.8,
+                linestyle='--', alpha=0.7
+            ))
+            # Fill between BB (using middle as reference)
+            if 'bb_middle' in df.columns:
+                addplots.append(mpf.make_addplot(
+                    df['bb_middle'], panel=0, color='gray', width=0.5,
+                    linestyle=':', alpha=0.5
+                ))
+
+        # Add trade markers if provided
+        if trades:
+            buy_signals = self._create_trade_markers(df, trades, 'buy')
+            sell_signals = self._create_trade_markers(df, trades, 'sell')
+
+            if buy_signals is not None and not buy_signals.isna().all():
+                addplots.append(mpf.make_addplot(
+                    buy_signals, panel=0, type='scatter',
+                    marker='^', markersize=100, color='#4CAF50'
+                ))
+            if sell_signals is not None and not sell_signals.isna().all():
+                addplots.append(mpf.make_addplot(
+                    sell_signals, panel=0, type='scatter',
+                    marker='v', markersize=100, color='#F44336'
+                ))
+
+        # Determine panel configuration
+        has_mfi_adx = 'mfi' in df.columns or 'adx' in df.columns
+
+        # === Panel 1: MFI + ADX (if available) ===
+        if has_mfi_adx:
+            if 'mfi' in df.columns:
+                addplots.append(mpf.make_addplot(
+                    df['mfi'], panel=1, color='#4CAF50', width=1.2,
+                    ylabel='MFI/ADX', ylim=(0, 100)
+                ))
+                # MFI threshold lines (52/48)
+                mfi_upper = pd.Series(52, index=df.index)
+                mfi_lower = pd.Series(48, index=df.index)
+                addplots.append(mpf.make_addplot(
+                    mfi_upper, panel=1, color='green', width=0.5,
+                    linestyle='--', alpha=0.5
+                ))
+                addplots.append(mpf.make_addplot(
+                    mfi_lower, panel=1, color='red', width=0.5,
+                    linestyle='--', alpha=0.5
+                ))
+
+            if 'adx' in df.columns:
+                addplots.append(mpf.make_addplot(
+                    df['adx'], panel=1, color='#FF9800', width=1.2,
+                    secondary_y=False
+                ))
+                # ADX threshold line (20)
+                adx_threshold = pd.Series(20, index=df.index)
+                addplots.append(mpf.make_addplot(
+                    adx_threshold, panel=1, color='orange', width=0.5,
+                    linestyle='--', alpha=0.5
+                ))
+
+            # === Panel 2: Volume (manual) ===
+            # Add volume as manual addplot to get 3-panel layout
+            colors = ['#81C784' if c >= o else '#EF5350'
+                      for c, o in zip(df['close'], df['open'])]
+            addplots.append(mpf.make_addplot(
+                df['volume'], panel=2, type='bar', color=colors,
+                ylabel='Volume'
+            ))
+            panel_ratios = (7, 1.5, 1.5)  # Main, MFI/ADX, Volume
+            use_volume = False  # Disable built-in volume
+        else:
+            # 2-panel layout: Main + Volume
+            panel_ratios = (8, 2)
+            use_volume = True  # Use built-in volume
+
+        # Create custom style
+        mc = mpf.make_marketcolors(
+            up='#4CAF50', down='#F44336',
+            edge='inherit',
+            wick='inherit',
+            volume={'up': '#81C784', 'down': '#EF5350'}
+        )
+        style = mpf.make_mpf_style(
+            base_mpf_style='charles',
+            marketcolors=mc,
+            rc={'font.size': 9}
+        )
+
+        # Generate output path
+        chart_format = self.config.format.lower()
+        if chart_format not in ALLOWED_FORMATS:
+            chart_format = "png"
+
+        if output_path is None:
+            output_path = f"regime_chart.{chart_format}"
+
+        try:
+            safe_path = _validate_output_path(output_path)
+        except ValueError as e:
+            logger.error(f"Invalid output path: {e}")
+            return None
+
+        # Create the chart
+        try:
+            fig, axes = mpf.plot(
+                df,
+                type='candle',
+                style=style,
+                addplot=addplots if addplots else None,
+                volume=use_volume,
+                panel_ratios=panel_ratios,
+                title=title,
+                figsize=(self.config.width, self.config.height),
+                returnfig=True,
+                warn_too_much_data=5000,
+            )
+
+            # Add regime background coloring to volume panel
+            if 'regime' in df.columns:
+                self._add_regime_background(fig, axes, df)
+
+            # Add legend
+            self._add_regime_legend(fig)
+
+            # Save
+            fig.savefig(str(safe_path), dpi=self.config.dpi, format=chart_format,
+                       bbox_inches='tight', facecolor='white')
+            plt.close(fig)
+
+            logger.info(f"Regime chart saved to: {safe_path}")
+            return str(safe_path)
+
+        except Exception as e:
+            logger.error(f"Failed to create regime chart: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def _create_trade_markers(
+        self,
+        df: pd.DataFrame,
+        trades: List[dict],
+        action: str
+    ) -> Optional[pd.Series]:
+        """Create marker series for buy/sell signals.
+
+        Args:
+            df: DataFrame with price data
+            trades: List of trade dicts
+            action: 'buy' or 'sell'
+
+        Returns:
+            Series with marker positions (NaN where no marker)
+        """
+        markers = pd.Series(index=df.index, dtype=float)
+        markers[:] = np.nan
+
+        for trade in trades:
+            trade_action = trade.get('action', '').lower()
+            if action == 'buy' and trade_action in ('buy', 'long', 'entry'):
+                ts = pd.to_datetime(trade.get('timestamp'))
+                if ts in df.index:
+                    # Place marker below candle for buy
+                    markers.loc[ts] = df.loc[ts, 'low'] * 0.995
+            elif action == 'sell' and trade_action in ('sell', 'short', 'exit', 'cover'):
+                ts = pd.to_datetime(trade.get('timestamp'))
+                if ts in df.index:
+                    # Place marker above candle for sell
+                    markers.loc[ts] = df.loc[ts, 'high'] * 1.005
+
+        return markers if not markers.isna().all() else None
+
+    def _add_regime_background(
+        self,
+        fig: plt.Figure,
+        axes: List[plt.Axes],
+        df: pd.DataFrame
+    ) -> None:
+        """Add regime color background to the chart.
+
+        Args:
+            fig: Matplotlib figure
+            axes: List of axes from mplfinance
+            df: DataFrame with regime column
+        """
+        if 'regime' not in df.columns:
+            return
+
+        # Get the main price axis (first one)
+        ax = axes[0]
+
+        # Get x-axis limits in terms of data coordinates
+        xlim = ax.get_xlim()
+
+        # Create regime segments
+        regimes = df['regime'].fillna('UNKNOWN')
+        unique_regimes = regimes.unique()
+
+        # Add vertical spans for each regime change
+        prev_regime = None
+        start_idx = 0
+
+        for i, (idx, regime) in enumerate(regimes.items()):
+            if regime != prev_regime:
+                if prev_regime is not None and i > start_idx:
+                    # Draw span for previous regime
+                    color = REGIME_COLORS.get(prev_regime, REGIME_COLORS['UNKNOWN'])
+                    ax.axvspan(start_idx, i, alpha=0.15, color=color, zorder=0)
+                start_idx = i
+                prev_regime = regime
+
+        # Draw final segment
+        if prev_regime is not None:
+            color = REGIME_COLORS.get(prev_regime, REGIME_COLORS['UNKNOWN'])
+            ax.axvspan(start_idx, len(df), alpha=0.15, color=color, zorder=0)
+
+    def _add_regime_legend(self, fig: plt.Figure) -> None:
+        """Add regime color legend to the figure.
+
+        Args:
+            fig: Matplotlib figure
+        """
+        legend_patches = [
+            mpatches.Patch(color=REGIME_COLORS['BULL_STRONG'], alpha=0.5, label='BULL_STRONG'),
+            mpatches.Patch(color=REGIME_COLORS['BULL_MODERATE'], alpha=0.5, label='BULL_MODERATE'),
+            mpatches.Patch(color=REGIME_COLORS['SIDEWAYS_FLAT'], alpha=0.5, label='SIDEWAYS'),
+            mpatches.Patch(color=REGIME_COLORS['BEAR_MODERATE'], alpha=0.5, label='BEAR_MODERATE'),
+            mpatches.Patch(color=REGIME_COLORS['BEAR_STRONG'], alpha=0.5, label='BEAR_STRONG'),
+        ]
+
+        fig.legend(
+            handles=legend_patches,
+            loc='upper right',
+            fontsize=8,
+            framealpha=0.9,
+            title='Regime',
+            title_fontsize=9
+        )

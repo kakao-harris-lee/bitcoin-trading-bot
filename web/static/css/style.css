@@ -2496,6 +2496,13 @@ footer kbd {
     background: rgba(88, 166, 255, 0.2);
 }
 
+.chart-image-container .chart-description {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    font-style: italic;
+}
+
 /* MLflow Link Container */
 .mlflow-link-container {
     background: var(--bg-tertiary);

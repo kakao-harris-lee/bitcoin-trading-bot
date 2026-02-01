@@ -179,7 +179,7 @@ def _generate_visualization(
     strategy_id: str,
     job_id: str
 ) -> dict:
-    """Generate benchmark chart and log to MLflow.
+    """Generate benchmark chart, regime chart, and log to MLflow.
 
     Args:
         results: Backtest results dict
@@ -188,7 +188,7 @@ def _generate_visualization(
         job_id: Job ID for unique chart filename
 
     Returns:
-        Updated results dict with chart_path, benchmark_curve, and mlflow_run_id
+        Updated results dict with chart_path, regime_chart_path, benchmark_curve, and mlflow_run_id
     """
     try:
         initial_capital = results.get('initial_capital', 10000000)
@@ -222,7 +222,7 @@ def _generate_visualization(
             equity_df['timestamp'] = pd.to_datetime(equity_df['date'])
             equity_df['total_equity'] = equity_df['equity']
 
-            # Generate chart
+            # Generate equity chart
             chart_filename = f"backtest_{strategy_id}_{job_id}.png"
             chart_path = CHART_OUTPUT_DIR / chart_filename
 
@@ -246,6 +246,43 @@ def _generate_visualization(
                 # Store relative path for web serving
                 results['chart_path'] = f"/static/charts/{chart_filename}"
                 logger.info(f"Generated chart: {saved_path}")
+
+        # Generate regime chart (mplfinance-based with indicators)
+        if not price_data.empty and 'close' in price_data.columns:
+            try:
+                regime_filename = f"regime_{strategy_id}_{job_id}.png"
+                regime_path = CHART_OUTPUT_DIR / regime_filename
+
+                # Convert trades to marker format for regime chart
+                trades_for_chart = []
+                raw_trades = results.get('trades', [])
+                for t in raw_trades:
+                    action = t.get('action', '').upper()
+                    if action in ('BUY', 'LONG', 'ENTRY'):
+                        trades_for_chart.append({
+                            'timestamp': t.get('timestamp'),
+                            'action': 'buy',
+                            'price': t.get('price')
+                        })
+                    elif action in ('SELL', 'SHORT', 'EXIT', 'COVER'):
+                        trades_for_chart.append({
+                            'timestamp': t.get('timestamp'),
+                            'action': 'sell',
+                            'price': t.get('price')
+                        })
+
+                saved_regime_path = _visualizer.create_regime_chart(
+                    price_data,
+                    trades=trades_for_chart if trades_for_chart else None,
+                    output_path=str(regime_path),
+                    title=f"{strategy_id} Regime Analysis"
+                )
+
+                if saved_regime_path:
+                    results['regime_chart_path'] = f"/static/charts/{regime_filename}"
+                    logger.info(f"Generated regime chart: {saved_regime_path}")
+            except Exception as e:
+                logger.warning(f"Regime chart generation failed: {e}")
 
         # Log to MLflow
         mlflow_result = {

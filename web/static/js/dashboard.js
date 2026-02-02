@@ -2591,8 +2591,8 @@ function renderBacktestResults(result) {
     // Render chart image if available
     renderBacktestChartImage(result.chart_path);
 
-    // Render regime analysis chart if available
-    renderBacktestRegimeChart(result.regime_chart_path);
+    // Render regime analysis chart if available (with yearly charts for long backtests)
+    renderBacktestRegimeChart(result.regime_chart_path, result.yearly_chart_paths);
 
     // Render MLflow link if available
     renderMLflowLink(result.mlflow_run_id, result.mlflow_url);
@@ -2619,16 +2619,35 @@ function renderBacktestChartImage(chartPath) {
     }
 }
 
-function renderBacktestRegimeChart(regimeChartPath) {
+function renderBacktestRegimeChart(regimeChartPath, yearlyChartPaths) {
     const container = document.getElementById('backtest-regime-chart');
     if (!container) return;
 
     if (regimeChartPath) {
+        let yearlyLinksHtml = '';
+        if (yearlyChartPaths && yearlyChartPaths.length > 0) {
+            const yearLinks = yearlyChartPaths.map(path => {
+                // Extract year from filename (e.g., regime_2024.png -> 2024)
+                const match = path.match(/regime_(\d{4})\.png/);
+                const year = match ? match[1] : path.split('/').pop();
+                return `<a href="${path}" target="_blank" class="yearly-chart-link">${year}</a>`;
+            }).join(' ');
+            yearlyLinksHtml = `
+                <div class="yearly-charts-section">
+                    <span class="yearly-label">Yearly Charts (detailed view):</span>
+                    ${yearLinks}
+                </div>
+            `;
+        }
+
         container.innerHTML = `
             <h4>Regime Analysis Chart</h4>
-            <p class="chart-description">MFI/ADX indicators with regime background coloring</p>
+            <p class="chart-description">Bollinger Bands overlay with trade markers</p>
             <img src="${regimeChartPath}" alt="Regime Analysis Chart">
-            <a href="${regimeChartPath}" target="_blank" class="download-link">Open Full Size</a>
+            <div class="chart-links">
+                <a href="${regimeChartPath}" target="_blank" class="download-link">Open Full Size</a>
+            </div>
+            ${yearlyLinksHtml}
         `;
         container.style.display = 'block';
     } else {

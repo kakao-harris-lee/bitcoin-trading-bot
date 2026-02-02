@@ -491,24 +491,43 @@ class BacktestVisualizer:
         # Build addplot list for overlays
         addplots = []
 
-        # === Main Panel (0): Bollinger Bands ===
-        if 'bb_upper' in df.columns and 'bb_lower' in df.columns:
-            addplots.append(mpf.make_addplot(
-                df['bb_upper'], panel=0, color='gray', width=0.8,
-                linestyle='--', alpha=0.7
-            ))
-            addplots.append(mpf.make_addplot(
-                df['bb_lower'], panel=0, color='gray', width=0.8,
-                linestyle='--', alpha=0.7
-            ))
-            # Fill between BB (using middle as reference)
-            if 'bb_middle' in df.columns:
+        # === Main Panel (0): Bollinger Bands Overlay ===
+        has_bb = 'bb_upper' in df.columns and 'bb_lower' in df.columns
+        if has_bb:
+            bb_upper_valid = df['bb_upper'].notna().sum()
+            bb_lower_valid = df['bb_lower'].notna().sum()
+            logger.info(f"BB columns found: upper={bb_upper_valid} valid, lower={bb_lower_valid} valid")
+
+            if bb_upper_valid > 0 and bb_lower_valid > 0:
+                # Fill NaN with forward fill for continuous lines
+                bb_upper = df['bb_upper'].ffill().bfill()
+                bb_lower = df['bb_lower'].ffill().bfill()
+
+                # Upper band - blue dashed line
                 addplots.append(mpf.make_addplot(
-                    df['bb_middle'], panel=0, color='gray', width=0.5,
-                    linestyle=':', alpha=0.5
+                    bb_upper, panel=0, color='#2196F3', width=1.2,
+                    linestyle='--', alpha=0.9
                 ))
+                # Lower band - blue dashed line
+                addplots.append(mpf.make_addplot(
+                    bb_lower, panel=0, color='#2196F3', width=1.2,
+                    linestyle='--', alpha=0.9
+                ))
+                # Middle band (SMA) - solid blue line
+                if 'bb_middle' in df.columns:
+                    bb_middle = df['bb_middle'].ffill().bfill()
+                    addplots.append(mpf.make_addplot(
+                        bb_middle, panel=0, color='#1976D2', width=1.5,
+                        linestyle='-', alpha=0.9
+                    ))
+                logger.info("Bollinger Bands added to chart")
+            else:
+                logger.warning("BB columns exist but have no valid data")
+        else:
+            logger.info(f"BB columns not found. Available: {list(df.columns)}")
 
         # Add trade markers if provided
+        # Marker size 175 (reduced 30% from 250) with edge color for visibility
         if trades:
             buy_signals = self._create_trade_markers(df, trades, 'buy')
             sell_signals = self._create_trade_markers(df, trades, 'sell')
@@ -516,13 +535,17 @@ class BacktestVisualizer:
             if buy_signals is not None and not buy_signals.isna().all():
                 addplots.append(mpf.make_addplot(
                     buy_signals, panel=0, type='scatter',
-                    marker='^', markersize=100, color='#4CAF50'
+                    marker='^', markersize=175, color='#00E676',
+                    edgecolors='#1B5E20', linewidths=1.2
                 ))
+                logger.info(f"Buy markers: {buy_signals.notna().sum()} signals")
             if sell_signals is not None and not sell_signals.isna().all():
                 addplots.append(mpf.make_addplot(
                     sell_signals, panel=0, type='scatter',
-                    marker='v', markersize=100, color='#F44336'
+                    marker='v', markersize=175, color='#FF5252',
+                    edgecolors='#B71C1C', linewidths=1.2
                 ))
+                logger.info(f"Sell markers: {sell_signals.notna().sum()} signals")
 
         # Add equity curve overlay (cumulative return %)
         has_equity = False
@@ -565,54 +588,10 @@ class BacktestVisualizer:
             except Exception as e:
                 logger.warning(f"Failed to add equity overlay: {e}")
 
-        # Determine panel configuration
-        has_mfi_adx = 'mfi' in df.columns or 'adx' in df.columns
-
-        # === Panel 1: MFI + ADX (if available) ===
-        if has_mfi_adx:
-            if 'mfi' in df.columns:
-                addplots.append(mpf.make_addplot(
-                    df['mfi'], panel=1, color='#4CAF50', width=1.2,
-                    ylabel='MFI/ADX', ylim=(0, 100)
-                ))
-                # MFI threshold lines (52/48)
-                mfi_upper = pd.Series(52, index=df.index)
-                mfi_lower = pd.Series(48, index=df.index)
-                addplots.append(mpf.make_addplot(
-                    mfi_upper, panel=1, color='green', width=0.5,
-                    linestyle='--', alpha=0.5
-                ))
-                addplots.append(mpf.make_addplot(
-                    mfi_lower, panel=1, color='red', width=0.5,
-                    linestyle='--', alpha=0.5
-                ))
-
-            if 'adx' in df.columns:
-                addplots.append(mpf.make_addplot(
-                    df['adx'], panel=1, color='#FF9800', width=1.2,
-                    secondary_y=False
-                ))
-                # ADX threshold line (20)
-                adx_threshold = pd.Series(20, index=df.index)
-                addplots.append(mpf.make_addplot(
-                    adx_threshold, panel=1, color='orange', width=0.5,
-                    linestyle='--', alpha=0.5
-                ))
-
-            # === Panel 2: Volume (manual) ===
-            # Add volume as manual addplot to get 3-panel layout
-            colors = ['#81C784' if c >= o else '#EF5350'
-                      for c, o in zip(df['close'], df['open'])]
-            addplots.append(mpf.make_addplot(
-                df['volume'], panel=2, type='bar', color=colors,
-                ylabel='Volume'
-            ))
-            panel_ratios = (7, 1.5, 1.5)  # Main, MFI/ADX, Volume
-            use_volume = False  # Disable built-in volume
-        else:
-            # 2-panel layout: Main + Volume
-            panel_ratios = (8, 2)
-            use_volume = True  # Use built-in volume
+        # Panel configuration: Main (with BB overlay) + Volume
+        # MFI/ADX panel removed for cleaner visualization
+        panel_ratios = (8, 2)
+        use_volume = True  # Use built-in volume panel
 
         # Create custom style
         mc = mpf.make_marketcolors(
@@ -702,18 +681,45 @@ class BacktestVisualizer:
         markers = pd.Series(index=df.index, dtype=float)
         markers[:] = np.nan
 
+        # Build date-to-index lookup for flexible timestamp matching
+        # This handles daily resampling where exact timestamps don't match
+        date_to_idx = {}
+        for idx in df.index:
+            dt = pd.to_datetime(idx)
+            date_key = dt.date()
+            if date_key not in date_to_idx:
+                date_to_idx[date_key] = idx
+
+        matched = 0
+        unmatched = 0
+
         for trade in trades:
             trade_action = trade.get('action', '').lower()
-            if action == 'buy' and trade_action in ('buy', 'long', 'entry'):
+            is_buy = action == 'buy' and trade_action in ('buy', 'long', 'entry')
+            is_sell = action == 'sell' and trade_action in ('sell', 'short', 'exit', 'cover')
+
+            if is_buy or is_sell:
                 ts = pd.to_datetime(trade.get('timestamp'))
+
+                # Try exact match first
                 if ts in df.index:
-                    # Place marker below candle for buy
-                    markers.loc[ts] = df.loc[ts, 'low'] * 0.995
-            elif action == 'sell' and trade_action in ('sell', 'short', 'exit', 'cover'):
-                ts = pd.to_datetime(trade.get('timestamp'))
-                if ts in df.index:
-                    # Place marker above candle for sell
-                    markers.loc[ts] = df.loc[ts, 'high'] * 1.005
+                    idx = ts
+                else:
+                    # Fall back to date-based matching (for resampled data)
+                    date_key = ts.date()
+                    idx = date_to_idx.get(date_key)
+
+                if idx is not None and idx in df.index:
+                    if is_buy:
+                        markers.loc[idx] = df.loc[idx, 'low'] * 0.995
+                    else:
+                        markers.loc[idx] = df.loc[idx, 'high'] * 1.005
+                    matched += 1
+                else:
+                    unmatched += 1
+
+        if unmatched > 0:
+            logger.debug(f"Trade markers: {matched} matched, {unmatched} unmatched for {action}")
 
         return markers if not markers.isna().all() else None
 
@@ -783,3 +789,141 @@ class BacktestVisualizer:
             title='Regime',
             title_fontsize=7
         )
+
+    def create_yearly_regime_charts(
+        self,
+        df: pd.DataFrame,
+        trades: Optional[List[dict]] = None,
+        equity_curve: Optional[List[dict]] = None,
+        output_dir: Optional[str] = None,
+        title_prefix: str = "Regime Analysis",
+    ) -> List[str]:
+        """Create separate regime charts for each year in the data.
+
+        Useful for multi-year backtests where a single chart becomes too dense
+        to show individual trade markers clearly.
+
+        Args:
+            df: DataFrame with OHLCV and indicator columns.
+            trades: List of trade dicts with 'timestamp', 'action', 'price'
+            equity_curve: List of dicts with 'date' and 'equity' for profit overlay
+            output_dir: Directory to save charts. Uses current dir if None.
+            title_prefix: Prefix for chart titles.
+
+        Returns:
+            List of paths to saved chart files.
+        """
+        if df is None or df.empty:
+            logger.warning("No data provided for yearly regime charts")
+            return []
+
+        # Ensure timestamp column
+        df = df.copy()
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        elif isinstance(df.index, pd.DatetimeIndex):
+            df['timestamp'] = df.index
+
+        # Get year range
+        years = df['timestamp'].dt.year.unique()
+        years = sorted(years)
+
+        if len(years) <= 1:
+            # Only one year, use regular chart
+            chart_path = self.create_regime_chart(
+                df, trades, equity_curve,
+                output_path=f"{output_dir or '.'}/regime_chart.png",
+                title=title_prefix
+            )
+            return [chart_path] if chart_path else []
+
+        saved_paths = []
+        output_dir = Path(output_dir) if output_dir else Path.cwd()
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        for year in years:
+            # Filter data for this year
+            year_mask = df['timestamp'].dt.year == year
+            year_df = df[year_mask].copy()
+
+            if year_df.empty:
+                continue
+
+            # Filter trades for this year
+            year_trades = None
+            if trades:
+                year_trades = []
+                for t in trades:
+                    ts = pd.to_datetime(t.get('timestamp'))
+                    if ts.year == year:
+                        year_trades.append(t)
+
+            # Filter equity curve for this year
+            year_equity = None
+            if equity_curve:
+                year_equity = []
+                for e in equity_curve:
+                    date = pd.to_datetime(e.get('date'))
+                    if date.year == year:
+                        year_equity.append(e)
+
+            # Generate chart for this year
+            output_path = output_dir / f"regime_{year}.png"
+            chart_path = self.create_regime_chart(
+                year_df,
+                trades=year_trades,
+                equity_curve=year_equity,
+                output_path=str(output_path),
+                title=f"{title_prefix} - {year}"
+            )
+
+            if chart_path:
+                saved_paths.append(chart_path)
+                logger.info(f"Generated yearly chart: {chart_path}")
+
+        return saved_paths
+
+    def create_wide_regime_chart(
+        self,
+        df: pd.DataFrame,
+        trades: Optional[List[dict]] = None,
+        equity_curve: Optional[List[dict]] = None,
+        output_path: Optional[str] = None,
+        title: str = "Regime Analysis (Wide)",
+    ) -> Optional[str]:
+        """Create extra-wide regime chart for multi-year data.
+
+        Uses a much wider figure to prevent trade markers from overlapping.
+        Ideal for 3+ year backtests.
+
+        Args:
+            df: DataFrame with OHLCV and indicator columns.
+            trades: List of trade dicts with 'timestamp', 'action', 'price'
+            equity_curve: List of dicts with 'date' and 'equity' for profit overlay
+            output_path: Path to save chart.
+            title: Chart title.
+
+        Returns:
+            Path to saved chart file, or None if generation failed.
+        """
+        # Temporarily increase figure width for this chart
+        original_width = self.config.width
+        original_height = self.config.height
+
+        # Calculate width based on data length
+        # Aim for ~3-5 bars per 100 pixels
+        if df is not None and len(df) > 0:
+            # After daily resampling, we'll have ~365 bars per year
+            estimated_days = len(df) if len(df) < 1000 else min(len(df) // 24, 2000)
+            self.config.width = max(20, min(40, estimated_days // 50))
+            self.config.height = 12  # Taller for better readability
+
+        try:
+            result = self.create_regime_chart(
+                df, trades, equity_curve, output_path, title
+            )
+            return result
+        finally:
+            # Restore original dimensions
+            self.config.width = original_width
+            self.config.height = original_height

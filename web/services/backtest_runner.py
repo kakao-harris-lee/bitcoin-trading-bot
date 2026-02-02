@@ -282,6 +282,30 @@ def _generate_visualization(
                 if saved_regime_path:
                     results['regime_chart_path'] = f"/static/charts/{regime_filename}"
                     logger.info(f"Generated regime chart: {saved_regime_path}")
+
+                # Generate yearly charts for multi-year backtests (better trade visibility)
+                if 'timestamp' in price_data.columns:
+                    years = price_data['timestamp'].dt.year.nunique()
+                elif isinstance(price_data.index, pd.DatetimeIndex):
+                    years = price_data.index.year.nunique()
+                else:
+                    years = 1
+
+                if years >= 2:
+                    yearly_dir = CHART_OUTPUT_DIR / f"yearly_{strategy_id}_{job_id}"
+                    yearly_paths = _visualizer.create_yearly_regime_charts(
+                        price_data,
+                        trades=trades_for_chart,
+                        equity_curve=results.get('equity_curve'),
+                        output_dir=str(yearly_dir),
+                        title_prefix=f"{strategy_id}"
+                    )
+                    if yearly_paths:
+                        results['yearly_chart_paths'] = [
+                            f"/static/charts/yearly_{strategy_id}_{job_id}/{Path(p).name}"
+                            for p in yearly_paths
+                        ]
+                        logger.info(f"Generated {len(yearly_paths)} yearly charts")
             except Exception as e:
                 logger.warning(f"Regime chart generation failed: {e}")
 
@@ -1119,6 +1143,7 @@ def _run_generic_backtest(
 
     position_size = 0.0
     entry_price = 0.0
+    entry_timestamp = None  # Track when position was opened for chart markers
     position_leverage = leverage  # Track leverage used for current position
     trades: List[Dict] = []
     equity_curve: List[float] = []
@@ -1226,6 +1251,7 @@ def _run_generic_backtest(
                 position_size = effective_pos_size
                 position_leverage = effective_leverage  # Track leverage for this position
                 entry_price = row['close'] * (1 + slippage)
+                entry_timestamp = timestamp  # Track entry time for chart markers
                 trades.append({
                     'type': 'buy',
                     'time': timestamp,
@@ -1251,6 +1277,7 @@ def _run_generic_backtest(
                 position_size = effective_pos_size
                 position_leverage = effective_leverage  # Track leverage for this position
                 entry_price = row['close'] * (1 - slippage)
+                entry_timestamp = timestamp  # Track entry time for chart markers
                 trades.append({
                     'type': 'open_short',
                     'time': timestamp,
@@ -1276,6 +1303,7 @@ def _run_generic_backtest(
             trades.append({
                 'type': 'sell',
                 'time': timestamp,
+                'entry_time': entry_timestamp,  # Track when position was opened
                 'entry_price': entry_price,
                 'exit_price': exit_price,
                 'size': exit_size,
@@ -1288,6 +1316,7 @@ def _run_generic_backtest(
             # Update position for partial exit or clear for full exit
             if exit_fraction >= 1.0:
                 position_size = 0.0
+                entry_timestamp = None  # Reset entry timestamp
                 entry_price = 0.0
             else:
                 position_size -= exit_size  # Keep remaining position
@@ -1308,6 +1337,7 @@ def _run_generic_backtest(
              trades.append({
                 'type': 'close_short',
                 'time': timestamp,
+                'entry_time': entry_timestamp,  # Track when position was opened
                 'entry_price': entry_price,
                 'exit_price': exit_price,
                 'size': exit_size,
@@ -1321,6 +1351,7 @@ def _run_generic_backtest(
              if exit_fraction >= 1.0:
                  position_size = 0.0
                  entry_price = 0.0
+                 entry_timestamp = None  # Reset entry timestamp
              else:
                  position_size -= exit_size  # Keep remaining position
 
@@ -1363,20 +1394,29 @@ def _run_generic_backtest(
     drawdown = (equity_series - peak) / peak * 100
     mdd = float(drawdown.min())
 
-    # Format for Frontend
+    # Format for Frontend - sample trades evenly across time period for chart markers
     trades_list = []
-    for t in close_trades[:100]:
+    max_trades = 150  # Maximum round-trips to display
+    if len(close_trades) <= max_trades:
+        sampled_trades = close_trades
+    else:
+        # Sample evenly across the trade list to cover all time periods
+        step = len(close_trades) / max_trades
+        indices = [int(i * step) for i in range(max_trades)]
+        sampled_trades = [close_trades[i] for i in indices]
+
+    for t in sampled_trades:
         action_label = 'COVER' if t['type'] == 'close_short' else 'SELL'
         entry_action = 'SHORT' if t['type'] == 'close_short' else 'BUY'
         trades_list.append({
-            'timestamp': t.get('entry_time') or t.get('time'),  # Using exit time if entry_time missing
+            'timestamp': t.get('entry_time') or t.get('time'),  # Use entry_time for BUY markers
             'symbol': 'BTC',
             'action': entry_action,
             'price': t.get('entry_price'),
             'profit': None
         })
         trades_list.append({
-            'timestamp': t.get('time'),
+            'timestamp': t.get('time'),  # Use exit time for SELL markers
             'symbol': 'BTC',
             'action': action_label,
             'price': t.get('exit_price'),

@@ -2503,6 +2503,43 @@ footer kbd {
     font-style: italic;
 }
 
+/* Yearly Charts Section */
+.yearly-charts-section {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.yearly-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-right: 10px;
+}
+
+.yearly-chart-link {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--accent-cyan);
+    background: rgba(88, 166, 255, 0.1);
+    padding: 4px 10px;
+    margin: 2px 4px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.yearly-chart-link:hover {
+    background: rgba(88, 166, 255, 0.25);
+    color: #fff;
+}
+
+.chart-links {
+    margin-top: 8px;
+}
+
 /* MLflow Link Container */
 .mlflow-link-container {
     background: var(--bg-tertiary);

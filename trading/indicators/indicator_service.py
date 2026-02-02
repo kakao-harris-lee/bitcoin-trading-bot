@@ -15,10 +15,11 @@ Architecture:
 from __future__ import annotations
 
 import logging
+import math
 import time
 from collections import deque
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -29,6 +30,48 @@ if TYPE_CHECKING:
     pass
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    """Safely convert value to float, handling NaN and None.
+
+    Args:
+        value: Value to convert.
+        default: Default value if conversion fails or value is NaN/None.
+
+    Returns:
+        Float value or default.
+    """
+    if value is None:
+        return default
+    try:
+        result = float(value)
+        if math.isnan(result):
+            return default
+        return result
+    except (ValueError, TypeError):
+        return default
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    """Safely convert value to int, handling NaN and None.
+
+    Args:
+        value: Value to convert.
+        default: Default value if conversion fails or value is NaN/None.
+
+    Returns:
+        Int value or default.
+    """
+    if value is None:
+        return default
+    try:
+        float_val = float(value)
+        if math.isnan(float_val):
+            return default
+        return int(float_val)
+    except (ValueError, TypeError):
+        return default
 
 
 class IndicatorService:
@@ -140,8 +183,16 @@ class IndicatorService:
             cache_time, cached_data = self._cache[symbol]
             if current_time - cache_time < self._cache_ttl:
                 self._cache_hits += 1
-                # Return cached data with updated close price for accurate P&L
-                return replace(cached_data, close=current_price)
+                # Update close, high, low with current price for accurate real-time data
+                # Note: Indicators (RSI, MFI, etc.) remain from cache - only price fields update
+                updated_high = max(cached_data.high, current_price)
+                updated_low = min(cached_data.low, current_price)
+                return replace(
+                    cached_data,
+                    close=current_price,
+                    high=updated_high,
+                    low=updated_low,
+                )
 
         # Cache miss - need to recalculate
         self._cache_misses += 1
@@ -190,48 +241,50 @@ class IndicatorService:
             df = add_all_indicators(df)
             last_row = df.iloc[-1]
 
-            # Calculate 20-period lookback values
-            lookback = 20
-            if len(df) >= lookback:
-                prev_df = df.iloc[-lookback-1:-1]
-                prev_high_20 = float(prev_df['high'].max())
-                prev_low_20 = float(prev_df['low'].min())
-                avg_volume_20 = float(prev_df['volume'].mean())
-            else:
-                prev_high_20 = 0.0
-                prev_low_20 = 0.0
-                avg_volume_20 = 0.0
-
             # Get timestamp from buffer
             buffer = self._price_buffers.get(symbol, [])
             timestamp = int(buffer[-1].get("timestamp", 0)) if buffer else 0
 
+            # Use values from add_all_indicators() for consistency
+            # These are already calculated with rolling windows in precompute.py
             return MarketData(
                 symbol=symbol,
-                open=float(last_row.get("open", current_price)),
-                close=float(current_price),
-                mfi=float(last_row.get("mfi", 50)),
-                adx=float(last_row.get("adx", 20)),
-                rsi=float(last_row.get("rsi", 50)),
+                open=_safe_float(last_row.get("open"), current_price),
+                close=current_price,
+                # Oscillators with neutral defaults
+                mfi=_safe_float(last_row.get("mfi"), 50.0),
+                adx=_safe_float(last_row.get("adx"), 20.0),
+                rsi=_safe_float(last_row.get("rsi"), 50.0),
                 timestamp=timestamp,
-                high=float(last_row.get("high", current_price)),
-                low=float(last_row.get("low", current_price)),
-                volume=float(last_row.get("volume", 0)),
-                macd=float(last_row.get("macd", 0)),
-                macd_signal=float(last_row.get("macd_signal", 0)),
-                stoch_k=float(last_row.get("stoch_k", 50)),
-                stoch_d=float(last_row.get("stoch_d", 50)),
-                bb_upper=float(last_row.get("bb_upper", 0)),
-                bb_lower=float(last_row.get("bb_lower", 0)),
-                bb_middle=float(last_row.get("bb_middle", 0)),
-                atr=float(last_row.get("atr", 0)),
-                ema_120=float(last_row.get("ema_120", 0)),
-                ema_200=float(last_row.get("ema_200", 0)),
-                high_30d=float(last_row.get("high_30d", 0)),
-                market_stress=float(last_row.get("market_stress", 0)),
-                prev_high_20=prev_high_20,
-                prev_low_20=prev_low_20,
-                avg_volume_20=avg_volume_20,
+                # OHLCV
+                high=_safe_float(last_row.get("high"), current_price),
+                low=_safe_float(last_row.get("low"), current_price),
+                volume=_safe_float(last_row.get("volume"), 0.0),
+                # MACD
+                macd=_safe_float(last_row.get("macd"), 0.0),
+                macd_signal=_safe_float(last_row.get("macd_signal"), 0.0),
+                # Stochastic with neutral defaults
+                stoch_k=_safe_float(last_row.get("stoch_k"), 50.0),
+                stoch_d=_safe_float(last_row.get("stoch_d"), 50.0),
+                # Bollinger Bands
+                bb_upper=_safe_float(last_row.get("bb_upper"), 0.0),
+                bb_lower=_safe_float(last_row.get("bb_lower"), 0.0),
+                bb_middle=_safe_float(last_row.get("bb_middle"), 0.0),
+                # Volatility
+                atr=_safe_float(last_row.get("atr"), 0.0),
+                # EMAs
+                ema_120=_safe_float(last_row.get("ema_120"), 0.0),
+                ema_200=_safe_float(last_row.get("ema_200"), 0.0),
+                # Historical reference points (from add_all_indicators rolling calculations)
+                high_30d=_safe_float(last_row.get("high_30d"), 0.0),
+                market_stress=_safe_float(last_row.get("market_stress"), 0.0),
+                # Use pre-calculated values from add_all_indicators() for consistency
+                prev_high_20=_safe_float(last_row.get("prev_high_20"), 0.0),
+                prev_low_20=_safe_float(last_row.get("prev_low_20"), 0.0),
+                avg_volume_20=_safe_float(last_row.get("avg_volume_20"), 0.0),
+                # Volatility breakout (Larry Williams strategy)
+                breakout_signal=_safe_int(last_row.get("breakout_signal"), 0),
+                target_price=_safe_float(last_row.get("target_price"), 0.0),
             )
 
         except Exception as e:

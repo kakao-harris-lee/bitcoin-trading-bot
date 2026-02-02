@@ -173,6 +173,31 @@ def _is_tuned_strategy(strategy_id: str) -> bool:
         return False
 
 
+def _has_base_strategy(strategy_id: str) -> bool:
+    """Check if a strategy in allocation.json has a valid base strategy in registry."""
+    import json
+    allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
+    if not allocation_path.exists():
+        return False
+    try:
+        with open(allocation_path, 'r') as f:
+            allocation = json.load(f)
+        if strategy_id not in allocation.get('strategies', {}):
+            return False
+        strategy_config = allocation['strategies'][strategy_id]
+        # Check explicit base_strategy field
+        base_strategy = strategy_config.get('base_strategy')
+        if base_strategy and base_strategy in STRATEGY_REGISTRY:
+            return True
+        # Try to infer base strategy from name prefix
+        for reg_name in STRATEGY_REGISTRY.keys():
+            if strategy_id.startswith(reg_name) and strategy_id != reg_name:
+                return True
+        return False
+    except Exception:
+        return False
+
+
 def _generate_visualization(
     results: dict,
     price_data: pd.DataFrame,
@@ -522,8 +547,11 @@ def run_backtest(job: BacktestJob) -> None:
             job.progress = 10
 
             # Route to appropriate backtester
-            # 1. Use Generic Backtester for all Factory Strategies and tuned strategies
-            if strategy_id in STRATEGY_REGISTRY or _is_tuned_strategy(strategy_id):
+            # 1. Use Generic Backtester for:
+            #    - Factory Strategies (in STRATEGY_REGISTRY)
+            #    - Tuned strategies (with regime_routing in allocation.json)
+            #    - Derived strategies (with base_strategy in allocation.json)
+            if strategy_id in STRATEGY_REGISTRY or _is_tuned_strategy(strategy_id) or _has_base_strategy(strategy_id):
                 results, price_data = _run_generic_backtest(
                     strategy_id, start_date, end_date, initial_capital, job
                 )
@@ -926,9 +954,10 @@ def _run_generic_backtest(
     # Check if strategy exists in registry or allocation.json
     is_tuned_strategy = False
     tuned_config = None
+    base_strategy_id = strategy_id  # Default to same name
 
     if strategy_id not in STRATEGY_REGISTRY:
-        # Check if it's a tuned strategy in allocation.json
+        # Check if it's a strategy in allocation.json
         allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
         if allocation_path.exists():
             with open(allocation_path, 'r') as f:
@@ -939,7 +968,20 @@ def _run_generic_backtest(
                     is_tuned_strategy = True
                     tuned_config = strategy_config
                 else:
-                    raise ValueError(f"Strategy {strategy_id} has no regime_routing config")
+                    # Try to find a base strategy in registry
+                    # e.g., 'mlp_direction_optimized' -> 'mlp_direction'
+                    base_strategy = strategy_config.get('base_strategy')
+                    if not base_strategy:
+                        # Infer base strategy by finding registry entry that matches prefix
+                        for reg_name in STRATEGY_REGISTRY.keys():
+                            if strategy_id.startswith(reg_name):
+                                base_strategy = reg_name
+                                break
+                    if base_strategy and base_strategy in STRATEGY_REGISTRY:
+                        base_strategy_id = base_strategy
+                        logger.info(f"Using base strategy '{base_strategy}' for '{strategy_id}'")
+                    else:
+                        raise ValueError(f"Strategy {strategy_id} has no regime_routing and no valid base_strategy")
             else:
                 raise ValueError(f"Strategy {strategy_id} not found in registry or allocation.json")
         else:
@@ -957,8 +999,8 @@ def _run_generic_backtest(
         leverage = float(tuned_config.get('leverage', 3))
         timeframe = 'minute60'  # Default for tuned strategies
     else:
-        # Use registry spec
-        spec = STRATEGY_REGISTRY[strategy_id]
+        # Use registry spec (use base_strategy_id for registry lookup)
+        spec = STRATEGY_REGISTRY[base_strategy_id]
         market_type = spec.market
         leverage = 3.0 if market_type == 'futures' else 1.0
         timeframe = spec.timeframe
@@ -970,8 +1012,18 @@ def _run_generic_backtest(
         fee_rate = FeeRates.SPOT
         slippage = FeeRates.SPOT_SLIPPAGE
 
+    # Map timeframe aliases to database table names
+    timeframe_map = {
+        'hour1': 'minute60',
+        'hour4': 'minute240',
+        '1h': 'minute60',
+        '4h': 'minute240',
+        '1d': 'day',
+    }
+    db_timeframe = timeframe_map.get(timeframe, timeframe)
+
     with DataLoader(exchange=exchange_name) as loader:
-        df = loader.load_timeframe(timeframe, start_date, end_date)
+        df = loader.load_timeframe(db_timeframe, start_date, end_date)
 
     if df.empty:
         raise ValueError(f"No data available for {start_date} to {end_date}")
@@ -1083,7 +1135,8 @@ def _run_generic_backtest(
         add_rf_predictions(df, config)
         job.progress = 40
 
-    adapter = ComponentStrategyAdapter(factory, strategy_id, config)
+    # Use base_strategy_id for adapter (e.g., 'mlp_direction' for 'mlp_direction_optimized')
+    adapter = ComponentStrategyAdapter(factory, base_strategy_id, config)
 
     # 5. Backtest Loop
     core_hold_pct = float(config.get("core_hold_pct", 0.0))

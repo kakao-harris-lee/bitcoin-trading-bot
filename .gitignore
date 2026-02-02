@@ -77,7 +77,10 @@ mlruns/
 mlartifacts/
 web/static/charts/*.png
 
+<<<<<<< HEAD
 # Backtest output charts
 outputs/
 
+=======
+>>>>>>> 2cc87c81 (change .gitignore)
 .serena/project.yml

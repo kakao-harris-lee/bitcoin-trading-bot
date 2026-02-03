@@ -75,12 +75,10 @@ MagicMock/
 # MLflow
 mlruns/
 mlartifacts/
-web/static/charts/*.png
 
-<<<<<<< HEAD
+# Web static charts (generated artifacts)
+web/static/charts/
+
 # Backtest output charts
 outputs/
-
-=======
->>>>>>> 2cc87c81 (change .gitignore)
 .serena/project.yml

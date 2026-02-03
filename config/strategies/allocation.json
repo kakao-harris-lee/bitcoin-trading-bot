@@ -462,35 +462,106 @@
       "enabled": false
     },
     "mlp_direction": {
-      "_comment": "MLP Direction Classifier (Parente & Rizzuti 2025) - paper faithful implementation",
-      "_note": "Paper uses: α=0.038, β=0.24, BWin=5, FWin=2, 10% SL, exit after FWin periods",
+      "_comment": "Legacy MLP Direction (disabled; use mlp_direction_btc/eth for paper reproduction)",
+      "enabled": false
+    },
+    "mlp_direction_btc": {
+      "_comment": "Paper reproduction - BTC model (BWin=5, FWin=2)",
+      "enabled": true,
       "market": "spot",
-      "position_pct": 0.10,
-      "position_size": 0.01,
-      "model_path": "models/mlp_direction/model_final.pt",
-      "buy_confidence_threshold": 0.65,
-      "skip_bear_regime": false,
-      "adx_min": 0.0,
-      "use_ema200_filter": false,
-      "stop_loss_pct": 10.0,
-      "fwin_exit_enabled": true,
-      "fwin_periods": 2,
-      "atr_stop_enabled": false,
-      "trailing_enabled": false,
-      "trailing_activation": 10.0,
-      "trailing_distance": 5.0,
-      "take_profit_enabled": false,
-      "take_profit_pct": 25.0,
-      "use_mlp_sell_exit": false,
-      "sell_confidence_threshold": 0.50,
-      "min_profit_for_sell_exit": 0.0,
-      "enabled": true
+      "symbols": [
+        "BTC"
+      ],
+      "bwin": 5,
+      "mlp_feature_set": "paper_36",
+      "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+      "position_pct": 0.5,
+      "position_size": 0.5,
+      "drawdown_enabled": false,
+      "stop_loss_cooldown": 0,
+      "drawdown_bear_threshold": 1.0,
+      "entry": {
+        "class": "MLPDirectionEntryStrategy",
+        "params": {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "buy_confidence_threshold": 0.0,
+          "skip_bear_regime": false,
+          "adx_min": 0.0,
+          "use_ema200_filter": false,
+          "position_size": 0.5,
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      },
+      "exit": {
+        "class": "MLPDirectionExitStrategy",
+        "params": {
+          "stop_loss_pct": 10.0,
+          "fwin_exit_enabled": false,
+          "fwin_periods": 2,
+          "atr_stop_enabled": false,
+          "trailing_enabled": false,
+          "take_profit_enabled": false,
+          "use_mlp_sell_exit": true,
+          "sell_confidence_threshold": 0.0,
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      }
+    },
+    "mlp_direction_eth": {
+      "_comment": "Paper reproduction - ETH model (BWin=4, FWin=2)",
+      "enabled": true,
+      "market": "spot",
+      "symbols": [
+        "ETH"
+      ],
+      "bwin": 4,
+      "mlp_feature_set": "paper_36",
+      "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+      "position_pct": 0.5,
+      "position_size": 0.5,
+      "drawdown_enabled": false,
+      "stop_loss_cooldown": 0,
+      "drawdown_bear_threshold": 1.0,
+      "entry": {
+        "class": "MLPDirectionEntryStrategy",
+        "params": {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "buy_confidence_threshold": 0.0,
+          "skip_bear_regime": false,
+          "adx_min": 0.0,
+          "use_ema200_filter": false,
+          "position_size": 0.5,
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      },
+      "exit": {
+        "class": "MLPDirectionExitStrategy",
+        "params": {
+          "stop_loss_pct": 10.0,
+          "fwin_exit_enabled": false,
+          "fwin_periods": 2,
+          "atr_stop_enabled": false,
+          "trailing_enabled": false,
+          "take_profit_enabled": false,
+          "use_mlp_sell_exit": true,
+          "sell_confidence_threshold": 0.0,
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      }
     },
     "mlp_direction_optimized": {
-      "_comment": "MLP Direction with optimized exit (trailing + take profit instead of FWin)",
+      "_comment": "MLP Direction with optimized exit (trailing + take profit instead of FWin, shap_13 model)",
       "market": "spot",
       "position_pct": 0.10,
       "position_size": 0.01,
+      "bwin": 5,
+      "mlp_feature_set": "shap_13",
       "model_path": "models/mlp_direction/model_final.pt",
       "buy_confidence_threshold": 0.40,
       "skip_bear_regime": false,
@@ -693,7 +764,7 @@
       "trailing_enabled": false,
       "regime_exit_enabled": true,
       "min_profit_for_regime_exit": 1.0,
-      "enabled": true
+      "enabled": false
     }
   },
   "smart_executor": {

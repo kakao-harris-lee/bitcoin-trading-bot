@@ -763,3 +763,137 @@ def apply_v35_best_params(study_name: str):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# Backtest CSV Log Download API
+# =============================================================================
+
+# Allowed log directory (relative to project root)
+BACKTEST_LOG_DIR = PROJECT_ROOT / "backtest_logs"
+
+
+def _validate_log_filename(filename: str) -> bool:
+    """Validate log filename to prevent path traversal.
+
+    Only allows alphanumeric characters, underscores, hyphens, and .csv extension.
+    """
+    if not filename:
+        return False
+
+    # Only allow safe characters
+    if not re.match(r'^[a-zA-Z0-9_\-]+\.csv$', filename):
+        return False
+
+    # No path separators
+    if '/' in filename or '\\' in filename:
+        return False
+
+    return True
+
+
+@quant_lab_bp.route('/api/backtest/logs')
+@requires_auth
+def list_backtest_logs():
+    """List available backtest CSV log files.
+
+    Returns:
+        JSON with list of log files and metadata.
+    """
+    try:
+        from core.backtest_logger import BacktestLogger
+
+        logs = BacktestLogger.list_logs(str(BACKTEST_LOG_DIR))
+
+        return jsonify({
+            "logs": logs,
+            "count": len(logs),
+            "directory": str(BACKTEST_LOG_DIR),
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@quant_lab_bp.route('/api/backtest/logs/<filename>/download')
+@requires_auth
+def download_backtest_log(filename: str):
+    """Download a backtest CSV log file.
+
+    Args:
+        filename: Name of the CSV file to download.
+
+    Returns:
+        CSV file as attachment.
+    """
+    from flask import send_file
+
+    # Validate filename (prevent path traversal)
+    if not _validate_log_filename(filename):
+        return jsonify({"error": "Invalid filename"}), 400
+
+    filepath = BACKTEST_LOG_DIR / filename
+
+    # Verify file exists and is within allowed directory
+    try:
+        resolved = filepath.resolve()
+        resolved.relative_to(BACKTEST_LOG_DIR.resolve())
+    except (ValueError, OSError):
+        return jsonify({"error": "Invalid file path"}), 400
+
+    if not resolved.exists():
+        return jsonify({"error": "File not found"}), 404
+
+    if not resolved.is_file():
+        return jsonify({"error": "Not a file"}), 400
+
+    return send_file(
+        resolved,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@quant_lab_bp.route('/api/backtest/logs/<filename>')
+@requires_auth
+def get_backtest_log_info(filename: str):
+    """Get metadata for a specific backtest log file.
+
+    Args:
+        filename: Name of the CSV file.
+
+    Returns:
+        JSON with file metadata.
+    """
+    from datetime import datetime
+
+    # Validate filename
+    if not _validate_log_filename(filename):
+        return jsonify({"error": "Invalid filename"}), 400
+
+    filepath = BACKTEST_LOG_DIR / filename
+
+    # Verify file exists
+    try:
+        resolved = filepath.resolve()
+        resolved.relative_to(BACKTEST_LOG_DIR.resolve())
+    except (ValueError, OSError):
+        return jsonify({"error": "Invalid file path"}), 400
+
+    if not resolved.exists():
+        return jsonify({"error": "File not found"}), 404
+
+    stat = resolved.stat()
+
+    # Count lines (rows)
+    with open(resolved, 'r') as f:
+        row_count = sum(1 for _ in f) - 1  # Subtract header
+
+    return jsonify({
+        "filename": filename,
+        "filepath": str(resolved),
+        "size_kb": round(stat.st_size / 1024, 2),
+        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+        "row_count": row_count,
+    })

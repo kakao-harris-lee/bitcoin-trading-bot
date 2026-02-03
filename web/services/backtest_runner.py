@@ -1056,9 +1056,12 @@ def _run_generic_backtest(
         config = dict(strategy_config)  # Copy all strategy params
 
         # Apply adapter-specific defaults for params not in strategy_config
+        # NOTE: position_size is intentionally low (1%) as fallback only.
+        # Entry strategies with regime-based sizing (e.g., V35OptunaEntry) return
+        # signal.quantity which takes priority in ComponentStrategyAdapter.
         adapter_defaults = {
             'regime_version': 'v1',
-            'position_size': 0.5,
+            'position_size': 0.01,  # Fallback only - Entry strategy's signal.quantity takes priority
             'position_pct': 0.3,
             'dynamic_sizing': False,
             'core_hold_pct': 0.0,

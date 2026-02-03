@@ -75,7 +75,15 @@ def main():
         fee_rate=0.0005,
         slippage=0.0002,
     )
-    results = bt.run(df, strategy, {})
+    results = bt.run(
+        df,
+        strategy,
+        {},
+        csv_log=args.csv_log,
+        csv_log_dir=args.csv_log_dir,
+        strategy_name="v35_long",
+        symbol="BTC",
+    )
 
     # Compute metrics with correct timeframe
     metrics = compute_metrics(results.get("equity_curve"), args.timeframe)
@@ -85,6 +93,10 @@ def main():
 
     if args.by_year:
         print_yearly_table(results.get("equity_curve"))
+
+    # Print CSV log path if generated
+    if results.get("csv_log_path"):
+        print(f"\nCSV log saved: {results['csv_log_path']}")
 
 
 if __name__ == "__main__":

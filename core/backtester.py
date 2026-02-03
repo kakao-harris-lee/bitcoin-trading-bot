@@ -20,6 +20,7 @@ from datetime import datetime
 from core.backtest_result import BacktestResult
 from core.metrics import calculate_benchmark, calculate_sharpe_ratio, calculate_max_drawdown
 from core.mlflow_config import MLflowConfig
+from core.backtest_logger import BacktestLogger, build_candle_state
 
 if TYPE_CHECKING:
     from trading.strategies.components.interfaces import IEntryStrategy, IExitStrategy
@@ -396,7 +397,11 @@ class Backtester:
         self,
         df: pd.DataFrame,
         strategy_func: Callable,
-        strategy_params: Dict = None
+        strategy_params: Dict = None,
+        csv_log: bool = False,
+        csv_log_dir: str = "backtest_logs",
+        strategy_name: str = "unknown",
+        symbol: str = "BTC",
     ) -> Dict:
         """
         백테스팅 실행
@@ -405,6 +410,10 @@ class Backtester:
             df: 가격 데이터 (timestamp, open, high, low, close, volume)
             strategy_func: 전략 함수 (df, i, params) -> {'action': 'buy'/'sell'/'hold', 'fraction': 0.5}
             strategy_params: 전략 파라미터
+            csv_log: Whether to generate CSV log file for analysis.
+            csv_log_dir: Directory to save CSV logs.
+            strategy_name: Strategy name for CSV filename.
+            symbol: Trading symbol for CSV filename.
 
         Returns:
             백테스팅 결과 딕셔너리
@@ -413,6 +422,11 @@ class Backtester:
 
         if strategy_params is None:
             strategy_params = {}
+
+        # Initialize CSV logger if enabled
+        logger: Optional[BacktestLogger] = None
+        if csv_log:
+            logger = BacktestLogger(strategy_name, symbol, csv_log_dir)
 
         for i in range(len(df)):
             row = df.iloc[i]
@@ -450,12 +464,73 @@ class Backtester:
                 'total_equity': total_equity
             })
 
+            # CSV logging
+            if logger is not None:
+                # Calculate metrics for logging
+                peak_equity = max(eq['total_equity'] for eq in self.equity_curve) if self.equity_curve else total_equity
+                drawdown = peak_equity - total_equity
+                drawdown_pct = (drawdown / peak_equity * 100) if peak_equity > 0 else 0.0
+
+                # Determine position state
+                position_type = "long" if self.position > 0 else "none"
+                entry_price = 0.0
+                if self.trades:
+                    last_trade = self.trades[-1]
+                    if last_trade.exit_time is None:
+                        entry_price = last_trade.entry_price
+
+                # Calculate unrealized PnL
+                unrealized_pnl = 0.0
+                if self.position > 0 and entry_price > 0:
+                    unrealized_pnl = (price - entry_price) * self.position
+
+                # Calculate cumulative realized PnL
+                cumulative_pnl = sum(
+                    t.profit_loss for t in self.trades
+                    if t.profit_loss is not None
+                )
+
+                # Get regime/trend from strategy if available
+                regime = signal.get('regime', '')
+                trend = ''
+                if hasattr(strategy_func, 'current_position') and hasattr(strategy_func, 'config'):
+                    # ComponentStrategyAdapter
+                    trend = getattr(strategy_func, '_current_trend', '')
+
+                state = build_candle_state(
+                    row=row.to_dict(),
+                    position=position_type,
+                    position_qty=self.position,
+                    entry_price=entry_price,
+                    portfolio_value=total_equity,
+                    cash=self.cash,
+                    unrealized_pnl=unrealized_pnl,
+                    realized_pnl=signal.get('realized_pnl', 0.0),
+                    cumulative_pnl=cumulative_pnl,
+                    drawdown=drawdown,
+                    drawdown_pct=drawdown_pct,
+                    high_water_mark=peak_equity,
+                    signal=action,
+                    signal_reason=signal.get('reason', ''),
+                    regime=regime,
+                    trend=trend,
+                    rf_confidence=signal.get('rf_confidence', ''),
+                )
+                logger.log_candle(state)
+
         # 마지막 포지션 정리 (남은 포지션 매도)
         if self.position > 0:
             last_row = df.iloc[-1]
             self._execute_sell(last_row['timestamp'], last_row['close'], 1.0)
 
-        return self._generate_results()
+        results = self._generate_results()
+
+        # Flush CSV log and add path to results
+        if logger is not None:
+            csv_path = logger.flush()
+            results['csv_log_path'] = csv_path
+
+        return results
 
     def run_strategy(
         self,
@@ -465,6 +540,8 @@ class Backtester:
         symbol: str = "BTC",
         return_backtest_result: bool = False,
         mlflow_config: Optional[MLflowConfig] = None,
+        csv_log: bool = False,
+        csv_log_dir: str = "backtest_logs",
     ) -> Union[Dict, BacktestResult]:
         """Run backtest using StrategyFactory to create strategy.
 
@@ -481,6 +558,8 @@ class Backtester:
                 instead of dict. Default False for backward compatibility.
             mlflow_config: MLflow configuration for auto-logging. If provided,
                 results are automatically logged to MLflow. Default None (no logging).
+            csv_log: Whether to generate CSV log file for analysis.
+            csv_log_dir: Directory to save CSV logs (default: "backtest_logs").
 
         Returns:
             Backtest results dictionary or BacktestResult if return_backtest_result=True.
@@ -536,7 +615,14 @@ class Backtester:
             position_size=position_size,
         )
 
-        results = self.run(df, adapter)
+        results = self.run(
+            df,
+            adapter,
+            csv_log=csv_log,
+            csv_log_dir=csv_log_dir,
+            strategy_name=strategy_name,
+            symbol=symbol,
+        )
 
         # Calculate benchmark
         benchmark_curve, benchmark_return_pct = calculate_benchmark(

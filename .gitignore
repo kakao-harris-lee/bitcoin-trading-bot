@@ -81,4 +81,7 @@ web/static/charts/
 
 # Backtest output charts
 outputs/
+
+# Backtest CSV logs (generated for analysis)
+backtest_logs/
 .serena/project.yml

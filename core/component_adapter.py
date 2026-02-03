@@ -834,28 +834,35 @@ class ComponentStrategyAdapter:
                 # Use action names expected by backtest_runner:
                 # 'buy' for opening long, 'open_short' for opening short
                 action = "open_short" if is_short else "buy"
-                fraction = getattr(signal, "quantity", 1.0) or 1.0
 
-                # Align sizing with live task behavior
+                # Position sizing priority:
+                # 1. Entry strategy's signal.quantity (regime-based sizing from V35Optuna etc.)
+                # 2. Dynamic RF-based sizing (if enabled)
+                # 3. Config position_size fallback
+                signal_qty = getattr(signal, "quantity", None)
                 use_dynamic = self.config.get("dynamic_sizing", False)
                 position_pct = float(self.config.get("position_pct", 0.02))
                 position_reason = ""
+
                 if self._dynamic_position_sizing and use_dynamic:
+                    # RF-based dynamic sizing takes priority when enabled
                     rf_conf = context.rf_confidence if context.rf_confidence > 0 else 0.0
                     if rf_conf >= self._position_conf_high:
-                        position_pct = self._position_size_high
+                        fraction = self._position_size_high
                         position_reason = f"pos_high:{rf_conf:.2f}>={self._position_conf_high:.2f}"
                     elif rf_conf >= self._position_conf_low:
-                        position_pct = self._position_size_mid
+                        fraction = self._position_size_mid
                         position_reason = f"pos_mid:{rf_conf:.2f}>={self._position_conf_low:.2f}"
                     else:
-                        position_pct = self._position_size_low
+                        fraction = self._position_size_low
                         position_reason = f"pos_low:{rf_conf:.2f}<{self._position_conf_low:.2f}"
-
-                if use_dynamic:
-                    fraction = position_pct
+                elif signal_qty is not None and signal_qty > 0:
+                    # Entry strategy returned regime-based position size (e.g., V35OptunaEntry)
+                    fraction = signal_qty
+                    position_reason = f"regime_size:{signal_qty:.2f}"
                 else:
-                    fraction = self.config.get("position_size", fraction)
+                    # Fallback to config position_size
+                    fraction = self.config.get("position_size", 0.01)
 
                 reason = signal.reason or ""
                 if position_reason:

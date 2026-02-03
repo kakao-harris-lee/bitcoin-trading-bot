@@ -274,6 +274,16 @@ def create_parser(
         default=None,
         help="Database path (default: data/upbit_bitcoin.db)",
     )
+    parser.add_argument(
+        "--csv-log",
+        action="store_true",
+        help="Generate CSV log file for analysis",
+    )
+    parser.add_argument(
+        "--csv-log-dir",
+        default="backtest_logs",
+        help="Directory to save CSV logs (default: backtest_logs)",
+    )
 
     return parser
 

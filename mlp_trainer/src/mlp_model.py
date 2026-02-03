@@ -2,10 +2,9 @@
 MLP Direction Classifier Model.
 
 Architecture based on Parente & Rizzuti (2025):
-- Input: 13 features (normalized)
+- Input: 36 features (paper feature set)
 - Hidden layers: 128 → 64 → 32
 - Activation: LeakyReLU
-- Regularization: BatchNorm + Dropout
 - Output: 3 classes (Hold, Buy, Sell) with softmax
 
 Reference: https://doi.org/10.1007/s00500-025-10980-7
@@ -23,12 +22,12 @@ from dataclasses import dataclass
 class MLPConfig:
     """Configuration for MLP model."""
 
-    input_dim: int = 13
+    input_dim: int = 36
     hidden_dims: tuple = (128, 64, 32)
     num_classes: int = 3
-    dropout: float = 0.2
+    dropout: float = 0.0
     leaky_relu_slope: float = 0.01
-    use_batch_norm: bool = True
+    use_batch_norm: bool = False
 
 
 class MLPDirectionClassifier(nn.Module):
@@ -38,20 +37,20 @@ class MLPDirectionClassifier(nn.Module):
     Predicts Buy/Hold/Sell based on technical indicators.
 
     Architecture:
-        Input(13) → Linear(128) → LeakyReLU → BN → Dropout
-                  → Linear(64)  → LeakyReLU → BN → Dropout
-                  → Linear(32)  → LeakyReLU → BN → Dropout
+        Input(36) → Linear(128) → LeakyReLU
+                  → Linear(64)  → LeakyReLU
+                  → Linear(32)  → LeakyReLU
                   → Linear(3)   → Softmax (during inference)
     """
 
     def __init__(
         self,
-        input_dim: int = 13,
+        input_dim: int = 36,
         hidden_dims: tuple = (128, 64, 32),
         num_classes: int = 3,
-        dropout: float = 0.2,
+        dropout: float = 0.0,
         leaky_relu_slope: float = 0.01,
-        use_batch_norm: bool = True,
+        use_batch_norm: bool = False,
     ):
         super().__init__()
 
@@ -191,6 +190,12 @@ class MLPDirectionClassifier(nn.Module):
                 "hidden_dims": self.hidden_dims,
                 "num_classes": self.num_classes,
                 "dropout": self.dropout_rate,
+                "use_batch_norm": any(
+                    isinstance(layer, nn.BatchNorm1d) for layer in self.network
+                ),
+                "leaky_relu_slope": self.network[1].negative_slope
+                if len(self.network) > 1 and isinstance(self.network[1], nn.LeakyReLU)
+                else 0.01,
             },
         }
         torch.save(checkpoint, path)
@@ -248,7 +253,9 @@ class MLPDirectionClassifier(nn.Module):
             input_dim=config["input_dim"],
             hidden_dims=tuple(config["hidden_dims"]),
             num_classes=config["num_classes"],
-            dropout=config["dropout"],
+            dropout=config.get("dropout", 0.0),
+            leaky_relu_slope=config.get("leaky_relu_slope", 0.01),
+            use_batch_norm=config.get("use_batch_norm", True),
         )
 
         model.load_state_dict(checkpoint["state_dict"])

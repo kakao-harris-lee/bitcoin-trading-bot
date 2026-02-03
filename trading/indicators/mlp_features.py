@@ -1,21 +1,25 @@
 """
 MLP Direction Strategy Feature Extraction Module.
 
-Based on Parente & Rizzuti (2025) - "Trading strategy for Bitcoin and Ethereum
-by neural network model"
+Paper reference: Parente & Rizzuti (2025) - "Trading strategy for Bitcoin and Ethereum
+by neural network model" (https://doi.org/10.1007/s00500-025-10980-7)
 
-Features are selected based on SHAP importance analysis from the paper.
-Candlestick patterns are explicitly excluded as they were found ineffective.
-
-Reference: https://doi.org/10.1007/s00500-025-10980-7
+This module provides two feature sets:
+1) paper_36: 23 candlestick patterns + 6 indicators + 4 EMA crossovers + 3 temporal features
+2) shap_13: reduced 13-feature set derived from SHAP analysis (legacy)
 """
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 import talib
 
-# Feature names for reference
-FEATURE_NAMES = [
+FEATURE_SET_PAPER = "paper_36"
+FEATURE_SET_SHAP = "shap_13"
+
+# Feature names for reference (legacy SHAP 13)
+FEATURE_NAMES_SHAP = [
     "bollinger_pct_b",
     "rsi",
     "ultosc",
@@ -31,37 +35,159 @@ FEATURE_NAMES = [
     "close_pct_change",
 ]
 
-NUM_FEATURES = len(FEATURE_NAMES)
+NUM_FEATURES_SHAP = len(FEATURE_NAMES_SHAP)
+
+# Candlestick patterns (paper uses 23 patterns from Pring 1991).
+# NOTE: The paper does not enumerate the exact list; this default list uses
+# common Pring-style patterns available in TA-Lib. Adjust if you have the
+# exact list from the authors.
+CANDLE_PATTERNS_PAPER = [
+    ("doji", talib.CDLDOJI),
+    ("dragonfly_doji", talib.CDLDRAGONFLYDOJI),
+    ("gravestone_doji", talib.CDLGRAVESTONEDOJI),
+    ("engulfing", talib.CDLENGULFING),
+    ("hammer", talib.CDLHAMMER),
+    ("hanging_man", talib.CDLHANGINGMAN),
+    ("inverted_hammer", talib.CDLINVERTEDHAMMER),
+    ("shooting_star", talib.CDLSHOOTINGSTAR),
+    ("morning_star", talib.CDLMORNINGSTAR),
+    ("evening_star", talib.CDLEVENINGSTAR),
+    ("morning_doji_star", talib.CDLMORNINGDOJISTAR),
+    ("evening_doji_star", talib.CDLEVENINGDOJISTAR),
+    ("piercing", talib.CDLPIERCING),
+    ("dark_cloud_cover", talib.CDLDARKCLOUDCOVER),
+    ("harami", talib.CDLHARAMI),
+    ("harami_cross", talib.CDLHARAMICROSS),
+    ("spinning_top", talib.CDLSPINNINGTOP),
+    ("3_white_soldiers", talib.CDL3WHITESOLDIERS),
+    ("3_black_crows", talib.CDL3BLACKCROWS),
+    ("3_inside", talib.CDL3INSIDE),
+    ("3_outside", talib.CDL3OUTSIDE),
+    ("2_crows", talib.CDL2CROWS),
+    ("belt_hold", talib.CDLBELTHOLD),
+]
+
+FEATURE_NAMES_PAPER = (
+    [f"cdl_{name}" for name, _ in CANDLE_PATTERNS_PAPER]
+    + [
+        "bollinger_pct_b",
+        "ultosc",
+        "rsi",
+        "close_pct_change",
+        "price_zscore",
+        "volume_zscore",
+        "ema_cross_1_20",
+        "ema_cross_20_50",
+        "ema_cross_50_100",
+        "ema_cross_1_50",
+        "samples_in_day",
+        "day_of_week",
+        "month",
+    ]
+)
+
+NUM_FEATURES_PAPER = len(FEATURE_NAMES_PAPER)
 
 
 def calculate_mlp_features(
     df: pd.DataFrame,
     bwin: int = 5,
     include_temporal: bool = True,
+    feature_set: str = FEATURE_SET_SHAP,
+) -> pd.DataFrame:
+    """Dispatch to the requested feature set."""
+    if feature_set == FEATURE_SET_PAPER:
+        return calculate_mlp_features_paper(df, include_temporal=include_temporal)
+    if feature_set == FEATURE_SET_SHAP:
+        return calculate_mlp_features_shap(df, include_temporal=include_temporal)
+    raise ValueError(f"Unknown feature_set: {feature_set}")
+
+
+def calculate_mlp_features_paper(
+    df: pd.DataFrame,
+    include_temporal: bool = True,
 ) -> pd.DataFrame:
     """
-    Calculate all 13 MLP features from OHLCV data.
+    Calculate the 36 paper features from OHLCV data.
 
-    Based on SHAP feature importance from the paper:
-    1. Bollinger %B (most important)
-    2. RSI
-    3. Ultimate Oscillator
-    4. EMA Cross 1/21
-    5. EMA Cross 21/50
-    6. EMA Cross 50/100
-    7. EMA Cross 1/50
-    8. Price Z-Score
-    9. Volume Z-Score
-    10. Hour of Day (normalized 0-1)
-    11. Day of Week (normalized 0-1)
-    12. Month (normalized 0-1)
-    13. Close % Change
+    Feature groups:
+    - 23 candlestick patterns (TA-Lib pattern outputs)
+    - 6 technical indicators: Bollinger %B, ULTOSC, RSI, Close % Change, Z-Score, Volume Z-Score
+    - 4 EMA crossovers: EMA(1/20), EMA(20/50), EMA(50/100), EMA(1/50)
+    - 3 temporal features: samples_in_day, day_of_week, month
 
     Args:
         df: DataFrame with columns ['open', 'high', 'low', 'close', 'volume']
              and optionally 'timestamp'
-        bwin: Backward window size (used for reference, default 5)
         include_temporal: Whether to include temporal features
+
+    Returns:
+        DataFrame with 36 feature columns (paper feature order)
+    """
+    open_ = df["open"].values.astype(np.float64)
+    high = df["high"].values.astype(np.float64)
+    low = df["low"].values.astype(np.float64)
+    close = df["close"].values.astype(np.float64)
+    volume = df["volume"].values.astype(np.float64)
+
+    features = pd.DataFrame(index=df.index)
+
+    # 1) Candlestick patterns (TA-Lib outputs: -100, 0, +100)
+    for name, func in CANDLE_PATTERNS_PAPER:
+        features[f"cdl_{name}"] = func(open_, high, low, close)
+
+    # 2) Technical indicators (paper uses 14-period Bollinger)
+    upper, middle, lower = talib.BBANDS(close, timeperiod=14, nbdevup=2, nbdevdn=2)
+    band_width = upper - lower
+    band_width = np.where(band_width < 1e-10, 1e-10, band_width)
+    features["bollinger_pct_b"] = (close - lower) / band_width
+
+    features["ultosc"] = talib.ULTOSC(high, low, close, timeperiod1=7, timeperiod2=14, timeperiod3=28)
+    features["rsi"] = talib.RSI(close, timeperiod=14)
+
+    close_series = pd.Series(close, index=df.index)
+    features["close_pct_change"] = close_series.pct_change()
+
+    sma30 = talib.SMA(close, timeperiod=30)
+    std30 = talib.STDDEV(close, timeperiod=30)
+    std30_safe = np.where(std30 < 1e-10, 1e-10, std30)
+    features["price_zscore"] = (close - sma30) / std30_safe
+
+    vol_sma = talib.SMA(volume, timeperiod=30)
+    vol_std = talib.STDDEV(volume, timeperiod=30)
+    vol_std_safe = np.where(vol_std < 1e-10, 1e-10, vol_std)
+    features["volume_zscore"] = (volume - vol_sma) / vol_std_safe
+
+    # 3) EMA crossovers (paper uses 1/20/50/100)
+    ema20 = talib.EMA(close, timeperiod=20)
+    ema50 = talib.EMA(close, timeperiod=50)
+    ema100 = talib.EMA(close, timeperiod=100)
+
+    features["ema_cross_1_20"] = np.where(np.isnan(ema20), np.nan, close / ema20)
+    features["ema_cross_20_50"] = np.where(np.isnan(ema50) | np.isnan(ema20), np.nan, ema20 / ema50)
+    features["ema_cross_50_100"] = np.where(np.isnan(ema100) | np.isnan(ema50), np.nan, ema50 / ema100)
+    features["ema_cross_1_50"] = np.where(np.isnan(ema50), np.nan, close / ema50)
+
+    # 4) Temporal features (paper: samples-in-day, day-of-week, month)
+    if include_temporal and "timestamp" in df.columns:
+        ts = pd.to_datetime(df["timestamp"])
+        features["samples_in_day"] = (ts.dt.hour // 4).astype(np.float64)
+        features["day_of_week"] = ts.dt.dayofweek.astype(np.float64)
+        features["month"] = ts.dt.month.astype(np.float64)
+    else:
+        features["samples_in_day"] = 0.0
+        features["day_of_week"] = 0.0
+        features["month"] = 0.0
+
+    return features
+
+
+def calculate_mlp_features_shap(
+    df: pd.DataFrame,
+    include_temporal: bool = True,
+) -> pd.DataFrame:
+    """
+    Calculate legacy 13-feature MLP set derived from SHAP analysis.
 
     Returns:
         DataFrame with 13 feature columns, normalized to roughly 0-1 range
@@ -160,6 +286,7 @@ def calculate_mlp_features(
 def extract_single_features(
     market_data: dict,
     indicators: dict,
+    feature_set: str = FEATURE_SET_SHAP,
 ) -> np.ndarray:
     """
     Extract features for a single time point from pre-calculated indicators.
@@ -170,11 +297,24 @@ def extract_single_features(
     Args:
         market_data: Dict with 'close', 'volume', 'timestamp' etc.
         indicators: Dict with pre-calculated indicator values
+        feature_set: Feature set name
 
     Returns:
-        numpy array of 13 features
+        numpy array of features in the selected feature order
     """
-    features = np.zeros(NUM_FEATURES, dtype=np.float32)
+    if feature_set == FEATURE_SET_PAPER:
+        return extract_single_features_paper(market_data, indicators)
+    if feature_set == FEATURE_SET_SHAP:
+        return extract_single_features_shap(market_data, indicators)
+    raise ValueError(f"Unknown feature_set: {feature_set}")
+
+
+def extract_single_features_shap(
+    market_data: dict,
+    indicators: dict,
+) -> np.ndarray:
+    """Extract legacy 13-feature set for live trading."""
+    features = np.zeros(NUM_FEATURES_SHAP, dtype=np.float32)
 
     # Map indicator names to feature array
     feature_map = {
@@ -206,6 +346,54 @@ def extract_single_features(
                 features[idx] = 1.0  # No crossover
             else:
                 features[idx] = 0.0
+
+    return features
+
+
+def extract_single_features_paper(
+    market_data: dict,
+    indicators: dict,
+) -> np.ndarray:
+    """
+    Extract paper 36-feature set for a single time point.
+
+    Note: Candlestick patterns require multi-bar OHLC history and are not
+    currently computed in live mode. This returns zeros for candlestick
+    features unless the caller provides pre-computed pattern values in
+    `indicators` using keys that match FEATURE_NAMES_PAPER.
+    """
+    features = np.zeros(NUM_FEATURES_PAPER, dtype=np.float32)
+
+    feature_index = {name: idx for idx, name in enumerate(FEATURE_NAMES_PAPER)}
+
+    # If caller pre-populates pattern keys (e.g. from cached history), use them.
+    for name in FEATURE_NAMES_PAPER:
+        if name in indicators:
+            features[feature_index[name]] = indicators[name]
+
+    # Map basic indicators if present (fallbacks)
+    def _set(name: str, value: float):
+        idx = feature_index.get(name)
+        if idx is not None:
+            features[idx] = value
+
+    _set("bollinger_pct_b", indicators.get("bollinger_pct_b", 0.0))
+    _set("ultosc", indicators.get("ultosc", 0.0))
+    _set("rsi", indicators.get("rsi", 0.0))
+    _set("close_pct_change", indicators.get("close_pct_change", 0.0))
+    _set("price_zscore", indicators.get("price_zscore", 0.0))
+    _set("volume_zscore", indicators.get("volume_zscore", 0.0))
+    _set("ema_cross_1_20", indicators.get("ema_cross_1_20", 1.0))
+    _set("ema_cross_20_50", indicators.get("ema_cross_20_50", 1.0))
+    _set("ema_cross_50_100", indicators.get("ema_cross_50_100", 1.0))
+    _set("ema_cross_1_50", indicators.get("ema_cross_1_50", 1.0))
+
+    if "timestamp" in market_data:
+        ts = pd.to_datetime(market_data["timestamp"], unit="ms", errors="coerce")
+        if pd.notna(ts):
+            _set("samples_in_day", float(ts.hour // 4))
+            _set("day_of_week", float(ts.dayofweek))
+            _set("month", float(ts.month))
 
     return features
 

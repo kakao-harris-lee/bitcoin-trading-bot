@@ -419,6 +419,11 @@ class Backtester:
             timestamp = row['timestamp']
             price = row['close']
 
+            # Update portfolio equity for strategies that use drawdown protection
+            if hasattr(strategy_func, "update_equity"):
+                current_equity = self.cash + (self.position * price if self.position != 0 else 0.0)
+                strategy_func.update_equity(current_equity)
+
             # 전략 시그널 생성
             signal = strategy_func(df, i, strategy_params)
             action = signal.get('action', 'hold')

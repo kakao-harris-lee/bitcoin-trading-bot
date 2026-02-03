@@ -76,6 +76,9 @@ class MLPDirectionExitParams:
     # Model path (for MLP SELL exit)
     model_path: str = DEFAULT_MODEL_PATH
 
+    # Feature set (paper_36 or shap_13)
+    mlp_feature_set: str = "paper_36"
+
 
 @exit_strategy(params_class=MLPDirectionExitParams)
 class MLPDirectionExitStrategy(BaseExitStrategy):

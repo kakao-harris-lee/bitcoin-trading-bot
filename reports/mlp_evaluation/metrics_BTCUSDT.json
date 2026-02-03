@@ -1,0 +1,17 @@
+{
+  "accuracy": 0.5903264812575575,
+  "n_samples": 4135,
+  "hold_precision": 0.9769295302013423,
+  "hold_recall": 0.5881313131313132,
+  "hold_f1": 0.7342370744010088,
+  "hold_support": 3960,
+  "buy_precision": 0.06929740134744947,
+  "buy_recall": 0.6923076923076923,
+  "buy_f1": 0.12598425196850394,
+  "buy_support": 104,
+  "sell_precision": 0.056179775280898875,
+  "sell_recall": 0.5633802816901409,
+  "sell_f1": 0.10217113665389528,
+  "sell_support": 71,
+  "confusion_matrix_path": "reports/mlp_evaluation/confusion_matrix_BTCUSDT.png"
+}

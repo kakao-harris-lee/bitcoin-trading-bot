@@ -168,6 +168,7 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # EMAs (short/mid/long)
     df['ema_20'] = ta.ema(df['close'], 20)
     df['ema_50'] = ta.ema(df['close'], 50)
+    df['ema_100'] = ta.ema(df['close'], 100)
     df['ema_120'] = ta.ema(df['close'], 120)  # For MA120 panic sell
     df['ema_200'] = ta.ema(df['close'], 200)
 
@@ -198,7 +199,7 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def add_mlp_features(df: pd.DataFrame, bwin: int = 5) -> pd.DataFrame:
+def add_mlp_features(df: pd.DataFrame, bwin: int = 5, feature_set: str = "paper_36") -> pd.DataFrame:
     """Add MLP Direction strategy features to DataFrame.
 
     Based on Parente & Rizzuti (2025) methodology.
@@ -213,7 +214,12 @@ def add_mlp_features(df: pd.DataFrame, bwin: int = 5) -> pd.DataFrame:
     """
     from .mlp_features import calculate_mlp_features
 
-    mlp_features = calculate_mlp_features(df, bwin=bwin, include_temporal=True)
+    mlp_features = calculate_mlp_features(
+        df,
+        bwin=bwin,
+        include_temporal=True,
+        feature_set=feature_set,
+    )
 
     # Merge features into main DataFrame
     for col in mlp_features.columns:

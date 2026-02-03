@@ -3,6 +3,10 @@ MLP Direction Strategy Labeling Algorithm.
 
 Implements the parametric labeling strategy from Parente & Rizzuti (2025).
 
+Key detail from Algorithm 1 / Fig. 3:
+- The reference "open" price is computed as EMA(close, BWin),
+  not the raw open price from OHLC.
+
 The algorithm assigns Buy/Hold/Sell labels based on future returns:
 - Buy: Return in [α, β] and positive
 - Sell: Return in [-β, -α] and negative
@@ -60,8 +64,8 @@ def compute_labels(
     from opening a position at time t and closing at time t + fwin.
 
     Args:
-        df: DataFrame with 'open' and 'close' columns
-        bwin: Backward window size (for EMA reference, not directly used in labeling)
+    df: DataFrame with 'close' column (EMA reference is derived from close)
+        bwin: Backward window size (EMA length)
         fwin: Forward window size (lookahead periods)
         alpha: Minimum return threshold to trigger Buy/Sell (default 3.8%)
         beta: Maximum return threshold (default 24%)
@@ -70,19 +74,27 @@ def compute_labels(
     Returns:
         Series with labels: 0=Hold, 1=Buy, 2=Sell
     """
-    open_prices = df["open"].values.astype(np.float64)
     close_prices = df["close"].values.astype(np.float64)
     n = len(df)
 
     labels = np.zeros(n, dtype=np.int32)  # Default: Hold (0)
+
+    # EMA-based reference price (paper: EMA over Backward Window)
+    try:
+        import talib
+        ema_ref = talib.EMA(close_prices, timeperiod=bwin)
+    except Exception:
+        ema_ref = pd.Series(close_prices).ewm(span=bwin, adjust=False).mean().values
 
     # Adjust beta based on forward window
     # Paper: β increases by 10% (of original β) for each additional FWin step
     adjusted_beta = beta + (fwin - 1) * 0.024
 
     for t in range(n - fwin):
-        # Current open price
-        current_open = open_prices[t]
+        # EMA reference price at time t
+        current_open = ema_ref[t]
+        if np.isnan(current_open) or current_open <= 0:
+            continue
 
         # Future close price (at end of forward window)
         future_close = close_prices[t + fwin]
@@ -108,6 +120,7 @@ def compute_returns(
     df: pd.DataFrame,
     fwin: int = 2,
     fee: float = 0.001,
+    bwin: int = 5,
 ) -> pd.Series:
     """
     Compute forward returns for each time point.
@@ -115,21 +128,28 @@ def compute_returns(
     Useful for analysis and threshold tuning.
 
     Args:
-        df: DataFrame with 'open' and 'close' columns
+    df: DataFrame with 'close' column
         fwin: Forward window size
         fee: Trading fee per operation
 
     Returns:
         Series of returns (accounting for fees)
     """
-    open_prices = df["open"].values.astype(np.float64)
     close_prices = df["close"].values.astype(np.float64)
     n = len(df)
 
     returns = np.full(n, np.nan)
 
+    try:
+        import talib
+        ema_ref = talib.EMA(close_prices, timeperiod=bwin)
+    except Exception:
+        ema_ref = pd.Series(close_prices).ewm(span=bwin, adjust=False).mean().values
+
     for t in range(n - fwin):
-        current_open = open_prices[t]
+        current_open = ema_ref[t]
+        if np.isnan(current_open) or current_open <= 0:
+            continue
         future_close = close_prices[t + fwin]
         ret = ((1 - fee) * future_close - (1 + fee) * current_open) / current_open
         returns[t] = ret
@@ -163,6 +183,7 @@ def compute_optimal_thresholds(
     df: pd.DataFrame,
     fwin: int = 2,
     fee: float = 0.001,
+    bwin: int = 5,
     alpha_percentile: float = 85.0,
     beta_percentile: float = 99.7,
 ) -> tuple[float, float]:
@@ -181,7 +202,7 @@ def compute_optimal_thresholds(
     Returns:
         Tuple of (alpha, beta)
     """
-    returns = compute_returns(df, fwin, fee)
+    returns = compute_returns(df, fwin, fee, bwin=bwin)
     abs_returns = returns.abs().dropna()
 
     alpha = np.percentile(abs_returns, alpha_percentile)
@@ -271,15 +292,21 @@ def split_train_val_test(
         stratify=y if stratify else None,
     )
 
-    # Second split: separate validation from train
-    val_adjusted = val_ratio / (1 - test_ratio)
-    X_train, X_val, y_train, y_val = train_test_split(
-        X_temp,
-        y_temp,
-        test_size=val_adjusted,
-        random_state=random_state,
-        stratify=y_temp if stratify else None,
-    )
+    if val_ratio <= 0:
+        # No validation set requested
+        X_train, y_train = X_temp, y_temp
+        X_val = X_train[:0]
+        y_val = y_train[:0]
+    else:
+        # Second split: separate validation from train
+        val_adjusted = val_ratio / (1 - test_ratio)
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_temp,
+            y_temp,
+            test_size=val_adjusted,
+            random_state=random_state,
+            stratify=y_temp if stratify else None,
+        )
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
@@ -295,7 +322,7 @@ def validate_labels(labels: pd.Series, df: pd.DataFrame) -> dict:
     Returns:
         Dict with validation statistics
     """
-    returns = compute_returns(df, fwin=2)
+    returns = compute_returns(df, fwin=2, bwin=5)
 
     stats = {}
     for label_id, label_name in LABEL_NAMES.items():

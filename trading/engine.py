@@ -291,6 +291,12 @@ class TradingEngine:
                 continue
 
             try:
+                # Allow per-strategy symbol overrides
+                strategy_symbols = config.get("symbols", symbols)
+                if not strategy_symbols:
+                    logger.warning(f"Skipping strategy {name}: no symbols configured")
+                    continue
+
                 # Create entry and exit components
                 entry, exit_strat = factory.create_components(
                     strategy_name=name,
@@ -301,7 +307,7 @@ class TradingEngine:
                 # Create composite task with shared indicator service
                 task = await create_composite_task(
                     name=name,
-                    symbols=symbols,
+                    symbols=strategy_symbols,
                     redis=self.redis,
                     entry_strategy=entry,
                     exit_strategy=exit_strat,

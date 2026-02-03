@@ -53,6 +53,9 @@ class MLPDirectionEntryParams:
     # Model path
     model_path: str = DEFAULT_MODEL_PATH
 
+    # Feature set (paper_36 or shap_13)
+    mlp_feature_set: str = "paper_36"
+
 
 @entry_strategy(params_class=MLPDirectionEntryParams)
 class MLPDirectionEntryStrategy:
@@ -60,7 +63,7 @@ class MLPDirectionEntryStrategy:
 
     Based on Parente & Rizzuti (2025) methodology:
     - 3-class classification: Hold (0), Buy (1), Sell (2)
-    - 13 SHAP-validated features
+    - Feature set selectable (paper_36 or shap_13)
     - Entry only on BUY prediction with high confidence
 
     Entry conditions:
@@ -146,13 +149,24 @@ class MLPDirectionEntryStrategy:
                 "bollinger_pct_b": indicators.get("bollinger_pct_b", 0.5),
                 "rsi": indicators.get("rsi", rsi),
                 "ultosc": indicators.get("ultosc", 50.0),
-                "ema_1": market_data.close,  # EMA(1) = close
+                "ema_20": indicators.get("ema_20", ema_50),
                 "ema_21": indicators.get("ema_21", ema_50),
                 "ema_50": ema_50,
                 "ema_100": indicators.get("ema_100", ema_200),
                 "price_zscore": indicators.get("price_zscore", 0.0),
                 "volume_zscore": indicators.get("volume_zscore", 0.0),
             }
+
+            # EMA cross ratios if available (paper set)
+            ema20 = ind_dict.get("ema_20", 0.0)
+            if ema20:
+                ind_dict["ema_cross_1_20"] = market_data.close / ema20
+            if ema20 and ema_50:
+                ind_dict["ema_cross_20_50"] = ema20 / ema_50
+            if ema_50 and ind_dict.get("ema_100", 0.0):
+                ind_dict["ema_cross_50_100"] = ema_50 / ind_dict["ema_100"]
+            if ema_50:
+                ind_dict["ema_cross_1_50"] = market_data.close / ema_50
 
             # Add temporal features if available
             if hasattr(market_data, "timestamp"):
@@ -163,7 +177,15 @@ class MLPDirectionEntryStrategy:
                 ind_dict["day_of_week"] = dt.weekday()
                 ind_dict["month"] = dt.month
 
-            features = self._feature_extractor(data_dict, ind_dict)
+            try:
+                features = self._feature_extractor(
+                    data_dict,
+                    ind_dict,
+                    feature_set=self.params.mlp_feature_set,
+                )
+            except TypeError:
+                # Backward compatible with extractors that don't accept feature_set
+                features = self._feature_extractor(data_dict, ind_dict)
             return features
 
         except Exception as e:
@@ -212,6 +234,12 @@ class MLPDirectionEntryStrategy:
         mlp_confidence = getattr(ctx, "mlp_confidence", None)
 
         if mlp_prediction is None or mlp_confidence is None:
+            if p.mlp_feature_set == "paper_36":
+                logger.warning(
+                    f"{market_data.symbol}: MLP paper_36 requires precomputed features; "
+                    "skipping live inference."
+                )
+                return None
             # Compute MLP prediction on the fly (for live trading)
             # Note: In backtest, this should be pre-computed via adapter
             features = self._extract_features(market_data, {})

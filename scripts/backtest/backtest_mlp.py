@@ -3,27 +3,29 @@
 Backtest for MLP Direction Strategy.
 
 MLP Direction is a neural network-based direction prediction strategy that:
-- Uses 13 SHAP-validated features (Parente & Rizzuti 2025)
+- Uses paper_36 features (Parente & Rizzuti 2025)
 - Predicts 3-class direction (Hold/Buy/Sell)
-- Enters on BUY prediction with high confidence
-- Uses 10% fixed stop loss (as per paper)
+- Enters on BUY prediction
+- Exits based on configured MLP SELL / FWin / stop loss rules
 
 Usage:
     python scripts/backtest/backtest_mlp.py --symbol BTC --start-date 2020-01-01
     python scripts/backtest/backtest_mlp.py --symbol ETH --start-date 2020-01-01 --by-year
+    python scripts/backtest/backtest_mlp.py --symbol BTC --mode live --strategy-id mlp_direction_optimized
 """
 
 from __future__ import annotations
 
+import json
+import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import pandas as pd
-import numpy as np
 
 from scripts.backtest._common import (
     create_parser,
@@ -40,6 +42,105 @@ from trading.indicators import add_all_indicators
 from trading.indicators.mlp_features import calculate_mlp_features
 
 
+def _expand_env_vars(obj: Any) -> Any:
+    if isinstance(obj, str):
+        return os.path.expandvars(obj)
+    if isinstance(obj, dict):
+        return {k: _expand_env_vars(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_expand_env_vars(item) for item in obj]
+    return obj
+
+
+def load_allocation_config(path: str) -> dict[str, Any]:
+    with open(path) as f:
+        config = json.load(f)
+    return _expand_env_vars(config)
+
+
+def _extract_param(config: dict[str, Any], key: str) -> Any:
+    if key in config:
+        return config.get(key)
+    entry_params = config.get("entry", {}).get("params", {})
+    if key in entry_params:
+        return entry_params.get(key)
+    exit_params = config.get("exit", {}).get("params", {})
+    if key in exit_params:
+        return exit_params.get(key)
+    return None
+
+
+def _normalize_mlp_config(config: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(config)
+    if "model_path" not in normalized:
+        model_path = _extract_param(config, "model_path")
+        if model_path:
+            normalized["model_path"] = model_path
+    if "mlp_feature_set" not in normalized:
+        feature_set = _extract_param(config, "mlp_feature_set")
+        if feature_set:
+            normalized["mlp_feature_set"] = feature_set
+    if "bwin" not in normalized:
+        bwin = _extract_param(config, "bwin")
+        if bwin is not None:
+            normalized["bwin"] = bwin
+    return normalized
+
+
+def _resolve_strategy_id(
+    strategies: dict[str, Any],
+    symbol: str,
+    mode: str,
+    strategy_id: str | None,
+) -> str:
+    if strategy_id:
+        return strategy_id
+
+    symbol_key = f"mlp_direction_{symbol.lower()}"
+    if mode == "paper":
+        if symbol_key in strategies:
+            return symbol_key
+        if "mlp_direction" in strategies:
+            return "mlp_direction"
+        return symbol_key
+
+    if mode == "live":
+        if "mlp_direction_optimized" in strategies:
+            return "mlp_direction_optimized"
+        if symbol_key in strategies:
+            return symbol_key
+        if "mlp_direction" in strategies:
+            return "mlp_direction"
+        return symbol_key
+
+    # Fallback
+    return symbol_key if symbol_key in strategies else "mlp_direction"
+
+
+def load_strategy_config(
+    config_path: str,
+    symbol: str,
+    mode: str,
+    strategy_id: str | None = None,
+) -> tuple[dict[str, Any], str, dict[str, Any]]:
+    allocation = load_allocation_config(config_path)
+    strategies = allocation.get("strategies", {})
+    if not strategies:
+        raise ValueError("No strategies found in allocation config.")
+
+    resolved_id = _resolve_strategy_id(
+        strategies=strategies,
+        symbol=symbol,
+        mode=mode,
+        strategy_id=strategy_id,
+    )
+    if resolved_id not in strategies:
+        raise ValueError(f"Strategy '{resolved_id}' not found in allocation config.")
+
+    strategy_config = _normalize_mlp_config(strategies[resolved_id])
+    return allocation, resolved_id, strategy_config
+
+
 class MLPDirectionBacktester:
     """Wrapper for MLP Direction strategy backtesting.
 
@@ -49,30 +150,22 @@ class MLPDirectionBacktester:
     def __init__(
         self,
         symbol: str = "BTC",
-        model_path: str = "models/mlp_direction/model_final.pt",
-        confidence_threshold: float = 0.60,
-        stop_loss_pct: float = 10.0,
-        fwin_exit_enabled: bool = True,
-        fwin_periods: int = 2,
+        config: dict[str, Any] | None = None,
+        entry_overrides: dict[str, Any] | None = None,
+        exit_overrides: dict[str, Any] | None = None,
+        strategy_label: str | None = None,
     ):
         self.symbol = symbol
-        self.model_path = model_path
-        self.confidence_threshold = confidence_threshold
-        self.stop_loss_pct = stop_loss_pct
-        self.fwin_exit_enabled = fwin_exit_enabled
-        self.fwin_periods = fwin_periods
+        self.config = _normalize_mlp_config(config or {})
+        self.entry_overrides = entry_overrides or {}
+        self.exit_overrides = exit_overrides or {}
+        self.strategy_label = strategy_label or "mlp_direction"
 
-        # Build config
-        self.config = {
-            "position_pct": 0.10,  # 10% position size
-            "market": "spot",
-            "buy_confidence_threshold": confidence_threshold,
-            "stop_loss_pct": stop_loss_pct,
-            "model_path": model_path,
-            # FWin exit (paper methodology)
-            "fwin_exit_enabled": fwin_exit_enabled,
-            "fwin_periods": fwin_periods,
-        }
+        feature_set = _extract_param(self.config, "mlp_feature_set")
+        self.feature_set = feature_set or "paper_36"
+
+        bwin = _extract_param(self.config, "bwin")
+        self.bwin = int(bwin) if bwin is not None else 5
 
     def prepare_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Add required indicators to DataFrame.
@@ -87,7 +180,12 @@ class MLPDirectionBacktester:
         df = add_all_indicators(df)
 
         # Add MLP-specific features
-        mlp_features = calculate_mlp_features(df, bwin=5, include_temporal=True)
+        mlp_features = calculate_mlp_features(
+            df,
+            bwin=self.bwin,
+            include_temporal=True,
+            feature_set=self.feature_set,
+        )
 
         # Merge features
         for col in mlp_features.columns:
@@ -116,6 +214,8 @@ class MLPDirectionBacktester:
             factory=factory,
             strategy_name="mlp_direction",
             config=self.config,
+            entry_overrides=self.entry_overrides,
+            exit_overrides=self.exit_overrides,
         )
         adapter.symbol = self.symbol
 
@@ -141,11 +241,10 @@ def run_backtest(
     end_date: str,
     timeframe: str = "minute240",  # 4-hour candles
     initial_capital: float = 10_000,
-    model_path: str = "models/mlp_direction/model_final.pt",
-    confidence_threshold: float = 0.60,
-    stop_loss_pct: float = 10.0,
-    fwin_exit_enabled: bool = True,
-    fwin_periods: int = 2,
+    strategy_config: dict[str, Any] | None = None,
+    entry_overrides: dict[str, Any] | None = None,
+    exit_overrides: dict[str, Any] | None = None,
+    strategy_label: str | None = None,
 ) -> dict:
     """Run MLP Direction strategy backtest.
 
@@ -156,9 +255,10 @@ def run_backtest(
         end_date: Backtest end date.
         timeframe: Candle timeframe.
         initial_capital: Starting capital.
-        model_path: Path to trained MLP model.
-        confidence_threshold: Minimum confidence for BUY.
-        stop_loss_pct: Stop loss percentage.
+        strategy_config: Strategy config dict (allocation.json block).
+        entry_overrides: Entry parameter overrides.
+        exit_overrides: Exit parameter overrides.
+        strategy_label: Label for reporting.
 
     Returns:
         Backtest results dictionary.
@@ -187,11 +287,10 @@ def run_backtest(
     # Initialize backtester
     backtester = MLPDirectionBacktester(
         symbol=symbol,
-        model_path=model_path,
-        confidence_threshold=confidence_threshold,
-        stop_loss_pct=stop_loss_pct,
-        fwin_exit_enabled=fwin_exit_enabled,
-        fwin_periods=fwin_periods,
+        config=strategy_config or {},
+        entry_overrides=entry_overrides,
+        exit_overrides=exit_overrides,
+        strategy_label=strategy_label,
     )
 
     # Prepare data
@@ -257,21 +356,37 @@ def main():
         help="Trading symbol (default: BTC)",
     )
     parser.add_argument(
+        "--mode",
+        choices=["paper", "live"],
+        default="paper",
+        help="Config mode to load from allocation.json (default: paper)",
+    )
+    parser.add_argument(
+        "--config",
+        default="config/strategies/allocation.json",
+        help="Path to allocation config (default: config/strategies/allocation.json)",
+    )
+    parser.add_argument(
+        "--strategy-id",
+        default=None,
+        help="Strategy config id in allocation.json (default: auto by mode/symbol)",
+    )
+    parser.add_argument(
         "--model",
-        default="models/mlp_direction/model_final.pt",
-        help="Path to trained MLP model",
+        default=None,
+        help="Override model path (defaults to allocation.json)",
     )
     parser.add_argument(
         "--confidence",
         type=float,
-        default=0.60,
-        help="Minimum confidence threshold (default: 0.60)",
+        default=None,
+        help="Override buy_confidence_threshold (default: use config)",
     )
     parser.add_argument(
         "--stop-loss",
         type=float,
-        default=10.0,
-        help="Stop loss percentage (default: 10.0)",
+        default=None,
+        help="Override stop_loss_pct (default: use config)",
     )
     parser.add_argument(
         "--compare",
@@ -281,31 +396,66 @@ def main():
     parser.add_argument(
         "--fwin-exit",
         action="store_true",
-        default=True,
-        help="Enable FWin exit (paper methodology, default: True)",
+        default=None,
+        help="Force enable FWin exit (override config)",
     )
     parser.add_argument(
         "--no-fwin-exit",
         action="store_true",
-        help="Disable FWin exit (use trailing/TP instead)",
+        default=None,
+        help="Force disable FWin exit (override config)",
     )
     parser.add_argument(
         "--fwin-periods",
         type=int,
-        default=2,
-        help="Forward window periods (default: 2 candles)",
+        default=None,
+        help="Override fwin_periods (default: use config)",
     )
 
     args = parser.parse_args()
-    # Handle --no-fwin-exit flag
-    fwin_enabled = not args.no_fwin_exit
+    try:
+        _, strategy_id, strategy_config = load_strategy_config(
+            config_path=args.config,
+            symbol=args.symbol,
+            mode=args.mode,
+            strategy_id=args.strategy_id,
+        )
+    except ValueError as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)
 
-    # Check if model exists
-    model_path = Path(args.model)
-    if not model_path.exists():
-        print(f"WARNING: Model not found at {model_path}")
-        print("Run training first: python mlp_trainer/train.py")
-        print("Proceeding with backtest (will fail at prediction step)...")
+    entry_overrides: dict[str, Any] = {}
+    exit_overrides: dict[str, Any] = {}
+
+    if args.model:
+        strategy_config["model_path"] = args.model
+        entry_overrides["model_path"] = args.model
+        exit_overrides["model_path"] = args.model
+
+    if args.confidence is not None:
+        entry_overrides["buy_confidence_threshold"] = args.confidence
+
+    if args.stop_loss is not None:
+        exit_overrides["stop_loss_pct"] = args.stop_loss
+
+    if args.fwin_exit is not None or args.no_fwin_exit is not None:
+        if args.fwin_exit and args.no_fwin_exit:
+            print("WARNING: Both --fwin-exit and --no-fwin-exit set; using --no-fwin-exit.")
+        fwin_enabled = bool(args.fwin_exit) and not bool(args.no_fwin_exit)
+        exit_overrides["fwin_exit_enabled"] = fwin_enabled
+
+    if args.fwin_periods is not None:
+        exit_overrides["fwin_periods"] = args.fwin_periods
+
+    model_path = strategy_config.get("model_path")
+    if model_path:
+        model_path = Path(model_path)
+        if not model_path.exists():
+            print(f"WARNING: Model not found at {model_path}")
+            print("Run training first: python mlp_trainer/train.py")
+            print("Proceeding with backtest (will fail at prediction step)...")
+
+    print(f"Mode: {args.mode} | Strategy config: {strategy_id}")
 
     # Run backtest
     results = run_backtest(
@@ -315,11 +465,10 @@ def main():
         end_date=args.end_date,
         timeframe=args.timeframe,
         initial_capital=args.capital,
-        model_path=args.model,
-        confidence_threshold=args.confidence,
-        stop_loss_pct=args.stop_loss,
-        fwin_exit_enabled=fwin_enabled,
-        fwin_periods=args.fwin_periods,
+        strategy_config=strategy_config,
+        entry_overrides=entry_overrides,
+        exit_overrides=exit_overrides,
+        strategy_label=strategy_id,
     )
 
     if not results:
@@ -330,7 +479,8 @@ def main():
     metrics = compute_metrics(results.get("equity_curve"), args.timeframe)
 
     # Print results
-    print_summary(f"MLP Direction ({args.symbol})", results, metrics, verbose=args.verbose)
+    label = f"MLP Direction ({args.symbol}) [{strategy_id}]"
+    print_summary(label, results, metrics, verbose=args.verbose)
 
     if args.by_year:
         print_yearly_table(results.get("equity_curve"))

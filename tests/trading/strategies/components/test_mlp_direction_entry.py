@@ -178,6 +178,7 @@ class TestMLPDirectionEntryWithMockedModel:
     def strategy_with_mock_model(self):
         """Create strategy with mocked model."""
         strategy = MLPDirectionEntryStrategy()
+        strategy.params.mlp_feature_set = "shap_13"
 
         # Mock the model
         mock_model = MagicMock()

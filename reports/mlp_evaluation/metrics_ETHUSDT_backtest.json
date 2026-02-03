@@ -1,0 +1,17 @@
+{
+  "accuracy": 0.5217203930356835,
+  "n_samples": 11602,
+  "hold_precision": 0.893928035982009,
+  "hold_recall": 0.5030053780449225,
+  "hold_f1": 0.6437681355017207,
+  "hold_support": 9483,
+  "buy_precision": 0.18455308070581428,
+  "buy_recall": 0.6206225680933852,
+  "buy_f1": 0.28450390189520625,
+  "buy_support": 1028,
+  "sell_precision": 0.2296190815236739,
+  "sell_recall": 0.5912007332722273,
+  "sell_f1": 0.3307692307692308,
+  "sell_support": 1091,
+  "confusion_matrix_path": "reports/mlp_evaluation/confusion_matrix_ETHUSDT_backtest.png"
+}

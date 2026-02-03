@@ -183,6 +183,30 @@ class CompositeStrategyTask(BaseStrategyTask):
             )
             self._rf_available = self._rf_service.is_available()
 
+        # MLP Direction integration (optional)
+        self._use_mlp_direction: bool = self._detect_mlp_direction()
+        self._mlp_feature_set = (
+            self.config.get("mlp_feature_set")
+            or self.config.get("entry", {}).get("params", {}).get("mlp_feature_set")
+            or self.config.get("exit", {}).get("params", {}).get("mlp_feature_set")
+            or "paper_36"
+        )
+        self._mlp_bwin = (
+            self.config.get("bwin")
+            or self.config.get("entry", {}).get("params", {}).get("bwin")
+            or self.config.get("exit", {}).get("params", {}).get("bwin")
+            or 5
+        )
+        self._mlp_model_path = (
+            self.config.get("model_path")
+            or self.config.get("entry", {}).get("params", {}).get("model_path")
+            or self.config.get("exit", {}).get("params", {}).get("model_path")
+            or "models/mlp_direction/model_final.pt"
+        )
+        self._mlp_model = None
+        self._mlp_available: bool | None = None
+        self._mlp_cache: dict[str, dict[str, float | int]] = {}
+
         # Entry gating and leverage controls
         self._cash_in_bear = self.config.get("cash_in_bear", False)
         self._cash_below_ema200 = self.config.get("cash_below_ema200", False)
@@ -312,12 +336,19 @@ class CompositeStrategyTask(BaseStrategyTask):
             if cached_ctx is not None:
                 positions = cached_ctx.positions
 
+        mlp_prediction = None
+        mlp_confidence = None
+        if self._use_mlp_direction:
+            mlp_prediction, mlp_confidence = self._get_mlp_prediction(symbol, market_data)
+
         ctx = TradingContext(
             symbol=symbol,
             timestamp=market_data.timestamp,
             market=market_data,
             regime=context,
             positions=positions,
+            mlp_prediction=mlp_prediction,
+            mlp_confidence=mlp_confidence,
         )
 
         # Record decision at candle close for dashboard visibility
@@ -479,12 +510,19 @@ class CompositeStrategyTask(BaseStrategyTask):
             if cached_ctx is not None:
                 positions = {**cached_ctx.positions, self.name: position}
 
+        mlp_prediction = None
+        mlp_confidence = None
+        if self._use_mlp_direction:
+            mlp_prediction, mlp_confidence = self._get_mlp_prediction(symbol, market_data)
+
         ctx = TradingContext(
             symbol=symbol,
             timestamp=market_data.timestamp,
             market=market_data,
             regime=context,
             positions=MappingProxyType(positions),
+            mlp_prediction=mlp_prediction,
+            mlp_confidence=mlp_confidence,
         )
 
         # Drawdown-based exits (portfolio-level protection)
@@ -921,6 +959,136 @@ class CompositeStrategyTask(BaseStrategyTask):
             regime=regime,
             breakout_signal=market_data.breakout_signal,
         )
+
+    def _detect_mlp_direction(self) -> bool:
+        """Detect whether this strategy uses the MLP Direction components."""
+        if self.name.startswith("mlp_direction"):
+            return True
+        entry_class = self.config.get("entry", {}).get("class")
+        exit_class = self.config.get("exit", {}).get("class")
+        if entry_class == "MLPDirectionEntryStrategy" or exit_class == "MLPDirectionExitStrategy":
+            return True
+        if self.entry_strategy.__class__.__name__ == "MLPDirectionEntryStrategy":
+            return True
+        if self.exit_strategy.__class__.__name__ == "MLPDirectionExitStrategy":
+            return True
+        return False
+
+    def _ensure_mlp_model(self) -> bool:
+        """Lazy-load MLP Direction model."""
+        if not self._use_mlp_direction:
+            return False
+        if self._mlp_available is not None:
+            return self._mlp_available
+
+        try:
+            from pathlib import Path
+            from mlp_trainer.src.mlp_model import MLPDirectionClassifier
+
+            model_path = Path(self._mlp_model_path)
+            if not model_path.exists():
+                logger.warning(f"{self.name}: MLP model not found at {model_path}")
+                self._mlp_available = False
+                return False
+
+            self._mlp_model = MLPDirectionClassifier.load(
+                str(model_path), device="cpu", validate_path=True
+            )
+            self._mlp_model.eval()
+            self._mlp_available = True
+            logger.info(f"{self.name}: MLP model loaded from {model_path}")
+
+        except Exception as e:
+            logger.warning(f"{self.name}: MLP model load failed: {e}")
+            self._mlp_available = False
+
+        return self._mlp_available
+
+    def _get_mlp_history_df(self, symbol: str) -> pd.DataFrame | None:
+        """Get recent candle history for MLP prediction."""
+        if self.indicator_service is not None:
+            df = self.indicator_service.get_history_df(symbol)
+        else:
+            history = self.history.get(symbol, [])
+            if not history:
+                return None
+            df = pd.DataFrame(history)
+
+        if df is None or df.empty:
+            return None
+        return df
+
+    def _get_mlp_prediction(
+        self,
+        symbol: str,
+        market_data: MarketData,
+    ) -> tuple[int | None, float | None]:
+        """Compute or fetch cached MLP prediction for current tick."""
+        if not self._use_mlp_direction:
+            return None, None
+
+        cached = self._mlp_cache.get(symbol)
+        if cached and cached.get("timestamp") == market_data.timestamp:
+            return cached.get("prediction"), cached.get("confidence")
+
+        if not self._ensure_mlp_model():
+            return None, None
+
+        df = self._get_mlp_history_df(symbol)
+        if df is None:
+            return None, None
+
+        try:
+            idx = df.index[-1]
+            if "close" in df.columns:
+                df.at[idx, "close"] = market_data.close
+            if "high" in df.columns:
+                df.at[idx, "high"] = max(df.at[idx, "high"], market_data.close)
+            if "low" in df.columns:
+                df.at[idx, "low"] = min(df.at[idx, "low"], market_data.close)
+            if "timestamp" in df.columns and market_data.timestamp:
+                df.at[idx, "timestamp"] = market_data.timestamp
+        except Exception:
+            # Non-fatal if we can't update last candle
+            pass
+
+        try:
+            from trading.indicators.mlp_features import calculate_mlp_features
+            import torch
+
+            mlp_features = calculate_mlp_features(
+                df,
+                bwin=int(self._mlp_bwin),
+                include_temporal=True,
+                feature_set=self._mlp_feature_set,
+            )
+            if mlp_features is None or mlp_features.empty:
+                return None, None
+
+            row = mlp_features.iloc[-1]
+            if row.isna().any():
+                valid = mlp_features.dropna()
+                if valid.empty:
+                    return None, None
+                row = valid.iloc[-1]
+
+            x = torch.FloatTensor(row.values).unsqueeze(0)
+            with torch.no_grad():
+                probs = self._mlp_model.predict_proba(x).cpu().numpy()[0]
+
+            pred_class = int(probs.argmax())
+            confidence = float(probs[pred_class])
+
+        except Exception as e:
+            logger.debug(f"{self.name}: MLP prediction failed: {e}")
+            return None, None
+
+        self._mlp_cache[symbol] = {
+            "timestamp": market_data.timestamp,
+            "prediction": pred_class,
+            "confidence": confidence,
+        }
+        return pred_class, confidence
 
     async def _get_drawdown_pct(self) -> float:
         """Fetch portfolio drawdown percentage from Redis (cached)."""

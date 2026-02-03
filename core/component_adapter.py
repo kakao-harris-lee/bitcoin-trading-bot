@@ -155,6 +155,13 @@ class ComponentStrategyAdapter:
         self._mlp_cache: dict[int, dict] | None = None
         self._mlp_model = None
         self._mlp_available: bool | None = None
+        self._uses_mlp_direction = (
+            self.strategy_name.startswith("mlp_direction")
+            or self.config.get("entry", {}).get("class") == "MLPDirectionEntryStrategy"
+            or self.config.get("exit", {}).get("class") == "MLPDirectionExitStrategy"
+            or self.entry_strategy.__class__.__name__ == "MLPDirectionEntryStrategy"
+            or self.exit_strategy.__class__.__name__ == "MLPDirectionExitStrategy"
+        )
 
         # === NEW: Dynamic Position Sizing based on RF Confidence ===
         # Scale position size based on model confidence:
@@ -233,18 +240,18 @@ class ComponentStrategyAdapter:
         """Pre-compute MLP Direction predictions for entire DataFrame (backtest optimization).
 
         Call this BEFORE running backtest loop to cache all MLP predictions.
-        Only relevant for 'mlp_direction' strategy.
+        Only relevant for MLP Direction strategies.
 
         Args:
             df: Full DataFrame with OHLCV and indicators for backtest.
         """
-        # Only precompute for mlp_direction strategy
-        if self.strategy_name != "mlp_direction":
+        # Only precompute for MLP Direction strategies
+        if not self._uses_mlp_direction:
             return
 
         try:
             from mlp_trainer.src.mlp_model import MLPDirectionClassifier
-            from trading.indicators.mlp_features import calculate_mlp_features
+            from trading.indicators.mlp_features import calculate_mlp_features, FEATURE_SET_PAPER
             import torch
             from pathlib import Path
 
@@ -262,7 +269,13 @@ class ComponentStrategyAdapter:
                 return
 
             # Calculate MLP features for entire DataFrame
-            mlp_features = calculate_mlp_features(df, bwin=5, include_temporal=True)
+            feature_set = self.config.get("mlp_feature_set", FEATURE_SET_PAPER)
+            mlp_features = calculate_mlp_features(
+                df,
+                bwin=self.config.get("bwin", 5),
+                include_temporal=True,
+                feature_set=feature_set,
+            )
 
             # Batch predict
             self._mlp_cache = {}
@@ -369,7 +382,7 @@ class ComponentStrategyAdapter:
         mlp_prediction: int | None = None
         mlp_confidence: float | None = None
 
-        if self.strategy_name == "mlp_direction" and self._mlp_cache is not None:
+        if self._uses_mlp_direction and self._mlp_cache is not None:
             if i in self._mlp_cache:
                 cached_mlp = self._mlp_cache[i]
                 mlp_prediction = cached_mlp.get("prediction")

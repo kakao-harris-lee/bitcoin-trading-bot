@@ -93,7 +93,9 @@ class ComponentStrategyAdapter:
         # Cash strategy: block entries in unfavorable conditions
         self._cash_in_bear: bool = config.get('cash_in_bear', False)  # No entry in BEAR
         self._cash_below_ema200: bool = config.get('cash_below_ema200', False)  # No entry below EMA200
-        self._current_leverage: float = 3.0  # Current leverage (updated dynamically)
+        # Default leverage: 1.0 for spot (no leverage), 3.0 for futures
+        self._default_leverage: float = 1.0 if self.market == "spot" else LeverageDefaults.MAX
+        self._current_leverage: float = self._default_leverage
 
         # === NEW: Consecutive Loss Prevention ===
         # Track recent trade outcomes to pause after consecutive losses
@@ -762,7 +764,8 @@ class ComponentStrategyAdapter:
                     if self._current_leverage == 0:
                         return {'action': 'hold', 'reason': 'dynamic_lev_zero'}
             else:
-                self._current_leverage = LeverageDefaults.MAX  # Default
+                # Use market-appropriate default (1.0 for spot, 3.0 for futures)
+                self._current_leverage = self._default_leverage
 
             # === DRAWDOWN WARNING: Reduce leverage when approaching drawdown limits ===
             # Apply leverage reduction when in warning zone (8%+ drawdown)
@@ -814,7 +817,7 @@ class ComponentStrategyAdapter:
                     entry_price=row['close'],
                     side=pos_side,
                     strategy=self.strategy_name,
-                    market="futures",  # Default for backtesting context unless specified
+                    market=self.market,  # Use strategy's market type (spot or futures)
                     timestamp=ts_ms
                 )
                 self.high_water_mark = row['close']

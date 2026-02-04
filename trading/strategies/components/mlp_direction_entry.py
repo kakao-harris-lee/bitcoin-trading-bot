@@ -74,11 +74,17 @@ class MLPDirectionEntryStrategy:
     5. Price >= EMA200 (if use_ema200_filter)
     """
 
+    # Minimum history required for paper_36 features (EMA100 + buffer)
+    MIN_HISTORY_BARS = 120
+
     def __init__(self, params: MLPDirectionEntryParams | None = None):
         self.params = params or MLPDirectionEntryParams()
         self._model = None
         self._model_available: bool | None = None
         self._feature_extractor = None
+        # History buffer for paper_36 live feature computation
+        self._history: list[dict] = []
+        self._last_timestamp: int = 0
 
     def _ensure_model(self) -> bool:
         """Lazy-load MLP model on first use."""
@@ -229,25 +235,27 @@ class MLPDirectionEntryStrategy:
             logger.debug(f"{market_data.symbol}: Skip - MLP model not available")
             return None
 
-        # Check if MLP features are pre-computed in context
+        # Update history buffer for live paper_36 computation
+        self._update_history(market_data)
+
+        # Check if MLP features are pre-computed in context (backtest mode)
         mlp_prediction = getattr(ctx, "mlp_prediction", None)
         mlp_confidence = getattr(ctx, "mlp_confidence", None)
 
         if mlp_prediction is None or mlp_confidence is None:
             if p.mlp_feature_set == "paper_36":
-                logger.warning(
-                    f"{market_data.symbol}: MLP paper_36 requires precomputed features; "
-                    "skipping live inference."
-                )
-                return None
-            # Compute MLP prediction on the fly (for live trading)
-            # Note: In backtest, this should be pre-computed via adapter
-            features = self._extract_features(market_data, {})
-            if features is None:
-                logger.debug(f"{market_data.symbol}: Skip - feature extraction failed")
-                return None
-
-            mlp_prediction, mlp_confidence = self._predict(features)
+                # Live paper_36: compute from history buffer
+                result = self._compute_paper36_features(market_data)
+                if result is None:
+                    return None
+                mlp_prediction, mlp_confidence = result
+            else:
+                # Compute MLP prediction on the fly (shap_13 or other)
+                features = self._extract_features(market_data, {})
+                if features is None:
+                    logger.debug(f"{market_data.symbol}: Skip - feature extraction failed")
+                    return None
+                mlp_prediction, mlp_confidence = self._predict(features)
 
         # === MLP FILTER 1: Prediction must be BUY ===
         if mlp_prediction != MLP_LABEL_BUY:
@@ -310,3 +318,82 @@ class MLPDirectionEntryStrategy:
         """Convert label to human-readable name."""
         names = {0: "HOLD", 1: "BUY", 2: "SELL"}
         return names.get(label, "UNKNOWN")
+
+    def _update_history(self, market_data: MarketData) -> None:
+        """Update history buffer with current bar data.
+
+        Args:
+            market_data: Current market data bar.
+        """
+        timestamp = getattr(market_data, "timestamp", 0)
+
+        # Skip if same timestamp (duplicate update)
+        if timestamp == self._last_timestamp and timestamp > 0:
+            return
+
+        self._last_timestamp = timestamp
+
+        bar = {
+            "open": market_data.open,
+            "high": market_data.high,
+            "low": market_data.low,
+            "close": market_data.close,
+            "volume": market_data.volume,
+            "timestamp": timestamp,
+        }
+
+        self._history.append(bar)
+
+        # Keep only recent history (2x minimum for safety)
+        max_history = self.MIN_HISTORY_BARS * 2
+        if len(self._history) > max_history:
+            self._history = self._history[-max_history:]
+
+    def _compute_paper36_features(self, market_data: MarketData) -> tuple[int, float] | None:
+        """Compute paper_36 features from history buffer and make prediction.
+
+        Args:
+            market_data: Current market data (for timestamp).
+
+        Returns:
+            Tuple of (prediction, confidence) or None if insufficient history.
+        """
+        import pandas as pd
+        from trading.indicators.mlp_features import calculate_mlp_features_paper
+
+        if len(self._history) < self.MIN_HISTORY_BARS:
+            # Log warmup progress every 10 bars
+            if len(self._history) % 10 == 0:
+                logger.info(
+                    f"{market_data.symbol}: MLP paper_36 warming up "
+                    f"({len(self._history)}/{self.MIN_HISTORY_BARS} bars)"
+                )
+            return None
+
+        try:
+            # Convert history to DataFrame
+            df = pd.DataFrame(self._history)
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+
+            # Calculate paper_36 features
+            features_df = calculate_mlp_features_paper(df, include_temporal=True)
+
+            # Get last row features
+            last_features = features_df.iloc[-1].values.astype(np.float32)
+
+            # Check for NaN
+            if np.isnan(last_features).any():
+                logger.debug(f"{market_data.symbol}: Features contain NaN, skipping")
+                return None
+
+            # Make prediction
+            pred, conf = self._predict(last_features)
+            logger.info(
+                f"{market_data.symbol}: MLP paper_36 prediction: "
+                f"{self._label_name(pred)} (conf={conf:.2f})"
+            )
+            return pred, conf
+
+        except Exception as e:
+            logger.warning(f"{market_data.symbol}: Paper36 feature computation failed: {e}")
+            return None

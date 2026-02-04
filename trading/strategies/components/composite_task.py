@@ -1032,10 +1032,12 @@ class CompositeStrategyTask(BaseStrategyTask):
             return cached.get("prediction"), cached.get("confidence")
 
         if not self._ensure_mlp_model():
+            logger.debug(f"{self.name}: MLP model not available")
             return None, None
 
         df = self._get_mlp_history_df(symbol)
         if df is None:
+            logger.info(f"{self.name}: No history df for {symbol}")
             return None, None
 
         try:
@@ -1056,6 +1058,8 @@ class CompositeStrategyTask(BaseStrategyTask):
             from trading.indicators.mlp_features import calculate_mlp_features
             import torch
 
+            logger.info(f"{self.name}: Computing MLP features (df={len(df)} rows, feature_set={self._mlp_feature_set})")
+
             mlp_features = calculate_mlp_features(
                 df,
                 bwin=int(self._mlp_bwin),
@@ -1063,6 +1067,7 @@ class CompositeStrategyTask(BaseStrategyTask):
                 feature_set=self._mlp_feature_set,
             )
             if mlp_features is None or mlp_features.empty:
+                logger.info(f"{self.name}: MLP features empty, skipping prediction")
                 return None, None
 
             row = mlp_features.iloc[-1]
@@ -1078,9 +1083,11 @@ class CompositeStrategyTask(BaseStrategyTask):
 
             pred_class = int(probs.argmax())
             confidence = float(probs[pred_class])
+            labels = {0: "HOLD", 1: "BUY", 2: "SELL"}
+            logger.info(f"{self.name}: MLP prediction: {labels.get(pred_class, 'UNK')} (conf={confidence:.2f})")
 
         except Exception as e:
-            logger.debug(f"{self.name}: MLP prediction failed: {e}")
+            logger.warning(f"{self.name}: MLP prediction failed: {e}")
             return None, None
 
         self._mlp_cache[symbol] = {

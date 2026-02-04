@@ -1141,6 +1141,11 @@ def _run_generic_backtest(
     # Use base_strategy_id for adapter (e.g., 'mlp_direction' for 'mlp_direction_optimized')
     adapter = ComponentStrategyAdapter(factory, base_strategy_id, config)
 
+    # Pre-compute MLP predictions if strategy uses MLP Direction
+    if adapter._uses_mlp_direction:
+        adapter.precompute_mlp_predictions(df)
+        job.progress = 45
+
     # 5. Backtest Loop
     core_hold_pct = float(config.get("core_hold_pct", 0.0))
     core_hold_pct = max(min(core_hold_pct, 0.95), 0.0)

@@ -861,8 +861,9 @@ class ComponentStrategyAdapter:
                     fraction = signal_qty
                     position_reason = f"regime_size:{signal_qty:.2f}"
                 else:
-                    # Fallback to config position_size
-                    fraction = self.config.get("position_size", 0.01)
+                    # Fallback to config position_pct (percentage) or position_size
+                    fraction = position_pct
+                    position_reason = f"config_pct:{position_pct:.2f}"
 
                 reason = signal.reason or ""
                 if position_reason:

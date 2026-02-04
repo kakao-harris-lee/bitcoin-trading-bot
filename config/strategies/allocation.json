@@ -467,7 +467,7 @@
     },
     "mlp_direction_btc": {
       "_comment": "Paper reproduction - BTC model (BWin=5, FWin=2)",
-      "enabled": true,
+      "enabled": false,
       "market": "spot",
       "symbols": [
         "BTC"
@@ -475,8 +475,8 @@
       "bwin": 5,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-      "position_pct": 0.5,
-      "position_size": 0.5,
+      "position_pct": 0.90,
+      "position_size": 0.90,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
@@ -488,7 +488,7 @@
           "skip_bear_regime": false,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.5,
+          "position_size": 0.90,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -511,7 +511,7 @@
       }
     },
     "mlp_direction_eth": {
-      "_comment": "Paper reproduction - ETH model (BWin=4, FWin=2)",
+      "_comment": "Live trading - ETH model with paper_36 features (live computation)",
       "enabled": true,
       "market": "spot",
       "symbols": [
@@ -520,8 +520,8 @@
       "bwin": 4,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-      "position_pct": 0.5,
-      "position_size": 0.5,
+      "position_pct": 0.90,
+      "position_size": 0.90,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
@@ -533,7 +533,7 @@
           "skip_bear_regime": false,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.5,
+          "position_size": 0.90,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -558,8 +558,8 @@
     "mlp_direction_optimized": {
       "_comment": "MLP Direction with optimized exit (trailing + take profit instead of FWin, shap_13 model)",
       "market": "spot",
-      "position_pct": 0.10,
-      "position_size": 0.01,
+      "position_pct": 0.70,
+      "position_size": 0.70,
       "bwin": 5,
       "mlp_feature_set": "shap_13",
       "model_path": "models/mlp_direction/model_final.pt",

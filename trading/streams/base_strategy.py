@@ -181,9 +181,11 @@ class BaseStrategyTask(ABC):
         if symbol not in self.symbols:
             return
 
-        # Filter by market
-        if msg.get("market") != self.market:
-            return
+        # NOTE: Market filter removed for hybrid mode.
+        # Engine uses futures price feeds for ALL strategies (spot and futures).
+        # Spot and futures prices are nearly identical (~0.1% difference).
+        # The strategy's "market" determines WHERE orders execute, not which
+        # price data to consume. See engine.py hybrid mode comment.
 
         # Update buffer (always, for indicator calculation)
         self._update_buffer(symbol, msg)
@@ -213,10 +215,12 @@ class BaseStrategyTask(ABC):
                 logger.info(f"Strategy {self.name}: {symbol} position closed, cleared pending exit")
 
         if position:
-            # Clear pending flag since position now exists
-            self._pending_entry.pop(symbol, None)
-            # Only evaluate exit if this strategy owns the position
-            if position.get("strategy") == self.name:
+            position_strategy = position.get("strategy", "")
+            # Only block entry if this strategy owns the position
+            # Allow entry if position is from another strategy or is "external" (dust)
+            if position_strategy == self.name:
+                # Clear pending flag since position now exists
+                self._pending_entry.pop(symbol, None)
                 # Notify exit strategy about new position (once per position)
                 if symbol not in self._notified_positions:
                     self._notified_positions.add(symbol)
@@ -236,7 +240,7 @@ class BaseStrategyTask(ABC):
                         # Notify exit strategy about position close
                         self._notified_positions.discard(symbol)
                         await self.on_position_closed(symbol)
-            return
+                return  # Only return if we own the position
 
         # Check if entry is already pending (order published but not yet filled)
         if self._pending_entry.get(symbol):

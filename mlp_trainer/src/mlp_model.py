@@ -18,15 +18,21 @@ from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
 
+from mlp_trainer.src.constants import (
+    DEFAULT_INPUT_DIM,
+    DEFAULT_HIDDEN_DIMS,
+    DEFAULT_NUM_CLASSES,
+)
+
 
 @dataclass
 class MLPConfig:
     """Configuration for MLP model."""
 
-    input_dim: int = 13
-    hidden_dims: tuple = (128, 64, 32)
-    num_classes: int = 3
-    dropout: float = 0.2
+    input_dim: int = DEFAULT_INPUT_DIM
+    hidden_dims: tuple = DEFAULT_HIDDEN_DIMS
+    num_classes: int = DEFAULT_NUM_CLASSES
+    dropout: float = 0.0
     leaky_relu_slope: float = 0.01
     use_batch_norm: bool = False
 
@@ -46,10 +52,10 @@ class MLPDirectionClassifier(nn.Module):
 
     def __init__(
         self,
-        input_dim: int = 13,
-        hidden_dims: tuple = (128, 64, 32),
-        num_classes: int = 3,
-        dropout: float = 0.2,
+        input_dim: int = DEFAULT_INPUT_DIM,
+        hidden_dims: tuple = DEFAULT_HIDDEN_DIMS,
+        num_classes: int = DEFAULT_NUM_CLASSES,
+        dropout: float = 0.0,
         leaky_relu_slope: float = 0.01,
         use_batch_norm: bool = False,
     ):

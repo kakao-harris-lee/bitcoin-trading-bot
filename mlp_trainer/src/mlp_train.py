@@ -28,6 +28,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from mlp_trainer.src.mlp_model import MLPDirectionClassifier, MLPConfig
+from mlp_trainer.src.focal_loss import FocalLoss, create_focal_loss_for_mlp
 
 # Try to import MLflow
 try:
@@ -86,6 +87,11 @@ class TrainingConfig:
     output_dir: Path = DEFAULT_MODEL_DIR
     experiment_name: str = "mlp_direction"
 
+    # Loss function
+    loss_type: str = "cross_entropy"  # 'cross_entropy' or 'focal'
+    focal_gamma: float = 2.0
+    focal_alpha: tuple = (0.25, 0.5, 0.5)  # Hold, Buy, Sell weights
+
 
 class MLPTrainer:
     """
@@ -114,7 +120,15 @@ class MLPTrainer:
         ).to(self.device)
 
         # Loss function with class weights (optional)
-        self.criterion = nn.CrossEntropyLoss()
+        if config.loss_type == "focal":
+            self.criterion = FocalLoss(
+                gamma=config.focal_gamma,
+                alpha=list(config.focal_alpha),
+            )
+            logger.info(f"Using Focal Loss (gamma={config.focal_gamma}, alpha={config.focal_alpha})")
+        else:
+            self.criterion = nn.CrossEntropyLoss()
+            logger.info("Using CrossEntropy Loss")
 
         # Optimizer
         self.optimizer = torch.optim.AdamW(
@@ -550,13 +564,34 @@ def main():
         action="store_true",
         help="Disable MLflow logging",
     )
+    parser.add_argument(
+        "--loss",
+        type=str,
+        default="cross_entropy",
+        choices=["cross_entropy", "focal"],
+        help="Loss function type (default: cross_entropy)",
+    )
+    parser.add_argument(
+        "--focal-gamma",
+        type=float,
+        default=2.0,
+        help="Focal loss gamma parameter (default: 2.0)",
+    )
+    parser.add_argument(
+        "--focal-alpha",
+        type=str,
+        default="0.25,0.5,0.5",
+        help="Focal loss alpha weights (comma-separated, default: 0.25,0.5,0.5)",
+    )
 
     args = parser.parse_args()
 
     # Parse hidden dims
     hidden_dims = tuple(int(x) for x in args.hidden_dims.split(","))
 
-    # Create config
+    # Parse focal alpha
+    focal_alpha = tuple(float(x) for x in args.focal_alpha.split(","))
+
     # Load dataset
     logger.info(f"Loading dataset from {args.dataset}")
     data = load_dataset(args.dataset)
@@ -574,6 +609,9 @@ def main():
         learning_rate=args.lr,
         patience=args.patience,
         output_dir=Path(args.output),
+        loss_type=args.loss,
+        focal_gamma=args.focal_gamma,
+        focal_alpha=focal_alpha,
     )
 
     # Disable MLflow if requested

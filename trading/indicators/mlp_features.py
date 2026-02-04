@@ -17,6 +17,7 @@ import talib
 
 FEATURE_SET_PAPER = "paper_36"
 FEATURE_SET_SHAP = "shap_13"
+FEATURE_SET_CROSS = "cross_44"  # paper_36 + 8 cross-asset features
 
 # Feature names for reference (legacy SHAP 13)
 FEATURE_NAMES_SHAP = [
@@ -88,18 +89,56 @@ FEATURE_NAMES_PAPER = (
 
 NUM_FEATURES_PAPER = len(FEATURE_NAMES_PAPER)
 
+# Cross-asset feature names (8 additional features)
+CROSS_ASSET_FEATURE_NAMES = [
+    "btc_return_4h",      # BTC 4-hour return
+    "btc_return_24h",     # BTC 24-hour return
+    "btc_volatility",     # BTC 20-period volatility
+    "btc_correlation",    # Correlation with BTC (rolling 20)
+    "market_momentum",    # Average return of top coins
+    "market_volatility",  # Average volatility of top coins
+    "volume_ratio",       # Asset volume / market average volume
+    "dominance_change",   # Change in BTC dominance proxy
+]
+
+FEATURE_NAMES_CROSS = FEATURE_NAMES_PAPER + CROSS_ASSET_FEATURE_NAMES
+NUM_FEATURES_CROSS = len(FEATURE_NAMES_CROSS)  # 36 + 8 = 44
+
 
 def calculate_mlp_features(
     df: pd.DataFrame,
     bwin: int = 5,
     include_temporal: bool = True,
     feature_set: str = FEATURE_SET_SHAP,
+    btc_df: pd.DataFrame | None = None,
+    market_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    """Dispatch to the requested feature set."""
+    """
+    Dispatch to the requested feature set.
+
+    Args:
+        df: DataFrame with OHLCV data for the target asset
+        bwin: Backward window (unused, kept for API compatibility)
+        include_temporal: Whether to include temporal features
+        feature_set: Feature set name ('paper_36', 'shap_13', 'cross_44')
+        btc_df: BTC OHLCV DataFrame (required for cross_44 when target is not BTC)
+        market_df: Market aggregate DataFrame with columns ['avg_return', 'avg_volatility', 'avg_volume']
+                   (optional for cross_44, will use defaults if not provided)
+
+    Returns:
+        DataFrame with features
+    """
     if feature_set == FEATURE_SET_PAPER:
         return calculate_mlp_features_paper(df, include_temporal=include_temporal)
     if feature_set == FEATURE_SET_SHAP:
         return calculate_mlp_features_shap(df, include_temporal=include_temporal)
+    if feature_set == FEATURE_SET_CROSS:
+        return calculate_mlp_features_cross(
+            df,
+            include_temporal=include_temporal,
+            btc_df=btc_df,
+            market_df=market_df,
+        )
     raise ValueError(f"Unknown feature_set: {feature_set}")
 
 
@@ -124,11 +163,12 @@ def calculate_mlp_features_paper(
     Returns:
         DataFrame with 36 feature columns (paper feature order)
     """
-    open_ = df["open"].values.astype(np.float64)
-    high = df["high"].values.astype(np.float64)
-    low = df["low"].values.astype(np.float64)
-    close = df["close"].values.astype(np.float64)
-    volume = df["volume"].values.astype(np.float64)
+    # Use np.asarray to avoid copying if dtype already matches
+    open_ = np.asarray(df["open"].values, dtype=np.float64)
+    high = np.asarray(df["high"].values, dtype=np.float64)
+    low = np.asarray(df["low"].values, dtype=np.float64)
+    close = np.asarray(df["close"].values, dtype=np.float64)
+    volume = np.asarray(df["volume"].values, dtype=np.float64)
 
     features = pd.DataFrame(index=df.index)
 
@@ -182,6 +222,125 @@ def calculate_mlp_features_paper(
     return features
 
 
+def calculate_mlp_features_cross(
+    df: pd.DataFrame,
+    include_temporal: bool = True,
+    btc_df: pd.DataFrame | None = None,
+    market_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """
+    Calculate 44 cross-asset features (paper_36 + 8 cross-asset features).
+
+    Cross-asset features capture market-wide dynamics and BTC leadership:
+    - btc_return_4h: BTC 4-hour return (1 bar for 4H data)
+    - btc_return_24h: BTC 24-hour return (6 bars for 4H data)
+    - btc_volatility: BTC 20-period rolling volatility
+    - btc_correlation: 20-period rolling correlation with BTC
+    - market_momentum: Average return across top coins
+    - market_volatility: Average volatility across top coins
+    - volume_ratio: Asset volume / market average volume
+    - dominance_change: Change in BTC dominance proxy (BTC vol / total vol)
+
+    Args:
+        df: DataFrame with columns ['open', 'high', 'low', 'close', 'volume']
+        include_temporal: Whether to include temporal features
+        btc_df: BTC OHLCV DataFrame (required for non-BTC assets)
+        market_df: Market aggregate DataFrame (optional)
+
+    Returns:
+        DataFrame with 44 feature columns
+    """
+    # Start with paper_36 features
+    features = calculate_mlp_features_paper(df, include_temporal=include_temporal)
+
+    # Use np.asarray to avoid copying if dtype already matches
+    close = np.asarray(df["close"].values, dtype=np.float64)
+    volume = np.asarray(df["volume"].values, dtype=np.float64)
+
+    # Calculate asset returns
+    close_series = pd.Series(close, index=df.index)
+    asset_returns = close_series.pct_change()
+
+    # Determine if this is BTC data (for self-referencing)
+    # Add bounds checking for comparison slice
+    min_compare = min(100, len(close))
+    is_btc = btc_df is None or (
+        len(btc_df) == len(df) and min_compare > 0 and np.allclose(
+            btc_df["close"].values[:min_compare], close[:min_compare], rtol=1e-5
+        )
+    )
+
+    if is_btc:
+        # BTC self-reference: use its own data
+        btc_close_series = close_series
+        btc_volume = volume
+        btc_returns = asset_returns
+    else:
+        # Use provided BTC data
+        if btc_df is None:
+            raise ValueError("btc_df is required for non-BTC assets in cross_44 feature set")
+
+        # Align BTC data with target asset by index
+        btc_aligned = btc_df.reindex(df.index)
+        btc_close = np.asarray(btc_aligned["close"].values, dtype=np.float64)
+        btc_volume = np.asarray(btc_aligned["volume"].values, dtype=np.float64)
+        # Create Series once and reuse for multiple calculations
+        btc_close_series = pd.Series(btc_close, index=df.index)
+        btc_returns = btc_close_series.pct_change()
+
+    # 1. btc_return_4h (1-bar return for 4H data)
+    features["btc_return_4h"] = btc_returns.fillna(0.0)
+
+    # 2. btc_return_24h (6-bar return for 4H data) - reuse btc_close_series
+    features["btc_return_24h"] = btc_close_series.pct_change(periods=6).fillna(0.0)
+
+    # 3. btc_volatility (20-period rolling std of returns)
+    btc_volatility = btc_returns.rolling(window=20, min_periods=1).std().fillna(0.0)
+    features["btc_volatility"] = btc_volatility
+
+    # 4. btc_correlation (20-period rolling correlation with BTC)
+    if is_btc:
+        # BTC correlation with itself is always 1
+        features["btc_correlation"] = 1.0
+    else:
+        # Rolling correlation between asset returns and BTC returns
+        corr = asset_returns.rolling(window=20, min_periods=5).corr(btc_returns)
+        features["btc_correlation"] = corr.fillna(0.0)
+
+    # 5-6. Market momentum and volatility
+    if market_df is not None and "avg_return" in market_df.columns:
+        # Use provided market data
+        market_aligned = market_df.reindex(df.index)
+        market_momentum = market_aligned["avg_return"].fillna(0.0)
+        market_volatility = market_aligned.get("avg_volatility", pd.Series(0.0, index=df.index)).fillna(0.0)
+        # Clip to reasonable ranges
+        features["market_momentum"] = market_momentum.clip(-0.5, 0.5)
+        features["market_volatility"] = market_volatility.clip(0, 0.5)
+    else:
+        # Proxy: use BTC as market proxy (BTC dominance ~40-50%)
+        features["market_momentum"] = btc_returns.fillna(0.0).clip(-0.5, 0.5)
+        features["market_volatility"] = btc_volatility.clip(0, 0.5)
+
+    # 7. volume_ratio (asset volume / BTC volume as market proxy)
+    # Normalize to prevent extreme values
+    btc_vol_safe = np.where(btc_volume < 1e-10, 1e-10, btc_volume)
+    volume_ratio = volume / btc_vol_safe
+    # Clip and normalize (typical ratio is 0.01-10x)
+    features["volume_ratio"] = np.clip(volume_ratio, 0.01, 10.0) / 10.0
+
+    # 8. dominance_change (proxy: BTC return minus asset return)
+    # When BTC outperforms, dominance typically rises
+    if is_btc:
+        features["dominance_change"] = 0.0  # BTC relative to itself is 0
+    else:
+        dominance_proxy = btc_returns - asset_returns
+        # Clip to reasonable range (±50% difference is extreme)
+        dominance_proxy = dominance_proxy.clip(-0.5, 0.5)
+        features["dominance_change"] = dominance_proxy.fillna(0.0)
+
+    return features
+
+
 def calculate_mlp_features_shap(
     df: pd.DataFrame,
     include_temporal: bool = True,
@@ -192,10 +351,11 @@ def calculate_mlp_features_shap(
     Returns:
         DataFrame with 13 feature columns, normalized to roughly 0-1 range
     """
-    close = df["close"].values.astype(np.float64)
-    high = df["high"].values.astype(np.float64)
-    low = df["low"].values.astype(np.float64)
-    volume = df["volume"].values.astype(np.float64)
+    # Use np.asarray to avoid copying if dtype already matches
+    close = np.asarray(df["close"].values, dtype=np.float64)
+    high = np.asarray(df["high"].values, dtype=np.float64)
+    low = np.asarray(df["low"].values, dtype=np.float64)
+    volume = np.asarray(df["volume"].values, dtype=np.float64)
 
     features = pd.DataFrame(index=df.index)
 
@@ -306,6 +466,8 @@ def extract_single_features(
         return extract_single_features_paper(market_data, indicators)
     if feature_set == FEATURE_SET_SHAP:
         return extract_single_features_shap(market_data, indicators)
+    if feature_set == FEATURE_SET_CROSS:
+        return extract_single_features_cross(market_data, indicators)
     raise ValueError(f"Unknown feature_set: {feature_set}")
 
 
@@ -425,6 +587,57 @@ def calculate_zscore(values: np.ndarray, period: int = 30) -> np.ndarray:
     std_safe = np.where(std < 1e-10, 1e-10, std)
     zscore = (values - sma) / std_safe
     return np.clip(zscore, -3, 3) / 3.0
+
+
+def extract_single_features_cross(
+    market_data: dict,
+    indicators: dict,
+) -> np.ndarray:
+    """
+    Extract cross_44 feature set for a single time point.
+
+    Requires pre-computed cross-asset indicators in the indicators dict:
+    - btc_return_4h, btc_return_24h, btc_volatility, btc_correlation
+    - market_momentum, market_volatility, volume_ratio, dominance_change
+
+    Args:
+        market_data: Dict with 'close', 'volume', 'timestamp' etc.
+        indicators: Dict with pre-calculated indicator values
+
+    Returns:
+        numpy array of 44 features
+    """
+    features = np.zeros(NUM_FEATURES_CROSS, dtype=np.float32)
+
+    # First fill paper_36 features
+    paper_features = extract_single_features_paper(market_data, indicators)
+    features[:NUM_FEATURES_PAPER] = paper_features
+
+    # Then fill cross-asset features (indices 36-43)
+    cross_feature_map = {
+        "btc_return_4h": 36,
+        "btc_return_24h": 37,
+        "btc_volatility": 38,
+        "btc_correlation": 39,
+        "market_momentum": 40,
+        "market_volatility": 41,
+        "volume_ratio": 42,
+        "dominance_change": 43,
+    }
+
+    for name, idx in cross_feature_map.items():
+        if name in indicators:
+            features[idx] = indicators[name]
+        else:
+            # Default values
+            if name == "btc_correlation":
+                features[idx] = 1.0  # Assume correlated with BTC
+            elif name == "volume_ratio":
+                features[idx] = 0.1  # Neutral volume ratio (normalized)
+            else:
+                features[idx] = 0.0
+
+    return features
 
 
 def get_feature_importance_ranking() -> list[tuple[str, float]]:

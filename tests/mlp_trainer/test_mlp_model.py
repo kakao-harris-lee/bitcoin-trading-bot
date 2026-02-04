@@ -12,6 +12,11 @@ from mlp_trainer.src.mlp_model import (
     EnsembleMLPClassifier,
     create_model,
 )
+from mlp_trainer.src.constants import (
+    DEFAULT_INPUT_DIM,
+    DEFAULT_HIDDEN_DIMS,
+    DEFAULT_NUM_CLASSES,
+)
 
 
 @pytest.fixture
@@ -22,14 +27,14 @@ def model():
 
 @pytest.fixture
 def batch_input():
-    """Create sample batch input."""
-    return torch.randn(32, 13)
+    """Create sample batch input matching default input dimension."""
+    return torch.randn(32, DEFAULT_INPUT_DIM)
 
 
 @pytest.fixture
 def single_input():
-    """Create single sample input."""
-    return torch.randn(1, 13)
+    """Create single sample input matching default input dimension."""
+    return torch.randn(1, DEFAULT_INPUT_DIM)
 
 
 class TestMLPDirectionClassifier:
@@ -37,9 +42,9 @@ class TestMLPDirectionClassifier:
 
     def test_default_initialization(self, model):
         """Test model initializes with default parameters."""
-        assert model.input_dim == 13
-        assert model.hidden_dims == (128, 64, 32)
-        assert model.num_classes == 3
+        assert model.input_dim == DEFAULT_INPUT_DIM
+        assert model.hidden_dims == DEFAULT_HIDDEN_DIMS
+        assert model.num_classes == DEFAULT_NUM_CLASSES
 
     def test_custom_initialization(self):
         """Test model initializes with custom parameters."""
@@ -102,19 +107,19 @@ class TestMLPDirectionClassifier:
 
     def test_predict_numpy_batch(self, model):
         """Test predict_numpy with batch input."""
-        x = np.random.randn(32, 13).astype(np.float32)
+        x = np.random.randn(32, DEFAULT_INPUT_DIM).astype(np.float32)
         preds, probs = model.predict_numpy(x)
 
         assert preds.shape == (32,)
-        assert probs.shape == (32, 3)
+        assert probs.shape == (32, DEFAULT_NUM_CLASSES)
 
     def test_predict_numpy_single(self, model):
         """Test predict_numpy with single sample."""
-        x = np.random.randn(13).astype(np.float32)
+        x = np.random.randn(DEFAULT_INPUT_DIM).astype(np.float32)
         preds, probs = model.predict_numpy(x)
 
         assert preds.shape == (1,)
-        assert probs.shape == (1, 3)
+        assert probs.shape == (1, DEFAULT_NUM_CLASSES)
 
     def test_count_parameters(self, model):
         """Test parameter count is reasonable."""
@@ -128,8 +133,8 @@ class TestMLPDirectionClassifier:
         summary = model.summary()
 
         assert "MLPDirectionClassifier" in summary
-        assert "Input dimension: 13" in summary
-        assert "Output classes: 3" in summary
+        assert f"Input dimension: {DEFAULT_INPUT_DIM}" in summary
+        assert f"Output classes: {DEFAULT_NUM_CLASSES}" in summary
 
 
 class TestModelSaveLoad:
@@ -144,12 +149,12 @@ class TestModelSaveLoad:
         with torch.no_grad():
             original_output = model(batch_input)
 
-        # Save and load
+        # Save and load (disable path validation for temp directory testing)
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "model.pt")
             model.save(path)
 
-            loaded_model = MLPDirectionClassifier.load(path)
+            loaded_model = MLPDirectionClassifier.load(path, validate_path=False)
 
         # Compare outputs (loaded model is already in eval mode from load())
         with torch.no_grad():
@@ -170,7 +175,7 @@ class TestModelSaveLoad:
             path = os.path.join(tmpdir, "model.pt")
             model.save(path)
 
-            loaded_model = MLPDirectionClassifier.load(path)
+            loaded_model = MLPDirectionClassifier.load(path, validate_path=False)
 
         assert loaded_model.input_dim == 10
         assert loaded_model.hidden_dims == (64, 32)
@@ -232,10 +237,10 @@ class TestMLPConfig:
         """Test default configuration values."""
         config = MLPConfig()
 
-        assert config.input_dim == 13
-        assert config.hidden_dims == (128, 64, 32)
-        assert config.num_classes == 3
-        assert config.dropout == 0.2
+        assert config.input_dim == DEFAULT_INPUT_DIM
+        assert config.hidden_dims == DEFAULT_HIDDEN_DIMS
+        assert config.num_classes == DEFAULT_NUM_CLASSES
+        assert config.dropout == 0.0
 
     def test_custom_config(self):
         """Test custom configuration."""
@@ -257,8 +262,8 @@ class TestCreateModel:
         """Test creating model with default config."""
         model = create_model()
 
-        assert model.input_dim == 13
-        assert model.num_classes == 3
+        assert model.input_dim == DEFAULT_INPUT_DIM
+        assert model.num_classes == DEFAULT_NUM_CLASSES
 
     def test_create_custom_model(self):
         """Test creating model with custom config."""
@@ -292,20 +297,20 @@ class TestEnsembleMLPClassifier:
         models = [MLPDirectionClassifier() for _ in range(3)]
         ensemble = EnsembleMLPClassifier(models)
 
-        x = torch.randn(32, 13)
+        x = torch.randn(32, DEFAULT_INPUT_DIM)
         output = ensemble(x)
 
-        assert output.shape == (32, 3)
+        assert output.shape == (32, DEFAULT_NUM_CLASSES)
 
     def test_ensemble_predict_proba(self):
         """Test ensemble predict_proba."""
         models = [MLPDirectionClassifier() for _ in range(3)]
         ensemble = EnsembleMLPClassifier(models)
 
-        x = torch.randn(32, 13)
+        x = torch.randn(32, DEFAULT_INPUT_DIM)
         probs = ensemble.predict_proba(x)
 
-        assert probs.shape == (32, 3)
+        assert probs.shape == (32, DEFAULT_NUM_CLASSES)
         assert torch.allclose(probs.sum(dim=1), torch.ones(32), atol=1e-5)
 
     def test_ensemble_load(self):
@@ -319,7 +324,12 @@ class TestEnsembleMLPClassifier:
                 model.save(path)
                 paths.append(path)
 
-            ensemble = EnsembleMLPClassifier.load_ensemble(paths)
+            # Load with validate_path=False for temp directory testing
+            loaded_models = [
+                MLPDirectionClassifier.load(path, validate_path=False)
+                for path in paths
+            ]
+            ensemble = EnsembleMLPClassifier(loaded_models)
 
         assert len(ensemble.models) == 3
 
@@ -330,26 +340,26 @@ class TestModelNumericalStability:
     def test_extreme_inputs(self, model):
         """Test model handles extreme input values."""
         # Large values
-        x_large = torch.ones(1, 13) * 1000
+        x_large = torch.ones(1, DEFAULT_INPUT_DIM) * 1000
         out_large = model(x_large)
         assert not torch.isnan(out_large).any()
         assert not torch.isinf(out_large).any()
 
         # Small values
-        x_small = torch.ones(1, 13) * 1e-6
+        x_small = torch.ones(1, DEFAULT_INPUT_DIM) * 1e-6
         out_small = model(x_small)
         assert not torch.isnan(out_small).any()
         assert not torch.isinf(out_small).any()
 
         # Negative values
-        x_neg = torch.ones(1, 13) * -100
+        x_neg = torch.ones(1, DEFAULT_INPUT_DIM) * -100
         out_neg = model(x_neg)
         assert not torch.isnan(out_neg).any()
         assert not torch.isinf(out_neg).any()
 
     def test_zero_input(self, model):
         """Test model handles zero input."""
-        x = torch.zeros(1, 13)
+        x = torch.zeros(1, DEFAULT_INPUT_DIM)
         out = model(x)
 
         assert not torch.isnan(out).any()

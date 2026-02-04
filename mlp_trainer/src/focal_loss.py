@@ -76,18 +76,18 @@ class FocalLoss(nn.Module):
         Returns:
             Loss tensor (scalar if reduction='mean' or 'sum')
         """
-        # Compute softmax probabilities
-        p = F.softmax(inputs, dim=-1)
-
-        # Get probability of target class for each sample
-        # p_t shape: (N,)
+        # Compute cross-entropy loss (includes log_softmax internally)
+        # This gives us -log(p_t) for each sample
         ce_loss = F.cross_entropy(
             inputs,
             targets,
             reduction="none",
             label_smoothing=self.label_smoothing,
         )
-        p_t = torch.exp(-ce_loss)  # p_t = p[target_class]
+
+        # Get probability of target class: p_t = exp(-ce_loss) = exp(log(p_t))
+        # This is more efficient than computing softmax separately
+        p_t = torch.exp(-ce_loss)
 
         # Focal weight: (1 - p_t)^gamma
         focal_weight = (1 - p_t) ** self.gamma

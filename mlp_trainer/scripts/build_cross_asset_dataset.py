@@ -25,6 +25,7 @@ from trading.indicators.mlp_features import (
     NUM_FEATURES_CROSS,
     FEATURE_NAMES_CROSS,
 )
+from mlp_trainer.src.constants import DIRECTION_THRESHOLD
 
 
 def load_multi_asset_data(data_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -130,18 +131,18 @@ def build_features_for_symbol(
         market_df=market_aligned.reset_index(drop=True),
     )
 
-    # Calculate labels (future return direction)
-    close = symbol_df["close"].values
+    # Calculate labels (future return direction) - vectorized for performance
+    close = symbol_df["close"].values.astype(np.float64)
     future_returns = np.zeros(len(close))
-    for i in range(len(close) - fwin):
-        future_returns[i] = (close[i + fwin] - close[i]) / close[i]
+    # Vectorized calculation: (close[t+fwin] - close[t]) / close[t]
+    if fwin < len(close):
+        future_returns[:-fwin] = (close[fwin:] - close[:-fwin]) / np.maximum(close[:-fwin], 1e-10)
 
     # Convert to 3-class labels: 0=Hold, 1=Buy, 2=Sell
-    # Thresholds from paper: ±0.5% for 4H data
-    threshold = 0.005
+    # Using shared constant from constants.py
     labels = np.zeros(len(future_returns), dtype=np.int32)
-    labels[future_returns > threshold] = 1  # Buy
-    labels[future_returns < -threshold] = 2  # Sell
+    labels[future_returns > DIRECTION_THRESHOLD] = 1  # Buy
+    labels[future_returns < -DIRECTION_THRESHOLD] = 2  # Sell
 
     # Trim the last fwin samples (no valid labels)
     valid_mask = np.arange(len(close)) < len(close) - fwin
@@ -212,6 +213,13 @@ def build_dataset(
             print(f"  Warning: Failed to process {symbol}: {e}")
             continue
 
+    # Validate we have data before stacking
+    if not all_features:
+        raise ValueError(
+            "No valid symbols processed - check data availability and format. "
+            f"Attempted to process {len(symbols)} symbols."
+        )
+
     X = np.vstack(all_features)
     y = np.concatenate(all_labels)
     timestamps = np.concatenate(all_timestamps)
@@ -229,7 +237,26 @@ def balance_classes(
     timestamps: np.ndarray,
     random_state: int = 42,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Balance classes by undersampling majority class."""
+    """
+    Balance classes by undersampling majority classes.
+
+    Uses random undersampling to match the minority class count.
+    This maintains class balance for training while preserving
+    temporal relationships within each class.
+
+    Args:
+        X: Feature array of shape (N, num_features)
+        y: Label array of shape (N,)
+        timestamps: Timestamp array of shape (N,)
+        random_state: Random seed for reproducibility
+
+    Returns:
+        Tuple of balanced (X, y, timestamps)
+
+    Note:
+        Sets np.random.seed for reproducibility. Consider using
+        numpy.random.Generator for thread-safe applications.
+    """
     np.random.seed(random_state)
 
     # Find minimum class count
@@ -249,7 +276,8 @@ def balance_classes(
     return X[indices], y[indices], timestamps[indices]
 
 
-def main():
+def main() -> int:
+    """Main entry point."""
     parser = argparse.ArgumentParser(description="Build cross-asset feature dataset")
     parser.add_argument("--data-dir", type=str, default="data/multi_asset_4h",
                         help="Directory containing multi-asset parquet files")
@@ -352,7 +380,8 @@ def main():
         feature_names=FEATURE_NAMES_CROSS,
     )
     print(f"\nSaved to: {output_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

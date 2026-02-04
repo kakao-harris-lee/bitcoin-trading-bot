@@ -163,11 +163,12 @@ def calculate_mlp_features_paper(
     Returns:
         DataFrame with 36 feature columns (paper feature order)
     """
-    open_ = df["open"].values.astype(np.float64)
-    high = df["high"].values.astype(np.float64)
-    low = df["low"].values.astype(np.float64)
-    close = df["close"].values.astype(np.float64)
-    volume = df["volume"].values.astype(np.float64)
+    # Use np.asarray to avoid copying if dtype already matches
+    open_ = np.asarray(df["open"].values, dtype=np.float64)
+    high = np.asarray(df["high"].values, dtype=np.float64)
+    low = np.asarray(df["low"].values, dtype=np.float64)
+    close = np.asarray(df["close"].values, dtype=np.float64)
+    volume = np.asarray(df["volume"].values, dtype=np.float64)
 
     features = pd.DataFrame(index=df.index)
 
@@ -252,22 +253,26 @@ def calculate_mlp_features_cross(
     # Start with paper_36 features
     features = calculate_mlp_features_paper(df, include_temporal=include_temporal)
 
-    n = len(df)
-    close = df["close"].values.astype(np.float64)
-    volume = df["volume"].values.astype(np.float64)
+    # Use np.asarray to avoid copying if dtype already matches
+    close = np.asarray(df["close"].values, dtype=np.float64)
+    volume = np.asarray(df["volume"].values, dtype=np.float64)
 
     # Calculate asset returns
     close_series = pd.Series(close, index=df.index)
     asset_returns = close_series.pct_change()
 
     # Determine if this is BTC data (for self-referencing)
-    is_btc = btc_df is None or (len(btc_df) == len(df) and np.allclose(
-        btc_df["close"].values[:100], close[:100], rtol=1e-5
-    ))
+    # Add bounds checking for comparison slice
+    min_compare = min(100, len(close))
+    is_btc = btc_df is None or (
+        len(btc_df) == len(df) and min_compare > 0 and np.allclose(
+            btc_df["close"].values[:min_compare], close[:min_compare], rtol=1e-5
+        )
+    )
 
     if is_btc:
         # BTC self-reference: use its own data
-        btc_close = close
+        btc_close_series = close_series
         btc_volume = volume
         btc_returns = asset_returns
     else:
@@ -277,15 +282,17 @@ def calculate_mlp_features_cross(
 
         # Align BTC data with target asset by index
         btc_aligned = btc_df.reindex(df.index)
-        btc_close = btc_aligned["close"].values.astype(np.float64)
-        btc_volume = btc_aligned["volume"].values.astype(np.float64)
-        btc_returns = pd.Series(btc_close, index=df.index).pct_change()
+        btc_close = np.asarray(btc_aligned["close"].values, dtype=np.float64)
+        btc_volume = np.asarray(btc_aligned["volume"].values, dtype=np.float64)
+        # Create Series once and reuse for multiple calculations
+        btc_close_series = pd.Series(btc_close, index=df.index)
+        btc_returns = btc_close_series.pct_change()
 
     # 1. btc_return_4h (1-bar return for 4H data)
     features["btc_return_4h"] = btc_returns.fillna(0.0)
 
-    # 2. btc_return_24h (6-bar return for 4H data)
-    features["btc_return_24h"] = pd.Series(btc_close, index=df.index).pct_change(periods=6).fillna(0.0)
+    # 2. btc_return_24h (6-bar return for 4H data) - reuse btc_close_series
+    features["btc_return_24h"] = btc_close_series.pct_change(periods=6).fillna(0.0)
 
     # 3. btc_volatility (20-period rolling std of returns)
     btc_volatility = btc_returns.rolling(window=20, min_periods=1).std().fillna(0.0)
@@ -344,10 +351,11 @@ def calculate_mlp_features_shap(
     Returns:
         DataFrame with 13 feature columns, normalized to roughly 0-1 range
     """
-    close = df["close"].values.astype(np.float64)
-    high = df["high"].values.astype(np.float64)
-    low = df["low"].values.astype(np.float64)
-    volume = df["volume"].values.astype(np.float64)
+    # Use np.asarray to avoid copying if dtype already matches
+    close = np.asarray(df["close"].values, dtype=np.float64)
+    high = np.asarray(df["high"].values, dtype=np.float64)
+    low = np.asarray(df["low"].values, dtype=np.float64)
+    volume = np.asarray(df["volume"].values, dtype=np.float64)
 
     features = pd.DataFrame(index=df.index)
 

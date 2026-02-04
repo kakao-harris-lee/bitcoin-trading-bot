@@ -75,7 +75,7 @@ class DataLoader:
 
         # Priority: Check minute240 tables for actual data (not just existence)
         # This handles databases with multiple prefix tables where only one has data
-        prefixes = ['btc', 'binance', 'solana', 'ethereum']
+        prefixes = ['btc', 'bnb', 'binance', 'solana', 'ethereum']
         for prefix in prefixes:
             table_name = f"{prefix}_minute240"
             if table_name in tables:

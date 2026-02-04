@@ -40,6 +40,7 @@ SYMBOL_DB_MAPPING = {
     "BTC": PROJECT_ROOT / "data" / "binance_bitcoin.db",
     "ETH": PROJECT_ROOT / "data" / "binance_ethereum.db",
     "SOL": PROJECT_ROOT / "data" / "binance_solana.db",
+    "BNB": PROJECT_ROOT / "data" / "binance_bnb.db",
 }
 
 

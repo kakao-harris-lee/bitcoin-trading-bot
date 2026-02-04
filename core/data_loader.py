@@ -60,6 +60,45 @@ class DataLoader:
 
         self.conn = sqlite3.connect(str(self.db_path))
 
+        # Auto-detect table prefix based on existing tables
+        self._table_prefix = self._detect_table_prefix()
+
+    def _detect_table_prefix(self) -> str:
+        """Detect table prefix by checking existing tables in the database.
+
+        Returns:
+            Table prefix (e.g., 'binance', 'solana', 'ethereum')
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = [row[0] for row in cursor.fetchall()]
+
+        # Check for known prefixes
+        prefixes = ['solana', 'ethereum', 'binance']
+        for prefix in prefixes:
+            if any(t.startswith(f"{prefix}_") for t in tables):
+                return prefix
+
+        # Default to binance
+        return 'binance'
+
+    def _get_table_name(self, timeframe: str) -> str:
+        """Get actual table name for the timeframe using detected prefix."""
+        # Map timeframe to suffix
+        suffix_map = {
+            "minute1": "minute1",
+            "minute5": "minute5",
+            "minute15": "minute15",
+            "minute30": "minute30",
+            "minute60": "minute60",
+            "minute240": "minute240",
+            "day": "day",
+        }
+        if timeframe not in suffix_map:
+            raise ValueError(f"지원하지 않는 타임프레임: {timeframe}")
+
+        return f"{self._table_prefix}_{suffix_map[timeframe]}"
+
     def load_timeframe(
         self,
         timeframe: str,
@@ -91,10 +130,8 @@ class DataLoader:
         columns: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """Binance 데이터 로드 with parameterized queries."""
-        if timeframe not in self.BINANCE_TABLE_MAP:
-            raise ValueError(f"지원하지 않는 타임프레임: {timeframe}")
-
-        table_name = self.BINANCE_TABLE_MAP[timeframe]
+        # Use auto-detected table name based on database
+        table_name = self._get_table_name(timeframe)
 
         # Build query with parameterized placeholders
         params = []

@@ -73,8 +73,8 @@ class DataLoader:
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = [row[0] for row in cursor.fetchall()]
 
-        # Check for known prefixes
-        prefixes = ['solana', 'ethereum', 'binance']
+        # Check for known prefixes (order matters - check specific ones first)
+        prefixes = ['solana', 'ethereum', 'btc', 'binance']
         for prefix in prefixes:
             if any(t.startswith(f"{prefix}_") for t in tables):
                 return prefix

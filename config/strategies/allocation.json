@@ -556,7 +556,7 @@
       }
     },
     "mlp_direction_sol": {
-      "_comment": "Live trading - SOL using ETH model with paper_36 features",
+      "_comment": "Live trading - SOL with dedicated SOL model (bwin=4, fwin=2)",
       "enabled": false,
       "market": "spot",
       "symbols": [
@@ -564,7 +564,7 @@
       ],
       "bwin": 4,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
       "position_pct": 0.9,
       "position_size": 0.9,
       "drawdown_enabled": false,
@@ -573,7 +573,7 @@
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
           "buy_confidence_threshold": 0.0,
           "skip_bear_regime": false,
           "adx_min": 0.0,
@@ -594,7 +594,7 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.0,
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }

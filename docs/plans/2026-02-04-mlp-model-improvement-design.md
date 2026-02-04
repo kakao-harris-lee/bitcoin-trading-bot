@@ -205,3 +205,74 @@ python mlp_trainer/evaluate.py \
     --price-data data/binance_bitcoin.db \
     --comprehensive
 ```
+
+---
+
+## 7. Results (2026-02-04)
+
+### Final Model Performance
+
+**Best Model:** `multiasset_v1` (Phase 0 Multi-asset Training)
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Classification Accuracy | 47-50% | **58.19%** | +8-11% |
+| Direction Accuracy | 47.09% | **63.15%** | +16.06% |
+| Buy Precision | ~33% (random) | **61.31%** | +28% |
+| Sell Precision | ~33% (random) | **61.22%** | +28% |
+| Direction Not Wrong Rate | - | **85.92%** | New metric |
+| RMSE | - | **0.6782** | Baseline |
+
+### Confusion Matrix (Test Set)
+```
+            Predicted
+            Hold   Buy   Sell
+Actual Hold   8265   4374   4476
+Actual Buy    3883  10954   2279
+Actual Sell   3914   2540  10662
+```
+
+### Key Findings
+
+1. **Multi-asset Training is the Key**
+   - Training on 207 coins generalized better than single-coin training
+   - Random-level accuracy (50%) improved to 58%+
+   - Buy/Sell precision improved from random (33%) to 61%+
+
+2. **Focal Loss Not Beneficial**
+   - Focal Loss made the model too aggressive
+   - Buy precision dropped from 61% to ~30%
+   - Kept CrossEntropyLoss as better option
+
+3. **Time Series CV Confirmed Stability**
+   - 5-fold CV: 54.26% ± 0.78% (low variance = stable model)
+   - No overfitting detected
+
+4. **Cross-asset Features Not Implemented Successfully**
+   - Data alignment issues prevented proper feature calculation
+   - Dataset construction resulted in poor performance (35%)
+   - Baseline model without cross-asset features performs better
+
+### Recommendations
+
+1. **Use `multiasset_v1` Model**
+   - Path: `models/mlp_direction/multiasset_v1/model_final.pt`
+   - 58% accuracy, 61% Buy precision
+
+2. **Future Improvements**
+   - Properly integrate BTC data in multi-asset training pipeline
+   - Consider ensemble of models across different time windows
+   - Add feature importance analysis with SHAP
+
+### Files Created/Modified
+
+| File | Description |
+|------|-------------|
+| `mlp_trainer/src/focal_loss.py` | Focal Loss implementation |
+| `mlp_trainer/src/time_series_cv.py` | Time Series CV implementation |
+| `mlp_trainer/src/mlp_train.py` | Added Focal Loss support |
+| `trading/indicators/mlp_features.py` | Added cross_44 feature set |
+| `mlp_trainer/scripts/build_cross_asset_dataset.py` | Cross-asset dataset builder |
+| `mlp_trainer/scripts/evaluate_rmse.py` | RMSE evaluation script |
+| `models/mlp_direction/multiasset_v1/` | Best model |
+| `data/mlp_datasets/mlp_dataset_bwin5_fwin2.npz` | Training dataset |

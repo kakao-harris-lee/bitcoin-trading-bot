@@ -67,14 +67,20 @@ class DataLoader:
         """Detect table prefix by checking existing tables in the database.
 
         Returns:
-            Table prefix (e.g., 'binance', 'solana', 'ethereum')
+            Table prefix (e.g., 'binance', 'solana', 'ethereum', 'btc')
         """
         cursor = self.conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = [row[0] for row in cursor.fetchall()]
 
-        # Check for known prefixes (order matters - check specific ones first)
-        prefixes = ['solana', 'ethereum', 'btc', 'binance']
+        # Priority: Check for minute240 table first (main trading data)
+        # This handles mixed-prefix databases correctly
+        prefixes = ['binance', 'btc', 'solana', 'ethereum']
+        for prefix in prefixes:
+            if f"{prefix}_minute240" in tables:
+                return prefix
+
+        # Fallback: check for any table with known prefix
         for prefix in prefixes:
             if any(t.startswith(f"{prefix}_") for t in tables):
                 return prefix

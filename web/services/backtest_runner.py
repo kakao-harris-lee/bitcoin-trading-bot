@@ -35,6 +35,13 @@ from trading.config.constants import FeeRates, TimePeriods
 
 logger = logging.getLogger(__name__)
 
+# Symbol to database path mapping
+SYMBOL_DB_MAPPING = {
+    "BTC": PROJECT_ROOT / "data" / "binance_bitcoin.db",
+    "ETH": PROJECT_ROOT / "data" / "binance_ethereum.db",
+    "SOL": PROJECT_ROOT / "data" / "binance_solana.db",
+}
+
 
 def add_rf_predictions(df: pd.DataFrame, config: dict) -> None:
     """Pre-compute RF predictions for entire DataFrame (adds columns in-place).
@@ -954,38 +961,41 @@ def _run_generic_backtest(
     # Check if strategy exists in registry or allocation.json
     is_tuned_strategy = False
     tuned_config = None
+    strategy_config = None  # Strategy config from allocation.json (for symbols, etc.)
     base_strategy_id = strategy_id  # Default to same name
+
+    # Load allocation.json once
+    allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
+    allocation = {}
+    if allocation_path.exists():
+        with open(allocation_path, 'r') as f:
+            allocation = json.load(f)
+        if strategy_id in allocation.get('strategies', {}):
+            strategy_config = allocation['strategies'][strategy_id]
 
     if strategy_id not in STRATEGY_REGISTRY:
         # Check if it's a strategy in allocation.json
-        allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
-        if allocation_path.exists():
-            with open(allocation_path, 'r') as f:
-                allocation = json.load(f)
-            if strategy_id in allocation.get('strategies', {}):
-                strategy_config = allocation['strategies'][strategy_id]
-                if 'regime_routing' in strategy_config:
-                    is_tuned_strategy = True
-                    tuned_config = strategy_config
-                else:
-                    # Try to find a base strategy in registry
-                    # e.g., 'mlp_direction_optimized' -> 'mlp_direction'
-                    base_strategy = strategy_config.get('base_strategy')
-                    if not base_strategy:
-                        # Infer base strategy by finding registry entry that matches prefix
-                        for reg_name in STRATEGY_REGISTRY.keys():
-                            if strategy_id.startswith(reg_name):
-                                base_strategy = reg_name
-                                break
-                    if base_strategy and base_strategy in STRATEGY_REGISTRY:
-                        base_strategy_id = base_strategy
-                        logger.info(f"Using base strategy '{base_strategy}' for '{strategy_id}'")
-                    else:
-                        raise ValueError(f"Strategy {strategy_id} has no regime_routing and no valid base_strategy")
+        if strategy_config:
+            if 'regime_routing' in strategy_config:
+                is_tuned_strategy = True
+                tuned_config = strategy_config
             else:
-                raise ValueError(f"Strategy {strategy_id} not found in registry or allocation.json")
+                # Try to find a base strategy in registry
+                # e.g., 'mlp_direction_optimized' -> 'mlp_direction'
+                base_strategy = strategy_config.get('base_strategy')
+                if not base_strategy:
+                    # Infer base strategy by finding registry entry that matches prefix
+                    for reg_name in STRATEGY_REGISTRY.keys():
+                        if strategy_id.startswith(reg_name):
+                            base_strategy = reg_name
+                            break
+                if base_strategy and base_strategy in STRATEGY_REGISTRY:
+                    base_strategy_id = base_strategy
+                    logger.info(f"Using base strategy '{base_strategy}' for '{strategy_id}'")
+                else:
+                    raise ValueError(f"Strategy {strategy_id} has no regime_routing and no valid base_strategy")
         else:
-            raise ValueError(f"Strategy {strategy_id} not found in StrategyFactory Registry")
+            raise ValueError(f"Strategy {strategy_id} not found in registry or allocation.json")
 
     # 1. Initialize Factory
     factory = StrategyFactory(redis=None)
@@ -1022,11 +1032,22 @@ def _run_generic_backtest(
     }
     db_timeframe = timeframe_map.get(timeframe, timeframe)
 
-    with DataLoader(exchange=exchange_name) as loader:
+    # Determine symbol from strategy config (default to BTC)
+    strategy_symbol = "BTC"
+    if strategy_config:
+        symbols = strategy_config.get('symbols', [])
+        if symbols and len(symbols) > 0:
+            strategy_symbol = symbols[0]  # Use first symbol for single-symbol backtest
+
+    # Get database path for the symbol
+    db_path = SYMBOL_DB_MAPPING.get(strategy_symbol, SYMBOL_DB_MAPPING["BTC"])
+    logger.info(f"Backtest using symbol={strategy_symbol}, db={db_path.name}")
+
+    with DataLoader(db_path=str(db_path)) as loader:
         df = loader.load_timeframe(db_timeframe, start_date, end_date)
 
     if df.empty:
-        raise ValueError(f"No data available for {start_date} to {end_date}")
+        raise ValueError(f"No data available for {strategy_symbol} from {start_date} to {end_date}")
 
     job.progress = 20
 
@@ -1209,7 +1230,7 @@ def _run_generic_backtest(
     trades: List[Dict] = []
     equity_curve: List[float] = []
 
-    adapter.symbol = "BTC"
+    adapter.symbol = strategy_symbol
 
     for i in range(len(df)):
         if job._cancelled:

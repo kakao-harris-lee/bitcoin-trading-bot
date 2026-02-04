@@ -64,7 +64,7 @@ class DataLoader:
         self._table_prefix = self._detect_table_prefix()
 
     def _detect_table_prefix(self) -> str:
-        """Detect table prefix by checking existing tables in the database.
+        """Detect table prefix by checking which table has data.
 
         Returns:
             Table prefix (e.g., 'binance', 'solana', 'ethereum', 'btc')
@@ -73,17 +73,26 @@ class DataLoader:
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = [row[0] for row in cursor.fetchall()]
 
-        # Priority: Check for minute240 table first (main trading data)
-        # This handles mixed-prefix databases correctly
-        prefixes = ['binance', 'btc', 'solana', 'ethereum']
+        # Priority: Check minute240 tables for actual data (not just existence)
+        # This handles databases with multiple prefix tables where only one has data
+        prefixes = ['btc', 'binance', 'solana', 'ethereum']
         for prefix in prefixes:
-            if f"{prefix}_minute240" in tables:
-                return prefix
+            table_name = f"{prefix}_minute240"
+            if table_name in tables:
+                # Check if table has data
+                cursor.execute(f"SELECT COUNT(*) FROM {table_name} LIMIT 1")
+                count = cursor.fetchone()[0]
+                if count > 0:
+                    return prefix
 
-        # Fallback: check for any table with known prefix
+        # Fallback: check for any table with known prefix that has data
         for prefix in prefixes:
-            if any(t.startswith(f"{prefix}_") for t in tables):
-                return prefix
+            matching_tables = [t for t in tables if t.startswith(f"{prefix}_")]
+            for table_name in matching_tables:
+                cursor.execute(f"SELECT COUNT(*) FROM {table_name} LIMIT 1")
+                count = cursor.fetchone()[0]
+                if count > 0:
+                    return prefix
 
         # Default to binance
         return 'binance'

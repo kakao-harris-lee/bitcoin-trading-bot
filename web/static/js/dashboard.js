@@ -3387,20 +3387,20 @@ function renderABTest(data) {
     const leaderEl = document.getElementById('ab-leader-name');
     const pnlDiffEl = document.getElementById('ab-pnl-diff');
     if (leaderEl) {
-        leaderEl.textContent = leader === 'v35_long' ? 'v1 (v35_long)' : 'v2 (v35_long_v2)';
-        leaderEl.className = `value leader ${leader === 'v35_long' ? 'v1' : 'v2'}`;
+        leaderEl.textContent = leader === 'v35_classic_wide' ? 'v1 (v35_classic_wide)' : 'v2 (tuned_v35_long_v2_core_overlay_v2)';
+        leaderEl.className = `value leader ${leader === 'v35_classic_wide' ? 'v1' : 'v2'}`;
     }
     if (pnlDiffEl) {
         pnlDiffEl.textContent = pnlDiff > 0 ? `+$${pnlDiff} ahead` : 'Tied';
     }
 
     // Render v1 card
-    const v1 = strategies['v35_long'] || {};
+    const v1 = strategies['v35_classic_wide'] || {};
     const v1Metrics = v1.metrics || {};
     updateABCard('v1', v1Metrics, v1.active_positions || []);
 
     // Render v2 card
-    const v2 = strategies['v35_long_v2'] || {};
+    const v2 = strategies['tuned_v35_long_v2_core_overlay_v2'] || {};
     const v2Metrics = v2.metrics || {};
     updateABCard('v2', v2Metrics, v2.active_positions || []);
 
@@ -3417,8 +3417,8 @@ function renderABTest(data) {
     // Highlight leader card
     const v1Card = document.getElementById('ab-card-v1');
     const v2Card = document.getElementById('ab-card-v2');
-    if (v1Card) v1Card.classList.toggle('leader', leader === 'v35_long');
-    if (v2Card) v2Card.classList.toggle('leader', leader === 'v35_long_v2');
+    if (v1Card) v1Card.classList.toggle('leader', leader === 'v35_classic_wide');
+    if (v2Card) v2Card.classList.toggle('leader', leader === 'tuned_v35_long_v2_core_overlay_v2');
 
     // Update timestamp
     const tsEl = document.getElementById('ab-last-update');

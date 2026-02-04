@@ -182,7 +182,7 @@ def test_run_optimization_uses_tqdm_progress():
                     # This test will fail until tqdm is integrated
                     try:
                         run_optimization(
-                            strategy_name="v35_long",
+                            strategy_name="v35_classic_wide",
                             experiment_name="test",
                             dry_run=False,
                             quick=True,
@@ -617,7 +617,7 @@ class TestSplitParams:
             "position_size": 0.5,
         }
 
-        entry, exit_p = split_params(params, "v35_long")
+        entry, exit_p = split_params(params, "v35_classic_wide")
 
         assert "mfi_bull_strong" in entry
         assert "position_size" in entry
@@ -633,7 +633,7 @@ class TestSplitParams:
             "unknown_param": 999,
         }
 
-        entry, exit_p = split_params(params, "v35_long")
+        entry, exit_p = split_params(params, "v35_classic_wide")
 
         assert "unknown_param" not in entry
         assert "unknown_param" not in exit_p

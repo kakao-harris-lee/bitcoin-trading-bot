@@ -519,7 +519,7 @@ def run_backtest(job: BacktestJob) -> None:
             job.progress = 0
 
             config = job.config
-            strategy_id = config.get('strategy_id') or config.get('strategy', 'v35_long')
+            strategy_id = config.get('strategy_id') or config.get('strategy', 'tuned_v35_long_v2_core_overlay_v2')
             start_date = config.get('start_date', '2024-01-01')
             end_date = config.get('end_date', '2024-12-31')
             initial_capital = config.get('initial_capital', 10000)

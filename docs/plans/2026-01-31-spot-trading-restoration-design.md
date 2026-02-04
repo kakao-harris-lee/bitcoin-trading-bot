@@ -110,7 +110,7 @@ balance:futures:usdt        → 5000.0
 ```json
 {
   "strategies": {
-    "v35_long": {
+    "v35_classic_wide": {
       "market": "spot",
       ...
     },

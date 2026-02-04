@@ -40,7 +40,7 @@ class ComparisonReportGenerator:
 
         Args:
             report_date: Date to generate report for (YYYY-MM-DD)
-            strategy_name: Strategy identifier (e.g., "v35_long", "short_v1")
+            strategy_name: Strategy identifier (e.g., "v35_classic_wide", "short_v1")
 
         Returns:
             DailyComparisonReport with all metrics and discrepancies
@@ -266,7 +266,7 @@ def main(
     CLI Usage:
         python scripts/daily_comparison.py
         python scripts/daily_comparison.py --date 2025-01-08
-        python scripts/daily_comparison.py --strategies v35_long,short_v1
+        python scripts/daily_comparison.py --strategies v35_classic_wide,short_v1
         python scripts/daily_comparison.py --dry-run
     """
 

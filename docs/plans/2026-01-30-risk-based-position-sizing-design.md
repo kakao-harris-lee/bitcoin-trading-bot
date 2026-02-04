@@ -2,11 +2,11 @@
 
 **Date**: 2026-01-30
 **Status**: Draft
-**Target Strategy**: v35_long_v2
+**Target Strategy**: tuned_v35_long_v2_core_overlay_v2
 
 ## Problem Statement
 
-현재 v35_long_v2 전략은 **포지션 크기(position_pct)** 기반으로 진입한다:
+현재 tuned_v35_long_v2_core_overlay_v2 전략은 **포지션 크기(position_pct)** 기반으로 진입한다:
 - `position_pct: 0.12` = 잔고의 12%를 한 트레이드에 사용
 - RF 확신도에 따라 0.03~0.12 범위에서 조정
 
@@ -330,7 +330,7 @@ order = Order(
 ```json
 {
   "strategies": {
-    "v35_long_v2": {
+    "tuned_v35_long_v2_core_overlay_v2": {
       // ... existing config ...
 
       // NEW: Risk-based sizing
@@ -790,12 +790,12 @@ async def evaluate(self, symbol: str) -> dict[str, Any] | None:
 
 ### Step 4: Update allocation.json
 
-Add risk-based sizing parameters to v35_long_v2:
+Add risk-based sizing parameters to tuned_v35_long_v2_core_overlay_v2:
 
 ```json
 {
   "strategies": {
-    "v35_long_v2": {
+    "tuned_v35_long_v2_core_overlay_v2": {
       // ... existing config ...
 
       // Risk-based sizing (NEW)

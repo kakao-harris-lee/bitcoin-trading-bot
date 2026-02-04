@@ -185,7 +185,7 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
 5. Remove old code once verified
 
 **Migration order:**
-1. `v35_long.py` - Most used, covers all indicators
+1. `trading/strategies/components/v35_entry.py` - Most used, covers all indicators
 2. `sideways_v2.py` - Active in production
 3. `regime_router.py` - Critical (note: ADX will change from rolling mean to EMA)
 4. `short_v1.py` - ADX/DI heavy

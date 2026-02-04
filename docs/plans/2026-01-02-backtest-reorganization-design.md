@@ -16,7 +16,6 @@ Reorganize backtesting scripts into per-strategy isolated files under `scripts/b
 scripts/backtest/
 ├── __init__.py
 ├── _common.py          # Shared utilities (data loading, metrics, output formatting)
-├── v35_long.py         # V35 long strategy backtest
 ├── short_v1.py         # Short V1 strategy backtest
 ├── sideways_v1.py      # Sideways V1 strategy backtest
 ├── sideways_v2.py      # Sideways V2 strategy backtest
@@ -29,11 +28,11 @@ scripts/backtest/
 Each script supports:
 
 ```bash
-python scripts/backtest/v35_long.py \
+python scripts/backtest/short_v1.py \
     --start-date 2020-01-01 \
     --end-date 2024-12-31 \
     --capital 10000000 \
-    --timeframe day \
+    --timeframe minute240 \
     --by-year \
     --verbose
 ```
@@ -108,12 +107,13 @@ if __name__ == "__main__":
 
 | Strategy | Default Timeframe | DB Path | Notes |
 |----------|-------------------|---------|-------|
-| v35_long | day | upbit_bitcoin.db | Uses V35LongStrategy |
 | short_v1 | minute240 | upbit_bitcoin.db | Uses ShortV1Strategy, margin-style backtest |
 | sideways_v1 | day | upbit_bitcoin.db | Uses SideWaysV1Strategy |
 | sideways_v2 | day | upbit_bitcoin.db | Uses SideWaysV2Strategy |
 | h4_conservative | minute240 | upbit_bitcoin.db | Uses H4ConservativeStrategy |
 | h4_short | minute240 | upbit_bitcoin.db | Uses H4ShortStrategy |
+
+**Note:** V35 strategies are component-based; use `scripts/backtest_components_compare.py` or `scripts/backtest_risk_based_sizing.py` for V35 backtests.
 
 ## Short Strategy Handling
 

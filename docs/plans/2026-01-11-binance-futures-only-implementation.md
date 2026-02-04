@@ -171,43 +171,25 @@ git add core/types.py && git commit -m "refactor: remove Exchange.UPBIT enum and
 
 ## Phase 3: Update Strategy Files
 
-### Task 3.1: Update V35 Long Strategy
+### Task 3.1: Update V35 Strategy Config
 
 **Files:**
-- Modify: `trading/strategy/v35_long.py:266`
+- Modify: `config/strategies/allocation.json`
 
-**Step 1: Find UPBIT reference**
+**Step 1: Confirm V35 strategies use Binance spot**
 
-```bash
-grep -n "UPBIT" trading/strategy/v35_long.py
-```
+Ensure `v35_classic_wide` and `tuned_v35_long_v2_core_overlay_v2` have `market: "spot"` and no Upbit-specific settings.
 
-**Step 2: Change Exchange.UPBIT to Exchange.BINANCE**
-
-Change from:
-```python
-exchange=Exchange.UPBIT,
-```
-
-To:
-```python
-exchange=Exchange.BINANCE,
-```
-
-**Step 3: Update docstrings (remove "Upbit" references)**
-
-Search and update any docstrings mentioning "Upbit" to say "Binance Futures".
-
-**Step 4: Run strategy tests**
+**Step 2: Run strategy tests**
 
 ```bash
 pytest tests/trading/ -k "v35" -v
 ```
 
-**Step 5: Commit**
+**Step 3: Commit**
 
 ```bash
-git add trading/strategy/v35_long.py && git commit -m "refactor: update v35_long to use Exchange.BINANCE"
+git add config/strategies/allocation.json && git commit -m "config: align v35 strategies to binance spot"
 ```
 
 ---

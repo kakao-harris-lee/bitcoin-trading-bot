@@ -116,13 +116,13 @@ class TestMetricsCollector:
         collector = MetricsCollector()
         collector.metrics.signals_generated.clear()
 
-        collector.record_signal("BTC", "v35_long")
-        collector.record_signal("BTC", "v35_long")
-        collector.record_signal("ETH", "v35_long")
+        collector.record_signal("BTC", "v35_classic_wide")
+        collector.record_signal("BTC", "v35_classic_wide")
+        collector.record_signal("ETH", "v35_classic_wide")
 
         metrics = collector.get_metrics()
-        assert metrics["counters"]["signals_generated"]["BTC:v35_long"] == 2
-        assert metrics["counters"]["signals_generated"]["ETH:v35_long"] == 1
+        assert metrics["counters"]["signals_generated"]["BTC:v35_classic_wide"] == 2
+        assert metrics["counters"]["signals_generated"]["ETH:v35_classic_wide"] == 1
 
     def test_record_trade(self):
         """Trades are recorded correctly."""

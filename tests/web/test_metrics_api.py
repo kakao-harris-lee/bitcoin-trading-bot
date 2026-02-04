@@ -34,7 +34,7 @@ def mock_metrics_service():
         'binance': {
             'exchange': 'binance',
             'mode': 'paper',
-            'strategy': 'v35_long',
+            'strategy': 'v35_classic_wide',
             'regime': 'BULL',
             'market_state': 'BULL_STRONG',
             'current_price': 95000.0,
@@ -47,7 +47,7 @@ def mock_metrics_service():
             'last_updated': datetime.now().isoformat(),
             'last_decision': {
                 'timestamp': datetime.now().isoformat(),
-                'strategy': 'v35_long',
+                'strategy': 'v35_classic_wide',
                 'action': 'hold',
                 'reason': 'V35_HOLDING',
                 'regime': 'BULL',
@@ -65,7 +65,7 @@ def mock_metrics_service():
         'recent_decisions': [
             {
                 'timestamp': datetime.now().isoformat(),
-                'strategy': 'v35_long',
+                'strategy': 'v35_classic_wide',
                 'action': 'hold',
                 'reason': 'V35_HOLDING',
                 'exchange': 'binance'
@@ -168,7 +168,7 @@ class TestDecisionHistoryEndpoint:
         sample_decisions = [
             {
                 'timestamp': datetime.now().isoformat(),
-                'strategy': 'v35_long',
+                'strategy': 'v35_classic_wide',
                 'action': 'hold',
                 'reason': 'V35_HOLDING',
                 'exchange': 'binance'

@@ -7,7 +7,7 @@ Generates and sends comparison reports between actual and backtested trades.
 Usage:
     python scripts/daily_comparison.py                     # Yesterday's report
     python scripts/daily_comparison.py --date 2025-01-08   # Specific date
-    python scripts/daily_comparison.py --strategies v35_long  # Specific strategy
+    python scripts/daily_comparison.py --strategies v35_classic_wide  # Specific strategy
     python scripts/daily_comparison.py --dry-run           # Don't save or notify
     python scripts/daily_comparison.py --history 7         # Last 7 days of reports
 """
@@ -262,7 +262,7 @@ def parse_args():
 Examples:
     %(prog)s                          # Generate report for yesterday
     %(prog)s --date 2025-01-08        # Generate report for specific date
-    %(prog)s --strategies v35_long    # Generate for specific strategy
+    %(prog)s --strategies v35_classic_wide    # Generate for specific strategy
     %(prog)s --dry-run                # Generate without saving
     %(prog)s --history 7              # Show last 7 days of reports
         """,

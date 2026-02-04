@@ -645,7 +645,7 @@ class RegimeBacktestObjective:
         factory = StrategyFactory()
         return ComponentStrategyAdapter(
             factory=factory,
-            strategy_name="v35_long",
+            strategy_name="v35_classic_wide",
             symbol=symbol,
             regime_config=config,
         )
@@ -1857,17 +1857,6 @@ quant_lab_bp = Blueprint(
 
 # Experiment templates
 TEMPLATES = {
-    "v35_param_sweep": {
-        "name": "V35 Parameter Sweep",
-        "description": "Fixed V35Entry/Exit for BULL regimes, tune params only",
-        "config": {
-            regime: {
-                "entries": ["V35Entry"] if "BULL" in regime else ENTRY_COMPONENTS,
-                "exits": ["V35TrailingExit"],
-            }
-            for regime in REGIMES
-        },
-    },
     "full_regime_search": {
         "name": "Full Regime Search",
         "description": "All Entry/Exit combinations across all 7 regimes",
@@ -2722,7 +2711,6 @@ git commit -m "feat(quant-lab): register blueprint in Flask app"
 ### Task 16: Create Experiment Templates JSON
 
 **Files:**
-- Create: `config/experiment_templates/v35_param_sweep.json`
 - Create: `config/experiment_templates/full_regime_search.json`
 
 **Step 1: Create templates directory**
@@ -2734,18 +2722,18 @@ mkdir -p config/experiment_templates
 **Step 2: Write template files**
 
 ```json
-// config/experiment_templates/v35_param_sweep.json
+// config/experiment_templates/full_regime_search.json
 {
-  "name": "V35 Parameter Sweep",
-  "description": "Fixed V35Entry/Exit for BULL regimes, tune params only",
+  "name": "Full Regime Search",
+  "description": "All Entry/Exit combinations across all 7 regimes",
   "search_config": {
-    "BULL_STRONG": {"entries": ["V35Entry"], "exits": ["V35TrailingExit"]},
-    "BULL_MODERATE": {"entries": ["V35Entry"], "exits": ["V35TrailingExit"]},
-    "SIDEWAYS_UP": {"entries": ["V35Entry", "SidewaysEntry"], "exits": ["V35TrailingExit", "SidewaysExit"]},
-    "SIDEWAYS_FLAT": {"entries": ["SidewaysEntry", "None"], "exits": ["SidewaysExit"]},
-    "SIDEWAYS_DOWN": {"entries": ["SidewaysEntry", "None"], "exits": ["SidewaysExit"]},
-    "BEAR_MODERATE": {"entries": ["ShortEntry", "None"], "exits": ["V35TrailingExit"]},
-    "BEAR_STRONG": {"entries": ["ShortEntry"], "exits": ["V35TrailingExit"]}
+    "BULL_STRONG": {"entries": ["V35Entry", "SidewaysEntry", "ShortEntry", "None"], "exits": ["V35TrailingExit", "SidewaysExit", "ShortExit"]},
+    "BULL_MODERATE": {"entries": ["V35Entry", "SidewaysEntry", "ShortEntry", "None"], "exits": ["V35TrailingExit", "SidewaysExit", "ShortExit"]},
+    "SIDEWAYS_UP": {"entries": ["V35Entry", "SidewaysEntry", "ShortEntry", "None"], "exits": ["V35TrailingExit", "SidewaysExit", "ShortExit"]},
+    "SIDEWAYS_FLAT": {"entries": ["V35Entry", "SidewaysEntry", "ShortEntry", "None"], "exits": ["V35TrailingExit", "SidewaysExit", "ShortExit"]},
+    "SIDEWAYS_DOWN": {"entries": ["V35Entry", "SidewaysEntry", "ShortEntry", "None"], "exits": ["V35TrailingExit", "SidewaysExit", "ShortExit"]},
+    "BEAR_MODERATE": {"entries": ["V35Entry", "SidewaysEntry", "ShortEntry", "None"], "exits": ["V35TrailingExit", "SidewaysExit", "ShortExit"]},
+    "BEAR_STRONG": {"entries": ["V35Entry", "SidewaysEntry", "ShortEntry", "None"], "exits": ["V35TrailingExit", "SidewaysExit", "ShortExit"]}
   },
   "default_constraints": {
     "max_trials": 300,

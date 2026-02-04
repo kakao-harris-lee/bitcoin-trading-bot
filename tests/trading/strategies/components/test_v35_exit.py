@@ -23,7 +23,7 @@ def _make_position(entry_price: float = 100000.0, quantity: float = 0.01) -> Pos
     """Helper to create Position for tests."""
     return Position(
         symbol="BTC", entry_price=entry_price, quantity=quantity,
-        strategy="v35_long", market="futures", timestamp=900,
+        strategy="v35_classic_wide", market="futures", timestamp=900,
     )
 
 

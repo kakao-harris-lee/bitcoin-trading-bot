@@ -33,7 +33,7 @@ async def test_paper_executor_simulates_fill(mock_redis):
         "side": "buy",
         "market": "futures",
         "quantity": "0.01",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     result = await executor._process_order(order)
@@ -58,7 +58,7 @@ async def test_paper_executor_applies_slippage(mock_redis):
         "side": "buy",
         "market": "futures",
         "quantity": "0.01",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     result = await executor._process_order(order)
@@ -84,7 +84,7 @@ async def test_paper_executor_tracks_balance(mock_redis):
         "side": "buy",
         "market": "futures",
         "quantity": "0.01",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     await executor._process_order(order)
@@ -288,7 +288,7 @@ async def test_update_position_calculates_liquidation_price_for_futures():
         "symbol": "BTC",
         "market": "futures",
         "side": "buy",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
         "leverage": 5,
     }
     fill = {"filled_qty": 0.01, "filled_price": 100000}
@@ -332,7 +332,7 @@ async def test_process_order_validates_side(mock_redis):
         "side": "invalid_side",  # Invalid
         "quantity": "0.01",
         "market": "futures",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     result = await executor._process_order(invalid_order)
@@ -351,7 +351,7 @@ async def test_process_order_validates_market(mock_redis):
         "side": "buy",
         "quantity": "0.01",
         "market": "invalid_market",  # Invalid
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     result = await executor._process_order(invalid_order)
@@ -370,7 +370,7 @@ async def test_process_order_validates_quantity(mock_redis):
         "side": "buy",
         "quantity": "-0.01",  # Negative
         "market": "futures",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     result = await executor._process_order(invalid_order)
@@ -696,7 +696,7 @@ class TestPublishTrade:
             "symbol": "BTC",
             "side": "buy",
             "market": "futures",
-            "strategy": "v35_long",
+            "strategy": "v35_classic_wide",
         }
         fill = {
             "order_id": "12345678",
@@ -723,7 +723,7 @@ class TestPublishTrade:
 
         executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
 
-        order = {"symbol": "BTC", "side": "sell", "market": "futures", "strategy": "v35_long"}
+        order = {"symbol": "BTC", "side": "sell", "market": "futures", "strategy": "v35_classic_wide"}
         fill = {"order_id": "12345678", "filled_qty": 0.01, "filled_price": 52000.0}
         profit_data = {"profit": 20.0, "profit_pct": 4.0}
 

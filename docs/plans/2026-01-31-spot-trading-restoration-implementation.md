@@ -237,7 +237,7 @@ async def test_executor_handles_spot_order():
         "side": "buy",
         "quantity": 0.1,
         "market": "spot",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     await executor._execute_order(order)
@@ -423,11 +423,11 @@ git commit -m "feat(paper): add spot trading simulation to PaperExecutor"
 
 **Step 2: Change V35 strategies to spot**
 
-For each V35 strategy (`v35_long`, `v35_long_v2`, `tuned_v35_long_v2_growth`, `tuned_v35_long_v2_hold`, `tuned_v35_long_v2_core_overlay`, `tuned_v35_long_v2_core_overlay_v2`):
+For each V35 strategy (`v35_classic_wide`, `tuned_v35_long_v2_core_overlay_v2`):
 
 ```json
 {
-  "v35_long": {
+  "v35_classic_wide": {
     "market": "spot",  // Changed from "futures"
     // ... rest unchanged
   }
@@ -451,9 +451,8 @@ def test_v35_strategies_use_spot():
     factory = StrategyFactory(redis=None)
 
     v35_strategies = [
-        "v35_long", "v35_long_v2", "tuned_v35_long_v2_growth",
-        "tuned_v35_long_v2_hold", "tuned_v35_long_v2_core_overlay",
-        "tuned_v35_long_v2_core_overlay_v2"
+        "v35_classic_wide",
+        "tuned_v35_long_v2_core_overlay_v2",
     ]
 
     for name in v35_strategies:

@@ -149,7 +149,7 @@ class TestModelSaveLoad:
             path = os.path.join(tmpdir, "model.pt")
             model.save(path)
 
-            loaded_model = MLPDirectionClassifier.load(path)
+            loaded_model = MLPDirectionClassifier.load(path, validate_path=False)
 
         # Compare outputs (loaded model is already in eval mode from load())
         with torch.no_grad():
@@ -170,7 +170,7 @@ class TestModelSaveLoad:
             path = os.path.join(tmpdir, "model.pt")
             model.save(path)
 
-            loaded_model = MLPDirectionClassifier.load(path)
+            loaded_model = MLPDirectionClassifier.load(path, validate_path=False)
 
         assert loaded_model.input_dim == 10
         assert loaded_model.hidden_dims == (64, 32)
@@ -319,7 +319,7 @@ class TestEnsembleMLPClassifier:
                 model.save(path)
                 paths.append(path)
 
-            ensemble = EnsembleMLPClassifier.load_ensemble(paths)
+            ensemble = EnsembleMLPClassifier.load_ensemble(paths, validate_path=False)
 
         assert len(ensemble.models) == 3
 

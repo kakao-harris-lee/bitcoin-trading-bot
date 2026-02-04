@@ -128,7 +128,7 @@ async def test_full_exit_flow(mock_redis, mock_binance, integration_config, mock
         "market": "futures",
         "quantity": "0.1",
         "trigger_price": "95000",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -144,7 +144,7 @@ async def test_full_exit_flow(mock_redis, mock_binance, integration_config, mock
     assert plan.market == "futures"
     assert plan.total_quantity == 0.1
     assert plan.trigger_price == 95000.0
-    assert plan.strategy == "v35_long"
+    assert plan.strategy == "v35_classic_wide"
     assert plan.phase == "ladder"
     assert len(plan.ladder_orders) == 2
 
@@ -184,7 +184,7 @@ async def test_exit_flow_ladder_quantities(mock_redis, mock_binance, integration
         "market": "futures",
         "quantity": "10.0",
         "trigger_price": "150",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -232,7 +232,7 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
         "market": "futures",
         "quantity": "0.1",
         "trigger_price": "95000",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     # Exit ETH position
@@ -241,7 +241,7 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
         "market": "futures",
         "quantity": "2.0",
         "trigger_price": "3500",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -276,7 +276,7 @@ async def test_exit_flow_stores_order_results(mock_redis, mock_binance, integrat
         "market": "futures",
         "quantity": "0.1",
         "trigger_price": "95000",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):

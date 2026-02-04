@@ -300,7 +300,7 @@ def _classify_regime_cached(
 def _classify_regime(
     mfi: float,
     adx: float,
-    # V35 default thresholds (from v35_long.json)
+    # V35 default thresholds (allocation defaults)
     mfi_bull_strong: float = 54.0,
     mfi_bull_moderate: float = 54.0,
     mfi_sideways_up: float = 49.0,

@@ -51,7 +51,7 @@ class TestSummaryAPI:
             'risk': {'mode': 'paper'},
             'account:paper': {'spot_balance': '10000', 'futures_balance': '10000'},
             'positions:BTC:spot': {'quantity': '0.1', 'entry_price': '100000', 'strategy': 'v35_spot'},
-            'positions:BTC:futures': {'quantity': '0.05', 'entry_price': '101000', 'side': 'buy', 'leverage': '3', 'strategy': 'v35_long'},
+            'positions:BTC:futures': {'quantity': '0.05', 'entry_price': '101000', 'side': 'buy', 'leverage': '3', 'strategy': 'v35_classic_wide'},
         }.get(key, {})
 
         # Mock price stream

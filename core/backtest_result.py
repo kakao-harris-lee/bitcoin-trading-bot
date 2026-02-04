@@ -30,7 +30,7 @@ class BacktestResult:
     including comparison against a buy-and-hold benchmark.
 
     Attributes:
-        strategy_name: Strategy identifier (e.g., "v35_long")
+        strategy_name: Strategy identifier (e.g., "v35_classic_wide")
         symbol: Trading symbol (e.g., "BTC", "ETH")
         start_date: Backtest start timestamp
         end_date: Backtest end timestamp

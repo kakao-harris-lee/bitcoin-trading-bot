@@ -54,23 +54,11 @@ class TestV35StrategyParams:
 
     def test_all_strategies_defined(self):
         """All V35 strategies have parameter mappings."""
-        assert "v35_long" in V35_STRATEGY_PARAMS
-        assert "v35_long_v2" in V35_STRATEGY_PARAMS
-        assert "tuned_v35_long_v2_growth" in V35_STRATEGY_PARAMS
-        assert "tuned_v35_long_v2_hold" in V35_STRATEGY_PARAMS
-        assert "tuned_v35_long_v2_core_overlay" in V35_STRATEGY_PARAMS
         assert "tuned_v35_long_v2_core_overlay_v2" in V35_STRATEGY_PARAMS
-
-    def test_basic_strategy_has_minimal_groups(self):
-        """v35_long has minimal parameter groups."""
-        groups = V35_STRATEGY_PARAMS["v35_long"]
-        assert "risk" in groups
-        assert "trailing" in groups
-        assert "core_overlay" not in groups
 
     def test_core_overlay_strategies_have_core_group(self):
         """Core overlay strategies include core_overlay group."""
-        groups = V35_STRATEGY_PARAMS["tuned_v35_long_v2_core_overlay"]
+        groups = V35_STRATEGY_PARAMS["tuned_v35_long_v2_core_overlay_v2"]
         assert "core_overlay" in groups
 
 
@@ -78,20 +66,14 @@ class TestGetStrategyParamGroups:
     """Tests for get_strategy_param_groups function."""
 
     def test_returns_correct_groups_for_v35_long_v2(self):
-        """Returns correct groups for v35_long_v2."""
-        groups = get_strategy_param_groups("v35_long_v2")
+        """Returns correct groups for tuned_v35_long_v2_core_overlay_v2."""
+        groups = get_strategy_param_groups("tuned_v35_long_v2_core_overlay_v2")
         assert "risk" in groups
         assert "sizing" in groups
         assert "trailing" in groups
         # V35 runs on spot with no leverage per CLAUDE.md
         assert "leverage" not in groups
-        assert "core_overlay" not in groups
-
-    def test_returns_correct_groups_for_core_overlay(self):
-        """Returns correct groups for core overlay strategy."""
-        groups = get_strategy_param_groups("tuned_v35_long_v2_core_overlay")
         assert "core_overlay" in groups
-        assert "take_profit" in groups
 
     def test_unknown_strategy_returns_defaults(self):
         """Unknown strategy returns default groups."""
@@ -103,11 +85,10 @@ class TestGetAllStrategies:
     """Tests for get_all_strategies function."""
 
     def test_returns_all_strategies(self):
-        """Returns all 6 V35 strategies."""
+        """Returns all available V35 strategies."""
         strategies = get_all_strategies()
-        assert len(strategies) == 6
-        assert "v35_long" in strategies
-        assert "v35_long_v2" in strategies
+        assert len(strategies) == 1
+        assert "tuned_v35_long_v2_core_overlay_v2" in strategies
 
 
 class TestGetParamBounds:
@@ -133,7 +114,7 @@ class TestSampleV35Config:
         study = optuna.create_study()
         trial = study.ask()
 
-        config = sample_v35_config(trial, "v35_long_v2")
+        config = sample_v35_config(trial, "tuned_v35_long_v2_core_overlay_v2")
 
         # Check risk params
         assert "stop_loss_pct" in config
@@ -151,7 +132,7 @@ class TestSampleV35Config:
         study = optuna.create_study()
         trial = study.ask()
 
-        config = sample_v35_config(trial, "v35_long_v2", enabled_groups=["risk"])
+        config = sample_v35_config(trial, "tuned_v35_long_v2_core_overlay_v2", enabled_groups=["risk"])
 
         assert "stop_loss_pct" in config
         assert "position_size_high" not in config
@@ -162,7 +143,7 @@ class TestSampleV35Config:
         study = optuna.create_study()
         trial = study.ask()
 
-        config = sample_v35_config(trial, "v35_long_v2", enabled_groups=["risk"])
+        config = sample_v35_config(trial, "tuned_v35_long_v2_core_overlay_v2", enabled_groups=["risk"])
 
         assert "max_consecutive_losses" in config
         assert isinstance(config["max_consecutive_losses"], int)
@@ -175,12 +156,12 @@ class TestBuildFullSearchSpace:
 
     def test_builds_space_for_v35_long_v2(self):
         """Builds complete search space for strategy."""
-        space = build_full_search_space("v35_long_v2")
+        space = build_full_search_space("tuned_v35_long_v2_core_overlay_v2")
 
         assert "risk" in space
         assert "sizing" in space
         assert "trailing" in space
-        assert "core_overlay" not in space
+        assert "core_overlay" in space
 
         # Check param format
         assert "stop_loss_pct" in space["risk"]

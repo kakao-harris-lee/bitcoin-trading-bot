@@ -9,7 +9,7 @@ Usage:
     exit_strat = V35TrailingExitStrategy(params)
 
     task = CompositeStrategyTask(
-        name="v35_long",
+        name="tuned_v35_long_v2_core_overlay_v2",
         symbols=["BTC", "ETH"],
         redis=redis,
         entry_strategy=entry,
@@ -87,7 +87,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         """Initialize composite strategy task.
 
         Args:
-            name: Strategy name (e.g., "v35_long").
+            name: Strategy name (e.g., "tuned_v35_long_v2_core_overlay_v2").
             symbols: List of symbols to trade.
             redis: Redis streams client.
             entry_strategy: Entry component implementing IEntryStrategy.

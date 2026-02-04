@@ -18,7 +18,7 @@
 ```
 backtest_logs/
 └── {strategy}_{symbol}_{datetime}.csv
-    # Example: v35_long_BTC_2026-02-03_143052.csv
+    # Example: short_v1_BTC_2026-02-03_143052.csv
 ```
 
 ### Columns
@@ -71,8 +71,8 @@ GET /api/backtest/logs/<filename>/download
 ### CLI
 
 ```bash
-python scripts/backtest/v35_long.py --csv-log
-# Output: "CSV saved: backtest_logs/v35_long_BTC_2026-02-03_143052.csv"
+python scripts/backtest/short_v1.py --csv-log
+# Output: "CSV saved: backtest_logs/short_v1_BTC_2026-02-03_143052.csv"
 ```
 
 ### Dashboard

@@ -6,7 +6,7 @@
 
 | Market | Strategies | Characteristics |
 |--------|------------|-----------------|
-| **Spot** | V35 strategies (6 variants) | No leverage (1x), 0.1% fee, no liquidation risk |
+| **Spot** | V35 strategies (2 variants: `v35_classic_wide`, `tuned_v35_long_v2_core_overlay_v2`) | No leverage (1x), 0.1% fee, no liquidation risk |
 | **Futures** | Short, Sideways | Leverage (1-3x), 0.05% fee, hedging capability |
 
 **Why Hybrid?** V35 strategy analysis showed effectiveness only at 1% position sizing—scaling with leverage provided no benefit while adding complexity (funding costs, liquidation risk).
@@ -34,12 +34,12 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 
 - Strategies are not hardcoded.
 - `allocation.json` defines which Entry/Exit components to pair.
-- Supports "Mix & Match" (e.g., V35 Entry + Experimental Exit).
+- Supports "Mix & Match" (e.g., V35 Entry + V35 Trailing Exit or V35 Classic Exit).
 
 ### C. Unified Backtesting
 
 - `ComponentStrategyAdapter` bridges the live components to the historical backtester.
-- Ensures `scripts/backtest_experimental.py` runs the *exact same logic* as the live engine.
+- Ensures `scripts/run_unified_backtest.py` runs the *exact same logic* as the live engine.
 
 ## 3. Implementation Roadmap
 
@@ -272,7 +272,7 @@ bitcoin-trading-bot/
   "spot": { "enabled": true, "fee_rate": 0.001 },
   "futures": { "enabled": true, "default_leverage": 3 },
   "strategies": {
-    "v35_long": {
+    "v35_classic_wide": {
       "market": "futures",
       "leverage": 3,
       "dynamic_sizing": true,
@@ -343,7 +343,7 @@ Minimum profit targets:
 
 ## Risk-Based Position Sizing
 
-v35_long_v2 전략은 **리스크 기반 포지션 사이징**을 사용합니다:
+tuned_v35_long_v2_core_overlay_v2 전략은 **리스크 기반 포지션 사이징**을 사용합니다:
 
 ```
 핵심 공식: qty = risk_budget / (stop_distance × entry_price)
@@ -357,7 +357,7 @@ v35_long_v2 전략은 **리스크 기반 포지션 사이징**을 사용합니�
 **allocation.json 설정**:
 ```json
 {
-  "v35_long_v2": {
+  "tuned_v35_long_v2_core_overlay_v2": {
     "risk_based_sizing": true,
     "risk_per_trade_pct": 0.01,     // 트레이드당 1% 리스크
     "max_total_risk_pct": 0.05,     // 전체 포트폴리오 5% 리스크 캡

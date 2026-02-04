@@ -228,7 +228,6 @@ bitcoin-trading-bot/
 │           └── quant_lab.css
 ├── config/
 │   └── experiment_templates/           # Pre-built experiment configs
-│       ├── v35_param_sweep.json
 │       ├── full_regime_search.json
 │       └── conservative_search.json
 ```

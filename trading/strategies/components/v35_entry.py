@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 class V35EntryParams:
     """Parameters for V35 entry strategy.
 
-    Defaults aligned with Optuna-optimized config from v35_long.json.
+    Defaults aligned with allocation.json tuned_v35_long_v2_core_overlay_v2 baseline.
     """
 
-    # MFI thresholds for regime classification (from v35_long.json)
+    # MFI thresholds for regime classification (allocation defaults)
     mfi_bull_strong: float = 54.0
     mfi_bull_moderate: float = 54.0
     mfi_sideways_up: float = 49.0

@@ -43,7 +43,7 @@ class ComponentStrategyAdapter:
         """
         Args:
             factory: Initialized StrategyFactory
-            strategy_name: Name of the strategy to run (e.g., "v35_long")
+            strategy_name: Name of the strategy to run (e.g., "v35_classic_wide")
             config: Configuration dictionary for the strategy
             entry_overrides: Parameter overrides for entry strategy
             exit_overrides: Parameter overrides for exit strategy

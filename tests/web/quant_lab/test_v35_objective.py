@@ -111,12 +111,12 @@ class TestGrowthObjective:
     def test_objective_init(self):
         """Objective initializes with correct defaults."""
         obj = GrowthObjective(
-            strategy_name="v35_long_v2",
+            strategy_name="tuned_v35_long_v2_core_overlay_v2",
             data_path="/path/to/data.db",
             start_date="2024-01-01",
             end_date="2024-12-31",
         )
-        assert obj.strategy_name == "v35_long_v2"
+        assert obj.strategy_name == "tuned_v35_long_v2_core_overlay_v2"
         assert obj.capital == 10_000.0
         assert obj.symbol == "BTC"
         assert obj.mdd_soft_limit == 0.25
@@ -125,7 +125,7 @@ class TestGrowthObjective:
     def test_objective_custom_capital(self):
         """Objective respects custom capital."""
         obj = GrowthObjective(
-            strategy_name="v35_long_v2",
+            strategy_name="tuned_v35_long_v2_core_overlay_v2",
             data_path="/path/to/data.db",
             start_date="2024-01-01",
             end_date="2024-12-31",
@@ -148,7 +148,7 @@ class TestGrowthObjective:
         }
 
         obj = GrowthObjective(
-            strategy_name="v35_long_v2",
+            strategy_name="tuned_v35_long_v2_core_overlay_v2",
             data_path="/path/to/data.db",
             start_date="2024-01-01",
             end_date="2024-12-31",
@@ -171,7 +171,7 @@ class TestGrowthObjective:
         mock_backtest.side_effect = ValueError("Backtest failed")
 
         obj = GrowthObjective(
-            strategy_name="v35_long_v2",
+            strategy_name="tuned_v35_long_v2_core_overlay_v2",
             data_path="/path/to/data.db",
             start_date="2024-01-01",
             end_date="2024-12-31",
@@ -198,7 +198,7 @@ class TestGrowthObjective:
         }
 
         obj = GrowthObjective(
-            strategy_name="v35_long_v2",
+            strategy_name="tuned_v35_long_v2_core_overlay_v2",
             data_path="/path/to/data.db",
             start_date="2024-01-01",
             end_date="2024-12-31",
@@ -217,7 +217,7 @@ class TestCreateV35Study:
     def test_creates_study_with_correct_direction(self):
         """Study is created with maximize direction."""
         study = create_v35_study(
-            strategy_name="v35_long_v2",
+            strategy_name="tuned_v35_long_v2_core_overlay_v2",
             start_date="2024-01-01",
             end_date="2024-12-31",
         )
@@ -227,19 +227,19 @@ class TestCreateV35Study:
     def test_study_name_includes_strategy(self):
         """Study name includes strategy and dates."""
         study = create_v35_study(
-            strategy_name="v35_long_v2",
+            strategy_name="tuned_v35_long_v2_core_overlay_v2",
             start_date="2024-01-01",
             end_date="2024-12-31",
         )
 
-        assert "v35_long_v2" in study.study_name
+        assert "tuned_v35_long_v2_core_overlay_v2" in study.study_name
         assert "2024-01-01" in study.study_name
         assert "2024-12-31" in study.study_name
 
     def test_uses_tpe_sampler(self):
         """Study uses TPE sampler."""
         study = create_v35_study(
-            strategy_name="v35_long_v2",
+            strategy_name="tuned_v35_long_v2_core_overlay_v2",
             start_date="2024-01-01",
             end_date="2024-12-31",
         )
@@ -250,7 +250,7 @@ class TestCreateV35Study:
         """Study sampler accepts seed parameter without error."""
         # Just verify no exception is raised when seed is provided
         study = create_v35_study(
-            strategy_name="v35_long_v2",
+            strategy_name="tuned_v35_long_v2_core_overlay_v2",
             start_date="2024-01-01",
             end_date="2024-12-31",
             sampler_seed=42,

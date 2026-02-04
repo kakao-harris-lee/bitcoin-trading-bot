@@ -15,7 +15,7 @@
 
 ## Strategy & Config Notes
 - Component engine is the default (`use_component_strategies=true`); every strategy in `allocation.json` needs `entry`/`exit` classes or a registry entry.
-- Tuned variants (e.g., `tuned_v35_1._18`, `tuned_experiment_7143f875_2`) reuse V35 entry/exit components; adjust their `params` or `regime_routing` in-place.
+- Tuned variants (e.g., `tuned_v35_long_v2_core_overlay_v2`) reuse V35 entry/exit components; adjust their `params` or `regime_routing` in-place.
 - Remove or disable any legacy premium/arbitrage configs—the Kimchi premium subsystem is retired.
 
 ## Coding Style

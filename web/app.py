@@ -957,7 +957,7 @@ def get_signals():
                 market_state = 'RANGING'
         else:
             # Infer from strategy name when reason not available
-            if 'v35_long' in strategy:
+            if 'v35' in strategy:
                 regime = 'BULL'
                 market_state = 'TRENDING'
             elif 'sideways' in strategy:
@@ -2538,7 +2538,7 @@ def get_entry_events():
     - hours: Hours of history (default 24, max 72)
     - limit: Maximum events (default 50, max 200)
     - symbol: Filter by symbol (e.g., "BTC")
-    - strategy: Filter by strategy (e.g., "v35_long")
+    - strategy: Filter by strategy (e.g., "v35_classic_wide")
     """
     if not metrics_service:
         return jsonify({'error': 'Metrics service not available'}), 500
@@ -2612,7 +2612,7 @@ def get_hwm_timeline(symbol: str, strategy: str):
 
     URL parameters:
     - symbol: Trading symbol (e.g., "BTC")
-    - strategy: Strategy name (e.g., "v35_long")
+    - strategy: Strategy name (e.g., "v35_classic_wide")
 
     Query parameters:
     - hours: Hours of history (default 24, max 72)
@@ -2725,7 +2725,7 @@ def get_events_summary():
 @requires_auth
 def get_ab_test_status():
     """
-    Get A/B test status comparing v35_long (v1) vs v35_long_v2 (v2).
+    Get A/B test status comparing v35_classic_wide (v1) vs tuned_v35_long_v2_core_overlay_v2 (v2).
 
     Returns metrics for both strategies including:
     - Trade counts
@@ -2745,7 +2745,7 @@ def get_ab_test_status():
         strategies_config = config.get('strategies', {}) if config else {}
 
         # Define the A/B test strategies
-        ab_strategies = ['v35_long', 'v35_long_v2']
+        ab_strategies = ['v35_classic_wide', 'tuned_v35_long_v2_core_overlay_v2']
         results = {}
 
         for strategy_name in ab_strategies:
@@ -2817,9 +2817,9 @@ def get_ab_test_status():
             }
 
         # Determine which is performing better
-        v1_pnl = results.get('v35_long', {}).get('metrics', {}).get('total_pnl', 0)
-        v2_pnl = results.get('v35_long_v2', {}).get('metrics', {}).get('total_pnl', 0)
-        leader = 'v35_long' if v1_pnl >= v2_pnl else 'v35_long_v2'
+        v1_pnl = results.get('v35_classic_wide', {}).get('metrics', {}).get('total_pnl', 0)
+        v2_pnl = results.get('tuned_v35_long_v2_core_overlay_v2', {}).get('metrics', {}).get('total_pnl', 0)
+        leader = 'v35_classic_wide' if v1_pnl >= v2_pnl else 'tuned_v35_long_v2_core_overlay_v2'
 
         return jsonify({
             'strategies': results,

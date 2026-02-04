@@ -1,14 +1,15 @@
 {
   "redis_url": "redis://localhost:6379",
-  "symbols": ["BTC", "ETH", "SOL"],
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
   "binance": {
     "api_key": "YOUR_BINANCE_API_KEY",
     "api_secret": "YOUR_BINANCE_API_SECRET"
   },
   "strategies": {
-    "v35_long": {
-      "position_size": 0.01
-    },
     "sideways_v2": {
       "position_size": 0.01
     },

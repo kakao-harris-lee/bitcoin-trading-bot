@@ -78,17 +78,6 @@ V35_PARAM_GROUPS: Dict[str, Dict[str, Tuple[float, float]]] = {
 # Note: V35 strategies run on SPOT (no leverage) per CLAUDE.md
 # Leverage parameters are only applicable to futures strategies
 V35_STRATEGY_PARAMS: Dict[str, List[str]] = {
-    "v35_long": ["risk", "trailing"],
-    "v35_long_v2": ["risk", "sizing", "trailing"],
-    "tuned_v35_long_v2_growth": [
-        "risk", "sizing", "trailing", "take_profit", "regime_thresholds"
-    ],
-    "tuned_v35_long_v2_hold": [
-        "risk", "sizing", "trailing", "take_profit"
-    ],
-    "tuned_v35_long_v2_core_overlay": [
-        "risk", "sizing", "trailing", "take_profit", "core_overlay"
-    ],
     "tuned_v35_long_v2_core_overlay_v2": [
         "risk", "sizing", "trailing", "take_profit", "core_overlay"
     ],

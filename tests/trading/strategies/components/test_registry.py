@@ -380,8 +380,8 @@ class TestLegacyConfigFormat:
         """Test legacy format creates correct V35 strategy."""
         config = {"position_size": 0.02, "market": "futures"}
 
-        entry = factory.create_entry("v35_long", config)
-        exit_strat = factory.create_exit("v35_long", config)
+        entry = factory.create_entry("tuned_v35_long_v2_core_overlay_v2", config)
+        exit_strat = factory.create_exit("tuned_v35_long_v2_core_overlay_v2", config)
 
         assert isinstance(entry, V35EntryStrategy)
         assert isinstance(exit_strat, V35TrailingExitStrategy)
@@ -406,7 +406,7 @@ class TestLegacyConfigFormat:
 
     def test_legacy_format_with_empty_config(self, factory):
         """Test legacy format with empty config uses defaults."""
-        entry = factory.create_entry("v35_long")
+        entry = factory.create_entry("tuned_v35_long_v2_core_overlay_v2")
 
         assert isinstance(entry, V35EntryStrategy)
         assert entry.params.position_size == 0.5  # default
@@ -420,25 +420,26 @@ class TestBackwardCompatibility:
         """Test that existing factory API still works."""
         # These are the existing ways to use the factory
         strategies = factory.get_available_strategies()
-        assert "v35_long" in strategies
+        assert "v35_classic_wide" in strategies
+        assert "tuned_v35_long_v2_core_overlay_v2" in strategies
 
-        entry = factory.create_entry("v35_long", {"position_size": 0.01})
+        entry = factory.create_entry("v35_classic_wide", {"position_size": 0.01})
         assert entry is not None
 
-        exit_strat = factory.create_exit("v35_long", {"stop_loss_pct": 1.5})
+        exit_strat = factory.create_exit("v35_classic_wide", {"stop_loss_pct": 1.5})
         assert exit_strat is not None
 
-        entry2, exit2 = factory.create_components("v35_long")
+        entry2, exit2 = factory.create_components("v35_classic_wide")
         assert entry2 is not None
         assert exit2 is not None
 
-        market = factory.get_market("v35_long")
+        market = factory.get_market("v35_classic_wide")
         assert market == "spot"  # V35 now uses spot (no leverage benefit)
 
     def test_strategy_registry_unchanged(self, factory):
         """Test that STRATEGY_REGISTRY entries still work."""
         from trading.strategies.components.strategy_factory import STRATEGY_REGISTRY
 
-        assert "v35_long" in STRATEGY_REGISTRY
+        assert "v35_classic_wide" in STRATEGY_REGISTRY
         assert "sideways_v2" in STRATEGY_REGISTRY
         assert "short_v1" in STRATEGY_REGISTRY

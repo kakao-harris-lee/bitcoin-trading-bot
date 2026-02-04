@@ -138,11 +138,11 @@ Run v1 (current) and v2 (enhanced) in parallel to compare performance.
 
 ```
                     ┌─────────────────────┐
-  market_data ──────►  RegimeRouter (v1)  │──► regime_v1 ──► v35_long
+  market_data ──────►  RegimeRouter (v1)  │──► regime_v1 ──► v35_classic_wide
                     └─────────────────────┘
 
                     ┌─────────────────────┐
-  market_data ──────►  EnhancedRegime (v2)│──► regime_v2 ──► v35_long_v2
+  market_data ──────►  EnhancedRegime (v2)│──► regime_v2 ──► tuned_v35_long_v2_core_overlay_v2
                     └─────────────────────┘
 ```
 

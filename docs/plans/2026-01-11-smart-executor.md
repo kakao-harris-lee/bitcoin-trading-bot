@@ -865,7 +865,7 @@ async def test_update_trailing_stop(mock_redis, mock_binance, config):
         "market": "spot",
         "entry_price": 100000.0,
         "quantity": 0.1,
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     # Price goes up - HWM should update
@@ -996,7 +996,7 @@ async def test_publish_exit_signal():
             "market": "spot",
             "quantity": "0.01",
             "trigger_price": "95000",
-            "strategy": "v35_long",
+            "strategy": "v35_classic_wide",
             "reason": "trailing stop",
         }
 
@@ -1172,7 +1172,7 @@ Add to `config/strategies/allocation.json`:
     "api_secret": "${BINANCE_API_SECRET}"
   },
   "strategies": {
-    "v35_long": {
+    "v35_classic_wide": {
       "dynamic_sizing": true,
       "position_pct": 0.30,
       "position_size": 0.01,
@@ -1430,7 +1430,7 @@ async def test_full_exit_flow():
         "market": "spot",
         "quantity": "0.1",
         "trigger_price": "95000",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     await executor._handle_exit_signal(signal)

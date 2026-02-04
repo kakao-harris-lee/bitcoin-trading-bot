@@ -6,30 +6,30 @@ This document describes all trading strategies, their data sources, indicators, 
 
 | Strategy | Exchange | Direction | Timeframe | Primary Indicators | Entry Method |
 |----------|----------|-----------|-----------|-------------------|--------------|
-| V35_Long | Upbit | LONG | Daily | RSI, MACD, MFI, ADX | Momentum/Breakout/Range |
-| V35_Experimental | Spot | LONG | Daily | RSI, MACD, MFI, ADX | V35 Entry + Tighter Exit |
+| V35_Classic_Wide | Spot | LONG | 1H | RSI, MACD, MFI, ADX | Classic momentum/regime |
+| V35_Core_Overlay_V2 (Tuned) | Spot | LONG | 1H | RSI, MACD, MFI, ADX, EMA | Core hold + V35 overlay |
 | Short_V1 | Binance | SHORT | 4H | EMA, ADX, DI, ATR | EMA Death Cross + ADX |
 | Sideways_V2 | Upbit | LONG | Daily | RSI, BB, Stoch, OBV | Multi-method (3 entries) |
 
 ---
 
-## 1. V35_Long Strategy
+## 1. V35 Classic Wide Strategy
 
-**Components:** `trading/strategies/components/v35_entry.py`, `v35_trailing_exit.py`
-**Config:** `config/strategies/v35_long.json`
+**Components:** `trading/strategies/components/v35_classic_entry.py`, `v35_classic_exit.py`
+**Config:** `config/strategies/allocation.json` (strategy key: `v35_classic_wide`)
 
 ### Overview
 
-- **Exchange:** Upbit (KRW-BTC) / Binance Spot
+- **Exchange:** Spot
 - **Direction:** LONG
-- **Timeframe:** Daily
+- **Timeframe:** 1H
 
 ### Data Sources
 
 | Source | Description |
 |--------|-------------|
-| OHLCV | Daily candles from Upbit |
-| Volume | Daily trading volume |
+| OHLCV | Hourly candles from exchange |
+| Volume | Hourly trading volume |
 
 ### Indicators
 
@@ -100,25 +100,23 @@ This document describes all trading strategies, their data sources, indicators, 
 
 ---
 
-## 1.1 V35_Experimental Strategy
+## 1.1 V35 Core Overlay v2 (Tuned)
 
-**Components:** `trading/strategies/components/v35_entry.py`, `experimental_exit.py`
-**Config:** `config/strategies/v35_experimental.json`
+**Components:** `trading/strategies/components/v35_entry.py`, `v35_trailing_exit.py` (core overlay via config)
+**Config:** `config/strategies/allocation.json` (strategy key: `tuned_v35_long_v2_core_overlay_v2`)
 
 ### Overview
 
-- **Exchange:** Binance Spot
+- **Exchange:** Spot
 - **Direction:** LONG
-- **Timeframe:** Daily
-- **Concept:** Mixes V35 Entry logic with a tighter, experimental trailing stop exit.
+- **Timeframe:** 1H
+- **Concept:** Core hold with drawdown/EMA guardrails plus V35 overlay for tactical entries/exits.
 
-### Differences from V35_Long
+### Differences from V35 Classic Wide
 
-- **Entry:** Identical to V35_Long.
-- **Exit:**
-  - **Trailing Stop:** Activates at +0.5%, Trails by 0.5% (vs 3.0%/2.0%).
-  - **Stop Loss:** -0.5% (Tighter).
-  - **Take Profit:** Scaled down targets (1.5%, 2.5%, 3.5%).
+- **Core Hold:** Maintains a baseline position with EMA/drawdown gating.
+- **Sizing:** Supports dynamic sizing and RF probability leverage/sizing.
+- **Risk Controls:** Drawdown throttles, loss cooldowns, and regime-aware guardrails.
 
 ---
 
@@ -434,7 +432,7 @@ class RegimeContext:
 
 | Regime | Upbit Strategy | Binance Strategy |
 |--------|----------------|------------------|
-| BULL | V35_Long | - |
+| BULL | V35_Classic_Wide / V35_Core_Overlay_V2 (Tuned) | - |
 | SIDEWAYS | Sideways_V2 | - |
 | BEAR_STRONG | - | Short_V1 |
 

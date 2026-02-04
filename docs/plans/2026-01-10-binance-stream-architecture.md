@@ -199,7 +199,7 @@ async def test_position_operations(redis_streams):
     await redis_streams.set_position("BTC", "spot", {
         "quantity": "0.05",
         "entry_price": "43000",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     })
 
     # Check exists
@@ -209,7 +209,7 @@ async def test_position_operations(redis_streams):
     # Get position
     pos = await redis_streams.get_position("BTC", "spot")
     assert pos["quantity"] == "0.05"
-    assert pos["strategy"] == "v35_long"
+    assert pos["strategy"] == "v35_classic_wide"
 
     # Clear position
     await redis_streams.clear_position("BTC", "spot")
@@ -914,11 +914,11 @@ git commit -m "feat: add BaseStrategyTask with price buffering and order publish
 
 ## Phase 4: Strategy Migrations
 
-### Task 4.1: Port V35Long Strategy
+### Task 4.1: Port V35 Strategy
 
 **Files:**
-- Create: `trading/strategies/v35_long_task.py`
-- Test: `tests/trading/strategies/test_v35_long_task.py`
+- Create: `trading/strategies/components/composite_task.py`
+- Test: `tests/trading/strategies/components/test_composite_task_events.py`
 
 **Step 1: Create directory structure**
 
@@ -932,12 +932,12 @@ touch tests/trading/strategies/__init__.py
 **Step 2: Write the failing test**
 
 ```python
-# tests/trading/strategies/test_v35_long_task.py
+# tests/trading/strategies/components/test_composite_task_events.py
 import pytest
 from unittest.mock import AsyncMock, patch
 from collections import deque
 import numpy as np
-from trading.strategies.v35_long_task import V35LongTask
+from trading.strategies.components.composite_task import CompositeStrategyTask
 
 
 @pytest.fixture
@@ -952,7 +952,7 @@ def mock_redis():
 
 def test_v35_classify_bull_strong():
     """Test bull strong classification."""
-    strategy = V35LongTask(symbols=["BTC"], redis=AsyncMock())
+    strategy = CompositeStrategyTask(symbols=["BTC"], redis=AsyncMock())
 
     # MFI >= 52, ADX >= 25 -> BULL_STRONG
     regime = strategy._classify_regime(mfi=55.0, adx=28.0)
@@ -961,7 +961,7 @@ def test_v35_classify_bull_strong():
 
 def test_v35_classify_bull_moderate():
     """Test bull moderate classification."""
-    strategy = V35LongTask(symbols=["BTC"], redis=AsyncMock())
+    strategy = CompositeStrategyTask(symbols=["BTC"], redis=AsyncMock())
 
     # MFI >= 52, 20 <= ADX < 25 -> BULL_MODERATE
     regime = strategy._classify_regime(mfi=54.0, adx=22.0)
@@ -970,7 +970,7 @@ def test_v35_classify_bull_moderate():
 
 def test_v35_classify_sideways():
     """Test sideways classification."""
-    strategy = V35LongTask(symbols=["BTC"], redis=AsyncMock())
+    strategy = CompositeStrategyTask(symbols=["BTC"], redis=AsyncMock())
 
     # 48 < MFI < 52 -> SIDEWAYS
     regime = strategy._classify_regime(mfi=50.0, adx=15.0)
@@ -979,7 +979,7 @@ def test_v35_classify_sideways():
 
 def test_v35_should_enter_on_bull():
     """Test entry conditions in bull market."""
-    strategy = V35LongTask(symbols=["BTC"], redis=AsyncMock())
+    strategy = CompositeStrategyTask(symbols=["BTC"], redis=AsyncMock())
 
     # Should enter on BULL_STRONG or BULL_MODERATE
     assert strategy._should_enter("BULL_STRONG")
@@ -991,7 +991,7 @@ def test_v35_should_enter_on_bull():
 @pytest.mark.asyncio
 async def test_v35_generates_buy_signal(mock_redis):
     """Test buy signal generation in bull regime."""
-    strategy = V35LongTask(symbols=["BTC"], redis=mock_redis)
+    strategy = CompositeStrategyTask(symbols=["BTC"], redis=mock_redis)
 
     # Mock indicator calculation to return bull conditions
     with patch.object(strategy, '_calculate_indicators') as mock_calc:
@@ -1010,13 +1010,13 @@ async def test_v35_generates_buy_signal(mock_redis):
 
 **Step 3: Run test to verify it fails**
 
-Run: `pytest tests/trading/strategies/test_v35_long_task.py -v`
+Run: `pytest tests/trading/strategies/components/test_composite_task_events.py -v`
 Expected: FAIL with "ModuleNotFoundError"
 
 **Step 4: Write implementation**
 
 ```python
-# trading/strategies/v35_long_task.py
+# trading/strategies/components/composite_task.py
 """V35 Long Strategy - ported to stream architecture."""
 from __future__ import annotations
 import logging
@@ -1038,7 +1038,7 @@ ADX_TREND = 20
 ADX_WEAK = 15
 
 
-class V35LongTask(BaseStrategyTask):
+class CompositeStrategyTask(BaseStrategyTask):
     """V35 Long-only strategy for Binance spot."""
 
     def __init__(
@@ -1048,7 +1048,7 @@ class V35LongTask(BaseStrategyTask):
         config: dict | None = None,
     ):
         super().__init__(
-            name="v35_long",
+            name="v35_classic_wide",
             symbols=symbols,
             redis=redis,
             market="spot",
@@ -1153,21 +1153,21 @@ class V35LongTask(BaseStrategyTask):
 
 ```python
 # trading/strategies/__init__.py
-from .v35_long_task import V35LongTask
+from trading.strategies.components.composite_task import CompositeStrategyTask
 
-__all__ = ["V35LongTask"]
+__all__ = ["CompositeStrategyTask"]
 ```
 
 **Step 6: Run test to verify it passes**
 
-Run: `pytest tests/trading/strategies/test_v35_long_task.py -v`
+Run: `pytest tests/trading/strategies/components/test_composite_task_events.py -v`
 Expected: PASS
 
 **Step 7: Commit**
 
 ```bash
 git add trading/strategies/ tests/trading/strategies/
-git commit -m "feat: port V35Long strategy to stream architecture"
+git commit -m "feat: port V35 strategy to stream architecture"
 ```
 
 ---
@@ -1388,10 +1388,10 @@ class SidewaysV2Task(BaseStrategyTask):
 
 ```python
 # trading/strategies/__init__.py
-from .v35_long_task import V35LongTask
+from trading.strategies.components.composite_task import CompositeStrategyTask
 from .sideways_v2_task import SidewaysV2Task
 
-__all__ = ["V35LongTask", "SidewaysV2Task"]
+__all__ = ["CompositeStrategyTask", "SidewaysV2Task"]
 ```
 
 **Step 5: Run test to verify it passes**
@@ -1614,11 +1614,11 @@ class ShortV1Task(BaseStrategyTask):
 
 ```python
 # trading/strategies/__init__.py
-from .v35_long_task import V35LongTask
+from trading.strategies.components.composite_task import CompositeStrategyTask
 from .sideways_v2_task import SidewaysV2Task
 from .short_v1_task import ShortV1Task
 
-__all__ = ["V35LongTask", "SidewaysV2Task", "ShortV1Task"]
+__all__ = ["CompositeStrategyTask", "SidewaysV2Task", "ShortV1Task"]
 ```
 
 **Step 5: Run test to verify it passes**
@@ -1917,7 +1917,7 @@ async def test_executor_passes_risk_gates(mock_redis, mock_client):
         "side": "buy",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     result = await executor._process_order(order)
@@ -1939,7 +1939,7 @@ async def test_executor_blocks_on_kill_switch(mock_redis, mock_client):
         "side": "buy",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     result = await executor._process_order(order)
@@ -1959,7 +1959,7 @@ async def test_executor_updates_position_after_fill(mock_redis, mock_client):
         "side": "buy",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     await executor._process_order(order)
@@ -2199,7 +2199,7 @@ async def test_paper_executor_simulates_fill(mock_redis):
         "side": "buy",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     result = await executor._process_order(order)
@@ -2224,7 +2224,7 @@ async def test_paper_executor_applies_slippage(mock_redis):
         "side": "buy",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     result = await executor._process_order(order)
@@ -2250,7 +2250,7 @@ async def test_paper_executor_tracks_balance(mock_redis):
         "side": "buy",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "v35_long",
+        "strategy": "v35_classic_wide",
     }
 
     await executor._process_order(order)
@@ -2566,7 +2566,7 @@ from pathlib import Path
 from typing import Any
 
 from trading.streams import RedisStreams, BinanceFeedTask
-from trading.strategies import V35LongTask, SidewaysV2Task, ShortV1Task
+from trading.strategies import CompositeStrategyTask, SidewaysV2Task, ShortV1Task
 from trading.executor import BinanceClient, AsyncExecutor, PaperExecutor
 
 logger = logging.getLogger(__name__)
@@ -2619,8 +2619,8 @@ class TradingEngine:
         # 2. Start strategy tasks
         strategy_config = self.config.get("strategies", {})
 
-        v35_long = V35LongTask(symbols=symbols, redis=self.redis, config=strategy_config.get("v35_long"))
-        self.tasks.append(asyncio.create_task(v35_long.run()))
+        v35_classic_wide = CompositeStrategyTask(symbols=symbols, redis=self.redis, config=strategy_config.get("v35_classic_wide"))
+        self.tasks.append(asyncio.create_task(v35_classic_wide.run()))
 
         sideways = SidewaysV2Task(symbols=symbols, redis=self.redis, config=strategy_config.get("sideways_v2"))
         self.tasks.append(asyncio.create_task(sideways.run()))
@@ -2838,7 +2838,7 @@ cat config/strategies/allocation.json
     "api_secret": "${BINANCE_API_SECRET}"
   },
   "strategies": {
-    "v35_long": {
+    "v35_classic_wide": {
       "position_size": 0.01
     },
     "sideways_v2": {
@@ -2885,7 +2885,7 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 from trading.streams import RedisStreams, BinanceFeedTask
-from trading.strategies import V35LongTask
+from trading.strategies import CompositeStrategyTask
 from trading.executor import PaperExecutor
 
 
@@ -2916,7 +2916,7 @@ async def test_full_pipeline(redis):
     })
 
     # Create strategy
-    strategy = V35LongTask(
+    strategy = CompositeStrategyTask(
         symbols=["BTC"],
         redis=redis,
         config={"position_size": 0.01},
@@ -2984,7 +2984,7 @@ This plan implements the Binance-only stream architecture in 8 phases:
 1. **Redis Streams Infrastructure** — RedisStreams client with position/risk helpers
 2. **Price Feed Tasks** — SymbolFeedTask and BinanceFeedTask
 3. **Strategy Base Task** — BaseStrategyTask with buffering and order publishing
-4. **Strategy Migrations** — V35LongTask, SidewaysV2Task, ShortV1Task
+4. **Strategy Migrations** — CompositeStrategyTask, SidewaysV2Task, ShortV1Task
 5. **Executor** — BinanceClient, AsyncExecutor, PaperExecutor
 6. **Engine & Startup** — Lightweight TradingEngine and updated run.py
 7. **Cleanup** — Remove obsolete files, update config

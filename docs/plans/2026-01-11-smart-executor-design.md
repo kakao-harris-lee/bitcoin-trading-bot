@@ -24,7 +24,7 @@ A **SmartExecutor** task that:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Strategies (V35Long, SidewaysV2, ShortV1)                      │
+│  Strategies (V35, SidewaysV2, ShortV1)                      │
 │         │                                                        │
 │         ▼ exit signals                                          │
 │  ┌──────────────────┐                                           │
@@ -128,7 +128,7 @@ Add to `config/strategies/allocation.json`:
 {
   "smart_executor": {
     "enabled": true,
-    "strategies": ["v35_long", "sideways_v2", "short_v1"],
+    "strategies": ["v35_classic_wide", "sideways_v2", "short_v1"],
     "trailing": {
       "volatility_window": 20,
       "low_vol_trail": 0.8,

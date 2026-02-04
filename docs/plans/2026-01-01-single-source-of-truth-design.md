@@ -5,7 +5,7 @@
 Current system has **double regime filtering**:
 
 1. **RegimeRouter** (external): Classifies market and decides which strategy to run
-2. **V35LongStrategy** (internal): Has its own MarketClassifier that gates entries
+2. **V35 Entry Strategy** (internal): Has its own MarketClassifier that gates entries
 
 Result: Even when RegimeRouter allows V35 to run, V35's internal classifier may block trades.
 
@@ -21,13 +21,13 @@ Historical context: Original V35 without RegimeRouter had S-Tier win rates with 
          │
          ▼ (if regime=BULL → run v35)
 ┌──────────────────┐
-│ V35LongStrategy  │  Internal MarketClassifier
+│ V35 Entry        │  Internal MarketClassifier
 │  (H1 MFI/ADX)    │  Re-classifies: 7 states
 │                  │  BLOCKS entries in: SIDEWAYS_DOWN, BEAR_*
 └──────────────────┘
 ```
 
-**V35 internal gating (v35_long.py:374-400):**
+**V35 internal gating (`trading/strategies/components/v35_entry.py`):**
 - BULL_STRONG → momentum_entry
 - BULL_MODERATE → momentum_entry
 - SIDEWAYS_UP → breakout_entry
@@ -49,7 +49,7 @@ Historical context: Original V35 without RegimeRouter had S-Tier win rates with 
          │
          ▼ (if regime=BULL → run v35)
 ┌──────────────────┐
-│ V35LongStrategy  │  Pure signal generator
+│ V35 Entry        │  Pure signal generator
 │  (H1 indicators) │  Generates signals for ANY market state
 │                  │  Uses state for: position sizing, exits
 └──────────────────┘
@@ -57,13 +57,13 @@ Historical context: Original V35 without RegimeRouter had S-Tier win rates with 
 
 ## Changes Required
 
-### 1. V35LongStrategy (`trading/strategy/v35_long.py`)
+### 1. V35EntryStrategy (`trading/strategies/components/v35_entry.py`)
 
 **Modify `_check_entry()` to generate signals in all states:**
 
 ```python
-def _check_entry(self, df, i, market_state, prev_row) -> Optional[Dict]:
-    row = df.iloc[i]
+def check_entry(self, market_data, context) -> Optional[Dict]:
+    row = market_data.df.iloc[market_data.index]
 
     # BULL states: aggressive momentum
     if market_state == 'BULL_STRONG':
@@ -73,13 +73,13 @@ def _check_entry(self, df, i, market_state, prev_row) -> Optional[Dict]:
 
     # SIDEWAYS states: breakout or range
     elif market_state == 'SIDEWAYS_UP':
-        return self._breakout_entry(df, i)
+        return self._breakout_entry(market_data)
     elif market_state in ['SIDEWAYS_FLAT', 'SIDEWAYS_DOWN']:
-        return self._range_entry(df, i)  # Conservative entry
+        return self._range_entry(market_data)  # Conservative entry
 
     # BEAR states: very conservative range entry
     elif market_state in ['BEAR_MODERATE', 'BEAR_STRONG']:
-        return self._range_entry(df, i)  # Only if conditions met
+        return self._range_entry(market_data)  # Only if conditions met
 
     return None
 ```

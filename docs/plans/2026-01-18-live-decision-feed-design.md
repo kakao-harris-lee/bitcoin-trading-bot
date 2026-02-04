@@ -20,7 +20,7 @@ Record strategy decisions at every candle close (hourly) to a Redis stream, disp
 {
   "timestamp": "2026-01-18T19:00:00",
   "symbol": "BTC",
-  "strategy": "v35_long",
+  "strategy": "v35_classic_wide",
   "market": "spot",
   "price": 90748.10,
   "indicators": {

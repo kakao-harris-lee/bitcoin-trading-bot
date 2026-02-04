@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Backtest v35_long_v2 with Risk-Based Position Sizing.
+Backtest tuned_v35_long_v2_core_overlay_v2 with Risk-Based Position Sizing.
 
 This script demonstrates the new risk-based sizing approach:
 - 1% is the maximum LOSS per trade, not the position size
@@ -442,7 +442,7 @@ def create_comparison_chart(
     df: pd.DataFrame,
     initial_capital: float,
     output_path: str,
-    title: str = "v35_long_v2 Risk-Based Sizing vs Buy & Hold",
+    title: str = "tuned_v35_long_v2_core_overlay_v2 Risk-Based Sizing vs Buy & Hold",
 ) -> str:
     """Create dual-axis comparison chart.
 
@@ -715,13 +715,13 @@ def print_results(results: Dict[str, Any], strategy_name: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Backtest v35_long_v2 with risk-based sizing')
+    parser = argparse.ArgumentParser(description='Backtest tuned_v35_long_v2_core_overlay_v2 with risk-based sizing')
     parser.add_argument('--start', type=str, default='2023-01-01', help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end', type=str, default=None, help='End date (YYYY-MM-DD)')
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to backtest')
     parser.add_argument('--capital', type=float, default=10000.0, help='Initial capital')
     parser.add_argument('--output', type=str, default='outputs', help='Output directory')
-    parser.add_argument('--strategy', type=str, default='tuned_v35_long_v2_growth', help='Strategy name from allocation.json')
+    parser.add_argument('--strategy', type=str, default='tuned_v35_long_v2_core_overlay_v2', help='Strategy name from allocation.json')
     args = parser.parse_args()
 
     # Create output directory
@@ -788,8 +788,8 @@ def main():
     print("\nInitializing strategy...")
     factory = StrategyFactory(redis=None)
 
-    # Use v35_long with v2 config (v35_long_v2 uses v35_long components)
-    adapter = ComponentStrategyAdapter(factory, 'v35_long', config)
+    # Use the requested strategy with allocation.json config
+    adapter = ComponentStrategyAdapter(factory, strategy_name, config)
 
     # Pre-compute RF predictions if enabled
     # NOTE: Now optimized with vectorized scaling (~2.5 min for 3 years)

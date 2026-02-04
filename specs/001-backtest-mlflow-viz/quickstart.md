@@ -34,7 +34,7 @@ with DataLoader() as loader:
 backtester = Backtester()
 result = backtester.run_strategy(
     df,
-    strategy_name="v35_long",
+    strategy_name="v35_classic_wide",
     config={
         "stop_loss_pct": 1.5,
         "take_profit_pct": 3.0,
@@ -89,7 +89,7 @@ from core.parameter_sweep import ParameterSweep, ParameterSweepRunner
 
 # Define parameter grid
 sweep = ParameterSweep(
-    strategy_name="v35_long",
+    strategy_name="v35_classic_wide",
     symbol="BTC",
     parameter_grid={
         "stop_loss_pct": [1.0, 1.5, 2.0],
@@ -201,7 +201,7 @@ mlflow ui --backend-store-uri ./mlruns
 ### 2. Filter Runs by Strategy or Symbol
 
 Use the search bar to filter runs:
-- By strategy: `tags.strategy_name = "v35_long"`
+- By strategy: `tags.strategy_name = "v35_classic_wide"`
 - By symbol: `tags.symbol = "BTC"`
 - By sweep: `tags.sweep_id = "sweep_20240115"`
 

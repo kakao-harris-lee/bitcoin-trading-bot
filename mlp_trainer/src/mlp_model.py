@@ -2,7 +2,8 @@
 MLP Direction Classifier Model.
 
 Architecture based on Parente & Rizzuti (2025):
-- Input: 36 features (paper feature set)
+- Default input: 13 features (shap_13 feature set)
+- Paper input: 36 features (paper_36 feature set)
 - Hidden layers: 128 → 64 → 32
 - Activation: LeakyReLU
 - Output: 3 classes (Hold, Buy, Sell) with softmax
@@ -43,7 +44,7 @@ class MLPDirectionClassifier(nn.Module):
     Predicts Buy/Hold/Sell based on technical indicators.
 
     Architecture:
-        Input(36) → Linear(128) → LeakyReLU
+        Input(13) → Linear(128) → LeakyReLU
                   → Linear(64)  → LeakyReLU
                   → Linear(32)  → LeakyReLU
                   → Linear(3)   → Softmax (during inference)
@@ -317,10 +318,13 @@ class EnsembleMLPClassifier(nn.Module):
 
     @classmethod
     def load_ensemble(
-        cls, paths: list[str], device: str = "cpu"
+        cls, paths: list[str], device: str = "cpu", validate_path: bool = True
     ) -> "EnsembleMLPClassifier":
         """Load ensemble from multiple checkpoint files."""
-        models = [MLPDirectionClassifier.load(path, device) for path in paths]
+        models = [
+            MLPDirectionClassifier.load(path, device, validate_path=validate_path)
+            for path in paths
+        ]
         return cls(models)
 
 

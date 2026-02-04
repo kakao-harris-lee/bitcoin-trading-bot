@@ -68,7 +68,7 @@ Simplify the trading system by removing Upbit spot trading and consolidating all
 | File | Change |
 |------|--------|
 | `core/types.py` | Remove `Exchange.UPBIT`, remove `upbit_symbol` field |
-| `trading/strategy/v35_long.py` | Change `Exchange.UPBIT` → `Exchange.BINANCE` |
+| `config/strategies/allocation.json` | Ensure V35 strategies use Binance (spot) |
 | `trading/strategy_runners/v35.py` | Change exchange to "binance", update stream names |
 | `trading/strategy_runners/base.py` | Remove Upbit references in comments |
 | `trading/publishers/feed_publisher.py` | Remove Upbit stream references |
@@ -80,12 +80,11 @@ Simplify the trading system by removing Upbit spot trading and consolidating all
 
 ## Strategy Configuration
 
-### V35 Long (Futures)
+### V35 (Spot)
 
 ```python
 exchange = Exchange.BINANCE
-symbol = "BTCUSDT"
-leverage = 1  # default, scale to 3x on strong signals
+symbol = "BTC"
 capital_pool = 0.5  # 50% of total capital
 ```
 
@@ -126,7 +125,7 @@ BinanceWebSocket (wss://fstream.binance.com)
 ```
 market:binance:prices   # Price updates
 market:binance:kline    # Candle data
-signals:v35_long        # V35 strategy signals
+signals:v35_classic_wide        # V35 strategy signals
 signals:short_v1        # Short strategy signals
 ```
 
@@ -137,7 +136,7 @@ class BinanceFuturesExecutor:
     def __init__(self):
         self.client = BinanceClient(futures=True)
         self.pools = {
-            "v35_long": CapitalPool(allocation=0.5),
+            "v35_classic_wide": CapitalPool(allocation=0.5),
             "short_v1": CapitalPool(allocation=0.5),
         }
 

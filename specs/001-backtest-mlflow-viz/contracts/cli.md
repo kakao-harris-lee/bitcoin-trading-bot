@@ -30,7 +30,7 @@ def run_strategy(
 
     Args:
         df: Price DataFrame (timestamp, open, high, low, close, volume)
-        strategy_name: Strategy name (e.g., "v35_long")
+        strategy_name: Strategy name (e.g., "v35_classic_wide")
         config: Strategy configuration parameters
         symbol: Trading symbol
         mlflow_config: MLflow configuration (None = auto-detect from config/env)
@@ -42,7 +42,7 @@ def run_strategy(
 
     Example:
         >>> result = backtester.run_strategy(
-        ...     df, "v35_long",
+        ...     df, "v35_classic_wide",
         ...     config={"stop_loss_pct": 1.5},
         ...     mlflow_config=MLflowConfig(experiment_name="my-experiment"),
         ... )
@@ -213,7 +213,7 @@ class ParameterSweepRunner:
 
         Example:
             >>> sweep = ParameterSweep(
-            ...     strategy_name="v35_long",
+            ...     strategy_name="v35_classic_wide",
             ...     symbol="BTC",
             ...     parameter_grid={
             ...         "stop_loss_pct": [1.0, 1.5, 2.0],
@@ -252,7 +252,7 @@ Future enhancement: Add CLI commands for common operations.
 ```bash
 # Run backtest with MLflow tracking
 python -m core.backtest \
-    --strategy v35_long \
+    --strategy v35_classic_wide \
     --symbol BTC \
     --start 2024-01-01 \
     --end 2024-12-31 \
@@ -260,7 +260,7 @@ python -m core.backtest \
 
 # Run parameter sweep
 python -m core.parameter_sweep \
-    --strategy v35_long \
+    --strategy v35_classic_wide \
     --symbol BTC \
     --param stop_loss_pct 1.0 1.5 2.0 \
     --param take_profit_pct 2.0 3.0 4.0 \

@@ -216,31 +216,33 @@ class BaseStrategyTask(ABC):
 
         if position:
             position_strategy = position.get("strategy", "")
-            # Only block entry if this strategy owns the position
-            # Allow entry if position is from another strategy or is "external" (dust)
-            if position_strategy == self.name:
-                # Clear pending flag since position now exists
+            # If another strategy owns the position, skip entry/exit evaluation
+            if position_strategy != self.name:
                 self._pending_entry.pop(symbol, None)
-                # Notify exit strategy about new position (once per position)
-                if symbol not in self._notified_positions:
-                    self._notified_positions.add(symbol)
-                    await self.on_position_opened(symbol, position)
+                return
 
-                # Skip if exit signal already pending (avoid spam)
-                if symbol in self._pending_exits:
-                    return
+            # Clear pending flag since position now exists
+            self._pending_entry.pop(symbol, None)
+            # Notify exit strategy about new position (once per position)
+            if symbol not in self._notified_positions:
+                self._notified_positions.add(symbol)
+                await self.on_position_opened(symbol, position)
 
-                exit_signal = await self.evaluate_exit(symbol, position)
-                if exit_signal:
-                    if self.use_smart_exit:
-                        self._pending_exits.add(symbol)
-                    await self._publish_exit(exit_signal, position)
-                    if not self.use_smart_exit:
-                        await self.redis.clear_position(symbol, self.market)
-                        # Notify exit strategy about position close
-                        self._notified_positions.discard(symbol)
-                        await self.on_position_closed(symbol)
-                return  # Only return if we own the position
+            # Skip if exit signal already pending (avoid spam)
+            if symbol in self._pending_exits:
+                return
+
+            exit_signal = await self.evaluate_exit(symbol, position)
+            if exit_signal:
+                if self.use_smart_exit:
+                    self._pending_exits.add(symbol)
+                await self._publish_exit(exit_signal, position)
+                if not self.use_smart_exit:
+                    await self.redis.clear_position(symbol, self.market)
+                    # Notify exit strategy about position close
+                    self._notified_positions.discard(symbol)
+                    await self.on_position_closed(symbol)
+            return  # Only return if we own the position
 
         # Check if entry is already pending (order published but not yet filled)
         if self._pending_entry.get(symbol):

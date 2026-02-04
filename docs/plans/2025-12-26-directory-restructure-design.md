@@ -25,16 +25,21 @@ bitcoin-trading-bot/
 │   │   ├── feed_handler.py
 │   │   ├── market_data.py
 │   │   └── candle_builder.py
-│   ├── strategy/               # Strategy logic + market classification
+│   ├── strategy/               # Legacy strategy logic (non-component)
 │   │   ├── __init__.py
 │   │   ├── base.py
 │   │   ├── classifier.py       # Unified MarketClassifier
 │   │   ├── regime_router.py
-│   │   ├── v35_long.py
 │   │   ├── short_v1.py
 │   │   ├── sideways_v2.py
 │   │   ├── h4_conservative.py
 │   │   └── h4_short.py
+│   ├── strategies/             # Component strategies
+│   │   └── components/
+│   │       ├── v35_classic_entry.py
+│   │       ├── v35_classic_exit.py
+│   │       ├── v35_entry.py
+│   │       └── v35_trailing_exit.py
 │   ├── execution/              # Order execution, position management
 │   │   ├── __init__.py
 │   │   ├── order_manager.py
@@ -65,13 +70,9 @@ bitcoin-trading-bot/
 ├── config/                     # All configuration files
 │   ├── trading.json
 │   ├── strategies/
-│   │   ├── v35_long.json
-│   │   ├── short_v1.json
-│   │   ├── sideways_v2.json
-│   │   ├── h4_conservative.json
-│   │   └── h4_short.json
+│   │   └── allocation.json
 │   ├── tuned/
-│   │   └── selected_candidate.json
+│   │   └── tuned_v35_long_v2_core_overlay_v2.json
 │   └── exchanges/
 │       ├── upbit.json
 │       └── binance.json
@@ -139,7 +140,7 @@ bitcoin-trading-bot/
 
 | Current Location | New Location |
 |-----------------|--------------|
-| `trading/modules/v35_long_strategy.py` | `trading/strategy/v35_long.py` |
+| `trading/modules/v35_long_strategy.py` | `trading/strategies/components/v35_entry.py` + `trading/strategies/components/v35_trailing_exit.py` |
 | `trading/modules/short_v1_strategy.py` | `trading/strategy/short_v1.py` |
 | `trading/modules/strategies/sideways_v2.py` | `trading/strategy/sideways_v2.py` |
 | `trading/modules/strategies/h4_*.py` | `trading/strategy/h4_*.py` |
@@ -153,9 +154,9 @@ bitcoin-trading-bot/
 | `trading/core/risk_controls.py` | `trading/risk/risk_controls.py` |
 | `trading/core/trade_logger.py` | `trading/risk/trade_logger.py` |
 | `trading/core/message_types.py` | `core/types.py` |
-| `strategies/v35_optimized/config_optimized.json` | `config/strategies/v35_long.json` |
+| `strategies/v35_optimized/config_optimized.json` | `config/strategies/allocation.json` |
 | `strategies/SHORT_V1/config.json` | `config/strategies/short_v1.json` |
-| `analysis/selected_candidate.json` | `config/tuned/selected_candidate.json` |
+| `analysis/selected_candidate.json` | `config/tuned/tuned_v35_long_v2_core_overlay_v2.json` |
 | `upbit_history_db/upbit_bitcoin.db` | `data/upbit_bitcoin.db` |
 | `automation/collect_missing_data.py` | `scripts/collect_data.py` |
 | `trading/scripts/backtest_*.py` | `scripts/backtest.py` |

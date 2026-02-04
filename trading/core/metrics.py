@@ -143,7 +143,7 @@ class MetricsCollector:
         metrics = MetricsCollector()
 
         # Record signal
-        metrics.record_signal("BTC", "v35_long")
+        metrics.record_signal("BTC", "v35_classic_wide")
 
         # Record trade
         metrics.record_trade("BTC", "buy", 100000)

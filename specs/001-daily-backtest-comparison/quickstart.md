@@ -22,7 +22,7 @@ python scripts/daily_comparison.py
 Expected output:
 ```
 📊 Generating comparison reports for 2025-01-08...
-✅ v35_long: 2 trades actual, 2 backtest, 0 discrepancies
+✅ v35_classic_wide: 2 trades actual, 2 backtest, 0 discrepancies
 ✅ short_v1: 0 trades actual, 0 backtest, 0 discrepancies
 📤 Reports sent via Telegram
 ```
@@ -42,7 +42,7 @@ python scripts/daily_comparison.py --dry-run
 ### 4. Single Strategy Only
 
 ```bash
-python scripts/daily_comparison.py --strategies v35_long
+python scripts/daily_comparison.py --strategies v35_classic_wide
 ```
 
 ## Cron Setup
@@ -94,7 +94,7 @@ You should receive a Telegram message like:
 📅 Date: 2025-01-08
 ⏰ Generated: 2025-01-09 00:05:23
 
-v35_long
+v35_classic_wide
 ├ Actual: 2 trades, +1.45%
 ├ Backtest: 2 trades, +1.52%
 └ Discrepancies: 0 (Low)
@@ -118,7 +118,7 @@ python scripts/collect_data.py --date 2025-01-08
 ### No Trades Found
 
 ```
-⚠️ No actual trades found for v35_long on 2025-01-08
+⚠️ No actual trades found for v35_classic_wide on 2025-01-08
 ```
 
 **Cause**: Trading bot was not running or held position all day. This is informational, not an error.
@@ -134,7 +134,7 @@ python scripts/collect_data.py --date 2025-01-08
 ### Report Already Exists
 
 ```
-Report for 2025-01-08/v35_long already exists. Regenerating...
+Report for 2025-01-08/v35_classic_wide already exists. Regenerating...
 ```
 
 **Behavior**: Existing report is replaced. This is by design for data corrections.
@@ -148,7 +148,7 @@ Report for 2025-01-08/v35_long already exists. Regenerating...
 📅 Date: 2025-01-08
 ⏰ Generated: 2025-01-09 00:05:23
 
-v35_long
+v35_classic_wide
 ├ Actual: 3 trades, +2.15%
 ├ Backtest: 3 trades, +2.23%
 └ Discrepancies: 1 (Low)
@@ -168,7 +168,7 @@ short_v1
 📅 Date: 2025-01-08
 ⏰ Generated: 2025-01-09 00:05:23
 
-v35_long
+v35_classic_wide
 ├ Actual: 2 trades, +0.85%
 ├ Backtest: 3 trades, +1.92%
 └ Discrepancies: 1 (High)

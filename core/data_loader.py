@@ -97,7 +97,8 @@ class DataLoader:
         if timeframe not in suffix_map:
             raise ValueError(f"지원하지 않는 타임프레임: {timeframe}")
 
-        return f"{self._table_prefix}_{suffix_map[timeframe]}"
+        table_prefix = getattr(self, "_table_prefix", None) or "binance"
+        return f"{table_prefix}_{suffix_map[timeframe]}"
 
     def load_timeframe(
         self,

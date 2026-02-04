@@ -33,7 +33,7 @@ This document describes a major architectural redesign of the bitcoin trading bo
 │         ┌─────────────────┼─────────────────┐                    │
 │         ▼                 ▼                 ▼                    │
 │  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐            │
-│  │ V35Long     │   │ SidewaysV2  │   │ ShortV1     │            │
+│  │ V35     │   │ SidewaysV2  │   │ ShortV1     │            │
 │  │ (async task)│   │ (async task)│   │ (async task)│            │
 │  └──────┬──────┘   └──────┬──────┘   └──────┬──────┘            │
 │         │                 │                 │                    │
@@ -88,7 +88,7 @@ Published by strategies, consumed by AsyncExecutor.
     "side": "buy",           # or "sell"
     "market": "spot",        # or "futures"
     "quantity": "0.05",
-    "strategy": "v35_long",
+    "strategy": "v35_classic_wide",
     "reason": "MFI crossover + ADX strong"
 }
 ```
@@ -102,7 +102,7 @@ Written by AsyncExecutor, read by strategies.
 {
     "quantity": "0.05",
     "entry_price": "43100.00",
-    "strategy": "v35_long",
+    "strategy": "v35_classic_wide",
     "entry_time": "1704912000000",
     "unrealized_pnl": "7.52"
 }
@@ -331,7 +331,7 @@ else:
 
 Porting the three strategies to the new architecture. Each becomes a self-contained async task.
 
-### V35Long → V35LongTask (Binance Spot)
+### V35 → CompositeStrategyTask (Binance Spot)
 
 **Current:** Relies on RegimeRouter for BULL classification, receives regime context.
 
@@ -350,7 +350,7 @@ Porting the three strategies to the new architecture. Each becomes a self-contai
 - Internalize sideways detection: 48 < MFI < 52, ADX < 20
 - Range breakout and mean reversion logic unchanged
 - Market: `spot`
-- Competes with V35Long — only one can hold position per symbol
+- Competes with V35 — only one can hold position per symbol
 
 ### ShortV1 → ShortV1Task (Binance Futures)
 
@@ -364,7 +364,7 @@ Porting the three strategies to the new architecture. Each becomes a self-contai
 
 ### Position Conflict Resolution
 
-Since V35Long and SidewaysV2 both target spot, they check `positions:{symbol}:spot` before entering. First to enter holds the position. Exit signals are only processed by the strategy that opened the position (tracked in position hash).
+Since V35 and SidewaysV2 both target spot, they check `positions:{symbol}:spot` before entering. First to enter holds the position. Exit signals are only processed by the strategy that opened the position (tracked in position hash).
 
 ## File Structure
 
@@ -389,7 +389,7 @@ trading/
 │   ├── feed_task.py          # SymbolFeedTask
 │   └── base_strategy.py      # BaseStrategyTask
 ├── strategies/
-│   ├── v35_long_task.py      # V35LongTask
+│   ├── components/composite_task.py      # CompositeStrategyTask
 │   ├── sideways_v2_task.py   # SidewaysV2Task
 │   └── short_v1_task.py      # ShortV1Task
 ├── executor/
@@ -436,7 +436,7 @@ class TradingEngine:
 
         # 2. Spawn strategy tasks
         strategy_tasks = [
-            asyncio.create_task(V35LongTask(config, redis).run()),
+            asyncio.create_task(CompositeStrategyTask(config, redis).run()),
             asyncio.create_task(SidewaysV2Task(config, redis).run()),
             asyncio.create_task(ShortV1Task(config, redis).run()),
         ]
@@ -501,7 +501,7 @@ if __name__ == "__main__":
 {
     "feed:BTC": {"last_ping": "1704912345", "status": "healthy"},
     "feed:ETH": {"last_ping": "1704912340", "status": "healthy"},
-    "strategy:v35_long": {"last_ping": "1704912344", "status": "healthy"},
+    "strategy:v35_classic_wide": {"last_ping": "1704912344", "status": "healthy"},
     "executor": {"last_ping": "1704912345", "status": "healthy"}
 }
 ```
@@ -531,7 +531,7 @@ if __name__ == "__main__":
 
 2. **Increased network hops** — Price → Redis → Strategy adds latency vs direct callback. Mitigation: Redis on localhost, sub-millisecond overhead. Strategies operate on minute+ timeframes anyway.
 
-3. **Strategy competition** — V35Long and SidewaysV2 might race to enter the same position. Mitigation: Position hash check before entry. First wins, clean semantics.
+3. **Strategy competition** — V35 and SidewaysV2 might race to enter the same position. Mitigation: Position hash check before entry. First wins, clean semantics.
 
 4. **Debugging complexity** — Distributed async tasks harder to trace than single orchestrator. Mitigation: Structured logging with correlation IDs, Redis stream inspection tools.
 
@@ -546,7 +546,7 @@ if __name__ == "__main__":
 1. Set up Redis streams infrastructure
 2. Implement SymbolFeedTask with Binance WebSocket
 3. Implement BaseStrategyTask base class
-4. Port V35Long → V35LongTask
+4. Port V35 → CompositeStrategyTask
 5. Port SidewaysV2 → SidewaysV2Task
 6. Port ShortV1 → ShortV1Task
 7. Implement AsyncExecutor with Binance spot/futures

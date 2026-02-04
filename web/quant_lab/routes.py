@@ -138,17 +138,6 @@ def validate_data_path(data_path: str) -> str:
 
 # Experiment templates
 TEMPLATES = {
-    "v35_param_sweep": {
-        "name": "V35 Parameter Sweep",
-        "description": "Fixed V35Entry/Exit for BULL regimes, tune params only",
-        "config": {
-            regime: {
-                "entries": ["V35Entry"] if "BULL" in regime else ENTRY_COMPONENTS,
-                "exits": ["V35TrailingExit"],
-            }
-            for regime in REGIMES
-        },
-    },
     "full_regime_search": {
         "name": "Full Regime Search",
         "description": "All Entry/Exit combinations across all 7 regimes",
@@ -540,7 +529,7 @@ def get_v35_strategies():
     """
     return jsonify({
         "strategies": get_all_strategies(),
-        "default": "v35_long_v2",
+        "default": "tuned_v35_long_v2_core_overlay_v2",
     })
 
 
@@ -709,7 +698,7 @@ def apply_v35_best_params(study_name: str):
         # Get best trial
         best = study.best_trial
 
-        # Extract strategy name from study name (e.g., "v35_v35_long_v2_2024-01-01_2024-12-31")
+        # Extract strategy name from study name (e.g., "v35_tuned_v35_long_v2_core_overlay_v2_2024-01-01_2024-12-31")
         parts = study_name.split("_")
         if len(parts) >= 3:
             # Join parts between first "v35" and date

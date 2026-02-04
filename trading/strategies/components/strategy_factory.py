@@ -4,13 +4,13 @@ Implements the Factory Pattern for dynamic strategy assembly based on
 allocation.json configuration. Supports both legacy and new config formats.
 
 Legacy format (backward compatible):
-    "v35_long": {
+    "v35_classic_wide": {
         "position_size": 0.01,
         "market": "futures"
     }
 
 New format (explicit class names, fully configurable):
-    "v35_long": {
+    "tuned_v35_long_v2_core_overlay_v2": {
         "market": "futures",
         "leverage": 3,
         "entry": {
@@ -34,12 +34,12 @@ Usage:
     factory = StrategyFactory(redis_client)
 
     # Create individual components
-    entry = factory.create_entry("v35_long", params)
-    exit_strat = factory.create_exit("v35_long", params, persistent=True)
+    entry = factory.create_entry("tuned_v35_long_v2_core_overlay_v2", params)
+    exit_strat = factory.create_exit("tuned_v35_long_v2_core_overlay_v2", params, persistent=True)
 
     # Create full strategy task
     task = await factory.create_strategy_task(
-        name="v35_long",
+        name="tuned_v35_long_v2_core_overlay_v2",
         symbols=["BTC", "ETH"],
         config={"position_size": 0.01},
     )
@@ -56,7 +56,6 @@ from .models import MarketData, Position, Signal
 
 # Entry strategies (imports trigger registration via decorators)
 from .v35_entry import V35EntryStrategy, V35EntryParams
-from .regime_hold_entry import RegimeHoldEntryStrategy, RegimeHoldEntryParams
 from .sideways_entry import SidewaysEntryStrategy, SidewaysEntryParams
 from .short_entry import ShortEntryStrategy, ShortEntryParams
 
@@ -71,12 +70,8 @@ from .hybrid_lstm_entry import HybridLSTMEntryStrategy, HybridLSTMEntryParams
 from .hybrid_lstm_exit import HybridLSTMExitStrategy, HybridLSTMExitParams
 from .mlp_direction_entry import MLPDirectionEntryStrategy, MLPDirectionEntryParams
 from .mlp_direction_exit import MLPDirectionExitStrategy, MLPDirectionExitParams
-from .v35_simple_entry import V35SimpleEntryStrategy, V35SimpleEntryParams
-from .v35_simple_exit import V35SimpleExitStrategy, V35SimpleExitParams
 from .v35_classic_entry import V35ClassicEntryStrategy, V35ClassicEntryParams
 from .v35_classic_exit import V35ClassicExitStrategy, V35ClassicExitParams
-from .v35_optuna_entry import V35OptunaEntryStrategy, V35OptunaEntryParams
-from .v35_optuna_exit import V35OptunaExitStrategy, V35OptunaExitParams
 
 # Registry and config validation
 from .registry import (
@@ -119,26 +114,6 @@ class StrategySpec:
 
 # Registry of available strategies (legacy format support)
 STRATEGY_REGISTRY: dict[str, StrategySpec] = {
-    "v35_long": StrategySpec(
-        name="v35_long",
-        entry_class=V35EntryStrategy,
-        entry_params_class=V35EntryParams,
-        exit_class=V35TrailingExitStrategy,
-        exit_params_class=V35ExitParams,
-        persistent_exit_class=None,
-        market="spot",  # V35 uses spot trading (no leverage benefit)
-        timeframe="minute60",  # Hourly - volatility filter calibrated for this
-    ),
-    "v35_long_v2": StrategySpec(
-        name="v35_long_v2",
-        entry_class=V35EntryStrategy,
-        entry_params_class=V35EntryParams,
-        exit_class=V35TrailingExitStrategy,
-        exit_params_class=V35ExitParams,
-        persistent_exit_class=None,
-        market="spot",  # V35 uses spot trading (no leverage benefit)
-        timeframe="minute60",  # Same as v35_long, uses regime_version="v2" in config
-    ),
     "sideways_v2": StrategySpec(
         name="sideways_v2",
         entry_class=SidewaysEntryStrategy,
@@ -159,16 +134,6 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         market="futures",
         timeframe="minute240",
     ),
-    "v35_experimental": StrategySpec(
-        name="v35_experimental",
-        entry_class=V35EntryStrategy,
-        entry_params_class=V35EntryParams,
-        exit_class=ExperimentalExitStrategy,
-        exit_params_class=ExperimentalExitParams,
-        persistent_exit_class=None,
-        market="spot",  # V35 uses spot trading (no leverage benefit)
-        timeframe="minute60",  # Hourly - volatility filter calibrated for this
-    ),
     "combo_ensemble": StrategySpec(
         name="combo_ensemble",
         entry_class=CombinedEntryStrategy,
@@ -179,59 +144,8 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         market="futures",
         timeframe="minute60",
     ),
-    # Tuned variants (use same components as v35_long unless overridden via config)
-    "tuned_v35_1._18": StrategySpec(
-        name="tuned_v35_1._18",
-        entry_class=V35EntryStrategy,
-        entry_params_class=V35EntryParams,
-        exit_class=V35TrailingExitStrategy,
-        exit_params_class=V35ExitParams,
-        persistent_exit_class=None,
-        market="spot",  # V35 uses spot trading
-        timeframe="minute60",
-    ),
-    "tuned_v35_long_v2_growth": StrategySpec(
-        name="tuned_v35_long_v2_growth",
-        entry_class=V35EntryStrategy,
-        entry_params_class=V35EntryParams,
-        exit_class=V35TrailingExitStrategy,
-        exit_params_class=V35ExitParams,
-        persistent_exit_class=None,
-        market="spot",  # V35 uses spot trading
-        timeframe="minute60",
-    ),
-    "tuned_v35_long_v2_hold": StrategySpec(
-        name="tuned_v35_long_v2_hold",
-        entry_class=RegimeHoldEntryStrategy,
-        entry_params_class=RegimeHoldEntryParams,
-        exit_class=V35TrailingExitStrategy,
-        exit_params_class=V35ExitParams,
-        persistent_exit_class=None,
-        market="spot",  # V35 uses spot trading
-        timeframe="minute60",
-    ),
-    "tuned_v35_long_v2_core_overlay": StrategySpec(
-        name="tuned_v35_long_v2_core_overlay",
-        entry_class=V35EntryStrategy,
-        entry_params_class=V35EntryParams,
-        exit_class=V35TrailingExitStrategy,
-        exit_params_class=V35ExitParams,
-        persistent_exit_class=None,
-        market="spot",  # V35 uses spot trading
-        timeframe="minute60",
-    ),
     "tuned_v35_long_v2_core_overlay_v2": StrategySpec(
         name="tuned_v35_long_v2_core_overlay_v2",
-        entry_class=V35EntryStrategy,
-        entry_params_class=V35EntryParams,
-        exit_class=V35TrailingExitStrategy,
-        exit_params_class=V35ExitParams,
-        persistent_exit_class=None,
-        market="spot",  # V35 uses spot trading
-        timeframe="minute60",
-    ),
-    "tuned_experiment_7143f875_2": StrategySpec(
-        name="tuned_experiment_7143f875_2",
         entry_class=V35EntryStrategy,
         entry_params_class=V35EntryParams,
         exit_class=V35TrailingExitStrategy,
@@ -263,82 +177,10 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         market="spot",  # Multi-asset trained, uses 4h timeframe
         timeframe="hour4",  # Paper uses 4-hour candles
     ),
-    # V35 Simple - Optimized minimal filter strategy (2020-2026 backtested)
-    # +140% return, 22% MDD vs +12% for original V35
-    "v35_simple": StrategySpec(
-        name="v35_simple",
-        entry_class=V35SimpleEntryStrategy,
-        entry_params_class=V35SimpleEntryParams,
-        exit_class=V35SimpleExitStrategy,
-        exit_params_class=V35SimpleExitParams,
-        persistent_exit_class=None,
-        market="spot",
-        timeframe="minute60",
-    ),
-    "v35_simple_trailing": StrategySpec(
-        name="v35_simple_trailing",
-        entry_class=V35SimpleEntryStrategy,
-        entry_params_class=V35SimpleEntryParams,
-        exit_class=V35SimpleExitStrategy,
-        exit_params_class=V35SimpleExitParams,
-        persistent_exit_class=None,
-        market="spot",
-        timeframe="minute60",
-    ),
-    "v35_simple_wide": StrategySpec(
-        name="v35_simple_wide",
-        entry_class=V35SimpleEntryStrategy,
-        entry_params_class=V35SimpleEntryParams,
-        exit_class=V35SimpleExitStrategy,
-        exit_params_class=V35SimpleExitParams,
-        persistent_exit_class=None,
-        market="spot",
-        timeframe="minute60",
-    ),
-    "v35_classic": StrategySpec(
-        name="v35_classic",
-        entry_class=V35ClassicEntryStrategy,
-        entry_params_class=V35ClassicEntryParams,
-        exit_class=V35ClassicExitStrategy,
-        exit_params_class=V35ClassicExitParams,
-        persistent_exit_class=None,
-        market="spot",
-        timeframe="minute60",
-    ),
     "v35_classic_wide": StrategySpec(
         name="v35_classic_wide",
         entry_class=V35ClassicEntryStrategy,
         entry_params_class=V35ClassicEntryParams,
-        exit_class=V35ClassicExitStrategy,
-        exit_params_class=V35ClassicExitParams,
-        persistent_exit_class=None,
-        market="spot",
-        timeframe="minute60",
-    ),
-    "v35_optuna": StrategySpec(
-        name="v35_optuna",
-        entry_class=V35OptunaEntryStrategy,
-        entry_params_class=V35OptunaEntryParams,
-        exit_class=V35OptunaExitStrategy,
-        exit_params_class=V35OptunaExitParams,
-        persistent_exit_class=None,
-        market="spot",
-        timeframe="minute60",
-    ),
-    "v35_optuna_no_partial": StrategySpec(
-        name="v35_optuna_no_partial",
-        entry_class=V35OptunaEntryStrategy,
-        entry_params_class=V35OptunaEntryParams,
-        exit_class=V35ClassicExitStrategy,  # Simple exit without partial
-        exit_params_class=V35ClassicExitParams,
-        persistent_exit_class=None,
-        market="spot",
-        timeframe="minute60",
-    ),
-    "v35_optuna_balanced": StrategySpec(
-        name="v35_optuna_balanced",
-        entry_class=V35OptunaEntryStrategy,
-        entry_params_class=V35OptunaEntryParams,
         exit_class=V35ClassicExitStrategy,
         exit_params_class=V35ClassicExitParams,
         persistent_exit_class=None,
@@ -394,7 +236,7 @@ class StrategyFactory:
         - New: Uses explicit "entry.class" from config
 
         Args:
-            strategy_name: Name of the strategy (e.g., "v35_long").
+            strategy_name: Name of the strategy (e.g., "v35_classic_wide").
             config: Configuration parameters.
             param_overrides: Parameter overrides for MLflow optimization.
                 These override values from config and dataclass defaults.
@@ -408,7 +250,7 @@ class StrategyFactory:
         Example:
             # For MLflow hyperparameter optimization:
             entry = factory.create_entry(
-                "v35_long",
+                "tuned_v35_long_v2_core_overlay_v2",
                 param_overrides={"mfi_bull_strong": 55.0, "position_size": 0.02}
             )
         """
@@ -440,7 +282,7 @@ class StrategyFactory:
         - New: Uses explicit "exit.class" from config
 
         Args:
-            strategy_name: Name of the strategy (e.g., "v35_long").
+            strategy_name: Name of the strategy (e.g., "v35_classic_wide").
             config: Configuration parameters.
             persistent: Use Redis-backed persistence if available.
             param_overrides: Parameter overrides for MLflow optimization.
@@ -455,7 +297,7 @@ class StrategyFactory:
         Example:
             # For MLflow hyperparameter optimization:
             exit_strat = factory.create_exit(
-                "v35_long",
+                "tuned_v35_long_v2_core_overlay_v2",
                 param_overrides={"stop_loss_pct": 2.5, "trailing_enabled": True}
             )
         """
@@ -496,7 +338,7 @@ class StrategyFactory:
         Example:
             # For MLflow hyperparameter optimization:
             entry, exit_strat = factory.create_components(
-                "v35_long",
+                "tuned_v35_long_v2_core_overlay_v2",
                 entry_overrides={"mfi_bull_strong": 55.0},
                 exit_overrides={"stop_loss_pct": 2.5},
             )

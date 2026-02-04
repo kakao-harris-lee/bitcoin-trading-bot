@@ -324,12 +324,7 @@ class TestEnsembleMLPClassifier:
                 model.save(path)
                 paths.append(path)
 
-            # Load with validate_path=False for temp directory testing
-            loaded_models = [
-                MLPDirectionClassifier.load(path, validate_path=False)
-                for path in paths
-            ]
-            ensemble = EnsembleMLPClassifier(loaded_models)
+            ensemble = EnsembleMLPClassifier.load_ensemble(paths, validate_path=False)
 
         assert len(ensemble.models) == 3
 

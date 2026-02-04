@@ -98,7 +98,7 @@ class BacktestAdapter:
         from trading.strategies.components import StrategyFactory
 
         factory = StrategyFactory()
-        entry, exit_strat = factory.create_components("v35_long", config)
+        entry, exit_strat = factory.create_components("v35_classic_wide", config)
 
         adapter = BacktestAdapter(
             entry_strategy=entry,
@@ -551,7 +551,7 @@ class Backtester:
 
         Args:
             df: Price DataFrame (timestamp, open, high, low, close, volume).
-            strategy_name: Strategy name (e.g., "v35_long", "sideways_v2").
+            strategy_name: Strategy name (e.g., "v35_classic_wide", "sideways_v2").
             config: Configuration parameters for the strategy.
             symbol: Trading symbol for MarketData.
             return_backtest_result: If True, return BacktestResult dataclass
@@ -572,14 +572,14 @@ class Backtester:
             # Legacy dict return
             results = backtester.run_strategy(
                 df,
-                strategy_name="v35_long",
+                strategy_name="v35_classic_wide",
                 config={"stop_loss_pct": 2.0, "take_profit_pct": 4.0},
             )
 
             # New BacktestResult return with benchmark
             result = backtester.run_strategy(
                 df,
-                strategy_name="v35_long",
+                strategy_name="v35_classic_wide",
                 config={"stop_loss_pct": 2.0},
                 return_backtest_result=True,
             )
@@ -589,7 +589,7 @@ class Backtester:
             from core.mlflow_config import MLflowConfig
             result = backtester.run_strategy(
                 df,
-                strategy_name="v35_long",
+                strategy_name="v35_classic_wide",
                 config={"stop_loss_pct": 2.0},
                 return_backtest_result=True,
                 mlflow_config=MLflowConfig(),
@@ -892,7 +892,7 @@ if __name__ == "__main__":
     try:
         results2 = backtester.run_strategy(
             df,
-            strategy_name="v35_long",
+            strategy_name="v35_classic_wide",
             config={
                 "stop_loss_pct": 2.0,
                 "take_profit_pct": 4.0,

@@ -32,7 +32,7 @@ class TestEventEmitterDataclasses:
 
         event = EntryEvaluationEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             # Filter conditions
@@ -57,7 +57,7 @@ class TestEventEmitterDataclasses:
             reason="V35 entry: BULL_STRONG, MFI=55.0, ADX=25.5",
         )
 
-        assert event.strategy == "v35_long"
+        assert event.strategy == "v35_classic_wide"
         assert event.adx_passed is True
         assert event.signal_generated is True
 
@@ -67,7 +67,7 @@ class TestEventEmitterDataclasses:
 
         event = ExitEvaluationEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             # Position data
@@ -101,7 +101,7 @@ class TestEventEmitterDataclasses:
 
         event = HWMUpdateEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             old_hwm=44000.0,
@@ -120,7 +120,7 @@ class TestEventEmitterDataclasses:
 
         event = SafetyRejectionEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             rejection_type="weak_trend",
@@ -178,7 +178,7 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             adx=25.5,
@@ -221,7 +221,7 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             adx=25.5,
@@ -260,7 +260,7 @@ class TestEventEmitterUnit:
 
         event = ExitEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             entry_price=43000.0,
@@ -300,7 +300,7 @@ class TestEventEmitterUnit:
 
         event = HWMUpdateEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             old_hwm=44000.0,
@@ -329,7 +329,7 @@ class TestEventEmitterUnit:
 
         event = SafetyRejectionEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             rejection_type="weak_trend",
@@ -360,7 +360,7 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             adx=25.5,
@@ -393,7 +393,7 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_long",
+            strategy="v35_classic_wide",
             symbol="BTC",
             market="futures",
             adx=25.5,
@@ -419,7 +419,7 @@ class TestEventEmitterUnit:
         data = event.to_dict()
 
         assert isinstance(data, dict)
-        assert data["strategy"] == "v35_long"
+        assert data["strategy"] == "v35_classic_wide"
         assert data["adx"] == "25.5"  # Serialized as string for Redis
         assert data["adx_passed"] == "true"  # Boolean as string
 

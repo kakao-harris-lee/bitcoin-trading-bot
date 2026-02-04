@@ -182,7 +182,7 @@ def run_v35_optimization(
     Leverages ComponentStrategyAdapter for full V35 feature support.
 
     Args:
-        strategy_name: V35 strategy to optimize (e.g., "v35_long_v2").
+        strategy_name: V35 strategy to optimize (e.g., "tuned_v35_long_v2_core_overlay_v2").
         param_groups: List of parameter groups to tune (e.g., ["risk", "sizing"]).
         n_trials: Number of optimization trials (default 100).
         capital: Initial capital in USD (default $10,000).

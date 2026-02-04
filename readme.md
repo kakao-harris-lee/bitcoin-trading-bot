@@ -73,7 +73,8 @@ with DataLoader() as loader:
 
 | 전략 | 거래소 | 레짐 | 파일 |
 |------|--------|------|------|
-| V35 Long | Binance | BULL | `trading/strategy/v35_long.py` |
+| V35 Classic Wide | Binance | BULL | `config/strategies/allocation.json` |
+| V35 Core Overlay v2 (tuned) | Binance | BULL | `config/strategies/allocation.json` |
 | Short V1 | Binance | BEAR | `trading/strategy/short_v1.py` |
 
 ## 환경 설정

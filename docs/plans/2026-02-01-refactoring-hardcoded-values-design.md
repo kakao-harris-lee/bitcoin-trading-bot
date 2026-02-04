@@ -70,7 +70,7 @@ def calculate_drawdown_from_hwm(
     return ((high_water_mark - current_price) / high_water_mark) * 100
 ```
 
-**Affected files:** v35_trailing_exit.py, v35_persistent_exit.py, v35_optuna_exit.py, v35_classic_exit.py, v35_simple_exit.py, short_exit.py, sideways_exit.py, combined_exit.py, hybrid_lstm_exit.py, combo1c_exit.py
+**Affected files:** v35_trailing_exit.py, v35_persistent_exit.py, v35_classic_exit.py, short_exit.py, sideways_exit.py, combined_exit.py, hybrid_lstm_exit.py, combo1c_exit.py
 
 ---
 
@@ -198,7 +198,7 @@ class BaseExitStrategy(ABC):
             self._clear_state(k)
 ```
 
-**Affected files:** v35_trailing_exit.py, v35_persistent_exit.py, v35_optuna_exit.py, v35_classic_exit.py, v35_simple_exit.py, short_exit.py, sideways_exit.py, hybrid_lstm_exit.py
+**Affected files:** v35_trailing_exit.py, v35_persistent_exit.py, v35_classic_exit.py, short_exit.py, sideways_exit.py, hybrid_lstm_exit.py
 
 ---
 
@@ -280,7 +280,7 @@ class EntryFilters:
         return FilterResult(passed=True)
 ```
 
-**Affected files:** v35_entry.py, v35_optuna_entry.py, v35_classic_entry.py, v35_simple_entry.py, short_entry.py, sideways_entry.py, hybrid_lstm_entry.py, combined_entry.py
+**Affected files:** v35_entry.py, v35_classic_entry.py, short_entry.py, sideways_entry.py, hybrid_lstm_entry.py, combined_entry.py
 
 ---
 
@@ -304,16 +304,12 @@ class EntryFilters:
 ```
 Round 1 (Low Risk):
   - v35_classic_exit.py → Inherit BaseExitStrategy
-  - v35_simple_exit.py → Inherit BaseExitStrategy
 
 Round 2 (Medium Risk):
-  - v35_optuna_exit.py → Inherit BaseExitStrategy
   - v35_trailing_exit.py → Inherit BaseExitStrategy
 
 Round 3 (Entry Filters):
   - v35_classic_entry.py → Use EntryFilters
-  - v35_simple_entry.py → Use EntryFilters
-  - v35_optuna_entry.py → Use EntryFilters
 
 Round 4 (Constants):
   - backtest_runner.py → Use FeeRates, TimePeriods

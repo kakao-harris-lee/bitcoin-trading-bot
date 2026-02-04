@@ -786,7 +786,7 @@ Add to strategy config:
 
 ```json
 {
-  "v35_long_v2": {
+  "tuned_v35_long_v2_core_overlay_v2": {
     "entry": "v35",
     "exit": "v35_trailing",
     "market": "futures",
@@ -814,13 +814,13 @@ git commit -m "feat(regime): integrate EnhancedRegimeRouter with CompositeStrate
 ```json
 {
   "strategies": {
-    "v35_long": {
+    "v35_classic_wide": {
       "entry": "v35",
       "exit": "v35_trailing",
       "market": "futures",
       "regime_version": "v1"
     },
-    "v35_long_v2": {
+    "tuned_v35_long_v2_core_overlay_v2": {
       "entry": "v35",
       "exit": "v35_trailing",
       "market": "futures",
@@ -835,7 +835,7 @@ git commit -m "feat(regime): integrate EnhancedRegimeRouter with CompositeStrate
 
 ```bash
 git add config/strategies/allocation.json
-git commit -m "feat(regime): add v35_long_v2 for A/B testing"
+git commit -m "feat(regime): add tuned_v35_long_v2_core_overlay_v2 for A/B testing"
 ```
 
 ---

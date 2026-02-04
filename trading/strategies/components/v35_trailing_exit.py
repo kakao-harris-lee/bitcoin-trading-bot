@@ -28,12 +28,12 @@ logger = logging.getLogger(__name__)
 class V35ExitParams:
     """Parameters for V35 exit strategy.
 
-    Defaults aligned with Optuna-optimized config from v35_long.json.
+    Defaults aligned with allocation.json tuned_v35_long_v2_core_overlay_v2 baseline.
     """
 
     # Stop loss percentage (negative P&L threshold)
     # Optuna found wider stop loss works better (~2-5%)
-    stop_loss_pct: float = 2.1  # -2.1% from v35_long.json
+    stop_loss_pct: float = 2.1  # -2.1% baseline (allocation defaults)
 
     # ATR-based dynamic stop loss (adapts to volatility)
     # High volatility = wider stop (avoid noise), Low volatility = tighter stop

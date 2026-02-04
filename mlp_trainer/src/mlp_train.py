@@ -56,10 +56,10 @@ class TrainingConfig:
     """Training configuration."""
 
     # Model architecture
-    input_dim: int = 36
+    input_dim: int = 13
     hidden_dims: tuple = (128, 64, 32)
     num_classes: int = 3
-    dropout: float = 0.0
+    dropout: float = 0.2
     use_batch_norm: bool = False
     leaky_relu_slope: float = 0.01
 
@@ -543,7 +543,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--dropout", type=float, default=0.0)
+    parser.add_argument("--dropout", type=float, default=0.2)
     parser.add_argument("--use-batch-norm", action="store_true")
     parser.add_argument("--leaky-relu-slope", type=float, default=0.01)
     parser.add_argument("--patience", type=int, default=10)

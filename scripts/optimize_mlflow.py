@@ -7,7 +7,7 @@ different strategy parameter combinations.
 
 Usage:
     python scripts/optimize_mlflow.py
-    python scripts/optimize_mlflow.py --strategy v35_long --experiment my-experiment
+    python scripts/optimize_mlflow.py --strategy v35_classic_wide --experiment my-experiment
     python scripts/optimize_mlflow.py --dry-run  # Show param combinations without running
 
 View results:
@@ -159,7 +159,7 @@ class OptimizationResult:
 
 # Parameter grids for different strategies
 PARAM_GRIDS = {
-    "v35_long": {
+    "v35_classic_wide": {
         # Entry params
         "mfi_bull_strong": [52.0, 54.0, 56.0],
         "mfi_bull_moderate": [52.0, 54.0],
@@ -247,7 +247,7 @@ def run_backtest(
     """Run a single backtest with given parameters.
 
     Args:
-        strategy_name: Name of the strategy (e.g., "v35_long").
+        strategy_name: Name of the strategy (e.g., "v35_classic_wide").
         entry_params: Entry strategy parameter overrides.
         exit_params: Exit strategy parameter overrides.
         df: Price data DataFrame.
@@ -394,7 +394,7 @@ def split_params(
 
 # Quick parameter grids for faster testing
 PARAM_GRIDS_QUICK = {
-    "v35_long": {
+    "v35_classic_wide": {
         "adx_moderate_trend": [18.0, 20.0],
         "stop_loss_pct": [2.0, 2.5],
         "position_size": [0.5],
@@ -601,7 +601,7 @@ def main():
     )
     parser.add_argument(
         "--strategy",
-        default="v35_long",
+        default="v35_classic_wide",
         choices=list(PARAM_GRIDS.keys()),
         help="Strategy to optimize",
     )

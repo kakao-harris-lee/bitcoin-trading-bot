@@ -21,9 +21,9 @@ import mlflow
 # Set experiment (creates if not exists)
 mlflow.set_experiment("backtest-experiments")
 
-with mlflow.start_run(run_name="v35_long_btc"):
+with mlflow.start_run(run_name="v35_classic_wide_btc"):
     # Log parameters
-    mlflow.log_param("strategy_name", "v35_long")
+    mlflow.log_param("strategy_name", "v35_classic_wide")
     mlflow.log_param("symbol", "BTC")
     mlflow.log_param("stop_loss_pct", 1.5)
 

@@ -35,12 +35,14 @@ Add v-a-02 strategy as an alternative long strategy on Upbit, with regime-based 
 
 ```
 trading/strategy/
-├── v35_long.py          # existing
 ├── va02_long.py         # new - ported from git history
 └── ...
 
+trading/strategies/components/
+├── v35_classic_entry.py          # V35 classic entry
+└── v35_classic_exit.py           # V35 classic exit
+
 config/strategies/
-├── v35_long.json        # existing
 ├── va02_long.json       # new - score thresholds, weights
 └── allocation.json      # new - capital split config
 ```

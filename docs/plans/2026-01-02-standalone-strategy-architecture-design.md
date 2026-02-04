@@ -5,7 +5,7 @@
 Current system has **double regime filtering** causing reduced trade opportunities:
 
 1. **RegimeRouter** (external): Classifies market and decides which strategy to run
-2. **V35LongStrategy** (internal): Has its own MarketClassifier that gates entries
+2. **V35 Entry Strategy** (internal): Has its own MarketClassifier that gates entries
 
 Result: Trading opportunities blocked in SIDEWAYS_DOWN or technical rebound zones, leading to sharp decline in trade frequency and deteriorating profitability.
 

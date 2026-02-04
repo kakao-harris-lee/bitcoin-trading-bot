@@ -31,7 +31,7 @@ Represents the comparison results for a single day and strategy.
 |-------|------|-------------|-------------|
 | id | Integer | Primary Key, Auto | Unique identifier |
 | report_date | Date | Required, Unique with strategy_name | The date being compared (YYYY-MM-DD) |
-| strategy_name | String | Required | Strategy identifier (e.g., "v35_long", "short_v1") |
+| strategy_name | String | Required | Strategy identifier (e.g., "v35_classic_wide", "short_v1") |
 | actual_trades_count | Integer | >= 0 | Number of trades executed in live trading |
 | backtest_trades_count | Integer | >= 0 | Number of trades the backtest generated |
 | actual_pnl | Float | | Actual profit/loss in KRW |

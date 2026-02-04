@@ -68,7 +68,7 @@ class TestV35StrategiesEndpoint:
 
         assert "strategies" in data
         assert isinstance(data["strategies"], list)
-        assert len(data["strategies"]) == 6
+        assert len(data["strategies"]) == 1
 
     def test_contains_all_v35_variants(self, client, auth_headers):
         """All V35 variants are listed."""
@@ -76,11 +76,6 @@ class TestV35StrategiesEndpoint:
         data = response.get_json()
 
         expected = [
-            "v35_long",
-            "v35_long_v2",
-            "tuned_v35_long_v2_growth",
-            "tuned_v35_long_v2_hold",
-            "tuned_v35_long_v2_core_overlay",
             "tuned_v35_long_v2_core_overlay_v2",
         ]
         for strategy in expected:
@@ -92,7 +87,7 @@ class TestV35StrategiesEndpoint:
         data = response.get_json()
 
         assert "default" in data
-        assert data["default"] == "v35_long_v2"
+        assert data["default"] == "tuned_v35_long_v2_core_overlay_v2"
 
 
 class TestV35ParamGroupsEndpoint:
@@ -100,7 +95,7 @@ class TestV35ParamGroupsEndpoint:
 
     def test_returns_200_for_valid_strategy(self, client, auth_headers):
         """Endpoint returns 200 for valid strategy."""
-        response = client.get("/quant-lab/api/v35/param-groups/v35_long_v2", headers=auth_headers)
+        response = client.get("/quant-lab/api/v35/param-groups/tuned_v35_long_v2_core_overlay_v2", headers=auth_headers)
         assert response.status_code == 200
 
     def test_returns_404_for_invalid_strategy(self, client, auth_headers):
@@ -110,17 +105,18 @@ class TestV35ParamGroupsEndpoint:
 
     def test_returns_correct_groups(self, client, auth_headers):
         """Response contains correct parameter groups."""
-        response = client.get("/quant-lab/api/v35/param-groups/v35_long_v2", headers=auth_headers)
+        response = client.get("/quant-lab/api/v35/param-groups/tuned_v35_long_v2_core_overlay_v2", headers=auth_headers)
         data = response.get_json()
 
         assert "groups" in data
         assert "risk" in data["groups"]
         assert "sizing" in data["groups"]
         assert "trailing" in data["groups"]
+        assert "core_overlay" in data["groups"]
 
     def test_returns_param_definitions(self, client, auth_headers):
         """Response contains parameter definitions."""
-        response = client.get("/quant-lab/api/v35/param-groups/v35_long_v2", headers=auth_headers)
+        response = client.get("/quant-lab/api/v35/param-groups/tuned_v35_long_v2_core_overlay_v2", headers=auth_headers)
         data = response.get_json()
 
         assert "params" in data
@@ -129,7 +125,7 @@ class TestV35ParamGroupsEndpoint:
 
     def test_core_overlay_strategy_includes_core_group(self, client, auth_headers):
         """Core overlay strategy includes core_overlay group."""
-        response = client.get("/quant-lab/api/v35/param-groups/tuned_v35_long_v2_core_overlay", headers=auth_headers)
+        response = client.get("/quant-lab/api/v35/param-groups/tuned_v35_long_v2_core_overlay_v2", headers=auth_headers)
         data = response.get_json()
 
         assert "core_overlay" in data["groups"]
@@ -140,12 +136,12 @@ class TestV35SearchSpaceEndpoint:
 
     def test_returns_200_for_valid_strategy(self, client, auth_headers):
         """Endpoint returns 200 for valid strategy."""
-        response = client.get("/quant-lab/api/v35/search-space/v35_long_v2", headers=auth_headers)
+        response = client.get("/quant-lab/api/v35/search-space/tuned_v35_long_v2_core_overlay_v2", headers=auth_headers)
         assert response.status_code == 200
 
     def test_returns_search_space(self, client, auth_headers):
         """Response contains search space definition."""
-        response = client.get("/quant-lab/api/v35/search-space/v35_long_v2", headers=auth_headers)
+        response = client.get("/quant-lab/api/v35/search-space/tuned_v35_long_v2_core_overlay_v2", headers=auth_headers)
         data = response.get_json()
 
         assert "search_space" in data
@@ -193,7 +189,7 @@ class TestV35OptimizeEndpoint:
         response = client.post(
             "/quant-lab/api/v35/optimize",
             json={
-                "strategy": "v35_long_v2",
+                "strategy": "tuned_v35_long_v2_core_overlay_v2",
                 "param_groups": ["risk", "sizing"],
                 "n_trials": 50,
             },
@@ -204,7 +200,7 @@ class TestV35OptimizeEndpoint:
         assert response.status_code == 201
         data = response.get_json()
         assert data["job_id"] == "test-job-id"
-        assert data["strategy"] == "v35_long_v2"
+        assert data["strategy"] == "tuned_v35_long_v2_core_overlay_v2"
         assert data["status"] == "queued"
 
     @patch("redis.Redis")
@@ -219,7 +215,7 @@ class TestV35OptimizeEndpoint:
 
         response = client.post(
             "/quant-lab/api/v35/optimize",
-            json={"strategy": "v35_long_v2"},
+            json={"strategy": "tuned_v35_long_v2_core_overlay_v2"},
             content_type="application/json",
             headers=auth_headers,
         )
@@ -251,7 +247,7 @@ class TestSecurityValidation:
         """Sanitize accepts valid strategy names."""
         from web.quant_lab.routes import sanitize_strategy_name
 
-        assert sanitize_strategy_name("v35_long_v2") == "v35_long_v2"
+        assert sanitize_strategy_name("tuned_v35_long_v2_core_overlay_v2") == "tuned_v35_long_v2_core_overlay_v2"
         assert sanitize_strategy_name("tuned-strategy-1") == "tuned-strategy-1"
         assert sanitize_strategy_name("MyStrategy123") == "MyStrategy123"
 
@@ -278,7 +274,7 @@ class TestSecurityValidation:
             response = client.post(
                 "/quant-lab/api/v35/optimize",
                 json={
-                    "strategy": "v35_long_v2",
+                    "strategy": "tuned_v35_long_v2_core_overlay_v2",
                     "n_trials": 999999,  # Way over limit
                 },
                 content_type="application/json",

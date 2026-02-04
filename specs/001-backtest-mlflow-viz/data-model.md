@@ -52,7 +52,7 @@ class BacktestResult:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `strategy_name` | str | Strategy identifier (e.g., "v35_long") |
+| `strategy_name` | str | Strategy identifier (e.g., "v35_classic_wide") |
 | `symbol` | str | Trading symbol (e.g., "BTC", "ETH") |
 | `start_date` | datetime | Backtest start timestamp |
 | `end_date` | datetime | Backtest end timestamp |
@@ -165,7 +165,7 @@ class ParameterSweep:
 **Example Usage**:
 ```python
 sweep = ParameterSweep(
-    strategy_name="v35_long",
+    strategy_name="v35_classic_wide",
     symbol="BTC",
     parameter_grid={
         "stop_loss_pct": [1.0, 1.5, 2.0],
@@ -179,7 +179,7 @@ sweep = ParameterSweep(
 
 # Generates 9 combinations
 for config in sweep.generate_combinations():
-    result = backtester.run_strategy(df, "v35_long", config)
+    result = backtester.run_strategy(df, "v35_classic_wide", config)
 ```
 
 ---

@@ -24,7 +24,8 @@ class TestStrategyFactoryBasics:
     def test_get_available_strategies(self, factory):
         """Test listing available strategies."""
         strategies = factory.get_available_strategies()
-        assert "v35_long" in strategies
+        assert "v35_classic_wide" in strategies
+        assert "tuned_v35_long_v2_core_overlay_v2" in strategies
         assert "sideways_v2" in strategies
         assert "short_v1" in strategies
 
@@ -39,13 +40,13 @@ class TestStrategyFactoryBasics:
             factory.create_exit("unknown_strategy")
 
 
-class TestV35LongFutures:
-    """Test V35 long strategy with futures market."""
+class TestV35CoreOverlayFutures:
+    """Test tuned V35 core overlay strategy with futures market."""
 
     def test_create_v35_entry_with_futures(self, factory):
         """Test V35 entry created with futures market."""
         config = {"market": "futures", "position_size": 0.02}
-        entry = factory.create_entry("v35_long", config)
+        entry = factory.create_entry("tuned_v35_long_v2_core_overlay_v2", config)
 
         assert isinstance(entry, V35EntryStrategy)
         assert entry.params.market == "futures"
@@ -54,7 +55,7 @@ class TestV35LongFutures:
     def test_create_v35_exit_with_futures(self, factory):
         """Test V35 exit created with futures market."""
         config = {"market": "futures"}
-        exit_strat = factory.create_exit("v35_long", config)
+        exit_strat = factory.create_exit("tuned_v35_long_v2_core_overlay_v2", config)
 
         assert isinstance(exit_strat, V35TrailingExitStrategy)
         assert exit_strat.params.market == "futures"
@@ -62,7 +63,7 @@ class TestV35LongFutures:
     def test_v35_entry_generates_futures_signal(self, factory):
         """Test V35 entry generates futures signal."""
         config = {"market": "futures", "position_size": 0.01}
-        entry = factory.create_entry("v35_long", config)
+        entry = factory.create_entry("tuned_v35_long_v2_core_overlay_v2", config)
 
         # Bullish market data that should trigger entry
         # V35 requires: BULL regime + MACD crossover + RSI above threshold
@@ -96,14 +97,14 @@ class TestV35LongFutures:
     def test_v35_exit_generates_futures_signal(self, factory):
         """Test V35 exit generates futures signal."""
         config = {"market": "futures", "stop_loss_pct": 1.5}
-        exit_strat = factory.create_exit("v35_long", config)
+        exit_strat = factory.create_exit("tuned_v35_long_v2_core_overlay_v2", config)
 
         # Position in futures market
         position = Position(
             symbol="BTC",
             entry_price=95000.0,
             quantity=0.01,
-            strategy="v35_long",
+            strategy="tuned_v35_long_v2_core_overlay_v2",
             market="futures",
             timestamp=1000000,
         )
@@ -136,13 +137,13 @@ class TestV35LongFutures:
     def test_get_market_from_config(self, factory):
         """Test get_market returns config market when specified."""
         config = {"market": "futures"}
-        market = factory.get_market("v35_long", config)
+        market = factory.get_market("tuned_v35_long_v2_core_overlay_v2", config)
         assert market == "futures"
 
     def test_get_market_default_from_spec(self, factory):
         """Test get_market returns spec default when no config."""
         # V35 strategies now default to spot (updated in STRATEGY_REGISTRY)
-        market = factory.get_market("v35_long")
+        market = factory.get_market("tuned_v35_long_v2_core_overlay_v2")
         assert market == "spot"  # Default in STRATEGY_REGISTRY after spot restoration
 
 
@@ -152,11 +153,7 @@ class TestSpotMarketMigration:
     def test_v35_strategies_use_spot_market(self, factory):
         """Test all V35 strategies return spot from get_market()."""
         v35_strategies = [
-            "v35_long",
-            "v35_long_v2",
-            "tuned_v35_long_v2_growth",
-            "tuned_v35_long_v2_hold",
-            "tuned_v35_long_v2_core_overlay",
+            "v35_classic_wide",
             "tuned_v35_long_v2_core_overlay_v2",
         ]
 
@@ -276,7 +273,7 @@ class TestCreateComponents:
     def test_create_components_with_futures(self, factory):
         """Test creating both components with futures config."""
         config = {"market": "futures", "position_size": 0.01}
-        entry, exit_strat = factory.create_components("v35_long", config)
+        entry, exit_strat = factory.create_components("tuned_v35_long_v2_core_overlay_v2", config)
 
         assert isinstance(entry, V35EntryStrategy)
         assert isinstance(exit_strat, V35TrailingExitStrategy)
@@ -286,7 +283,7 @@ class TestCreateComponents:
     def test_entry_and_exit_market_consistency(self, factory):
         """Test that entry and exit use consistent market type."""
         config = {"market": "futures", "position_size": 0.01}
-        entry, exit_strat = factory.create_components("v35_long", config)
+        entry, exit_strat = factory.create_components("tuned_v35_long_v2_core_overlay_v2", config)
 
         # Entry signal - V35 requires MACD crossover + RSI above threshold
         market_data = MarketData(
@@ -318,7 +315,7 @@ class TestCreateComponents:
             symbol=entry_signal.symbol,
             entry_price=130.0,
             quantity=entry_signal.quantity,
-            strategy="v35_long",
+            strategy="tuned_v35_long_v2_core_overlay_v2",
             market=entry_signal.market,  # Should be "futures"
             timestamp=1000000,
         )
@@ -344,7 +341,7 @@ class TestParamOverrides:
     def test_param_overrides_legacy_format(self, factory):
         """Test param_overrides with legacy config format."""
         entry = factory.create_entry(
-            "v35_long",
+            "tuned_v35_long_v2_core_overlay_v2",
             param_overrides={"mfi_bull_strong": 56.0, "position_size": 0.03}
         )
 
@@ -355,7 +352,7 @@ class TestParamOverrides:
         """Test param_overrides merges with existing config."""
         config = {"market": "futures", "position_size": 0.01}
         entry = factory.create_entry(
-            "v35_long",
+            "tuned_v35_long_v2_core_overlay_v2",
             config,
             param_overrides={"position_size": 0.05}  # Override config value
         )
@@ -367,7 +364,7 @@ class TestParamOverrides:
         """Test that param_overrides doesn't mutate the original config."""
         original_config = {"position_size": 0.01, "market": "futures"}
         factory.create_entry(
-            "v35_long",
+            "tuned_v35_long_v2_core_overlay_v2",
             original_config,
             param_overrides={"position_size": 0.05}
         )
@@ -379,7 +376,7 @@ class TestParamOverrides:
     def test_param_overrides_exit_strategy(self, factory):
         """Test param_overrides works for exit strategy."""
         exit_strat = factory.create_exit(
-            "v35_long",
+            "tuned_v35_long_v2_core_overlay_v2",
             param_overrides={"stop_loss_pct": 2.5, "tp_bull_strong_1": 6.0}
         )
 
@@ -389,7 +386,7 @@ class TestParamOverrides:
     def test_param_overrides_create_components(self, factory):
         """Test separate entry/exit overrides in create_components."""
         entry, exit_strat = factory.create_components(
-            "v35_long",
+            "tuned_v35_long_v2_core_overlay_v2",
             entry_overrides={"mfi_bull_strong": 56.0},
             exit_overrides={"stop_loss_pct": 3.0},
         )
@@ -400,7 +397,7 @@ class TestParamOverrides:
     def test_param_overrides_empty_returns_original(self, factory):
         """Test empty param_overrides returns config unchanged."""
         config = {"market": "futures", "position_size": 0.02}
-        entry = factory.create_entry("v35_long", config, param_overrides={})
+        entry = factory.create_entry("tuned_v35_long_v2_core_overlay_v2", config, param_overrides={})
 
         assert entry.params.market == "futures"
         assert entry.params.position_size == 0.02

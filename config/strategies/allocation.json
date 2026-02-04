@@ -475,8 +475,8 @@
       "bwin": 5,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-      "position_pct": 0.90,
-      "position_size": 0.90,
+      "position_pct": 0.9,
+      "position_size": 0.9,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
@@ -488,7 +488,7 @@
           "skip_bear_regime": false,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.90,
+          "position_size": 0.9,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -520,8 +520,8 @@
       "bwin": 4,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-      "position_pct": 0.90,
-      "position_size": 0.90,
+      "position_pct": 0.9,
+      "position_size": 0.9,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
@@ -533,7 +533,7 @@
           "skip_bear_regime": false,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.90,
+          "position_size": 0.9,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -557,7 +557,7 @@
     },
     "mlp_direction_sol": {
       "_comment": "Live trading - SOL using ETH model with paper_36 features",
-      "enabled": true,
+      "enabled": false,
       "market": "spot",
       "symbols": [
         "SOL"
@@ -603,12 +603,12 @@
     "mlp_direction_optimized": {
       "_comment": "MLP Direction with optimized exit (trailing + take profit instead of FWin, shap_13 model)",
       "market": "spot",
-      "position_pct": 0.70,
-      "position_size": 0.70,
+      "position_pct": 0.7,
+      "position_size": 0.7,
       "bwin": 5,
       "mlp_feature_set": "shap_13",
       "model_path": "models/mlp_direction/model_final.pt",
-      "buy_confidence_threshold": 0.40,
+      "buy_confidence_threshold": 0.4,
       "skip_bear_regime": false,
       "adx_min": 0.0,
       "use_ema200_filter": false,
@@ -622,7 +622,7 @@
       "take_profit_enabled": true,
       "take_profit_pct": 25.0,
       "use_mlp_sell_exit": true,
-      "sell_confidence_threshold": 0.50,
+      "sell_confidence_threshold": 0.5,
       "min_profit_for_sell_exit": 0.0,
       "enabled": false
     },

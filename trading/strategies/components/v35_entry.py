@@ -36,7 +36,7 @@ class V35EntryParams:
 
     # ADX thresholds for trend strength
     adx_strong_trend: float = 25.0
-    adx_moderate_trend: float = 18.0
+    adx_moderate_trend: float = 20.0
 
     # Momentum entry conditions (BULL states)
     momentum_rsi_bull_strong: float = 57.0
@@ -69,6 +69,11 @@ class V35EntryParams:
     # Volatility breakout filter (Larry Williams strategy)
     # Only enter when breakout_signal == 1 (close > target_price)
     use_breakout_filter: bool = False  # Disabled by default (requires data collection)
+
+    # Volume confirmation for momentum entries
+    # Filters out low-conviction entries that tend to churn
+    use_volume_filter: bool = True
+    min_volume_ratio: float = 0.8  # Require 80% of 20-period average volume
 
     market: Literal["spot", "futures"] = "spot"
 
@@ -177,6 +182,17 @@ class V35EntryStrategy:
                 logger.debug(
                     f"{market_data.symbol}: Skipping entry - no breakout signal "
                     f"(close=${market_data.close:,.0f}, target=${market_data.target_price:,.0f})"
+                )
+                return None
+
+        # === SAFETY FILTER 7: Volume confirmation ===
+        # Avoid low-conviction entries that tend to churn (1h median hold time)
+        if self.params.use_volume_filter and market_data.avg_volume_20 > 0:
+            volume_ratio = market_data.volume / market_data.avg_volume_20
+            if volume_ratio < self.params.min_volume_ratio:
+                logger.debug(
+                    f"{market_data.symbol}: Skipping entry - low volume "
+                    f"(ratio={volume_ratio:.2f} < {self.params.min_volume_ratio})"
                 )
                 return None
 

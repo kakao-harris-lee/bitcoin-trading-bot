@@ -512,13 +512,13 @@ class TestV35ADXSafetyFilter:
 
     def test_skips_entry_when_adx_below_threshold(self, entry, bullish_market_data):
         """V35 should skip entry when ADX indicates weak trend."""
-        # ADX below adx_moderate_trend (18.0) should skip
+        # ADX below adx_moderate_trend (20.0) should skip
         context = MarketContext(
             trend="BULL",
             regime="BULL_MODERATE",
             volatility_score=0.01,
             is_extreme_volatility=False,
-            adx=15.0,  # Below threshold
+            adx=18.0,  # Below threshold (20.0)
         )
         signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is None
@@ -530,7 +530,7 @@ class TestV35ADXSafetyFilter:
             regime="BULL_MODERATE",
             volatility_score=0.01,
             is_extreme_volatility=False,
-            adx=18.0,  # At threshold
+            adx=20.0,  # At threshold (raised from 18 to 20)
         )
         signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
         assert signal is not None

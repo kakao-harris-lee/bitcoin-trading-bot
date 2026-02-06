@@ -107,7 +107,7 @@ class TestBuildParamsFromConfig:
         assert params.market == "futures"
         # Check defaults are preserved
         assert params.mfi_bear_strong == 34.0  # default
-        assert params.adx_moderate_trend == 18.0  # default
+        assert params.adx_moderate_trend == 20.0  # default (raised from 18)
 
     def test_build_with_defaults_only(self):
         """Test building params with no config (use defaults)."""

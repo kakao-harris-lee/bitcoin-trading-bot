@@ -190,6 +190,31 @@ class EntryFilters:
         return FilterResult(passed=True)
 
     @staticmethod
+    def check_volume_confirmation(
+        market_data: MarketData,
+        min_volume_ratio: float = 1.0,
+    ) -> FilterResult:
+        """Check if current volume exceeds average (confirms conviction).
+
+        Args:
+            market_data: Current market data with volume and avg_volume_20.
+            min_volume_ratio: Minimum ratio of current volume to 20-period average.
+
+        Returns:
+            FilterResult indicating pass/fail.
+        """
+        if market_data.avg_volume_20 <= 0:
+            return FilterResult(passed=True)  # No data, don't block
+
+        ratio = market_data.volume / market_data.avg_volume_20
+        if ratio < min_volume_ratio:
+            return FilterResult(
+                passed=False,
+                reason=f"low volume (ratio={ratio:.2f} < {min_volume_ratio})",
+            )
+        return FilterResult(passed=True)
+
+    @staticmethod
     def check_volatility(
         volatility: float,
         min_vol: float = 0.0,

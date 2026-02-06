@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .entry_filters import EntryFilters
-from .models import Signal, TradingContext
+from .models import BEAR_REGIMES, Signal, TradingContext
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,13 @@ class V35ClassicEntryParams:
 
     # EMA200 filter (optional safety)
     use_ema200_filter: bool = True
+
+    # BEAR regime blocking (uses centralized context.regime, not local classification)
+    block_bear_regime: bool = True
+
+    # Volume confirmation (require volume above average)
+    use_volume_filter: bool = True
+    min_volume_ratio: float = 0.8  # Require 80% of average volume
 
     market: Literal["spot", "futures"] = "spot"
 
@@ -75,13 +82,37 @@ class V35ClassicEntryStrategy:
             Signal if entry conditions met, None otherwise.
         """
         market_data = ctx.market
+        context = ctx.regime
         p = self.params
+
+        # BEAR regime blocking: use centralized context.regime to prevent
+        # entries when the market is bearish (even if local MFI says BULL)
+        if p.block_bear_regime:
+            bear_result = EntryFilters.check_not_bear_regime(context.regime)
+            if not bear_result.passed:
+                logger.debug(f"{market_data.symbol}: Skip - {bear_result.reason}")
+                return None
+
+        # ADX minimum: avoid choppy, trendless markets
+        adx_result = EntryFilters.check_adx_strength(market_data, min_adx=p.adx_trend)
+        if not adx_result.passed:
+            logger.debug(f"{market_data.symbol}: Skip - {adx_result.reason}")
+            return None
 
         # EMA200 filter using EntryFilters utility
         ema_result = EntryFilters.check_ema200(market_data, p.use_ema200_filter)
         if not ema_result.passed:
             logger.debug(f"{market_data.symbol}: Skip - {ema_result.reason}")
             return None
+
+        # Volume confirmation: avoid low-conviction entries
+        if p.use_volume_filter:
+            vol_result = EntryFilters.check_volume_confirmation(
+                market_data, min_volume_ratio=p.min_volume_ratio
+            )
+            if not vol_result.passed:
+                logger.debug(f"{market_data.symbol}: Skip - {vol_result.reason}")
+                return None
 
         # Classify regime using MFI and ADX
         regime = self._classify_regime(market_data.mfi, market_data.adx)

@@ -1,0 +1,14 @@
+{
+  "strategy": "bear_short",
+  "optimized_params": {
+    "volume_ratio_threshold": 2.7,
+    "stop_loss_pct": 3.5,
+    "take_profit_pct": 7.0
+  },
+  "training": {
+    "period": "2020-01-01 to 2024-06-30",
+    "score": 1.023839614015106,
+    "avg_return": 50.69630943977874,
+    "total_trades": 105
+  }
+}

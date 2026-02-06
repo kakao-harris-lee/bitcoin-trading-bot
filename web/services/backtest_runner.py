@@ -29,6 +29,7 @@ from core.metrics import calculate_benchmark
 # Database persistence
 from web.services import backtest_db
 from trading.strategies.components.strategy_factory import StrategyFactory, STRATEGY_REGISTRY
+from trading.strategies.components.config_schema import has_new_config_format
 from core.component_adapter import ComponentStrategyAdapter
 from trading.indicators import add_all_indicators
 from trading.config.constants import FeeRates, TimePeriods
@@ -71,6 +72,21 @@ def _is_tuned_strategy(strategy_id: str) -> bool:
             allocation = json.load(f)
         strategy_config = allocation.get('strategies', {}).get(strategy_id, {})
         return 'regime_routing' in strategy_config
+    except Exception:
+        return False
+
+
+def _is_new_config_strategy(strategy_id: str) -> bool:
+    """Check if a strategy in allocation.json uses new config format (entry.class/exit.class)."""
+    import json
+    allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
+    if not allocation_path.exists():
+        return False
+    try:
+        with open(allocation_path, 'r') as f:
+            allocation = json.load(f)
+        strategy_config = allocation.get('strategies', {}).get(strategy_id, {})
+        return has_new_config_format(strategy_config)
     except Exception:
         return False
 
@@ -453,7 +469,7 @@ def run_backtest(job: BacktestJob) -> None:
             #    - Factory Strategies (in STRATEGY_REGISTRY)
             #    - Tuned strategies (with regime_routing in allocation.json)
             #    - Derived strategies (with base_strategy in allocation.json)
-            if strategy_id in STRATEGY_REGISTRY or _is_tuned_strategy(strategy_id) or _has_base_strategy(strategy_id):
+            if strategy_id in STRATEGY_REGISTRY or _is_tuned_strategy(strategy_id) or _has_base_strategy(strategy_id) or _is_new_config_strategy(strategy_id):
                 results, price_data = _run_generic_backtest(
                     strategy_id, start_date, end_date, initial_capital, job
                 )
@@ -855,6 +871,7 @@ def _run_generic_backtest(
 
     # Check if strategy exists in registry or allocation.json
     is_tuned_strategy = False
+    is_new_config = False
     tuned_config = None
     strategy_config = None  # Strategy config from allocation.json (for symbols, etc.)
     base_strategy_id = strategy_id  # Default to same name
@@ -874,6 +891,10 @@ def _run_generic_backtest(
             if 'regime_routing' in strategy_config:
                 is_tuned_strategy = True
                 tuned_config = strategy_config
+            elif has_new_config_format(strategy_config):
+                # New config format with explicit entry.class/exit.class
+                is_new_config = True
+                logger.info(f"Using new config format for strategy '{strategy_id}'")
             else:
                 # Try to find a base strategy in registry
                 # e.g., 'mlp_direction_optimized' -> 'mlp_direction'
@@ -903,6 +924,11 @@ def _run_generic_backtest(
         market_type = tuned_config.get('market', 'futures')
         leverage = float(tuned_config.get('leverage', 3))
         timeframe = 'minute60'  # Default for tuned strategies
+    elif is_new_config:
+        # New config format: read market/timeframe from allocation.json config
+        market_type = strategy_config.get('market', 'futures')
+        leverage = float(strategy_config.get('leverage', 3))
+        timeframe = strategy_config.get('timeframe', 'minute240')
     else:
         # Use registry spec (use base_strategy_id for registry lookup)
         spec = STRATEGY_REGISTRY[base_strategy_id]

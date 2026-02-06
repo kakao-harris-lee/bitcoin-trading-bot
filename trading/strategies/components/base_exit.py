@@ -40,6 +40,7 @@ class BaseExitStrategy(ABC):
         """Initialize base exit strategy state."""
         self._high_water_marks: dict[str, float] = {}
         self._exit_stages: dict[str, int] = {}
+        self._candles_held: dict[str, int] = {}  # Track hold duration per position
 
     @abstractmethod
     def check_exit(self, ctx: TradingContext, position: Position) -> Signal | None:
@@ -137,6 +138,34 @@ class BaseExitStrategy(ABC):
         """
         return self._high_water_marks.get(key, default)
 
+    # === Hold Duration Tracking ===
+
+    def _increment_candles_held(self, key: str) -> int:
+        """Increment and return candles held for a position.
+
+        Call once per check_exit() invocation to track hold duration.
+
+        Args:
+            key: Position key.
+
+        Returns:
+            Updated candles held count.
+        """
+        count = self._candles_held.get(key, 0) + 1
+        self._candles_held[key] = count
+        return count
+
+    def _get_candles_held(self, key: str) -> int:
+        """Get current candles held for a position.
+
+        Args:
+            key: Position key.
+
+        Returns:
+            Candles held (0 if not tracked).
+        """
+        return self._candles_held.get(key, 0)
+
     # === Exit Stage Management ===
 
     def _get_exit_stage(self, key: str) -> int:
@@ -199,6 +228,7 @@ class BaseExitStrategy(ABC):
         """
         self._high_water_marks.pop(key, None)
         self._exit_stages.pop(key, None)
+        self._candles_held.pop(key, None)
 
     # === Lifecycle Hooks ===
 
@@ -213,6 +243,7 @@ class BaseExitStrategy(ABC):
         key = self._get_position_key(position)
         self._high_water_marks[key] = position.entry_price
         self._exit_stages[key] = 0
+        self._candles_held[key] = 0
         logger.debug(f"{position.symbol}: Position opened, HWM={position.entry_price:.2f}")
 
     def on_position_closed(self, symbol: str) -> None:

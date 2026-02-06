@@ -11,13 +11,6 @@ from typing import Dict, Any
 from .worker.tasks import OptimizationJob, JobStatus
 from .optimizer.study_manager import StudyManager
 from .optimizer.search_space import REGIMES, ENTRY_COMPONENTS, EXIT_COMPONENTS, COMPONENT_PARAMS
-from .optimizer.v35_search_space import (
-    V35_STRATEGY_PARAMS,
-    V35_PARAM_GROUPS,
-    get_strategy_param_groups,
-    get_all_strategies,
-    build_full_search_space,
-)
 
 quant_lab_bp = Blueprint(
     'quant_lab',
@@ -159,8 +152,8 @@ TEMPLATES = {
         "description": "Only optimizes BEAR_MODERATE and BEAR_STRONG regimes",
         "config": {
             regime: {
-                "entries": ENTRY_COMPONENTS if "BEAR" in regime else ["V35Entry"],
-                "exits": EXIT_COMPONENTS if "BEAR" in regime else ["V35TrailingExit"],
+                "entries": ENTRY_COMPONENTS if "BEAR" in regime else ["SidewaysEntry"],
+                "exits": EXIT_COMPONENTS if "BEAR" in regime else ["SidewaysExit"],
             }
             for regime in REGIMES
         },
@@ -463,16 +456,16 @@ def _transform_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[st
     """Transform Optuna trial params to structured config format.
 
     Converts flat params like:
-        BULL_STRONG_entry: "V35Entry"
-        BULL_STRONG_exit: "V35TrailingExit"
-        BULL_STRONG_V35Entry_mfi_threshold: 55.0
+        BULL_STRONG_entry: "ShortEntry"
+        BULL_STRONG_exit: "ShortExit"
+        BULL_STRONG_ShortEntry_rsi_overbought: 75.0
 
     To structured format:
         regime_routing:
             BULL_STRONG:
-                entry: V35Entry
-                exit: V35TrailingExit
-                entry_params: {mfi_threshold: 55.0}
+                entry: ShortEntry
+                exit: ShortExit
+                entry_params: {rsi_overbought: 75.0}
     """
     config = {
         'metrics': {
@@ -490,7 +483,7 @@ def _transform_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[st
 
         if entry_key in params:
             entry_component = params[entry_key]
-            exit_component = params.get(exit_key, 'V35TrailingExit')
+            exit_component = params.get(exit_key, 'ShortExit')
 
             regime_config = {
                 'entry': entry_component,
@@ -513,245 +506,6 @@ def _transform_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[st
             config['regime_routing'][regime] = regime_config
 
     return config
-
-
-# =============================================================================
-# V35 Unified Tuning API Endpoints
-# =============================================================================
-
-@quant_lab_bp.route('/api/v35/strategies')
-@requires_auth
-def get_v35_strategies():
-    """List available V35 strategies for tuning.
-
-    Returns:
-        JSON with list of V35 strategy names.
-    """
-    return jsonify({
-        "strategies": get_all_strategies(),
-        "default": "tuned_v35_long_v2_core_overlay_v2",
-    })
-
-
-@quant_lab_bp.route('/api/v35/param-groups/<strategy_name>')
-@requires_auth
-def get_v35_param_groups_route(strategy_name: str):
-    """Get applicable parameter groups for a V35 strategy.
-
-    Args:
-        strategy_name: Name of the V35 strategy.
-
-    Returns:
-        JSON with groups list and parameter definitions.
-    """
-    if strategy_name not in V35_STRATEGY_PARAMS:
-        return jsonify({"error": f"Unknown strategy: {strategy_name}"}), 404
-
-    groups = get_strategy_param_groups(strategy_name)
-    params = {g: V35_PARAM_GROUPS.get(g, {}) for g in groups}
-
-    return jsonify({
-        "strategy": strategy_name,
-        "groups": groups,
-        "params": params,
-    })
-
-
-@quant_lab_bp.route('/api/v35/search-space/<strategy_name>')
-@requires_auth
-def get_v35_search_space(strategy_name: str):
-    """Get complete search space for a V35 strategy.
-
-    Args:
-        strategy_name: Name of the V35 strategy.
-
-    Returns:
-        JSON with full search space definition.
-    """
-    if strategy_name not in V35_STRATEGY_PARAMS:
-        return jsonify({"error": f"Unknown strategy: {strategy_name}"}), 404
-
-    space = build_full_search_space(strategy_name)
-    return jsonify({
-        "strategy": strategy_name,
-        "search_space": space,
-    })
-
-
-@quant_lab_bp.route('/api/v35/optimize', methods=['POST'])
-@requires_auth
-def start_v35_optimization():
-    """Start V35 parameter optimization job.
-
-    Request body:
-        strategy: V35 strategy name (required)
-        param_groups: List of parameter groups to tune (optional)
-        n_trials: Number of optimization trials (default 100, max 5000)
-        capital: Initial capital in USD (default 10000)
-        start_date: Backtest start date (default "2024-01-01")
-        end_date: Backtest end date (default "2024-12-31")
-        symbol: Trading symbol (default "BTC")
-
-    Returns:
-        JSON with job_id and status.
-    """
-    from redis import Redis
-    from rq import Queue
-
-    data = request.get_json() or {}
-    strategy_name = data.get("strategy")
-    param_groups = data.get("param_groups", [])
-
-    # Validate and limit n_trials (prevent DoS)
-    n_trials = data.get("n_trials", 100)
-    try:
-        n_trials = int(n_trials)
-        n_trials = min(n_trials, MAX_TRIALS)
-        n_trials = max(n_trials, MIN_TRIALS)
-    except (TypeError, ValueError):
-        return jsonify({"error": "n_trials must be a positive integer"}), 400
-
-    capital = data.get("capital", 10_000)
-    start_date = data.get("start_date", "2024-01-01")
-    end_date = data.get("end_date", "2024-12-31")
-    symbol = data.get("symbol", "BTC")
-
-    # Validate strategy
-    if not strategy_name:
-        return jsonify({"error": "strategy is required"}), 400
-
-    if strategy_name not in V35_STRATEGY_PARAMS:
-        return jsonify({
-            "error": f"Unknown strategy: {strategy_name}",
-            "available": get_all_strategies(),
-        }), 400
-
-    # Use default groups if none specified
-    if not param_groups:
-        param_groups = get_strategy_param_groups(strategy_name)
-
-    try:
-        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
-        redis_conn = Redis.from_url(redis_url)
-        q = Queue("quant_lab", connection=redis_conn)
-
-        from .worker.tasks import run_v35_optimization
-
-        job = q.enqueue(
-            run_v35_optimization,
-            strategy_name=strategy_name,
-            param_groups=param_groups,
-            n_trials=n_trials,
-            capital=capital,
-            start_date=start_date,
-            end_date=end_date,
-            symbol=symbol,
-            job_timeout="4h",
-        )
-
-        return jsonify({
-            "job_id": job.id,
-            "strategy": strategy_name,
-            "param_groups": param_groups,
-            "n_trials": n_trials,
-            "capital": capital,
-            "status": "queued",
-        }), 201
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@quant_lab_bp.route('/api/v35/experiments/<study_name>/apply', methods=['POST'])
-@requires_auth
-def apply_v35_best_params(study_name: str):
-    """Apply best parameters from a V35 optimization study to allocation.json.
-
-    Args:
-        study_name: Name of the optimization study.
-
-    Request body:
-        strategy_name: Target strategy name in allocation.json (optional)
-
-    Returns:
-        JSON with success status and backup file path.
-    """
-    try:
-        import optuna
-        from datetime import datetime
-        import shutil
-
-        data = request.get_json() or {}
-
-        # Load study
-        db_path = os.path.join(os.path.dirname(__file__), "quant_lab_studies.db")
-        storage = f"sqlite:///{db_path}"
-
-        try:
-            study = optuna.load_study(study_name=study_name, storage=storage)
-        except KeyError:
-            return jsonify({"error": f"Study not found: {study_name}"}), 404
-
-        if len(study.trials) == 0:
-            return jsonify({"error": "Study has no completed trials"}), 400
-
-        # Get best trial
-        best = study.best_trial
-
-        # Extract strategy name from study name (e.g., "v35_tuned_v35_long_v2_core_overlay_v2_2024-01-01_2024-12-31")
-        parts = study_name.split("_")
-        if len(parts) >= 3:
-            # Join parts between first "v35" and date
-            raw_strategy_name = data.get("strategy_name") or "_".join(parts[1:-2])
-        else:
-            raw_strategy_name = data.get("strategy_name", study_name)
-
-        # Sanitize strategy name to prevent path traversal
-        try:
-            strategy_name = sanitize_strategy_name(raw_strategy_name)
-        except ValueError as e:
-            return jsonify({"error": str(e)}), 400
-
-        # Load allocation.json
-        allocation_path = os.path.join(
-            os.path.dirname(__file__), "../../config/strategies/allocation.json"
-        )
-
-        with open(allocation_path, "r") as f:
-            allocation = json.load(f)
-
-        # Backup before modifying
-        backup_path = allocation_path + f'.backup.{datetime.now().strftime("%Y%m%d_%H%M%S")}'
-        shutil.copy(allocation_path, backup_path)
-
-        # Merge best params into strategy config
-        if strategy_name in allocation.get("strategies", {}):
-            base_config = allocation["strategies"][strategy_name]
-        else:
-            base_config = {}
-
-        # Apply tuned parameters
-        tuned_config = {**base_config, **best.params}
-        tuned_config["_tuned_from"] = study_name
-        tuned_config["_tuned_score"] = best.value
-        tuned_config["_tuned_at"] = datetime.now().isoformat()
-
-        allocation["strategies"][strategy_name] = tuned_config
-
-        # Save updated allocation.json
-        with open(allocation_path, "w") as f:
-            json.dump(allocation, f, indent=2)
-
-        return jsonify({
-            "success": True,
-            "strategy_name": strategy_name,
-            "best_score": best.value,
-            "params_applied": len(best.params),
-            "backup_file": backup_path,
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 # =============================================================================

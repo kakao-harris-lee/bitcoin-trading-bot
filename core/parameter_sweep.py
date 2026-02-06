@@ -47,7 +47,7 @@ class ParameterSweep:
 
     Example:
         >>> sweep = ParameterSweep(
-        ...     strategy_name="v35_classic_wide",
+        ...     strategy_name="short_v1",
         ...     symbol="BTC",
         ...     parameter_grid={
         ...         "stop_loss_pct": [1.0, 1.5, 2.0],

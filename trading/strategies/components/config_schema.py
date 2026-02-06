@@ -59,7 +59,7 @@ def validate_strategy_config(
     """
     warnings: list[str] = []
 
-    # Validate market if specified (hybrid mode: spot for V35, futures for Short/Sideways)
+    # Validate market if specified (hybrid mode: spot for MLP, futures for Short/Sideways)
     if "market" in config:
         market = config["market"]
         if market not in ("spot", "futures"):

@@ -101,7 +101,7 @@ class ComparisonReportGenerator:
 
         Args:
             report_date: Date to generate report for (YYYY-MM-DD)
-            strategy_name: Strategy identifier (e.g., "v35_classic_wide", "short_v1")
+            strategy_name: Strategy identifier (e.g., "short_v1", "short_v1")
 
         Returns:
             DailyComparisonReport with all metrics and discrepancies

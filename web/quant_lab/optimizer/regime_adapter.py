@@ -4,17 +4,14 @@ from typing import Dict, Any, Optional
 
 # Component class mappings (name -> module path)
 ENTRY_CLASS_MAP = {
-    "V35Entry": "trading.strategies.components.v35_entry.V35EntryStrategy",
     "SidewaysEntry": "trading.strategies.components.sideways_entry.SidewaysEntryStrategy",
     "ShortEntry": "trading.strategies.components.short_entry.ShortEntryStrategy",
     "None": None,
 }
 
 EXIT_CLASS_MAP = {
-    "V35TrailingExit": "trading.strategies.components.v35_trailing_exit.V35TrailingExitStrategy",
-    "V35PersistentExit": "trading.strategies.components.v35_persistent_exit.V35PersistentExitStrategy",
-    "ExperimentalExit": "trading.strategies.components.experimental_exit.ExperimentalExitStrategy",
     "SidewaysExit": "trading.strategies.components.sideways_exit.SidewaysExitStrategy",
+    "ShortExit": "trading.strategies.components.short_exit.ShortExitStrategy",
 }
 
 

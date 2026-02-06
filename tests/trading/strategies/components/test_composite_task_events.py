@@ -69,7 +69,7 @@ class TestCompositeTaskEmitEventsFlag:
         from trading.strategies.components.composite_task import CompositeStrategyTask
 
         task = CompositeStrategyTask(
-            name="v35_classic_wide",
+            name="short_v1",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -86,7 +86,7 @@ class TestCompositeTaskEmitEventsFlag:
         from trading.strategies.components.composite_task import CompositeStrategyTask
 
         task = CompositeStrategyTask(
-            name="v35_classic_wide",
+            name="short_v1",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -105,7 +105,7 @@ class TestCompositeTaskEmitEventsFlag:
         from trading.core.event_emitter import EventEmitter
 
         task = CompositeStrategyTask(
-            name="v35_classic_wide",
+            name="short_v1",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -130,7 +130,7 @@ class TestCompositeTaskEntryEventEmission:
         from trading.strategies.components.models import MarketData
 
         task = CompositeStrategyTask(
-            name="v35_classic_wide",
+            name="short_v1",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -175,7 +175,7 @@ class TestCompositeTaskEntryEventEmission:
         from trading.strategies.components.models import MarketData
 
         task = CompositeStrategyTask(
-            name="v35_classic_wide",
+            name="short_v1",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -221,7 +221,7 @@ class TestCompositeTaskExitEventEmission:
         from trading.strategies.components.models import MarketData
 
         task = CompositeStrategyTask(
-            name="v35_classic_wide",
+            name="short_v1",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -251,7 +251,7 @@ class TestCompositeTaskExitEventEmission:
             "symbol": "BTC",
             "entry_price": "43000",
             "quantity": "0.05",
-            "strategy": "v35_classic_wide",
+            "strategy": "short_v1",
             "market": "futures",
             "timestamp": 1234567000,
         }
@@ -278,7 +278,7 @@ class TestCompositeTaskSafetyEventEmission:
         from trading.strategies.components.models import MarketData, MarketContext
 
         task = CompositeStrategyTask(
-            name="v35_classic_wide",
+            name="short_v1",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -338,7 +338,7 @@ class TestCompositeTaskHWMEventEmission:
         from trading.core.event_emitter import HWMUpdateEvent
 
         task = CompositeStrategyTask(
-            name="v35_classic_wide",
+            name="short_v1",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -349,7 +349,7 @@ class TestCompositeTaskHWMEventEmission:
         # Directly call the HWM emit method
         event = HWMUpdateEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             old_hwm=44000.0,

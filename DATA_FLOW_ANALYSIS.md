@@ -97,7 +97,7 @@ class MarketContext:
     # Simplified 3-level trend
     trend: Literal["BULL", "BEAR", "NEUTRAL"]
     
-    # Detailed 7-level regime (V35 style)
+    # Detailed 7-level regime
     regime: Regime  # BULL_STRONG, BULL_MODERATE, SIDEWAYS_UP, etc.
     
     # Volatility analysis
@@ -297,7 +297,7 @@ elif mfi <= 48:
 else:
     trend = "NEUTRAL"
 
-# Regime (V35 style, 7-level)
+# Regime (7-level classification)
 regime = _classify_regime(mfi, adx)
 # Returns: BULL_STRONG, BULL_MODERATE, SIDEWAYS_UP, SIDEWAYS_FLAT, 
 #          SIDEWAYS_DOWN, BEAR_MODERATE, BEAR_STRONG
@@ -549,7 +549,7 @@ context = self._build_market_context(market_data)  # No cache lookup
 
 **Issue**: No explicit contract of which indicators are needed
 ```python
-# V35EntryStrategy._momentum_entry() expects:
+# Entry strategy _momentum_entry() expects:
 if market_data.macd <= market_data.macd_signal:
     return None
 
@@ -571,7 +571,7 @@ if market_data.macd <= market_data.macd_signal:
 
 1. **In MarketContext.build_market_context()** → `regime: Regime`
 2. **In CompositeStrategyTask._check_and_record_decision()** → calls `_classify_regime()` again
-3. **V35EntryStrategy._should_enter()** → uses regime from context but logs independently
+3. **EntryStrategy._should_enter()** → uses regime from context but logs independently
 
 **Issue**: Same classification logic called multiple times per evaluation
 ```python
@@ -706,6 +706,6 @@ signal = self.entry_strategy.check_entry(market_data, context)
 - **CompositeStrategyTask**: `/home/deploy/project/bitcoin-trading-bot/trading/strategies/components/composite_task.py`
 - **Data Models**: `/home/deploy/project/bitcoin-trading-bot/trading/strategies/components/models.py`
 - **IndicatorService**: `/home/deploy/project/bitcoin-trading-bot/trading/indicators/indicator_service.py`
-- **Entry Strategy Example**: `/home/deploy/project/bitcoin-trading-bot/trading/strategies/components/v35_entry.py`
+- **Entry Strategy Example**: `/home/deploy/project/bitcoin-trading-bot/trading/strategies/components/short_entry.py`
 - **Engine Orchestration**: `/home/deploy/project/bitcoin-trading-bot/trading/engine.py`
 - **Interfaces**: `/home/deploy/project/bitcoin-trading-bot/trading/strategies/components/interfaces.py`

@@ -23,7 +23,6 @@ class TradeExecutor:
     """Consumes signals from all strategies and executes trades."""
 
     SIGNAL_STREAMS = [
-        "signals:v35",
         "signals:short_v1",
         "signals:sideways_v2",
         "signals:h4",
@@ -31,7 +30,6 @@ class TradeExecutor:
 
     # Strategy to exchange mapping (Binance only)
     STRATEGY_EXCHANGE = {
-        "v35": "binance",
         "sideways_v2": "binance",
         "h4": "binance",
         "short_v1": "binance",

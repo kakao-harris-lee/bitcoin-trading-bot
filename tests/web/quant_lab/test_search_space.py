@@ -29,7 +29,7 @@ class TestSearchSpaceConstants:
 
     def test_exit_components_defined(self):
         """Exit components should be defined."""
-        assert len(EXIT_COMPONENTS) >= 4
+        assert len(EXIT_COMPONENTS) >= 2
 
 
 class TestSearchSpaceConfig:
@@ -45,8 +45,8 @@ class TestSearchSpaceConfig:
         config = SearchSpaceConfig(
             regime_configs={
                 "BULL_STRONG": {
-                    "entries": ["V35Entry", "None"],
-                    "exits": ["V35TrailingExit"],
+                    "entries": ["ShortEntry", "None"],
+                    "exits": ["ShortExit"],
                 }
             }
         )

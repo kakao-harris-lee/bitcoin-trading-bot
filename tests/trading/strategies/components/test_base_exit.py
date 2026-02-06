@@ -33,10 +33,10 @@ class TestPositionKeyManagement:
         strategy = ConcreteExitStrategy()
         position = MagicMock()
         position.symbol = "BTC"
-        position.strategy = "v35_classic_wide"
+        position.strategy = "short_v1"
 
         key = strategy._get_position_key(position)
-        assert key == "BTC:v35_classic_wide"
+        assert key == "BTC:short_v1"
 
     def test_get_position_key_different_symbols(self):
         """Different symbols produce different keys."""
@@ -244,12 +244,12 @@ class TestLifecycleHooks:
         strategy = ConcreteExitStrategy()
         position = MagicMock()
         position.symbol = "BTC"
-        position.strategy = "v35_classic_wide"
+        position.strategy = "short_v1"
         position.entry_price = 50000.0
 
         strategy.on_position_opened(position)
 
-        key = "BTC:v35_classic_wide"
+        key = "BTC:short_v1"
         assert strategy._high_water_marks[key] == 50000.0
         assert strategy._exit_stages[key] == 0
 

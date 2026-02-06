@@ -5,11 +5,11 @@ stream-based task system. It extends BaseStrategyTask and delegates entry/exit
 logic to IEntryStrategy and IExitStrategy components.
 
 Usage:
-    entry = V35EntryStrategy(params)
-    exit_strat = V35TrailingExitStrategy(params)
+    entry = ShortEntryStrategy(params)
+    exit_strat = ShortExitStrategy(params)
 
     task = CompositeStrategyTask(
-        name="tuned_v35_long_v2_core_overlay_v2",
+        name="short_v1",
         symbols=["BTC", "ETH"],
         redis=redis,
         entry_strategy=entry,
@@ -86,7 +86,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         """Initialize composite strategy task.
 
         Args:
-            name: Strategy name (e.g., "tuned_v35_long_v2_core_overlay_v2").
+            name: Strategy name (e.g., "short_v1").
             symbols: List of symbols to trade.
             redis: Redis streams client.
             entry_strategy: Entry component implementing IEntryStrategy.
@@ -731,7 +731,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         shared across all strategies (75% CPU reduction).
         Otherwise, falls back to local calculation with per-strategy caching.
 
-        Provides all indicators needed for V35 entry/exit strategies:
+        Provides all indicators needed for entry/exit strategies:
         - MFI, ADX, RSI for regime classification
         - MACD, MACD Signal for momentum entry/exit
         - Stochastic for conservative entry

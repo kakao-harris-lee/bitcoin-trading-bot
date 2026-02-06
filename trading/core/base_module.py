@@ -37,7 +37,7 @@ class BaseModule(ABC):
     ):
         """
         Args:
-            module_name: 모듈 이름 (예: "feed-handler", "strategy-v35")
+            module_name: 모듈 이름 (예: "feed-handler", "strategy-short")
             config: 설정 객체
             redis_client: Redis 클라이언트 (공유 가능)
         """

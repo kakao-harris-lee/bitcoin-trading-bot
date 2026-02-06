@@ -98,7 +98,7 @@ class BacktestAdapter:
         from trading.strategies.components import StrategyFactory
 
         factory = StrategyFactory()
-        entry, exit_strat = factory.create_components("v35_classic_wide", config)
+        entry, exit_strat = factory.create_components("short_v1", config)
 
         adapter = BacktestAdapter(
             entry_strategy=entry,
@@ -551,7 +551,7 @@ class Backtester:
 
         Args:
             df: Price DataFrame (timestamp, open, high, low, close, volume).
-            strategy_name: Strategy name (e.g., "v35_classic_wide", "sideways_v2").
+            strategy_name: Strategy name (e.g., "short_v1", "sideways_v2").
             config: Configuration parameters for the strategy.
             symbol: Trading symbol for MarketData.
             return_backtest_result: If True, return BacktestResult dataclass
@@ -572,14 +572,14 @@ class Backtester:
             # Legacy dict return
             results = backtester.run_strategy(
                 df,
-                strategy_name="v35_classic_wide",
+                strategy_name="short_v1",
                 config={"stop_loss_pct": 2.0, "take_profit_pct": 4.0},
             )
 
             # New BacktestResult return with benchmark
             result = backtester.run_strategy(
                 df,
-                strategy_name="v35_classic_wide",
+                strategy_name="short_v1",
                 config={"stop_loss_pct": 2.0},
                 return_backtest_result=True,
             )
@@ -589,7 +589,7 @@ class Backtester:
             from core.mlflow_config import MLflowConfig
             result = backtester.run_strategy(
                 df,
-                strategy_name="v35_classic_wide",
+                strategy_name="short_v1",
                 config={"stop_loss_pct": 2.0},
                 return_backtest_result=True,
                 mlflow_config=MLflowConfig(),
@@ -687,12 +687,12 @@ class Backtester:
 
         Example:
             from trading.strategies.components import (
-                V35EntryStrategy,
-                V35TrailingExitStrategy,
+                ShortEntryStrategy,
+                ShortExitStrategy,
             )
 
-            entry = V35EntryStrategy()
-            exit_strat = V35TrailingExitStrategy()
+            entry = ShortEntryStrategy()
+            exit_strat = ShortExitStrategy()
 
             results = backtester.run_components(
                 df, entry, exit_strat, symbol="ETH"
@@ -892,7 +892,7 @@ if __name__ == "__main__":
     try:
         results2 = backtester.run_strategy(
             df,
-            strategy_name="v35_classic_wide",
+            strategy_name="short_v1",
             config={
                 "stop_loss_pct": 2.0,
                 "take_profit_pct": 4.0,
@@ -901,39 +901,6 @@ if __name__ == "__main__":
             },
             symbol="BTC",
         )
-        print_results(results2, "V35 Long Strategy (via StrategyFactory)")
+        print_results(results2, "Short V1 Strategy (via StrategyFactory)")
     except Exception as e:
         print(f"Note: Component-based strategy requires trading.strategies.components: {e}")
-
-    # Example 3: Direct component usage
-    # For more control, you can create components directly
-    try:
-        from trading.strategies.components import (
-            V35EntryStrategy,
-            V35TrailingExitStrategy,
-            V35EntryParams,
-            V35ExitParams,
-        )
-
-        entry = V35EntryStrategy(params=V35EntryParams(
-            mfi_bull=50.0,  # More aggressive entry
-            position_size=0.02,
-        ))
-        exit_strat = V35TrailingExitStrategy(params=V35ExitParams(
-            stop_loss_pct=1.5,
-            take_profit_pct=3.0,
-            trailing_enabled=True,
-            trailing_activation=1.5,
-            trailing_distance=1.0,
-        ))
-
-        results3 = backtester.run_components(
-            df,
-            entry_strategy=entry,
-            exit_strategy=exit_strat,
-            symbol="BTC",
-            position_size=0.5,
-        )
-        print_results(results3, "V35 Custom Components")
-    except Exception as e:
-        print(f"Note: Direct component usage requires trading.strategies.components: {e}")

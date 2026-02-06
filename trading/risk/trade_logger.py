@@ -21,7 +21,7 @@ class TradeLogger:
         """
         Args:
             db_path: DB file path (default: data/trading_results.db)
-            strategy_name: Strategy name to use (default: v35_multi_exchange)
+            strategy_name: Strategy name to use (default: multi_exchange)
         """
         if db_path is None:
             project_root = Path(__file__).parent.parent.parent
@@ -29,7 +29,7 @@ class TradeLogger:
 
         self.db_path = db_path
         self.strategy_id: Optional[int] = None
-        self.strategy_name = strategy_name or "v35_multi_exchange"
+        self.strategy_name = strategy_name or "multi_exchange"
         # Thread-local storage for connections
         self._local = threading.local()
 

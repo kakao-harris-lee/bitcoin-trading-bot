@@ -995,9 +995,6 @@ function onTabActivated(tabId) {
         case 'strategies':
             fetchStrategiesTab();
             break;
-        case 'abtest':
-            fetchABTest();
-            break;
     }
 }
 
@@ -3355,108 +3352,6 @@ function showNotification(message, type = 'info') {
         notification.style.animation = 'fadeOut 0.3s ease-out';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
-}
-
-// =====================
-// A/B Test Tab
-// =====================
-
-async function fetchABTest() {
-    try {
-        const data = await apiFetch('/api/ab-test/status');
-        renderABTest(data);
-
-        // Attach refresh button handler
-        const refreshBtn = document.getElementById('ab-refresh-btn');
-        if (refreshBtn) {
-            refreshBtn.onclick = () => fetchABTest();
-        }
-    } catch (error) {
-        console.error('Failed to fetch A/B test status:', error);
-        const leaderEl = document.getElementById('ab-leader-name');
-        if (leaderEl) leaderEl.textContent = 'Error loading';
-    }
-}
-
-function renderABTest(data) {
-    const strategies = data.strategies || {};
-    const leader = data.leader;
-    const pnlDiff = data.pnl_diff;
-
-    // Update leader
-    const leaderEl = document.getElementById('ab-leader-name');
-    const pnlDiffEl = document.getElementById('ab-pnl-diff');
-    if (leaderEl) {
-        leaderEl.textContent = leader === 'v35_classic_wide' ? 'v1 (v35_classic_wide)' : 'v2 (tuned_v35_long_v2_core_overlay_v2)';
-        leaderEl.className = `value leader ${leader === 'v35_classic_wide' ? 'v1' : 'v2'}`;
-    }
-    if (pnlDiffEl) {
-        pnlDiffEl.textContent = pnlDiff > 0 ? `+$${pnlDiff} ahead` : 'Tied';
-    }
-
-    // Render v1 card
-    const v1 = strategies['v35_classic_wide'] || {};
-    const v1Metrics = v1.metrics || {};
-    updateABCard('v1', v1Metrics, v1.active_positions || []);
-
-    // Render v2 card
-    const v2 = strategies['tuned_v35_long_v2_core_overlay_v2'] || {};
-    const v2Metrics = v2.metrics || {};
-    updateABCard('v2', v2Metrics, v2.active_positions || []);
-
-    // v2 config
-    const v2ConfigEl = document.getElementById('ab-v2-config');
-    if (v2ConfigEl && v2.config) {
-        const cfg = v2.config;
-        v2ConfigEl.innerHTML = `
-            BBW: ${cfg.bbw_block_threshold || '-'}% |
-            Vol: ${cfg.volume_block_ratio || '-'}x
-        `;
-    }
-
-    // Highlight leader card
-    const v1Card = document.getElementById('ab-card-v1');
-    const v2Card = document.getElementById('ab-card-v2');
-    if (v1Card) v1Card.classList.toggle('leader', leader === 'v35_classic_wide');
-    if (v2Card) v2Card.classList.toggle('leader', leader === 'tuned_v35_long_v2_core_overlay_v2');
-
-    // Update timestamp
-    const tsEl = document.getElementById('ab-last-update');
-    if (tsEl) {
-        tsEl.textContent = new Date(data.timestamp).toLocaleTimeString();
-    }
-}
-
-function updateABCard(version, metrics, positions) {
-    const prefix = `ab-${version}`;
-
-    const tradesEl = document.getElementById(`${prefix}-trades`);
-    const winrateEl = document.getElementById(`${prefix}-winrate`);
-    const pnlEl = document.getElementById(`${prefix}-pnl`);
-    const avgpnlEl = document.getElementById(`${prefix}-avgpnl`);
-    const positionsEl = document.getElementById(`${prefix}-positions`);
-
-    if (tradesEl) tradesEl.textContent = metrics.total_trades || 0;
-    if (winrateEl) winrateEl.textContent = `${metrics.win_rate || 0}%`;
-    if (pnlEl) {
-        const pnl = metrics.total_pnl || 0;
-        pnlEl.textContent = `$${pnl.toFixed(2)}`;
-        pnlEl.className = `value ${pnl >= 0 ? 'positive' : 'negative'}`;
-    }
-    if (avgpnlEl) {
-        const avg = metrics.avg_pnl || 0;
-        avgpnlEl.textContent = `$${avg.toFixed(2)}`;
-        avgpnlEl.className = `value ${avg >= 0 ? 'positive' : 'negative'}`;
-    }
-    if (positionsEl) {
-        if (positions.length === 0) {
-            positionsEl.textContent = 'None';
-        } else {
-            positionsEl.innerHTML = positions.map(p =>
-                `<span class="position-badge ${p.side}">${p.symbol} ${p.side}</span>`
-            ).join(' ');
-        }
-    }
 }
 
 console.log('Multi-Asset Dashboard initialized');

@@ -6,17 +6,17 @@ enabling dynamic class lookup and parameter building from config.
 Usage:
     from .registry import entry_strategy, exit_strategy, get_entry_class, get_exit_class
 
-    @entry_strategy(params_class=V35EntryParams)
-    class V35EntryStrategy:
+    @entry_strategy(params_class=ShortEntryParams)
+    class ShortEntryStrategy:
         ...
 
-    @exit_strategy(params_class=V35ExitParams, persistent_class=V35PersistentExitStrategy)
-    class V35TrailingExitStrategy:
+    @exit_strategy(params_class=ShortExitParams)
+    class ShortExitStrategy:
         ...
 
     # Later, lookup by class name
-    entry_cls = get_entry_class("V35EntryStrategy")
-    exit_cls = get_exit_class("V35TrailingExitStrategy")
+    entry_cls = get_entry_class("ShortEntryStrategy")
+    exit_cls = get_exit_class("ShortExitStrategy")
 """
 
 from __future__ import annotations
@@ -45,9 +45,9 @@ def entry_strategy(params_class: type | None = None):
         Decorator function that registers the class.
 
     Example:
-        @entry_strategy(params_class=V35EntryParams)
-        class V35EntryStrategy:
-            def __init__(self, params: V35EntryParams | None = None):
+        @entry_strategy(params_class=ShortEntryParams)
+        class ShortEntryStrategy:
+            def __init__(self, params: ShortEntryParams | None = None):
                 ...
     """
 
@@ -77,9 +77,9 @@ def exit_strategy(
         Decorator function that registers the class.
 
     Example:
-        @exit_strategy(params_class=V35ExitParams, persistent_class=V35PersistentExitStrategy)
-        class V35TrailingExitStrategy:
-            def __init__(self, params: V35ExitParams | None = None):
+        @exit_strategy(params_class=ShortExitParams)
+        class ShortExitStrategy:
+            def __init__(self, params: ShortExitParams | None = None):
                 ...
     """
 
@@ -196,16 +196,16 @@ def build_params_from_config(
 
     Example:
         @dataclass
-        class V35EntryParams:
-            mfi_bull: float = 52.0
+        class ShortEntryParams:
+            adx_threshold: float = 25.0
             position_size: float = 0.01
             market: str = "futures"
 
         params = build_params_from_config(
-            V35EntryParams,
-            {"mfi_bull": 55.0, "market": "futures"},
+            ShortEntryParams,
+            {"adx_threshold": 30.0, "market": "futures"},
         )
-        # Results in V35EntryParams(mfi_bull=55.0, position_size=0.01, market="futures")
+        # Results in ShortEntryParams(adx_threshold=30.0, position_size=0.01, market="futures")
     """
     if params_class is None:
         return None

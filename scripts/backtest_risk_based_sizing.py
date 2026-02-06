@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Backtest tuned_v35_long_v2_core_overlay_v2 with Risk-Based Position Sizing.
+Backtest strategy with Risk-Based Position Sizing.
 
 This script demonstrates the new risk-based sizing approach:
 - 1% is the maximum LOSS per trade, not the position size
@@ -156,7 +156,7 @@ class RiskBasedBacktester:
             first_price = float(df.iloc[0]['close'])
             self.core_cash = self.initial_capital * core_hold_pct
             self.overlay_cash = self.initial_capital * (1 - core_hold_pct)
-            self.cash = self.overlay_cash  # Overlay cash for V35 trading
+            self.cash = self.overlay_cash  # Overlay cash for strategy trading
 
             # Buy core position at start (with fees)
             core_cost = self.core_cash * (1 - self.fee_rate)  # Subtract fees
@@ -177,7 +177,7 @@ class RiskBasedBacktester:
             price = float(row['close'])
             atr = float(row.get('atr', 0)) or price * 0.02  # Default 2% ATR if missing
 
-            # Current equity (overlay position only for V35 strategy)
+            # Current equity (overlay position only)
             if self.position > 0:
                 overlay_position_value = self.position * price
             else:
@@ -442,7 +442,7 @@ def create_comparison_chart(
     df: pd.DataFrame,
     initial_capital: float,
     output_path: str,
-    title: str = "tuned_v35_long_v2_core_overlay_v2 Risk-Based Sizing vs Buy & Hold",
+    title: str = "Risk-Based Sizing vs Buy & Hold",
 ) -> str:
     """Create dual-axis comparison chart.
 
@@ -715,13 +715,13 @@ def print_results(results: Dict[str, Any], strategy_name: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Backtest tuned_v35_long_v2_core_overlay_v2 with risk-based sizing')
+    parser = argparse.ArgumentParser(description='Backtest strategy with risk-based sizing')
     parser.add_argument('--start', type=str, default='2023-01-01', help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end', type=str, default=None, help='End date (YYYY-MM-DD)')
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to backtest')
     parser.add_argument('--capital', type=float, default=10000.0, help='Initial capital')
     parser.add_argument('--output', type=str, default='outputs', help='Output directory')
-    parser.add_argument('--strategy', type=str, default='tuned_v35_long_v2_core_overlay_v2', help='Strategy name from allocation.json')
+    parser.add_argument('--strategy', type=str, default='short_v1', help='Strategy name from allocation.json')
     args = parser.parse_args()
 
     # Create output directory
@@ -737,7 +737,7 @@ def main():
         return
 
     df = loader.load_timeframe(
-        timeframe='minute60',  # Use hourly data for v35
+        timeframe='minute60',
         start_date=args.start,
         end_date=args.end,
     )

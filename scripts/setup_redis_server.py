@@ -27,7 +27,7 @@ STREAMS = {
 # Consumer Groups 정의
 CONSUMER_GROUPS = {
     "market:prices": [
-        "strategy-v35",
+        "strategy-short",
         "strategy-short-v1",
         "risk-manager",
         "position-manager",

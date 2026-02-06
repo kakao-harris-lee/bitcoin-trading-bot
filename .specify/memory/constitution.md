@@ -86,8 +86,8 @@ Strategies MUST remain simple and avoid overfitting.
 
 Technical and operational boundaries for all trading activities:
 
-- **Upbit**: Spot trading only (v35 for BULL, sideways_v2 for SIDEWAYS regimes)
-- **Binance**: Futures short positions only (SHORT_V1 for BEAR_STRONG regime)
+- **Binance Spot**: MLP Direction for BULL, Sideways_V2 for SIDEWAYS regimes
+- **Binance Futures**: Short positions (SHORT_V1 for BEAR regime)
 - **RegimeRouter**: Market classification via MFI and ADX indicators
 - **Paper trading**: Default mode; live trading requires explicit `ENABLE_LIVE_TRADING=1`
 - **Notifications**: All critical events MUST be sent via Telegram

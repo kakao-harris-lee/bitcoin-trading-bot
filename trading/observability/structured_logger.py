@@ -8,7 +8,7 @@ Log format:
 
 Usage:
     from trading.observability.structured_logger import trade_logger
-    trade_logger.entry(symbol="BTC", price=100000, qty=0.01, strategy="v35_classic_wide")
+    trade_logger.entry(symbol="BTC", price=100000, qty=0.01, strategy="short_v1")
     trade_logger.exit(symbol="BTC", price=101500, qty=0.01, pnl=15.0, pnl_pct=1.5)
 """
 from __future__ import annotations

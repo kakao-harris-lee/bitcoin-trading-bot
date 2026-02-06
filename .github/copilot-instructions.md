@@ -4,7 +4,7 @@
 
 This is a **dual-exchange Bitcoin trading bot** with:
 
-- **Upbit** (Korea): Spot/long positions (V35, Sideways_V2 strategies)
+- **Binance Spot**: Long positions (MLP_Direction, Sideways_V2 strategies)
 - **Binance**: Futures/short positions (Short_V1, H4_Short strategies)
 - **RegimeRouter**: Market state oracle classifying MFI/ADX → 7 states (BULL*STRONG, BULL_MODERATE, SIDEWAYS*\_, BEAR\_\_)
 
@@ -36,7 +36,7 @@ pytest tests/test_unified_backtester.py -v  # Specific test
 
 # Backtesting
 python scripts/backtest.py --by-year
-python scripts/optimize.py --strategy v35_long --trials 100
+python scripts/optimize.py --strategy short_v1 --trials 100
 ```
 
 ## Strategy Development Pattern
@@ -81,7 +81,7 @@ from trading.indicators import add_all_indicators
 Strategy configs are JSON with nested sections:
 
 ```python
-# config/strategies/v35_long.json structure:
+# config/strategies/allocation.json strategy structure:
 {
   "market_classifier": { "mfi_bull_strong": 54, ... },
   "entry_conditions": { "momentum_rsi_bull_strong": 57, ... },

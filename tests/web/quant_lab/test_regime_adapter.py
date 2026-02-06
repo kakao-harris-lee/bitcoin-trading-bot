@@ -11,13 +11,13 @@ class TestRegimeAwareAdapter:
         """Adapter should use regime-specific entry component."""
         config = {
             "BULL_STRONG": {
-                "entry": "V35Entry",
-                "exit": "V35TrailingExit",
+                "entry": "ShortEntry",
+                "exit": "ShortExit",
                 "params": {"entry": {"mfi_threshold": 55}, "exit": {}},
             },
             "BEAR_STRONG": {
                 "entry": "ShortEntry",
-                "exit": "V35TrailingExit",
+                "exit": "ShortExit",
                 "params": {"entry": {"rsi_overbought": 75}, "exit": {}},
             },
         }
@@ -29,7 +29,7 @@ class TestRegimeAwareAdapter:
 
         # Test that _get_entry_for_regime returns correct entry name
         entry_name = adapter._get_entry_for_regime("BULL_STRONG")
-        assert entry_name == "V35Entry"
+        assert entry_name == "ShortEntry"
 
         entry_name = adapter._get_entry_for_regime("BEAR_STRONG")
         assert entry_name == "ShortEntry"
@@ -39,7 +39,7 @@ class TestRegimeAwareAdapter:
         config = {
             "SIDEWAYS_FLAT": {
                 "entry": "None",
-                "exit": "V35TrailingExit",
+                "exit": "ShortExit",
                 "params": {"entry": {}, "exit": {}},
             },
         }

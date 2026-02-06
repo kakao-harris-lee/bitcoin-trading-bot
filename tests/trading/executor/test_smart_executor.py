@@ -408,7 +408,7 @@ async def test_check_active_exits_clears_position_on_complete(mock_redis, mock_b
         market="futures",
         total_quantity=0.10,
         trigger_price=100000.0,
-        strategy="v35_classic_wide",
+        strategy="short_v1",
         start_time=time.time() - 10,  # Started 10 seconds ago
     )
     plan.ladder_orders = [{"order_id": 12345}]
@@ -452,7 +452,7 @@ async def test_check_active_exits_phase1_timeout_triggers_sweep(mock_redis, mock
         market="futures",
         total_quantity=0.10,
         trigger_price=100000.0,
-        strategy="v35_classic_wide",
+        strategy="short_v1",
         start_time=time.time() - 65,  # Started 65 seconds ago (past phase1 timeout)
         phase="ladder",  # Still in ladder phase
     )
@@ -507,7 +507,7 @@ async def test_check_active_exits_max_timeout_triggers_sweep(mock_redis, mock_bi
         market="futures",
         total_quantity=0.10,
         trigger_price=100000.0,
-        strategy="v35_classic_wide",
+        strategy="short_v1",
         start_time=time.time() - 95,  # Started 95 seconds ago (past max timeout)
         phase="sweep",  # Already past phase1
     )

@@ -24,8 +24,8 @@ from trading.strategies.components.config_schema import (
     ConfigValidationError,
 )
 from trading.strategies.components.strategy_factory import StrategyFactory
-from trading.strategies.components.v35_entry import V35EntryStrategy, V35EntryParams
-from trading.strategies.components.v35_trailing_exit import V35TrailingExitStrategy, V35ExitParams
+from trading.strategies.components.short_entry import ShortEntryStrategy, ShortEntryParams
+from trading.strategies.components.short_exit import ShortExitStrategy, ShortExitParams
 from trading.strategies.components.sideways_entry import SidewaysEntryStrategy
 from trading.strategies.components.sideways_exit import SidewaysExitStrategy
 from trading.strategies.components.models import MarketData, MarketContext, TradingContext
@@ -42,44 +42,42 @@ class TestRegistryBasics:
 
     def test_entry_strategies_registered(self):
         """Test that entry strategies are registered via decorators."""
-        assert is_entry_registered("V35EntryStrategy")
-        assert is_entry_registered("SidewaysEntryStrategy")
         assert is_entry_registered("ShortEntryStrategy")
+        assert is_entry_registered("SidewaysEntryStrategy")
+        assert is_entry_registered("MLPDirectionEntryStrategy")
 
     def test_exit_strategies_registered(self):
         """Test that exit strategies are registered via decorators."""
-        assert is_exit_registered("V35TrailingExitStrategy")
-        assert is_exit_registered("V35PersistentExitStrategy")
-        assert is_exit_registered("SidewaysExitStrategy")
         assert is_exit_registered("ShortExitStrategy")
-        assert is_exit_registered("ExperimentalExitStrategy")
+        assert is_exit_registered("SidewaysExitStrategy")
+        assert is_exit_registered("MLPDirectionExitStrategy")
 
     def test_get_entry_class(self):
         """Test getting entry class by name."""
-        cls = get_entry_class("V35EntryStrategy")
-        assert cls is V35EntryStrategy
+        cls = get_entry_class("ShortEntryStrategy")
+        assert cls is ShortEntryStrategy
 
     def test_get_exit_class(self):
         """Test getting exit class by name."""
-        cls = get_exit_class("V35TrailingExitStrategy")
-        assert cls is V35TrailingExitStrategy
+        cls = get_exit_class("ShortExitStrategy")
+        assert cls is ShortExitStrategy
 
     def test_get_params_class(self):
         """Test getting params class for strategies."""
-        params_cls = get_entry_params_class("V35EntryStrategy")
-        assert params_cls is V35EntryParams
+        params_cls = get_entry_params_class("ShortEntryStrategy")
+        assert params_cls is ShortEntryParams
 
-        params_cls = get_exit_params_class("V35TrailingExitStrategy")
-        assert params_cls is V35ExitParams
+        params_cls = get_exit_params_class("ShortExitStrategy")
+        assert params_cls is ShortExitParams
 
     def test_get_registered_names(self):
         """Test listing registered strategy names."""
         entry_names = get_registered_entry_names()
-        assert "V35EntryStrategy" in entry_names
+        assert "ShortEntryStrategy" in entry_names
         assert "SidewaysEntryStrategy" in entry_names
 
         exit_names = get_registered_exit_names()
-        assert "V35TrailingExitStrategy" in exit_names
+        assert "ShortExitStrategy" in exit_names
         assert "SidewaysExitStrategy" in exit_names
 
     def test_unknown_class_returns_none(self):
@@ -96,44 +94,43 @@ class TestBuildParamsFromConfig:
     def test_build_with_valid_params(self):
         """Test building params with valid config values."""
         config = {
-            "mfi_bull_strong": 55.0,
+            "rsi_overbought": 75.0,
             "position_size": 0.02,
             "market": "futures",
         }
-        params = build_params_from_config(V35EntryParams, config)
+        params = build_params_from_config(ShortEntryParams, config)
 
-        assert params.mfi_bull_strong == 55.0
+        assert params.rsi_overbought == 75.0
         assert params.position_size == 0.02
         assert params.market == "futures"
         # Check defaults are preserved
-        assert params.mfi_bear_strong == 34.0  # default
-        assert params.adx_moderate_trend == 20.0  # default (raised from 18)
+        assert params.mfi_bear == 48.0  # default
 
     def test_build_with_defaults_only(self):
         """Test building params with no config (use defaults)."""
-        params = build_params_from_config(V35EntryParams, {})
+        params = build_params_from_config(ShortEntryParams, {})
 
-        assert params.mfi_bull_strong == 54.0
-        assert params.position_size == 0.5
-        assert params.market == "spot"  # Default is spot for V35 strategies
+        assert params.rsi_overbought == 70.0
+        assert params.position_size == 0.01
+        assert params.market == "futures"  # Default is futures for Short strategies
 
     def test_build_with_partial_config(self):
         """Test building params with partial config."""
-        config = {"market": "futures"}  # Override default
-        params = build_params_from_config(V35EntryParams, config)
+        config = {"mfi_bear": 45.0}  # Override default
+        params = build_params_from_config(ShortEntryParams, config)
 
-        assert params.market == "futures"  # Override applied
-        assert params.mfi_bull_strong == 54.0  # default
+        assert params.mfi_bear == 45.0  # Override applied
+        assert params.rsi_overbought == 70.0  # default
 
     def test_build_with_extra_keys_ignored(self):
         """Test that extra keys in config are ignored."""
         config = {
-            "mfi_bull_strong": 55.0,
+            "rsi_overbought": 75.0,
             "unknown_param": "ignored",
         }
         # Should not raise, extra keys are ignored
-        params = build_params_from_config(V35EntryParams, config)
-        assert params.mfi_bull_strong == 55.0
+        params = build_params_from_config(ShortEntryParams, config)
+        assert params.rsi_overbought == 75.0
 
     def test_build_with_none_params_class(self):
         """Test that None params_class returns None."""
@@ -147,8 +144,8 @@ class TestConfigSchemaValidation:
     def test_has_new_config_format_true(self):
         """Test detecting new config format."""
         config = {
-            "entry": {"class": "V35EntryStrategy"},
-            "exit": {"class": "V35TrailingExitStrategy"},
+            "entry": {"class": "ShortEntryStrategy"},
+            "exit": {"class": "ShortExitStrategy"},
         }
         assert has_new_config_format(config) is True
 
@@ -168,8 +165,8 @@ class TestConfigSchemaValidation:
         """Test validation of valid entry config."""
         config = {
             "entry": {
-                "class": "V35EntryStrategy",
-                "params": {"mfi_bull_strong": 55.0},
+                "class": "ShortEntryStrategy",
+                "params": {"rsi_overbought": 35.0},
             }
         }
         warnings = validate_strategy_config("test", config)
@@ -179,7 +176,7 @@ class TestConfigSchemaValidation:
         """Test validation of valid exit config."""
         config = {
             "exit": {
-                "class": "V35TrailingExitStrategy",
+                "class": "ShortExitStrategy",
                 "params": {"stop_loss_pct": 2.0},
             }
         }
@@ -220,7 +217,7 @@ class TestConfigSchemaValidation:
         """Test warning for unknown params."""
         config = {
             "entry": {
-                "class": "V35EntryStrategy",
+                "class": "ShortEntryStrategy",
                 "params": {"unknown_param": 123},
             }
         }
@@ -237,19 +234,19 @@ class TestNewConfigFormat:
         config = {
             "market": "futures",
             "entry": {
-                "class": "V35EntryStrategy",
+                "class": "ShortEntryStrategy",
                 "params": {
-                    "mfi_bull_strong": 55.0,
+                    "rsi_overbought": 35.0,
                     "position_size": 0.02,
                 },
             },
-            "exit": {"class": "V35TrailingExitStrategy"},
+            "exit": {"class": "ShortExitStrategy"},
         }
 
         entry = factory.create_entry("custom_strategy", config)
 
-        assert isinstance(entry, V35EntryStrategy)
-        assert entry.params.mfi_bull_strong == 55.0
+        assert isinstance(entry, ShortEntryStrategy)
+        assert entry.params.rsi_overbought == 35.0
         assert entry.params.position_size == 0.02
         assert entry.params.market == "futures"
 
@@ -257,21 +254,19 @@ class TestNewConfigFormat:
         """Test creating exit with new config format."""
         config = {
             "market": "futures",
-            "entry": {"class": "V35EntryStrategy"},
+            "entry": {"class": "ShortEntryStrategy"},
             "exit": {
-                "class": "V35TrailingExitStrategy",
+                "class": "ShortExitStrategy",
                 "params": {
                     "stop_loss_pct": 2.5,
-                    "trailing_enabled": False,
                 },
             },
         }
 
         exit_strat = factory.create_exit("custom_strategy", config)
 
-        assert isinstance(exit_strat, V35TrailingExitStrategy)
+        assert isinstance(exit_strat, ShortExitStrategy)
         assert exit_strat.params.stop_loss_pct == 2.5
-        assert exit_strat.params.trailing_enabled is False
         assert exit_strat.params.market == "futures"
 
     def test_create_components_with_new_format(self, factory):
@@ -279,46 +274,44 @@ class TestNewConfigFormat:
         config = {
             "market": "futures",
             "position_size": 0.015,
-            "entry": {"class": "V35EntryStrategy"},
+            "entry": {"class": "ShortEntryStrategy"},
             "exit": {"class": "SidewaysExitStrategy"},
         }
 
         entry, exit_strat = factory.create_components("mixed_strategy", config)
 
-        assert isinstance(entry, V35EntryStrategy)
+        assert isinstance(entry, ShortEntryStrategy)
         assert isinstance(exit_strat, SidewaysExitStrategy)
         assert entry.params.market == "futures"
         assert exit_strat.params.market == "futures"
 
     def test_mixed_entry_exit_pairing(self, factory):
-        """Test mixing V35 entry with Sideways exit."""
+        """Test mixing Short entry with Sideways exit."""
         config = {
             "market": "futures",
-            "entry": {"class": "V35EntryStrategy"},
+            "entry": {"class": "ShortEntryStrategy"},
             "exit": {"class": "SidewaysExitStrategy"},
         }
 
         entry, exit_strat = factory.create_components("hybrid", config)
 
         # Verify both are created correctly
-        assert isinstance(entry, V35EntryStrategy)
+        assert isinstance(entry, ShortEntryStrategy)
         assert isinstance(exit_strat, SidewaysExitStrategy)
 
-        # Test entry generates signal - V35 requires MACD crossover + RSI above threshold
+        # Test entry generates signal - Short requires BEAR regime + RSI overbought
         market_data = MarketData(
             symbol="BTC",
             close=95000.0,
-            mfi=55.0,
+            mfi=35.0,  # Bearish MFI
             adx=25.0,
-            rsi=58.0,  # Above momentum_rsi_bull_strong (57.0)
+            rsi=75.0,  # Overbought for short entry (mean reversion)
             timestamp=1000000,
-            macd=1.5,  # MACD crossover (above signal)
-            macd_signal=1.0,
         )
-        # Build context for BULL trend (MFI >= 52)
+        # Build context for BEAR trend (MFI < 48)
         context = MarketContext(
-            trend="BULL",
-            regime="BULL_STRONG",
+            trend="BEAR",
+            regime="BEAR_STRONG",
             volatility_score=0.01,
             is_extreme_volatility=False,
             adx=25.0,
@@ -331,7 +324,7 @@ class TestNewConfigFormat:
         """Test error for unknown entry class in new format."""
         config = {
             "entry": {"class": "NonexistentEntry"},
-            "exit": {"class": "V35TrailingExitStrategy"},
+            "exit": {"class": "ShortExitStrategy"},
         }
 
         with pytest.raises(ValueError, match="Unknown entry class"):
@@ -340,7 +333,7 @@ class TestNewConfigFormat:
     def test_unknown_exit_class_error(self, factory):
         """Test error for unknown exit class in new format."""
         config = {
-            "entry": {"class": "V35EntryStrategy"},
+            "entry": {"class": "ShortEntryStrategy"},
             "exit": {"class": "NonexistentExit"},
         }
 
@@ -351,8 +344,8 @@ class TestNewConfigFormat:
         """Test that top-level market is merged into component params."""
         config = {
             "market": "futures",
-            "entry": {"class": "V35EntryStrategy"},
-            "exit": {"class": "V35TrailingExitStrategy"},
+            "entry": {"class": "ShortEntryStrategy"},
+            "exit": {"class": "ShortExitStrategy"},
         }
 
         entry = factory.create_entry("test", config)
@@ -361,12 +354,12 @@ class TestNewConfigFormat:
     def test_component_params_override_top_level(self, factory):
         """Test that component params override top-level config."""
         config = {
-            "market": "futures",  # Top-level
+            "market": "spot",  # Top-level
             "entry": {
-                "class": "V35EntryStrategy",
+                "class": "ShortEntryStrategy",
                 "params": {"market": "futures"},  # Override
             },
-            "exit": {"class": "V35TrailingExitStrategy"},
+            "exit": {"class": "ShortExitStrategy"},
         }
 
         entry = factory.create_entry("test", config)
@@ -376,15 +369,15 @@ class TestNewConfigFormat:
 class TestLegacyConfigFormat:
     """Test that legacy config format still works."""
 
-    def test_legacy_format_creates_v35(self, factory):
-        """Test legacy format creates correct V35 strategy."""
+    def test_legacy_format_creates_short(self, factory):
+        """Test legacy format creates correct Short strategy."""
         config = {"position_size": 0.02, "market": "futures"}
 
-        entry = factory.create_entry("tuned_v35_long_v2_core_overlay_v2", config)
-        exit_strat = factory.create_exit("tuned_v35_long_v2_core_overlay_v2", config)
+        entry = factory.create_entry("short_v1", config)
+        exit_strat = factory.create_exit("short_v1", config)
 
-        assert isinstance(entry, V35EntryStrategy)
-        assert isinstance(exit_strat, V35TrailingExitStrategy)
+        assert isinstance(entry, ShortEntryStrategy)
+        assert isinstance(exit_strat, ShortExitStrategy)
         assert entry.params.position_size == 0.02
         assert entry.params.market == "futures"
 
@@ -406,11 +399,11 @@ class TestLegacyConfigFormat:
 
     def test_legacy_format_with_empty_config(self, factory):
         """Test legacy format with empty config uses defaults."""
-        entry = factory.create_entry("tuned_v35_long_v2_core_overlay_v2")
+        entry = factory.create_entry("short_v1")
 
-        assert isinstance(entry, V35EntryStrategy)
-        assert entry.params.position_size == 0.5  # default
-        assert entry.params.market == "spot"  # V35 now uses spot (no leverage benefit)
+        assert isinstance(entry, ShortEntryStrategy)
+        assert entry.params.position_size == 0.01  # default
+        assert entry.params.market == "futures"  # Short uses futures
 
 
 class TestBackwardCompatibility:
@@ -420,26 +413,25 @@ class TestBackwardCompatibility:
         """Test that existing factory API still works."""
         # These are the existing ways to use the factory
         strategies = factory.get_available_strategies()
-        assert "v35_classic_wide" in strategies
-        assert "tuned_v35_long_v2_core_overlay_v2" in strategies
+        assert "short_v1" in strategies
+        assert "sideways_v2" in strategies
 
-        entry = factory.create_entry("v35_classic_wide", {"position_size": 0.01})
+        entry = factory.create_entry("short_v1", {"position_size": 0.01})
         assert entry is not None
 
-        exit_strat = factory.create_exit("v35_classic_wide", {"stop_loss_pct": 1.5})
+        exit_strat = factory.create_exit("short_v1", {"stop_loss_pct": 1.5})
         assert exit_strat is not None
 
-        entry2, exit2 = factory.create_components("v35_classic_wide")
+        entry2, exit2 = factory.create_components("short_v1")
         assert entry2 is not None
         assert exit2 is not None
 
-        market = factory.get_market("v35_classic_wide")
-        assert market == "spot"  # V35 now uses spot (no leverage benefit)
+        market = factory.get_market("short_v1")
+        assert market == "futures"  # Short uses futures
 
     def test_strategy_registry_unchanged(self, factory):
         """Test that STRATEGY_REGISTRY entries still work."""
         from trading.strategies.components.strategy_factory import STRATEGY_REGISTRY
 
-        assert "v35_classic_wide" in STRATEGY_REGISTRY
-        assert "sideways_v2" in STRATEGY_REGISTRY
         assert "short_v1" in STRATEGY_REGISTRY
+        assert "sideways_v2" in STRATEGY_REGISTRY

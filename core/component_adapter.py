@@ -42,7 +42,7 @@ class ComponentStrategyAdapter:
         """
         Args:
             factory: Initialized StrategyFactory
-            strategy_name: Name of the strategy to run (e.g., "v35_classic_wide")
+            strategy_name: Name of the strategy to run (e.g., "short_v1")
             config: Configuration dictionary for the strategy
             entry_overrides: Parameter overrides for entry strategy
             exit_overrides: Parameter overrides for exit strategy
@@ -716,12 +716,21 @@ class ComponentStrategyAdapter:
                 # Create simulated position
                 ts_ms = int(row['timestamp'].timestamp() * 1000) if hasattr(row['timestamp'], 'timestamp') else 0
 
+                # Include entry signal reason in strategy field so exit strategy
+                # can determine market state for TP level selection
+                # (e.g. "MOMENTUM_STRONG" → BULL_STRONG TP levels)
+                entry_reason = getattr(signal, "reason", "") or ""
+                strategy_with_reason = (
+                    f"{self.strategy_name}|{entry_reason}"
+                    if entry_reason else self.strategy_name
+                )
+
                 self.current_position = Position(
                     symbol=self.symbol,
                     quantity=getattr(signal, "quantity", 1.0) or 1.0,
                     entry_price=row['close'],
                     side=pos_side,
-                    strategy=self.strategy_name,
+                    strategy=strategy_with_reason,
                     market=self.market,  # Use strategy's market type (spot or futures)
                     timestamp=ts_ms
                 )
@@ -744,7 +753,7 @@ class ComponentStrategyAdapter:
                 action = "open_short" if is_short else "buy"
 
                 # Position sizing priority:
-                # 1. Entry strategy's signal.quantity (regime-based sizing from V35Optuna etc.)
+                # 1. Entry strategy's signal.quantity (regime-based sizing from entry strategy etc.)
                 # 2. Config position_size fallback
                 signal_qty = getattr(signal, "quantity", None)
                 use_dynamic = self.config.get("dynamic_sizing", False)
@@ -752,7 +761,7 @@ class ComponentStrategyAdapter:
                 position_reason = ""
 
                 if signal_qty is not None and signal_qty > 0:
-                    # Entry strategy returned regime-based position size (e.g., V35OptunaEntry)
+                    # Entry strategy returned regime-based position size (e.g., entry strategy)
                     fraction = signal_qty
                     position_reason = f"regime_size:{signal_qty:.2f}"
                 else:

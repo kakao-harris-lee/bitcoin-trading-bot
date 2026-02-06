@@ -6,121 +6,13 @@ This document describes all trading strategies, their data sources, indicators, 
 
 | Strategy | Exchange | Direction | Timeframe | Primary Indicators | Entry Method |
 |----------|----------|-----------|-----------|-------------------|--------------|
-| V35_Classic_Wide | Spot | LONG | 1H | RSI, MACD, MFI, ADX | Classic momentum/regime |
-| V35_Core_Overlay_V2 (Tuned) | Spot | LONG | 1H | RSI, MACD, MFI, ADX, EMA | Core hold + V35 overlay |
 | Short_V1 | Binance | SHORT | 4H | EMA, ADX, DI, ATR | EMA Death Cross + ADX |
-| Sideways_V2 | Upbit | LONG | Daily | RSI, BB, Stoch, OBV | Multi-method (3 entries) |
+| Sideways_V2 | Binance | LONG | Daily | RSI, BB, Stoch, OBV | Multi-method (3 entries) |
+| MLP_Direction | Binance | LONG | 4H | MLP Classifier | 3-class prediction |
 
 ---
 
-## 1. V35 Classic Wide Strategy
-
-**Components:** `trading/strategies/components/v35_classic_entry.py`, `v35_classic_exit.py`
-**Config:** `config/strategies/allocation.json` (strategy key: `v35_classic_wide`)
-
-### Overview
-
-- **Exchange:** Spot
-- **Direction:** LONG
-- **Timeframe:** 1H
-
-### Data Sources
-
-| Source | Description |
-|--------|-------------|
-| OHLCV | Hourly candles from exchange |
-| Volume | Hourly trading volume |
-
-### Indicators
-
-| Indicator | Period | Purpose |
-|-----------|--------|---------|
-| RSI | 14 | Momentum / Oversold detection |
-| MACD | 12, 26, 9 | Trend confirmation (golden/dead cross) |
-| MFI | 14 | Buying/selling pressure (0-100) |
-| ADX | 14 | Trend strength (0-100) |
-| Bollinger Bands | 20, 2σ | Volatility bands |
-| Stochastic | 14K, 3D | Overbought/oversold |
-
-### Market Classification (7 States)
-
-| State | MFI Condition | ADX Condition |
-|-------|---------------|---------------|
-| BULL_STRONG | >= 54 | >= 25 |
-| BULL_MODERATE | >= 54 | >= 18 |
-| SIDEWAYS_UP | >= 49 | - |
-| SIDEWAYS_FLAT | >= 41 | - |
-| SIDEWAYS_DOWN | >= 34 | - |
-| BEAR_MODERATE | < 34 | < 18 |
-| BEAR_STRONG | < 34 | >= 25 |
-
-### Entry Conditions
-
-**BULL_STRONG (Momentum Entry):**
-
-- MACD > MACD_signal (golden cross)
-- RSI > 52
-- Confidence: 0.85
-
-**BULL_MODERATE (Momentum Entry):**
-
-- MACD > MACD_signal
-- RSI > 55
-- Confidence: 0.75
-
-**SIDEWAYS_UP (Breakout Entry):**
-
-- Close > 20-period high × 1.0071
-- Volume > 20-period avg × 1.23
-- Confidence: 0.70
-
-**SIDEWAYS_FLAT/DOWN (Range Support Entry):**
-
-- Close < Support + (Range × 15.93%)
-- RSI < 38
-- Confidence: 0.65
-
-**BEAR (Conservative Entry):**
-
-- RSI < 30
-- Stoch_K < 20
-- Close < Support + (Range × 10%)
-- Position size: 50%
-
-### Exit Conditions
-
-| Exit Type | Trigger | Action |
-|-----------|---------|--------|
-| Stop Loss | Profit <= -2.10% | Sell 100% |
-| TP1 (BULL_STRONG) | +5.3% | Sell 35.1% |
-| TP2 (BULL_STRONG) | +10.7% | Sell 37.7% |
-| TP3 (BULL_STRONG) | +20.1% | Sell remaining |
-| Trailing Stop | Activation: +3.0%, Trail: 2.0% | Sell 100% |
-| MACD Dead Cross | MACD < Signal, Profit > 0 | Sell 100% |
-
----
-
-## 1.1 V35 Core Overlay v2 (Tuned)
-
-**Components:** `trading/strategies/components/v35_entry.py`, `v35_trailing_exit.py` (core overlay via config)
-**Config:** `config/strategies/allocation.json` (strategy key: `tuned_v35_long_v2_core_overlay_v2`)
-
-### Overview
-
-- **Exchange:** Spot
-- **Direction:** LONG
-- **Timeframe:** 1H
-- **Concept:** Core hold with drawdown/EMA guardrails plus V35 overlay for tactical entries/exits.
-
-### Differences from V35 Classic Wide
-
-- **Core Hold:** Maintains a baseline position with EMA/drawdown gating.
-- **Sizing:** Supports dynamic sizing and RF probability leverage/sizing.
-- **Risk Controls:** Drawdown throttles, loss cooldowns, and regime-aware guardrails.
-
----
-
-## 2. Short_V1 Strategy
+## 1. Short_V1 Strategy
 
 **Components:** `trading/strategies/components/short_entry.py`, `short_exit.py`
 **Config:** `config/strategies/short_v1.json`
@@ -430,11 +322,11 @@ class RegimeContext:
 
 ### Strategy Activation by Regime
 
-| Regime | Upbit Strategy | Binance Strategy |
-|--------|----------------|------------------|
-| BULL | V35_Classic_Wide / V35_Core_Overlay_V2 (Tuned) | - |
-| SIDEWAYS | Sideways_V2 | - |
-| BEAR_STRONG | - | Short_V1 |
+| Regime | Strategy |
+|--------|----------|
+| BULL | MLP_Direction |
+| SIDEWAYS | Sideways_V2 |
+| BEAR | Short_V1 |
 
 ---
 

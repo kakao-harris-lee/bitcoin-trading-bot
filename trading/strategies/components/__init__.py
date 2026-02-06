@@ -34,15 +34,6 @@ Usage:
         ConfigValidationError,
     )
 
-    # V35 Long (spot, bullish)
-    from trading.strategies.components import (
-        V35EntryStrategy,
-        V35EntryParams,
-        V35TrailingExitStrategy,  # In-memory state
-        V35PersistentExitStrategy,  # Redis-persisted state
-        V35ExitParams,
-    )
-
     # Sideways (spot, mean reversion)
     from trading.strategies.components import (
         SidewaysEntryStrategy,
@@ -57,12 +48,6 @@ Usage:
         ShortEntryParams,
         ShortExitStrategy,
         ShortExitParams,
-    )
-
-    # Experimental
-    from trading.strategies.components import (
-        ExperimentalExitStrategy,
-        ExperimentalExitParams,
     )
 
 """
@@ -99,12 +84,6 @@ from .config_schema import (
     ConfigValidationError,
 )
 
-# V35 Long strategy components
-from .v35_entry import V35EntryParams, V35EntryStrategy
-from .regime_hold_entry import RegimeHoldEntryParams, RegimeHoldEntryStrategy
-from .v35_trailing_exit import V35ExitParams, V35TrailingExitStrategy
-from .v35_persistent_exit import V35PersistentExitStrategy
-
 # Sideways strategy components
 from .sideways_entry import SidewaysEntryParams, SidewaysEntryStrategy
 from .sideways_exit import SidewaysExitParams, SidewaysExitStrategy
@@ -112,9 +91,6 @@ from .sideways_exit import SidewaysExitParams, SidewaysExitStrategy
 # Short strategy components
 from .short_entry import ShortEntryParams, ShortEntryStrategy
 from .short_exit import ShortExitParams, ShortExitStrategy
-
-# Experimental strategy components
-from .experimental_exit import ExperimentalExitParams, ExperimentalExitStrategy
 
 # MLP Direction strategy components (Parente & Rizzuti 2025)
 from .mlp_direction_entry import MLPDirectionEntryParams, MLPDirectionEntryStrategy
@@ -152,14 +128,6 @@ __all__ = [
     "validate_strategy_config",
     "has_new_config_format",
     "ConfigValidationError",
-    # V35 Long implementations
-    "V35EntryStrategy",
-    "V35EntryParams",
-    "RegimeHoldEntryStrategy",
-    "RegimeHoldEntryParams",
-    "V35TrailingExitStrategy",
-    "V35PersistentExitStrategy",
-    "V35ExitParams",
     # Sideways implementations
     "SidewaysEntryStrategy",
     "SidewaysEntryParams",
@@ -170,9 +138,6 @@ __all__ = [
     "ShortEntryParams",
     "ShortExitStrategy",
     "ShortExitParams",
-    # Experimental implementations
-    "ExperimentalExitStrategy",
-    "ExperimentalExitParams",
     # MLP Direction implementations (Parente & Rizzuti 2025)
     "MLPDirectionEntryStrategy",
     "MLPDirectionEntryParams",

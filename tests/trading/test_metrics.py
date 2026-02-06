@@ -93,7 +93,7 @@ class TestTradingMetrics:
     def test_reset_counters(self):
         """reset_counters clears counter values."""
         metrics = TradingMetrics()
-        metrics.signals_generated["BTC:v35"] = 10
+        metrics.signals_generated["BTC:short"] = 10
         metrics.trades_executed["BTC:buy"] = 5
 
         metrics.reset_counters()
@@ -116,13 +116,13 @@ class TestMetricsCollector:
         collector = MetricsCollector()
         collector.metrics.signals_generated.clear()
 
-        collector.record_signal("BTC", "v35_classic_wide")
-        collector.record_signal("BTC", "v35_classic_wide")
-        collector.record_signal("ETH", "v35_classic_wide")
+        collector.record_signal("BTC", "short_v1")
+        collector.record_signal("BTC", "short_v1")
+        collector.record_signal("ETH", "short_v1")
 
         metrics = collector.get_metrics()
-        assert metrics["counters"]["signals_generated"]["BTC:v35_classic_wide"] == 2
-        assert metrics["counters"]["signals_generated"]["ETH:v35_classic_wide"] == 1
+        assert metrics["counters"]["signals_generated"]["BTC:short_v1"] == 2
+        assert metrics["counters"]["signals_generated"]["ETH:short_v1"] == 1
 
     def test_record_trade(self):
         """Trades are recorded correctly."""

@@ -78,7 +78,6 @@ def check_imports():
         "trading.engine",
         "trading.strategies.components.strategy_factory",
         "trading.strategies.components.composite_task",
-        "trading.strategies.components.v35_persistent_exit",
         "trading.strategies.components.state_manager"
     ]
     failed = False

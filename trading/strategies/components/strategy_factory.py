@@ -4,28 +4,25 @@ Implements the Factory Pattern for dynamic strategy assembly based on
 allocation.json configuration. Supports both legacy and new config formats.
 
 Legacy format (backward compatible):
-    "v35_classic_wide": {
+    "short_v1": {
         "position_size": 0.01,
         "market": "futures"
     }
 
 New format (explicit class names, fully configurable):
-    "tuned_v35_long_v2_core_overlay_v2": {
-        "market": "futures",
-        "leverage": 3,
+    "mlp_direction_btc": {
+        "market": "spot",
         "entry": {
-            "class": "V35EntryStrategy",
+            "class": "MLPDirectionEntryStrategy",
             "params": {
-                "mfi_bull": 52.0,
-                "position_size": 0.01
+                "model_path": "models/mlp_direction/btc/model_final.pt",
+                "position_size": 0.9
             }
         },
         "exit": {
-            "class": "V35TrailingExitStrategy",
-            "persistent_class": "V35PersistentExitStrategy",
+            "class": "MLPDirectionExitStrategy",
             "params": {
-                "stop_loss_pct": 1.5,
-                "trailing_enabled": true
+                "stop_loss_pct": 10.0
             }
         }
     }
@@ -34,12 +31,12 @@ Usage:
     factory = StrategyFactory(redis_client)
 
     # Create individual components
-    entry = factory.create_entry("tuned_v35_long_v2_core_overlay_v2", params)
-    exit_strat = factory.create_exit("tuned_v35_long_v2_core_overlay_v2", params, persistent=True)
+    entry = factory.create_entry("short_v1", params)
+    exit_strat = factory.create_exit("short_v1", params)
 
     # Create full strategy task
     task = await factory.create_strategy_task(
-        name="tuned_v35_long_v2_core_overlay_v2",
+        name="short_v1",
         symbols=["BTC", "ETH"],
         config={"position_size": 0.01},
     )
@@ -55,19 +52,14 @@ from .interfaces import IEntryStrategy, IExitStrategy
 from .models import MarketData, Position, Signal
 
 # Entry strategies (imports trigger registration via decorators)
-from .v35_entry import V35EntryStrategy, V35EntryParams
 from .sideways_entry import SidewaysEntryStrategy, SidewaysEntryParams
 from .short_entry import ShortEntryStrategy, ShortEntryParams
+from .mlp_direction_entry import MLPDirectionEntryStrategy, MLPDirectionEntryParams
 
 # Exit strategies (imports trigger registration via decorators)
-from .v35_trailing_exit import V35TrailingExitStrategy, V35ExitParams
 from .sideways_exit import SidewaysExitStrategy, SidewaysExitParams
 from .short_exit import ShortExitStrategy, ShortExitParams
-from .experimental_exit import ExperimentalExitStrategy, ExperimentalExitParams
-from .mlp_direction_entry import MLPDirectionEntryStrategy, MLPDirectionEntryParams
 from .mlp_direction_exit import MLPDirectionExitStrategy, MLPDirectionExitParams
-from .v35_classic_entry import V35ClassicEntryStrategy, V35ClassicEntryParams
-from .v35_classic_exit import V35ClassicExitStrategy, V35ClassicExitParams
 
 # Registry and config validation
 from .registry import (
@@ -130,16 +122,6 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         market="futures",
         timeframe="minute240",
     ),
-    "tuned_v35_long_v2_core_overlay_v2": StrategySpec(
-        name="tuned_v35_long_v2_core_overlay_v2",
-        entry_class=V35EntryStrategy,
-        entry_params_class=V35EntryParams,
-        exit_class=V35TrailingExitStrategy,
-        exit_params_class=V35ExitParams,
-        persistent_exit_class=None,
-        market="spot",  # V35 uses spot trading
-        timeframe="minute60",
-    ),
     # MLP Direction Classifier strategy (Parente & Rizzuti 2025)
     # 3-class prediction (Hold/Buy/Sell) with 10% stop loss
     "mlp_direction": StrategySpec(
@@ -151,16 +133,6 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         persistent_exit_class=None,
         market="spot",  # Multi-asset trained, uses 4h timeframe
         timeframe="hour4",  # Paper uses 4-hour candles
-    ),
-    "v35_classic_wide": StrategySpec(
-        name="v35_classic_wide",
-        entry_class=V35ClassicEntryStrategy,
-        entry_params_class=V35ClassicEntryParams,
-        exit_class=V35ClassicExitStrategy,
-        exit_params_class=V35ClassicExitParams,
-        persistent_exit_class=None,
-        market="spot",
-        timeframe="minute60",
     ),
 }
 
@@ -211,7 +183,7 @@ class StrategyFactory:
         - New: Uses explicit "entry.class" from config
 
         Args:
-            strategy_name: Name of the strategy (e.g., "v35_classic_wide").
+            strategy_name: Name of the strategy (e.g., "short_v1").
             config: Configuration parameters.
             param_overrides: Parameter overrides for MLflow optimization.
                 These override values from config and dataclass defaults.
@@ -221,13 +193,6 @@ class StrategyFactory:
 
         Raises:
             ValueError: If strategy name is not registered.
-
-        Example:
-            # For MLflow hyperparameter optimization:
-            entry = factory.create_entry(
-                "tuned_v35_long_v2_core_overlay_v2",
-                param_overrides={"mfi_bull_strong": 55.0, "position_size": 0.02}
-            )
         """
         config = config or {}
         param_overrides = param_overrides or {}
@@ -257,7 +222,7 @@ class StrategyFactory:
         - New: Uses explicit "exit.class" from config
 
         Args:
-            strategy_name: Name of the strategy (e.g., "v35_classic_wide").
+            strategy_name: Name of the strategy (e.g., "short_v1").
             config: Configuration parameters.
             persistent: Use Redis-backed persistence if available.
             param_overrides: Parameter overrides for MLflow optimization.
@@ -268,13 +233,6 @@ class StrategyFactory:
 
         Raises:
             ValueError: If strategy name is not registered.
-
-        Example:
-            # For MLflow hyperparameter optimization:
-            exit_strat = factory.create_exit(
-                "tuned_v35_long_v2_core_overlay_v2",
-                param_overrides={"stop_loss_pct": 2.5, "trailing_enabled": True}
-            )
         """
         config = config or {}
         param_overrides = param_overrides or {}
@@ -311,12 +269,7 @@ class StrategyFactory:
             Tuple of (entry_strategy, exit_strategy).
 
         Example:
-            # For MLflow hyperparameter optimization:
-            entry, exit_strat = factory.create_components(
-                "tuned_v35_long_v2_core_overlay_v2",
-                entry_overrides={"mfi_bull_strong": 55.0},
-                exit_overrides={"stop_loss_pct": 2.5},
-            )
+            entry, exit_strat = factory.create_components("short_v1")
         """
         entry = self.create_entry(strategy_name, config, param_overrides=entry_overrides)
         exit_strat = self.create_exit(strategy_name, config, persistent, param_overrides=exit_overrides)

@@ -29,11 +29,11 @@ def mock_position_manager():
     """Create mock PositionManager."""
     manager = MagicMock()
     manager.get_positions_for_symbol.return_value = {
-        "v35_classic_wide": Position(
+        "short_v1": Position(
             symbol="BTC",
             entry_price=99000.0,
             quantity=0.01,
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             market="futures",
             timestamp=900,
         )
@@ -54,7 +54,7 @@ def test_builder_creates_context(mock_indicator_service, mock_position_manager):
     assert ctx.timestamp == 1000
     assert ctx.market.close == 100000.0
     assert ctx.regime.regime == "BULL_STRONG"
-    assert ctx.has_position("v35_classic_wide")
+    assert ctx.has_position("short_v1")
 
 
 def test_builder_caches_same_tick(mock_indicator_service, mock_position_manager):
@@ -109,23 +109,23 @@ def test_update_position_adds_new_position(mock_indicator_service):
 
     # First get context (no positions initially)
     ctx1 = builder.get_context("BTC", timestamp=1000)
-    assert not ctx1.has_position("v35_classic_wide")
+    assert not ctx1.has_position("short_v1")
 
     # Add a position
     new_pos = Position(
         symbol="BTC",
         entry_price=99000.0,
         quantity=0.01,
-        strategy="v35_classic_wide",
+        strategy="short_v1",
         market="futures",
         timestamp=1000,
     )
-    builder.update_position("BTC", "v35_classic_wide", new_pos)
+    builder.update_position("BTC", "short_v1", new_pos)
 
     # Check position is now visible
     ctx2 = builder.get_context("BTC", timestamp=1000)
-    assert ctx2.has_position("v35_classic_wide")
-    assert ctx2.positions["v35_classic_wide"].entry_price == 99000.0
+    assert ctx2.has_position("short_v1")
+    assert ctx2.positions["short_v1"].entry_price == 99000.0
 
 
 def test_update_position_removes_position(mock_indicator_service, mock_position_manager):
@@ -137,14 +137,14 @@ def test_update_position_removes_position(mock_indicator_service, mock_position_
 
     # Get context with position
     ctx1 = builder.get_context("BTC", timestamp=1000)
-    assert ctx1.has_position("v35_classic_wide")
+    assert ctx1.has_position("short_v1")
 
     # Remove the position
-    builder.update_position("BTC", "v35_classic_wide", None)
+    builder.update_position("BTC", "short_v1", None)
 
     # Check position is removed
     ctx2 = builder.get_context("BTC", timestamp=1000)
-    assert not ctx2.has_position("v35_classic_wide")
+    assert not ctx2.has_position("short_v1")
 
 
 def test_update_position_no_op_when_not_cached(mock_indicator_service):
@@ -159,17 +159,17 @@ def test_update_position_no_op_when_not_cached(mock_indicator_service):
         symbol="BTC",
         entry_price=99000.0,
         quantity=0.01,
-        strategy="v35_classic_wide",
+        strategy="short_v1",
         market="futures",
         timestamp=1000,
     )
 
     # This should not raise
-    builder.update_position("BTC", "v35_classic_wide", new_pos)
+    builder.update_position("BTC", "short_v1", new_pos)
 
     # Now get context - position manager is None so no positions
     ctx = builder.get_context("BTC", timestamp=1000)
-    assert not ctx.has_position("v35_classic_wide")
+    assert not ctx.has_position("short_v1")
 
 
 def test_invalidate_single_symbol(mock_indicator_service, mock_position_manager):

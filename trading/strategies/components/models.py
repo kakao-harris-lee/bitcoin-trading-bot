@@ -10,7 +10,7 @@ from functools import lru_cache
 from types import MappingProxyType
 from typing import Literal, Mapping
 
-# Type-safe regime classification (7-level V35 style)
+# Type-safe regime classification (7-level)
 # Using Literal provides IDE autocomplete and compile-time validation
 Regime = Literal[
     "BULL_STRONG",
@@ -22,7 +22,7 @@ Regime = Literal[
     "BEAR_STRONG",
 ]
 
-# Regime classification constants (7-level V35 style)
+# Regime classification constants (7-level)
 # Use frozensets for O(1) membership testing in hot paths
 BULL_REGIMES: frozenset[Regime] = frozenset({"BULL_STRONG", "BULL_MODERATE"})
 BEAR_REGIMES: frozenset[Regime] = frozenset({"BEAR_STRONG", "BEAR_MODERATE"})
@@ -119,7 +119,7 @@ class MarketContext:
     Provides simplified trend/volatility classification that entry strategies
     can use to filter out unsuitable conditions early.
 
-    Regime classification (V35 style, 7 levels):
+    Regime classification (7-level):
     - BULL_STRONG: Strong bullish trend (MFI >= 54 + ADX >= 25)
     - BULL_MODERATE: Moderate bullish (MFI >= 54 + ADX >= 18)
     - SIDEWAYS_UP: Weak bullish (MFI >= 49)
@@ -134,7 +134,7 @@ class MarketContext:
     """
 
     trend: Literal["BULL", "BEAR", "NEUTRAL"]  # Simplified trend direction
-    regime: Regime  # Detailed 7-level regime (V35 style, type-safe)
+    regime: Regime  # Detailed 7-level regime (type-safe)
     volatility_score: float  # ATR / close price (normalized)
     is_extreme_volatility: bool  # volatility_score > threshold (0.03 = 3%)
     adx: float  # Trend strength
@@ -173,7 +173,7 @@ def build_market_context(
     - BEAR: MFI <= 48 (bearish money flow) OR drawdown > threshold
     - NEUTRAL: 48 < MFI < 52 (sideways)
 
-    Regime classification (V35 style, 7-level):
+    Regime classification (7-level):
     - BULL_STRONG: MFI >= 54 + ADX >= 25 (strong bullish trend)
     - BULL_MODERATE: MFI >= 54 + ADX >= 18 (moderate bullish)
     - SIDEWAYS_UP: MFI >= 49 (weak bullish)
@@ -223,7 +223,7 @@ def build_market_context(
     else:
         trend = "NEUTRAL"
 
-    # Regime classification (V35 style, 7-level)
+    # Regime classification (7-level)
     regime = _classify_regime(mfi, adx)
 
     # Override to BEAR regime if significant drawdown
@@ -300,7 +300,7 @@ def _classify_regime_cached(
 def _classify_regime(
     mfi: float,
     adx: float,
-    # V35 default thresholds (allocation defaults)
+    # Default thresholds (allocation defaults)
     mfi_bull_strong: float = 54.0,
     mfi_bull_moderate: float = 54.0,
     mfi_sideways_up: float = 49.0,
@@ -309,7 +309,7 @@ def _classify_regime(
     adx_strong_trend: float = 25.0,
     adx_moderate_trend: float = 18.0,
 ) -> Regime:
-    """Classify market regime based on MFI and ADX (V35 style).
+    """Classify market regime based on MFI and ADX (7-level).
 
     Uses LRU cache for performance in backtesting hot loops.
     MFI and ADX are rounded to 1 decimal place for effective caching.

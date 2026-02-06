@@ -16,43 +16,24 @@ REGIMES = [
 
 # Available entry strategy components
 ENTRY_COMPONENTS = [
-    "V35Entry",
     "SidewaysEntry",
     "ShortEntry",
     "None",  # Skip trading in this regime
 ]
 
 # Available exit strategy components
-# Note: V35PersistentExit is async/Redis-backed, excluded from backtesting
 EXIT_COMPONENTS = [
-    "V35TrailingExit",
-    # "V35PersistentExit",  # Async, not suitable for backtesting
-    "ExperimentalExit",
     "SidewaysExit",
     "ShortExit",
 ]
 
 # Parameter bounds for each component
 COMPONENT_PARAMS = {
-    "V35Entry": {
-        "mfi_threshold": {"type": "float", "low": 45.0, "high": 65.0},
-        "adx_threshold": {"type": "float", "low": 15.0, "high": 35.0},
-    },
     "SidewaysEntry": {
         "range_threshold": {"type": "float", "low": 0.5, "high": 3.0},
     },
     "ShortEntry": {
         "rsi_overbought": {"type": "float", "low": 65.0, "high": 85.0},
-    },
-    "V35TrailingExit": {
-        "trailing_stop_pct": {"type": "float", "low": 0.5, "high": 5.0},
-        "take_profit_pct": {"type": "float", "low": 1.0, "high": 10.0},
-    },
-    "V35PersistentExit": {
-        "trailing_stop_pct": {"type": "float", "low": 0.5, "high": 5.0},
-    },
-    "ExperimentalExit": {
-        "exit_threshold": {"type": "float", "low": 0.5, "high": 3.0},
     },
     "SidewaysExit": {
         "profit_target_pct": {"type": "float", "low": 0.5, "high": 3.0},

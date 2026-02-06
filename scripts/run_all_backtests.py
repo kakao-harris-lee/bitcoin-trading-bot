@@ -39,14 +39,6 @@ def run_command(cmd: list, description: str) -> bool:
         return False
 
 
-def run_v35_backtest(period: str = "all", by_year: bool = False):
-    """Run V35 Long strategy backtest."""
-    cmd = ["python", "scripts/backtest_strategies.py", "--strategy", "v35", "--period", period]
-    if by_year:
-        cmd.append("--by-year")
-    return run_command(cmd, f"V35 Long Strategy Backtest (period={period})")
-
-
 def run_router_live_backtest(period: str = "all", by_year: bool = False):
     """Run Router Live (regime-based) backtest."""
     cmd = ["python", "scripts/backtest_strategies.py", "--strategy", "router_live", "--period", period]
@@ -91,7 +83,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run all backtests")
     parser.add_argument("--quick", action="store_true", help="Quick sanity check (2024 only)")
     parser.add_argument("--yearly", action="store_true", help="Include year-by-year breakdown")
-    parser.add_argument("--strategy", choices=["all", "v35", "router", "sideways", "short", "portfolio", "unified"],
+    parser.add_argument("--strategy", choices=["all", "router", "sideways", "short", "portfolio", "unified"],
                         default="all", help="Which strategy to backtest")
     parser.add_argument("--period", choices=["train", "test", "all"], default="all",
                         help="Backtest period")
@@ -108,30 +100,26 @@ def main():
     period = "test" if args.quick else args.period
     by_year = args.yearly and not args.quick
 
-    # 1. V35 Long Strategy
-    if args.strategy in ["all", "v35"]:
-        results["V35 Long"] = run_v35_backtest(period, by_year)
-
-    # 2. Router Live (Regime-based)
+    # 1. Router Live (Regime-based)
     if args.strategy in ["all", "router"]:
         results["Router Live"] = run_router_live_backtest(period, by_year)
 
-    # 3. Sideways V2 Strategy
+    # 2. Sideways V2 Strategy
     if args.strategy in ["all", "sideways"]:
         results["Sideways V2"] = run_sideways_v2_backtest(period, by_year)
 
-    # 4. Short V1 Strategy
+    # 3. Short V1 Strategy
     if args.strategy in ["all", "short"]:
         if args.quick:
             results["Short V1"] = run_short_backtest(year=2024)
         else:
             results["Short V1"] = run_short_backtest()
 
-    # 5. Combined Portfolio (Upbit + Binance)
+    # 4. Combined Portfolio (Upbit + Binance)
     if args.strategy in ["all", "portfolio"]:
         results["Portfolio"] = run_portfolio_backtest(by_year)
 
-    # 6. Unified Backtester
+    # 5. Unified Backtester
     if args.strategy in ["all", "unified"]:
         mode = "quick" if args.quick else "full"
         results["Unified"] = run_unified_backtest(mode)

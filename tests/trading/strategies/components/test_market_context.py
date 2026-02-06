@@ -11,7 +11,6 @@ from trading.strategies.components.models import (
     TradingContext,
     build_market_context,
 )
-from trading.strategies.components.v35_entry import V35EntryStrategy
 from trading.strategies.components.short_entry import ShortEntryStrategy
 from trading.strategies.components.sideways_entry import SidewaysEntryStrategy
 
@@ -106,7 +105,7 @@ class TestBuildMarketContext:
 
 
 class TestRegimeClassification:
-    """Test V35-style regime classification in build_market_context."""
+    """Test 7-level regime classification in build_market_context."""
 
     def test_bull_strong_regime(self):
         """High MFI + strong ADX should classify as BULL_STRONG."""
@@ -171,102 +170,6 @@ class TestRegimeClassification:
         assert ctx.regime == "SIDEWAYS_UP"  # MFI=50 is >= 49
 
 
-class TestV35ContextFiltering:
-    """Test V35 entry context-based filtering."""
-
-    @pytest.fixture
-    def entry(self):
-        """Create V35 entry strategy."""
-        return V35EntryStrategy()
-
-    @pytest.fixture
-    def bullish_market_data(self):
-        """Market data with bullish indicators for momentum entry."""
-        return MarketData(
-            symbol="BTC",
-            close=95000.0,
-            mfi=55.0,
-            adx=25.0,
-            rsi=58.0,  # Above momentum_rsi_bull_strong (57.0)
-            timestamp=1000000,
-            macd=1.5,  # MACD crossover (above signal)
-            macd_signal=1.0,
-        )
-
-    def test_allows_bull_trend(self, entry, bullish_market_data):
-        """V35 should allow entry when trend is BULL."""
-        context = MarketContext(
-            trend="BULL",
-            regime="BULL_STRONG",  # MFI=55, ADX=25 -> BULL_STRONG
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
-        assert signal is not None
-        assert signal.side == "buy"
-
-    def test_skips_bear_trend(self, entry, bullish_market_data):
-        """V35 should skip long entry when trend is BEAR."""
-        context = MarketContext(
-            trend="BEAR",
-            regime="BEAR_STRONG",
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
-        assert signal is None
-
-    def test_allows_neutral_trend(self, entry, bullish_market_data):
-        """V35 should allow entry when trend is NEUTRAL."""
-        context = MarketContext(
-            trend="NEUTRAL",
-            regime="BULL_STRONG",  # High MFI/ADX in market_data
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
-        assert signal is not None
-
-    def test_skips_extreme_volatility(self, entry, bullish_market_data):
-        """V35 should skip entry during extreme volatility."""
-        context = MarketContext(
-            trend="BULL",
-            regime="BULL_STRONG",
-            volatility_score=0.04,
-            is_extreme_volatility=True,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
-        assert signal is None
-
-    def test_skips_bear_and_extreme_volatility(self, entry, bullish_market_data):
-        """V35 should skip when both BEAR trend and extreme volatility."""
-        context = MarketContext(
-            trend="BEAR",
-            regime="BEAR_STRONG",
-            volatility_score=0.05,
-            is_extreme_volatility=True,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
-        assert signal is None
-
-    def test_allows_high_but_not_extreme_volatility(self, entry, bullish_market_data):
-        """V35 should allow entry when volatility is high but not extreme."""
-        context = MarketContext(
-            trend="BULL",
-            regime="BULL_STRONG",
-            volatility_score=0.029,  # Just under 3%
-            is_extreme_volatility=False,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
-        assert signal is not None
-
-
 class TestShortContextFiltering:
     """Test Short entry context-based filtering."""
 
@@ -316,7 +219,7 @@ class TestShortContextFiltering:
         """Short should allow entry when trend is NEUTRAL."""
         context = MarketContext(
             trend="NEUTRAL",
-            regime="BEAR_STRONG",  # V35 regime with MFI=45, ADX=25
+            regime="BEAR_STRONG",  # MFI=45, ADX=25
             volatility_score=0.01,
             is_extreme_volatility=False,
             adx=25.0,
@@ -486,66 +389,6 @@ class TestVolumeAnalysis:
             high_volume_threshold=1.5
         )
         assert ctx.is_high_volume is False
-
-
-class TestV35ADXSafetyFilter:
-    """Test V35 entry ADX safety filter (weak trend detection)."""
-
-    @pytest.fixture
-    def entry(self):
-        """Create V35 entry strategy."""
-        return V35EntryStrategy()
-
-    @pytest.fixture
-    def bullish_market_data(self):
-        """Market data with bullish indicators for momentum entry."""
-        return MarketData(
-            symbol="BTC",
-            close=95000.0,
-            mfi=55.0,
-            adx=25.0,
-            rsi=58.0,
-            timestamp=1000000,
-            macd=1.5,
-            macd_signal=1.0,
-        )
-
-    def test_skips_entry_when_adx_below_threshold(self, entry, bullish_market_data):
-        """V35 should skip entry when ADX indicates weak trend."""
-        # ADX below adx_moderate_trend (20.0) should skip
-        context = MarketContext(
-            trend="BULL",
-            regime="BULL_MODERATE",
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=18.0,  # Below threshold (20.0)
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
-        assert signal is None
-
-    def test_allows_entry_at_adx_threshold(self, entry, bullish_market_data):
-        """V35 should allow entry when ADX exactly at moderate threshold."""
-        context = MarketContext(
-            trend="BULL",
-            regime="BULL_MODERATE",
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=20.0,  # At threshold (raised from 18 to 20)
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
-        assert signal is not None
-
-    def test_allows_entry_above_adx_threshold(self, entry, bullish_market_data):
-        """V35 should allow entry when ADX above threshold."""
-        context = MarketContext(
-            trend="BULL",
-            regime="BULL_STRONG",
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=25.0,  # Above threshold
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bullish_market_data, regime=context, positions={}))
-        assert signal is not None
 
 
 class TestSidewaysHighVolumeFilter:

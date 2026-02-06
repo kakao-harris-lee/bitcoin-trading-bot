@@ -183,7 +183,7 @@ class TestSignalMessage:
         signal = SignalMessage(
             id="sig-123",
             timestamp=1702345678901,
-            strategy="v35-long",
+            strategy="short-v1",
             exchange=Exchange.BINANCE,
             symbol="BTCUSDT",
             action=Action.BUY,
@@ -221,7 +221,7 @@ class TestSignalMessage:
         signal = SignalMessage(
             id="sig-123",
             timestamp=1702345678901,
-            strategy="v35-long",
+            strategy="short-v1",
             exchange=Exchange.BINANCE,
             symbol="BTCUSDT",
             action=Action.BUY,
@@ -330,7 +330,7 @@ class TestSystemEvent:
         event = SystemEvent(
             timestamp=1702345678901,
             event_type=EventType.ERROR,
-            module="strategy-v35",
+            module="strategy-short",
             message="연결 실패",
             data={"error_code": 500, "retry_count": 3},
         )

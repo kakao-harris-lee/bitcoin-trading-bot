@@ -25,7 +25,6 @@ class BaseStrategy(BaseModule):
     전략 엔진의 기본 클래스
 
     모든 전략은 이 클래스를 상속받아 구현:
-    - V35LongStrategy (Binance Futures Long)
     - ShortV1Strategy (Binance Futures Short)
     """
 
@@ -40,7 +39,7 @@ class BaseStrategy(BaseModule):
     ):
         """
         Args:
-            strategy_name: 전략 이름 (예: "v35-long")
+            strategy_name: 전략 이름 (예: "short-v1")
             exchange: 거래소
             direction: 방향 (LONG/SHORT)
             symbol: 거래 심볼

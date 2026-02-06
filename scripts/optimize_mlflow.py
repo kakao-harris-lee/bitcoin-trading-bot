@@ -7,7 +7,7 @@ different strategy parameter combinations.
 
 Usage:
     python scripts/optimize_mlflow.py
-    python scripts/optimize_mlflow.py --strategy v35_classic_wide --experiment my-experiment
+    python scripts/optimize_mlflow.py --strategy short_v1 --experiment my-experiment
     python scripts/optimize_mlflow.py --dry-run  # Show param combinations without running
 
 View results:
@@ -159,20 +159,6 @@ class OptimizationResult:
 
 # Parameter grids for different strategies
 PARAM_GRIDS = {
-    "v35_classic_wide": {
-        # Entry params
-        "mfi_bull_strong": [52.0, 54.0, 56.0],
-        "mfi_bull_moderate": [52.0, 54.0],
-        "adx_strong_trend": [23.0, 25.0, 27.0],
-        "adx_moderate_trend": [16.0, 18.0, 20.0],
-        "momentum_rsi_bull_strong": [55.0, 57.0, 59.0],
-        "momentum_rsi_bull_moderate": [53.0, 55.0],
-        "position_size": [0.3, 0.5],
-        # Exit params
-        "stop_loss_pct": [1.8, 2.1, 2.5],
-        "tp_bull_strong_1": [4.5, 5.3, 6.0],
-        "trailing_enabled": [False, True],
-    },
     "short_v1": {
         # Entry params
         "mfi_bear": [46.0, 48.0, 50.0],
@@ -247,7 +233,7 @@ def run_backtest(
     """Run a single backtest with given parameters.
 
     Args:
-        strategy_name: Name of the strategy (e.g., "v35_classic_wide").
+        strategy_name: Name of the strategy (e.g., "short_v1").
         entry_params: Entry strategy parameter overrides.
         exit_params: Exit strategy parameter overrides.
         df: Price data DataFrame.
@@ -394,11 +380,6 @@ def split_params(
 
 # Quick parameter grids for faster testing
 PARAM_GRIDS_QUICK = {
-    "v35_classic_wide": {
-        "adx_moderate_trend": [18.0, 20.0],
-        "stop_loss_pct": [2.0, 2.5],
-        "position_size": [0.5],
-    },
     "short_v1": {
         "adx_trend": [18.0, 20.0],
         "stop_loss_pct": [2.0, 2.5],
@@ -601,7 +582,7 @@ def main():
     )
     parser.add_argument(
         "--strategy",
-        default="v35_classic_wide",
+        default="short_v1",
         choices=list(PARAM_GRIDS.keys()),
         help="Strategy to optimize",
     )

@@ -49,7 +49,7 @@ class StrategyLockConstraint:
     """
     Constraint that locks a specific component for a regime.
 
-    Example: "Always use V35Entry in BULL_STRONG"
+    Example: "Always use ShortEntry in BULL_STRONG"
     """
     regime: str
     entry: Optional[str] = None

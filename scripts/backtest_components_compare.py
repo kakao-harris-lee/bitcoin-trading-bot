@@ -129,18 +129,6 @@ def main() -> None:
     min_order_amount = 10
 
     combos = [
-        ("V35 Entry + V35 Exit", "long", "long_combo", {
-            "entry": {"class": "V35EntryStrategy"},
-            "exit": {"class": "V35TrailingExitStrategy"},
-        }),
-        ("V35 Entry + Experimental Exit", "long", "exp_exit_combo", {
-            "entry": {"class": "V35EntryStrategy"},
-            "exit": {"class": "ExperimentalExitStrategy"},
-        }),
-        ("Sideways Entry + V35 Exit", "long", "sideways_combo", {
-            "entry": {"class": "SidewaysEntryStrategy"},
-            "exit": {"class": "V35TrailingExitStrategy"},
-        }),
         ("Short Entry + Short Exit (death cross)", "short", "short_v1", {
             "mfi_bear": 50.0,
             "mfi_bull": 52.0,

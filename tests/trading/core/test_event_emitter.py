@@ -32,7 +32,7 @@ class TestEventEmitterDataclasses:
 
         event = EntryEvaluationEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             # Filter conditions
@@ -54,10 +54,10 @@ class TestEventEmitterDataclasses:
             rsi=45.0,
             # Result
             signal_generated=True,
-            reason="V35 entry: BULL_STRONG, MFI=55.0, ADX=25.5",
+            reason="entry: BULL_STRONG, MFI=55.0, ADX=25.5",
         )
 
-        assert event.strategy == "v35_classic_wide"
+        assert event.strategy == "short_v1"
         assert event.adx_passed is True
         assert event.signal_generated is True
 
@@ -67,7 +67,7 @@ class TestEventEmitterDataclasses:
 
         event = ExitEvaluationEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             # Position data
@@ -101,7 +101,7 @@ class TestEventEmitterDataclasses:
 
         event = HWMUpdateEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             old_hwm=44000.0,
@@ -120,7 +120,7 @@ class TestEventEmitterDataclasses:
 
         event = SafetyRejectionEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             rejection_type="weak_trend",
@@ -178,7 +178,7 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             adx=25.5,
@@ -197,7 +197,7 @@ class TestEventEmitterUnit:
             macd_crossed=True,
             rsi=45.0,
             signal_generated=True,
-            reason="V35 entry: BULL_STRONG",
+            reason="entry: BULL_STRONG",
         )
 
         await emitter.emit_entry_evaluation(event)
@@ -221,7 +221,7 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             adx=25.5,
@@ -240,7 +240,7 @@ class TestEventEmitterUnit:
             macd_crossed=True,
             rsi=45.0,
             signal_generated=True,
-            reason="V35 entry",
+            reason="entry signal",
         )
 
         await emitter.emit_entry_evaluation(event)
@@ -260,7 +260,7 @@ class TestEventEmitterUnit:
 
         event = ExitEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             entry_price=43000.0,
@@ -300,7 +300,7 @@ class TestEventEmitterUnit:
 
         event = HWMUpdateEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             old_hwm=44000.0,
@@ -329,7 +329,7 @@ class TestEventEmitterUnit:
 
         event = SafetyRejectionEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             rejection_type="weak_trend",
@@ -360,7 +360,7 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             adx=25.5,
@@ -379,7 +379,7 @@ class TestEventEmitterUnit:
             macd_crossed=True,
             rsi=45.0,
             signal_generated=True,
-            reason="V35 entry",
+            reason="entry signal",
         )
 
         # Should not raise, even though Redis fails
@@ -393,7 +393,7 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="v35_classic_wide",
+            strategy="short_v1",
             symbol="BTC",
             market="futures",
             adx=25.5,
@@ -412,14 +412,14 @@ class TestEventEmitterUnit:
             macd_crossed=True,
             rsi=45.0,
             signal_generated=True,
-            reason="V35 entry",
+            reason="entry signal",
         )
 
         # Event should have to_dict method for Redis serialization
         data = event.to_dict()
 
         assert isinstance(data, dict)
-        assert data["strategy"] == "v35_classic_wide"
+        assert data["strategy"] == "short_v1"
         assert data["adx"] == "25.5"  # Serialized as string for Redis
         assert data["adx_passed"] == "true"  # Boolean as string
 

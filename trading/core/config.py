@@ -37,7 +37,7 @@ class RedisConfig:
     # Consumer Groups
     consumer_groups: Dict[str, List[str]] = field(default_factory=lambda: {
         "market:prices": [
-            "strategy-v35",
+            "strategy-short",
             "strategy-short-v1",
             "risk-manager",
             "position-manager",

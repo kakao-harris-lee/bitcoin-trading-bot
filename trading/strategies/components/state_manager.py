@@ -6,7 +6,7 @@ All stateful variables in strategies should use this manager.
 Key schema: state:{strategy_name}:{symbol}:{variable_name}
 
 Usage:
-    state = StateManager(redis_client, strategy_name="v35_exit")
+    state = StateManager(redis_client, strategy_name="short_v1_exit")
 
     # Load existing state on init
     await state.load(symbol="BTC", variable="high_water_mark", default=0.0)
@@ -52,7 +52,7 @@ class StateManager:
 
         Args:
             redis: Async Redis client instance.
-            strategy_name: Name of the strategy (e.g., "v35_exit").
+            strategy_name: Name of the strategy (e.g., "short_v1_exit").
             key_prefix: Prefix for Redis keys (default: "state").
         """
         self._redis = redis

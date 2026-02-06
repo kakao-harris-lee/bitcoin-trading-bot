@@ -46,7 +46,7 @@ async def test_executor_passes_risk_gates(mock_redis, mock_client):
         "side": "buy",
         "market": "futures",
         "quantity": "0.01",
-        "strategy": "v35_classic_wide",
+        "strategy": "short_v1",
     }
 
     result = await executor._process_order(order)
@@ -68,7 +68,7 @@ async def test_executor_blocks_on_kill_switch(mock_redis, mock_client):
         "side": "buy",
         "market": "futures",
         "quantity": "0.01",
-        "strategy": "v35_classic_wide",
+        "strategy": "short_v1",
     }
 
     result = await executor._process_order(order)
@@ -90,7 +90,7 @@ async def test_executor_updates_position_after_fill(mock_redis, mock_client):
         "side": "buy",
         "market": "futures",
         "quantity": "0.01",
-        "strategy": "v35_classic_wide",
+        "strategy": "short_v1",
     }
 
     await executor._process_order(order)
@@ -223,7 +223,7 @@ async def test_executor_futures_order_still_works(mock_redis, mock_client):
         "side": "buy",
         "market": "futures",
         "quantity": "0.01",
-        "strategy": "v35_classic_wide",
+        "strategy": "short_v1",
         "leverage": 3,
     }
 

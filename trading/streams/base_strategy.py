@@ -331,6 +331,15 @@ class BaseStrategyTask(ABC):
         """
         pass
 
+    # Minimum sellable quantities per symbol (2x step_size to survive fee deduction).
+    # Buying exactly 1 step leaves post-fee holdings below the sellable minimum.
+    _MIN_SELLABLE_QTY = {
+        "BTC": 0.00002,   # 2 × 0.00001 step
+        "ETH": 0.0002,    # 2 × 0.0001 step
+        "SOL": 0.02,      # 2 × 0.01 step
+        "BNB": 0.002,     # 2 × 0.001 step
+    }
+
     async def get_dynamic_position_size(
         self,
         symbol: str,
@@ -350,6 +359,10 @@ class BaseStrategyTask(ABC):
         Returns:
             Position size in asset units
         """
+        # Use symbol-specific minimum that ensures post-fee sellability
+        min_sellable = self._MIN_SELLABLE_QTY.get(symbol, min_size)
+        effective_min = max(min_size, min_sellable)
+
         try:
             # Get balance from Redis (set by executor)
             # Use mode-specific key: account:paper or account:live
@@ -361,12 +374,12 @@ class BaseStrategyTask(ABC):
 
             if not account:
                 logger.warning(f"No account balance found in {account_key}, using minimum size")
-                return min_size
+                return effective_min
 
             balance = float(account.get("futures_balance", 0))
 
             if balance <= 0:
-                return min_size
+                return effective_min
 
             # Calculate position size
             position_value = balance * position_pct
@@ -380,8 +393,8 @@ class BaseStrategyTask(ABC):
             else:
                 size = round(size, 3)  # 0.001 for others
 
-            return max(size, min_size)
+            return max(size, effective_min)
 
         except Exception as e:
             logger.warning(f"Failed to calculate dynamic position size: {e}")
-            return min_size
+            return effective_min

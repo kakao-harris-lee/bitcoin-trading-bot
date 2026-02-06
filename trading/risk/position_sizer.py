@@ -135,15 +135,18 @@ def calculate_quantity(
     # Round to exchange step
     quantity = round_to_step(raw_qty, limits["qty_step"])
 
-    # Check minimum quantity
-    if quantity < limits["min_qty"]:
+    # Check minimum quantity - require at least min_qty + one step so that
+    # after spot trading fees (~0.1%), the remaining holdings can still be sold.
+    # Buying exactly min_qty leaves post-fee holdings below the sellable minimum.
+    min_sellable_qty = limits["min_qty"] + limits["qty_step"]
+    if quantity < min_sellable_qty:
         logger.debug(
-            f"{symbol}: qty {quantity} < min {limits['min_qty']}, "
+            f"{symbol}: qty {quantity} < min_sellable {min_sellable_qty}, "
             f"risk_budget=${risk_budget:.2f}, stop={stop_distance*100:.2f}%"
         )
         return SizingResult(
             0, 0, stop_distance * 100, 0, 0,
-            f"QTY_BELOW_MIN:{quantity:.6f}<{limits['min_qty']}"
+            f"QTY_BELOW_MIN:{quantity:.6f}<{min_sellable_qty}"
         )
 
     # Check minimum notional

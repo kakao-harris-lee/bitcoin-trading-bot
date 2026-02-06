@@ -535,7 +535,7 @@ class CompositeStrategyTask(BaseStrategyTask):
                     "symbol": symbol,
                     "side": "sell",
                     "market": self.market,
-                    "quantity": str(position.quantity),
+                    "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
                     "reason": f"DRAWDOWN_EXIT:{drawdown_pct:.1f}%>={self._drawdown_exit_pct:.1f}%",
                 }
 
@@ -544,7 +544,7 @@ class CompositeStrategyTask(BaseStrategyTask):
                 and not self._drawdown_partial_exit_done.get(symbol, False)
             ):
                 self._drawdown_partial_exit_done[symbol] = True
-                exit_qty = position.quantity * 0.5
+                exit_qty = self._spot_adjusted_qty(symbol, position.quantity * 0.5)
                 if exit_qty > 0:
                     return {
                         "symbol": symbol,
@@ -576,7 +576,7 @@ class CompositeStrategyTask(BaseStrategyTask):
                         "symbol": symbol,
                         "side": "sell",
                         "market": self.market,
-                        "quantity": str(position.quantity),
+                        "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
                         "reason": "v2_filter_protective_exit",
                     }
 
@@ -587,7 +587,7 @@ class CompositeStrategyTask(BaseStrategyTask):
                     "symbol": symbol,
                     "side": "sell",
                     "market": self.market,
-                    "quantity": str(position.quantity),
+                    "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
                     "reason": f"MA120 panic_sell: close={market_data.close:.0f} < ema120={market_data.ema_120:.0f}",
                 }
 
@@ -1274,6 +1274,27 @@ class CompositeStrategyTask(BaseStrategyTask):
             timestamp=position_dict.get("timestamp", 0),
         )
 
+    # Step sizes per symbol for spot exit quantity adjustment
+    _STEP_SIZES = {
+        "BTC": 0.00001,
+        "ETH": 0.0001,
+        "SOL": 0.01,
+        "BNB": 0.001,
+    }
+
+    def _spot_adjusted_qty(self, symbol: str, qty: float) -> float:
+        """Adjust quantity for spot exits to account for buy-side fee.
+
+        On spot, buy fees reduce actual holdings below the recorded executedQty.
+        Selling the full recorded quantity would fail with insufficient balance.
+        """
+        if self.market != "spot":
+            return qty
+        fee_rate = 0.001  # 0.1% spot fee
+        actual_holdings = qty * (1 - fee_rate)
+        step = self._STEP_SIZES.get(symbol, 0.001)
+        return int(actual_holdings / step) * step
+
     def _signal_to_dict(
         self,
         signal: Signal,
@@ -1289,6 +1310,10 @@ class CompositeStrategyTask(BaseStrategyTask):
         Returns:
             Order intent dict.
         """
+        # Adjust exit quantities for spot fee deduction
+        if signal.side == "sell":
+            quantity = self._spot_adjusted_qty(signal.symbol, quantity)
+
         result = {
             "symbol": signal.symbol,
             "side": signal.side,

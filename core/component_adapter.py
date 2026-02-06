@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 from trading.strategies.components.strategy_factory import StrategyFactory
 from trading.strategies.volatility_tracker import VolatilityTracker
 from trading.strategies.components.regime_filter import EnhancedRegimeRouter
-from trading.strategies.components.rf_probability_service import RFProbabilityService
 from trading.config.constants import TimePeriods, LeverageDefaults
 
 class ComponentStrategyAdapter:
@@ -134,24 +133,6 @@ class ComponentStrategyAdapter:
         self._bull_prob_threshold: float = config.get('bull_prob_threshold', 0.0)  # 0 = disabled
         self._bull_prob_enabled: bool = self._bull_prob_threshold > 0
 
-        # === NEW: RF Probability Integration ===
-        # Use actual RF (RandomForest) confidence from HybridPredictor instead of MFI proxy
-        self._use_rf_probability: bool = config.get('use_rf_probability', False)
-        self._rf_service: RFProbabilityService | None = None
-        self._rf_available: bool = False
-        self._df_history: list = []  # Store recent candles for RF input
-        self._rf_history_size: int = TimePeriods.RF_HISTORY_WINDOW  # Rolling window for RF (matches LiveScaler)
-
-        if self._use_rf_probability:
-            self._rf_service = RFProbabilityService.get_instance(
-                lstm_path=config.get('lstm_model_path', 'lstm_trainer/models/hybrid_lstm.pth'),
-                rf_path=config.get('rf_model_path', 'lstm_trainer/models/noise_filter_rf.pkl'),
-            )
-            self._rf_available = self._rf_service.is_available()
-
-        # RF prediction cache for backtesting (populated by precompute_rf_predictions)
-        self._rf_cache: dict[int, dict] | None = None
-
         # MLP Direction prediction cache for backtesting
         # Populated by precompute_mlp_predictions()
         self._mlp_cache: dict[int, dict] | None = None
@@ -168,12 +149,6 @@ class ComponentStrategyAdapter:
         # === NEW: Dynamic Position Sizing based on RF Confidence ===
         # Scale position size based on model confidence:
         # High confidence (>70%) → large position, Low confidence (<50%) → small position
-        self._dynamic_position_sizing: bool = config.get('dynamic_position_sizing', False)
-        self._position_size_high: float = config.get('position_size_high', 0.30)   # 30% at high confidence
-        self._position_size_mid: float = config.get('position_size_mid', 0.15)     # 15% at medium confidence
-        self._position_size_low: float = config.get('position_size_low', 0.05)     # 5% at low confidence
-        self._position_conf_low: float = config.get('position_conf_low', 0.50)     # Below this = low
-        self._position_conf_high: float = config.get('position_conf_high', 0.70)   # Above this = high
 
         # === NEW: Probability-based Leverage ===
         # Adjust leverage based on MFI (bull probability proxy)
@@ -218,25 +193,6 @@ class ComponentStrategyAdapter:
             self._current_drawdown_pct = (self._peak_equity - equity) / self._peak_equity * 100
         else:
             self._current_drawdown_pct = 0.0
-
-    def precompute_rf_predictions(self, df: pd.DataFrame) -> None:
-        """Pre-compute RF predictions for entire DataFrame (backtest optimization).
-
-        Call this BEFORE running backtest loop to cache all RF predictions.
-        Reduces backtest time from O(n*inference_time) to O(n) + O(batch_time).
-
-        Args:
-            df: Full DataFrame with OHLCV and indicators for backtest.
-        """
-        if not self._use_rf_probability or not self._rf_available or self._rf_service is None:
-            return
-
-        self._rf_cache = self._rf_service.precompute_batch(
-            df=df,
-            indicators_df=df,  # Same df has indicators
-            window_size=self._rf_history_size,
-            min_history=TimePeriods.MIN_HISTORY_REQUIRED,
-        )
 
     def precompute_mlp_predictions(self, df: pd.DataFrame) -> None:
         """Pre-compute MLP Direction predictions for entire DataFrame (backtest optimization).
@@ -341,44 +297,6 @@ class ComponentStrategyAdapter:
         volume = row.get('volume', 0.0)
         avg_volume = row.get('avg_volume_20', 0.0)
 
-        # === RF Probability Calculation ===
-        # Get RF confidence from pre-computed cache (backtest) or live computation
-        rf_confidence = 0.0
-        rf_direction = "SIDEWAYS"
-        rf_signal = "HOLD"
-
-        if self._use_rf_probability:
-            # Option 1: Read from pre-computed cache (backtest mode - fastest)
-            if self._rf_cache is not None and i in self._rf_cache:
-                cached_result = self._rf_cache[i]
-                rf_confidence = cached_result.get('confidence', 0.0)
-                rf_direction = cached_result.get('direction', 'SIDEWAYS')
-                rf_signal = cached_result.get('signal', 'HOLD')
-            # Option 2: Read from pre-computed DataFrame columns (alternative)
-            elif 'rf_confidence' in df.columns:
-                rf_confidence = float(row.get('rf_confidence', 0.0))
-                rf_direction = str(row.get('rf_direction', 'SIDEWAYS'))
-                rf_signal = str(row.get('rf_signal', 'HOLD'))
-            # Option 3: Live mode - compute on-the-fly (slowest)
-            elif self._rf_available and self._rf_service is not None:
-                start_idx = max(0, i - self._rf_history_size)
-                df_slice = df.iloc[start_idx:i+1]
-
-                if len(df_slice) >= TimePeriods.MIN_HISTORY_REQUIRED:
-                    volatility = atr / close if close > 0 else 0.0
-                    rf_result = self._rf_service.get_probability(
-                        df=df_slice,
-                        mfi=mfi,
-                        adx=adx,
-                        volatility=volatility,
-                        regime=str(row.get('regime', 'SIDEWAYS_FLAT')),
-                        breakout_signal=int(row.get('breakout_signal', 0)),
-                    )
-                    if rf_result.get('available', False):
-                        rf_confidence = rf_result.get('confidence', 0.0)
-                        rf_direction = rf_result.get('direction', 'SIDEWAYS')
-                        rf_signal = rf_result.get('signal', 'HOLD')
-
         # === MLP Direction Prediction ===
         # Get MLP prediction from pre-computed cache (backtest) for mlp_direction strategy
         mlp_prediction: int | None = None
@@ -403,10 +321,6 @@ class ComponentStrategyAdapter:
             recent_high=row.get('high_30d', 0.0) or row.get('prev_high_20', 0.0),
             # Configurable drawdown threshold (default 15%, set higher to be less aggressive)
             drawdown_bear_threshold=self._drawdown_bear_threshold,
-            # RF probability from HybridPredictor
-            rf_confidence=rf_confidence,
-            rf_direction=rf_direction,
-            rf_signal=rf_signal,
         )
 
         # Regime v2 filtering: replace regime classification (matches live task behavior)
@@ -450,9 +364,6 @@ class ComponentStrategyAdapter:
                 is_high_volume=context.is_high_volume,
                 drawdown=context.drawdown,
                 is_drawdown_bear=context.is_drawdown_bear,
-                rf_confidence=context.rf_confidence,
-                rf_direction=context.rf_direction,
-                rf_signal=context.rf_signal,
             )
 
         if self._v2_exit_on_filter and self._regime_router is not None:
@@ -734,19 +645,13 @@ class ComponentStrategyAdapter:
                 return {'action': 'hold', 'reason': 'cash_below_ema200'}
 
             # === Bull Probability Filter ===
-            # Use RF confidence (if available) or MFI proxy for bullish probability
+            # Use MFI proxy for bullish probability
             # Block entry if bull_prob < threshold (e.g., 0.6 = 60%)
             if self._bull_prob_enabled:
-                # Use RF confidence if available, otherwise fall back to MFI proxy
-                if self._use_rf_probability and context.rf_confidence > 0:
-                    bull_prob = context.rf_confidence
-                    prob_source = "rf"
-                else:
-                    bull_prob = mfi / 100.0  # MFI 0-100 -> 0.0-1.0
-                    prob_source = "mfi"
+                bull_prob = mfi / 100.0  # MFI 0-100 -> 0.0-1.0
 
                 if bull_prob < self._bull_prob_threshold:
-                    return {'action': 'hold', 'reason': f'bull_prob_low({prob_source}):{bull_prob:.2f}<{self._bull_prob_threshold:.2f}'}
+                    return {'action': 'hold', 'reason': f'bull_prob_low(mfi):{bull_prob:.2f}<{self._bull_prob_threshold:.2f}'}
 
             # NOTE: MA120 is used for EXIT only (panic sell), not for entry blocking
             # Entry blocking is handled by cash_below_ema200 (EMA200 filter)
@@ -840,26 +745,13 @@ class ComponentStrategyAdapter:
 
                 # Position sizing priority:
                 # 1. Entry strategy's signal.quantity (regime-based sizing from V35Optuna etc.)
-                # 2. Dynamic RF-based sizing (if enabled)
-                # 3. Config position_size fallback
+                # 2. Config position_size fallback
                 signal_qty = getattr(signal, "quantity", None)
                 use_dynamic = self.config.get("dynamic_sizing", False)
                 position_pct = float(self.config.get("position_pct", 0.02))
                 position_reason = ""
 
-                if self._dynamic_position_sizing and use_dynamic:
-                    # RF-based dynamic sizing takes priority when enabled
-                    rf_conf = context.rf_confidence if context.rf_confidence > 0 else 0.0
-                    if rf_conf >= self._position_conf_high:
-                        fraction = self._position_size_high
-                        position_reason = f"pos_high:{rf_conf:.2f}>={self._position_conf_high:.2f}"
-                    elif rf_conf >= self._position_conf_low:
-                        fraction = self._position_size_mid
-                        position_reason = f"pos_mid:{rf_conf:.2f}>={self._position_conf_low:.2f}"
-                    else:
-                        fraction = self._position_size_low
-                        position_reason = f"pos_low:{rf_conf:.2f}<{self._position_conf_low:.2f}"
-                elif signal_qty is not None and signal_qty > 0:
+                if signal_qty is not None and signal_qty > 0:
                     # Entry strategy returned regime-based position size (e.g., V35OptunaEntry)
                     fraction = signal_qty
                     position_reason = f"regime_size:{signal_qty:.2f}"
@@ -879,7 +771,6 @@ class ComponentStrategyAdapter:
                     "reason": reason,
                     "leverage": self._current_leverage,  # Dynamic leverage
                     "regime": current_regime,  # For debugging
-                    "rf_confidence": context.rf_confidence,  # For tracking
                 }
 
         return {"action": "hold"}

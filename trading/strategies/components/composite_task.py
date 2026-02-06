@@ -46,7 +46,6 @@ from .models import (
     BEAR_REGIMES,
 )
 from .regime_filter import EnhancedRegimeRouter
-from .rf_probability_service import RFProbabilityService
 from trading.observability.structured_logger import trade_logger
 from trading.risk.position_sizer import PositionSizer, RiskSizingConfig
 from trading.risk.portfolio_risk_manager import PortfolioRiskManager, RiskCapConfig
@@ -170,19 +169,6 @@ class CompositeStrategyTask(BaseStrategyTask):
                     persistence=persistence,
                 )
 
-        # RF probability integration (optional)
-        self._use_rf_probability = self.config.get("use_rf_probability", False)
-        self._rf_service: RFProbabilityService | None = None
-        self._rf_available = False
-        self._rf_history_size = int(self.config.get("rf_history_size", 720))
-        self._rf_min_history = int(self.config.get("rf_min_history", TimePeriods.MIN_HISTORY_REQUIRED))
-        if self._use_rf_probability:
-            self._rf_service = RFProbabilityService.get_instance(
-                lstm_path=self.config.get("lstm_model_path", "lstm_trainer/models/hybrid_lstm.pth"),
-                rf_path=self.config.get("rf_model_path", "lstm_trainer/models/noise_filter_rf.pkl"),
-            )
-            self._rf_available = self._rf_service.is_available()
-
         # MLP Direction integration (optional)
         self._use_mlp_direction: bool = self._detect_mlp_direction()
         self._mlp_feature_set = (
@@ -234,13 +220,6 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         self._bull_prob_threshold = float(self.config.get("bull_prob_threshold", 0.0))
         self._bull_prob_enabled = self._bull_prob_threshold > 0
-
-        self._dynamic_position_sizing = self.config.get("dynamic_position_sizing", False)
-        self._position_size_high = float(self.config.get("position_size_high", 0.30))
-        self._position_size_mid = float(self.config.get("position_size_mid", 0.15))
-        self._position_size_low = float(self.config.get("position_size_low", 0.05))
-        self._position_conf_low = float(self.config.get("position_conf_low", 0.50))
-        self._position_conf_high = float(self.config.get("position_conf_high", 0.70))
 
         # Drawdown protection (portfolio-level)
         self._drawdown_enabled = self.config.get("drawdown_enabled", False)
@@ -369,10 +348,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
 
         if self._bull_prob_enabled:
-            if self._use_rf_probability and context.rf_confidence > 0:
-                bull_prob = context.rf_confidence
-            else:
-                bull_prob = market_data.mfi / 100.0
+            bull_prob = market_data.mfi / 100.0
             if bull_prob < self._bull_prob_threshold:
                 return None
 
@@ -908,58 +884,6 @@ class CompositeStrategyTask(BaseStrategyTask):
             else:
                 self._loss_pause_remaining[symbol] = pause
 
-    def _get_rf_history_df(self, symbol: str) -> pd.DataFrame | None:
-        """Get recent candle history for RF probability calculation."""
-        if self.indicator_service is not None:
-            df = self.indicator_service.get_history_df(symbol, limit=self._rf_history_size)
-        else:
-            history = self.history.get(symbol, [])
-            if not history:
-                return None
-            df = pd.DataFrame(history[-self._rf_history_size:])
-
-        if df is None or df.empty:
-            return None
-        return df
-
-    def _get_rf_probability(self, symbol: str, market_data: MarketData, regime: str) -> dict[str, Any]:
-        """Compute RF probability using recent candle history."""
-        default_result = {
-            "confidence": 0.0,
-            "direction": "SIDEWAYS",
-            "signal": "HOLD",
-            "available": False,
-        }
-
-        if not self._use_rf_probability or self._rf_service is None or not self._rf_available:
-            return default_result
-
-        df = self._get_rf_history_df(symbol)
-        if df is None or len(df) < self._rf_min_history:
-            return default_result
-
-        try:
-            idx = df.index[-1]
-            if "close" in df.columns:
-                df.at[idx, "close"] = market_data.close
-            if "high" in df.columns:
-                df.at[idx, "high"] = max(df.at[idx, "high"], market_data.close)
-            if "low" in df.columns:
-                df.at[idx, "low"] = min(df.at[idx, "low"], market_data.close)
-        except Exception:
-            # Non-fatal if we can't update the last candle
-            pass
-
-        volatility = market_data.atr / market_data.close if market_data.close > 0 else 0.0
-        return self._rf_service.get_probability(
-            df=df,
-            mfi=market_data.mfi,
-            adx=market_data.adx,
-            volatility=volatility,
-            regime=regime,
-            breakout_signal=market_data.breakout_signal,
-        )
-
     def _detect_mlp_direction(self) -> bool:
         """Detect whether this strategy uses the MLP Direction components."""
         if self.name.startswith("mlp_direction"):
@@ -1158,22 +1082,6 @@ class CompositeStrategyTask(BaseStrategyTask):
             recent_high=recent_high,  # Use 30-day high for drawdown BEAR detection
         )
 
-        if self._use_rf_probability:
-            rf_result = self._get_rf_probability(market_data.symbol, market_data, context.regime)
-            if rf_result.get("available", False):
-                context = build_market_context(
-                    mfi=market_data.mfi,
-                    adx=market_data.adx,
-                    atr=market_data.atr,
-                    close=market_data.close,
-                    volume=market_data.volume,
-                    avg_volume=market_data.avg_volume_20,
-                    recent_high=recent_high,
-                    rf_confidence=rf_result.get("confidence", 0.0),
-                    rf_direction=rf_result.get("direction", "SIDEWAYS"),
-                    rf_signal=rf_result.get("signal", "HOLD"),
-                )
-
         # Apply regime filtering/smoothing based on version
         if self.regime_version == "v2" and market_data.symbol in self._enhanced_routers:
             # Enhanced regime detection v2: BBW + MTF + Volume filters
@@ -1219,9 +1127,6 @@ class CompositeStrategyTask(BaseStrategyTask):
                 is_high_volume=context.is_high_volume,
                 drawdown=context.drawdown,
                 is_drawdown_bear=context.is_drawdown_bear,
-                rf_confidence=context.rf_confidence,
-                rf_direction=context.rf_direction,
-                rf_signal=context.rf_signal,
             )
 
         elif self.use_regime_smoothing and market_data.symbol in self._regime_smoothers:
@@ -1249,9 +1154,6 @@ class CompositeStrategyTask(BaseStrategyTask):
                 is_high_volume=context.is_high_volume,
                 drawdown=context.drawdown,
                 is_drawdown_bear=context.is_drawdown_bear,
-                rf_confidence=context.rf_confidence,
-                rf_direction=context.rf_direction,
-                rf_signal=context.rf_signal,
             )
 
         return context
@@ -1391,15 +1293,6 @@ class CompositeStrategyTask(BaseStrategyTask):
         # === Legacy: Percentage-based sizing ===
         use_dynamic = self.config.get("dynamic_sizing", False)
         position_pct = float(self.config.get("position_pct", 0.02))
-
-        if self._dynamic_position_sizing and use_dynamic and context is not None:
-            rf_conf = context.rf_confidence if context.rf_confidence > 0 else 0.0
-            if rf_conf >= self._position_conf_high:
-                position_pct = self._position_size_high
-            elif rf_conf >= self._position_conf_low:
-                position_pct = self._position_size_mid
-            else:
-                position_pct = self._position_size_low
 
         if use_dynamic:
             qty = await self.get_dynamic_position_size(symbol, price, position_pct)

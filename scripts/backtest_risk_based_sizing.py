@@ -793,18 +793,6 @@ def main():
 
     # Pre-compute RF predictions if enabled
     # NOTE: Now optimized with vectorized scaling (~2.5 min for 3 years)
-    skip_rf = False  # Set to True to skip RF predictions
-    if config.get('use_rf_probability', False) and not skip_rf:
-        print("Pre-computing RF predictions (this may take a while)...")
-        try:
-            adapter.precompute_rf_predictions(df)
-            print("  RF predictions cached.")
-        except Exception as e:
-            print(f"  RF computation failed: {e}")
-            print("  Continuing without RF predictions...")
-    else:
-        print("Skipping RF predictions for faster backtest")
-
     # Run backtest
     print("\nRunning backtest with risk-based sizing...")
     backtester = RiskBasedBacktester(

@@ -217,13 +217,6 @@ class GrowthObjective:
         )
         adapter.symbol = self.symbol
 
-        # Pre-compute RF predictions if enabled (major speedup)
-        if config.get("use_rf_probability", False):
-            try:
-                adapter.precompute_rf_predictions(self._df)
-            except Exception as e:
-                logger.debug(f"RF precompute skipped: {e}")
-
         # Run backtest with spot settings
         backtester = Backtester(
             initial_capital=self.capital,

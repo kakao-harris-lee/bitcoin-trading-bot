@@ -65,13 +65,6 @@ Usage:
         ExperimentalExitParams,
     )
 
-    # Combo1-C (VBS + LSTM + RF)
-    from trading.strategies.components import (
-        Combo1CEntryStrategy,
-        Combo1CEntryParams,
-        Combo1CExitStrategy,
-        Combo1CExitParams,
-    )
 """
 
 from .interfaces import IEntryStrategy, IExitStrategy
@@ -122,14 +115,6 @@ from .short_exit import ShortExitParams, ShortExitStrategy
 
 # Experimental strategy components
 from .experimental_exit import ExperimentalExitParams, ExperimentalExitStrategy
-
-# Combined strategy components
-from .combined_entry import CombinedEntryParams, CombinedEntryStrategy
-from .combined_exit import CombinedExitParams, CombinedExitStrategy
-
-# Combo1-C strategy components (VBS + LSTM + RF)
-from .combo1c_entry import Combo1CEntryParams, Combo1CEntryStrategy
-from .combo1c_exit import Combo1CExitParams, Combo1CExitStrategy
 
 # MLP Direction strategy components (Parente & Rizzuti 2025)
 from .mlp_direction_entry import MLPDirectionEntryParams, MLPDirectionEntryStrategy
@@ -188,16 +173,6 @@ __all__ = [
     # Experimental implementations
     "ExperimentalExitStrategy",
     "ExperimentalExitParams",
-    # Combined implementations
-    "CombinedEntryStrategy",
-    "CombinedEntryParams",
-    "CombinedExitStrategy",
-    "CombinedExitParams",
-    # Combo1-C implementations (VBS + LSTM + RF)
-    "Combo1CEntryStrategy",
-    "Combo1CEntryParams",
-    "Combo1CExitStrategy",
-    "Combo1CExitParams",
     # MLP Direction implementations (Parente & Rizzuti 2025)
     "MLPDirectionEntryStrategy",
     "MLPDirectionEntryParams",

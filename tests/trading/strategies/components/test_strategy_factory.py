@@ -167,7 +167,6 @@ class TestSpotMarketMigration:
         futures_strategies = [
             ("short_v1", {"market": "futures"}),
             ("sideways_v2", {"market": "futures"}),
-            ("combo_ensemble", {"market": "futures"}),
         ]
 
         for strategy, config in futures_strategies:

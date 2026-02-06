@@ -64,10 +64,6 @@ from .v35_trailing_exit import V35TrailingExitStrategy, V35ExitParams
 from .sideways_exit import SidewaysExitStrategy, SidewaysExitParams
 from .short_exit import ShortExitStrategy, ShortExitParams
 from .experimental_exit import ExperimentalExitStrategy, ExperimentalExitParams
-from .combined_entry import CombinedEntryStrategy, CombinedEntryParams
-from .combined_exit import CombinedExitStrategy, CombinedExitParams
-from .hybrid_lstm_entry import HybridLSTMEntryStrategy, HybridLSTMEntryParams
-from .hybrid_lstm_exit import HybridLSTMExitStrategy, HybridLSTMExitParams
 from .mlp_direction_entry import MLPDirectionEntryStrategy, MLPDirectionEntryParams
 from .mlp_direction_exit import MLPDirectionExitStrategy, MLPDirectionExitParams
 from .v35_classic_entry import V35ClassicEntryStrategy, V35ClassicEntryParams
@@ -134,16 +130,6 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         market="futures",
         timeframe="minute240",
     ),
-    "combo_ensemble": StrategySpec(
-        name="combo_ensemble",
-        entry_class=CombinedEntryStrategy,
-        entry_params_class=CombinedEntryParams,
-        exit_class=CombinedExitStrategy,
-        exit_params_class=CombinedExitParams,
-        persistent_exit_class=None,
-        market="futures",
-        timeframe="minute60",
-    ),
     "tuned_v35_long_v2_core_overlay_v2": StrategySpec(
         name="tuned_v35_long_v2_core_overlay_v2",
         entry_class=V35EntryStrategy,
@@ -152,17 +138,6 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         exit_params_class=V35ExitParams,
         persistent_exit_class=None,
         market="spot",  # V35 uses spot trading
-        timeframe="minute60",
-    ),
-    # Hybrid LSTM + RF strategy
-    "hybrid_lstm": StrategySpec(
-        name="hybrid_lstm",
-        entry_class=HybridLSTMEntryStrategy,
-        entry_params_class=HybridLSTMEntryParams,
-        exit_class=HybridLSTMExitStrategy,
-        exit_params_class=HybridLSTMExitParams,
-        persistent_exit_class=None,
-        market="spot",  # Uses RF confidence for sizing
         timeframe="minute60",
     ),
     # MLP Direction Classifier strategy (Parente & Rizzuti 2025)

@@ -55,11 +55,13 @@ from .models import MarketData, Position, Signal
 from .sideways_entry import SidewaysEntryStrategy, SidewaysEntryParams
 from .short_entry import ShortEntryStrategy, ShortEntryParams
 from .mlp_direction_entry import MLPDirectionEntryStrategy, MLPDirectionEntryParams
+from .bear_short_entry import BearShortEntryStrategy, BearShortEntryParams
 
 # Exit strategies (imports trigger registration via decorators)
 from .sideways_exit import SidewaysExitStrategy, SidewaysExitParams
 from .short_exit import ShortExitStrategy, ShortExitParams
 from .mlp_direction_exit import MLPDirectionExitStrategy, MLPDirectionExitParams
+from .bear_short_exit import BearShortExitStrategy, BearShortExitParams
 
 # Registry and config validation
 from .registry import (

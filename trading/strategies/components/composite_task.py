@@ -302,6 +302,15 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         self._decrement_entry_blocks(symbol)
 
+        # Refresh indicator history with real candle data if needed
+        # (replaces estimated volume from tick aggregation with real Binance OHLCV)
+        if self.indicator_service and self.indicator_service.needs_refresh(symbol):
+            try:
+                market = self.config.get("market", "futures") if self.config else "futures"
+                await self.indicator_service.refresh_history(symbol, market=market)
+            except Exception as e:
+                logger.warning(f"Candle refresh failed for {symbol}: {e}")
+
         # Build MarketData from indicators
         market_data = self._build_market_data(symbol)
         if market_data is None:
@@ -465,6 +474,14 @@ class CompositeStrategyTask(BaseStrategyTask):
         Returns:
             Order intent dict or None.
         """
+        # Refresh indicator history with real candle data if needed
+        if self.indicator_service and self.indicator_service.needs_refresh(symbol):
+            try:
+                market = self.config.get("market", "futures") if self.config else "futures"
+                await self.indicator_service.refresh_history(symbol, market=market)
+            except Exception as e:
+                logger.warning(f"Candle refresh failed for {symbol}: {e}")
+
         # Build MarketData from indicators
         market_data = self._build_market_data(symbol)
         if market_data is None:

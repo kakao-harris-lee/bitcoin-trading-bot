@@ -122,6 +122,10 @@ class IndicatorService:
         # Candle aggregation: build new candles from tick data
         self._building_candle: dict[str, dict] = {}    # symbol -> {open, high, low, close, boundary}
         self._candle_interval: dict[str, int] = {}     # symbol -> interval in seconds
+        self._candle_interval_str: dict[str, str] = {} # symbol -> Binance interval string (e.g. "4h")
+
+        # REST candle refresh: flag symbols needing real OHLCV data
+        self._pending_refresh: set[str] = set()
 
         # Stats for monitoring
         self._cache_hits = 0
@@ -151,6 +155,16 @@ class IndicatorService:
                 if diff > 1_000_000:
                     diff = diff // 1000
                 self._candle_interval[symbol] = int(diff)
+
+                # Map seconds to Binance interval string for REST API refresh
+                _INTERVAL_MAP = {
+                    60: "1m", 300: "5m", 900: "15m",
+                    3600: "1h", 14400: "4h", 86400: "1d",
+                }
+                self._candle_interval_str[symbol] = _INTERVAL_MAP.get(
+                    int(diff), "1h"
+                )
+
                 logger.info(
                     f"IndicatorService: {symbol} candle interval = {diff}s "
                     f"({diff // 60}m)"
@@ -241,6 +255,9 @@ class IndicatorService:
         }
 
         history.append(candle)
+
+        # Flag for REST API refresh to replace estimated volume with real data
+        self._pending_refresh.add(symbol)
 
         # Trim to warmup_candles + 50 to prevent unbounded growth
         max_len = self._warmup_candles + 50
@@ -443,3 +460,77 @@ class IndicatorService:
         if limit:
             return df.tail(limit)
         return df
+
+    def needs_refresh(self, symbol: str) -> bool:
+        """Check if symbol needs REST candle refresh for real OHLCV data.
+
+        Args:
+            symbol: Trading symbol.
+
+        Returns:
+            True if symbol has pending estimated candles that need real data.
+        """
+        return symbol in self._pending_refresh
+
+    async def refresh_history(self, symbol: str, market: str = "futures") -> None:
+        """Refresh recent candle history with real OHLCV data from Binance REST API.
+
+        Replaces estimated candles (with fake volume) with real data from Binance.
+        This ensures volume_ratio calculations are accurate for volume-gated strategies.
+
+        Args:
+            symbol: Trading symbol.
+            market: Market type ("spot" or "futures").
+        """
+        from trading.streams.data_warmup import DataWarmup
+
+        history = self._history.get(symbol)
+        if not history:
+            return
+
+        interval_str = self._candle_interval_str.get(symbol, "1h")
+
+        try:
+            warmup = DataWarmup()
+            candles = await warmup.fetch_recent_candles(
+                symbol=symbol, limit=5, interval=interval_str, market=market,
+            )
+
+            if not candles:
+                logger.warning(f"IndicatorService: Candle refresh returned no data for {symbol}")
+                return
+
+            # Build lookup by open_time (ms) for O(1) matching
+            candle_by_ts: dict[int, dict] = {}
+            for c in candles:
+                # DataWarmup returns timestamp in ms (Binance open_time)
+                candle_by_ts[int(c["timestamp"])] = c
+
+            replaced = 0
+            for i, h in enumerate(history):
+                h_ts = int(h.get("open_time", 0))
+                if h_ts in candle_by_ts:
+                    real = candle_by_ts[h_ts]
+                    history[i]["open"] = real["open"]
+                    history[i]["high"] = real["high"]
+                    history[i]["low"] = real["low"]
+                    history[i]["close"] = real["close"]
+                    history[i]["volume"] = real["volume"]
+                    replaced += 1
+
+            # Remove from pending set
+            self._pending_refresh.discard(symbol)
+
+            # Invalidate indicator cache so next calculation uses real data
+            self._cache.pop(symbol, None)
+
+            if replaced > 0:
+                logger.info(
+                    f"IndicatorService: Candle refresh for {symbol} — "
+                    f"replaced {replaced} candle(s) with real OHLCV data"
+                )
+
+        except Exception as e:
+            logger.warning(f"IndicatorService: Candle refresh failed for {symbol}: {e}")
+            # Don't remove from pending — will retry next tick
+            return

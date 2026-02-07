@@ -1767,7 +1767,7 @@ def get_strategies():
             strategy_info = {
                 'name': name,
                 'market': cfg.get('market', 'futures'),
-                'leverage': cfg.get('leverage', 3),
+                'leverage': 1 if cfg.get('market') == 'spot' else cfg.get('leverage', 3),
                 'position_pct': cfg.get('position_pct', 0.1),
                 'position_size': cfg.get('position_size', 0.01),
                 'dynamic_sizing': cfg.get('dynamic_sizing', False),

@@ -3112,7 +3112,8 @@ function showNotification(message, type = 'info') {
 function renderStrategyCard(strategy, symbols) {
     const name = strategy.name;
     const market = strategy.market || 'futures';
-    const leverage = strategy.leverage || 1;
+    const isSpot = market === 'spot';
+    const leverage = isSpot ? 1 : (strategy.leverage || 1);
     const positionPct = strategy.position_pct || 0;
     const isTuned = strategy.is_tuned;
     const activePositions = strategy.active_positions || [];
@@ -3246,10 +3247,10 @@ function renderStrategyCard(strategy, symbols) {
                     <span class="config-label">Market</span>
                     <span class="config-value">${market.toUpperCase()}</span>
                 </div>
-                <div class="config-row">
+                ${isSpot ? '' : `<div class="config-row">
                     <span class="config-label">Leverage</span>
                     <span class="config-value editable" onclick="editStrategyLeverage('${name}', ${leverage})" title="Click to edit">${leverage}x</span>
-                </div>
+                </div>`}
                 <div class="config-row">
                     <span class="config-label">Position %</span>
                     <span class="config-value editable" onclick="editStrategyPositionPct('${name}', ${positionPct})" title="Click to edit">${(positionPct * 100).toFixed(0)}%</span>

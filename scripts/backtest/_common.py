@@ -311,6 +311,7 @@ class ShortMarginBacktester:
         initial_capital: Starting capital
         fee_rate: Trading fee rate (default: 0.05%)
         slippage: Slippage rate (default: 0.02%)
+        leverage: Leverage multiplier (default: 1.0, no leverage)
         min_order_amount: Minimum order amount (10 for USDT, 10000 for KRW)
         action_open: Action name to open short (default: "short")
         action_close: Action name to close short (default: "close_short")
@@ -321,6 +322,7 @@ class ShortMarginBacktester:
         initial_capital: float = 10_000,
         fee_rate: float = 0.0005,
         slippage: float = 0.0002,
+        leverage: float = 1.0,
         min_order_amount: float = 10,
         action_open: str = "short",
         action_close: str = "close_short",
@@ -328,6 +330,7 @@ class ShortMarginBacktester:
         self.initial_capital = float(initial_capital)
         self.fee_rate = float(fee_rate)
         self.slippage = float(slippage)
+        self.leverage = max(1.0, float(leverage))
         self.min_order_amount = float(min_order_amount)
         self.action_open = action_open
         self.action_close = action_close
@@ -416,14 +419,14 @@ class ShortMarginBacktester:
         if self.in_short:
             return
 
-        # Account for fee in margin calculation to prevent total_cost > cash
-        # margin + margin * fee_rate = margin * (1 + fee_rate) <= cash * fraction
-        margin = self.cash * fraction / (1 + self.fee_rate)
+        # Account for fee on leveraged notional to prevent total_cost > cash
+        # margin + margin * leverage * fee_rate = margin * (1 + leverage * fee_rate) <= cash * fraction
+        margin = self.cash * fraction / (1 + self.leverage * self.fee_rate)
         if margin < self.min_order_amount:
             return
 
         entry_exec = price * (1 - self.slippage)
-        size = margin / entry_exec
+        size = margin * self.leverage / entry_exec
         entry_fee = (size * entry_exec) * self.fee_rate
         total_cost = margin + entry_fee
 

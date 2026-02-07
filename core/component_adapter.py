@@ -56,7 +56,7 @@ class ComponentStrategyAdapter:
             entry_overrides=entry_overrides,
             exit_overrides=exit_overrides,
         )
-        self.market = factory.get_market(strategy_name)
+        self.market = factory.get_market(strategy_name, config)
         self.current_position: Optional[Position] = None
         self.high_water_mark: Optional[float] = None
         self.symbol = "BTC" # Default, will be updated if possible

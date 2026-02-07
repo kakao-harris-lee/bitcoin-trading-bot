@@ -61,18 +61,17 @@ MLP_STRATEGY_IDS = {
     "SOL": "mlp_direction_sol",
 }
 
-BEAR_SHORT_CONFIG = {
+_BEAR_SHORT_FALLBACK = {
     "market": "futures",
     "leverage": 3,
-    "position_pct": 0.90,
-    "dynamic_sizing": True,
+    "position_pct": 0.10,
     "drawdown_enabled": False,
     "stop_loss_cooldown": 0,
     "entry": {
         "class": "BearShortEntryStrategy",
         "params": {
             "volume_ratio_threshold": 1.5,
-            "position_size": 0.90,
+            "position_size": 0.01,
         },
     },
     "exit": {
@@ -85,27 +84,43 @@ BEAR_SHORT_CONFIG = {
 }
 
 
-def load_optimized_bear_config() -> dict[str, Any]:
-    """Load optimized bear short params if available."""
+def load_bear_config(config_path: str = "config/strategies/allocation.json") -> dict[str, Any]:
+    """Load bear short config from allocation.json (same source as dashboard)."""
+    alloc_path = PROJECT_ROOT / config_path
+    if alloc_path.exists():
+        with open(alloc_path) as f:
+            allocation = json.load(f)
+        bear_cfg = allocation.get("strategies", {}).get("bear_short")
+        if bear_cfg:
+            return dict(bear_cfg)
+    return dict(_BEAR_SHORT_FALLBACK)
+
+
+def load_optimized_bear_config(base_config: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Load optimized bear short params if available, on top of base config."""
+    config = dict(base_config or load_bear_config())
     opt_path = PROJECT_ROOT / "config" / "strategies" / "bear_short_optimized.json"
     if opt_path.exists():
         with open(opt_path) as f:
             opt = json.load(f)
         params = opt.get("optimized_params", {})
-        config = dict(BEAR_SHORT_CONFIG)
-        config["entry"] = dict(config["entry"])
-        config["entry"]["params"] = dict(config["entry"]["params"])
-        config["exit"] = dict(config["exit"])
-        config["exit"]["params"] = dict(config["exit"]["params"])
-        config["entry"]["params"]["volume_ratio_threshold"] = params.get(
-            "volume_ratio_threshold", 1.5
-        )
-        config["exit"]["params"]["stop_loss_pct"] = params.get("stop_loss_pct", 3.0)
-        config["exit"]["params"]["take_profit_pct"] = params.get(
-            "take_profit_pct", 5.0
-        )
-        return config
-    return dict(BEAR_SHORT_CONFIG)
+        if "entry" in config and "params" in config["entry"]:
+            config["entry"] = dict(config["entry"])
+            config["entry"]["params"] = dict(config["entry"]["params"])
+            config["entry"]["params"]["volume_ratio_threshold"] = params.get(
+                "volume_ratio_threshold",
+                config["entry"]["params"].get("volume_ratio_threshold", 1.5),
+            )
+        if "exit" in config and "params" in config["exit"]:
+            config["exit"] = dict(config["exit"])
+            config["exit"]["params"] = dict(config["exit"]["params"])
+            config["exit"]["params"]["stop_loss_pct"] = params.get(
+                "stop_loss_pct", config["exit"]["params"].get("stop_loss_pct", 3.0)
+            )
+            config["exit"]["params"]["take_profit_pct"] = params.get(
+                "take_profit_pct", config["exit"]["params"].get("take_profit_pct", 5.0)
+            )
+    return config
 
 
 def run_hedge_backtest(
@@ -189,10 +204,12 @@ def run_hedge_backtest(
 
     # Futures backtester (Bear Short) using hedge budget
     hedge_budget = hedge_manager.hedge_budget
+    bear_leverage = float(bear_config.get("leverage", 3))
     futures_bt = ShortMarginBacktester(
         initial_capital=hedge_budget,
         fee_rate=0.0005,  # Futures 0.05%
         slippage=0.0002,
+        leverage=bear_leverage,
         min_order_amount=10,
         action_open="open_short",
         action_close="close_short",
@@ -400,11 +417,10 @@ def main():
     n_assets = len(args.assets)
     per_asset_capital = args.capital / n_assets
 
-    # Load bear config
+    # Load bear config from allocation.json (same source as dashboard)
+    bear_config = load_bear_config(args.config)
     if args.use_optimized_bear:
-        bear_config = load_optimized_bear_config()
-    else:
-        bear_config = dict(BEAR_SHORT_CONFIG)
+        bear_config = load_optimized_bear_config(bear_config)
 
     print("=" * 90)
     print("COMBINED HEDGE BACKTEST")

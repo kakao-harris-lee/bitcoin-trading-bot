@@ -56,19 +56,18 @@ MLP_STRATEGY_IDS = {
     "SOL": "mlp_direction_sol",
 }
 
-# Default bear short config
-BEAR_SHORT_CONFIG = {
+# Fallback bear short config (used only if allocation.json has no bear_short)
+_BEAR_SHORT_FALLBACK = {
     "market": "futures",
     "leverage": 3,
-    "position_pct": 0.90,
-    "dynamic_sizing": True,
+    "position_pct": 0.10,
     "drawdown_enabled": False,
     "stop_loss_cooldown": 0,
     "entry": {
         "class": "BearShortEntryStrategy",
         "params": {
             "volume_ratio_threshold": 1.5,
-            "position_size": 0.90,
+            "position_size": 0.01,
         },
     },
     "exit": {
@@ -81,23 +80,42 @@ BEAR_SHORT_CONFIG = {
 }
 
 
-def load_optimized_bear_config() -> dict[str, Any]:
-    """Load optimized bear short params if available."""
+def load_bear_config(config_path: str = "config/strategies/allocation.json") -> dict[str, Any]:
+    """Load bear short config from allocation.json (same source as dashboard).
+
+    Falls back to _BEAR_SHORT_FALLBACK if allocation.json has no bear_short entry.
+    """
+    alloc_path = PROJECT_ROOT / config_path
+    if alloc_path.exists():
+        with open(alloc_path) as f:
+            allocation = json.load(f)
+        bear_cfg = allocation.get("strategies", {}).get("bear_short")
+        if bear_cfg:
+            return dict(bear_cfg)
+    return dict(_BEAR_SHORT_FALLBACK)
+
+
+def load_optimized_bear_config(base_config: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Load optimized bear short params if available, applied on top of base config."""
+    config = dict(base_config or load_bear_config())
     opt_path = PROJECT_ROOT / "config" / "strategies" / "bear_short_optimized.json"
     if opt_path.exists():
         with open(opt_path) as f:
             opt = json.load(f)
         params = opt.get("optimized_params", {})
-        config = dict(BEAR_SHORT_CONFIG)
-        config["entry"]["params"]["volume_ratio_threshold"] = params.get(
-            "volume_ratio_threshold", 1.5
-        )
-        config["exit"]["params"]["stop_loss_pct"] = params.get("stop_loss_pct", 3.0)
-        config["exit"]["params"]["take_profit_pct"] = params.get(
-            "take_profit_pct", 5.0
-        )
-        return config
-    return dict(BEAR_SHORT_CONFIG)
+        if "entry" in config and "params" in config["entry"]:
+            config["entry"]["params"]["volume_ratio_threshold"] = params.get(
+                "volume_ratio_threshold",
+                config["entry"]["params"].get("volume_ratio_threshold", 1.5),
+            )
+        if "exit" in config and "params" in config["exit"]:
+            config["exit"]["params"]["stop_loss_pct"] = params.get(
+                "stop_loss_pct", config["exit"]["params"].get("stop_loss_pct", 3.0)
+            )
+            config["exit"]["params"]["take_profit_pct"] = params.get(
+                "take_profit_pct", config["exit"]["params"].get("take_profit_pct", 5.0)
+            )
+    return config
 
 
 def run_mlp_backtest(
@@ -150,6 +168,8 @@ def run_bear_short_backtest(
     _, symbol = ASSET_DB[asset]
     adapter.symbol = symbol
 
+    leverage = float(bear_config.get("leverage", 3))
+
     cached_df = add_all_indicators(df.copy())
 
     def strategy_func(df_data, i, params):
@@ -161,6 +181,7 @@ def run_bear_short_backtest(
         initial_capital=capital,
         fee_rate=0.0005,
         slippage=0.0002,
+        leverage=leverage,
         min_order_amount=10,
         action_open="open_short",
         action_close="close_short",
@@ -248,19 +269,22 @@ def main():
     spot_capital = args.capital * args.spot_pct
     futures_capital = args.capital * args.futures_pct
 
-    # Load bear config
+    # Load bear config from allocation.json (same source as dashboard)
+    bear_config = load_bear_config(args.config)
+    bear_label = "Bear Short (allocation.json)"
     if args.use_optimized_bear:
-        bear_config = load_optimized_bear_config()
+        bear_config = load_optimized_bear_config(bear_config)
         bear_label = "Bear Short (optimized)"
-        opt_params = bear_config["exit"]["params"]
-        vol_ratio = bear_config["entry"]["params"]["volume_ratio_threshold"]
-        print(
-            f"Bear Short params: vol_ratio={vol_ratio}, "
-            f"SL={opt_params['stop_loss_pct']}%, TP={opt_params['take_profit_pct']}%"
-        )
-    else:
-        bear_config = dict(BEAR_SHORT_CONFIG)
-        bear_label = "Bear Short (default)"
+    opt_params = bear_config.get("exit", {}).get("params", {})
+    entry_params = bear_config.get("entry", {}).get("params", {})
+    bear_leverage = bear_config.get("leverage", 3)
+    print(
+        f"Bear Short: leverage={bear_leverage}x, "
+        f"pos_size={entry_params.get('position_size', '?')}, "
+        f"vol_ratio={entry_params.get('volume_ratio_threshold', '?')}, "
+        f"SL={opt_params.get('stop_loss_pct', '?')}%, "
+        f"TP={opt_params.get('take_profit_pct', '?')}%"
+    )
 
     print("=" * 80)
     print("COMBINED HYBRID BACKTEST")

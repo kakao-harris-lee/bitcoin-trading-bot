@@ -16,7 +16,7 @@ cd "$SCRIPT_DIR"
 
 PID_FILE="$SCRIPT_DIR/.bot.pid"
 LOG_DIR="$SCRIPT_DIR/logs"
-LOG_FILE="$LOG_DIR/bot_$(date +%Y%m%d).log"
+LOG_FILE="$LOG_DIR/bot.log"
 
 # 로그 디렉토리 생성
 mkdir -p "$LOG_DIR"
@@ -77,7 +77,8 @@ start() {
     fi
 
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
-    nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" >> "$LOG_FILE" 2>&1 &
+    # Python handles log file rotation (logs/bot.log, daily, 30-day retention)
+    nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" > /dev/null 2>&1 &
 
     PID=$!
     echo $PID > "$PID_FILE"

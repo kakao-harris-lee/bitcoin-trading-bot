@@ -119,6 +119,10 @@ class IndicatorService:
         # Price buffers for real-time updates
         self._price_buffers: dict[str, deque] = {}
 
+        # Candle aggregation: build new candles from tick data
+        self._building_candle: dict[str, dict] = {}    # symbol -> {open, high, low, close, boundary}
+        self._candle_interval: dict[str, int] = {}     # symbol -> interval in seconds
+
         # Stats for monitoring
         self._cache_hits = 0
         self._cache_misses = 0
@@ -135,6 +139,26 @@ class IndicatorService:
             candles: List of candle dicts with OHLCV data.
         """
         self._history[symbol] = candles
+
+        # Detect candle interval from timestamp diff of last two candles
+        if len(candles) >= 2:
+            ts_key = "open_time" if "open_time" in candles[-1] else "timestamp"
+            t1 = candles[-2].get(ts_key, 0)
+            t2 = candles[-1].get(ts_key, 0)
+            if t1 and t2:
+                diff = abs(t2 - t1)
+                # open_time is in milliseconds from Binance
+                if diff > 1_000_000:
+                    diff = diff // 1000
+                self._candle_interval[symbol] = int(diff)
+                logger.info(
+                    f"IndicatorService: {symbol} candle interval = {diff}s "
+                    f"({diff // 60}m)"
+                )
+
+        # Reset building candle for this symbol
+        self._building_candle.pop(symbol, None)
+
         logger.info(f"IndicatorService: Updated {symbol} history ({len(candles)} candles)")
 
     def add_price(self, symbol: str, price_msg: dict) -> None:
@@ -149,6 +173,89 @@ class IndicatorService:
         if symbol not in self._price_buffers:
             self._price_buffers[symbol] = deque(maxlen=100)
         self._price_buffers[symbol].append(price_msg)
+
+        # --- Candle aggregation ---
+        interval = self._candle_interval.get(symbol)
+        if not interval or symbol not in self._history:
+            return
+
+        price = float(price_msg.get("price", 0))
+        if price <= 0:
+            return
+
+        now = time.time()
+        boundary = int(now // interval) * interval
+
+        building = self._building_candle.get(symbol)
+        if building is None:
+            # Start tracking a new candle
+            self._building_candle[symbol] = {
+                "open": price,
+                "high": price,
+                "low": price,
+                "close": price,
+                "boundary": boundary,
+            }
+            return
+
+        if boundary > building["boundary"]:
+            # Period boundary crossed — finalize the completed candle
+            self._finalize_candle(symbol, building)
+            # Start new candle
+            self._building_candle[symbol] = {
+                "open": price,
+                "high": price,
+                "low": price,
+                "close": price,
+                "boundary": boundary,
+            }
+        else:
+            # Same period — update running OHLC
+            building["high"] = max(building["high"], price)
+            building["low"] = min(building["low"], price)
+            building["close"] = price
+
+    def _finalize_candle(self, symbol: str, building: dict) -> None:
+        """Finalize a completed candle and append it to history.
+
+        Args:
+            symbol: Trading symbol.
+            building: Dict with open/high/low/close/boundary from tick aggregation.
+        """
+        history = self._history.get(symbol)
+        if not history:
+            return
+
+        # Estimate volume from 20-candle historical average (MFI needs volume)
+        recent = history[-20:]
+        avg_vol = sum(c.get("volume", 0) for c in recent) / max(len(recent), 1)
+
+        candle = {
+            "open": building["open"],
+            "high": building["high"],
+            "low": building["low"],
+            "close": building["close"],
+            "volume": avg_vol,
+            "timestamp": building["boundary"],
+            "open_time": building["boundary"] * 1000,  # ms for Binance compat
+        }
+
+        history.append(candle)
+
+        # Trim to warmup_candles + 50 to prevent unbounded growth
+        max_len = self._warmup_candles + 50
+        if len(history) > max_len:
+            self._history[symbol] = history[-max_len:]
+
+        # Invalidate indicator cache so next get_market_data() recalculates
+        self._cache.pop(symbol, None)
+
+        logger.info(
+            f"IndicatorService: New candle for {symbol} | "
+            f"O={candle['open']:.2f} H={candle['high']:.2f} "
+            f"L={candle['low']:.2f} C={candle['close']:.2f} "
+            f"(history={len(self._history[symbol])} candles)"
+        )
 
     def get_market_data(
         self,

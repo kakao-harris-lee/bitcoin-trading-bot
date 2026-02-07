@@ -46,7 +46,7 @@
   "strategies": {
     "mlp_direction_btc": {
       "_comment": "Paper reproduction - BTC model (BWin=5, FWin=2)",
-      "enabled": false,
+      "enabled": true,
       "market": "spot",
       "symbols": [
         "BTC"
@@ -136,7 +136,7 @@
     },
     "mlp_direction_sol": {
       "_comment": "Live trading - SOL with dedicated SOL model (bwin=4, fwin=2)",
-      "enabled": false,
+      "enabled": true,
       "market": "spot",
       "symbols": [
         "SOL"
@@ -181,7 +181,7 @@
     },
     "mlp_direction_bnb": {
       "_comment": "Live trading - BNB with dedicated BNB model (bwin=4, fwin=2)",
-      "enabled": false,
+      "enabled": true,
       "market": "spot",
       "symbols": [
         "BNB"
@@ -224,28 +224,18 @@
         }
       }
     },
-    "short_v1": {
-      "market": "futures",
-      "leverage": 3,
-      "dynamic_sizing": true,
-      "position_pct": 0.1,
-      "position_size": 0.01,
-      "use_smart_exit": true,
-      "entry": {
-        "class": "ShortEntryStrategy"
-      },
-      "exit": {
-        "class": "ShortExitStrategy"
-      }
-    },
     "bear_short": {
       "_comment": "Conservative futures short during BEAR_STRONG regimes",
-      "enabled": false,
+      "enabled": true,
       "market": "futures",
       "leverage": 3,
-      "position_pct": 0.10,
+      "position_pct": 0.1,
       "position_size": 0.01,
-      "symbols": ["BTC", "ETH", "SOL"],
+      "symbols": [
+        "BTC",
+        "ETH",
+        "SOL"
+      ],
       "entry": {
         "class": "BearShortEntryStrategy",
         "params": {

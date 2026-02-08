@@ -36,7 +36,7 @@
     "api_secret": "${BINANCE_API_SECRET}"
   },
   "futures": {
-    "enabled": true,
+    "enabled": false,
     "default_leverage": 3
   },
   "spot": {

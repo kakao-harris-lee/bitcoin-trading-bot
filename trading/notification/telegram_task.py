@@ -231,12 +231,53 @@ class TelegramTask:
         await self._send_message("*Kill Switch: OFF*\n\nTrading is now ENABLED.", bypass_rate_limit=True)
 
     async def _cmd_info(self) -> None:
-        """Handle /info command - show current status."""
+        """Handle /info command - show market status and latest signals."""
         risk = await self.redis.get_risk()
 
-        kill_switch = risk.get("kill_switch", "false")
         daily_pnl = float(risk.get("daily_pnl", 0))
         blocked = risk.get("blocked", "false")
+
+        # Get latest prices from market stream
+        prices: dict[str, float] = {}
+        try:
+            entries = await self.redis._client.xrevrange("market:prices", count=100)
+            for _, data in entries:
+                symbol = data.get("symbol")
+                price_raw = data.get("price")
+                if symbol in ("BTC", "ETH", "SOL") and symbol not in prices and price_raw:
+                    prices[symbol] = float(price_raw)
+        except Exception:
+            prices = {}
+
+        market_text = ""
+        for symbol in ("BTC", "ETH", "SOL"):
+            if symbol in prices:
+                market_text += f"\n  {symbol}: ${prices[symbol]:,.2f}"
+        if not market_text:
+            market_text = "\n  No recent price data"
+
+        # Get latest decision/regime per symbol from strategy:decisions stream
+        signals_by_symbol: dict[str, str] = {}
+        try:
+            decision_entries = await self.redis._client.xrevrange("strategy:decisions", count=200)
+            for _, data in decision_entries:
+                symbol = data.get("symbol", "")
+                if symbol in ("BTC", "ETH", "SOL") and symbol not in signals_by_symbol:
+                    decision = (data.get("decision") or "WAIT").upper()
+                    regime = data.get("regime", "UNKNOWN")
+                    strategy = data.get("strategy", "unknown")
+                    signals_by_symbol[symbol] = f"{decision} | {regime} ({strategy})"
+                if len(signals_by_symbol) == 3:
+                    break
+        except Exception:
+            signals_by_symbol = {}
+
+        signal_text = ""
+        for symbol in ("BTC", "ETH", "SOL"):
+            if symbol in signals_by_symbol:
+                signal_text += f"\n  {symbol}: {signals_by_symbol[symbol]}"
+        if not signal_text:
+            signal_text = "\n  No recent strategy signals"
 
         # Get positions
         positions_text = ""
@@ -252,13 +293,15 @@ class TelegramTask:
         if not positions_text:
             positions_text = "\n  None"
 
-        status_emoji = "" if kill_switch == "true" else ""
         blocked_text = " (BLOCKED)" if blocked == "true" else ""
 
         message = f"""*System Status*
 
-{status_emoji} *Kill Switch:* {"ON" if kill_switch == "true" else "OFF"}{blocked_text}
- *Daily P&L:* ${daily_pnl:+,.2f}
+*Daily P&L:* ${daily_pnl:+,.2f}{blocked_text}
+
+*Market Snapshot:*{market_text}
+
+*Latest Signals:*{signal_text}
 
 *Active Positions:*{positions_text}
 

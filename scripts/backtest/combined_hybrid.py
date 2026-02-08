@@ -80,16 +80,27 @@ _BEAR_SHORT_FALLBACK = {
 }
 
 
-def load_bear_config(config_path: str = "config/strategies/allocation.json") -> dict[str, Any]:
+def load_bear_config(
+    config_path: str = "config/strategies/allocation.json",
+    asset: str | None = None,
+) -> dict[str, Any]:
     """Load bear short config from allocation.json (same source as dashboard).
 
-    Falls back to _BEAR_SHORT_FALLBACK if allocation.json has no bear_short entry.
+    Looks for per-symbol key first (e.g. bear_short_btc), then falls back to
+    generic bear_short, then to _BEAR_SHORT_FALLBACK.
     """
     alloc_path = PROJECT_ROOT / config_path
     if alloc_path.exists():
         with open(alloc_path) as f:
             allocation = json.load(f)
-        bear_cfg = allocation.get("strategies", {}).get("bear_short")
+        strategies = allocation.get("strategies", {})
+        # Per-symbol key first (bear_short_btc, bear_short_eth, ...)
+        if asset:
+            bear_cfg = strategies.get(f"bear_short_{asset.lower()}")
+            if bear_cfg:
+                return dict(bear_cfg)
+        # Generic fallback
+        bear_cfg = strategies.get("bear_short")
         if bear_cfg:
             return dict(bear_cfg)
     return dict(_BEAR_SHORT_FALLBACK)
@@ -171,11 +182,18 @@ def run_bear_short_backtest(
     leverage = float(bear_config.get("leverage", 3))
 
     cached_df = add_all_indicators(df.copy())
+    position_pct = float(bear_config.get("position_pct", 0.10))
 
     def strategy_func(df_data, i, params):
         if i < 200:
             return {"action": "hold"}
-        return adapter(cached_df, i, params)
+        sig = adapter(cached_df, i, params)
+        # Adapter returns fraction as position_size (BTC qty), but
+        # ShortMarginBacktester expects fraction as % of cash.
+        # Override with position_pct from config for correct sizing.
+        if sig.get("action") == "open_short":
+            sig["fraction"] = position_pct
+        return sig
 
     bt = ShortMarginBacktester(
         initial_capital=capital,
@@ -269,22 +287,8 @@ def main():
     spot_capital = args.capital * args.spot_pct
     futures_capital = args.capital * args.futures_pct
 
-    # Load bear config from allocation.json (same source as dashboard)
-    bear_config = load_bear_config(args.config)
-    bear_label = "Bear Short (allocation.json)"
-    if args.use_optimized_bear:
-        bear_config = load_optimized_bear_config(bear_config)
-        bear_label = "Bear Short (optimized)"
-    opt_params = bear_config.get("exit", {}).get("params", {})
-    entry_params = bear_config.get("entry", {}).get("params", {})
-    bear_leverage = bear_config.get("leverage", 3)
-    print(
-        f"Bear Short: leverage={bear_leverage}x, "
-        f"pos_size={entry_params.get('position_size', '?')}, "
-        f"vol_ratio={entry_params.get('volume_ratio_threshold', '?')}, "
-        f"SL={opt_params.get('stop_loss_pct', '?')}%, "
-        f"TP={opt_params.get('take_profit_pct', '?')}%"
-    )
+    # Bear config loaded per-asset inside the loop (bear_short_btc, bear_short_eth, etc.)
+    use_optimized = args.use_optimized_bear
 
     print("=" * 80)
     print("COMBINED HYBRID BACKTEST")
@@ -346,7 +350,15 @@ def main():
             print(f"  MLP Direction ({asset}): No trades (model may not exist)")
 
         # --- Bear Short (Futures) ---
-        print(f"  Running Bear Short (futures, ${per_asset_futures:,.0f})...")
+        bear_config = load_bear_config(args.config, asset)
+        if use_optimized:
+            bear_config = load_optimized_bear_config(bear_config)
+        exit_p = bear_config.get("exit", {}).get("params", {})
+        entry_p = bear_config.get("entry", {}).get("params", {})
+        print(
+            f"  Running Bear Short (futures, ${per_asset_futures:,.0f}, "
+            f"SL={exit_p.get('stop_loss_pct', '?')}%, TP={exit_p.get('take_profit_pct', '?')}%)..."
+        )
         bear_results = run_bear_short_backtest(asset, df, per_asset_futures, bear_config)
         bear_eq = bear_results.get("equity_curve", pd.DataFrame())
 

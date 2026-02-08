@@ -84,13 +84,25 @@ _BEAR_SHORT_FALLBACK = {
 }
 
 
-def load_bear_config(config_path: str = "config/strategies/allocation.json") -> dict[str, Any]:
-    """Load bear short config from allocation.json (same source as dashboard)."""
+def load_bear_config(
+    config_path: str = "config/strategies/allocation.json",
+    asset: str | None = None,
+) -> dict[str, Any]:
+    """Load bear short config from allocation.json (same source as dashboard).
+
+    Looks for per-symbol key first (e.g. bear_short_btc), then falls back to
+    generic bear_short, then to _BEAR_SHORT_FALLBACK.
+    """
     alloc_path = PROJECT_ROOT / config_path
     if alloc_path.exists():
         with open(alloc_path) as f:
             allocation = json.load(f)
-        bear_cfg = allocation.get("strategies", {}).get("bear_short")
+        strategies = allocation.get("strategies", {})
+        if asset:
+            bear_cfg = strategies.get(f"bear_short_{asset.lower()}")
+            if bear_cfg:
+                return dict(bear_cfg)
+        bear_cfg = strategies.get("bear_short")
         if bear_cfg:
             return dict(bear_cfg)
     return dict(_BEAR_SHORT_FALLBACK)
@@ -268,7 +280,9 @@ def run_hedge_backtest(
                 bear_signal = {"action": "close_short"}
 
         bear_action = bear_signal.get("action", "hold")
-        bear_fraction = min(1.0, max(0.0, float(bear_signal.get("fraction", 1.0))))
+        # Adapter returns fraction as BTC qty (position_size), not cash %.
+        # Use position_pct from config for correct sizing.
+        bear_fraction = float(bear_config.get("position_pct", 0.10)) if bear_action == "open_short" else 1.0
         if bear_action == "open_short":
             futures_bt._open_short(ts, price, bear_fraction)
             if not any(e.get("type") == "activate" and e.get("ts") == ts for e in hedge_events):
@@ -417,10 +431,8 @@ def main():
     n_assets = len(args.assets)
     per_asset_capital = args.capital / n_assets
 
-    # Load bear config from allocation.json (same source as dashboard)
-    bear_config = load_bear_config(args.config)
-    if args.use_optimized_bear:
-        bear_config = load_optimized_bear_config(bear_config)
+    # Bear config loaded per-asset inside the loop (bear_short_btc, bear_short_eth, etc.)
+    use_optimized = args.use_optimized_bear
 
     print("=" * 90)
     print("COMBINED HEDGE BACKTEST")
@@ -466,7 +478,15 @@ def main():
             hedge_budget_pct=args.hedge_budget,
         )
 
-        print(f"  Running hedge backtest (spot=${per_asset_capital:,.0f}, hedge_budget=${hedge_manager.hedge_budget:,.0f})...")
+        bear_config = load_bear_config(args.config, asset)
+        if use_optimized:
+            bear_config = load_optimized_bear_config(bear_config)
+        exit_p = bear_config.get("exit", {}).get("params", {})
+        print(
+            f"  Running hedge backtest (spot=${per_asset_capital:,.0f}, "
+            f"hedge=${hedge_manager.hedge_budget:,.0f}, "
+            f"SL={exit_p.get('stop_loss_pct', '?')}%, TP={exit_p.get('take_profit_pct', '?')}%)..."
+        )
         results = run_hedge_backtest(
             asset=asset,
             df_raw=df_raw,

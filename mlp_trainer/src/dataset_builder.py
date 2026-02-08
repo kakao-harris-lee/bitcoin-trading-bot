@@ -22,8 +22,10 @@ from trading.indicators.mlp_features import (
     calculate_mlp_features,
     FEATURE_SET_PAPER,
     FEATURE_SET_SHAP,
+    FEATURE_SET_V2,
     FEATURE_NAMES_PAPER,
     FEATURE_NAMES_SHAP,
+    FEATURE_NAMES_V2,
 )
 from core.mlp_labeling import (
     compute_labels,
@@ -245,10 +247,13 @@ class MLPDatasetBuilder:
         config_str = f"bwin{self.config.backward_window}_fwin{self.config.forward_window}"
         output_path = output_dir / f"mlp_dataset_{config_str}.npz"
 
-        feature_names = (
-            FEATURE_NAMES_PAPER
-            if self.config.feature_set == FEATURE_SET_PAPER
-            else FEATURE_NAMES_SHAP
+        feature_names_map = {
+            FEATURE_SET_PAPER: FEATURE_NAMES_PAPER,
+            FEATURE_SET_SHAP: FEATURE_NAMES_SHAP,
+            FEATURE_SET_V2: FEATURE_NAMES_V2,
+        }
+        feature_names = feature_names_map.get(
+            self.config.feature_set, FEATURE_NAMES_PAPER
         )
 
         np.savez_compressed(
@@ -309,10 +314,13 @@ class MLPDatasetBuilder:
         logger.info(f"Loading validation data from {parquet_path}")
         df = pd.read_parquet(parquet_path)
 
-        feature_names = (
-            FEATURE_NAMES_PAPER
-            if self.config.feature_set == FEATURE_SET_PAPER
-            else FEATURE_NAMES_SHAP
+        feature_names_map = {
+            FEATURE_SET_PAPER: FEATURE_NAMES_PAPER,
+            FEATURE_SET_SHAP: FEATURE_NAMES_SHAP,
+            FEATURE_SET_V2: FEATURE_NAMES_V2,
+        }
+        feature_names = feature_names_map.get(
+            self.config.feature_set, FEATURE_NAMES_PAPER
         )
 
         symbols = df["symbol"].unique()
@@ -485,7 +493,7 @@ def main():
         "--feature-set",
         type=str,
         default=FEATURE_SET_PAPER,
-        choices=[FEATURE_SET_PAPER, FEATURE_SET_SHAP],
+        choices=[FEATURE_SET_PAPER, FEATURE_SET_SHAP, FEATURE_SET_V2],
         help="Feature set to use",
     )
     parser.add_argument(

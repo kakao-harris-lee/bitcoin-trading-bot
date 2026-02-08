@@ -78,6 +78,7 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - MLP Direction Strategy Design → `docs/plans/2026-02-01-mlp-direction-strategy-design.md`
 - MLP Direction Strategy Implementation → `docs/plans/2026-02-01-mlp-direction-strategy-implementation.md`
 - Bear Short Strategy Design → `docs/plans/2026-02-06-bear-short-strategy-design.md`
+- MLP Model Improvement Plan → `docs/plans/2026-02-08-mlp-model-improvement-plan.md`
 
 This prevents context loss! Update this file immediately when you create important documentation.
 

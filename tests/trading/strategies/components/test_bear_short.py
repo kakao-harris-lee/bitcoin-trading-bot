@@ -39,6 +39,7 @@ def _make_market_data(
     rsi: float = 45.0,
     volume: float = 200.0,
     avg_volume_20: float = 100.0,
+    ema_200: float = 0.0,
 ) -> MarketData:
     return MarketData(
         symbol=symbol,
@@ -52,6 +53,7 @@ def _make_market_data(
         avg_volume_20=avg_volume_20,
         macd=macd,
         macd_signal=macd_signal,
+        ema_200=ema_200,
     )
 
 
@@ -66,6 +68,7 @@ def _make_context(
     volume: float = 200.0,
     avg_volume: float = 100.0,
     regime_override: str | None = None,
+    ema_200: float = 0.0,
 ) -> TradingContext:
     """Build a full TradingContext for testing."""
     market = _make_market_data(
@@ -78,6 +81,7 @@ def _make_context(
         rsi=rsi,
         volume=volume,
         avg_volume_20=avg_volume,
+        ema_200=ema_200,
     )
     regime = build_market_context(
         mfi=mfi,
@@ -133,7 +137,7 @@ class TestBearShortEntryParams:
 
     def test_default_values(self):
         params = BearShortEntryParams()
-        assert params.volume_ratio_threshold == 1.5
+        assert params.volume_ratio_threshold == 0.0
         assert params.position_size == 0.01
         assert params.market == "futures"
 
@@ -215,15 +219,27 @@ class TestBearShortEntry:
         )
         assert strategy.check_entry(ctx) is None
 
-    def test_entry_blocked_by_low_volume(self):
-        """Volume ratio below threshold -> no signal."""
-        strategy = BearShortEntryStrategy()
+    def test_entry_blocked_by_low_volume_when_enabled(self):
+        """Volume ratio below threshold -> no signal (when threshold > 0)."""
+        params = BearShortEntryParams(volume_ratio_threshold=1.5)
+        strategy = BearShortEntryStrategy(params=params)
         ctx = _make_context(
             mfi=30.0, adx=30.0,
             macd=-100.0, macd_signal=-50.0,
             volume=100.0, avg_volume=100.0,  # ratio=1.0 < 1.5
         )
         assert strategy.check_entry(ctx) is None
+
+    def test_entry_allowed_when_volume_gate_disabled(self):
+        """Default volume_ratio_threshold=0 -> volume gate disabled."""
+        strategy = BearShortEntryStrategy()  # threshold=0.0
+        ctx = _make_context(
+            mfi=30.0, adx=30.0,
+            macd=-100.0, macd_signal=-50.0,
+            volume=100.0, avg_volume=100.0,  # ratio=1.0
+        )
+        signal = strategy.check_entry(ctx)
+        assert signal is not None
 
     def test_entry_with_custom_volume_threshold(self):
         """Custom volume threshold should be respected."""
@@ -262,6 +278,108 @@ class TestBearShortEntry:
         )
         signal = strategy.check_entry(ctx)
         assert signal is not None
+
+    # --- EMA200 filter tests ---
+
+    def test_ema200_filter_blocks_above(self):
+        """Price above EMA200 with filter enabled -> no signal."""
+        params = BearShortEntryParams(ema200_filter=True)
+        strategy = BearShortEntryStrategy(params=params)
+        ctx = _make_context(
+            mfi=30.0, adx=30.0,
+            macd=-100.0, macd_signal=-50.0,
+            close=50000.0, ema_200=52000.0,  # price < EMA200 -> should pass
+        )
+        signal = strategy.check_entry(ctx)
+        assert signal is not None
+
+    def test_ema200_filter_blocks_when_above(self):
+        """Price above EMA200 with filter enabled -> no signal."""
+        params = BearShortEntryParams(ema200_filter=True)
+        strategy = BearShortEntryStrategy(params=params)
+        ctx = _make_context(
+            mfi=30.0, adx=30.0,
+            macd=-100.0, macd_signal=-50.0,
+            close=55000.0, ema_200=52000.0,  # price > EMA200
+        )
+        assert strategy.check_entry(ctx) is None
+
+    def test_ema200_filter_disabled_allows_above(self):
+        """Price above EMA200 with filter disabled -> signal allowed."""
+        params = BearShortEntryParams(ema200_filter=False)
+        strategy = BearShortEntryStrategy(params=params)
+        ctx = _make_context(
+            mfi=30.0, adx=30.0,
+            macd=-100.0, macd_signal=-50.0,
+            close=55000.0, ema_200=52000.0,
+        )
+        signal = strategy.check_entry(ctx)
+        assert signal is not None
+
+    # --- RSI ceiling tests ---
+
+    def test_rsi_max_blocks_high_rsi(self):
+        """RSI above max -> no signal."""
+        params = BearShortEntryParams(rsi_max=35)
+        strategy = BearShortEntryStrategy(params=params)
+        ctx = _make_context(
+            mfi=30.0, adx=30.0,
+            macd=-100.0, macd_signal=-50.0,
+            rsi=40.0,
+        )
+        assert strategy.check_entry(ctx) is None
+
+    def test_rsi_max_allows_low_rsi(self):
+        """RSI below max -> signal."""
+        params = BearShortEntryParams(rsi_max=35)
+        strategy = BearShortEntryStrategy(params=params)
+        ctx = _make_context(
+            mfi=30.0, adx=30.0,
+            macd=-100.0, macd_signal=-50.0,
+            rsi=30.0,
+        )
+        signal = strategy.check_entry(ctx)
+        assert signal is not None
+
+    def test_rsi_max_disabled(self):
+        """rsi_max=0 -> filter disabled, high RSI allowed."""
+        params = BearShortEntryParams(rsi_max=0)
+        strategy = BearShortEntryStrategy(params=params)
+        ctx = _make_context(
+            mfi=30.0, adx=30.0,
+            macd=-100.0, macd_signal=-50.0,
+            rsi=60.0,
+        )
+        signal = strategy.check_entry(ctx)
+        assert signal is not None
+
+    # --- Consecutive BEAR_STRONG tests ---
+
+    def test_consecutive_bear_blocks_first_candle(self):
+        """min_consecutive_bear=2, first BEAR_STRONG candle -> no signal."""
+        params = BearShortEntryParams(min_consecutive_bear=2)
+        strategy = BearShortEntryStrategy(params=params)
+        ctx = _make_context(mfi=30.0, adx=30.0, macd=-100.0, macd_signal=-50.0)
+        assert strategy.check_entry(ctx) is None
+
+    def test_consecutive_bear_allows_second_candle(self):
+        """min_consecutive_bear=2, second consecutive BEAR_STRONG -> signal."""
+        params = BearShortEntryParams(min_consecutive_bear=2)
+        strategy = BearShortEntryStrategy(params=params)
+        ctx = _make_context(mfi=30.0, adx=30.0, macd=-100.0, macd_signal=-50.0)
+        strategy.check_entry(ctx)  # 1st candle
+        signal = strategy.check_entry(ctx)  # 2nd candle
+        assert signal is not None
+
+    def test_consecutive_bear_resets_on_non_bear(self):
+        """Counter resets when regime leaves BEAR_STRONG."""
+        params = BearShortEntryParams(min_consecutive_bear=2)
+        strategy = BearShortEntryStrategy(params=params)
+        bear_ctx = _make_context(mfi=30.0, adx=30.0, macd=-100.0, macd_signal=-50.0)
+        bull_ctx = _make_context(mfi=60.0, adx=30.0, macd=-100.0, macd_signal=-50.0)
+        strategy.check_entry(bear_ctx)  # 1st BEAR_STRONG
+        strategy.check_entry(bull_ctx)  # breaks streak
+        assert strategy.check_entry(bear_ctx) is None  # 1st again, not 2nd
 
 
 # ===========================================================================
@@ -325,23 +443,52 @@ class TestBearShortExit:
         signal = strategy.check_exit(ctx, pos)
         assert signal is not None
 
-    def test_regime_change_to_sideways_exits(self):
-        """Regime changes to SIDEWAYS -> exit."""
+    def test_sideways_flat_holds(self):
+        """SIDEWAYS_FLAT is a hold regime -> no exit."""
         strategy = BearShortExitStrategy()
         ctx = _make_context(close=49000.0, regime_override="SIDEWAYS_FLAT")
         pos = _make_position(entry_price=50000.0)
         signal = strategy.check_exit(ctx, pos)
-        assert signal is not None
-        assert "Regime change" in signal.reason
+        assert signal is None
 
-    def test_regime_change_to_bull_exits(self):
-        """Regime changes to BULL -> exit."""
+    def test_sideways_down_holds(self):
+        """SIDEWAYS_DOWN is a hold regime -> no exit."""
+        strategy = BearShortExitStrategy()
+        ctx = _make_context(close=49000.0, regime_override="SIDEWAYS_DOWN")
+        pos = _make_position(entry_price=50000.0)
+        signal = strategy.check_exit(ctx, pos)
+        assert signal is None
+
+    def test_regime_change_to_bull_exits_after_grace(self):
+        """BULL regime exits only after grace period (3 candles)."""
         strategy = BearShortExitStrategy()
         ctx = _make_context(close=49000.0, regime_override="BULL_STRONG")
         pos = _make_position(entry_price=50000.0)
+        # First 2 candles: hold (grace not reached)
+        assert strategy.check_exit(ctx, pos) is None
+        assert strategy.check_exit(ctx, pos) is None
+        # 3rd candle: exit
         signal = strategy.check_exit(ctx, pos)
         assert signal is not None
-        assert "Regime change" in signal.reason
+        assert "Regime" in signal.reason
+
+    def test_regime_grace_resets_on_return_to_hold(self):
+        """Grace counter resets when regime returns to hold zone."""
+        strategy = BearShortExitStrategy()
+        pos = _make_position(entry_price=50000.0)
+        bull_ctx = _make_context(close=49000.0, regime_override="BULL_STRONG")
+        bear_ctx = _make_context(close=49000.0, regime_override="BEAR_STRONG")
+        # 2 bull candles (grace=2/3)
+        assert strategy.check_exit(bull_ctx, pos) is None
+        assert strategy.check_exit(bull_ctx, pos) is None
+        # Return to bear -> resets counter
+        assert strategy.check_exit(bear_ctx, pos) is None
+        # 2 more bull candles (grace=2/3 again, not 4/3)
+        assert strategy.check_exit(bull_ctx, pos) is None
+        assert strategy.check_exit(bull_ctx, pos) is None
+        # 3rd bull candle -> now exits
+        signal = strategy.check_exit(bull_ctx, pos)
+        assert signal is not None
 
     def test_bear_moderate_holds(self):
         """BEAR_MODERATE -> hold (still in BEAR zone)."""

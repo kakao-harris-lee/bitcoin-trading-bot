@@ -4,7 +4,11 @@ Exit conditions (checked in order):
 1. Stop Loss: Price rose too much (short P&L <= -stop_loss_pct)
 2. Take Profit: Price dropped enough (short P&L >= take_profit_pct)
 3. Trailing Stop: Price bounced from Low Water Mark (locks profit on extended bear moves)
-4. Regime Change: Regime left BEAR zone (not BEAR_STRONG or BEAR_MODERATE)
+4. Regime Change: Regime turned bullish for N consecutive candles (grace period)
+
+SIDEWAYS_DOWN is allowed by default (still bearish-leaning).
+Only BULL_* regimes trigger the exit, with a configurable grace period
+to avoid premature exits from regime flickering.
 
 Extends BaseExitStrategy for state management (LWM tracking, position lifecycle).
 """
@@ -22,6 +26,12 @@ from .registry import exit_strategy
 logger = logging.getLogger(__name__)
 
 
+# Regimes where short positions are allowed to stay open
+BEAR_SHORT_HOLD_REGIMES = {
+    "BEAR_STRONG", "BEAR_MODERATE", "SIDEWAYS_DOWN", "SIDEWAYS_FLAT",
+}
+
+
 @dataclass
 class BearShortExitParams:
     """Parameters for Bear Short exit strategy."""
@@ -36,6 +46,9 @@ class BearShortExitParams:
     trailing_enabled: bool = True
     trailing_activation: float = 2.0  # activate after 2% short profit
     trailing_distance: float = 1.5    # trail 1.5% above LWM
+
+    # Regime exit: only exit after N consecutive non-hold candles
+    regime_exit_grace: int = 3  # candles to wait before regime exit
 
     market: Literal["futures"] = "futures"
 
@@ -64,6 +77,8 @@ class BearShortExitStrategy(BaseExitStrategy):
         self.params = params or BearShortExitParams()
         # Low Water Marks: track lowest price per position (shorts profit from price drops)
         self._low_water_marks: dict[str, float] = {}
+        # Regime exit grace: count consecutive non-hold candles per position
+        self._regime_exit_count: dict[str, int] = {}
 
     def check_exit(
         self,
@@ -126,16 +141,21 @@ class BearShortExitStrategy(BaseExitStrategy):
                     self._clear_state(key)
                     return self._create_exit_signal(position, reason, quantity=position.quantity, side="buy")
 
-        # Exit 4: Regime change (no longer in BEAR zone)
+        # Exit 4: Regime change (no longer in bearish/sideways zone)
         regime = ctx.regime.regime
-        if regime not in BEAR_REGIMES:
-            reason = (
-                f"BearShort exit: Regime change to {regime}, "
-                f"P&L={pnl_pct:.2f}%"
-            )
-            logger.info(f"{symbol}: {reason}")
-            self._clear_state(key)
-            return self._create_exit_signal(position, reason, quantity=position.quantity, side="buy")
+        if regime not in BEAR_SHORT_HOLD_REGIMES:
+            self._regime_exit_count[key] = self._regime_exit_count.get(key, 0) + 1
+            if self._regime_exit_count[key] >= p.regime_exit_grace:
+                reason = (
+                    f"BearShort exit: Regime {regime} for "
+                    f"{self._regime_exit_count[key]} candles, P&L={pnl_pct:.2f}%"
+                )
+                logger.info(f"{symbol}: {reason}")
+                self._clear_state(key)
+                return self._create_exit_signal(position, reason, quantity=position.quantity, side="buy")
+        else:
+            # Reset counter when regime returns to hold zone
+            self._regime_exit_count.pop(key, None)
 
         return None
 
@@ -177,13 +197,15 @@ class BearShortExitStrategy(BaseExitStrategy):
     def on_position_closed(self, symbol: str) -> None:
         """Called when short position is closed."""
         super().on_position_closed(symbol)
-        # Clear LWM state for all keys with this symbol
-        keys = [k for k in self._low_water_marks if k.startswith(f"{symbol}:")]
-        for k in keys:
-            self._low_water_marks.pop(k, None)
+        # Clear LWM and regime counter state for all keys with this symbol
+        for store in (self._low_water_marks, self._regime_exit_count):
+            keys = [k for k in store if k.startswith(f"{symbol}:")]
+            for k in keys:
+                store.pop(k, None)
         logger.debug(f"{symbol}: BearShort position closed")
 
     def _clear_state(self, key: str) -> None:
-        """Clear all state for a position including LWM."""
+        """Clear all state for a position including LWM and regime counter."""
         super()._clear_state(key)
         self._low_water_marks.pop(key, None)
+        self._regime_exit_count.pop(key, None)

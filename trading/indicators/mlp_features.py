@@ -4,9 +4,11 @@ MLP Direction Strategy Feature Extraction Module.
 Paper reference: Parente & Rizzuti (2025) - "Trading strategy for Bitcoin and Ethereum
 by neural network model" (https://doi.org/10.1007/s00500-025-10980-7)
 
-This module provides two feature sets:
+This module provides feature sets:
 1) paper_36: 23 candlestick patterns + 6 indicators + 4 EMA crossovers + 3 temporal features
 2) shap_13: reduced 13-feature set derived from SHAP analysis (legacy)
+3) v2_36: 23 effective technical indicators + 6 indicators + 4 EMA crossovers + 3 temporal features
+4) cross_44: paper_36 + 8 cross-asset features
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ import talib
 FEATURE_SET_PAPER = "paper_36"
 FEATURE_SET_SHAP = "shap_13"
 FEATURE_SET_CROSS = "cross_44"  # paper_36 + 8 cross-asset features
+FEATURE_SET_V2 = "v2_36"  # Replaces candlestick patterns with effective indicators
 
 # Feature names for reference (legacy SHAP 13)
 FEATURE_NAMES_SHAP = [
@@ -104,6 +107,53 @@ CROSS_ASSET_FEATURE_NAMES = [
 FEATURE_NAMES_CROSS = FEATURE_NAMES_PAPER + CROSS_ASSET_FEATURE_NAMES
 NUM_FEATURES_CROSS = len(FEATURE_NAMES_CROSS)  # 36 + 8 = 44
 
+# V2 feature set: replaces 23 candlestick patterns with proven technical indicators.
+# Keeps the 13 effective features from paper_36 (6 tech + 4 EMA + 3 temporal) and
+# adds 23 new technical indicators that capture momentum, trend, volatility, volume,
+# and support/resistance dynamics.
+FEATURE_NAMES_V2 = [
+    # === 13 KEPT from paper_36 (proven effective by SHAP analysis) ===
+    "bollinger_pct_b",     # 0  - (close - lower) / band_width
+    "ultosc",              # 1  - Ultimate Oscillator (7/14/28)
+    "rsi",                 # 2  - RSI(14)
+    "close_pct_change",    # 3  - 1-bar price change
+    "price_zscore",        # 4  - (close - SMA30) / STD30
+    "volume_zscore",       # 5  - (volume - SMA30) / STD30
+    "ema_cross_1_20",      # 6  - close / EMA(20)
+    "ema_cross_20_50",     # 7  - EMA(20) / EMA(50)
+    "ema_cross_50_100",    # 8  - EMA(50) / EMA(100)
+    "ema_cross_1_50",      # 9  - close / EMA(50)
+    "samples_in_day",      # 10 - hour // 4 (for 4H bars)
+    "day_of_week",         # 11 - 0-6
+    "month",               # 12 - 1-12
+    # === 23 NEW replacements for candlestick patterns ===
+    "macd_hist",           # 13 - MACD histogram (trend momentum)
+    "macd_signal_dist",    # 14 - (MACD - Signal) / price (crossover proximity)
+    "adx",                 # 15 - ADX(14) trend strength (0-100)
+    "plus_di_minus_di",    # 16 - (+DI - -DI) / 100 (directional strength)
+    "stoch_k",             # 17 - Stochastic %K (0-100)
+    "stoch_d",             # 18 - Stochastic %D (0-100)
+    "mfi",                 # 19 - Money Flow Index (0-100)
+    "atr_pct",             # 20 - ATR / price (normalized volatility)
+    "bb_width",            # 21 - (upper - lower) / middle (volatility regime)
+    "return_4bar",         # 22 - 4-bar return (16H momentum for 4H data)
+    "return_6bar",         # 23 - 6-bar return (24H momentum)
+    "return_30bar",        # 24 - 30-bar return (5-day momentum)
+    "vol_ratio_20",        # 25 - volume / SMA(volume, 20)
+    "ema_cross_1_200",     # 26 - close / EMA(200) (macro trend)
+    "ema_cross_100_200",   # 27 - EMA(100) / EMA(200) (golden/death cross)
+    "rsi_ema",             # 28 - EMA(RSI, 14) (smoothed momentum)
+    "high_low_range",      # 29 - (high - low) / close (bar range %)
+    "close_vs_high20",     # 30 - close / 20-period high (distance from resistance)
+    "close_vs_low20",      # 31 - close / 20-period low (distance from support)
+    "market_stress",       # 32 - composite stress indicator (0-100)
+    "obv_zscore",          # 33 - OBV z-score (accumulation/distribution)
+    "willr",               # 34 - Williams %R (-100 to 0)
+    "cci",                 # 35 - Commodity Channel Index
+]
+
+NUM_FEATURES_V2 = len(FEATURE_NAMES_V2)  # 36
+
 
 def calculate_mlp_features(
     df: pd.DataFrame,
@@ -139,6 +189,8 @@ def calculate_mlp_features(
             btc_df=btc_df,
             market_df=market_df,
         )
+    if feature_set == FEATURE_SET_V2:
+        return calculate_mlp_features_v2(df, include_temporal=include_temporal)
     raise ValueError(f"Unknown feature_set: {feature_set}")
 
 
@@ -218,6 +270,173 @@ def calculate_mlp_features_paper(
         features["samples_in_day"] = 0.0
         features["day_of_week"] = 0.0
         features["month"] = 0.0
+
+    return features
+
+
+def calculate_mlp_features_v2(
+    df: pd.DataFrame,
+    include_temporal: bool = True,
+) -> pd.DataFrame:
+    """
+    Calculate 36 v2 features from OHLCV data.
+
+    Replaces 23 ineffective candlestick patterns from paper_36 with proven
+    technical indicators while keeping the 13 effective features identified
+    by SHAP analysis.
+
+    Feature groups:
+    - 6 technical indicators (kept from paper_36): Bollinger %B, ULTOSC, RSI,
+      Close % Change, Price Z-Score, Volume Z-Score
+    - 4 EMA crossovers (kept): 1/20, 20/50, 50/100, 1/50
+    - 3 temporal features (kept): samples_in_day, day_of_week, month
+    - 23 new technical indicators: MACD, ADX, Stochastic, MFI, ATR, BB width,
+      multi-period returns, macro EMA crossovers, RSI smoothed, range, S/R levels,
+      market stress, OBV, Williams %R, CCI
+
+    Args:
+        df: DataFrame with columns ['open', 'high', 'low', 'close', 'volume']
+             and optionally 'timestamp'
+        include_temporal: Whether to include temporal features
+
+    Returns:
+        DataFrame with 36 feature columns (v2 feature order)
+    """
+    open_ = np.asarray(df["open"].values, dtype=np.float64)
+    high = np.asarray(df["high"].values, dtype=np.float64)
+    low = np.asarray(df["low"].values, dtype=np.float64)
+    close = np.asarray(df["close"].values, dtype=np.float64)
+    volume = np.asarray(df["volume"].values, dtype=np.float64)
+
+    features = pd.DataFrame(index=df.index)
+    close_series = pd.Series(close, index=df.index)
+    volume_series = pd.Series(volume, index=df.index)
+
+    # === 13 KEPT features (same calculation as paper_36) ===
+
+    # Bollinger %B (14-period, same as paper)
+    upper, middle, lower = talib.BBANDS(close, timeperiod=14, nbdevup=2, nbdevdn=2)
+    band_width = upper - lower
+    band_width = np.where(band_width < 1e-10, 1e-10, band_width)
+    features["bollinger_pct_b"] = (close - lower) / band_width
+
+    features["ultosc"] = talib.ULTOSC(high, low, close, timeperiod1=7, timeperiod2=14, timeperiod3=28)
+    features["rsi"] = talib.RSI(close, timeperiod=14)
+    features["close_pct_change"] = close_series.pct_change()
+
+    sma30 = talib.SMA(close, timeperiod=30)
+    std30 = talib.STDDEV(close, timeperiod=30)
+    std30_safe = np.where(std30 < 1e-10, 1e-10, std30)
+    features["price_zscore"] = (close - sma30) / std30_safe
+
+    vol_sma30 = talib.SMA(volume, timeperiod=30)
+    vol_std30 = talib.STDDEV(volume, timeperiod=30)
+    vol_std30_safe = np.where(vol_std30 < 1e-10, 1e-10, vol_std30)
+    features["volume_zscore"] = (volume - vol_sma30) / vol_std30_safe
+
+    ema20 = talib.EMA(close, timeperiod=20)
+    ema50 = talib.EMA(close, timeperiod=50)
+    ema100 = talib.EMA(close, timeperiod=100)
+
+    features["ema_cross_1_20"] = np.where(np.isnan(ema20), np.nan, close / ema20)
+    features["ema_cross_20_50"] = np.where(np.isnan(ema50) | np.isnan(ema20), np.nan, ema20 / ema50)
+    features["ema_cross_50_100"] = np.where(np.isnan(ema100) | np.isnan(ema50), np.nan, ema50 / ema100)
+    features["ema_cross_1_50"] = np.where(np.isnan(ema50), np.nan, close / ema50)
+
+    # Temporal features
+    if include_temporal and "timestamp" in df.columns:
+        ts = pd.to_datetime(df["timestamp"])
+        features["samples_in_day"] = (ts.dt.hour // 4).astype(np.float64)
+        features["day_of_week"] = ts.dt.dayofweek.astype(np.float64)
+        features["month"] = ts.dt.month.astype(np.float64)
+    else:
+        features["samples_in_day"] = 0.0
+        features["day_of_week"] = 0.0
+        features["month"] = 0.0
+
+    # === 23 NEW features (replacing candlestick patterns) ===
+
+    # MACD features
+    macd_line, macd_signal, macd_hist = talib.MACD(close, fastperiod=12, slowperiod=26, signalperiod=9)
+    features["macd_hist"] = macd_hist
+    # Normalize MACD-Signal distance by price to make cross-asset comparable
+    close_safe = np.where(close < 1e-10, 1e-10, close)
+    features["macd_signal_dist"] = (macd_line - macd_signal) / close_safe
+
+    # ADX and directional indicators
+    features["adx"] = talib.ADX(high, low, close, timeperiod=14)
+    plus_di = talib.PLUS_DI(high, low, close, timeperiod=14)
+    minus_di = talib.MINUS_DI(high, low, close, timeperiod=14)
+    features["plus_di_minus_di"] = (plus_di - minus_di) / 100.0
+
+    # Stochastic
+    stoch_k, stoch_d = talib.STOCH(high, low, close, fastk_period=14, slowk_period=3, slowd_period=3)
+    features["stoch_k"] = stoch_k
+    features["stoch_d"] = stoch_d
+
+    # MFI (volume-weighted RSI)
+    features["mfi"] = talib.MFI(high, low, close, volume, timeperiod=14)
+
+    # ATR as percentage of price (normalized volatility)
+    atr_val = talib.ATR(high, low, close, timeperiod=14)
+    features["atr_pct"] = atr_val / close_safe
+
+    # Bollinger bandwidth (volatility regime)
+    middle_safe = np.where(middle < 1e-10, 1e-10, middle)
+    features["bb_width"] = (upper - lower) / middle_safe
+
+    # Multi-period returns
+    features["return_4bar"] = close_series.pct_change(periods=4)
+    features["return_6bar"] = close_series.pct_change(periods=6)
+    features["return_30bar"] = close_series.pct_change(periods=30)
+
+    # Volume ratio
+    vol_sma20 = talib.SMA(volume, timeperiod=20)
+    vol_sma20_safe = np.where(vol_sma20 < 1e-10, 1e-10, vol_sma20)
+    features["vol_ratio_20"] = volume / vol_sma20_safe
+
+    # Macro EMA crossovers
+    ema200 = talib.EMA(close, timeperiod=200)
+    features["ema_cross_1_200"] = np.where(np.isnan(ema200), np.nan, close / ema200)
+    features["ema_cross_100_200"] = np.where(
+        np.isnan(ema200) | np.isnan(ema100), np.nan, ema100 / ema200
+    )
+
+    # RSI smoothed (EMA of RSI)
+    rsi_raw = features["rsi"].values.astype(np.float64)
+    features["rsi_ema"] = talib.EMA(rsi_raw, timeperiod=14)
+
+    # Bar range as percentage of close
+    features["high_low_range"] = (high - low) / close_safe
+
+    # Support/Resistance proximity
+    high20 = pd.Series(high, index=df.index).rolling(window=20).max()
+    low20 = pd.Series(low, index=df.index).rolling(window=20).min()
+    high20_safe = high20.replace(0, np.nan)
+    low20_safe = low20.replace(0, np.nan)
+    features["close_vs_high20"] = close_series / high20_safe
+    features["close_vs_low20"] = close_series / low20_safe
+
+    # Market stress (reuse from precompute if available, else calculate)
+    if "market_stress" in df.columns:
+        features["market_stress"] = df["market_stress"].values
+    else:
+        # Simplified stress: ATR% * 10, capped at 100
+        features["market_stress"] = np.clip(atr_val / close_safe * 1000, 0, 100)
+
+    # OBV Z-score
+    obv = talib.OBV(close, volume)
+    obv_series = pd.Series(obv, index=df.index)
+    obv_sma = obv_series.rolling(window=30).mean()
+    obv_std = obv_series.rolling(window=30).std()
+    obv_std_safe = obv_std.replace(0, 1e-10)
+    features["obv_zscore"] = (obv_series - obv_sma) / obv_std_safe
+
+    # Williams %R
+    features["willr"] = talib.WILLR(high, low, close, timeperiod=14)
+
+    # CCI
+    features["cci"] = talib.CCI(high, low, close, timeperiod=14)
 
     return features
 
@@ -468,6 +687,8 @@ def extract_single_features(
         return extract_single_features_shap(market_data, indicators)
     if feature_set == FEATURE_SET_CROSS:
         return extract_single_features_cross(market_data, indicators)
+    if feature_set == FEATURE_SET_V2:
+        return extract_single_features_v2(market_data, indicators)
     raise ValueError(f"Unknown feature_set: {feature_set}")
 
 
@@ -556,6 +777,79 @@ def extract_single_features_paper(
             _set("samples_in_day", float(ts.hour // 4))
             _set("day_of_week", float(ts.dayofweek))
             _set("month", float(ts.month))
+
+    return features
+
+
+def extract_single_features_v2(
+    market_data: dict,
+    indicators: dict,
+) -> np.ndarray:
+    """
+    Extract v2 36-feature set for a single time point (live trading).
+
+    All features are mapped from pre-computed indicators. Unlike paper_36,
+    v2 does not rely on candlestick patterns (which need multi-bar history).
+
+    Args:
+        market_data: Dict with 'close', 'volume', 'timestamp', 'high', 'low' etc.
+        indicators: Dict with pre-calculated indicator values
+
+    Returns:
+        numpy array of 36 features in v2 feature order
+    """
+    features = np.zeros(NUM_FEATURES_V2, dtype=np.float32)
+    feature_index = {name: idx for idx, name in enumerate(FEATURE_NAMES_V2)}
+
+    def _set(name: str, value: float):
+        idx = feature_index.get(name)
+        if idx is not None and value is not None and np.isfinite(value):
+            features[idx] = value
+
+    # --- 13 kept features ---
+    _set("bollinger_pct_b", indicators.get("bollinger_pct_b", 0.0))
+    _set("ultosc", indicators.get("ultosc", 0.0))
+    _set("rsi", indicators.get("rsi", 0.0))
+    _set("close_pct_change", indicators.get("close_pct_change", 0.0))
+    _set("price_zscore", indicators.get("price_zscore", 0.0))
+    _set("volume_zscore", indicators.get("volume_zscore", 0.0))
+    _set("ema_cross_1_20", indicators.get("ema_cross_1_20", 1.0))
+    _set("ema_cross_20_50", indicators.get("ema_cross_20_50", 1.0))
+    _set("ema_cross_50_100", indicators.get("ema_cross_50_100", 1.0))
+    _set("ema_cross_1_50", indicators.get("ema_cross_1_50", 1.0))
+
+    # Temporal
+    if "timestamp" in market_data:
+        ts = pd.to_datetime(market_data["timestamp"], unit="ms", errors="coerce")
+        if pd.notna(ts):
+            _set("samples_in_day", float(ts.hour // 4))
+            _set("day_of_week", float(ts.dayofweek))
+            _set("month", float(ts.month))
+
+    # --- 23 new features ---
+    _set("macd_hist", indicators.get("macd_hist", 0.0))
+    _set("macd_signal_dist", indicators.get("macd_signal_dist", 0.0))
+    _set("adx", indicators.get("adx", 0.0))
+    _set("plus_di_minus_di", indicators.get("plus_di_minus_di", 0.0))
+    _set("stoch_k", indicators.get("stoch_k", 50.0))
+    _set("stoch_d", indicators.get("stoch_d", 50.0))
+    _set("mfi", indicators.get("mfi", 50.0))
+    _set("atr_pct", indicators.get("atr_pct", 0.0))
+    _set("bb_width", indicators.get("bb_width", 0.0))
+    _set("return_4bar", indicators.get("return_4bar", 0.0))
+    _set("return_6bar", indicators.get("return_6bar", 0.0))
+    _set("return_30bar", indicators.get("return_30bar", 0.0))
+    _set("vol_ratio_20", indicators.get("vol_ratio_20", 1.0))
+    _set("ema_cross_1_200", indicators.get("ema_cross_1_200", 1.0))
+    _set("ema_cross_100_200", indicators.get("ema_cross_100_200", 1.0))
+    _set("rsi_ema", indicators.get("rsi_ema", 0.0))
+    _set("high_low_range", indicators.get("high_low_range", 0.0))
+    _set("close_vs_high20", indicators.get("close_vs_high20", 1.0))
+    _set("close_vs_low20", indicators.get("close_vs_low20", 1.0))
+    _set("market_stress", indicators.get("market_stress", 0.0))
+    _set("obv_zscore", indicators.get("obv_zscore", 0.0))
+    _set("willr", indicators.get("willr", -50.0))
+    _set("cci", indicators.get("cci", 0.0))
 
     return features
 

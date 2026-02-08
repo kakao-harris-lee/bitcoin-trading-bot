@@ -10,6 +10,7 @@ from dataclasses import replace
 import logging
 from types import MappingProxyType
 from typing import Dict, Any, Callable, Optional
+import numpy as np
 import pandas as pd
 from trading.strategies.components.models import MarketData, Position, Signal, MarketContext, TradingContext, build_market_context
 
@@ -137,6 +138,7 @@ class ComponentStrategyAdapter:
         # Populated by precompute_mlp_predictions()
         self._mlp_cache: dict[int, dict] | None = None
         self._mlp_model = None
+        self._mlp_ensemble = None  # MLPEnsemblePredictor if configured
         self._mlp_available: bool | None = None
         self._uses_mlp_direction = (
             self.strategy_name.startswith("mlp_direction")
@@ -205,7 +207,7 @@ class ComponentStrategyAdapter:
         """Pre-compute MLP Direction predictions for entire DataFrame (backtest optimization).
 
         Call this BEFORE running backtest loop to cache all MLP predictions.
-        Only relevant for MLP Direction strategies.
+        Supports both single model and ensemble prediction.
 
         Args:
             df: Full DataFrame with OHLCV and indicators for backtest.
@@ -215,20 +217,32 @@ class ComponentStrategyAdapter:
             return
 
         try:
-            from mlp_trainer.src.mlp_model import MLPDirectionClassifier
             from trading.indicators.mlp_features import calculate_mlp_features, FEATURE_SET_PAPER
             import torch
             from pathlib import Path
 
-            model_path = Path(self.config.get("model_path", "models/mlp_direction/model_final.pt"))
-            if not model_path.exists():
-                return
+            # Check for ensemble configuration
+            ensemble_configs = self.config.get("ensemble_models", None)
+            use_ensemble = ensemble_configs and len(ensemble_configs) > 0
 
-            # Load model once
-            if self._mlp_model is None:
-                self._mlp_model = MLPDirectionClassifier.load(str(model_path), device="cpu")
-                self._mlp_model.eval()
-                self._mlp_available = True
+            if use_ensemble:
+                from trading.strategies.components.mlp_ensemble import MLPEnsemblePredictor
+
+                if self._mlp_ensemble is None:
+                    self._mlp_ensemble = MLPEnsemblePredictor(ensemble_configs)
+                    self._mlp_available = self._mlp_ensemble.load(device="cpu")
+
+            else:
+                from mlp_trainer.src.mlp_model import MLPDirectionClassifier
+
+                model_path = Path(self.config.get("model_path", "models/mlp_direction/model_final.pt"))
+                if not model_path.exists():
+                    return
+
+                if self._mlp_model is None:
+                    self._mlp_model = MLPDirectionClassifier.load(str(model_path), device="cpu")
+                    self._mlp_model.eval()
+                    self._mlp_available = True
 
             if not self._mlp_available:
                 return
@@ -249,24 +263,24 @@ class ComponentStrategyAdapter:
             if len(valid_indices) == 0:
                 return
 
-            # Prepare feature matrix
             X = mlp_features.loc[valid_indices].values
-            X_tensor = torch.FloatTensor(X)
 
-            with torch.no_grad():
-                probs = self._mlp_model.predict_proba(X_tensor).cpu().numpy()
+            if use_ensemble and self._mlp_ensemble is not None:
+                predictions, confidences, probs = self._mlp_ensemble.predict_batch(X)
+            else:
+                X_tensor = torch.FloatTensor(X)
+                with torch.no_grad():
+                    probs = self._mlp_model.predict_proba(X_tensor).cpu().numpy()
+                predictions = probs.argmax(axis=1)
+                confidences = probs[np.arange(len(probs)), predictions]
 
             # Store predictions in cache
-            for idx, (df_idx, prob) in enumerate(zip(valid_indices, probs)):
-                # Get integer position in original DataFrame
+            for df_idx, pred, conf, prob in zip(valid_indices, predictions, confidences, probs):
                 iloc_pos = df.index.get_loc(df_idx)
-                pred_class = prob.argmax()
-                confidence = prob[pred_class]
-
                 self._mlp_cache[iloc_pos] = {
-                    "prediction": int(pred_class),
-                    "confidence": float(confidence),
-                    "probs": prob.tolist(),
+                    "prediction": int(pred),
+                    "confidence": float(conf),
+                    "probs": prob.tolist() if hasattr(prob, 'tolist') else list(prob),
                 }
 
         except Exception as e:

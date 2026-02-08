@@ -56,6 +56,11 @@ class MLPDirectionEntryParams:
     # Feature set (paper_36 or shap_13)
     mlp_feature_set: str = "paper_36"
 
+    # Ensemble configuration (list of model configs)
+    # Each: {"model_path": "...", "weight": 1.0}
+    # If non-empty, ensemble soft-voting is used instead of single model.
+    ensemble_models: list | None = None
+
 
 @entry_strategy(params_class=MLPDirectionEntryParams)
 class MLPDirectionEntryStrategy:
@@ -82,18 +87,37 @@ class MLPDirectionEntryStrategy:
         self._model = None
         self._model_available: bool | None = None
         self._feature_extractor = None
+        self._ensemble = None  # MLPEnsemblePredictor if configured
         # History buffer for paper_36 live feature computation
         self._history: list[dict] = []
         self._last_timestamp: int = 0
 
     def _ensure_model(self) -> bool:
-        """Lazy-load MLP model on first use."""
+        """Lazy-load MLP model (or ensemble) on first use."""
         if self._model_available is not None:
             return self._model_available
 
         try:
-            from mlp_trainer.src.mlp_model import MLPDirectionClassifier
             from trading.indicators.mlp_features import extract_single_features
+            self._feature_extractor = extract_single_features
+
+            # Try ensemble first
+            if self.params.ensemble_models:
+                from .mlp_ensemble import MLPEnsemblePredictor
+
+                self._ensemble = MLPEnsemblePredictor(self.params.ensemble_models)
+                self._model_available = self._ensemble.load(device="cpu")
+                if self._model_available:
+                    logger.info(
+                        f"MLPDirectionEntry: Ensemble loaded "
+                        f"({self._ensemble.num_models} models)"
+                    )
+                else:
+                    logger.warning("MLPDirectionEntry: Ensemble load failed")
+                return self._model_available
+
+            # Single model fallback
+            from mlp_trainer.src.mlp_model import MLPDirectionClassifier
 
             model_path = Path(self.params.model_path)
             if not model_path.exists():
@@ -101,17 +125,14 @@ class MLPDirectionEntryStrategy:
                 self._model_available = False
                 return False
 
-            # Load with path validation enabled for security
             self._model = MLPDirectionClassifier.load(
                 str(model_path), device="cpu", validate_path=True
             )
             self._model.eval()
-            self._feature_extractor = extract_single_features
             self._model_available = True
             logger.info(f"MLPDirectionEntry: Model loaded from {model_path}")
 
         except ValueError as e:
-            # Path validation failed - security issue
             logger.error(f"MLPDirectionEntry: Invalid model path: {e}")
             self._model_available = False
         except ImportError as e:
@@ -243,9 +264,9 @@ class MLPDirectionEntryStrategy:
         mlp_confidence = getattr(ctx, "mlp_confidence", None)
 
         if mlp_prediction is None or mlp_confidence is None:
-            if p.mlp_feature_set == "paper_36":
-                # Live paper_36: compute from history buffer
-                result = self._compute_paper36_features(market_data)
+            if p.mlp_feature_set in ("paper_36", "v2_36"):
+                # Live paper_36/v2_36: compute from history buffer
+                result = self._compute_history_features(market_data, p.mlp_feature_set)
                 if result is None:
                     return None
                 mlp_prediction, mlp_confidence = result
@@ -289,18 +310,23 @@ class MLPDirectionEntryStrategy:
         )
 
     def _predict(self, features: np.ndarray) -> tuple[int, float]:
-        """Make prediction with MLP model.
+        """Make prediction with MLP model or ensemble.
 
         Args:
-            features: Feature array (13,).
+            features: Feature array.
 
         Returns:
             Tuple of (predicted_class, confidence).
         """
-        import torch
-
         try:
-            x = torch.FloatTensor(features).unsqueeze(0)  # Add batch dimension
+            # Use ensemble if available
+            if self._ensemble is not None:
+                pred_class, confidence, _ = self._ensemble.predict(features)
+                return pred_class, confidence
+
+            # Single model fallback
+            import torch
+            x = torch.FloatTensor(features).unsqueeze(0)
             with torch.no_grad():
                 probs = self._model.predict_proba(x).cpu().numpy()[0]
 
@@ -349,51 +375,56 @@ class MLPDirectionEntryStrategy:
         if len(self._history) > max_history:
             self._history = self._history[-max_history:]
 
-    def _compute_paper36_features(self, market_data: MarketData) -> tuple[int, float] | None:
-        """Compute paper_36 features from history buffer and make prediction.
+    def _compute_history_features(
+        self, market_data: MarketData, feature_set: str,
+    ) -> tuple[int, float] | None:
+        """Compute features from history buffer and make prediction.
+
+        Supports paper_36, v2_36, and any future history-based feature sets.
 
         Args:
             market_data: Current market data (for timestamp).
+            feature_set: Feature set name ('paper_36', 'v2_36').
 
         Returns:
             Tuple of (prediction, confidence) or None if insufficient history.
         """
         import pandas as pd
-        from trading.indicators.mlp_features import calculate_mlp_features_paper
+        from trading.indicators.mlp_features import calculate_mlp_features
 
         if len(self._history) < self.MIN_HISTORY_BARS:
-            # Log warmup progress every 10 bars
             if len(self._history) % 10 == 0:
                 logger.info(
-                    f"{market_data.symbol}: MLP paper_36 warming up "
+                    f"{market_data.symbol}: MLP {feature_set} warming up "
                     f"({len(self._history)}/{self.MIN_HISTORY_BARS} bars)"
                 )
             return None
 
         try:
-            # Convert history to DataFrame
             df = pd.DataFrame(self._history)
             df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
 
-            # Calculate paper_36 features
-            features_df = calculate_mlp_features_paper(df, include_temporal=True)
+            features_df = calculate_mlp_features(
+                df, include_temporal=True, feature_set=feature_set,
+            )
 
-            # Get last row features
             last_features = features_df.iloc[-1].values.astype(np.float32)
 
-            # Check for NaN
             if np.isnan(last_features).any():
                 logger.debug(f"{market_data.symbol}: Features contain NaN, skipping")
                 return None
 
-            # Make prediction
             pred, conf = self._predict(last_features)
             logger.info(
-                f"{market_data.symbol}: MLP paper_36 prediction: "
+                f"{market_data.symbol}: MLP {feature_set} prediction: "
                 f"{self._label_name(pred)} (conf={conf:.2f})"
             )
             return pred, conf
 
         except Exception as e:
-            logger.warning(f"{market_data.symbol}: Paper36 feature computation failed: {e}")
+            logger.warning(f"{market_data.symbol}: {feature_set} feature computation failed: {e}")
             return None
+
+    def _compute_paper36_features(self, market_data: MarketData) -> tuple[int, float] | None:
+        """Backward-compatible wrapper for paper_36 features."""
+        return self._compute_history_features(market_data, "paper_36")

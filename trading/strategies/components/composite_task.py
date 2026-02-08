@@ -190,6 +190,11 @@ class CompositeStrategyTask(BaseStrategyTask):
             or "models/mlp_direction/model_final.pt"
         )
         self._mlp_model = None
+        self._mlp_ensemble = None
+        self._mlp_ensemble_configs = (
+            self.config.get("ensemble_models")
+            or self.config.get("entry", {}).get("params", {}).get("ensemble_models")
+        )
         self._mlp_available: bool | None = None
         self._mlp_cache: dict[str, dict[str, float | int]] = {}
 
@@ -939,12 +944,32 @@ class CompositeStrategyTask(BaseStrategyTask):
         return False
 
     def _ensure_mlp_model(self) -> bool:
-        """Lazy-load MLP Direction model."""
+        """Lazy-load MLP Direction model (single or ensemble)."""
         if not self._use_mlp_direction:
             return False
         if self._mlp_available is not None:
             return self._mlp_available
 
+        # Try ensemble first
+        if self._mlp_ensemble_configs:
+            try:
+                from trading.strategies.components.mlp_ensemble import MLPEnsemblePredictor
+
+                self._mlp_ensemble = MLPEnsemblePredictor(self._mlp_ensemble_configs)
+                if self._mlp_ensemble.load():
+                    self._mlp_available = True
+                    logger.info(
+                        f"{self.name}: MLP ensemble loaded ({self._mlp_ensemble.num_models} models)"
+                    )
+                    return True
+                else:
+                    logger.warning(f"{self.name}: MLP ensemble load failed, falling back to single model")
+                    self._mlp_ensemble = None
+            except Exception as e:
+                logger.warning(f"{self.name}: MLP ensemble init failed: {e}, falling back to single model")
+                self._mlp_ensemble = None
+
+        # Fall back to single model
         try:
             from pathlib import Path
             from mlp_trainer.src.mlp_model import MLPDirectionClassifier
@@ -1041,12 +1066,18 @@ class CompositeStrategyTask(BaseStrategyTask):
                     return None, None
                 row = valid.iloc[-1]
 
-            x = torch.FloatTensor(row.values).unsqueeze(0)
-            with torch.no_grad():
-                probs = self._mlp_model.predict_proba(x).cpu().numpy()[0]
+            import numpy as np
 
-            pred_class = int(probs.argmax())
-            confidence = float(probs[pred_class])
+            features = np.array(row.values, dtype=np.float32)
+
+            if self._mlp_ensemble is not None:
+                pred_class, confidence, probs = self._mlp_ensemble.predict(features)
+            else:
+                x = torch.FloatTensor(features).unsqueeze(0)
+                with torch.no_grad():
+                    probs = self._mlp_model.predict_proba(x).cpu().numpy()[0]
+                pred_class = int(probs.argmax())
+                confidence = float(probs[pred_class])
             labels = {0: "HOLD", 1: "BUY", 2: "SELL"}
             logger.info(f"{self.name}: MLP prediction: {labels.get(pred_class, 'UNK')} (conf={confidence:.2f})")
 

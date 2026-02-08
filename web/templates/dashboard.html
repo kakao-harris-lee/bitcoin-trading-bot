@@ -172,13 +172,6 @@
             </div>
         </section>
 
-        <!-- Leverage State Section -->
-        <section class="leverage-section">
-            <div id="leverage-state">
-                <div class="leverage-disabled">Loading leverage state...</div>
-            </div>
-        </section>
-
         <!-- Portfolio Summary Section -->
         <section class="portfolio-section">
             <div class="portfolio-summary">
@@ -205,21 +198,11 @@
             </div>
         </section>
 
-        <!-- Assets Grid -->
-        <section class="assets-section">
-            <h2>Assets</h2>
-            <div id="assets-grid" class="assets-grid">
-                <!-- Asset cards will be dynamically generated here -->
-                <p class="loading">Loading assets...</p>
-            </div>
-        </section>
-
         <!-- Tab Navigation -->
         <nav class="tab-nav">
             <button class="tab-btn active" data-tab="positions">Positions</button>
             <button class="tab-btn" data-tab="history">History</button>
             <button class="tab-btn" data-tab="signals">Signals</button>
-            <button class="tab-btn" data-tab="decisions">Decisions</button>
             <button class="tab-btn" data-tab="analytics">Analytics</button>
             <button class="tab-btn" data-tab="backtest">Backtest</button>
             <button class="tab-btn" data-tab="strategies">Strategies</button>
@@ -270,8 +253,34 @@
                         <label>End Date</label>
                         <input type="date" id="history-end-date" class="filter-input">
                     </div>
+                    <div class="filter-group">
+                        <label>Symbol</label>
+                        <input type="text" id="history-symbol" class="filter-input" placeholder="BTC, ETH...">
+                    </div>
                     <button id="history-apply-filters" class="filter-btn">Apply</button>
                     <button id="history-clear-filters" class="filter-btn secondary">Clear</button>
+                </div>
+                <div id="history-summary" class="positions-summary history-summary">
+                    <div class="summary-stat">
+                        <span class="label">Total Trades</span>
+                        <span id="history-total-trades" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Buy / Sell</span>
+                        <span id="history-buy-sell" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Spot / Futures</span>
+                        <span id="history-market-split" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Realized P&L</span>
+                        <span id="history-realized-pnl" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Win Rate</span>
+                        <span id="history-win-rate" class="value">-</span>
+                    </div>
                 </div>
                 <!-- Trade Table -->
                 <div id="history-container" class="history-container">
@@ -286,20 +295,10 @@
         <!-- Tab Content: Signals -->
         <div id="signals" class="tab-content">
             <div class="tab-panel">
-                <h3>Trading Signals</h3>
+                <h3>Signals & Decisions (Real-Time Analysis)</h3>
                 <!-- Signal List -->
                 <div id="signals-container" class="signals-list">
                     <p class="loading">Loading signals...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab Content: Decisions -->
-        <div id="decisions" class="tab-content">
-            <div class="tab-panel">
-                <h3>Decision History (Last 24 Hours)</h3>
-                <div id="decisions-container" class="decisions-list">
-                    <p class="loading">Loading decisions...</p>
                 </div>
             </div>
         </div>

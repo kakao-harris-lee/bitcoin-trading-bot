@@ -232,5 +232,77 @@ class TestDecisionHistoryEndpoint:
             call_kwargs = mock_service.get_recent_decisions.call_args[1]
             assert call_kwargs['limit'] == 200
 
+
+class TestSignalsEndpoint:
+    """Tests for /api/signals endpoint (market-analysis decisions)."""
+
+    def test_signals_endpoint_returns_decision_based_signals(self, client):
+        """Signals should be built from decision history with regime/indicator fields."""
+        sample_decisions = [
+            {
+                'timestamp': datetime.now().isoformat(),
+                'exchange': 'binance',
+                'symbol': 'BTC',
+                'market': 'spot',
+                'strategy': 'short_v1',
+                'decision': 'BUY',
+                'reason': 'Entry signal',
+                'regime': 'BULL_STRONG',
+                'indicators': {'price': 95000.0, 'mfi': 55.0, 'adx': 30.0},
+            }
+        ]
+
+        with patch('web.app.metrics_service') as mock_service:
+            mock_service.get_recent_decisions.return_value = sample_decisions
+
+            response = client.get('/api/signals?hours=24&limit=50')
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['total_count'] == 1
+            assert data['signals'][0]['decision'] == 'BUY'
+            assert data['signals'][0]['action'] == 'buy'
+            assert data['signals'][0]['regime'] == 'BULL_STRONG'
+            assert data['signals'][0]['market_state'] == 'STRONG'
+            assert data['signals'][0]['indicators']['mfi'] == 55.0
+            assert data['signals'][0]['acted'] is False
+
+    def test_signals_endpoint_applies_action_filter(self, client):
+        """Action filter should apply to decision-derived actions."""
+        sample_decisions = [
+            {
+                'timestamp': datetime.now().isoformat(),
+                'exchange': 'binance',
+                'symbol': 'BTC',
+                'market': 'spot',
+                'strategy': 's1',
+                'decision': 'BUY',
+                'reason': 'Entry',
+                'regime': 'BULL_MODERATE',
+                'indicators': {'price': 1},
+            },
+            {
+                'timestamp': datetime.now().isoformat(),
+                'exchange': 'binance',
+                'symbol': 'ETH',
+                'market': 'spot',
+                'strategy': 's1',
+                'decision': 'WAIT',
+                'reason': 'No setup',
+                'regime': 'SIDEWAYS_FLAT',
+                'indicators': {'price': 1},
+            },
+        ]
+
+        with patch('web.app.metrics_service') as mock_service:
+            mock_service.get_recent_decisions.return_value = sample_decisions
+
+            response = client.get('/api/signals?action=buy')
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['total_count'] == 1
+            assert data['signals'][0]['symbol'] == 'BTC'
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

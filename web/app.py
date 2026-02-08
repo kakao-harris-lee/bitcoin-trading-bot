@@ -778,12 +778,35 @@ def get_trades():
     end_idx = start_idx + limit
     paginated_trades = filtered_trades[start_idx:end_idx]
 
+    # Build summary for trade status overview
+    buy_count = sum(1 for t in filtered_trades if t.get('action') == 'BUY')
+    sell_count = sum(1 for t in filtered_trades if t.get('action') == 'SELL')
+    spot_count = sum(1 for t in filtered_trades if t.get('market') == 'spot')
+    futures_count = sum(1 for t in filtered_trades if t.get('market') == 'futures')
+
+    realized_trades = [t for t in filtered_trades if t.get('profit') is not None]
+    realized_pnl = sum(float(t.get('profit', 0) or 0) for t in realized_trades)
+    winning = sum(1 for t in realized_trades if float(t.get('profit', 0) or 0) > 0)
+    win_rate = (winning / len(realized_trades) * 100) if realized_trades else None
+
+    symbols = sorted({t.get('symbol', '') for t in filtered_trades if t.get('symbol')})
+
     return jsonify({
         'trades': paginated_trades,
         'total_count': total_count,
         'page': page,
         'limit': limit,
-        'has_more': end_idx < total_count
+        'has_more': end_idx < total_count,
+        'summary': {
+            'buy_count': buy_count,
+            'sell_count': sell_count,
+            'spot_count': spot_count,
+            'futures_count': futures_count,
+            'realized_trade_count': len(realized_trades),
+            'realized_pnl': realized_pnl,
+            'win_rate': win_rate,
+            'unique_symbols': symbols,
+        },
     })
 
 
@@ -877,106 +900,55 @@ def get_signals_by_exchange(exchange: str):
 @app.route("/api/signals")
 def get_signals():
     """
-    Get recent trading signals with optional filters.
-    Query params: limit, exchange, action
+    Get recent market-analysis signals (strategy decisions) with optional filters.
+    Query params: limit, hours, exchange, action
     """
     limit = request.args.get('limit', 50, type=int)
+    hours = request.args.get('hours', 24, type=int)
     exchange_filter = request.args.get('exchange')
     action_filter = request.args.get('action')
 
     # Clamp limit
     limit = min(max(1, limit), 200)
+    hours = min(max(1, hours), 72)
 
-    # Get current mode from Redis
-    r = get_redis()
-    risk_data = r.hgetall('risk') or {}
-    mode = risk_data.get('mode', 'paper')
-    is_paper_mode = (mode == 'paper')
-
-    # Read order intents from Redis orders stream (has reason/regime data)
-    redis_orders = read_redis_orders(limit=limit * 2)  # Get more orders for matching
-
-    # Build lookup of order reasons by (symbol, strategy, action) with timestamp
-    # Store list of (timestamp, reason) tuples for each key
-    order_reasons = {}
-    for o in redis_orders:
-        key = (o.get('symbol', ''), o.get('strategy', ''), o.get('action', '').upper())
-        ts = o.get('timestamp', '')
-        reason = o.get('reason', '')
-        if reason:
-            if key not in order_reasons:
-                order_reasons[key] = []
-            order_reasons[key].append((ts, reason))
-
-    # Read executed trades from Redis (these are completed signals)
-    redis_trades = read_redis_trades(limit=limit * 2)
-    # Filter by mode (paper trades for paper mode, live trades for live mode)
-    redis_trades = [t for t in redis_trades if t.get('paper', True) == is_paper_mode][:limit]
-
-    # Transform trades to signal format, enriching with reason from orders
+    # Signals tab should represent current market analysis (decision/regime),
+    # not executed trade history.
     signals = []
-    for t in redis_trades:
-        # Try to find reason from matching order by key and closest timestamp
-        key = (t.get('symbol', ''), t.get('strategy', ''), t.get('action', '').upper())
-        reason = t.get('reason', '')
-
-        if not reason and key in order_reasons:
-            # Find closest timestamp match
-            trade_ts = t.get('timestamp', '')
-            best_reason = ''
-            best_diff = float('inf')
-            for order_ts, order_reason in order_reasons[key]:
-                try:
-                    # Compare ISO timestamps
-                    diff = abs((datetime.fromisoformat(trade_ts) - datetime.fromisoformat(order_ts)).total_seconds())
-                    if diff < best_diff and diff < 60:  # Within 60 seconds
-                        best_diff = diff
-                        best_reason = order_reason
-                except Exception:
-                    pass
-            reason = best_reason
-
-        # Parse regime/market state from reason if present
-        regime = ''
-        market_state = ''
-        strategy = t.get('strategy', '')
-
-        if reason:
-            # Extract regime from reason like "entry: BULL_STRONG, MFI=77.0, ADX=35.4"
-            if 'BULL_STRONG' in reason:
-                regime = 'BULL'
+    if metrics_service:
+        decisions = metrics_service.get_recent_decisions(
+            hours=hours,
+            limit=limit,
+            exchange='binance',
+        )
+        for d in decisions:
+            regime = d.get('regime', '')
+            market_state = ''
+            if 'BULL_STRONG' in regime:
                 market_state = 'STRONG'
-            elif 'BULL_MODERATE' in reason:
-                regime = 'BULL'
-                market_state = 'MODERATE'
-            elif 'BEAR' in reason:
-                regime = 'BEAR'
-                market_state = 'TRENDING'
-            elif 'SIDEWAYS' in reason or 'sideways' in reason.lower():
-                regime = 'SIDEWAYS'
+            elif 'BULL' in regime:
+                market_state = 'BULL'
+            elif 'BEAR' in regime:
+                market_state = 'BEAR'
+            elif 'SIDEWAYS' in regime:
                 market_state = 'RANGING'
-        else:
-            # Infer from strategy name when reason not available
-            if 'sideways' in strategy:
-                regime = 'SIDEWAYS'
-                market_state = 'RANGING'
-            elif 'short' in strategy:
-                regime = 'BEAR'
-                market_state = 'TRENDING'
 
-        signals.append({
-            'timestamp': t.get('timestamp', ''),
-            'exchange': t.get('exchange', 'binance'),
-            'strategy': t.get('strategy', ''),
-            'action': t.get('action', '').lower(),
-            'symbol': t.get('symbol', ''),
-            'market': t.get('market', 'futures'),
-            'price': t.get('price', 0),
-            'reason': reason,
-            'regime': regime,
-            'market_state': market_state,
-            'acted': True,  # All trades from stream are executed
-        })
+            decision = (d.get('decision') or 'WAIT').upper()
+            signals.append({
+                'timestamp': d.get('timestamp', ''),
+                'exchange': d.get('exchange', 'binance'),
+                'strategy': d.get('strategy', ''),
+                'action': decision.lower(),
+                'decision': decision,
+                'symbol': d.get('symbol', ''),
+                'market': d.get('market', 'futures'),
+                'price': (d.get('indicators') or {}).get('price', 0),
+                'reason': d.get('reason', ''),
+                'regime': regime,
+                'market_state': market_state,
+                'acted': False,
+                'indicators': d.get('indicators', {}),
+            })
 
     # Apply filters
     if exchange_filter:

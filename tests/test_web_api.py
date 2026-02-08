@@ -229,6 +229,62 @@ class TestTradesAPI:
         assert data['total_count'] == 2
 
 
+class TestTradesHistoryAPI:
+    """Test /api/trades paginated history endpoint."""
+
+    @patch('web.app.get_redis')
+    @patch('web.app.read_redis_trades')
+    def test_trades_history_returns_summary(self, mock_read_trades, mock_get_redis, client):
+        """Trades history should return paginated trades and summary metrics."""
+        mock_get_redis.return_value.hgetall.return_value = {'mode': 'paper'}
+        mock_read_trades.return_value = [
+            {
+                'id': '1',
+                'timestamp': '2026-02-08T10:00:00',
+                'action': 'BUY',
+                'symbol': 'BTC',
+                'price': 100000,
+                'volume': 0.01,
+                'market': 'spot',
+                'exchange': 'binance',
+                'strategy': 's1',
+                'paper': True,
+                'profit': None,
+                'profit_pct': None,
+                'reason': 'entry',
+            },
+            {
+                'id': '2',
+                'timestamp': '2026-02-08T11:00:00',
+                'action': 'SELL',
+                'symbol': 'BTC',
+                'price': 101000,
+                'volume': 0.01,
+                'market': 'futures',
+                'exchange': 'binance',
+                'strategy': 's1',
+                'paper': True,
+                'profit': 10.0,
+                'profit_pct': 1.0,
+                'reason': 'exit',
+            },
+        ]
+
+        response = client.get('/api/trades?page=1&limit=50')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['total_count'] == 2
+        assert len(data['trades']) == 2
+        assert 'summary' in data
+        assert data['summary']['buy_count'] == 1
+        assert data['summary']['sell_count'] == 1
+        assert data['summary']['spot_count'] == 1
+        assert data['summary']['futures_count'] == 1
+        assert data['summary']['realized_trade_count'] == 1
+        assert data['summary']['realized_pnl'] == 10.0
+        assert data['summary']['win_rate'] == 100.0
+
+
 class TestSignalsAPI:
     """Test /api/signals/<exchange> endpoint."""
 

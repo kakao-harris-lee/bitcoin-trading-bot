@@ -1336,6 +1336,10 @@ footer kbd {
     color: var(--text-primary);
 }
 
+.history-summary {
+    margin-bottom: 16px;
+}
+
 /* Pagination */
 .pagination-row {
     display: flex;
@@ -1433,6 +1437,38 @@ footer kbd {
     gap: 12px;
 }
 
+.signal-strategy-group {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.signal-strategy-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.signal-strategy-title {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent-cyan);
+}
+
+.signal-strategy-meta {
+    display: flex;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
 .signal-card {
     background: var(--bg-secondary);
     border-radius: 8px;
@@ -1451,6 +1487,10 @@ footer kbd {
 
 .signal-card.hold {
     border-left-color: var(--warning);
+}
+
+.signal-card.wait {
+    border-left-color: var(--text-muted);
 }
 
 .signal-card .signal-header {
@@ -1494,6 +1534,11 @@ footer kbd {
 .signal-card .signal-action.hold {
     background: rgba(210, 153, 34, 0.15);
     color: var(--warning);
+}
+
+.signal-card .signal-action.wait {
+    background: rgba(136, 136, 136, 0.15);
+    color: var(--text-muted);
 }
 
 .signal-card .signal-body {

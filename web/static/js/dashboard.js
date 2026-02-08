@@ -412,6 +412,8 @@ function drawAllSparklines() {
 // Render asset cards (exchange-aware)
 function renderAssetCards(assets) {
     const container = document.getElementById('assets-grid');
+    if (!container) return;
+
     if (!assets || Object.keys(assets).length === 0) {
         container.innerHTML = '<p class="no-data">No assets available</p>';
         return;
@@ -980,9 +982,6 @@ function onTabActivated(tabId) {
         case 'signals':
             fetchSignals();
             break;
-        case 'decisions':
-            fetchDecisions();
-            break;
         case 'analytics':
             fetchAnalytics(analyticsState.period);
             break;
@@ -1176,6 +1175,7 @@ let historyState = {
     limit: 50,
     startDate: '',
     endDate: '',
+    symbol: '',
     totalCount: 0,
     initialized: false
 };
@@ -1198,6 +1198,7 @@ function initHistoryFilters() {
         applyBtn.addEventListener('click', () => {
             historyState.startDate = document.getElementById('history-start-date').value;
             historyState.endDate = document.getElementById('history-end-date').value;
+            historyState.symbol = document.getElementById('history-symbol').value.trim();
             historyState.page = 1;
             fetchTrades();
         });
@@ -1209,8 +1210,10 @@ function initHistoryFilters() {
             const defaults = getDefaultHistoryDates();
             document.getElementById('history-start-date').value = defaults.startDate;
             document.getElementById('history-end-date').value = defaults.endDate;
+            document.getElementById('history-symbol').value = '';
             historyState.startDate = defaults.startDate;
             historyState.endDate = defaults.endDate;
+            historyState.symbol = '';
             historyState.page = 1;
             fetchTrades();
         });
@@ -1242,14 +1245,46 @@ async function fetchTrades() {
 
         if (historyState.startDate) params.append('start_date', historyState.startDate);
         if (historyState.endDate) params.append('end_date', historyState.endDate);
+        if (historyState.symbol) params.append('symbol', historyState.symbol);
 
         const data = await apiFetch(`/api/trades?${params.toString()}`);
         historyState.totalCount = data.total_count;
 
+        renderHistorySummary(data);
         renderTradeTable(data);
         renderPagination(data);
     } catch (error) {
         renderError(containerId, 'Failed to load trade history', 'fetchTrades');
+    }
+}
+
+function renderHistorySummary(data) {
+    const summary = data.summary || {};
+    const totalTradesEl = document.getElementById('history-total-trades');
+    const buySellEl = document.getElementById('history-buy-sell');
+    const marketSplitEl = document.getElementById('history-market-split');
+    const realizedPnlEl = document.getElementById('history-realized-pnl');
+    const winRateEl = document.getElementById('history-win-rate');
+
+    if (totalTradesEl) totalTradesEl.textContent = String(data.total_count ?? 0);
+    if (buySellEl) buySellEl.textContent = `${summary.buy_count ?? 0} / ${summary.sell_count ?? 0}`;
+    if (marketSplitEl) marketSplitEl.textContent = `${summary.spot_count ?? 0} / ${summary.futures_count ?? 0}`;
+
+    if (realizedPnlEl) {
+        const pnl = summary.realized_pnl ?? 0;
+        realizedPnlEl.textContent = formatUSD(pnl);
+        realizedPnlEl.className = `value ${getPnLClass(pnl)}`;
+    }
+
+    if (winRateEl) {
+        if (summary.win_rate === null || summary.win_rate === undefined) {
+            winRateEl.textContent = '-';
+            winRateEl.className = 'value';
+        } else {
+            const wr = Number(summary.win_rate);
+            winRateEl.textContent = `${wr.toFixed(1)}%`;
+            winRateEl.className = `value ${wr >= 50 ? 'positive' : 'negative'}`;
+        }
     }
 }
 
@@ -1352,7 +1387,7 @@ async function fetchSignals() {
         renderLoading(containerId);
 
         // Build query string
-        const params = new URLSearchParams({ limit: 50 });
+        const params = new URLSearchParams({ limit: 50, hours: 24 });
 
         const data = await apiFetch(`/api/signals?${params.toString()}`);
         renderSignals(data);
@@ -1365,93 +1400,122 @@ function renderSignals(data) {
     const container = document.getElementById('signals-container');
 
     if (!data.signals || data.signals.length === 0) {
-        renderEmpty('signals-container', 'No signals found');
+        renderEmpty('signals-container', 'No market-analysis signals found');
         return;
+    }
+
+    // Group by strategy while preserving arrival order
+    const strategyGroups = {};
+    const strategyOrder = [];
+    for (const signal of data.signals) {
+        const strategyName = signal.strategy || 'unknown';
+        if (!strategyGroups[strategyName]) {
+            strategyGroups[strategyName] = [];
+            strategyOrder.push(strategyName);
+        }
+        strategyGroups[strategyName].push(signal);
     }
 
     let html = '';
 
-    for (const signal of data.signals) {
-        const actionClass = signal.action.toLowerCase();
-        const actedClass = signal.acted ? 'yes' : 'no';
-        const indicators = signal.indicators || {};
-        const symbolDisplay = signal.symbol || '-';
-        const marketDisplay = signal.market === 'futures' ? 'Futures' : 'Spot';
+    for (const strategyName of strategyOrder) {
+        const signals = strategyGroups[strategyName];
+        const latestTs = signals[0]?.timestamp || '';
 
         html += `
-            <div class="signal-card ${actionClass}">
-                <div class="signal-header">
-                    <span class="signal-time">${formatDateTime(signal.timestamp)}</span>
-                    <div class="signal-badges">
-                        <span class="symbol-badge">${escapeHtml(symbolDisplay)}</span>
-                        <span class="signal-action ${actionClass}">${signal.action}</span>
-                        <span class="acted-badge ${actedClass}">${signal.acted ? 'Executed' : 'Not Acted'}</span>
+            <div class="signal-strategy-group">
+                <div class="signal-strategy-header">
+                    <div class="signal-strategy-title">${escapeHtml(strategyName)}</div>
+                    <div class="signal-strategy-meta">
+                        <span>${signals.length} signals</span>
+                        <span>Latest: ${formatDateTime(latestTs)}</span>
                     </div>
                 </div>
-                <div class="signal-body">
-                    <div class="signal-info">
-                        <span class="label">Symbol</span>
-                        <span class="value">${escapeHtml(symbolDisplay)} (${marketDisplay})</span>
-                    </div>
-                    <div class="signal-info">
-                        <span class="label">Strategy</span>
-                        <span class="value">${escapeHtml(signal.strategy) || '-'}</span>
-                    </div>
-                    <div class="signal-info">
-                        <span class="label">Regime</span>
-                        <span class="value">${escapeHtml(signal.regime) || '-'}</span>
-                    </div>
-                    <div class="signal-info">
-                        <span class="label">Reason</span>
-                        <span class="value">${escapeHtml(signal.reason) || '-'}</span>
-                    </div>
-                    <div class="signal-info">
-                        <span class="label">Market State</span>
-                        <span class="value">${escapeHtml(signal.market_state) || '-'}</span>
-                    </div>
-                </div>
-                ${Object.keys(indicators).length > 0 ? `
-                <div class="signal-indicators">
-                    ${indicators.rsi !== undefined ? `
-                    <div class="indicator-item">
-                        <span class="label">RSI</span>
-                        <span class="value">${formatNumber(indicators.rsi, 1)}</span>
-                    </div>
-                    ` : ''}
-                    ${indicators.mfi !== undefined ? `
-                    <div class="indicator-item">
-                        <span class="label">MFI</span>
-                        <span class="value">${formatNumber(indicators.mfi, 1)}</span>
-                    </div>
-                    ` : ''}
-                    ${indicators.adx !== undefined ? `
-                    <div class="indicator-item">
-                        <span class="label">ADX</span>
-                        <span class="value">${formatNumber(indicators.adx, 1)}</span>
-                    </div>
-                    ` : ''}
-                    ${indicators.close !== undefined ? `
-                    <div class="indicator-item">
-                        <span class="label">Close</span>
-                        <span class="value">${formatPrice(indicators.close, true)}</span>
-                    </div>
-                    ` : ''}
-                    ${indicators.score !== undefined ? `
-                    <div class="indicator-item">
-                        <span class="label">Score</span>
-                        <span class="value">${indicators.score}</span>
-                    </div>
-                    ` : ''}
-                    ${indicators.tier !== undefined ? `
-                    <div class="indicator-item">
-                        <span class="label">Tier</span>
-                        <span class="value">${indicators.tier}</span>
-                    </div>
-                    ` : ''}
-                </div>
-                ` : ''}
-            </div>
         `;
+
+        for (const signal of signals) {
+            const decisionLabel = (signal.decision || signal.action || 'WAIT').toUpperCase();
+            const actionClass = decisionLabel.toLowerCase();
+            const indicators = signal.indicators || {};
+            const symbolDisplay = signal.symbol || '-';
+            const marketDisplay = signal.market === 'futures' ? 'Futures' : 'Spot';
+
+            html += `
+                <div class="signal-card ${actionClass}">
+                    <div class="signal-header">
+                        <span class="signal-time">${formatDateTime(signal.timestamp)}</span>
+                        <div class="signal-badges">
+                            <span class="symbol-badge">${escapeHtml(symbolDisplay)}</span>
+                            <span class="signal-action ${actionClass}">${decisionLabel}</span>
+                        </div>
+                    </div>
+                    <div class="signal-body">
+                        <div class="signal-info">
+                            <span class="label">Symbol</span>
+                            <span class="value">${escapeHtml(symbolDisplay)} (${marketDisplay})</span>
+                        </div>
+                        <div class="signal-info">
+                            <span class="label">Regime</span>
+                            <span class="value">${escapeHtml(signal.regime) || '-'}</span>
+                        </div>
+                        <div class="signal-info">
+                            <span class="label">Decision</span>
+                            <span class="value">${decisionLabel}</span>
+                        </div>
+                        <div class="signal-info">
+                            <span class="label">Reason</span>
+                            <span class="value">${escapeHtml(signal.reason) || '-'}</span>
+                        </div>
+                        <div class="signal-info">
+                            <span class="label">Market State</span>
+                            <span class="value">${escapeHtml(signal.market_state) || '-'}</span>
+                        </div>
+                    </div>
+                    ${Object.keys(indicators).length > 0 ? `
+                    <div class="signal-indicators">
+                        ${indicators.rsi !== undefined ? `
+                        <div class="indicator-item">
+                            <span class="label">RSI</span>
+                            <span class="value">${formatNumber(indicators.rsi, 1)}</span>
+                        </div>
+                        ` : ''}
+                        ${indicators.mfi !== undefined ? `
+                        <div class="indicator-item">
+                            <span class="label">MFI</span>
+                            <span class="value">${formatNumber(indicators.mfi, 1)}</span>
+                        </div>
+                        ` : ''}
+                        ${indicators.adx !== undefined ? `
+                        <div class="indicator-item">
+                            <span class="label">ADX</span>
+                            <span class="value">${formatNumber(indicators.adx, 1)}</span>
+                        </div>
+                        ` : ''}
+                        ${indicators.close !== undefined ? `
+                        <div class="indicator-item">
+                            <span class="label">Close</span>
+                            <span class="value">${formatPrice(indicators.close, true)}</span>
+                        </div>
+                        ` : ''}
+                        ${indicators.score !== undefined ? `
+                        <div class="indicator-item">
+                            <span class="label">Score</span>
+                            <span class="value">${indicators.score}</span>
+                        </div>
+                        ` : ''}
+                        ${indicators.tier !== undefined ? `
+                        <div class="indicator-item">
+                            <span class="label">Tier</span>
+                            <span class="value">${indicators.tier}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        html += `</div>`;
     }
 
     container.innerHTML = html;

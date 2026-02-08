@@ -48,6 +48,12 @@
       "_comment": "Paper reproduction - BTC model (BWin=5, FWin=2)",
       "enabled": true,
       "market": "spot",
+      "volatility_sizing": {
+        "enabled": true,
+        "target_vol": 0.03,
+        "min_scale": 0.25,
+        "max_scale": 1.0
+      },
       "symbols": [
         "BTC"
       ],
@@ -93,6 +99,12 @@
       "_comment": "Live trading - ETH model with paper_36 features (live computation)",
       "enabled": true,
       "market": "spot",
+      "volatility_sizing": {
+        "enabled": true,
+        "target_vol": 0.03,
+        "min_scale": 0.25,
+        "max_scale": 1.0
+      },
       "symbols": [
         "ETH"
       ],
@@ -138,6 +150,12 @@
       "_comment": "Live trading - SOL with dedicated SOL model (bwin=4, fwin=2)",
       "enabled": true,
       "market": "spot",
+      "volatility_sizing": {
+        "enabled": true,
+        "target_vol": 0.03,
+        "min_scale": 0.25,
+        "max_scale": 1.0
+      },
       "symbols": [
         "SOL"
       ],
@@ -183,6 +201,12 @@
       "_comment": "Live trading - BNB with dedicated BNB model (bwin=4, fwin=2)",
       "enabled": true,
       "market": "spot",
+      "volatility_sizing": {
+        "enabled": true,
+        "target_vol": 0.03,
+        "min_scale": 0.25,
+        "max_scale": 1.0
+      },
       "symbols": [
         "BNB"
       ],
@@ -225,8 +249,8 @@
       }
     },
     "bear_short_btc": {
-      "_comment": "BTC futures short during BEAR_STRONG - tightest stops (lowest vol)",
-      "enabled": true,
+      "_comment": "BTC futures short - DISABLED: negative returns across all assets",
+      "enabled": false,
       "market": "futures",
       "leverage": 3,
       "position_pct": 0.1,
@@ -235,8 +259,11 @@
       "entry": {
         "class": "BearShortEntryStrategy",
         "params": {
-          "volume_ratio_threshold": 1.5,
-          "position_size": 0.01
+          "volume_ratio_threshold": 0,
+          "position_size": 0.01,
+          "ema200_filter": true,
+          "rsi_max": 35,
+          "min_consecutive_bear": 2
         }
       },
       "exit": {
@@ -251,8 +278,8 @@
       }
     },
     "bear_short_eth": {
-      "_comment": "ETH futures short during BEAR_STRONG - moderate stops",
-      "enabled": true,
+      "_comment": "ETH futures short - DISABLED: negative returns across all assets",
+      "enabled": false,
       "market": "futures",
       "leverage": 3,
       "position_pct": 0.1,
@@ -261,8 +288,9 @@
       "entry": {
         "class": "BearShortEntryStrategy",
         "params": {
-          "volume_ratio_threshold": 1.5,
-          "position_size": 0.01
+          "volume_ratio_threshold": 0,
+          "position_size": 0.01,
+          "rsi_max": 30
         }
       },
       "exit": {
@@ -277,8 +305,8 @@
       }
     },
     "bear_short_sol": {
-      "_comment": "SOL futures short during BEAR_STRONG - widest stops (highest vol)",
-      "enabled": true,
+      "_comment": "SOL futures short - DISABLED: negative returns across all assets",
+      "enabled": false,
       "market": "futures",
       "leverage": 3,
       "position_pct": 0.1,
@@ -287,8 +315,9 @@
       "entry": {
         "class": "BearShortEntryStrategy",
         "params": {
-          "volume_ratio_threshold": 1.5,
-          "position_size": 0.01
+          "volume_ratio_threshold": 0,
+          "position_size": 0.01,
+          "ema200_filter": true
         }
       },
       "exit": {

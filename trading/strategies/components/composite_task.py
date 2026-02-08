@@ -260,6 +260,13 @@ class CompositeStrategyTask(BaseStrategyTask):
                 f"max_total={risk_cap_config.max_total_risk_pct*100:.1f}%)"
             )
 
+        # Volatility-based position scaling (CTA vol-targeting)
+        vol_cfg = self.config.get("volatility_sizing", {})
+        self._vol_sizing_enabled = vol_cfg.get("enabled", False)
+        self._vol_target = vol_cfg.get("target_vol", 0.02)
+        self._vol_min_scale = vol_cfg.get("min_scale", 0.25)
+        self._vol_max_scale = vol_cfg.get("max_scale", 1.0)
+
     async def run(self) -> None:
         """Main loop: warm-up then consume."""
         logger.info(f"Warming up composite strategy {self.name}...")
@@ -408,6 +415,22 @@ class CompositeStrategyTask(BaseStrategyTask):
             quantity, stop_price = await self._get_quantity(
                 symbol, market_data.close, signal.quantity, context, market_data
             )
+
+            # Volatility-based position scaling
+            if self._vol_sizing_enabled and market_data.atr > 0:
+                from trading.risk.volatility_scaler import compute_volatility_scale
+                vol_scale = compute_volatility_scale(
+                    atr=market_data.atr,
+                    price=market_data.close,
+                    target_vol=self._vol_target,
+                    min_scale=self._vol_min_scale,
+                    max_scale=self._vol_max_scale,
+                )
+                quantity *= vol_scale
+                logger.info(
+                    f"{symbol}: Vol sizing: ATR%={market_data.atr/market_data.close*100:.2f}%, "
+                    f"scale={vol_scale:.2f}, qty={quantity:.6f}"
+                )
 
             if quantity <= 0:
                 logger.debug(f"{symbol}: Quantity too small, skipping entry")

@@ -172,6 +172,13 @@ class ComponentStrategyAdapter:
         # Set to 1.0 to effectively disable drawdown-based BEAR override
         self._drawdown_bear_threshold: float = config.get('drawdown_bear_threshold', 0.15)
 
+        # Volatility-based position scaling (CTA vol-targeting)
+        vol_cfg = config.get("volatility_sizing", {})
+        self._vol_sizing_enabled: bool = vol_cfg.get("enabled", False)
+        self._vol_target: float = vol_cfg.get("target_vol", 0.02)
+        self._vol_min_scale: float = vol_cfg.get("min_scale", 0.25)
+        self._vol_max_scale: float = vol_cfg.get("max_scale", 1.0)
+
     def update_equity(self, equity: float) -> None:
         """Update portfolio equity tracking for drawdown protection.
 
@@ -768,6 +775,19 @@ class ComponentStrategyAdapter:
                     # Fallback to config position_pct (percentage) or position_size
                     fraction = position_pct
                     position_reason = f"config_pct:{position_pct:.2f}"
+
+                # Volatility-based position scaling
+                if self._vol_sizing_enabled and atr > 0 and close > 0:
+                    from trading.risk.volatility_scaler import compute_volatility_scale
+                    vol_scale = compute_volatility_scale(
+                        atr=atr,
+                        price=close,
+                        target_vol=self._vol_target,
+                        min_scale=self._vol_min_scale,
+                        max_scale=self._vol_max_scale,
+                    )
+                    fraction *= vol_scale
+                    position_reason += f" vol_scale:{vol_scale:.2f}"
 
                 reason = signal.reason or ""
                 if position_reason:

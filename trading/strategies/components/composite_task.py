@@ -1410,10 +1410,12 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         self.last_decision_hour[symbol] = current_hour
 
-        # Get regime from entry strategy if available
-        regime = "UNKNOWN"
-        if hasattr(self.entry_strategy, '_classify_regime'):
-            regime = self.entry_strategy._classify_regime(market_data.mfi, market_data.adx)
+        # Get regime from context (preferred) or build it
+        if context is not None:
+            regime = context.regime
+        else:
+            ctx = self._build_market_context(market_data)
+            regime = ctx.regime
 
         # Determine decision and reason based on position state
         position = await self._get_position(symbol)

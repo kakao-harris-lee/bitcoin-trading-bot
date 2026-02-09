@@ -21,6 +21,7 @@ FEATURE_SET_PAPER = "paper_36"
 FEATURE_SET_SHAP = "shap_13"
 FEATURE_SET_CROSS = "cross_44"  # paper_36 + 8 cross-asset features
 FEATURE_SET_V2 = "v2_36"  # Replaces candlestick patterns with effective indicators
+FEATURE_SET_PAPER_MTF = "paper_mtf_44"  # paper_36 + 8 daily/weekly multi-timeframe features
 
 # Feature names for reference (legacy SHAP 13)
 FEATURE_NAMES_SHAP = [
@@ -191,6 +192,8 @@ def calculate_mlp_features(
         )
     if feature_set == FEATURE_SET_V2:
         return calculate_mlp_features_v2(df, include_temporal=include_temporal)
+    if feature_set == FEATURE_SET_PAPER_MTF:
+        return calculate_mlp_features_paper_mtf(df, include_temporal=include_temporal)
     raise ValueError(f"Unknown feature_set: {feature_set}")
 
 
@@ -689,6 +692,8 @@ def extract_single_features(
         return extract_single_features_cross(market_data, indicators)
     if feature_set == FEATURE_SET_V2:
         return extract_single_features_v2(market_data, indicators)
+    if feature_set == FEATURE_SET_PAPER_MTF:
+        return extract_single_features_paper_mtf(market_data, indicators)
     raise ValueError(f"Unknown feature_set: {feature_set}")
 
 
@@ -956,3 +961,174 @@ def get_feature_importance_ranking() -> list[tuple[str, float]]:
         ("ultosc", 0.05),
         ("close_pct_change", 0.04),
     ]
+
+
+# ──── Multi-Timeframe Feature Set: paper_mtf_44 ────────────────────────────
+
+FEATURE_NAMES_PAPER_MTF = [
+    # 36 from paper_36 (same order)
+    # ... (inherited from calculate_mlp_features_paper)
+    # + 8 multi-timeframe features (daily first, then weekly — matches _compute_mtf_features):
+    "daily_rsi",               # RSI(14) on daily bars
+    "daily_adx",               # ADX(14) on daily bars
+    "daily_ema_cross_20_50",   # Daily EMA(20)/EMA(50) ratio
+    "daily_bb_width",          # Daily Bollinger bandwidth
+    "daily_return_5d",         # 5-day return
+    "daily_vol_ratio",         # Daily volume / SMA(volume,20)
+    "weekly_rsi",              # RSI(14) on weekly bars
+    "weekly_ema_cross_10_20",  # Weekly EMA(10)/EMA(20) ratio
+]
+
+
+def _resample_to_daily_weekly(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Resample 4H OHLCV data to daily and weekly timeframes.
+
+    Returns:
+        (df_daily, df_weekly) — each with OHLCV columns and DatetimeIndex.
+    """
+    ts = pd.to_datetime(df["timestamp"]) if "timestamp" in df.columns else df.index
+    df_indexed = df.copy()
+    df_indexed.index = ts
+
+    agg = {
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last",
+        "volume": "sum",
+    }
+    df_daily = df_indexed.resample("1D").agg(agg).dropna(subset=["open"])
+    df_weekly = df_indexed.resample("1W").agg(agg).dropna(subset=["open"])
+    return df_daily, df_weekly
+
+
+def _compute_mtf_features(
+    df_daily: pd.DataFrame,
+    df_weekly: pd.DataFrame,
+    original_index: pd.Index,
+    original_timestamps: pd.Series,
+) -> pd.DataFrame:
+    """Compute 8 multi-timeframe features and forward-fill back to 4H index.
+
+    Args:
+        df_daily: Daily OHLCV DataFrame (DatetimeIndex).
+        df_weekly: Weekly OHLCV DataFrame (DatetimeIndex).
+        original_index: Index of the original 4H DataFrame.
+        original_timestamps: Timestamps of the original 4H DataFrame.
+
+    Returns:
+        DataFrame with 8 MTF feature columns, aligned to original_index.
+    """
+    d_close = np.asarray(df_daily["close"].values, dtype=np.float64)
+    d_high = np.asarray(df_daily["high"].values, dtype=np.float64)
+    d_low = np.asarray(df_daily["low"].values, dtype=np.float64)
+    d_volume = np.asarray(df_daily["volume"].values, dtype=np.float64)
+
+    w_close = np.asarray(df_weekly["close"].values, dtype=np.float64)
+    w_high = np.asarray(df_weekly["high"].values, dtype=np.float64)
+    w_low = np.asarray(df_weekly["low"].values, dtype=np.float64)
+
+    mtf_daily = pd.DataFrame(index=df_daily.index)
+    mtf_weekly = pd.DataFrame(index=df_weekly.index)
+
+    # Daily features
+    mtf_daily["daily_rsi"] = talib.RSI(d_close, timeperiod=14)
+    mtf_daily["daily_adx"] = talib.ADX(d_high, d_low, d_close, timeperiod=14)
+
+    d_ema20 = talib.EMA(d_close, timeperiod=20)
+    d_ema50 = talib.EMA(d_close, timeperiod=50)
+    mtf_daily["daily_ema_cross_20_50"] = np.where(
+        np.isnan(d_ema50) | np.isnan(d_ema20), np.nan, d_ema20 / d_ema50
+    )
+
+    d_upper, d_middle, d_lower = talib.BBANDS(d_close, timeperiod=14, nbdevup=2, nbdevdn=2)
+    d_middle_safe = np.where(np.abs(d_middle) < 1e-10, 1e-10, d_middle)
+    mtf_daily["daily_bb_width"] = (d_upper - d_lower) / d_middle_safe
+
+    d_close_s = pd.Series(d_close, index=df_daily.index)
+    mtf_daily["daily_return_5d"] = d_close_s.pct_change(5).clip(-1.0, 1.0)
+
+    d_vol_sma = talib.SMA(d_volume, timeperiod=20)
+    d_vol_sma_safe = np.where(np.abs(d_vol_sma) < 1e-10, 1e-10, d_vol_sma)
+    mtf_daily["daily_vol_ratio"] = d_volume / d_vol_sma_safe
+
+    # Weekly features
+    mtf_weekly["weekly_rsi"] = talib.RSI(w_close, timeperiod=14)
+
+    w_ema10 = talib.EMA(w_close, timeperiod=10)
+    w_ema20 = talib.EMA(w_close, timeperiod=20)
+    mtf_weekly["weekly_ema_cross_10_20"] = np.where(
+        np.isnan(w_ema20) | np.isnan(w_ema10), np.nan, w_ema10 / w_ema20
+    )
+
+    # Shift by 1 period BEFORE forward-filling to avoid look-ahead bias.
+    # Without shift, a daily bar's close (computed from the last 4H bar of the day)
+    # would leak into earlier 4H bars of the same day via ffill.
+    # With shift, each 4H bar only sees the previous *completed* daily/weekly value.
+    mtf_daily = mtf_daily.shift(1)
+    mtf_weekly = mtf_weekly.shift(1)
+
+    # Forward-fill to 4H resolution
+    ts = pd.to_datetime(original_timestamps)
+    result = pd.DataFrame(index=original_index)
+
+    for col in ["daily_rsi", "daily_adx", "daily_ema_cross_20_50",
+                 "daily_bb_width", "daily_return_5d", "daily_vol_ratio"]:
+        daily_series = mtf_daily[col]
+        # Reindex to 4H timestamps using ffill (each daily value fills 6 x 4H bars)
+        result[col] = daily_series.reindex(ts, method="ffill").values
+
+    for col in ["weekly_rsi", "weekly_ema_cross_10_20"]:
+        weekly_series = mtf_weekly[col]
+        result[col] = weekly_series.reindex(ts, method="ffill").values
+
+    return result
+
+
+def calculate_mlp_features_paper_mtf(
+    df: pd.DataFrame,
+    include_temporal: bool = True,
+) -> pd.DataFrame:
+    """Calculate 44 features: paper_36 + 8 multi-timeframe features.
+
+    Extends paper_36 with daily and weekly indicator summaries to give the model
+    macro context without changing the prediction timeframe.
+
+    MTF features (8):
+        daily_rsi, daily_adx, daily_ema_cross_20_50, daily_bb_width,
+        weekly_rsi, weekly_ema_cross_10_20, daily_return_5d, daily_vol_ratio
+    """
+    # Start with paper_36 features
+    base = calculate_mlp_features_paper(df, include_temporal=include_temporal)
+
+    # Resample to daily/weekly and compute MTF features
+    ts = pd.to_datetime(df["timestamp"]) if "timestamp" in df.columns else df.index
+    df_daily, df_weekly = _resample_to_daily_weekly(df)
+    mtf = _compute_mtf_features(df_daily, df_weekly, df.index, ts)
+
+    # Concatenate
+    return pd.concat([base, mtf], axis=1)
+
+
+def extract_single_features_paper_mtf(
+    market_data: dict,
+    indicators: dict,
+) -> np.ndarray:
+    """Extract 44 features for live trading (paper_36 + 8 MTF).
+
+    MTF indicators must be pre-computed and available in the indicators dict
+    with keys: daily_rsi, daily_adx, daily_ema_cross_20_50, daily_bb_width,
+    weekly_rsi, weekly_ema_cross_10_20, daily_return_5d, daily_vol_ratio.
+    """
+    # Get paper_36 base features (36 values)
+    base = extract_single_features_paper(market_data, indicators)
+
+    # Append 8 MTF features from pre-computed indicators
+    # Order must match _compute_mtf_features: daily features first, then weekly
+    mtf_keys = [
+        "daily_rsi", "daily_adx", "daily_ema_cross_20_50", "daily_bb_width",
+        "daily_return_5d", "daily_vol_ratio", "weekly_rsi", "weekly_ema_cross_10_20",
+    ]
+    mtf_values = [float(indicators.get(k, 0.0)) for k in mtf_keys]
+
+    return np.concatenate([base, np.array(mtf_values, dtype=np.float32)])

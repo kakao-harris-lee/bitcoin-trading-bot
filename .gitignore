@@ -10,7 +10,7 @@ ENV/
 
 # Database
 *.db
-!data/
+data/
 *.db-journal
 *.sqlite
 *.sqlite3

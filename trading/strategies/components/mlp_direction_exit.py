@@ -79,6 +79,16 @@ class MLPDirectionExitParams:
     # Feature set (paper_36 or shap_13)
     mlp_feature_set: str = "paper_36"
 
+    # Runtime switch profile (C11): use risk-on/off params by regime state
+    runtime_switch_enabled: bool = False
+    switch_mfi_threshold: float = 50.0
+    switch_adx_threshold: float = 18.0
+    switch_require_above_ema200: bool = True
+    risk_on_sell_confidence_threshold: float = 0.0
+    risk_off_sell_confidence_threshold: float = 0.0
+    risk_on_stop_loss_pct: float = 0.0
+    risk_off_stop_loss_pct: float = 0.0
+
 
 @exit_strategy(params_class=MLPDirectionExitParams)
 class MLPDirectionExitStrategy(BaseExitStrategy):
@@ -154,6 +164,25 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
 
         return self._model_available
 
+    def _is_risk_on(self, market_data: MarketData, p: MLPDirectionExitParams) -> bool:
+        if market_data.mfi < p.switch_mfi_threshold:
+            return False
+        if market_data.adx < p.switch_adx_threshold:
+            return False
+        if p.switch_require_above_ema200 and market_data.ema_200 > 0:
+            if market_data.close < market_data.ema_200:
+                return False
+        return True
+
+    def _active_sell_threshold(self, ctx: TradingContext) -> float:
+        p = self.params
+        threshold = p.sell_confidence_threshold
+        if not p.runtime_switch_enabled:
+            return threshold
+        if self._is_risk_on(ctx.market, p):
+            return p.risk_on_sell_confidence_threshold if p.risk_on_sell_confidence_threshold > 0 else threshold
+        return p.risk_off_sell_confidence_threshold if p.risk_off_sell_confidence_threshold > 0 else threshold
+
     def check_exit(
         self,
         ctx: TradingContext,
@@ -188,7 +217,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         hwm_pnl = calculate_hwm_pnl_pct(hwm, entry_price)
 
         # === Exit condition 1: Stop loss (fixed or ATR-based) ===
-        effective_stop_pct = self._calculate_stop_loss(market_data, entry_price)
+        effective_stop_pct = self._calculate_stop_loss(ctx, market_data, entry_price)
 
         if pnl_pct <= -effective_stop_pct:
             reason = f"MLPDirection exit: Stop loss {pnl_pct:.2f}% (limit: -{effective_stop_pct:.1f}%)"
@@ -229,6 +258,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
 
     def _calculate_stop_loss(
         self,
+        ctx: TradingContext,
         market_data: MarketData,
         entry_price: float,
     ) -> float:
@@ -242,6 +272,14 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             Effective stop loss percentage.
         """
         p = self.params
+        base_stop_pct = p.stop_loss_pct
+        if p.runtime_switch_enabled:
+            if self._is_risk_on(ctx.market, p):
+                if p.risk_on_stop_loss_pct > 0:
+                    base_stop_pct = p.risk_on_stop_loss_pct
+            else:
+                if p.risk_off_stop_loss_pct > 0:
+                    base_stop_pct = p.risk_off_stop_loss_pct
 
         if p.atr_stop_enabled and market_data.atr > 0 and entry_price > 0:
             # ATR-based dynamic stop loss
@@ -250,7 +288,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             # Clamp to min/max bounds
             return max(p.atr_stop_min_pct, min(p.atr_stop_max_pct, dynamic_stop_pct))
 
-        return p.stop_loss_pct
+        return base_stop_pct
 
     def _check_fwin_exit(
         self,
@@ -339,10 +377,13 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             # For now, skip if not pre-computed
             return None
 
+        active_sell_threshold = self._active_sell_threshold(ctx)
+
         # Check for SELL prediction with sufficient confidence
-        if mlp_prediction == MLP_LABEL_SELL and mlp_confidence >= p.sell_confidence_threshold:
+        if mlp_prediction == MLP_LABEL_SELL and mlp_confidence >= active_sell_threshold:
             reason = (
-                f"MLPDirection exit: SELL prediction (conf={mlp_confidence:.2f}) "
+                f"MLPDirection exit: SELL prediction (conf={mlp_confidence:.2f}, "
+                f"thr={active_sell_threshold:.2f}) "
                 f"P&L={pnl_pct:.2f}%"
             )
             logger.info(f"{symbol}: {reason}")

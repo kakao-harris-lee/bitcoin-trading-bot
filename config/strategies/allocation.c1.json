@@ -1,0 +1,554 @@
+{
+  "redis_url": "redis://localhost:6379",
+  "use_component_strategies": true,
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "BNB"
+  ],
+  "defaults": {
+    "volatility": {
+      "window": 20,
+      "low_threshold": 0.71,
+      "high_threshold": 0.92,
+      "extreme_threshold": 0.03
+    },
+    "volume": {
+      "high_volume_multiplier": 1.5
+    },
+    "market_context": {
+      "mfi_bull": 52.0,
+      "mfi_bear": 48.0,
+      "adx_trend": 20.0
+    },
+    "regime_v2": {
+      "_comment": "Enhanced regime detection v2 filter defaults",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
+      "mtf_enabled_by_symbol": {
+        "BTC": true,
+        "ETH": true,
+        "SOL": true,
+        "BNB": true
+      }
+    }
+  },
+  "binance": {
+    "api_key": "${BINANCE_API_KEY}",
+    "api_secret": "${BINANCE_API_SECRET}"
+  },
+  "futures": {
+    "enabled": false,
+    "default_leverage": 3
+  },
+  "spot": {
+    "enabled": true,
+    "fee_rate": 0.001
+  },
+  "strategies": {
+    "mlp_direction_btc": {
+      "_comment": "BTC - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "enabled": true,
+      "market": "spot",
+      "volatility_sizing": {
+        "enabled": false,
+        "target_vol": 0.03,
+        "min_scale": 0.25,
+        "max_scale": 1.0
+      },
+      "ensemble_models": [
+        {
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "weight": 0.15
+        },
+        {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "weight": 0.3
+        },
+        {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "weight": 0.35
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.2
+        }
+      ],
+      "symbols": [
+        "BTC"
+      ],
+      "bwin": 5,
+      "mlp_feature_set": "paper_36",
+      "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+      "position_pct": 0.9,
+      "position_size": 0.9,
+      "drawdown_enabled": false,
+      "stop_loss_cooldown": 0,
+      "drawdown_bear_threshold": 1.0,
+      "regime_version": "v2",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
+      "entry": {
+        "class": "MLPDirectionEntryStrategy",
+        "params": {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "ensemble_models": [
+            {
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "weight": 0.15
+            },
+            {
+              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "weight": 0.3
+            },
+            {
+              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "weight": 0.35
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.2
+            }
+          ],
+          "buy_confidence_threshold": 0.5,
+          "skip_bear_regime": true,
+          "adx_min": 0.0,
+          "use_ema200_filter": false,
+          "position_size": 0.9,
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      },
+      "exit": {
+        "class": "MLPDirectionExitStrategy",
+        "params": {
+          "stop_loss_pct": 10.0,
+          "fwin_exit_enabled": false,
+          "fwin_periods": 2,
+          "atr_stop_enabled": false,
+          "trailing_enabled": false,
+          "take_profit_enabled": false,
+          "use_mlp_sell_exit": true,
+          "sell_confidence_threshold": 0.6,
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      }
+    },
+    "mlp_direction_eth": {
+      "_comment": "ETH - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "enabled": true,
+      "market": "spot",
+      "volatility_sizing": {
+        "enabled": true,
+        "target_vol": 0.03,
+        "min_scale": 0.25,
+        "max_scale": 1.0
+      },
+      "ensemble_models": [
+        {
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "weight": 0.15
+        },
+        {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "weight": 0.3
+        },
+        {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "weight": 0.35
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.2
+        }
+      ],
+      "symbols": [
+        "ETH"
+      ],
+      "bwin": 4,
+      "mlp_feature_set": "paper_36",
+      "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+      "position_pct": 0.9,
+      "position_size": 0.9,
+      "drawdown_enabled": false,
+      "stop_loss_cooldown": 0,
+      "drawdown_bear_threshold": 1.0,
+      "regime_version": "v2",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
+      "entry": {
+        "class": "MLPDirectionEntryStrategy",
+        "params": {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "ensemble_models": [
+            {
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "weight": 0.15
+            },
+            {
+              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "weight": 0.3
+            },
+            {
+              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "weight": 0.35
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.2
+            }
+          ],
+          "buy_confidence_threshold": 0.5,
+          "skip_bear_regime": true,
+          "adx_min": 0.0,
+          "use_ema200_filter": false,
+          "position_size": 0.9,
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      },
+      "exit": {
+        "class": "MLPDirectionExitStrategy",
+        "params": {
+          "stop_loss_pct": 10.0,
+          "fwin_exit_enabled": false,
+          "fwin_periods": 2,
+          "atr_stop_enabled": false,
+          "trailing_enabled": false,
+          "take_profit_enabled": false,
+          "use_mlp_sell_exit": true,
+          "sell_confidence_threshold": 0.3,
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      }
+    },
+    "mlp_direction_sol": {
+      "_comment": "SOL - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "enabled": true,
+      "market": "spot",
+      "volatility_sizing": {
+        "enabled": false,
+        "target_vol": 0.03,
+        "min_scale": 0.25,
+        "max_scale": 1.0
+      },
+      "ensemble_models": [
+        {
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "weight": 0.15
+        },
+        {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "weight": 0.3
+        },
+        {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "weight": 0.35
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.2
+        }
+      ],
+      "symbols": [
+        "SOL"
+      ],
+      "bwin": 4,
+      "mlp_feature_set": "paper_36",
+      "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
+      "position_pct": 0.9,
+      "position_size": 0.9,
+      "drawdown_enabled": false,
+      "stop_loss_cooldown": 0,
+      "drawdown_bear_threshold": 1.0,
+      "regime_version": "v2",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
+      "entry": {
+        "class": "MLPDirectionEntryStrategy",
+        "params": {
+          "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
+          "ensemble_models": [
+            {
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "weight": 0.15
+            },
+            {
+              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "weight": 0.3
+            },
+            {
+              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "weight": 0.35
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.2
+            }
+          ],
+          "buy_confidence_threshold": 0.3,
+          "skip_bear_regime": true,
+          "adx_min": 0.0,
+          "use_ema200_filter": false,
+          "position_size": 0.9,
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      },
+      "exit": {
+        "class": "MLPDirectionExitStrategy",
+        "params": {
+          "stop_loss_pct": 6.0,
+          "fwin_exit_enabled": false,
+          "fwin_periods": 2,
+          "atr_stop_enabled": false,
+          "trailing_enabled": false,
+          "take_profit_enabled": false,
+          "use_mlp_sell_exit": true,
+          "sell_confidence_threshold": 0.6,
+          "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      }
+    },
+    "mlp_direction_bnb": {
+      "_comment": "BNB - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "enabled": true,
+      "market": "spot",
+      "volatility_sizing": {
+        "enabled": false,
+        "target_vol": 0.03,
+        "min_scale": 0.25,
+        "max_scale": 1.0
+      },
+      "ensemble_models": [
+        {
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "weight": 0.15
+        },
+        {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "weight": 0.3
+        },
+        {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "weight": 0.35
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.2
+        }
+      ],
+      "symbols": [
+        "BNB"
+      ],
+      "bwin": 4,
+      "mlp_feature_set": "paper_36",
+      "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+      "position_pct": 0.9,
+      "position_size": 0.9,
+      "drawdown_enabled": false,
+      "stop_loss_cooldown": 0,
+      "drawdown_bear_threshold": 1.0,
+      "regime_version": "v2",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
+      "entry": {
+        "class": "MLPDirectionEntryStrategy",
+        "params": {
+          "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+          "ensemble_models": [
+            {
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "weight": 0.15
+            },
+            {
+              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "weight": 0.3
+            },
+            {
+              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "weight": 0.35
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.2
+            }
+          ],
+          "buy_confidence_threshold": 0.6,
+          "skip_bear_regime": true,
+          "adx_min": 0.0,
+          "use_ema200_filter": false,
+          "position_size": 0.9,
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      },
+      "exit": {
+        "class": "MLPDirectionExitStrategy",
+        "params": {
+          "stop_loss_pct": 10.0,
+          "fwin_exit_enabled": false,
+          "fwin_periods": 2,
+          "atr_stop_enabled": false,
+          "trailing_enabled": false,
+          "take_profit_enabled": false,
+          "use_mlp_sell_exit": true,
+          "sell_confidence_threshold": 0.5,
+          "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      }
+    },
+    "mlp_direction_xrp": {
+      "_comment": "XRP - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "enabled": false,
+      "market": "spot",
+      "volatility_sizing": {
+        "enabled": false,
+        "target_vol": 0.03,
+        "min_scale": 0.25,
+        "max_scale": 1.0
+      },
+      "ensemble_models": [
+        {
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "weight": 0.15
+        },
+        {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "weight": 0.3
+        },
+        {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "weight": 0.35
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.2
+        }
+      ],
+      "symbols": [
+        "XRP"
+      ],
+      "bwin": 4,
+      "mlp_feature_set": "paper_36",
+      "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+      "position_pct": 0.9,
+      "position_size": 0.9,
+      "drawdown_enabled": false,
+      "stop_loss_cooldown": 0,
+      "drawdown_bear_threshold": 1.0,
+      "regime_version": "v2",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
+      "entry": {
+        "class": "MLPDirectionEntryStrategy",
+        "params": {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "ensemble_models": [
+            {
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "weight": 0.15
+            },
+            {
+              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "weight": 0.3
+            },
+            {
+              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "weight": 0.35
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.2
+            }
+          ],
+          "buy_confidence_threshold": 0.0,
+          "skip_bear_regime": true,
+          "adx_min": 0.0,
+          "use_ema200_filter": false,
+          "position_size": 0.9,
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      },
+      "exit": {
+        "class": "MLPDirectionExitStrategy",
+        "params": {
+          "stop_loss_pct": 10.0,
+          "fwin_exit_enabled": false,
+          "fwin_periods": 2,
+          "atr_stop_enabled": false,
+          "trailing_enabled": false,
+          "take_profit_enabled": false,
+          "use_mlp_sell_exit": true,
+          "sell_confidence_threshold": 0.0,
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      }
+    }
+  },
+  "smart_executor": {
+    "enabled": true,
+    "trailing": {
+      "volatility_window": 20,
+      "low_vol_trail": 0.8,
+      "med_vol_trail": 1.2,
+      "high_vol_trail": 1.8,
+      "damping_max": 0.2
+    },
+    "split_execution": {
+      "ladder_tiers": [
+        0.05,
+        0.12,
+        0.2
+      ],
+      "ladder_weights": [
+        0.4,
+        0.35,
+        0.25
+      ],
+      "phase1_timeout_sec": 75,
+      "max_execution_sec": 105
+    }
+  },
+  "risk": {
+    "max_daily_loss": 500
+  },
+  "paper": {
+    "initial_balance": 10000,
+    "fee_rate": 0.001,
+    "slippage": 0.0004
+  },
+  "observability": {
+    "emit_events": false
+  }
+}

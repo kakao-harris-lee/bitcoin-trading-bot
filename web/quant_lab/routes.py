@@ -10,7 +10,10 @@ from typing import Dict, Any
 
 from .worker.tasks import OptimizationJob, JobStatus
 from .optimizer.study_manager import StudyManager
-from .optimizer.search_space import REGIMES, ENTRY_COMPONENTS, EXIT_COMPONENTS, COMPONENT_PARAMS
+from .optimizer.search_space import (
+    REGIMES, ENTRY_COMPONENTS, EXIT_COMPONENTS, COMPONENT_PARAMS,
+    MLP_ENTRY_PARAMS, MLP_EXIT_PARAMS, MLP_ENSEMBLE_PARAMS, MLP_ADAPTER_PARAMS,
+)
 
 quant_lab_bp = Blueprint(
     'quant_lab',
@@ -183,6 +186,12 @@ def get_search_space():
         "entry_components": ENTRY_COMPONENTS,
         "exit_components": EXIT_COMPONENTS,
         "component_params": COMPONENT_PARAMS,
+        "mlp_direction": {
+            "entry_params": MLP_ENTRY_PARAMS,
+            "exit_params": MLP_EXIT_PARAMS,
+            "ensemble_params": MLP_ENSEMBLE_PARAMS,
+            "adapter_params": MLP_ADAPTER_PARAMS,
+        },
     })
 
 
@@ -222,6 +231,17 @@ def create_experiment():
         max_hours = min(float(max_hours), MAX_HOURS)
         max_hours = max(max_hours, 0.1)
 
+    # Determine strategy type
+    strategy_type = data.get('strategy_type', 'regime')
+    if strategy_type not in ('regime', 'mlp_direction'):
+        return jsonify({"error": f"Invalid strategy_type: '{strategy_type}'"}), 400
+
+    asset = data.get('asset')
+    if strategy_type == 'mlp_direction' and not asset:
+        return jsonify({"error": "MLP optimization requires 'asset' field (BTC, ETH, SOL)"}), 400
+    if asset and asset.upper() not in ('BTC', 'ETH', 'SOL'):
+        return jsonify({"error": f"Invalid asset: '{asset}'. Must be BTC, ETH, or SOL"}), 400
+
     # Create job
     job = OptimizationJob(
         job_id=job_id,
@@ -229,12 +249,15 @@ def create_experiment():
         data_path=validated_data_path,
         start_date=data['start_date'],
         end_date=data['end_date'],
-        symbols=data['symbols'],
+        symbols=data.get('symbols', [asset.upper()] if asset else ['BTC']),
         max_trials=max_trials,
         max_hours=max_hours,
         search_config=data.get('search_config'),
         constraints=data.get('constraints'),
         mlflow_experiment=data.get('mlflow_experiment', 'quant_lab'),
+        strategy_type=strategy_type,
+        asset=asset.upper() if asset else None,
+        config_path=data.get('config_path', 'config/strategies/allocation.json'),
     )
 
     # Enqueue job
@@ -400,8 +423,15 @@ def apply_trial_config(study_name: str, trial_number: int):
         if not trial:
             return jsonify({"error": f"Trial {trial_number} not found in study {study_name}"}), 404
 
-        # Transform Optuna flat params to structured config
-        tuned_config = _transform_trial_to_config(trial.params, trial.values)
+        # Detect strategy type from trial params
+        is_mlp = any(k.startswith(('entry_', 'exit_', 'ensemble_', 'adapter_'))
+                      for k in trial.params)
+
+        if is_mlp:
+            tuned_config = _transform_mlp_trial_to_config(trial.params, trial.values)
+        else:
+            tuned_config = _transform_trial_to_config(trial.params, trial.values)
+
         tuned_config['study_name'] = study_name
         tuned_config['trial_number'] = trial_number
         tuned_config['applied_at'] = datetime.now().isoformat()
@@ -424,17 +454,54 @@ def apply_trial_config(study_name: str, trial_number: int):
         backup_path = allocation_path + f'.backup.{datetime.now().strftime("%Y%m%d_%H%M%S")}'
         shutil.copy(allocation_path, backup_path)
 
-        # Add or update the strategy in allocation.json
-        allocation['strategies'][strategy_name] = {
-            'market': 'futures',
-            'leverage': 3,
-            'dynamic_sizing': True,
-            'position_pct': 0.10,
-            'position_size': 0.01,
-            'use_smart_exit': True,
-            'tuned_config': f'config/tuned/{strategy_name}.json',
-            'regime_routing': tuned_config.get('regime_routing', {}),
-        }
+        if is_mlp:
+            # MLP: update existing strategy config with tuned params
+            target_strategy = data.get('target_strategy', strategy_name)
+            if target_strategy in allocation['strategies']:
+                strat = allocation['strategies'][target_strategy]
+            else:
+                strat = allocation['strategies'].setdefault(target_strategy, {
+                    'market': 'spot',
+                    'entry': {'class': 'MLPDirectionEntryStrategy', 'params': {}},
+                    'exit': {'class': 'MLPDirectionExitStrategy', 'params': {}},
+                })
+
+            # Apply entry params
+            entry_params = strat.get('entry', {}).get('params', {})
+            entry_params.update(tuned_config.get('entry_params', {}))
+            strat.setdefault('entry', {})['params'] = entry_params
+
+            # Apply exit params
+            exit_params = strat.get('exit', {}).get('params', {})
+            exit_params.update(tuned_config.get('exit_params', {}))
+            strat.setdefault('exit', {})['params'] = exit_params
+
+            # Apply ensemble weights
+            if 'ensemble_weights' in tuned_config:
+                ensemble = strat.get('ensemble_models', [])
+                weights = tuned_config['ensemble_weights']
+                weight_keys = ['weight_bwin3', 'weight_bwin4', 'weight_bwin5', 'weight_bwin7']
+                for i, key in enumerate(weight_keys):
+                    if i < len(ensemble) and key in weights:
+                        ensemble[i]['weight'] = weights[key]
+
+            # Apply adapter params
+            for key, val in tuned_config.get('adapter_params', {}).items():
+                strat[key] = val
+
+            strat['tuned_config'] = f'config/tuned/{strategy_name}.json'
+        else:
+            # Regime: add as new strategy
+            allocation['strategies'][strategy_name] = {
+                'market': 'futures',
+                'leverage': 3,
+                'dynamic_sizing': True,
+                'position_pct': 0.10,
+                'position_size': 0.01,
+                'use_smart_exit': True,
+                'tuned_config': f'config/tuned/{strategy_name}.json',
+                'regime_routing': tuned_config.get('regime_routing', {}),
+            }
 
         # Save updated allocation.json
         with open(allocation_path, 'w') as f:
@@ -504,6 +571,43 @@ def _transform_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[st
                     regime_config['exit_params'][param_name] = value
 
             config['regime_routing'][regime] = regime_config
+
+    return config
+
+
+def _transform_mlp_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[str, Any]:
+    """Transform MLP Optuna trial params to structured config format.
+
+    Converts flat params like:
+        entry_buy_confidence_threshold: 0.3
+        exit_stop_loss_pct: 10.0
+        ensemble_weight_bwin3: 0.15
+        adapter_cash_in_bear: True
+
+    To structured format with entry_params, exit_params, ensemble_weights, adapter_params.
+    """
+    config: Dict[str, Any] = {
+        'strategy_type': 'mlp_direction',
+        'metrics': {
+            'win_rate': values[0] if len(values) > 0 else None,
+            'total_return': values[1] if len(values) > 1 else None,
+            'max_drawdown': values[2] if len(values) > 2 else None,
+        },
+        'entry_params': {},
+        'exit_params': {},
+        'ensemble_weights': {},
+        'adapter_params': {},
+    }
+
+    for key, value in params.items():
+        if key.startswith('entry_'):
+            config['entry_params'][key[len('entry_'):]] = value
+        elif key.startswith('exit_'):
+            config['exit_params'][key[len('exit_'):]] = value
+        elif key.startswith('ensemble_'):
+            config['ensemble_weights'][key[len('ensemble_'):]] = value
+        elif key.startswith('adapter_'):
+            config['adapter_params'][key[len('adapter_'):]] = value
 
     return config
 

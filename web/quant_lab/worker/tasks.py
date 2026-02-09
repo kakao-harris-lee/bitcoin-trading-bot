@@ -7,7 +7,7 @@ import redis
 from datetime import datetime
 
 from ..optimizer.study_manager import StudyManager
-from ..optimizer.objective import RegimeBacktestObjective
+from ..optimizer.objective import RegimeBacktestObjective, MLPDirectionObjective
 from ..optimizer.search_space import SearchSpaceConfig
 
 
@@ -43,6 +43,15 @@ class OptimizationJob:
     # MLflow tracking
     mlflow_experiment: Optional[str] = None
 
+    # Strategy type: "regime" (default) or "mlp_direction"
+    strategy_type: str = "regime"
+
+    # Asset for MLP optimization (BTC, ETH, SOL)
+    asset: Optional[str] = None
+
+    # Config path for MLP (allocation.json)
+    config_path: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         """Serialize job to dict."""
         return {
@@ -57,6 +66,9 @@ class OptimizationJob:
             "search_config": self.search_config,
             "constraints": self.constraints,
             "mlflow_experiment": self.mlflow_experiment,
+            "strategy_type": self.strategy_type,
+            "asset": self.asset,
+            "config_path": self.config_path,
         }
 
     @classmethod
@@ -79,19 +91,26 @@ def run_optimization(job: OptimizationJob) -> Dict[str, Any]:
     manager = StudyManager()
     study = manager.create_study(job.study_name)
 
-    # Build search config
-    search_config = SearchSpaceConfig()
-    if job.search_config:
-        search_config.regime_configs = job.search_config
-
-    # Build objective
-    objective = RegimeBacktestObjective(
-        data_path=job.data_path,
-        start_date=job.start_date,
-        end_date=job.end_date,
-        symbols=job.symbols,
-        search_config=search_config,
-    )
+    # Build objective based on strategy_type
+    if job.strategy_type == "mlp_direction":
+        objective = MLPDirectionObjective(
+            asset=job.asset or (job.symbols[0] if job.symbols else "BTC"),
+            config_path=job.config_path or "config/strategies/allocation.json",
+            start_date=job.start_date,
+            end_date=job.end_date,
+        )
+    else:
+        # Default: regime-based optimization
+        search_config = SearchSpaceConfig()
+        if job.search_config:
+            search_config.regime_configs = job.search_config
+        objective = RegimeBacktestObjective(
+            data_path=job.data_path,
+            start_date=job.start_date,
+            end_date=job.end_date,
+            symbols=job.symbols,
+            search_config=search_config,
+        )
 
     # Update job status with initial metadata
     _update_job_status(job.job_id, JobStatus.RUNNING, {

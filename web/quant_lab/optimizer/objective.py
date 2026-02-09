@@ -1,10 +1,10 @@
-"""Multi-objective optimization function for regime-based strategies."""
+"""Multi-objective optimization function for regime-based and MLP strategies."""
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Any, Optional
 import optuna
 from optuna.study import StudyDirection
 
-from .search_space import SearchSpaceConfig, sample_trial_config, REGIMES
+from .search_space import SearchSpaceConfig, sample_trial_config, sample_mlp_trial_config, REGIMES
 
 
 @dataclass
@@ -288,6 +288,111 @@ class RegimeBacktestObjective:
             # Log error and re-raise to fail the trial
             logger.error(f"Backtest error: {e}", exc_info=True)
             raise
+
+
+@dataclass
+class MLPDirectionObjective:
+    """Callable objective function for MLP Direction strategy optimization.
+
+    Uses ComponentStrategyAdapter with precomputed MLP predictions to backtest
+    different entry/exit/ensemble parameter combinations.
+
+    Returns (win_rate, total_return, max_drawdown) tuple.
+    """
+    asset: str  # BTC, ETH, SOL
+    config_path: str  # Path to allocation.json
+    start_date: str
+    end_date: str
+
+    def __call__(self, trial: optuna.Trial) -> Tuple[float, float, float]:
+        """Evaluate a trial configuration."""
+        mlp_config = sample_mlp_trial_config(trial)
+        metrics = self._run_backtest(mlp_config)
+        return (
+            metrics["win_rate"],
+            metrics["total_return"],
+            metrics["max_drawdown"],
+        )
+
+    def _run_backtest(self, mlp_config: Dict[str, Any]) -> Dict[str, float]:
+        """Run MLP Direction backtest with sampled parameters."""
+        import sys
+        from pathlib import Path
+        import logging
+
+        web_dir = Path(__file__).parent.parent.parent
+        project_root = web_dir.parent
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+
+        logger = logging.getLogger(__name__)
+
+        from scripts.backtest.backtest_mlp import (
+            load_strategy_config,
+            MLPDirectionBacktester,
+        )
+        from scripts.backtest._common import load_data
+
+        # Load base strategy config from allocation.json
+        try:
+            allocation, strategy_id, strategy_config = load_strategy_config(
+                config_path=self.config_path,
+                symbol=self.asset,
+                mode="paper",
+            )
+        except ValueError as e:
+            logger.error(f"Failed to load strategy config: {e}")
+            raise
+
+        # Inject sampled ensemble weights into config
+        ensemble_models = strategy_config.get("ensemble_models", [])
+        weight_keys = ["weight_bwin3", "weight_bwin4", "weight_bwin5", "weight_bwin7"]
+        for i, key in enumerate(weight_keys):
+            if i < len(ensemble_models) and key in mlp_config.get("ensemble", {}):
+                ensemble_models[i]["weight"] = mlp_config["ensemble"][key]
+
+        # Inject sampled adapter-level params
+        adapter_params = mlp_config.get("adapter", {})
+        for key in ("cash_in_bear", "cash_below_ema200", "stop_loss_cooldown",
+                     "drawdown_bear_threshold"):
+            if key in adapter_params:
+                strategy_config[key] = adapter_params[key]
+
+        # Build entry/exit overrides from sampled params
+        entry_overrides = dict(mlp_config.get("entry", {}))
+        exit_overrides = dict(mlp_config.get("exit", {}))
+
+        # Resolve data path from asset
+        symbol_db_map = {
+            "BTC": "data/binance_bitcoin.db",
+            "ETH": "data/binance_ethereum.db",
+            "SOL": "data/binance_solana.db",
+        }
+        db_path = str(Path(self.config_path).parent.parent / symbol_db_map.get(
+            self.asset.upper(), "data/binance_bitcoin.db"
+        ))
+
+        # Load data
+        df = load_data(db_path, "minute240", self.start_date, self.end_date, exchange="binance")
+        if df.empty:
+            raise ValueError(f"No data for {self.asset} ({self.start_date} to {self.end_date})")
+
+        # Initialize backtester and run
+        backtester = MLPDirectionBacktester(
+            symbol=self.asset,
+            config=strategy_config,
+            entry_overrides=entry_overrides,
+            exit_overrides=exit_overrides,
+        )
+
+        df = backtester.prepare_data(df)
+        results = backtester.run(df, initial_capital=10_000)
+
+        return {
+            "win_rate": results.get("win_rate", 0.0),
+            "total_return": results.get("total_return", 0.0) / 100.0,
+            "max_drawdown": abs(results.get("max_drawdown_pct", 0.0)) / 100.0,
+        }
 
 
 def create_multi_objective(

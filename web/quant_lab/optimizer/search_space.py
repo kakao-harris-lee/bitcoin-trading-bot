@@ -1,4 +1,4 @@
-"""Search space definition for regime-based optimization."""
+"""Search space definition for regime-based and MLP optimization."""
 from dataclasses import dataclass, field
 from typing import Dict, List, Any
 import optuna
@@ -150,3 +150,87 @@ def sample_trial_config(
         }
 
     return result
+
+
+# =============================================================================
+# MLP Direction Strategy Search Space
+# =============================================================================
+
+MLP_ENTRY_PARAMS = {
+    "buy_confidence_threshold": {"type": "float", "low": 0.0, "high": 0.8},
+    "skip_bear_regime": {"type": "categorical", "choices": [True, False]},
+    "adx_min": {"type": "float", "low": 0.0, "high": 30.0},
+    "use_ema200_filter": {"type": "categorical", "choices": [True, False]},
+}
+
+MLP_EXIT_PARAMS = {
+    "stop_loss_pct": {"type": "float", "low": 3.0, "high": 25.0},
+    "fwin_exit_enabled": {"type": "categorical", "choices": [True, False]},
+    "fwin_periods": {"type": "int", "low": 1, "high": 10},
+    "use_mlp_sell_exit": {"type": "categorical", "choices": [True, False]},
+    "sell_confidence_threshold": {"type": "float", "low": 0.0, "high": 0.8},
+    "trailing_enabled": {"type": "categorical", "choices": [True, False]},
+    "trailing_activation": {"type": "float", "low": 3.0, "high": 30.0},
+    "trailing_distance": {"type": "float", "low": 1.0, "high": 15.0},
+    "take_profit_enabled": {"type": "categorical", "choices": [True, False]},
+    "take_profit_pct": {"type": "float", "low": 5.0, "high": 50.0},
+}
+
+MLP_ENSEMBLE_PARAMS = {
+    "weight_bwin3": {"type": "float", "low": 0.0, "high": 1.0},
+    "weight_bwin4": {"type": "float", "low": 0.0, "high": 1.0},
+    "weight_bwin5": {"type": "float", "low": 0.0, "high": 1.0},
+    "weight_bwin7": {"type": "float", "low": 0.0, "high": 1.0},
+}
+
+MLP_ADAPTER_PARAMS = {
+    "cash_in_bear": {"type": "categorical", "choices": [True, False]},
+    "cash_below_ema200": {"type": "categorical", "choices": [True, False]},
+    "stop_loss_cooldown": {"type": "int", "low": 0, "high": 24},
+    "drawdown_bear_threshold": {"type": "float", "low": 0.05, "high": 1.0},
+}
+
+
+def sample_mlp_trial_config(trial: optuna.Trial) -> Dict[str, Any]:
+    """Sample a complete MLP Direction configuration from Optuna trial.
+
+    Args:
+        trial: Optuna trial object
+
+    Returns:
+        Dict with entry, exit, ensemble, and adapter params.
+    """
+    config: Dict[str, Any] = {"entry": {}, "exit": {}, "ensemble": {}, "adapter": {}}
+
+    # Entry params
+    for name, spec in MLP_ENTRY_PARAMS.items():
+        if spec["type"] == "float":
+            config["entry"][name] = trial.suggest_float(f"entry_{name}", spec["low"], spec["high"])
+        elif spec["type"] == "categorical":
+            config["entry"][name] = trial.suggest_categorical(f"entry_{name}", spec["choices"])
+        elif spec["type"] == "int":
+            config["entry"][name] = trial.suggest_int(f"entry_{name}", spec["low"], spec["high"])
+
+    # Exit params
+    for name, spec in MLP_EXIT_PARAMS.items():
+        if spec["type"] == "float":
+            config["exit"][name] = trial.suggest_float(f"exit_{name}", spec["low"], spec["high"])
+        elif spec["type"] == "categorical":
+            config["exit"][name] = trial.suggest_categorical(f"exit_{name}", spec["choices"])
+        elif spec["type"] == "int":
+            config["exit"][name] = trial.suggest_int(f"exit_{name}", spec["low"], spec["high"])
+
+    # Ensemble weights
+    for name, spec in MLP_ENSEMBLE_PARAMS.items():
+        config["ensemble"][name] = trial.suggest_float(f"ensemble_{name}", spec["low"], spec["high"])
+
+    # Adapter params
+    for name, spec in MLP_ADAPTER_PARAMS.items():
+        if spec["type"] == "float":
+            config["adapter"][name] = trial.suggest_float(f"adapter_{name}", spec["low"], spec["high"])
+        elif spec["type"] == "categorical":
+            config["adapter"][name] = trial.suggest_categorical(f"adapter_{name}", spec["choices"])
+        elif spec["type"] == "int":
+            config["adapter"][name] = trial.suggest_int(f"adapter_{name}", spec["low"], spec["high"])
+
+    return config

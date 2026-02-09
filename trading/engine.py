@@ -54,6 +54,11 @@ class TradingEngine:
 
     async def start(self, mode: str = "paper") -> None:
         """Start all trading components."""
+        if mode == "live" and os.getenv("ENABLE_LIVE_TRADING") != "1":
+            raise RuntimeError(
+                "Live mode is not armed. Set ENABLE_LIVE_TRADING=1 to proceed."
+            )
+
         logger.info(f"Starting TradingEngine in {mode} mode")
 
         # Connect to Redis
@@ -107,6 +112,17 @@ class TradingEngine:
 
         # 3. Start executor
         if mode == "paper":
+            paper_config = dict(self.config.get("paper", {"initial_balance": 10000}))
+            paper_config.setdefault("symbols", symbols)
+            paper_config.setdefault(
+                "max_daily_loss",
+                self.config.get("risk", {}).get("max_daily_loss", 500),
+            )
+            paper_config.setdefault(
+                "trade_log_db_path",
+                str(Path(__file__).parent.parent / "data" / "paper_trading_results.db"),
+            )
+
             # Create LeverageManager for paper trading (same as live)
             leverage_manager = None
             leverage_config = self.config.get("leverage_manager", {})
@@ -119,7 +135,7 @@ class TradingEngine:
 
             executor = PaperExecutor(
                 redis=self.redis,
-                config=self.config.get("paper", {"initial_balance": 10000}),
+                config=paper_config,
                 leverage_manager=leverage_manager,
             )
         else:
@@ -280,6 +296,8 @@ class TradingEngine:
         # This allows us to enable/disable strategies via config
         strategy_names = list(strategy_config.keys())
         started = 0
+        regime_defaults = self.config.get("defaults", {}).get("regime_v2", {})
+        mtf_enabled_by_symbol = regime_defaults.get("mtf_enabled_by_symbol", {})
 
         for name in strategy_names:
             # Skip if disabled or not configured to run
@@ -297,10 +315,32 @@ class TradingEngine:
                     logger.warning(f"Skipping strategy {name}: no symbols configured")
                     continue
 
+                # Apply v2 regime defaults unless strategy explicitly sets version
+                effective_config = dict(config)
+                if "regime_version" not in effective_config and regime_defaults:
+                    effective_config["regime_version"] = "v2"
+                    for key in (
+                        "bbw_block_threshold",
+                        "bbw_confirm_threshold",
+                        "volume_block_ratio",
+                        "volume_boost_ratio",
+                        "mtf_enabled",
+                    ):
+                        if key not in effective_config and key in regime_defaults:
+                            effective_config[key] = regime_defaults[key]
+
+                # Optional global per-symbol MTF override.
+                # This allows quick on/off by asset without editing each strategy.
+                if strategy_symbols and isinstance(mtf_enabled_by_symbol, dict):
+                    if len(strategy_symbols) == 1:
+                        symbol_key = strategy_symbols[0]
+                        if symbol_key in mtf_enabled_by_symbol:
+                            effective_config["mtf_enabled"] = bool(mtf_enabled_by_symbol[symbol_key])
+
                 # Create entry and exit components
                 entry, exit_strat = factory.create_components(
                     strategy_name=name,
-                    config=config,
+                    config=effective_config,
                     persistent=use_persistence,
                 )
 
@@ -311,12 +351,12 @@ class TradingEngine:
                     redis=self.redis,
                     entry_strategy=entry,
                     exit_strategy=exit_strat,
-                    config=config,
-                    market=factory.get_market(name),
-                    use_smart_exit=config.get("use_smart_exit", False),
+                    config=effective_config,
+                    market=factory.get_market(name, effective_config),
+                    use_smart_exit=effective_config.get("use_smart_exit", False),
                     indicator_service=indicator_service,
                     context_builder=context_builder,
-                    regime_version=config.get("regime_version", "v1"),
+                    regime_version=effective_config.get("regime_version", "v1"),
                 )
 
                 self.tasks.append(asyncio.create_task(task.run()))

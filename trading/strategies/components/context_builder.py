@@ -8,6 +8,7 @@ to avoid redundant computation across multiple strategies.
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import replace
 from types import MappingProxyType
 from typing import TYPE_CHECKING
@@ -26,13 +27,95 @@ class PositionManager:
     Provides a clean interface for retrieving positions across strategies.
     """
 
-    def __init__(self, redis_client):
+    def __init__(self, redis_client, cache_ttl_seconds: float = 1.0):
         """Initialize with Redis client.
 
         Args:
             redis_client: Async Redis client instance.
         """
         self._redis = redis_client
+        self._cache_ttl_seconds = cache_ttl_seconds
+        self._cache_ts: float = 0.0
+        self._positions_by_symbol: dict[str, dict[str, Position]] = {}
+        self._portfolio_positions: dict[str, Position] = {}
+
+    @staticmethod
+    def _parse_position(
+        symbol: str,
+        market: str,
+        raw: dict,
+    ) -> Position | None:
+        """Parse Redis hash into Position."""
+        try:
+            quantity = float(raw.get("quantity", 0.0))
+            entry_price = float(raw.get("entry_price", 0.0))
+            timestamp = int(raw.get("entry_time", raw.get("timestamp", 0)) or 0)
+            strategy = raw.get("strategy", f"{symbol}_{market}")
+            side = raw.get("side", "buy")
+            leverage = int(raw.get("leverage", 1))
+            liquidation_price = float(raw.get("liquidation_price", 0.0))
+        except (TypeError, ValueError):
+            return None
+
+        if quantity <= 0 or entry_price <= 0:
+            return None
+
+        return Position(
+            symbol=symbol,
+            entry_price=entry_price,
+            quantity=quantity,
+            strategy=strategy,
+            market=market,  # type: ignore[arg-type]
+            timestamp=timestamp,
+            side=side,
+            leverage=leverage,
+            liquidation_price=liquidation_price,
+        )
+
+    async def refresh(
+        self,
+        symbols: list[str] | None = None,
+        force: bool = False,
+    ) -> None:
+        """Refresh cached positions from Redis."""
+        now = time.time()
+        if not force and now - self._cache_ts < self._cache_ttl_seconds:
+            return
+
+        if not symbols:
+            keys = await self._redis.keys("positions:*:*")
+            symbols = sorted(
+                {
+                    parts[1]
+                    for key in keys
+                    for parts in [key.split(":")]
+                    if len(parts) >= 3
+                }
+            )
+        if not symbols:
+            return
+
+        markets = ("spot", "futures")
+        by_symbol: dict[str, dict[str, Position]] = {}
+        portfolio: dict[str, Position] = {}
+
+        for symbol in symbols:
+            symbol_positions: dict[str, Position] = {}
+            for market in markets:
+                key = f"positions:{symbol}:{market}"
+                raw = await self._redis.hgetall(key)
+                if not raw:
+                    continue
+                parsed = self._parse_position(symbol, market, raw)
+                if parsed is None:
+                    continue
+                symbol_positions[parsed.strategy] = parsed
+                portfolio[f"{symbol}:{market}:{parsed.strategy}"] = parsed
+            by_symbol[symbol] = symbol_positions
+
+        self._positions_by_symbol = by_symbol
+        self._portfolio_positions = portfolio
+        self._cache_ts = now
 
     def get_positions_for_symbol(self, symbol: str) -> dict[str, Position]:
         """Get all positions for a symbol across strategies.
@@ -46,14 +129,30 @@ class PositionManager:
         Returns:
             Dict mapping strategy_name -> Position for this symbol.
         """
-        positions: dict[str, Position] = {}
+        return dict(self._positions_by_symbol.get(symbol, {}))
 
-        # Position key pattern: positions:{symbol}:futures
-        # Value is a hash with strategy as the grouping
-        # For now, we return empty - will be populated by CompositeStrategyTask
-        # which already has position access via Redis
+    def get_portfolio_positions(self) -> dict[str, Position]:
+        """Get all open positions across symbols/markets."""
+        return dict(self._portfolio_positions)
 
-        return positions
+    def update_cached_position(
+        self,
+        symbol: str,
+        strategy: str,
+        position: Position | None,
+    ) -> None:
+        """Update local cache after position open/close events."""
+        per_symbol = dict(self._positions_by_symbol.get(symbol, {}))
+        if position is None:
+            per_symbol.pop(strategy, None)
+            stale_keys = [k for k, p in self._portfolio_positions.items() if p.symbol == symbol and p.strategy == strategy]
+            for key in stale_keys:
+                self._portfolio_positions.pop(key, None)
+        else:
+            per_symbol[strategy] = position
+            cache_key = f"{symbol}:{position.market}:{strategy}"
+            self._portfolio_positions[cache_key] = position
+        self._positions_by_symbol[symbol] = per_symbol
 
 
 class TradingContextBuilder:
@@ -89,6 +188,22 @@ class TradingContextBuilder:
         self._cache_timestamp: int = 0
 
         logger.info("TradingContextBuilder initialized")
+
+    async def refresh_positions(
+        self,
+        symbols: list[str] | None = None,
+        force: bool = False,
+    ) -> None:
+        """Refresh PositionManager snapshot from Redis."""
+        if self._positions is None:
+            return
+        await self._positions.refresh(symbols=symbols, force=force)
+
+    def get_portfolio_positions(self) -> dict[str, Position]:
+        """Get portfolio position snapshot (all symbols)."""
+        if self._positions is None:
+            return {}
+        return self._positions.get_portfolio_positions()
 
     def get_context(self, symbol: str, timestamp: int) -> TradingContext | None:
         """Get or build context for symbol.
@@ -196,3 +311,5 @@ class TradingContextBuilder:
 
             # Create new context with updated positions (immutable)
             self._cache[symbol] = replace(ctx, positions=MappingProxyType(new_positions))
+        if self._positions is not None:
+            self._positions.update_cached_position(symbol, strategy, position)

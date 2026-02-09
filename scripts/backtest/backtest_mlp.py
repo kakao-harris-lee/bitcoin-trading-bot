@@ -87,6 +87,36 @@ def _normalize_mlp_config(config: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def _apply_regime_v2_defaults(
+    allocation: dict[str, Any],
+    strategy_config: dict[str, Any],
+    symbol: str,
+) -> dict[str, Any]:
+    """Apply engine-equivalent regime v2 defaults/overrides for backtests."""
+    normalized = dict(strategy_config)
+    regime_defaults = allocation.get("defaults", {}).get("regime_v2", {})
+    if not isinstance(regime_defaults, dict):
+        return normalized
+
+    if "regime_version" not in normalized:
+        normalized["regime_version"] = "v2"
+        for key in (
+            "bbw_block_threshold",
+            "bbw_confirm_threshold",
+            "volume_block_ratio",
+            "volume_boost_ratio",
+            "mtf_enabled",
+        ):
+            if key not in normalized and key in regime_defaults:
+                normalized[key] = regime_defaults[key]
+
+    mtf_enabled_by_symbol = regime_defaults.get("mtf_enabled_by_symbol", {})
+    if isinstance(mtf_enabled_by_symbol, dict) and symbol in mtf_enabled_by_symbol:
+        normalized["mtf_enabled"] = bool(mtf_enabled_by_symbol[symbol])
+
+    return normalized
+
+
 def _resolve_strategy_id(
     strategies: dict[str, Any],
     symbol: str,
@@ -138,6 +168,7 @@ def load_strategy_config(
         raise ValueError(f"Strategy '{resolved_id}' not found in allocation config.")
 
     strategy_config = _normalize_mlp_config(strategies[resolved_id])
+    strategy_config = _apply_regime_v2_defaults(allocation, strategy_config, symbol)
     return allocation, resolved_id, strategy_config
 
 
@@ -270,6 +301,8 @@ def run_backtest(
         db_path = str(PROJECT_ROOT / "data" / "binance_ethereum.db")
     elif "SOL" in symbol.upper():
         db_path = str(PROJECT_ROOT / "data" / "binance_solana.db")
+    elif "BNB" in symbol.upper():
+        db_path = str(PROJECT_ROOT / "data" / "binance_bnb.db")
     else:
         db_path = db_path or str(PROJECT_ROOT / "data" / "binance_bitcoin.db")
 
@@ -352,7 +385,7 @@ def main():
     parser.add_argument(
         "--symbol",
         default="BTC",
-        choices=["BTC", "ETH", "SOL"],
+        choices=["BTC", "ETH", "SOL", "BNB"],
         help="Trading symbol (default: BTC)",
     )
     parser.add_argument(

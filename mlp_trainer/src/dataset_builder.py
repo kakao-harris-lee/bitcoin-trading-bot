@@ -23,9 +23,11 @@ from trading.indicators.mlp_features import (
     FEATURE_SET_PAPER,
     FEATURE_SET_SHAP,
     FEATURE_SET_V2,
+    FEATURE_SET_PAPER_MTF,
     FEATURE_NAMES_PAPER,
     FEATURE_NAMES_SHAP,
     FEATURE_NAMES_V2,
+    FEATURE_NAMES_PAPER_MTF,
 )
 from core.mlp_labeling import (
     compute_labels,
@@ -251,6 +253,7 @@ class MLPDatasetBuilder:
             FEATURE_SET_PAPER: FEATURE_NAMES_PAPER,
             FEATURE_SET_SHAP: FEATURE_NAMES_SHAP,
             FEATURE_SET_V2: FEATURE_NAMES_V2,
+            FEATURE_SET_PAPER_MTF: FEATURE_NAMES_PAPER + FEATURE_NAMES_PAPER_MTF,
         }
         feature_names = feature_names_map.get(
             self.config.feature_set, FEATURE_NAMES_PAPER
@@ -318,6 +321,7 @@ class MLPDatasetBuilder:
             FEATURE_SET_PAPER: FEATURE_NAMES_PAPER,
             FEATURE_SET_SHAP: FEATURE_NAMES_SHAP,
             FEATURE_SET_V2: FEATURE_NAMES_V2,
+            FEATURE_SET_PAPER_MTF: FEATURE_NAMES_PAPER + FEATURE_NAMES_PAPER_MTF,
         }
         feature_names = feature_names_map.get(
             self.config.feature_set, FEATURE_NAMES_PAPER
@@ -493,7 +497,7 @@ def main():
         "--feature-set",
         type=str,
         default=FEATURE_SET_PAPER,
-        choices=[FEATURE_SET_PAPER, FEATURE_SET_SHAP, FEATURE_SET_V2],
+        choices=[FEATURE_SET_PAPER, FEATURE_SET_SHAP, FEATURE_SET_V2, FEATURE_SET_PAPER_MTF],
         help="Feature set to use",
     )
     parser.add_argument(

@@ -60,6 +60,12 @@ def main():
     """Main entry point."""
     args = parse_args()
 
+    if args.trend == "live" and os.getenv("ENABLE_LIVE_TRADING") != "1":
+        logger.error(
+            "Refusing to start in live mode: set ENABLE_LIVE_TRADING=1 to arm live trading."
+        )
+        sys.exit(1)
+
     logger.info(f"Starting trading bot in {args.trend} mode")
 
     engine = TradingEngine(config_path=args.config)

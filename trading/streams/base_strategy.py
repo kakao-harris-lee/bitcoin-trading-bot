@@ -62,6 +62,8 @@ class BaseStrategyTask(ABC):
         # Evaluation throttling to reduce CPU usage
         self._evaluation_interval = DEFAULT_EVALUATION_INTERVAL
         self._last_evaluation_time: dict[str, float] = {}
+        self._last_entry_evaluation_time: dict[str, float] = {}
+        self._last_exit_evaluation_time: dict[str, float] = {}
         # Cache for position and blocked status to reduce Redis calls
         self._position_cache: dict[str, tuple[float, dict | None]] = {}
         self._blocked_cache: tuple[float, bool] = (0.0, False)
@@ -130,6 +132,29 @@ class BaseStrategyTask(ABC):
             return True
         return False
 
+    def _should_evaluate_entry(self, symbol: str, msg: dict[str, Any]) -> bool:
+        """Check if entry evaluation should run for this symbol/message."""
+        current_time = time.time()
+        last_time = self._last_entry_evaluation_time.get(symbol, 0)
+        if current_time - last_time >= self._evaluation_interval:
+            self._last_entry_evaluation_time[symbol] = current_time
+            return True
+        return False
+
+    def _should_evaluate_exit(
+        self,
+        symbol: str,
+        msg: dict[str, Any],
+        position: dict[str, Any],
+    ) -> bool:
+        """Check if exit evaluation should run for this symbol/message."""
+        current_time = time.time()
+        last_time = self._last_exit_evaluation_time.get(symbol, 0)
+        if current_time - last_time >= self._evaluation_interval:
+            self._last_exit_evaluation_time[symbol] = current_time
+            return True
+        return False
+
     async def _get_cached_blocked(self) -> bool:
         """Get blocked status with caching to reduce Redis calls.
 
@@ -195,11 +220,6 @@ class BaseStrategyTask(ABC):
         if msg.get("warmup") == "true":
             return
 
-        # Throttle evaluation to reduce CPU usage
-        # Only evaluate entry/exit at configured intervals
-        if not self._should_evaluate(symbol):
-            return
-
         # Check if blocked (cached)
         if await self._get_cached_blocked():
             return
@@ -232,6 +252,9 @@ class BaseStrategyTask(ABC):
             if symbol in self._pending_exits:
                 return
 
+            if not self._should_evaluate_exit(symbol, msg, position):
+                return
+
             exit_signal = await self.evaluate_exit(symbol, position)
             if exit_signal:
                 if self.use_smart_exit:
@@ -246,6 +269,9 @@ class BaseStrategyTask(ABC):
 
         # Check if entry is already pending (order published but not yet filled)
         if self._pending_entry.get(symbol):
+            return
+
+        if not self._should_evaluate_entry(symbol, msg):
             return
 
         # Evaluate entry

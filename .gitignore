@@ -10,8 +10,7 @@ ENV/
 
 # Database
 *.db
-!data/fx_rates.db
-!data/premium_history.db
+!data/
 *.db-journal
 *.sqlite
 *.sqlite3

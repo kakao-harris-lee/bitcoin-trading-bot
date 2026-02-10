@@ -335,11 +335,21 @@ class TestMLPDirectionExitFWin:
             fwin_periods=2,
         )
         strategy = MLPDirectionExitStrategy(params=params)
-        position = _make_position(entry_price=100000.0)
 
-        # Open position with entry timestamp
-        entry_ts = 1000000  # Entry at t=1000000ms
-        strategy.on_position_opened(position, entry_timestamp=entry_ts)
+        # Entry at t=1000000ms
+        entry_ts = 1000000
+        position = Position(
+            symbol="BTC",
+            entry_price=100000.0,
+            quantity=0.1,
+            strategy="mlp_direction",
+            market="futures",
+            timestamp=1000,
+            side="buy",
+            entry_time=entry_ts,  # Set entry_time in Position
+        )
+
+        strategy.on_position_opened(position)
 
         # 4H candle = 4 * 60 * 60 * 1000 = 14400000 ms
         # After 2 candles = 28800000 ms later
@@ -373,11 +383,21 @@ class TestMLPDirectionExitFWin:
             fwin_periods=2,
         )
         strategy = MLPDirectionExitStrategy(params=params)
-        position = _make_position(entry_price=100000.0)
 
-        # Open position with entry timestamp
+        # Entry at t=1000000ms
         entry_ts = 1000000
-        strategy.on_position_opened(position, entry_timestamp=entry_ts)
+        position = Position(
+            symbol="BTC",
+            entry_price=100000.0,
+            quantity=0.1,
+            strategy="mlp_direction",
+            market="futures",
+            timestamp=1000,
+            side="buy",
+            entry_time=entry_ts,
+        )
+
+        strategy.on_position_opened(position)
 
         # Only 1 candle elapsed (not 2)
         candle_ms = 4 * 60 * 60 * 1000
@@ -475,19 +495,27 @@ class TestMLPDirectionExitFWin:
         assert "Stop loss" in signal.reason  # Stop loss, not FWin
 
     def test_entry_timestamp_cleared_on_position_close(self):
-        """Entry timestamp is cleared when position is closed."""
+        """Entry timestamp is now stored in Position.entry_time, not in-memory dict."""
+        # This test is obsolete - entry_time is in Position object now
+        # Test that the strategy doesn't crash when closing a position
         strategy = MLPDirectionExitStrategy()
-        position = _make_position(entry_price=100000.0)
 
-        strategy.on_position_opened(position, entry_timestamp=1000000)
+        # Position with entry_time
+        position = Position(
+            symbol="BTC",
+            entry_price=100000.0,
+            quantity=0.1,
+            strategy="mlp_direction",
+            market="futures",
+            timestamp=1000,
+            side="buy",
+            entry_time=1000000,
+        )
 
-        key = f"{position.symbol}:{position.strategy}"
-        assert key in strategy._entry_timestamps
-
+        strategy.on_position_opened(position)
         strategy.on_position_closed(position.symbol)
 
-        # Key should be cleared (we use :long for cleanup)
-        assert f"{position.symbol}:long" not in strategy._entry_timestamps
+        # No crash = success (no more _entry_timestamps dict to check)
 
 
 class TestMLPDirectionExitIntegration:

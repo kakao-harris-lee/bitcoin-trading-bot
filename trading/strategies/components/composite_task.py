@@ -279,8 +279,12 @@ class CompositeStrategyTask(BaseStrategyTask):
 
             corr_filter = self._correlation_filter
 
+            # Get global symbols list for portfolio risk tracking
+            # This allows tracking positions across all strategies/symbols
+            global_symbols = self.config.get("_global_symbols", ["BTC", "ETH", "SOL", "BNB"])
+
             self._portfolio_risk_mgr = PortfolioRiskManager(
-                risk_cap_config, redis, corr_filter
+                risk_cap_config, redis, corr_filter, symbols=global_symbols
             )
             logger.info(
                 f"{self.name}: Risk-based sizing enabled "

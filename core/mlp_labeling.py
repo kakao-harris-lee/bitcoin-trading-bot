@@ -264,23 +264,30 @@ def split_train_val_test(
     test_ratio: float = 0.15,
     random_state: int = 42,
     stratify: bool = True,
+    temporal: bool = False,
+    gap: int = 0,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Split data into train/validation/test sets.
 
-    Uses stratified sampling to maintain class distribution.
-
     Args:
-        X: Feature array
+        X: Feature array (must be sorted by time if temporal=True)
         y: Label array
         val_ratio: Validation set ratio
         test_ratio: Test set ratio
-        random_state: Random seed
-        stratify: Whether to use stratified sampling
+        random_state: Random seed (only used when temporal=False)
+        stratify: Whether to use stratified sampling (only when temporal=False)
+        temporal: If True, split by temporal order (no shuffle). Data must be
+            pre-sorted by timestamp. Prevents data leakage for time series.
+        gap: Number of samples to skip between splits when temporal=True.
+            Should be >= fwin to prevent label leakage.
 
     Returns:
         Tuple of (X_train, X_val, X_test, y_train, y_val, y_test)
     """
+    if temporal:
+        return _temporal_split(X, y, val_ratio, test_ratio, gap)
+
     from sklearn.model_selection import train_test_split
 
     # First split: separate test set
@@ -307,6 +314,40 @@ def split_train_val_test(
             random_state=random_state,
             stratify=y_temp if stratify else None,
         )
+
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+
+def _temporal_split(
+    X: np.ndarray,
+    y: np.ndarray,
+    val_ratio: float,
+    test_ratio: float,
+    gap: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Split data by temporal order without shuffling.
+
+    Layout: [train] [gap] [val] [gap] [test]
+    """
+    n = len(X)
+    n_test = int(n * test_ratio)
+    n_val = int(n * val_ratio)
+
+    # Work backwards from end
+    test_start = n - n_test
+    val_end = test_start - gap
+    val_start = val_end - n_val
+    train_end = val_start - gap
+
+    # Clamp to valid indices
+    train_end = max(1, train_end)
+    val_start = max(train_end + gap, val_start)
+    val_end = max(val_start, val_end)
+    test_start = max(val_end + gap, test_start)
+
+    X_train, y_train = X[:train_end], y[:train_end]
+    X_val, y_val = X[val_start:val_end], y[val_start:val_end]
+    X_test, y_test = X[test_start:], y[test_start:]
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 

@@ -97,6 +97,11 @@ def main():
         default=FEATURE_SET_PAPER,
         choices=[FEATURE_SET_PAPER, FEATURE_SET_SHAP],
     )
+    parser.add_argument(
+        "--temporal",
+        action="store_true",
+        help="Use temporal splitting (time-ordered) instead of random stratified split",
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output)
@@ -124,24 +129,47 @@ def main():
     for label_name, stats in dist.items():
         print(f"  {label_name}: {stats['count']:,} ({stats['percentage']:.1f}%)")
 
-    # Balance classes
-    print("\nBalancing classes...")
-    X_bal, y_bal = balance_dataset(X, y, random_state=42)
+    # Split mode
+    print(f"\nSplit mode: {'temporal (time-ordered)' if args.temporal else 'random (stratified)'}")
 
-    dist = get_label_distribution(pd.Series(y_bal))
-    print("Label distribution (after balancing):")
-    for label_name, stats in dist.items():
-        print(f"  {label_name}: {stats['count']:,} ({stats['percentage']:.1f}%)")
+    if args.temporal:
+        # Temporal split first (data already time-ordered from DB)
+        print("\nSplitting data temporally...")
+        X_train, X_val, X_test, y_train, y_val, y_test = split_train_val_test(
+            X, y, val_ratio=0.15, test_ratio=0.15, temporal=True, gap=args.fwin,
+        )
 
-    # Split
-    print("\nSplitting data...")
-    X_train, X_val, X_test, y_train, y_val, y_test = split_train_val_test(
-        X_bal, y_bal, val_ratio=0.15, test_ratio=0.15, random_state=42
-    )
+        print(f"Train: {len(X_train):,}")
+        print(f"Val:   {len(X_val):,}")
+        print(f"Test:  {len(X_test):,}")
 
-    print(f"Train: {len(X_train):,}")
-    print(f"Val:   {len(X_val):,}")
-    print(f"Test:  {len(X_test):,}")
+        # Balance each split independently
+        print("\nBalancing each split independently...")
+        X_train, y_train = balance_dataset(X_train, y_train, random_state=42)
+        X_val, y_val = balance_dataset(X_val, y_val, random_state=42)
+        X_test, y_test = balance_dataset(X_test, y_test, random_state=42)
+
+        print(f"Train (balanced): {len(X_train):,}")
+        print(f"Val (balanced):   {len(X_val):,}")
+        print(f"Test (balanced):  {len(X_test):,}")
+    else:
+        # Original flow: balance then random split
+        print("\nBalancing classes...")
+        X_bal, y_bal = balance_dataset(X, y, random_state=42)
+
+        dist = get_label_distribution(pd.Series(y_bal))
+        print("Label distribution (after balancing):")
+        for label_name, stats in dist.items():
+            print(f"  {label_name}: {stats['count']:,} ({stats['percentage']:.1f}%)")
+
+        print("\nSplitting data...")
+        X_train, X_val, X_test, y_train, y_val, y_test = split_train_val_test(
+            X_bal, y_bal, val_ratio=0.15, test_ratio=0.15, random_state=42
+        )
+
+        print(f"Train: {len(X_train):,}")
+        print(f"Val:   {len(X_val):,}")
+        print(f"Test:  {len(X_test):,}")
 
     # Save
     output_path = output_dir / f"mlp_dataset_bwin{args.bwin}_fwin{args.fwin}.npz"

@@ -317,6 +317,8 @@ class TradingEngine:
 
                 # Apply v2 regime defaults unless strategy explicitly sets version
                 effective_config = dict(config)
+                # Pass global symbols for portfolio risk tracking
+                effective_config["_global_symbols"] = symbols
                 if "regime_version" not in effective_config and regime_defaults:
                     effective_config["regime_version"] = "v2"
                     for key in (

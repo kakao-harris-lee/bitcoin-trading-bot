@@ -110,6 +110,9 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
     Inherits from BaseExitStrategy for common functionality.
     """
 
+    # Minimum history required for paper_36 features (EMA100 + buffer)
+    MIN_HISTORY_BARS = 120
+
     def __init__(self, params: MLPDirectionExitParams | None = None):
         """Initialize with exit parameters.
 
@@ -121,11 +124,32 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         self._model = None
         self._model_available: bool | None = None
         self._feature_extractor = None
-        # Track entry timestamps for FWin exit (paper methodology)
-        self._entry_timestamps: dict[str, int] = {}
+        self._ensemble = None  # MLPEnsemblePredictor if configured
+        # History buffer for paper_36 live feature computation
+        self._history: dict[str, list[dict]] = {}  # symbol -> history bars
+        self._last_timestamp: dict[str, int] = {}  # symbol -> last timestamp
+
+    def set_model(self, model, ensemble=None):
+        """Inject a pre-loaded model to avoid duplicate loading.
+
+        Args:
+            model: Pre-loaded MLPDirectionClassifier model.
+            ensemble: Pre-loaded MLPEnsemblePredictor (takes priority).
+        """
+        from trading.indicators.mlp_features import extract_single_features
+        self._feature_extractor = extract_single_features
+
+        if ensemble is not None:
+            self._ensemble = ensemble
+            self._model_available = True
+            logger.info("MLPDirectionExit: Using shared ensemble")
+        elif model is not None:
+            self._model = model
+            self._model_available = True
+            logger.info("MLPDirectionExit: Using shared model")
 
     def _ensure_model(self) -> bool:
-        """Lazy-load MLP model on first use (for SELL exit)."""
+        """Lazy-load MLP model (or ensemble) on first use (for SELL exit)."""
         if not self.params.use_mlp_sell_exit:
             return False
 
@@ -133,8 +157,27 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             return self._model_available
 
         try:
-            from mlp_trainer.src.mlp_model import MLPDirectionClassifier
             from trading.indicators.mlp_features import extract_single_features
+            self._feature_extractor = extract_single_features
+
+            # Try ensemble first (check if ensemble_models param exists)
+            ensemble_models = getattr(self.params, "ensemble_models", None)
+            if ensemble_models:
+                from .mlp_ensemble import MLPEnsemblePredictor
+
+                self._ensemble = MLPEnsemblePredictor(ensemble_models)
+                self._model_available = self._ensemble.load(device="cpu")
+                if self._model_available:
+                    logger.info(
+                        f"MLPDirectionExit: Ensemble loaded "
+                        f"({self._ensemble.num_models} models)"
+                    )
+                else:
+                    logger.warning("MLPDirectionExit: Ensemble load failed")
+                return self._model_available
+
+            # Single model fallback
+            from mlp_trainer.src.mlp_model import MLPDirectionClassifier
 
             model_path = Path(self.params.model_path)
             if not model_path.exists():
@@ -147,7 +190,6 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
                 str(model_path), device="cpu", validate_path=True
             )
             self._model.eval()
-            self._feature_extractor = extract_single_features
             self._model_available = True
             logger.info(f"MLPDirectionExit: Model loaded from {model_path}")
 
@@ -315,10 +357,11 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         symbol = position.symbol
         market_data = ctx.market
 
-        # Get entry timestamp
-        entry_ts = self._entry_timestamps.get(key)
+        # Get entry timestamp from position's entry_time (Redis-backed)
+        entry_ts = getattr(position, "entry_time", None)
         if entry_ts is None:
-            # No entry timestamp tracked - skip FWin exit
+            # No entry timestamp available - skip FWin exit
+            logger.debug(f"{symbol}: FWin exit skipped - no entry_time in position")
             return None
 
         # Get current timestamp
@@ -367,15 +410,27 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
 
         p = self.params
         symbol = position.symbol
+        market_data = ctx.market
+
+        # Update history buffer for live computation
+        self._update_history(market_data)
 
         # Check if MLP prediction is pre-computed in context
         mlp_prediction = getattr(ctx, "mlp_prediction", None)
         mlp_confidence = getattr(ctx, "mlp_confidence", None)
 
         if mlp_prediction is None or mlp_confidence is None:
-            # Would need to compute here for live trading
-            # For now, skip if not pre-computed
-            return None
+            # Compute prediction for live trading
+            if p.mlp_feature_set in ("paper_36", "v2_36"):
+                # Live paper_36/v2_36: compute from history buffer
+                result = self._compute_history_features(market_data, p.mlp_feature_set)
+                if result is None:
+                    return None
+                mlp_prediction, mlp_confidence = result
+            else:
+                # Fallback for other feature sets (not implemented yet)
+                logger.debug(f"{symbol}: MLP SELL exit: Feature set {p.mlp_feature_set} not supported for live computation")
+                return None
 
         active_sell_threshold = self._active_sell_threshold(ctx)
 
@@ -399,14 +454,9 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
 
         Args:
             position: The newly opened position.
-            entry_timestamp: Entry bar timestamp in milliseconds (for FWin exit).
+            entry_timestamp: Entry bar timestamp (deprecated - using position.entry_time).
         """
         super().on_position_opened(position)
-        key = self._get_position_key(position)
-
-        # Store entry timestamp for FWin exit calculation
-        if entry_timestamp is not None:
-            self._entry_timestamps[key] = entry_timestamp
 
         logger.debug(
             f"{position.symbol}: MLPDirection position opened at {position.entry_price:.2f}"
@@ -419,11 +469,6 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             symbol: The symbol whose position was closed.
         """
         super().on_position_closed(symbol)
-        # Clean up entry timestamps for all possible key patterns
-        # (symbol:strategy_name or symbol:long)
-        keys_to_remove = [k for k in self._entry_timestamps if k.startswith(f"{symbol}:")]
-        for key in keys_to_remove:
-            self._entry_timestamps.pop(key, None)
         logger.debug(f"{symbol}: MLPDirection position closed")
 
     def _clear_state(self, key: str) -> None:
@@ -433,8 +478,131 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             key: Position key (symbol:direction).
         """
         super()._clear_state(key)
-        # Also clear entry timestamp for FWin tracking
-        self._entry_timestamps.pop(key, None)
+
+    def _update_history(self, market_data: MarketData) -> None:
+        """Update history buffer with current bar data.
+
+        Args:
+            market_data: Current market data bar.
+        """
+        symbol = market_data.symbol
+        timestamp = getattr(market_data, "timestamp", 0)
+
+        # Initialize symbol history if needed
+        if symbol not in self._history:
+            self._history[symbol] = []
+            self._last_timestamp[symbol] = 0
+
+        # Skip if same timestamp (duplicate update)
+        if timestamp == self._last_timestamp[symbol] and timestamp > 0:
+            return
+
+        self._last_timestamp[symbol] = timestamp
+
+        bar = {
+            "open": market_data.open,
+            "high": market_data.high,
+            "low": market_data.low,
+            "close": market_data.close,
+            "volume": market_data.volume,
+            "timestamp": timestamp,
+        }
+
+        self._history[symbol].append(bar)
+
+        # Keep only recent history (2x minimum for safety)
+        max_history = self.MIN_HISTORY_BARS * 2
+        if len(self._history[symbol]) > max_history:
+            self._history[symbol] = self._history[symbol][-max_history:]
+
+    def _compute_history_features(
+        self, market_data: MarketData, feature_set: str,
+    ) -> tuple[int, float] | None:
+        """Compute features from history buffer and make prediction.
+
+        Supports paper_36, v2_36, and any future history-based feature sets.
+
+        Args:
+            market_data: Current market data (for timestamp).
+            feature_set: Feature set name ('paper_36', 'v2_36').
+
+        Returns:
+            Tuple of (prediction, confidence) or None if insufficient history.
+        """
+        import pandas as pd
+        from trading.indicators.mlp_features import calculate_mlp_features
+
+        symbol = market_data.symbol
+        history = self._history.get(symbol, [])
+
+        if len(history) < self.MIN_HISTORY_BARS:
+            if len(history) % 10 == 0:
+                logger.info(
+                    f"{symbol}: MLP {feature_set} exit warming up "
+                    f"({len(history)}/{self.MIN_HISTORY_BARS} bars)"
+                )
+            return None
+
+        try:
+            df = pd.DataFrame(history)
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+
+            features_df = calculate_mlp_features(
+                df, include_temporal=True, feature_set=feature_set,
+            )
+
+            last_features = features_df.iloc[-1].values.astype(np.float32)
+
+            if np.isnan(last_features).any():
+                logger.debug(f"{symbol}: Exit features contain NaN, skipping")
+                return None
+
+            pred, conf = self._predict(last_features)
+            logger.debug(
+                f"{symbol}: MLP {feature_set} exit prediction: "
+                f"{self._label_name(pred)} (conf={conf:.2f})"
+            )
+            return pred, conf
+
+        except Exception as e:
+            logger.warning(f"{symbol}: {feature_set} exit feature computation failed: {e}")
+            return None
+
+    def _predict(self, features: np.ndarray) -> tuple[int, float]:
+        """Make prediction with MLP model or ensemble.
+
+        Args:
+            features: Feature array.
+
+        Returns:
+            Tuple of (predicted_class, confidence).
+        """
+        try:
+            # Use ensemble if available
+            if self._ensemble is not None:
+                pred_class, confidence, _ = self._ensemble.predict(features)
+                return pred_class, confidence
+
+            # Single model fallback
+            import torch
+            x = torch.FloatTensor(features).unsqueeze(0)
+            with torch.no_grad():
+                probs = self._model.predict_proba(x).cpu().numpy()[0]
+
+            pred_class = probs.argmax()
+            confidence = probs[pred_class]
+
+            return int(pred_class), float(confidence)
+
+        except Exception as e:
+            logger.error(f"MLP exit prediction failed: {e}")
+            return MLP_LABEL_HOLD, 0.0
+
+    @staticmethod
+    def _label_name(label: int) -> str:
+        """Convert label to human-readable name."""
+        names = {0: "HOLD", 1: "BUY", 2: "SELL"}
+        return names.get(label, "UNKNOWN")
 
     @property
     def high_water_mark(self) -> dict[str, float]:

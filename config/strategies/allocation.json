@@ -84,8 +84,8 @@
       "bwin": 5,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-      "position_pct": 0.9,
-      "position_size": 0.9,
+      "position_pct": 0.2,
+      "position_size": 0.2,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
@@ -121,7 +121,7 @@
           "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.9,
+          "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -177,8 +177,8 @@
       "bwin": 4,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-      "position_pct": 0.9,
-      "position_size": 0.9,
+      "position_pct": 0.2,
+      "position_size": 0.2,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
@@ -214,7 +214,7 @@
           "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.9,
+          "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -270,8 +270,8 @@
       "bwin": 4,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
-      "position_pct": 0.9,
-      "position_size": 0.9,
+      "position_pct": 0.2,
+      "position_size": 0.2,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
@@ -307,7 +307,7 @@
           "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.9,
+          "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -363,8 +363,8 @@
       "bwin": 4,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
-      "position_pct": 0.9,
-      "position_size": 0.9,
+      "position_pct": 0.2,
+      "position_size": 0.2,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
@@ -400,7 +400,7 @@
           "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.9,
+          "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -456,8 +456,8 @@
       "bwin": 4,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-      "position_pct": 0.9,
-      "position_size": 0.9,
+      "position_pct": 0.2,
+      "position_size": 0.2,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
@@ -493,7 +493,7 @@
           "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.9,
+          "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }

@@ -452,6 +452,7 @@ class Position:
     side: str = "buy"  # "buy" for long, "sell" for short
     leverage: int = 1  # leverage multiplier
     liquidation_price: float = 0.0  # for futures
+    entry_time: int | None = None  # Entry bar timestamp for FWin exit (milliseconds)
 
 
 @dataclass(frozen=True)

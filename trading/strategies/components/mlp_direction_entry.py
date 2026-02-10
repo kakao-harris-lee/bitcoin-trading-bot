@@ -102,6 +102,25 @@ class MLPDirectionEntryStrategy:
         self._history: list[dict] = []
         self._last_timestamp: int = 0
 
+    def set_model(self, model, ensemble=None):
+        """Inject a pre-loaded model to avoid duplicate loading.
+
+        Args:
+            model: Pre-loaded MLPDirectionClassifier model.
+            ensemble: Pre-loaded MLPEnsemblePredictor (takes priority).
+        """
+        from trading.indicators.mlp_features import extract_single_features
+        self._feature_extractor = extract_single_features
+
+        if ensemble is not None:
+            self._ensemble = ensemble
+            self._model_available = True
+            logger.info("MLPDirectionEntry: Using shared ensemble")
+        elif model is not None:
+            self._model = model
+            self._model_available = True
+            logger.info("MLPDirectionEntry: Using shared model")
+
     def _ensure_model(self) -> bool:
         """Lazy-load MLP model (or ensemble) on first use."""
         if self._model_available is not None:

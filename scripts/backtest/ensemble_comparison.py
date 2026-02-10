@@ -56,9 +56,9 @@ MLP_STRATEGY_IDS = {
 # Ensemble model configurations per asset
 # All assets use the same set of multi-asset models
 ENSEMBLE_CONFIGS = [
-    {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.20},
+    {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.15},
     {"model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt", "weight": 0.30},
-    {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.30},
+    {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.35},
     {"model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt", "weight": 0.20},
 ]
 

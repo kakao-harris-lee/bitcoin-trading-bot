@@ -120,10 +120,12 @@ class PortfolioRiskManager:
         config: RiskCapConfig,
         redis: "RedisStreams",
         correlation_filter: Optional["CorrelationFilter"] = None,
+        symbols: Optional[List[str]] = None,
     ):
         self.config = config
         self.redis = redis
         self.correlation_filter = correlation_filter
+        self._symbols = symbols or ["BTC", "ETH", "SOL", "BNB"]
 
         # Cache for open position risks (refreshed periodically)
         self._risk_cache: Dict[str, OpenPositionRisk] = {}
@@ -218,44 +220,47 @@ class PortfolioRiskManager:
 
         self._risk_cache = {}
 
-        for symbol in ["BTC", "ETH", "SOL"]:
-            try:
-                pos = await self.redis.get_position(symbol, "futures")
-                if not pos:
-                    continue
+        for symbol in self._symbols:
+            for market in ["spot", "futures"]:
+                try:
+                    pos = await self.redis.get_position(symbol, market)
+                    if not pos:
+                        continue
 
-                qty = float(pos.get("quantity", 0))
-                if qty <= 0:
-                    continue
+                    qty = float(pos.get("quantity", 0))
+                    if qty <= 0:
+                        continue
 
-                entry_price = float(pos.get("entry_price", 0))
-                stop_price = float(pos.get("stop_price", 0))
-                leverage = int(pos.get("leverage", 1))
+                    entry_price = float(pos.get("entry_price", 0))
+                    stop_price = float(pos.get("stop_price", 0))
+                    leverage = int(pos.get("leverage", 1))
 
-                # Calculate risk if stop_price is set
-                if stop_price > 0 and entry_price > 0:
-                    side = pos.get("side", "buy")
-                    if side == "buy":  # Long
-                        stop_distance = (entry_price - stop_price) / entry_price
-                    else:  # Short
-                        stop_distance = (stop_price - entry_price) / entry_price
+                    # Calculate risk if stop_price is set
+                    if stop_price > 0 and entry_price > 0:
+                        side = pos.get("side", "buy")
+                        if side == "buy":  # Long
+                            stop_distance = (entry_price - stop_price) / entry_price
+                        else:  # Short
+                            stop_distance = (stop_price - entry_price) / entry_price
 
-                    risk_amount = qty * entry_price * max(0, stop_distance)
-                else:
-                    # Default to 3% stop if not set
-                    risk_amount = qty * entry_price * 0.03
+                        risk_amount = qty * entry_price * max(0, stop_distance)
+                    else:
+                        # Default to 3% stop if not set
+                        risk_amount = qty * entry_price * 0.03
 
-                self._risk_cache[symbol] = OpenPositionRisk(
-                    symbol=symbol,
-                    entry_price=entry_price,
-                    quantity=qty,
-                    stop_price=stop_price,
-                    risk_amount=risk_amount,
-                    leverage=leverage,
-                )
+                    # Use composite key: symbol_market
+                    cache_key = f"{symbol}_{market}"
+                    self._risk_cache[cache_key] = OpenPositionRisk(
+                        symbol=symbol,
+                        entry_price=entry_price,
+                        quantity=qty,
+                        stop_price=stop_price,
+                        risk_amount=risk_amount,
+                        leverage=leverage,
+                    )
 
-            except Exception as e:
-                logger.warning(f"Failed to get position risk for {symbol}: {e}")
+                except Exception as e:
+                    logger.warning(f"Failed to get position risk for {symbol} {market}: {e}")
 
         self._cache_ts = now
 

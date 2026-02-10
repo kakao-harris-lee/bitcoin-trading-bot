@@ -198,6 +198,10 @@ class AsyncExecutor:
         # Check if this is an exit (closing an existing position)
         is_exit = await self._is_exit_order(order)
 
+        if is_exit:
+            # Cancel server-side stop-loss BEFORE exit
+            await self._cancel_server_stop_loss(order["symbol"], "spot")
+
         # Execute order (spot markets don't need position_side)
         fill = await self.client.market_order(
             symbol=order["symbol"],
@@ -220,6 +224,8 @@ class AsyncExecutor:
             await self.redis.clear_position(order["symbol"], "spot")
         else:
             await self._update_spot_position(order, fill)
+            # Place server-side stop-loss AFTER entry
+            await self._place_server_stop_loss(order["symbol"], "spot", fill, order)
 
         # Publish trade notification (with profit data for exits)
         await self._publish_trade(order, fill, profit_data)
@@ -256,6 +262,10 @@ class AsyncExecutor:
         """Execute futures order - with leverage and liquidation checks."""
         # Check if this is an exit (closing an existing position)
         is_exit = await self._is_exit_order(order)
+
+        if is_exit:
+            # Cancel server-side stop-loss BEFORE exit
+            await self._cancel_server_stop_loss(order["symbol"], order["market"])
 
         # Check leverage allowance for futures entry orders
         effective_leverage = None
@@ -310,6 +320,8 @@ class AsyncExecutor:
             await self.redis.clear_position(order["symbol"], order["market"])
         else:
             await self._update_position(order, fill)
+            # Place server-side stop-loss AFTER entry
+            await self._place_server_stop_loss(order["symbol"], order["market"], fill, order)
 
         # Publish trade notification (with profit data for exits)
         await self._publish_trade(order, fill, profit_data)
@@ -577,3 +589,89 @@ class AsyncExecutor:
             "reason": reason,
             "timestamp": str(int(time.time() * 1000)),
         })
+
+    async def _place_server_stop_loss(self, symbol: str, market: str, fill: dict, order: dict) -> None:
+        """Place server-side stop-loss order after entry fill.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC")
+            market: "spot" or "futures"
+            fill: Fill dict with filled_price and filled_qty
+            order: Order dict with stop_loss_pct (optional)
+        """
+        # Get stop_loss_pct from order metadata (default to 10%)
+        stop_loss_pct = float(order.get("stop_loss_pct", 0.10))
+        if stop_loss_pct <= 0:
+            logger.debug(f"No stop-loss configured for {symbol} (stop_loss_pct={stop_loss_pct})")
+            return
+
+        entry_price = fill["filled_price"]
+        quantity = fill["filled_qty"]
+        side = order["side"]
+
+        # Calculate stop price based on position direction
+        if side == "buy":
+            # Long position: stop price below entry
+            stop_price = round(entry_price * (1 - stop_loss_pct), 2)
+            stop_side = "sell"
+            position_side = "LONG"
+        else:
+            # Short position: stop price above entry
+            stop_price = round(entry_price * (1 + stop_loss_pct), 2)
+            stop_side = "buy"
+            position_side = "SHORT"
+
+        # Set limit price 1% away from stop to ensure fill
+        if stop_side == "sell":
+            limit_price = round(stop_price * 0.99, 2)
+        else:
+            limit_price = round(stop_price * 1.01, 2)
+
+        try:
+            result = await self.client.stop_loss_limit_order(
+                symbol=symbol,
+                side=stop_side,
+                quantity=quantity,
+                stop_price=stop_price,
+                limit_price=limit_price,
+                market=market,
+                position_side=position_side if market == "futures" else None,
+            )
+
+            if result:
+                order_id = str(result.get("orderId", ""))
+                # Store in Redis position hash
+                await self.redis.redis.hset(
+                    f"positions:{symbol}:{market}",
+                    mapping={
+                        "stop_order_id": order_id,
+                        "stop_price": str(stop_price),
+                    },
+                )
+                logger.info(
+                    f"Server stop-loss placed: {symbol} {market} {side} position, "
+                    f"stop={stop_price} ({stop_loss_pct*100:.1f}%), orderId={order_id}"
+                )
+        except Exception as e:
+            logger.error(f"Failed to place server stop-loss for {symbol}: {e}")
+
+    async def _cancel_server_stop_loss(self, symbol: str, market: str) -> None:
+        """Cancel server-side stop-loss before normal exit.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC")
+            market: "spot" or "futures"
+        """
+        try:
+            pos = await self.redis.get_position(symbol, market)
+            stop_order_id = pos.get("stop_order_id") if pos else None
+
+            if stop_order_id:
+                # Cancel all open orders to be safe
+                await self.client.cancel_open_orders(
+                    symbol=symbol,
+                    market=market,
+                )
+                logger.info(f"Cancelled server stop-loss for {symbol} {market}: orderId={stop_order_id}")
+        except Exception as e:
+            logger.warning(f"Failed to cancel stop-loss for {symbol} {market}: {e}")

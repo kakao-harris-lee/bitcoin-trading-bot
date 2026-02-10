@@ -241,3 +241,121 @@ async def test_executor_futures_order_still_works(mock_redis, mock_client):
     assert position_data["leverage"] == "3"
     # Liquidation price should be calculated (non-zero for leveraged position)
     assert float(position_data["liquidation_price"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_executor_places_stop_loss_after_entry(mock_redis, mock_client):
+    """Test server-side stop-loss order is placed after entry."""
+    # Mock stop_loss_limit_order to return order ID
+    mock_client.stop_loss_limit_order = AsyncMock(return_value={
+        "orderId": 77777,
+        "symbol": "BTC",
+        "side": "sell",
+        "market": "spot",
+        "stop_price": 39100.0,
+        "status": "NEW",
+    })
+
+    # Mock market_order to return entry fill
+    mock_client.market_order = AsyncMock(return_value={
+        "order_id": 12345,
+        "symbol": "BTC",
+        "side": "buy",
+        "market": "spot",
+        "filled_qty": 0.01,
+        "filled_price": 43000.0,
+        "status": "FILLED",
+    })
+
+    executor = AsyncExecutor(redis=mock_redis, client=mock_client, config={})
+    executor._balance_cache = {"spot": 10000.0, "last_update": 0}
+
+    order = {
+        "id": "test-123",
+        "symbol": "BTC",
+        "side": "buy",
+        "market": "spot",
+        "quantity": "0.01",
+        "strategy": "mlp_direction",
+        "stop_loss_pct": 0.09,  # 9% stop-loss
+    }
+
+    result = await executor._process_order(order)
+
+    # Verify entry order was executed
+    assert result is not None
+    mock_client.market_order.assert_called_once()
+
+    # Verify stop-loss order was placed
+    mock_client.stop_loss_limit_order.assert_called_once()
+    stop_call = mock_client.stop_loss_limit_order.call_args
+
+    # Verify stop-loss parameters
+    assert stop_call[1]["symbol"] == "BTC"
+    assert stop_call[1]["side"] == "sell"  # Long position
+    assert stop_call[1]["quantity"] == 0.01
+    assert stop_call[1]["market"] == "spot"
+
+    # Stop price should be 9% below entry (43000 * 0.91 = 39130, rounded to 39130.0)
+    assert abs(stop_call[1]["stop_price"] - 39130.0) < 10  # Allow rounding
+
+    # Limit price should be 1% below stop price
+    assert abs(stop_call[1]["limit_price"] - stop_call[1]["stop_price"] * 0.99) < 1
+
+    # Verify stop order ID was stored in Redis position
+    mock_redis.redis.hset.assert_called()
+    hset_call = mock_redis.redis.hset.call_args
+    assert hset_call[0][0] == "positions:BTC:spot"
+    assert hset_call[1]["mapping"]["stop_order_id"] == "77777"
+
+
+@pytest.mark.asyncio
+async def test_executor_cancels_stop_loss_on_exit(mock_redis, mock_client):
+    """Test server-side stop-loss is cancelled before exit."""
+    # Mock existing position with stop order
+    mock_redis.get_position = AsyncMock(return_value={
+        "quantity": "0.01",
+        "entry_price": "43000.0",
+        "side": "buy",
+        "strategy": "mlp_direction",
+        "stop_order_id": "77777",
+        "stop_price": "39100.0",
+    })
+
+    # Mock cancel_open_orders
+    mock_client.cancel_open_orders = AsyncMock(return_value=[
+        {"orderId": 77777, "status": "CANCELED"}
+    ])
+
+    # Mock exit market order
+    mock_client.market_order = AsyncMock(return_value={
+        "order_id": 12346,
+        "symbol": "BTC",
+        "side": "sell",
+        "market": "spot",
+        "filled_qty": 0.01,
+        "filled_price": 45000.0,
+        "status": "FILLED",
+    })
+
+    executor = AsyncExecutor(redis=mock_redis, client=mock_client, config={})
+    executor._balance_cache = {"spot": 10000.0, "last_update": 0}
+
+    order = {
+        "id": "exit-test-123",
+        "symbol": "BTC",
+        "side": "sell",
+        "market": "spot",
+        "quantity": "0.01",
+        "strategy": "mlp_direction",
+        "reason": "take_profit",
+    }
+
+    result = await executor._process_order(order)
+
+    # Verify exit order was executed
+    assert result is not None
+    mock_client.market_order.assert_called_once()
+
+    # Verify stop-loss was cancelled BEFORE exit
+    mock_client.cancel_open_orders.assert_called_once_with(symbol="BTC", market="spot")

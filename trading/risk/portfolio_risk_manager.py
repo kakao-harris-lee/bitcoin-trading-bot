@@ -158,8 +158,9 @@ class PortfolioRiskManager:
         current_total_risk = sum(p.risk_amount for p in open_positions.values())
         max_total_risk = equity * self.config.max_total_risk_pct
 
-        # 1. Check position count
-        if symbol not in open_positions:  # Don't count if adding to existing
+        # 1. Check position count (cache keys are {symbol}_{market})
+        has_existing = any(k.startswith(f"{symbol}_") for k in open_positions)
+        if not has_existing:
             if len(open_positions) >= self.config.max_open_positions:
                 return RiskCheckResult(
                     allowed=False,
@@ -181,7 +182,7 @@ class PortfolioRiskManager:
         # 3. Correlation filter (if enabled)
         adjusted_risk_pct = None
         if self.config.use_correlation_filter and self.correlation_filter:
-            existing_symbols = [s for s in open_positions.keys() if s != symbol]
+            existing_symbols = list({k.split("_")[0] for k in open_positions if k.split("_")[0] != symbol})
             if existing_symbols:
                 corr_result = await self._check_correlation(
                     symbol, existing_symbols, proposed_risk, equity
@@ -315,11 +316,12 @@ class PortfolioRiskManager:
             )
 
         elif self.config.corr_action == "group_cap":
-            # Check combined risk of correlated group
-            group_risk = self._risk_cache.get(correlated_with, OpenPositionRisk(
-                symbol=correlated_with, entry_price=0, quantity=0,
-                stop_price=0, risk_amount=0, leverage=1
-            )).risk_amount + proposed_risk
+            # Check combined risk of correlated group (sum across markets)
+            corr_risk = sum(
+                p.risk_amount for k, p in self._risk_cache.items()
+                if k.startswith(f"{correlated_with}_")
+            )
+            group_risk = corr_risk + proposed_risk
 
             # Group cap is 2x single position risk
             group_cap = equity * self.config.risk_per_trade_pct * 2

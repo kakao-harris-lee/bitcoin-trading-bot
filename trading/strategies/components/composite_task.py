@@ -559,6 +559,12 @@ class CompositeStrategyTask(BaseStrategyTask):
             if stop_price and stop_price > 0:
                 order["stop_price"] = stop_price
 
+            # Pass stop_loss_pct for server-side stop-loss placement
+            if hasattr(self.exit_strategy, 'params'):
+                slp = getattr(self.exit_strategy.params, 'stop_loss_pct', None)
+                if slp is not None:
+                    order["stop_loss_pct"] = slp
+
             return order
 
         return None

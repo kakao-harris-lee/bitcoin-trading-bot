@@ -28,7 +28,13 @@
       "bbw_confirm_threshold": 50,
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
-      "mtf_enabled": true
+      "mtf_enabled": true,
+      "mtf_enabled_by_symbol": {
+        "BTC": true,
+        "ETH": true,
+        "SOL": true,
+        "BNB": true
+      }
     }
   },
   "binance": {
@@ -49,16 +55,28 @@
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
-        "enabled": true,
+        "enabled": false,
         "target_vol": 0.03,
         "min_scale": 0.25,
         "max_scale": 1.0
       },
       "ensemble_models": [
-        {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.15},
-        {"model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt", "weight": 0.30},
-        {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.35},
-        {"model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt", "weight": 0.20}
+        {
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "weight": 0.15
+        },
+        {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "weight": 0.3
+        },
+        {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "weight": 0.35
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.2
+        }
       ],
       "symbols": [
         "BTC"
@@ -66,26 +84,44 @@
       "bwin": 5,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-      "position_pct": 0.9,
-      "position_size": 0.9,
+      "position_pct": 0.2,
+      "position_size": 0.2,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
+      "regime_version": "v2",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
           "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
           "ensemble_models": [
-            {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.15},
-            {"model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt", "weight": 0.30},
-            {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.35},
-            {"model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt", "weight": 0.20}
+            {
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "weight": 0.15
+            },
+            {
+              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "weight": 0.3
+            },
+            {
+              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "weight": 0.35
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.2
+            }
           ],
-          "buy_confidence_threshold": 0.0,
+          "buy_confidence_threshold": 0.5,
           "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.9,
+          "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -100,7 +136,7 @@
           "trailing_enabled": false,
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
-          "sell_confidence_threshold": 0.0,
+          "sell_confidence_threshold": 0.6,
           "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
@@ -118,10 +154,22 @@
         "max_scale": 1.0
       },
       "ensemble_models": [
-        {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.15},
-        {"model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt", "weight": 0.30},
-        {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.35},
-        {"model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt", "weight": 0.20}
+        {
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "weight": 0.15
+        },
+        {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "weight": 0.3
+        },
+        {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "weight": 0.35
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.2
+        }
       ],
       "symbols": [
         "ETH"
@@ -129,26 +177,44 @@
       "bwin": 4,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-      "position_pct": 0.9,
-      "position_size": 0.9,
+      "position_pct": 0.2,
+      "position_size": 0.2,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
+      "regime_version": "v2",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
           "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
           "ensemble_models": [
-            {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.15},
-            {"model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt", "weight": 0.30},
-            {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.35},
-            {"model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt", "weight": 0.20}
+            {
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "weight": 0.15
+            },
+            {
+              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "weight": 0.3
+            },
+            {
+              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "weight": 0.35
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.2
+            }
           ],
-          "buy_confidence_threshold": 0.0,
+          "buy_confidence_threshold": 0.5,
           "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.9,
+          "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -163,7 +229,7 @@
           "trailing_enabled": false,
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
-          "sell_confidence_threshold": 0.0,
+          "sell_confidence_threshold": 0.3,
           "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
@@ -175,16 +241,28 @@
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
-        "enabled": true,
+        "enabled": false,
         "target_vol": 0.03,
         "min_scale": 0.25,
         "max_scale": 1.0
       },
       "ensemble_models": [
-        {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.15},
-        {"model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt", "weight": 0.30},
-        {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.35},
-        {"model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt", "weight": 0.20}
+        {
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "weight": 0.15
+        },
+        {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "weight": 0.3
+        },
+        {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "weight": 0.35
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.2
+        }
       ],
       "symbols": [
         "SOL"
@@ -192,26 +270,44 @@
       "bwin": 4,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
-      "position_pct": 0.9,
-      "position_size": 0.9,
+      "position_pct": 0.2,
+      "position_size": 0.2,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
+      "regime_version": "v2",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
           "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
           "ensemble_models": [
-            {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.15},
-            {"model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt", "weight": 0.30},
-            {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.35},
-            {"model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt", "weight": 0.20}
+            {
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "weight": 0.15
+            },
+            {
+              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "weight": 0.3
+            },
+            {
+              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "weight": 0.35
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.2
+            }
           ],
-          "buy_confidence_threshold": 0.0,
+          "buy_confidence_threshold": 0.3,
           "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.9,
+          "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -219,14 +315,14 @@
       "exit": {
         "class": "MLPDirectionExitStrategy",
         "params": {
-          "stop_loss_pct": 10.0,
+          "stop_loss_pct": 6.0,
           "fwin_exit_enabled": false,
           "fwin_periods": 2,
           "atr_stop_enabled": false,
           "trailing_enabled": false,
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
-          "sell_confidence_threshold": 0.0,
+          "sell_confidence_threshold": 0.6,
           "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
@@ -238,16 +334,28 @@
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
-        "enabled": true,
+        "enabled": false,
         "target_vol": 0.03,
         "min_scale": 0.25,
         "max_scale": 1.0
       },
       "ensemble_models": [
-        {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.15},
-        {"model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt", "weight": 0.30},
-        {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.35},
-        {"model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt", "weight": 0.20}
+        {
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "weight": 0.15
+        },
+        {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "weight": 0.3
+        },
+        {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "weight": 0.35
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.2
+        }
       ],
       "symbols": [
         "BNB"
@@ -255,26 +363,137 @@
       "bwin": 4,
       "mlp_feature_set": "paper_36",
       "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
-      "position_pct": 0.9,
-      "position_size": 0.9,
+      "position_pct": 0.2,
+      "position_size": 0.2,
       "drawdown_enabled": false,
       "stop_loss_cooldown": 0,
       "drawdown_bear_threshold": 1.0,
+      "regime_version": "v2",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
           "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
           "ensemble_models": [
-            {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.15},
-            {"model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt", "weight": 0.30},
-            {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.35},
-            {"model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt", "weight": 0.20}
+            {
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "weight": 0.15
+            },
+            {
+              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "weight": 0.3
+            },
+            {
+              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "weight": 0.35
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.2
+            }
+          ],
+          "buy_confidence_threshold": 0.6,
+          "skip_bear_regime": true,
+          "adx_min": 0.0,
+          "use_ema200_filter": false,
+          "position_size": 0.2,
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      },
+      "exit": {
+        "class": "MLPDirectionExitStrategy",
+        "params": {
+          "stop_loss_pct": 10.0,
+          "fwin_exit_enabled": false,
+          "fwin_periods": 2,
+          "atr_stop_enabled": false,
+          "trailing_enabled": false,
+          "take_profit_enabled": false,
+          "use_mlp_sell_exit": true,
+          "sell_confidence_threshold": 0.5,
+          "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+          "market": "spot",
+          "mlp_feature_set": "paper_36"
+        }
+      }
+    },
+    "mlp_direction_xrp": {
+      "_comment": "XRP - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "enabled": false,
+      "market": "spot",
+      "volatility_sizing": {
+        "enabled": false,
+        "target_vol": 0.03,
+        "min_scale": 0.25,
+        "max_scale": 1.0
+      },
+      "ensemble_models": [
+        {
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "weight": 0.15
+        },
+        {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "weight": 0.3
+        },
+        {
+          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "weight": 0.35
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.2
+        }
+      ],
+      "symbols": [
+        "XRP"
+      ],
+      "bwin": 4,
+      "mlp_feature_set": "paper_36",
+      "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+      "position_pct": 0.2,
+      "position_size": 0.2,
+      "drawdown_enabled": false,
+      "stop_loss_cooldown": 0,
+      "drawdown_bear_threshold": 1.0,
+      "regime_version": "v2",
+      "bbw_block_threshold": 25,
+      "bbw_confirm_threshold": 50,
+      "volume_block_ratio": 0.8,
+      "volume_boost_ratio": 1.2,
+      "mtf_enabled": true,
+      "entry": {
+        "class": "MLPDirectionEntryStrategy",
+        "params": {
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "ensemble_models": [
+            {
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "weight": 0.15
+            },
+            {
+              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "weight": 0.3
+            },
+            {
+              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "weight": 0.35
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.2
+            }
           ],
           "buy_confidence_threshold": 0.0,
           "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
-          "position_size": 0.9,
+          "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -290,92 +509,9 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.0,
-          "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
-        }
-      }
-    },
-    "bear_short_btc": {
-      "_comment": "BTC futures short - DISABLED: negative returns across all assets",
-      "enabled": false,
-      "market": "futures",
-      "leverage": 3,
-      "position_pct": 0.1,
-      "position_size": 0.01,
-      "symbols": ["BTC"],
-      "entry": {
-        "class": "BearShortEntryStrategy",
-        "params": {
-          "volume_ratio_threshold": 0,
-          "position_size": 0.01,
-          "ema200_filter": true,
-          "rsi_max": 35,
-          "min_consecutive_bear": 2
-        }
-      },
-      "exit": {
-        "class": "BearShortExitStrategy",
-        "params": {
-          "stop_loss_pct": 3.0,
-          "take_profit_pct": 6.0,
-          "trailing_enabled": true,
-          "trailing_activation": 2.0,
-          "trailing_distance": 1.5
-        }
-      }
-    },
-    "bear_short_eth": {
-      "_comment": "ETH futures short - DISABLED: negative returns across all assets",
-      "enabled": false,
-      "market": "futures",
-      "leverage": 3,
-      "position_pct": 0.1,
-      "position_size": 0.01,
-      "symbols": ["ETH"],
-      "entry": {
-        "class": "BearShortEntryStrategy",
-        "params": {
-          "volume_ratio_threshold": 0,
-          "position_size": 0.01,
-          "rsi_max": 30
-        }
-      },
-      "exit": {
-        "class": "BearShortExitStrategy",
-        "params": {
-          "stop_loss_pct": 4.0,
-          "take_profit_pct": 8.0,
-          "trailing_enabled": true,
-          "trailing_activation": 2.5,
-          "trailing_distance": 2.0
-        }
-      }
-    },
-    "bear_short_sol": {
-      "_comment": "SOL futures short - DISABLED: negative returns across all assets",
-      "enabled": false,
-      "market": "futures",
-      "leverage": 3,
-      "position_pct": 0.1,
-      "position_size": 0.01,
-      "symbols": ["SOL"],
-      "entry": {
-        "class": "BearShortEntryStrategy",
-        "params": {
-          "volume_ratio_threshold": 0,
-          "position_size": 0.01,
-          "ema200_filter": true
-        }
-      },
-      "exit": {
-        "class": "BearShortExitStrategy",
-        "params": {
-          "stop_loss_pct": 5.0,
-          "take_profit_pct": 10.0,
-          "trailing_enabled": true,
-          "trailing_activation": 3.0,
-          "trailing_distance": 2.5
         }
       }
     }

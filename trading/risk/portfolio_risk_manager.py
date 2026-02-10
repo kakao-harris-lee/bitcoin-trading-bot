@@ -120,10 +120,12 @@ class PortfolioRiskManager:
         config: RiskCapConfig,
         redis: "RedisStreams",
         correlation_filter: Optional["CorrelationFilter"] = None,
+        symbols: Optional[List[str]] = None,
     ):
         self.config = config
         self.redis = redis
         self.correlation_filter = correlation_filter
+        self._symbols = symbols or ["BTC", "ETH", "SOL", "BNB"]
 
         # Cache for open position risks (refreshed periodically)
         self._risk_cache: Dict[str, OpenPositionRisk] = {}
@@ -156,8 +158,9 @@ class PortfolioRiskManager:
         current_total_risk = sum(p.risk_amount for p in open_positions.values())
         max_total_risk = equity * self.config.max_total_risk_pct
 
-        # 1. Check position count
-        if symbol not in open_positions:  # Don't count if adding to existing
+        # 1. Check position count (cache keys are {symbol}_{market})
+        has_existing = any(k.startswith(f"{symbol}_") for k in open_positions)
+        if not has_existing:
             if len(open_positions) >= self.config.max_open_positions:
                 return RiskCheckResult(
                     allowed=False,
@@ -179,7 +182,7 @@ class PortfolioRiskManager:
         # 3. Correlation filter (if enabled)
         adjusted_risk_pct = None
         if self.config.use_correlation_filter and self.correlation_filter:
-            existing_symbols = [s for s in open_positions.keys() if s != symbol]
+            existing_symbols = list({k.split("_")[0] for k in open_positions if k.split("_")[0] != symbol})
             if existing_symbols:
                 corr_result = await self._check_correlation(
                     symbol, existing_symbols, proposed_risk, equity
@@ -218,44 +221,47 @@ class PortfolioRiskManager:
 
         self._risk_cache = {}
 
-        for symbol in ["BTC", "ETH", "SOL"]:
-            try:
-                pos = await self.redis.get_position(symbol, "futures")
-                if not pos:
-                    continue
+        for symbol in self._symbols:
+            for market in ["spot", "futures"]:
+                try:
+                    pos = await self.redis.get_position(symbol, market)
+                    if not pos:
+                        continue
 
-                qty = float(pos.get("quantity", 0))
-                if qty <= 0:
-                    continue
+                    qty = float(pos.get("quantity", 0))
+                    if qty <= 0:
+                        continue
 
-                entry_price = float(pos.get("entry_price", 0))
-                stop_price = float(pos.get("stop_price", 0))
-                leverage = int(pos.get("leverage", 1))
+                    entry_price = float(pos.get("entry_price", 0))
+                    stop_price = float(pos.get("stop_price", 0))
+                    leverage = int(pos.get("leverage", 1))
 
-                # Calculate risk if stop_price is set
-                if stop_price > 0 and entry_price > 0:
-                    side = pos.get("side", "buy")
-                    if side == "buy":  # Long
-                        stop_distance = (entry_price - stop_price) / entry_price
-                    else:  # Short
-                        stop_distance = (stop_price - entry_price) / entry_price
+                    # Calculate risk if stop_price is set
+                    if stop_price > 0 and entry_price > 0:
+                        side = pos.get("side", "buy")
+                        if side == "buy":  # Long
+                            stop_distance = (entry_price - stop_price) / entry_price
+                        else:  # Short
+                            stop_distance = (stop_price - entry_price) / entry_price
 
-                    risk_amount = qty * entry_price * max(0, stop_distance)
-                else:
-                    # Default to 3% stop if not set
-                    risk_amount = qty * entry_price * 0.03
+                        risk_amount = qty * entry_price * max(0, stop_distance)
+                    else:
+                        # Default to 3% stop if not set
+                        risk_amount = qty * entry_price * 0.03
 
-                self._risk_cache[symbol] = OpenPositionRisk(
-                    symbol=symbol,
-                    entry_price=entry_price,
-                    quantity=qty,
-                    stop_price=stop_price,
-                    risk_amount=risk_amount,
-                    leverage=leverage,
-                )
+                    # Use composite key: symbol_market
+                    cache_key = f"{symbol}_{market}"
+                    self._risk_cache[cache_key] = OpenPositionRisk(
+                        symbol=symbol,
+                        entry_price=entry_price,
+                        quantity=qty,
+                        stop_price=stop_price,
+                        risk_amount=risk_amount,
+                        leverage=leverage,
+                    )
 
-            except Exception as e:
-                logger.warning(f"Failed to get position risk for {symbol}: {e}")
+                except Exception as e:
+                    logger.warning(f"Failed to get position risk for {symbol} {market}: {e}")
 
         self._cache_ts = now
 
@@ -310,11 +316,12 @@ class PortfolioRiskManager:
             )
 
         elif self.config.corr_action == "group_cap":
-            # Check combined risk of correlated group
-            group_risk = self._risk_cache.get(correlated_with, OpenPositionRisk(
-                symbol=correlated_with, entry_price=0, quantity=0,
-                stop_price=0, risk_amount=0, leverage=1
-            )).risk_amount + proposed_risk
+            # Check combined risk of correlated group (sum across markets)
+            corr_risk = sum(
+                p.risk_amount for k, p in self._risk_cache.items()
+                if k.startswith(f"{correlated_with}_")
+            )
+            group_risk = corr_risk + proposed_risk
 
             # Group cap is 2x single position risk
             group_cap = equity * self.config.risk_per_trade_pct * 2

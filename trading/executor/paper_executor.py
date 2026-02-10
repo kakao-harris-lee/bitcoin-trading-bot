@@ -3,9 +3,11 @@
 from __future__ import annotations
 import asyncio
 import logging
+import os
 import time
 import uuid
 from typing import Any, Optional, TYPE_CHECKING
+from pathlib import Path
 
 from trading.risk.trade_logger import TradeLogger
 from trading.risk.liquidation_guard import LiquidationGuard
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 # Valid order sides and markets for validation
 VALID_SIDES = {"buy", "sell"}
 VALID_MARKETS = {"futures", "spot"}  # Support both futures and spot
-VALID_SYMBOLS = {"BTC", "ETH", "SOL"}  # Supported trading symbols
+VALID_SYMBOLS = {"BTC", "ETH", "SOL", "BNB"}  # Fallback supported trading symbols
 
 # Default configuration values
 DEFAULT_PAPER_BALANCE = 10000  # Default initial balance in USDT
@@ -51,8 +53,23 @@ class PaperExecutor:
         self.spot_positions: dict[str, float] = {}  # {symbol: quantity}
         self.spot_fee_rate: float = 0.001  # 0.1% (spot fee)
 
+        configured_symbols = config.get("symbols", [])
+        self.valid_symbols = (
+            {str(sym).upper() for sym in configured_symbols}
+            if configured_symbols
+            else set(VALID_SYMBOLS)
+        )
+
+        default_db_path = Path(__file__).resolve().parents[2] / "data" / "paper_trading_results.db"
+        trade_log_db_path = config.get("trade_log_db_path", str(default_db_path))
+        if os.getenv("PYTEST_CURRENT_TEST"):
+            trade_log_db_path = ":memory:"
+
         # Initialize trade logger for database persistence
-        self.trade_logger = TradeLogger(strategy_name="paper_trading")
+        self.trade_logger = TradeLogger(
+            db_path=trade_log_db_path,
+            strategy_name="paper_trading",
+        )
         logger.info("TradeLogger initialized for paper trading persistence")
 
         # Add liquidation guard
@@ -194,7 +211,7 @@ class PaperExecutor:
 
         # Validate symbol
         symbol = order["symbol"]
-        if symbol not in VALID_SYMBOLS:
+        if symbol not in self.valid_symbols:
             logger.error(f"Invalid symbol: {symbol}")
             return None
 

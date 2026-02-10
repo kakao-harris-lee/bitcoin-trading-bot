@@ -81,8 +81,8 @@ class TestPortfolioRiskManager:
         """Total risk cap blocks trades that would exceed limit."""
         # Mock existing positions with $400 risk (4%)
         manager._risk_cache = {
-            "BTC": OpenPositionRisk("BTC", 100000, 0.1, 97000, 200, 1),
-            "ETH": OpenPositionRisk("ETH", 3000, 3, 2910, 200, 1),
+            "BTC_spot": OpenPositionRisk("BTC", 100000, 0.1, 97000, 200, 1),
+            "ETH_spot": OpenPositionRisk("ETH", 3000, 3, 2910, 200, 1),
         }
         manager._cache_ts = float("inf")  # Prevent cache refresh
 
@@ -101,9 +101,9 @@ class TestPortfolioRiskManager:
         """Position count cap blocks new positions."""
         # Mock 3 existing positions (max)
         manager._risk_cache = {
-            "BTC": OpenPositionRisk("BTC", 100000, 0.01, 97000, 100, 1),
-            "ETH": OpenPositionRisk("ETH", 3000, 1, 2910, 100, 1),
-            "SOL": OpenPositionRisk("SOL", 100, 10, 97, 100, 1),
+            "BTC_spot": OpenPositionRisk("BTC", 100000, 0.01, 97000, 100, 1),
+            "ETH_spot": OpenPositionRisk("ETH", 3000, 1, 2910, 100, 1),
+            "SOL_spot": OpenPositionRisk("SOL", 100, 10, 97, 100, 1),
         }
         manager._cache_ts = float("inf")
 
@@ -121,9 +121,9 @@ class TestPortfolioRiskManager:
         """Adding to existing position doesn't count against position limit."""
         # Mock 3 existing positions including BTC
         manager._risk_cache = {
-            "BTC": OpenPositionRisk("BTC", 100000, 0.01, 97000, 100, 1),
-            "ETH": OpenPositionRisk("ETH", 3000, 1, 2910, 100, 1),
-            "SOL": OpenPositionRisk("SOL", 100, 10, 97, 100, 1),
+            "BTC_spot": OpenPositionRisk("BTC", 100000, 0.01, 97000, 100, 1),
+            "ETH_spot": OpenPositionRisk("ETH", 3000, 1, 2910, 100, 1),
+            "SOL_spot": OpenPositionRisk("SOL", 100, 10, 97, 100, 1),
         }
         manager._cache_ts = float("inf")
 
@@ -142,7 +142,7 @@ class TestPortfolioRiskManager:
     async def test_remaining_risk_budget_calculated(self, manager, mock_redis):
         """Result includes remaining risk budget."""
         manager._risk_cache = {
-            "BTC": OpenPositionRisk("BTC", 100000, 0.1, 97000, 200, 1),
+            "BTC_spot": OpenPositionRisk("BTC", 100000, 0.1, 97000, 200, 1),
         }
         manager._cache_ts = float("inf")
 
@@ -173,7 +173,7 @@ class TestPortfolioRiskManager:
 
         manager = PortfolioRiskManager(config, mock_redis, mock_corr_filter)
         manager._risk_cache = {
-            "BTC": OpenPositionRisk("BTC", 100000, 0.1, 97000, 100, 1),
+            "BTC_spot": OpenPositionRisk("BTC", 100000, 0.1, 97000, 100, 1),
         }
         manager._cache_ts = float("inf")
 
@@ -205,7 +205,7 @@ class TestPortfolioRiskManager:
 
         manager = PortfolioRiskManager(config, mock_redis, mock_corr_filter)
         manager._risk_cache = {
-            "BTC": OpenPositionRisk("BTC", 100000, 0.1, 97000, 100, 1),
+            "BTC_spot": OpenPositionRisk("BTC", 100000, 0.1, 97000, 100, 1),
         }
         manager._cache_ts = float("inf")
 
@@ -226,8 +226,8 @@ class TestPortfolioRiskManager:
     async def test_portfolio_risk_summary(self, manager, mock_redis):
         """Get portfolio risk summary."""
         manager._risk_cache = {
-            "BTC": OpenPositionRisk("BTC", 100000, 0.1, 97000, 200, 3),
-            "ETH": OpenPositionRisk("ETH", 3000, 3, 2910, 150, 2),
+            "BTC_futures": OpenPositionRisk("BTC", 100000, 0.1, 97000, 200, 3),
+            "ETH_futures": OpenPositionRisk("ETH", 3000, 3, 2910, 150, 2),
         }
         manager._cache_ts = float("inf")
 

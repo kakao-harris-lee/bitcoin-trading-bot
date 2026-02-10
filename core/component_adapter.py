@@ -17,7 +17,7 @@ from trading.strategies.components.models import MarketData, Position, Signal, M
 logger = logging.getLogger(__name__)
 from trading.strategies.components.strategy_factory import StrategyFactory
 from trading.strategies.volatility_tracker import VolatilityTracker
-from trading.strategies.components.regime_filter import EnhancedRegimeRouter
+from trading.strategies.components.regime_filter import EnhancedRegimeRouter, MTFCandle
 from trading.config.constants import TimePeriods, LeverageDefaults
 
 class ComponentStrategyAdapter:
@@ -317,6 +317,11 @@ class ComponentStrategyAdapter:
         close = row['close']
         volume = row.get('volume', 0.0)
         avg_volume = row.get('avg_volume_20', 0.0)
+        ts_value = row.get('timestamp', 0)
+        if hasattr(ts_value, 'timestamp'):
+            candle_ts = int(ts_value.timestamp() * 1000)
+        else:
+            candle_ts = int(ts_value) if ts_value else 0
 
         # === MLP Direction Prediction ===
         # Get MLP prediction from pre-computed cache (backtest) for mlp_direction strategy
@@ -351,6 +356,18 @@ class ComponentStrategyAdapter:
             bb_upper = row.get('bb_upper', 0.0)
             bb_lower = row.get('bb_lower', 0.0)
             bb_middle = row.get('bb_middle', 0.0)
+            self._regime_router.update_from_lower_candle(
+                MTFCandle(
+                    open=float(row.get('open', close)) if pd.notna(row.get('open', close)) else close,
+                    high=float(row.get('high', close)) if pd.notna(row.get('high', close)) else close,
+                    low=float(row.get('low', close)) if pd.notna(row.get('low', close)) else close,
+                    close=float(close),
+                    volume=float(volume),
+                    mfi=float(mfi),
+                    adx=float(adx),
+                ),
+                candle_ts=candle_ts,
+            )
 
             filtered_regime = self._regime_router.get_regime(
                 mfi=mfi,
@@ -420,16 +437,10 @@ class ComponentStrategyAdapter:
 
         # 1. MarketData construction with all fields needed by entry strategies
         # Handle timestamp conversion
-        ts = row.get('timestamp', 0)
-        if hasattr(ts, 'timestamp'):
-            ts = int(ts.timestamp() * 1000)
-        else:
-            ts = int(ts) if ts else 0
-
         market_data = MarketData(
             symbol=self.symbol,
             close=close,
-            timestamp=ts,
+            timestamp=candle_ts,
             mfi=mfi,
             adx=adx,
             rsi=row.get('rsi', 50.0),

@@ -23,9 +23,11 @@ from trading.indicators.mlp_features import (
     FEATURE_SET_PAPER,
     FEATURE_SET_SHAP,
     FEATURE_SET_V2,
+    FEATURE_SET_PAPER_MTF,
     FEATURE_NAMES_PAPER,
     FEATURE_NAMES_SHAP,
     FEATURE_NAMES_V2,
+    FEATURE_NAMES_PAPER_MTF,
 )
 from core.mlp_labeling import (
     compute_labels,
@@ -60,6 +62,7 @@ class DatasetConfig:
     random_state: int = 42
     min_samples_per_symbol: int = 500
     feature_set: str = FEATURE_SET_PAPER
+    temporal_split: bool = False  # Use temporal split instead of random split
     # Paper-aligned date filters (training on non-BTC/ETH up to 2022-12-22)
     train_start: str | None = None
     train_end: str | None = "2022-12-22"
@@ -185,19 +188,24 @@ class MLPDatasetBuilder:
 
         all_features = []
         all_labels = []
+        all_timestamps = []
         symbol_stats = {}
 
         for i, symbol in enumerate(symbols):
             symbol_df = df[df["symbol"] == symbol].copy()
             symbol_df = symbol_df.sort_values("timestamp").reset_index(drop=True)
 
-            features, labels, n_samples, _ = self.process_single_symbol(
+            features, labels, n_samples, timestamps = self.process_single_symbol(
                 symbol_df, symbol
             )
 
             if features is not None:
                 all_features.append(features)
                 all_labels.append(labels)
+                if timestamps is not None:
+                    # Convert pandas timestamps to numpy int64 (Unix timestamps)
+                    ts_array = symbol_df.loc[timestamps, "timestamp"].values.astype(np.int64)
+                    all_timestamps.append(ts_array)
                 symbol_stats[symbol] = n_samples
 
                 if (i + 1) % 50 == 0:
@@ -219,25 +227,64 @@ class MLPDatasetBuilder:
         for label_name, stats in dist.items():
             logger.info(f"  {label_name}: {stats['count']:,} ({stats['percentage']:.1f}%)")
 
-        # Balance classes if requested
-        if self.config.balance_classes:
-            logger.info("\nBalancing classes...")
-            X, y = balance_dataset(X, y, random_state=self.config.random_state)
+        # Handle temporal vs random split
+        if self.config.temporal_split:
+            logger.info("\nUsing temporal split (time-ordered)...")
 
-            dist = get_label_distribution(pd.Series(y))
-            logger.info("Label distribution (after balancing):")
-            for label_name, stats in dist.items():
-                logger.info(f"  {label_name}: {stats['count']:,} ({stats['percentage']:.1f}%)")
+            # Concatenate timestamps
+            timestamps = np.concatenate(all_timestamps)
 
-        # Split data
-        logger.info("\nSplitting data...")
-        X_train, X_val, X_test, y_train, y_val, y_test = split_train_val_test(
-            X,
-            y,
-            val_ratio=self.config.val_ratio,
-            test_ratio=self.config.test_ratio,
-            random_state=self.config.random_state,
-        )
+            # Sort by timestamp globally (multi-asset time-ordered)
+            sort_idx = np.argsort(timestamps)
+            X = X[sort_idx]
+            y = y[sort_idx]
+
+            # Temporal split FIRST (without data leakage)
+            X_train, X_val, X_test, y_train, y_val, y_test = split_train_val_test(
+                X,
+                y,
+                val_ratio=self.config.val_ratio,
+                test_ratio=self.config.test_ratio,
+                random_state=self.config.random_state,
+                temporal=True,
+                gap=self.config.forward_window,
+            )
+
+            # Balance each split independently
+            if self.config.balance_classes:
+                logger.info("Balancing classes (per split)...")
+                X_train, y_train = balance_dataset(X_train, y_train, random_state=self.config.random_state)
+                X_val, y_val = balance_dataset(X_val, y_val, random_state=self.config.random_state)
+                X_test, y_test = balance_dataset(X_test, y_test, random_state=self.config.random_state)
+
+                logger.info("Label distribution (after balancing):")
+                for split_name, y_split in [("Train", y_train), ("Val", y_val), ("Test", y_test)]:
+                    dist = get_label_distribution(pd.Series(y_split))
+                    logger.info(f"  {split_name}:")
+                    for label_name, stats in dist.items():
+                        logger.info(f"    {label_name}: {stats['count']:,} ({stats['percentage']:.1f}%)")
+        else:
+            logger.info("\nUsing random split...")
+
+            # Original flow: balance then random split
+            if self.config.balance_classes:
+                logger.info("Balancing classes...")
+                X, y = balance_dataset(X, y, random_state=self.config.random_state)
+
+                dist = get_label_distribution(pd.Series(y))
+                logger.info("Label distribution (after balancing):")
+                for label_name, stats in dist.items():
+                    logger.info(f"  {label_name}: {stats['count']:,} ({stats['percentage']:.1f}%)")
+
+            # Split data
+            logger.info("Splitting data...")
+            X_train, X_val, X_test, y_train, y_val, y_test = split_train_val_test(
+                X,
+                y,
+                val_ratio=self.config.val_ratio,
+                test_ratio=self.config.test_ratio,
+                random_state=self.config.random_state,
+            )
 
         logger.info(f"Train: {len(X_train):,}")
         logger.info(f"Validation: {len(X_val):,}")
@@ -251,6 +298,7 @@ class MLPDatasetBuilder:
             FEATURE_SET_PAPER: FEATURE_NAMES_PAPER,
             FEATURE_SET_SHAP: FEATURE_NAMES_SHAP,
             FEATURE_SET_V2: FEATURE_NAMES_V2,
+            FEATURE_SET_PAPER_MTF: FEATURE_NAMES_PAPER + FEATURE_NAMES_PAPER_MTF,
         }
         feature_names = feature_names_map.get(
             self.config.feature_set, FEATURE_NAMES_PAPER
@@ -318,6 +366,7 @@ class MLPDatasetBuilder:
             FEATURE_SET_PAPER: FEATURE_NAMES_PAPER,
             FEATURE_SET_SHAP: FEATURE_NAMES_SHAP,
             FEATURE_SET_V2: FEATURE_NAMES_V2,
+            FEATURE_SET_PAPER_MTF: FEATURE_NAMES_PAPER + FEATURE_NAMES_PAPER_MTF,
         }
         feature_names = feature_names_map.get(
             self.config.feature_set, FEATURE_NAMES_PAPER
@@ -493,7 +542,7 @@ def main():
         "--feature-set",
         type=str,
         default=FEATURE_SET_PAPER,
-        choices=[FEATURE_SET_PAPER, FEATURE_SET_SHAP, FEATURE_SET_V2],
+        choices=[FEATURE_SET_PAPER, FEATURE_SET_SHAP, FEATURE_SET_V2, FEATURE_SET_PAPER_MTF],
         help="Feature set to use",
     )
     parser.add_argument(
@@ -549,6 +598,11 @@ def main():
         default=None,
         help="Path to validation parquet (BTC/ETH)",
     )
+    parser.add_argument(
+        "--temporal-split",
+        action="store_true",
+        help="Use temporal split instead of random split",
+    )
 
     args = parser.parse_args()
 
@@ -561,6 +615,7 @@ def main():
         val_ratio=args.val_ratio,
         test_ratio=args.test_ratio,
         feature_set=args.feature_set,
+        temporal_split=args.temporal_split,
         train_start=args.train_start,
         train_end=args.train_end,
         validation_backtest_end=args.validation_backtest_end,

@@ -45,7 +45,7 @@ from .models import (
     RegimeSmoother,
     BEAR_REGIMES,
 )
-from .regime_filter import EnhancedRegimeRouter
+from .regime_filter import EnhancedRegimeRouter, MTFCandle
 from trading.observability.structured_logger import trade_logger
 from trading.risk.position_sizer import PositionSizer, RiskSizingConfig
 from trading.risk.portfolio_risk_manager import PortfolioRiskManager, RiskCapConfig
@@ -134,6 +134,11 @@ class CompositeStrategyTask(BaseStrategyTask):
         self.evaluation_interval = self.config.get("evaluation_interval_seconds", 60)
         self._last_evaluation_time: dict[str, float] = {}
         self._market_data_cache: dict[str, MarketData] = {}
+        self._entry_on_candle_close = self.config.get("entry_on_candle_close", True)
+        self._entry_eval_fallback_seconds = float(
+            self.config.get("entry_evaluation_interval_seconds", self.evaluation_interval)
+        )
+        self._last_entry_candle_ts: dict[str, int] = {}
 
         # Regime smoothing to reduce noise (78% fewer transitions)
         # v1: Original RegimeSmoother (EMA + persistence)
@@ -209,6 +214,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._loss_pause_remaining: dict[str, int] = {}
         self._v2_exit_on_filter = self.config.get("v2_exit_on_filter", False)
         self._panic_sell_below_ma120 = self.config.get("panic_sell_below_ma120", False)
+        self._drawdown_bear_threshold = float(self.config.get("drawdown_bear_threshold", 0.15))
 
         self._dynamic_leverage_enabled = self.config.get("dynamic_leverage", False)
         self._leverage_bull_strong = float(self.config.get("leverage_bull_strong", 3.0))
@@ -243,6 +249,26 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._risk_based_sizing = self.config.get("risk_based_sizing", False)
         self._position_sizer: PositionSizer | None = None
         self._portfolio_risk_mgr: PortfolioRiskManager | None = None
+        self._correlation_filter: CorrelationFilter | None = None
+
+        # Context-level portfolio guardrails
+        self._context_risk_enabled = self.config.get("context_risk_enabled", True)
+        self._context_max_open_positions = int(
+            self.config.get("context_max_open_positions", self.config.get("max_open_positions", 5))
+        )
+        self._context_max_symbol_positions = int(self.config.get("context_max_symbol_positions", 1))
+        self._context_max_total_exposure_pct = float(
+            self.config.get("context_max_total_exposure_pct", 1.0)
+        )
+        self._context_max_symbol_exposure_pct = float(
+            self.config.get("context_max_symbol_exposure_pct", 0.5)
+        )
+        self._context_corr_enabled = bool(
+            self.config.get("context_corr_enabled", self.config.get("correlation_filter", True))
+        )
+        if self._context_corr_enabled and self.config.get("correlation_filter", True):
+            corr_config = CorrelationConfig.from_dict(self.config)
+            self._correlation_filter = CorrelationFilter(corr_config, redis)
 
         if self._risk_based_sizing:
             sizing_config = RiskSizingConfig.from_dict(self.config)
@@ -251,13 +277,14 @@ class CompositeStrategyTask(BaseStrategyTask):
             # Portfolio risk manager with correlation filter
             risk_cap_config = RiskCapConfig.from_dict(self.config)
 
-            corr_filter = None
-            if self.config.get("correlation_filter", True):
-                corr_config = CorrelationConfig.from_dict(self.config)
-                corr_filter = CorrelationFilter(corr_config, redis)
+            corr_filter = self._correlation_filter
+
+            # Get global symbols list for portfolio risk tracking
+            # This allows tracking positions across all strategies/symbols
+            global_symbols = self.config.get("_global_symbols", ["BTC", "ETH", "SOL", "BNB"])
 
             self._portfolio_risk_mgr = PortfolioRiskManager(
-                risk_cap_config, redis, corr_filter
+                risk_cap_config, redis, corr_filter, symbols=global_symbols
             )
             logger.info(
                 f"{self.name}: Risk-based sizing enabled "
@@ -295,6 +322,32 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         await super().run()
 
+    def _update_buffer(self, symbol: str, msg: dict[str, Any]) -> None:
+        """Update local buffer and shared indicator service tick stream."""
+        super()._update_buffer(symbol, msg)
+        if self.indicator_service is not None and msg.get("warmup") != "true":
+            self.indicator_service.add_price(symbol, msg)
+
+    def _should_evaluate_entry(self, symbol: str, msg: dict[str, Any]) -> bool:
+        """Evaluate entry at candle close when enabled, else fallback interval."""
+        if self._entry_on_candle_close and self.indicator_service is not None:
+            candle_ts = self.indicator_service.get_latest_candle_timestamp(symbol)
+            if candle_ts is None:
+                return False
+            previous_ts = self._last_entry_candle_ts.get(symbol)
+            if previous_ts == candle_ts:
+                return False
+            self._last_entry_candle_ts[symbol] = int(candle_ts)
+            self._last_entry_evaluation_time[symbol] = time.time()
+            return True
+
+        current_time = time.time()
+        last_time = self._last_entry_evaluation_time.get(symbol, 0)
+        if current_time - last_time >= self._entry_eval_fallback_seconds:
+            self._last_entry_evaluation_time[symbol] = current_time
+            return True
+        return False
+
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:
         """Evaluate entry conditions by delegating to entry component.
 
@@ -313,6 +366,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
 
         self._decrement_entry_blocks(symbol)
+
+        if self.context_builder is not None:
+            await self.context_builder.refresh_positions()
 
         # Refresh indicator history with real candle data if needed
         # (replaces estimated volume from tick aggregation with real Binance OHLCV)
@@ -421,6 +477,15 @@ class CompositeStrategyTask(BaseStrategyTask):
                 symbol, market_data.close, signal.quantity, context, market_data
             )
 
+            allowed, reason = await self._passes_context_risk_caps(
+                symbol=symbol,
+                quantity=quantity,
+                price=market_data.close,
+            )
+            if not allowed:
+                logger.info(f"{symbol}: Context risk cap blocked entry - {reason}")
+                return None
+
             # Volatility-based position scaling
             if self._vol_sizing_enabled and market_data.atr > 0:
                 from trading.risk.volatility_scaler import compute_volatility_scale
@@ -436,6 +501,15 @@ class CompositeStrategyTask(BaseStrategyTask):
                     f"{symbol}: Vol sizing: ATR%={market_data.atr/market_data.close*100:.2f}%, "
                     f"scale={vol_scale:.2f}, qty={quantity:.6f}"
                 )
+
+                allowed, reason = await self._passes_context_risk_caps(
+                    symbol=symbol,
+                    quantity=quantity,
+                    price=market_data.close,
+                )
+                if not allowed:
+                    logger.info(f"{symbol}: Context risk cap blocked entry - {reason}")
+                    return None
 
             if quantity <= 0:
                 logger.debug(f"{symbol}: Quantity too small, skipping entry")
@@ -485,6 +559,12 @@ class CompositeStrategyTask(BaseStrategyTask):
             if stop_price and stop_price > 0:
                 order["stop_price"] = stop_price
 
+            # Pass stop_loss_pct for server-side stop-loss placement
+            if hasattr(self.exit_strategy, 'params'):
+                slp = getattr(self.exit_strategy.params, 'stop_loss_pct', None)
+                if slp is not None:
+                    order["stop_loss_pct"] = slp
+
             return order
 
         return None
@@ -509,6 +589,9 @@ class CompositeStrategyTask(BaseStrategyTask):
                 await self.indicator_service.refresh_history(symbol, market=market)
             except Exception as e:
                 logger.warning(f"Candle refresh failed for {symbol}: {e}")
+
+        if self.context_builder is not None:
+            await self.context_builder.refresh_positions()
 
         # Build MarketData from indicators
         market_data = self._build_market_data(symbol)
@@ -795,9 +878,6 @@ class CompositeStrategyTask(BaseStrategyTask):
         if self.indicator_service:
             buffer = self.price_buffer.get(symbol, [])
             current_price = float(buffer[-1]["price"]) if buffer else None
-            # Update price buffer in service
-            if buffer:
-                self.indicator_service.add_price(symbol, buffer[-1])
             return self.indicator_service.get_market_data(symbol, current_price)
 
         # Fallback to local calculation (legacy path)
@@ -1007,6 +1087,18 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
         return df
 
+    def _get_latest_candle_timestamp(
+        self,
+        symbol: str,
+        market_data: MarketData,
+    ) -> int:
+        """Get stable per-candle timestamp for cache keys."""
+        if self.indicator_service is not None:
+            ts = self.indicator_service.get_latest_candle_timestamp(symbol)
+            if ts is not None and ts > 0:
+                return int(ts)
+        return int(market_data.timestamp)
+
     def _get_mlp_prediction(
         self,
         symbol: str,
@@ -1016,8 +1108,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         if not self._use_mlp_direction:
             return None, None
 
+        candle_ts = self._get_latest_candle_timestamp(symbol, market_data)
         cached = self._mlp_cache.get(symbol)
-        if cached and cached.get("timestamp") == market_data.timestamp:
+        if cached and cached.get("candle_timestamp") == candle_ts:
             return cached.get("prediction"), cached.get("confidence")
 
         if not self._ensure_mlp_model():
@@ -1086,7 +1179,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None, None
 
         self._mlp_cache[symbol] = {
-            "timestamp": market_data.timestamp,
+            "candle_timestamp": candle_ts,
             "prediction": pred_class,
             "confidence": confidence,
         }
@@ -1151,12 +1244,26 @@ class CompositeStrategyTask(BaseStrategyTask):
             volume=market_data.volume,
             avg_volume=market_data.avg_volume_20,
             recent_high=recent_high,  # Use 30-day high for drawdown BEAR detection
+            drawdown_bear_threshold=self._drawdown_bear_threshold,
         )
 
         # Apply regime filtering/smoothing based on version
         if self.regime_version == "v2" and market_data.symbol in self._enhanced_routers:
             # Enhanced regime detection v2: BBW + MTF + Volume filters
             router = self._enhanced_routers[market_data.symbol]
+            candle_ts = self._get_latest_candle_timestamp(market_data.symbol, market_data)
+            router.update_from_lower_candle(
+                MTFCandle(
+                    open=market_data.open,
+                    high=market_data.high,
+                    low=market_data.low,
+                    close=market_data.close,
+                    volume=market_data.volume,
+                    mfi=market_data.mfi,
+                    adx=market_data.adx,
+                ),
+                candle_ts=candle_ts,
+            )
             volume_ratio = (
                 market_data.volume / market_data.avg_volume_20
                 if market_data.avg_volume_20 > 0
@@ -1369,7 +1476,26 @@ class CompositeStrategyTask(BaseStrategyTask):
             qty = await self.get_dynamic_position_size(symbol, price, position_pct)
             return (qty, None)
 
-        return (self.config.get("position_size", default_quantity), None)
+        use_signal_quantity = bool(self.config.get("use_signal_quantity", False))
+        configured_size = float(default_quantity if use_signal_quantity else self.config.get("position_size", default_quantity))
+        if configured_size <= 0:
+            return (0.0, None)
+
+        # Legacy configs use position_size as cash fraction (e.g., 0.9 = 90%).
+        # Convert fraction to executable quantity for live/paper parity.
+        if configured_size <= 1.0:
+            equity = await self._get_account_equity()
+            if equity <= 0:
+                logger.warning(
+                    f"{symbol}: Cannot resolve equity for fractional position_size={configured_size:.3f}"
+                )
+                return (0.0, None)
+            notional = equity * configured_size
+            quantity = notional / price if price > 0 else 0.0
+            return (quantity, None)
+
+        # Absolute quantity mode (position_size > 1.0)
+        return (configured_size, None)
 
     async def _get_account_equity(self) -> float:
         """Get current account equity from Redis.
@@ -1378,13 +1504,82 @@ class CompositeStrategyTask(BaseStrategyTask):
             Account equity in USDT, or 0 if unavailable.
         """
         try:
-            data = await self.redis._client.hgetall("account:live")
-            if data:
-                return float(data.get("futures_balance", 0))
-            return 0.0
+            live = await self.redis._client.hgetall("account:live")
+            if live:
+                total = float(live.get("total_equity", 0))
+                if total > 0:
+                    return total
+                spot = float(live.get("spot_balance", 0))
+                futures = float(live.get("futures_balance", 0))
+                if spot + futures > 0:
+                    return spot + futures
+
+            paper = await self.redis._client.hgetall("account:paper")
+            if paper:
+                spot = float(paper.get("spot_balance", 0))
+                futures = float(paper.get("futures_balance", 0))
+                if spot + futures > 0:
+                    return spot + futures
+
+            # Last fallback for paper mode cold start
+            return float(self.config.get("paper", {}).get("initial_balance", 0))
         except Exception as e:
             logger.warning(f"Failed to get account equity: {e}")
             return 0.0
+
+    async def _passes_context_risk_caps(
+        self,
+        symbol: str,
+        quantity: float,
+        price: float,
+    ) -> tuple[bool, str]:
+        """Context-level exposure/correlation guard before order publish."""
+        if not self._context_risk_enabled:
+            return True, "DISABLED"
+        if quantity <= 0 or price <= 0:
+            return False, "INVALID_PROPOSED_NOTIONAL"
+        if self.context_builder is None:
+            return True, "NO_CONTEXT_BUILDER"
+
+        portfolio = self.context_builder.get_portfolio_positions()
+        open_positions = [p for p in portfolio.values() if p.quantity > 0]
+        open_symbols = sorted({p.symbol for p in open_positions})
+        symbol_positions = [p for p in open_positions if p.symbol == symbol]
+
+        if symbol not in open_symbols and len(open_symbols) >= self._context_max_open_positions:
+            return False, f"CTX_MAX_OPEN_POSITIONS:{len(open_symbols)}>={self._context_max_open_positions}"
+
+        if len(symbol_positions) >= self._context_max_symbol_positions:
+            return False, f"CTX_MAX_SYMBOL_POSITIONS:{len(symbol_positions)}>={self._context_max_symbol_positions}"
+
+        proposed_notional = abs(quantity * price)
+        total_notional = sum(abs(p.quantity * p.entry_price) for p in open_positions)
+        symbol_notional = sum(abs(p.quantity * p.entry_price) for p in symbol_positions)
+
+        equity = await self._get_account_equity()
+        if equity > 0:
+            new_total_exposure = (total_notional + proposed_notional) / equity
+            new_symbol_exposure = (symbol_notional + proposed_notional) / equity
+
+            if new_total_exposure > self._context_max_total_exposure_pct:
+                return (
+                    False,
+                    f"CTX_TOTAL_EXPOSURE:{new_total_exposure:.2f}>{self._context_max_total_exposure_pct:.2f}",
+                )
+            if new_symbol_exposure > self._context_max_symbol_exposure_pct:
+                return (
+                    False,
+                    f"CTX_SYMBOL_EXPOSURE:{new_symbol_exposure:.2f}>{self._context_max_symbol_exposure_pct:.2f}",
+                )
+
+        if self._context_corr_enabled and self._correlation_filter is not None:
+            existing_symbols = [s for s in open_symbols if s != symbol]
+            if existing_symbols:
+                blocked, reason = await self._correlation_filter.should_block(symbol, existing_symbols)
+                if blocked:
+                    return False, f"CTX_{reason}"
+
+        return True, "OK"
 
     async def _check_and_record_decision(
         self,

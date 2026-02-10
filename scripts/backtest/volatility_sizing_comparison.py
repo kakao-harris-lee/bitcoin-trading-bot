@@ -48,12 +48,14 @@ ASSET_DB = {
     "BTC": ("data/binance_bitcoin.db", "BTC"),
     "ETH": ("data/binance_ethereum.db", "ETH"),
     "SOL": ("data/binance_solana.db", "SOL"),
+    "XRP": ("data/binance_xrp.db", "XRP"),
 }
 
 MLP_STRATEGY_IDS = {
     "BTC": "mlp_direction_btc",
     "ETH": "mlp_direction_eth",
     "SOL": "mlp_direction_sol",
+    "XRP": "mlp_direction_xrp",
 }
 
 

@@ -224,24 +224,29 @@ class CorrelationFilter:
         Falls back to using the market:prices stream data.
         """
         try:
+            client = getattr(self.redis, "_client", None)
+            if client is None:
+                return []
+
             # Try the dedicated price history first
             history_key = f"price_history:{symbol}"
-            raw_data = await self.redis.redis.lrange(history_key, 0, self.config.lookback_bars)
+            raw_data = await client.lrange(history_key, 0, self.config.lookback_bars)
 
             if raw_data:
                 prices = [float(p) for p in raw_data]
                 return prices
 
             # Fallback: read from market:prices stream (more expensive)
-            stream_data = await self.redis.redis.xrevrange(
+            stream_data = await client.xrevrange(
                 "market:prices",
                 count=self.config.lookback_bars * 3,  # Multiple symbols in stream
             )
 
             prices = []
             for msg_id, data in stream_data:
-                if data.get(b"symbol", b"").decode() == symbol:
-                    price = float(data.get(b"price", 0))
+                msg_symbol = data.get("symbol", "")
+                if msg_symbol == symbol:
+                    price = float(data.get("price", 0))
                     if price > 0:
                         prices.append(price)
                         if len(prices) >= self.config.lookback_bars:

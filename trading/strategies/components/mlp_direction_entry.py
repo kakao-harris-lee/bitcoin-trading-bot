@@ -61,6 +61,16 @@ class MLPDirectionEntryParams:
     # If non-empty, ensemble soft-voting is used instead of single model.
     ensemble_models: list | None = None
 
+    # Runtime switch profile (C11): use risk-on/off params by regime state
+    runtime_switch_enabled: bool = False
+    switch_mfi_threshold: float = 50.0
+    switch_adx_threshold: float = 18.0
+    switch_require_above_ema200: bool = True
+    risk_on_buy_confidence_threshold: float = 0.0
+    risk_off_buy_confidence_threshold: float = 0.0
+    risk_on_position_size: float = 0.0
+    risk_off_position_size: float = 0.0
+
 
 @entry_strategy(params_class=MLPDirectionEntryParams)
 class MLPDirectionEntryStrategy:
@@ -91,6 +101,25 @@ class MLPDirectionEntryStrategy:
         # History buffer for paper_36 live feature computation
         self._history: list[dict] = []
         self._last_timestamp: int = 0
+
+    def set_model(self, model, ensemble=None):
+        """Inject a pre-loaded model to avoid duplicate loading.
+
+        Args:
+            model: Pre-loaded MLPDirectionClassifier model.
+            ensemble: Pre-loaded MLPEnsemblePredictor (takes priority).
+        """
+        from trading.indicators.mlp_features import extract_single_features
+        self._feature_extractor = extract_single_features
+
+        if ensemble is not None:
+            self._ensemble = ensemble
+            self._model_available = True
+            logger.info("MLPDirectionEntry: Using shared ensemble")
+        elif model is not None:
+            self._model = model
+            self._model_available = True
+            logger.info("MLPDirectionEntry: Using shared model")
 
     def _ensure_model(self) -> bool:
         """Lazy-load MLP model (or ensemble) on first use."""
@@ -219,6 +248,16 @@ class MLPDirectionEntryStrategy:
             logger.warning(f"MLPDirectionEntry: Feature extraction failed: {e}")
             return None
 
+    def _is_risk_on(self, market_data: MarketData, p: MLPDirectionEntryParams) -> bool:
+        if market_data.mfi < p.switch_mfi_threshold:
+            return False
+        if market_data.adx < p.switch_adx_threshold:
+            return False
+        if p.switch_require_above_ema200 and market_data.ema_200 > 0:
+            if market_data.close < market_data.ema_200:
+                return False
+        return True
+
     def check_entry(self, ctx: TradingContext) -> Signal | None:
         """Check entry conditions using MLP direction prediction.
 
@@ -231,6 +270,23 @@ class MLPDirectionEntryStrategy:
         market_data = ctx.market
         context = ctx.regime
         p = self.params
+
+        active_buy_threshold = p.buy_confidence_threshold
+        active_position_size = p.position_size
+        switch_mode = "base"
+        if p.runtime_switch_enabled:
+            if self._is_risk_on(market_data, p):
+                switch_mode = "risk_on"
+                if p.risk_on_buy_confidence_threshold > 0:
+                    active_buy_threshold = p.risk_on_buy_confidence_threshold
+                if p.risk_on_position_size > 0:
+                    active_position_size = p.risk_on_position_size
+            else:
+                switch_mode = "risk_off"
+                if p.risk_off_buy_confidence_threshold > 0:
+                    active_buy_threshold = p.risk_off_buy_confidence_threshold
+                if p.risk_off_position_size > 0:
+                    active_position_size = p.risk_off_position_size
 
         # === SAFETY FILTER 1: BEAR regime ===
         if p.skip_bear_regime and context.regime in BEAR_REGIMES:
@@ -287,17 +343,17 @@ class MLPDirectionEntryStrategy:
             return None
 
         # === MLP FILTER 2: Confidence threshold ===
-        if mlp_confidence < p.buy_confidence_threshold:
+        if mlp_confidence < active_buy_threshold:
             logger.debug(
                 f"{market_data.symbol}: Skip - low MLP confidence "
-                f"({mlp_confidence:.2f} < {p.buy_confidence_threshold:.2f})"
+                f"({mlp_confidence:.2f} < {active_buy_threshold:.2f})"
             )
             return None
 
         # All conditions met - generate entry signal
         reason = (
             f"MLPDirection: pred=BUY, conf={mlp_confidence:.2f}, "
-            f"regime={context.regime}, ADX={context.adx:.1f}"
+            f"regime={context.regime}, ADX={context.adx:.1f}, mode={switch_mode}"
         )
         logger.info(f"{market_data.symbol}: {reason}")
 
@@ -305,7 +361,7 @@ class MLPDirectionEntryStrategy:
             symbol=market_data.symbol,
             side="buy",
             market=p.market,
-            quantity=p.position_size,
+            quantity=active_position_size,
             reason=reason,
         )
 

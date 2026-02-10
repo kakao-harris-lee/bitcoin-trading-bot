@@ -461,6 +461,17 @@ class IndicatorService:
             return df.tail(limit)
         return df
 
+    def get_latest_candle_timestamp(self, symbol: str) -> int | None:
+        """Get latest finalized candle timestamp (ms) for a symbol."""
+        history = self._history.get(symbol)
+        if not history:
+            return None
+        last = history[-1]
+        ts = last.get("open_time", last.get("timestamp"))
+        if ts is None:
+            return None
+        return int(ts)
+
     def needs_refresh(self, symbol: str) -> bool:
         """Check if symbol needs REST candle refresh for real OHLCV data.
 

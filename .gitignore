@@ -10,8 +10,7 @@ ENV/
 
 # Database
 *.db
-!data/fx_rates.db
-!data/premium_history.db
+data/
 *.db-journal
 *.sqlite
 *.sqlite3
@@ -85,3 +84,17 @@ outputs/
 # Backtest CSV logs (generated for analysis)
 backtest_logs/
 .serena/project.yml
+
+# Generated MLP training artifacts (local)
+data/mlp_datasets/c9/
+data/mlp_datasets/mlp_dataset_bwin3_fwin1.npz
+data/mlp_datasets/mlp_dataset_bwin7_fwin3.npz
+data/mlp_datasets/mlp_dataset_v2_*.npz
+data/mlp_datasets/validation_v2_*.npz
+
+# Generated model outputs (local)
+models/mlp_direction/c9/
+models/mlp_direction/**/model_best.pt
+
+# Generated per-symbol parquet additions (local)
+data/multi_asset_4h/train/*.parquet

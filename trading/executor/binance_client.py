@@ -603,6 +603,146 @@ class BinanceClient:
             logger.error(f"Failed to get funding rate for {pair}: {e}")
             return None
 
+    @with_retry
+    async def stop_loss_limit_order(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        stop_price: float,
+        limit_price: float,
+        market: str = "spot",
+        position_side: str | None = None,
+    ) -> dict | None:
+        """Place a stop-loss limit order on Binance.
+
+        Args:
+            symbol: Trading pair (e.g., "BTCUSDT")
+            side: "sell" for long stop-loss, "buy" for short stop-loss
+            quantity: Order quantity
+            stop_price: Price that triggers the order
+            limit_price: Limit price for the triggered order
+            market: "spot" or "futures"
+            position_side: Position side for hedge mode ("LONG" or "SHORT").
+                          Required for futures in hedge mode.
+
+        Returns:
+            Order response dict with orderId, or None on failure.
+        """
+        binance_symbol = f"{symbol}USDT" if not symbol.endswith("USDT") else symbol
+
+        try:
+            if market == "spot":
+                # Spot stop-loss limit order
+                order = await self._spot_client.create_order(
+                    symbol=binance_symbol,
+                    side=side.upper(),
+                    type="STOP_LOSS_LIMIT",
+                    quantity=quantity,
+                    stopPrice=str(stop_price),
+                    price=str(limit_price),
+                    timeInForce="GTC",
+                )
+
+                return {
+                    "orderId": order["orderId"],
+                    "symbol": symbol,
+                    "side": side,
+                    "market": market,
+                    "stop_price": stop_price,
+                    "limit_price": limit_price,
+                    "status": order["status"],
+                }
+            else:
+                # Futures stop-market order
+                order_params = {
+                    "symbol": binance_symbol,
+                    "side": side.upper(),
+                    "type": "STOP_MARKET",
+                    "quantity": quantity,
+                    "stopPrice": str(stop_price),
+                    "closePosition": "false",
+                }
+
+                # Add positionSide for hedge mode
+                if self._hedge_mode_enabled and position_side:
+                    order_params["positionSide"] = position_side.upper()
+
+                order = await self._futures_client.futures_create_order(**order_params)
+
+                return {
+                    "orderId": order["orderId"],
+                    "symbol": symbol,
+                    "side": side,
+                    "market": market,
+                    "stop_price": stop_price,
+                    "status": order["status"],
+                    "position_side": position_side,
+                }
+
+        except Exception as e:
+            logger.error(f"Stop-loss order failed for {symbol}: {e}")
+            return None
+
+    @with_retry
+    async def cancel_open_orders(
+        self,
+        symbol: str,
+        market: str = "spot",
+    ) -> list[dict]:
+        """Cancel all open orders for a symbol.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC" or "BTCUSDT")
+            market: "spot" or "futures"
+
+        Returns:
+            List of cancelled order responses.
+        """
+        binance_symbol = f"{symbol}USDT" if not symbol.endswith("USDT") else symbol
+        cancelled_orders = []
+
+        try:
+            if market == "spot":
+                # Get all open orders for the symbol
+                open_orders = await self._spot_client.get_open_orders(symbol=binance_symbol)
+
+                # Cancel each order
+                for order in open_orders:
+                    try:
+                        result = await self._spot_client.cancel_order(
+                            symbol=binance_symbol,
+                            orderId=order["orderId"],
+                        )
+                        cancelled_orders.append({
+                            "orderId": result["orderId"],
+                            "status": result["status"],
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to cancel spot order {order['orderId']}: {e}")
+            else:
+                # Futures: cancel all open orders for symbol
+                result = await self._futures_client.futures_cancel_all_open_orders(
+                    symbol=binance_symbol
+                )
+
+                # Result is a list of cancelled orders
+                if isinstance(result, list):
+                    for order in result:
+                        cancelled_orders.append({
+                            "orderId": order.get("orderId", 0),
+                            "status": order.get("status", "CANCELLED"),
+                        })
+
+            if cancelled_orders:
+                logger.info(f"Cancelled {len(cancelled_orders)} open orders for {symbol}")
+
+            return cancelled_orders
+
+        except Exception as e:
+            logger.error(f"Failed to cancel orders for {symbol}: {e}")
+            return cancelled_orders
+
 
 class MockBinanceClient:
     """Mock client for testing without real API."""
@@ -656,3 +796,15 @@ class MockBinanceClient:
         if "positionSide" in kwargs:
             result["positionSide"] = kwargs["positionSide"]
         return result
+
+    async def get_open_orders(self, symbol: str) -> list:
+        """Mock: return empty list (no open orders)."""
+        return []
+
+    async def cancel_order(self, symbol: str, orderId: int) -> dict:
+        """Mock: return cancelled status."""
+        return {"orderId": orderId, "status": "CANCELED"}
+
+    async def futures_cancel_all_open_orders(self, symbol: str) -> list:
+        """Mock: return empty list (no orders to cancel)."""
+        return []

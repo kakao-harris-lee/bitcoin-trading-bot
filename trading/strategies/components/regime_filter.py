@@ -393,9 +393,36 @@ class EnhancedRegimeRouter:
         self._mtf_filter = MTFFilter()
         self._mtf_enabled = mtf_enabled
         self._mtf_regime: Regime | None = None
+        self._last_lower_candle_ts: int | None = None
         self._prev_regime: Regime | None = None
         self._pending_regime: Regime | None = None
         self._pending_count: int = 0
+
+    def update_from_lower_candle(
+        self,
+        candle: MTFCandle,
+        candle_ts: int | None = None,
+    ) -> None:
+        """Update internal MTF regime from incoming lower-timeframe candle.
+
+        Args:
+            candle: Lower-timeframe candle (e.g., 1h).
+            candle_ts: Candle timestamp for deduplication (optional).
+        """
+        if not self._mtf_enabled:
+            return
+
+        if candle_ts is not None and candle_ts == self._last_lower_candle_ts:
+            return
+
+        if candle_ts is not None:
+            self._last_lower_candle_ts = candle_ts
+
+        aggregated = self._mtf_filter.add_candle(candle)
+        if aggregated is None:
+            return
+
+        self._mtf_regime = _classify_regime(aggregated.mfi, aggregated.adx)
 
     def set_mtf_regime(self, regime: Regime) -> None:
         """Set the 4-hour timeframe regime.
@@ -505,6 +532,7 @@ class EnhancedRegimeRouter:
         """
         self._prev_regime = None
         self._mtf_regime = None
+        self._last_lower_candle_ts = None
         self._pending_regime = None
         self._pending_count = 0
         self._bbw_filter._bbw_history.clear()

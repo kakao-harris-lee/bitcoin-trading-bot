@@ -307,6 +307,84 @@ class TestSplitTrainValTest:
         assert len(val_set & test_set) == 0
 
 
+class TestTemporalSplit:
+    """Tests for temporal (time-ordered) split mode."""
+
+    def test_temporal_split_sizes(self):
+        """Test that temporal split produces correct approximate sizes."""
+        X = np.arange(1000).reshape(-1, 1).astype(float)
+        y = np.random.randint(0, 3, 1000)
+
+        X_train, X_val, X_test, y_train, y_val, y_test = split_train_val_test(
+            X, y, val_ratio=0.15, test_ratio=0.15, temporal=True, gap=0,
+        )
+
+        total = len(X)
+        assert abs(len(X_test) / total - 0.15) < 0.05
+        assert abs(len(X_val) / total - 0.15) < 0.05
+        assert len(X_train) + len(X_val) + len(X_test) <= total
+
+    def test_temporal_order_preserved(self):
+        """Test that train indices < val indices < test indices."""
+        X = np.arange(1000).reshape(-1, 1).astype(float)
+        y = np.random.randint(0, 3, 1000)
+
+        X_train, X_val, X_test, _, _, _ = split_train_val_test(
+            X, y, temporal=True, gap=0,
+        )
+
+        # Train data should come first (lowest values)
+        assert X_train.max() < X_val.min(), "Train data should precede val data"
+        assert X_val.max() < X_test.min(), "Val data should precede test data"
+
+    def test_temporal_gap(self):
+        """Test that gap creates separation between splits."""
+        X = np.arange(100).reshape(-1, 1).astype(float)
+        y = np.random.randint(0, 3, 100)
+
+        X_train, X_val, X_test, _, _, _ = split_train_val_test(
+            X, y, temporal=True, gap=5,
+        )
+
+        # Gap of 5 means at least 5 indices between train end and val start
+        train_end = int(X_train[-1, 0])
+        val_start = int(X_val[0, 0])
+        val_end = int(X_val[-1, 0])
+        test_start = int(X_test[0, 0])
+
+        assert val_start - train_end > 5, f"Expected gap > 5, got {val_start - train_end}"
+        assert test_start - val_end > 5, f"Expected gap > 5, got {test_start - val_end}"
+
+    def test_temporal_no_overlap(self):
+        """Test no overlap between temporal splits."""
+        X = np.arange(500).reshape(-1, 1).astype(float)
+        y = np.random.randint(0, 3, 500)
+
+        X_train, X_val, X_test, _, _, _ = split_train_val_test(
+            X, y, temporal=True, gap=3,
+        )
+
+        train_set = set(X_train.flatten().astype(int))
+        val_set = set(X_val.flatten().astype(int))
+        test_set = set(X_test.flatten().astype(int))
+
+        assert len(train_set & val_set) == 0, "Train/val overlap"
+        assert len(train_set & test_set) == 0, "Train/test overlap"
+        assert len(val_set & test_set) == 0, "Val/test overlap"
+
+    def test_temporal_backward_compatible(self):
+        """Test that default (temporal=False) matches original behavior."""
+        X = np.random.randn(200, 5)
+        y = np.random.randint(0, 3, 200)
+
+        r1 = split_train_val_test(X, y, random_state=42, temporal=False)
+        r2 = split_train_val_test(X, y, random_state=42)
+
+        np.testing.assert_array_equal(r1[0], r2[0])
+        np.testing.assert_array_equal(r1[1], r2[1])
+        np.testing.assert_array_equal(r1[2], r2[2])
+
+
 class TestValidateLabels:
     """Tests for validate_labels function."""
 

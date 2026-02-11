@@ -51,7 +51,7 @@
   },
   "strategies": {
     "mlp_direction_btc": {
-      "_comment": "BTC - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "_comment": "BTC - Mixed Ensemble (MLP+XGBoost+LightGBM)",
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
@@ -63,19 +63,27 @@
       "ensemble_models": [
         {
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
-          "weight": 0.15
+          "weight": 0.1
         },
         {
           "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-          "weight": 0.3
+          "weight": 0.15
         },
         {
           "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-          "weight": 0.35
+          "weight": 0.2
         },
         {
           "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
           "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+          "weight": 0.25
         }
       ],
       "symbols": [
@@ -102,19 +110,27 @@
           "ensemble_models": [
             {
               "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
-              "weight": 0.15
+              "weight": 0.1
             },
             {
               "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-              "weight": 0.3
+              "weight": 0.15
             },
             {
               "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-              "weight": 0.35
+              "weight": 0.2
             },
             {
               "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
               "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+              "weight": 0.25
             }
           ],
           "buy_confidence_threshold": 0.5,
@@ -144,7 +160,7 @@
       }
     },
     "mlp_direction_eth": {
-      "_comment": "ETH - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "_comment": "ETH - Mixed Ensemble (MLP+XGBoost+LightGBM)",
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
@@ -156,19 +172,27 @@
       "ensemble_models": [
         {
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
-          "weight": 0.15
+          "weight": 0.1
         },
         {
           "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-          "weight": 0.3
+          "weight": 0.15
         },
         {
           "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-          "weight": 0.35
+          "weight": 0.2
         },
         {
           "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
           "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+          "weight": 0.25
         }
       ],
       "symbols": [
@@ -195,19 +219,27 @@
           "ensemble_models": [
             {
               "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
-              "weight": 0.15
+              "weight": 0.1
             },
             {
               "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-              "weight": 0.3
+              "weight": 0.15
             },
             {
               "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-              "weight": 0.35
+              "weight": 0.2
             },
             {
               "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
               "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+              "weight": 0.25
             }
           ],
           "buy_confidence_threshold": 0.5,
@@ -237,7 +269,7 @@
       }
     },
     "mlp_direction_sol": {
-      "_comment": "SOL - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "_comment": "SOL - Mixed Ensemble (MLP+XGBoost+LightGBM)",
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
@@ -249,19 +281,27 @@
       "ensemble_models": [
         {
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
-          "weight": 0.15
+          "weight": 0.1
         },
         {
           "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-          "weight": 0.3
+          "weight": 0.15
         },
         {
           "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-          "weight": 0.35
+          "weight": 0.2
         },
         {
           "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
           "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+          "weight": 0.25
         }
       ],
       "symbols": [
@@ -288,19 +328,27 @@
           "ensemble_models": [
             {
               "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
-              "weight": 0.15
+              "weight": 0.1
             },
             {
               "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-              "weight": 0.3
+              "weight": 0.15
             },
             {
               "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-              "weight": 0.35
+              "weight": 0.2
             },
             {
               "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
               "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+              "weight": 0.25
             }
           ],
           "buy_confidence_threshold": 0.3,
@@ -330,7 +378,7 @@
       }
     },
     "mlp_direction_bnb": {
-      "_comment": "BNB - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "_comment": "BNB - Mixed Ensemble (MLP+XGBoost+LightGBM)",
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
@@ -342,19 +390,27 @@
       "ensemble_models": [
         {
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
-          "weight": 0.15
+          "weight": 0.1
         },
         {
           "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-          "weight": 0.3
+          "weight": 0.15
         },
         {
           "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-          "weight": 0.35
+          "weight": 0.2
         },
         {
           "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
           "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+          "weight": 0.25
         }
       ],
       "symbols": [
@@ -381,19 +437,27 @@
           "ensemble_models": [
             {
               "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
-              "weight": 0.15
+              "weight": 0.1
             },
             {
               "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-              "weight": 0.3
+              "weight": 0.15
             },
             {
               "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-              "weight": 0.35
+              "weight": 0.2
             },
             {
               "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
               "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+              "weight": 0.25
             }
           ],
           "buy_confidence_threshold": 0.6,
@@ -423,7 +487,7 @@
       }
     },
     "mlp_direction_xrp": {
-      "_comment": "XRP - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "_comment": "XRP - Mixed Ensemble (MLP+XGBoost+LightGBM)",
       "enabled": false,
       "market": "spot",
       "volatility_sizing": {
@@ -435,19 +499,27 @@
       "ensemble_models": [
         {
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
-          "weight": 0.15
+          "weight": 0.1
         },
         {
           "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-          "weight": 0.3
+          "weight": 0.15
         },
         {
           "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-          "weight": 0.35
+          "weight": 0.2
         },
         {
           "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
           "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+          "weight": 0.25
         }
       ],
       "symbols": [
@@ -474,19 +546,27 @@
           "ensemble_models": [
             {
               "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
-              "weight": 0.15
+              "weight": 0.1
             },
             {
               "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-              "weight": 0.3
+              "weight": 0.15
             },
             {
               "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-              "weight": 0.35
+              "weight": 0.2
             },
             {
               "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
               "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+              "weight": 0.25
             }
           ],
           "buy_confidence_threshold": 0.0,

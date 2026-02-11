@@ -70,6 +70,22 @@ MTF_ENSEMBLE_CONFIGS = [
     {"model_path": "models/mlp_direction/mtf_bwin7_fwin3/model_final.pt", "weight": 0.20},
 ]
 
+# Mixed ensemble: MLP + XGBoost + LightGBM (heterogeneous architecture, paper_36 features)
+MIXED_ENSEMBLE_CONFIGS = [
+    {"model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt", "weight": 0.10},
+    {"model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt", "weight": 0.15},
+    {"model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt", "weight": 0.20},
+    {"model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt", "weight": 0.10},
+    {"model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json", "weight": 0.20},
+    {"model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt", "weight": 0.25},
+]
+
+# Tree-only ensemble: XGBoost + LightGBM with tree_60 features
+TREE60_ENSEMBLE_CONFIGS = [
+    {"model_path": "models/mlp_direction/xgb_tree60_bwin3_fwin1/model.json", "weight": 0.50},
+    {"model_path": "models/mlp_direction/lgb_tree60_bwin7_fwin3/model.txt", "weight": 0.50},
+]
+
 
 def run_single_asset(
     asset: str,
@@ -79,12 +95,14 @@ def run_single_asset(
     end_date: str,
     ensemble_models: list[dict] | None = None,
     feature_set: str | None = None,
+    exit_overrides: dict | None = None,
 ) -> dict[str, Any]:
     """Run MLP Direction backtest for a single asset.
 
     Args:
         ensemble_models: If provided, use ensemble prediction instead of single model.
         feature_set: Override feature set (e.g. 'paper_mtf_44').
+        exit_overrides: Override exit strategy params (e.g. fwin_exit_enabled).
     """
     db_file, symbol = ASSET_DB[asset]
     db_path = str(PROJECT_ROOT / db_file)
@@ -113,6 +131,16 @@ def run_single_asset(
             strategy_config["entry"]["params"]["mlp_feature_set"] = feature_set
         if strategy_config.get("exit", {}).get("params"):
             strategy_config["exit"]["params"]["mlp_feature_set"] = feature_set
+
+    # Override exit strategy params
+    if exit_overrides:
+        exit_params = strategy_config.get("exit", {}).get("params", {})
+        exit_params.update(exit_overrides)
+        if "exit" not in strategy_config:
+            strategy_config["exit"] = {}
+        if "params" not in strategy_config["exit"]:
+            strategy_config["exit"]["params"] = {}
+        strategy_config["exit"]["params"].update(exit_overrides)
 
     model_path = Path(strategy_config.get("model_path", ""))
     if not ensemble_models and not model_path.exists():
@@ -402,6 +430,336 @@ def run_mtf_comparison(
                     print_yearly_table(eq)
 
 
+def run_mixed_comparison(
+    assets: list[str],
+    config_path: str,
+    capital_per_asset: float,
+    start_date: str,
+    end_date: str,
+    by_year: bool = False,
+) -> None:
+    """Run A/B comparison: MLP-only ensemble vs Mixed (MLP+Tree) ensemble."""
+    mlp_results = {}
+    mixed_results = {}
+
+    for asset in assets:
+        print(f"\n{'='*60}")
+        print(f"  {asset}: Running MLP-only ensemble (baseline)...")
+        print(f"{'='*60}")
+        mlp_results[asset] = run_single_asset(
+            asset, config_path, capital_per_asset, start_date, end_date,
+            ensemble_models=list(ENSEMBLE_CONFIGS),
+        )
+
+        print(f"\n  {asset}: Running Mixed ensemble (MLP+XGBoost+LightGBM)...")
+        mixed_results[asset] = run_single_asset(
+            asset, config_path, capital_per_asset, start_date, end_date,
+            ensemble_models=list(MIXED_ENSEMBLE_CONFIGS),
+        )
+
+    # Print comparison table
+    print("\n")
+    print("=" * 85)
+    print("  MIXED ENSEMBLE: MLP-only vs MLP+XGBoost+LightGBM")
+    print("=" * 85)
+
+    print(f"\n  MLP-only ({len(ENSEMBLE_CONFIGS)} models): ", end="")
+    for cfg in ENSEMBLE_CONFIGS:
+        name = Path(cfg["model_path"]).parent.name
+        print(f"{name}(w={cfg['weight']:.2f}) ", end="")
+    print()
+    print(f"  Mixed ({len(MIXED_ENSEMBLE_CONFIGS)} models): ", end="")
+    for cfg in MIXED_ENSEMBLE_CONFIGS:
+        name = Path(cfg["model_path"]).parent.name
+        ext = Path(cfg["model_path"]).suffix
+        tag = {".json": "[XGB]", ".txt": "[LGB]"}.get(ext, "[MLP]")
+        print(f"{name}{tag}(w={cfg['weight']:.2f}) ", end="")
+    print("\n")
+
+    header = f"{'Asset':<8} {'Metric':<14} {'MLP-only':>12} {'Mixed':>12} {'Delta':>10}"
+    print(header)
+    print("-" * 85)
+
+    portfolio_mlp_return = 0.0
+    portfolio_mixed_return = 0.0
+
+    for asset in assets:
+        m = mlp_results.get(asset, {}).get("metrics", {})
+        x = mixed_results.get(asset, {}).get("metrics", {})
+
+        if not m or not x:
+            print(f"{asset:<8} {'SKIPPED':<14}")
+            continue
+
+        for metric, label, fmt in [
+            ("total_return", "Return", "{:+.1f}%"),
+            ("mdd", "MDD", "{:.1f}%"),
+            ("sharpe", "Sharpe", "{:.2f}"),
+        ]:
+            m_val = m.get(metric, 0)
+            x_val = x.get(metric, 0)
+            delta = x_val - m_val
+
+            m_str = fmt.format(m_val)
+            x_str = fmt.format(x_val)
+            delta_str = fmt.format(delta)
+
+            print(f"{asset if metric == 'total_return' else '':<8} {label:<14} {m_str:>12} {x_str:>12} {delta_str:>10}")
+
+        # Calmar ratio
+        m_calmar = abs(m.get("total_return", 0) / m.get("mdd", -1)) if m.get("mdd", 0) != 0 else 0
+        x_calmar = abs(x.get("total_return", 0) / x.get("mdd", -1)) if x.get("mdd", 0) != 0 else 0
+        delta_calmar = x_calmar - m_calmar
+        print(f"{'':8} {'Calmar':<14} {m_calmar:>11.2f}x {x_calmar:>11.2f}x {delta_calmar:>+9.2f}x")
+
+        # Trade count
+        m_trades = m.get("num_trades", 0)
+        x_trades = x.get("num_trades", 0)
+        print(f"{'':8} {'Trades':<14} {m_trades:>12} {x_trades:>12} {x_trades - m_trades:>+10}")
+        print()
+
+        portfolio_mlp_return += m.get("total_return", 0)
+        portfolio_mixed_return += x.get("total_return", 0)
+
+    # Portfolio summary
+    n = len([a for a in assets if mlp_results.get(a, {}).get("metrics")])
+    if n > 0:
+        print("-" * 85)
+        avg_m = portfolio_mlp_return / n
+        avg_x = portfolio_mixed_return / n
+        print(f"{'PORTFOLIO':<8} {'Avg Return':<14} {avg_m:>+11.1f}% {avg_x:>+11.1f}% {avg_x-avg_m:>+9.1f}%")
+
+    # Per-year breakdown
+    if by_year:
+        for asset in assets:
+            for label, results in [("MLP-only", mlp_results), ("Mixed", mixed_results)]:
+                eq = results.get(asset, {}).get("equity_curve")
+                if eq is not None and not eq.empty:
+                    print(f"\n--- {asset} {label} Per-Year ---")
+                    print_yearly_table(eq)
+
+
+def run_tree60_comparison(
+    assets: list[str],
+    config_path: str,
+    capital_per_asset: float,
+    start_date: str,
+    end_date: str,
+    by_year: bool = False,
+) -> None:
+    """Run A/B comparison: MLP paper_36 ensemble vs Tree tree_60 ensemble."""
+    mlp_results = {}
+    tree_results = {}
+
+    for asset in assets:
+        print(f"\n{'='*60}")
+        print(f"  {asset}: Running MLP ensemble (paper_36 baseline)...")
+        print(f"{'='*60}")
+        mlp_results[asset] = run_single_asset(
+            asset, config_path, capital_per_asset, start_date, end_date,
+            ensemble_models=list(ENSEMBLE_CONFIGS),
+        )
+
+        print(f"\n  {asset}: Running Tree ensemble (tree_60 features)...")
+        tree_results[asset] = run_single_asset(
+            asset, config_path, capital_per_asset, start_date, end_date,
+            ensemble_models=list(TREE60_ENSEMBLE_CONFIGS),
+            feature_set="tree_60",
+        )
+
+    # Print comparison table
+    print("\n")
+    print("=" * 85)
+    print("  TREE_60 COMPARISON: MLP paper_36 vs Tree tree_60")
+    print("=" * 85)
+
+    print(f"\n  MLP paper_36 ({len(ENSEMBLE_CONFIGS)} models): ", end="")
+    for cfg in ENSEMBLE_CONFIGS:
+        name = Path(cfg["model_path"]).parent.name
+        print(f"{name}(w={cfg['weight']:.2f}) ", end="")
+    print()
+    print(f"  Tree tree_60 ({len(TREE60_ENSEMBLE_CONFIGS)} models): ", end="")
+    for cfg in TREE60_ENSEMBLE_CONFIGS:
+        name = Path(cfg["model_path"]).parent.name
+        ext = Path(cfg["model_path"]).suffix
+        tag = {".json": "[XGB]", ".txt": "[LGB]"}.get(ext, "")
+        print(f"{name}{tag}(w={cfg['weight']:.2f}) ", end="")
+    print("\n")
+
+    header = f"{'Asset':<8} {'Metric':<14} {'MLP p36':>12} {'Tree t60':>12} {'Delta':>10}"
+    print(header)
+    print("-" * 85)
+
+    portfolio_mlp_return = 0.0
+    portfolio_tree_return = 0.0
+
+    for asset in assets:
+        m = mlp_results.get(asset, {}).get("metrics", {})
+        t = tree_results.get(asset, {}).get("metrics", {})
+
+        if not m or not t:
+            print(f"{asset:<8} {'SKIPPED':<14}")
+            continue
+
+        for metric, label, fmt in [
+            ("total_return", "Return", "{:+.1f}%"),
+            ("mdd", "MDD", "{:.1f}%"),
+            ("sharpe", "Sharpe", "{:.2f}"),
+        ]:
+            m_val = m.get(metric, 0)
+            t_val = t.get(metric, 0)
+            delta = t_val - m_val
+
+            m_str = fmt.format(m_val)
+            t_str = fmt.format(t_val)
+            delta_str = fmt.format(delta)
+
+            print(f"{asset if metric == 'total_return' else '':<8} {label:<14} {m_str:>12} {t_str:>12} {delta_str:>10}")
+
+        # Calmar ratio
+        m_calmar = abs(m.get("total_return", 0) / m.get("mdd", -1)) if m.get("mdd", 0) != 0 else 0
+        t_calmar = abs(t.get("total_return", 0) / t.get("mdd", -1)) if t.get("mdd", 0) != 0 else 0
+        delta_calmar = t_calmar - m_calmar
+        print(f"{'':8} {'Calmar':<14} {m_calmar:>11.2f}x {t_calmar:>11.2f}x {delta_calmar:>+9.2f}x")
+
+        # Trade count
+        m_trades = m.get("num_trades", 0)
+        t_trades = t.get("num_trades", 0)
+        print(f"{'':8} {'Trades':<14} {m_trades:>12} {t_trades:>12} {t_trades - m_trades:>+10}")
+        print()
+
+        portfolio_mlp_return += m.get("total_return", 0)
+        portfolio_tree_return += t.get("total_return", 0)
+
+    # Portfolio summary
+    n = len([a for a in assets if mlp_results.get(a, {}).get("metrics")])
+    if n > 0:
+        print("-" * 85)
+        avg_m = portfolio_mlp_return / n
+        avg_t = portfolio_tree_return / n
+        print(f"{'PORTFOLIO':<8} {'Avg Return':<14} {avg_m:>+11.1f}% {avg_t:>+11.1f}% {avg_t-avg_m:>+9.1f}%")
+
+    # Per-year breakdown
+    if by_year:
+        for asset in assets:
+            for label, results in [("MLP paper_36", mlp_results), ("Tree tree_60", tree_results)]:
+                eq = results.get(asset, {}).get("equity_curve")
+                if eq is not None and not eq.empty:
+                    print(f"\n--- {asset} {label} Per-Year ---")
+                    print_yearly_table(eq)
+
+
+def run_fwin_comparison(
+    assets: list[str],
+    config_path: str,
+    capital_per_asset: float,
+    start_date: str,
+    end_date: str,
+    by_year: bool = False,
+) -> None:
+    """Run A/B comparison: current exit (MLP SELL) vs fwin-aligned exit.
+
+    Tests whether aligning the exit strategy with model training labels
+    (forward window exit) improves performance.
+    """
+    current_results = {}
+    fwin_results = {}
+
+    # Aligned exit: take profit at alpha (3.8%) + tight stop loss (3%)
+    # Matches model's prediction: "price rises 3.8%+ within fwin"
+    aligned_overrides = {
+        "take_profit_enabled": True,
+        "take_profit_pct": 4.0,       # Close to alpha=3.8%
+        "stop_loss_pct": 3.0,          # Tight stop matching prediction horizon
+        "use_mlp_sell_exit": True,     # Keep SELL exit as backup
+        "fwin_exit_enabled": True,     # Time limit exit
+        "fwin_periods": 5,             # 20H max hold (reasonable for 4H bars)
+    }
+
+    for asset in assets:
+        print(f"\n{'='*60}")
+        print(f"  {asset}: Running current config (MLP SELL exit, 10% SL)...")
+        print(f"{'='*60}")
+        current_results[asset] = run_single_asset(
+            asset, config_path, capital_per_asset, start_date, end_date,
+            ensemble_models=list(ENSEMBLE_CONFIGS),
+        )
+
+        print(f"\n  {asset}: Running aligned exit (TP 4%, SL 3%, fwin 5)...")
+        fwin_results[asset] = run_single_asset(
+            asset, config_path, capital_per_asset, start_date, end_date,
+            ensemble_models=list(ENSEMBLE_CONFIGS),
+            exit_overrides=aligned_overrides,
+        )
+
+    # Print comparison table
+    print("\n")
+    print("=" * 85)
+    print("  GAP 1 FIX: Label-Strategy Alignment (MLP SELL exit vs FWin exit)")
+    print("=" * 85)
+    print(f"\n  Current: MLP SELL exit (fwin disabled, 10% stop loss)")
+    print(f"  Aligned: TP 4% + SL 3% + fwin 5 (20H max hold) + SELL exit")
+    print()
+
+    header = f"{'Asset':<8} {'Metric':<14} {'Current':>12} {'Aligned':>12} {'Delta':>10}"
+    print(header)
+    print("-" * 85)
+
+    portfolio_curr_return = 0.0
+    portfolio_fwin_return = 0.0
+
+    for asset in assets:
+        c = current_results.get(asset, {}).get("metrics", {})
+        f = fwin_results.get(asset, {}).get("metrics", {})
+
+        if not c or not f:
+            print(f"{asset:<8} {'SKIPPED':<14}")
+            continue
+
+        for metric, label, fmt in [
+            ("total_return", "Return", "{:+.1f}%"),
+            ("mdd", "MDD", "{:.1f}%"),
+            ("sharpe", "Sharpe", "{:.2f}"),
+        ]:
+            c_val = c.get(metric, 0)
+            f_val = f.get(metric, 0)
+            delta = f_val - c_val
+
+            c_str = fmt.format(c_val)
+            f_str = fmt.format(f_val)
+            delta_str = fmt.format(delta)
+
+            print(f"{asset if metric == 'total_return' else '':<8} {label:<14} {c_str:>12} {f_str:>12} {delta_str:>10}")
+
+        # Calmar ratio
+        c_calmar = abs(c.get("total_return", 0) / c.get("mdd", -1)) if c.get("mdd", 0) != 0 else 0
+        f_calmar = abs(f.get("total_return", 0) / f.get("mdd", -1)) if f.get("mdd", 0) != 0 else 0
+        print(f"{'':8} {'Calmar':<14} {c_calmar:>11.2f}x {f_calmar:>11.2f}x {f_calmar-c_calmar:>+9.2f}x")
+
+        c_trades = c.get("num_trades", 0)
+        f_trades = f.get("num_trades", 0)
+        print(f"{'':8} {'Trades':<14} {c_trades:>12} {f_trades:>12} {f_trades - c_trades:>+10}")
+        print()
+
+        portfolio_curr_return += c.get("total_return", 0)
+        portfolio_fwin_return += f.get("total_return", 0)
+
+    n = len([a for a in assets if current_results.get(a, {}).get("metrics")])
+    if n > 0:
+        print("-" * 85)
+        avg_c = portfolio_curr_return / n
+        avg_f = portfolio_fwin_return / n
+        print(f"{'PORTFOLIO':<8} {'Avg Return':<14} {avg_c:>+11.1f}% {avg_f:>+11.1f}% {avg_f-avg_c:>+9.1f}%")
+
+    if by_year:
+        for asset in assets:
+            for label, results in [("SELL exit", current_results), ("FWin exit", fwin_results)]:
+                eq = results.get(asset, {}).get("equity_curve")
+                if eq is not None and not eq.empty:
+                    print(f"\n--- {asset} {label} Per-Year ---")
+                    print_yearly_table(eq)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Ensemble A/B Comparison")
     parser.add_argument(
@@ -437,10 +795,49 @@ def main():
         "--mtf", action="store_true",
         help="Compare paper_36 ensemble vs paper_mtf_44 ensemble",
     )
+    parser.add_argument(
+        "--mixed", action="store_true",
+        help="Compare MLP-only ensemble vs Mixed (MLP+XGBoost+LightGBM) ensemble",
+    )
+    parser.add_argument(
+        "--tree60", action="store_true",
+        help="Compare MLP paper_36 ensemble vs Tree tree_60 ensemble",
+    )
+    parser.add_argument(
+        "--fwin", action="store_true",
+        help="Compare current exit (MLP SELL) vs fwin-aligned exit",
+    )
 
     args = parser.parse_args()
 
-    if args.mtf:
+    if args.fwin:
+        run_fwin_comparison(
+            assets=args.assets,
+            config_path=args.config,
+            capital_per_asset=args.capital,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            by_year=args.by_year,
+        )
+    elif args.tree60:
+        run_tree60_comparison(
+            assets=args.assets,
+            config_path=args.config,
+            capital_per_asset=args.capital,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            by_year=args.by_year,
+        )
+    elif args.mixed:
+        run_mixed_comparison(
+            assets=args.assets,
+            config_path=args.config,
+            capital_per_asset=args.capital,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            by_year=args.by_year,
+        )
+    elif args.mtf:
         run_mtf_comparison(
             assets=args.assets,
             config_path=args.config,

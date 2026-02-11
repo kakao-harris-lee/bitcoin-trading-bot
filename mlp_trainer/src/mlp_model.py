@@ -141,6 +141,11 @@ class MLPDirectionClassifier(nn.Module):
             Order: [Hold, Buy, Sell]
         """
         self.eval()
+        # Apply scaler normalization if available
+        if hasattr(self, '_scaler_mean') and self._scaler_mean is not None:
+            mean_t = torch.FloatTensor(self._scaler_mean).to(x.device)
+            scale_t = torch.FloatTensor(self._scaler_scale).to(x.device)
+            x = (x - mean_t) / scale_t
         with torch.no_grad():
             logits = self.forward(x)
             return torch.softmax(logits, dim=-1)
@@ -173,6 +178,10 @@ class MLPDirectionClassifier(nn.Module):
         if x.ndim == 1:
             x = x.reshape(1, -1)
 
+        # Apply scaler normalization if available
+        if hasattr(self, '_scaler_mean') and self._scaler_mean is not None:
+            x = (x - self._scaler_mean) / self._scaler_scale
+
         x_tensor = torch.FloatTensor(x)
 
         probs = self.predict_proba(x_tensor).numpy()
@@ -180,12 +189,13 @@ class MLPDirectionClassifier(nn.Module):
 
         return preds, probs
 
-    def save(self, path: str):
+    def save(self, path: str, scaler=None):
         """
         Save model checkpoint.
 
         Args:
             path: File path to save to
+            scaler: Optional sklearn StandardScaler to persist with model
         """
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -205,6 +215,19 @@ class MLPDirectionClassifier(nn.Module):
                 else 0.01,
             },
         }
+
+        # Persist scaler for inference-time normalization
+        if scaler is not None:
+            checkpoint["scaler"] = {
+                "mean": scaler.mean_.tolist(),
+                "scale": scaler.scale_.tolist(),
+            }
+        elif hasattr(self, '_scaler_mean') and self._scaler_mean is not None:
+            checkpoint["scaler"] = {
+                "mean": self._scaler_mean.tolist(),
+                "scale": self._scaler_scale.tolist(),
+            }
+
         torch.save(checkpoint, path)
 
     @classmethod
@@ -268,6 +291,14 @@ class MLPDirectionClassifier(nn.Module):
         model.load_state_dict(checkpoint["state_dict"])
         model.to(device)
         model.eval()
+
+        # Restore scaler if saved
+        if "scaler" in checkpoint:
+            model._scaler_mean = np.array(checkpoint["scaler"]["mean"], dtype=np.float32)
+            model._scaler_scale = np.array(checkpoint["scaler"]["scale"], dtype=np.float32)
+        else:
+            model._scaler_mean = None
+            model._scaler_scale = None
 
         return model
 

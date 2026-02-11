@@ -22,6 +22,7 @@ FEATURE_SET_SHAP = "shap_13"
 FEATURE_SET_CROSS = "cross_44"  # paper_36 + 8 cross-asset features
 FEATURE_SET_V2 = "v2_36"  # Replaces candlestick patterns with effective indicators
 FEATURE_SET_PAPER_MTF = "paper_mtf_44"  # paper_36 + 8 daily/weekly multi-timeframe features
+FEATURE_SET_TREE = "tree_60"  # 60 continuous features optimized for tree-based models
 
 # Feature names for reference (legacy SHAP 13)
 FEATURE_NAMES_SHAP = [
@@ -155,6 +156,46 @@ FEATURE_NAMES_V2 = [
 
 NUM_FEATURES_V2 = len(FEATURE_NAMES_V2)  # 36
 
+# Tree-optimized feature set: 60 purely continuous features for XGBoost/LightGBM.
+# No binary candlestick patterns. Focus on multi-horizon returns, rolling statistics,
+# relative position, momentum oscillators, volatility, trend, and volume.
+FEATURE_NAMES_TREE = [
+    # --- Price returns at multiple horizons (10) ---
+    "ret_1", "ret_2", "ret_3", "ret_5", "ret_10",
+    "ret_20", "ret_40", "ret_60",
+    "log_ret_1", "log_ret_5",
+    # --- Rolling statistics (10) ---
+    "std_5", "std_10", "std_20", "std_50",
+    "skew_20", "kurt_20",
+    "range_pct_5", "range_pct_10", "range_pct_20", "range_pct_50",
+    # --- Relative position (6) ---
+    "pos_in_range_10", "pos_in_range_20", "pos_in_range_50",
+    "dist_from_high_20", "dist_from_low_20", "dist_from_high_50",
+    # --- Momentum oscillators (10) ---
+    "rsi_14", "rsi_7",
+    "macd_hist", "macd_signal_dist",
+    "stoch_k", "stoch_d",
+    "willr_14", "cci_20",
+    "mfi_14", "ultosc",
+    # --- Volatility (6) ---
+    "atr_pct_14", "atr_pct_7",
+    "bb_width", "bb_pct_b",
+    "realized_vol_10", "realized_vol_20",
+    # --- Trend (8) ---
+    "adx_14", "plus_di_minus_di",
+    "ema_ratio_1_10", "ema_ratio_1_20", "ema_ratio_1_50",
+    "ema_ratio_20_50", "ema_ratio_50_200",
+    "price_zscore",
+    # --- Volume (7) ---
+    "volume_zscore", "volume_ratio_5", "volume_ratio_20",
+    "obv_zscore",
+    "volume_ret_1", "volume_ret_5",
+    "close_pct_change",
+    # --- Calendar (3) ---
+    "samples_in_day", "day_of_week", "month",
+]
+NUM_FEATURES_TREE = len(FEATURE_NAMES_TREE)  # 60
+
 
 def calculate_mlp_features(
     df: pd.DataFrame,
@@ -194,6 +235,8 @@ def calculate_mlp_features(
         return calculate_mlp_features_v2(df, include_temporal=include_temporal)
     if feature_set == FEATURE_SET_PAPER_MTF:
         return calculate_mlp_features_paper_mtf(df, include_temporal=include_temporal)
+    if feature_set == FEATURE_SET_TREE:
+        return calculate_mlp_features_tree(df, include_temporal=include_temporal)
     raise ValueError(f"Unknown feature_set: {feature_set}")
 
 
@@ -1132,3 +1175,201 @@ def extract_single_features_paper_mtf(
     mtf_values = [float(indicators.get(k, 0.0)) for k in mtf_keys]
 
     return np.concatenate([base, np.array(mtf_values, dtype=np.float32)])
+
+
+# ---------------------------------------------------------------------------
+# tree_60 — 60 continuous features optimized for tree-based models
+# ---------------------------------------------------------------------------
+
+def calculate_mlp_features_tree(
+    df: pd.DataFrame,
+    include_temporal: bool = True,
+) -> pd.DataFrame:
+    """Calculate 60 continuous features optimized for tree-based models.
+
+    No binary candlestick patterns. Focuses on multi-horizon returns,
+    rolling statistics, momentum oscillators, volatility, trend, and volume.
+
+    Feature groups:
+    -  10 price returns at multiple horizons
+    -  10 rolling statistics (std, skew, kurtosis, range)
+    -   6 relative position within recent range
+    -  10 momentum oscillators (RSI, MACD, Stochastic, etc.)
+    -   6 volatility measures (ATR, BB, realized vol)
+    -   8 trend indicators (ADX, EMA ratios, z-score)
+    -   7 volume features
+    -   3 calendar features
+
+    Args:
+        df: DataFrame with columns ['open', 'high', 'low', 'close', 'volume']
+            and optionally 'timestamp'
+        include_temporal: Whether to include calendar features
+
+    Returns:
+        DataFrame with 60 feature columns
+    """
+    close = np.asarray(df["close"].values, dtype=np.float64)
+    high = np.asarray(df["high"].values, dtype=np.float64)
+    low = np.asarray(df["low"].values, dtype=np.float64)
+    open_ = np.asarray(df["open"].values, dtype=np.float64)
+    volume = np.asarray(df["volume"].values, dtype=np.float64)
+
+    close_s = pd.Series(close, index=df.index)
+    high_s = pd.Series(high, index=df.index)
+    low_s = pd.Series(low, index=df.index)
+    volume_s = pd.Series(volume, index=df.index)
+
+    features = pd.DataFrame(index=df.index)
+
+    # ── 1. Price returns at multiple horizons (10) ──
+    for n in [1, 2, 3, 5, 10, 20, 40, 60]:
+        features[f"ret_{n}"] = close_s.pct_change(n)
+
+    features["log_ret_1"] = np.log(close_s / close_s.shift(1))
+    features["log_ret_5"] = np.log(close_s / close_s.shift(5))
+
+    # ── 2. Rolling statistics (10) ──
+    for n in [5, 10, 20, 50]:
+        features[f"std_{n}"] = close_s.pct_change().rolling(n).std()
+
+    features["skew_20"] = close_s.pct_change().rolling(20).skew()
+    features["kurt_20"] = close_s.pct_change().rolling(20).kurt()
+
+    for n in [5, 10, 20, 50]:
+        roll_high = high_s.rolling(n).max()
+        roll_low = low_s.rolling(n).min()
+        denom = np.where(roll_low < 1e-10, 1e-10, roll_low)
+        features[f"range_pct_{n}"] = (roll_high - roll_low) / denom
+
+    # ── 3. Relative position (6) ──
+    for n in [10, 20, 50]:
+        roll_high = high_s.rolling(n).max()
+        roll_low = low_s.rolling(n).min()
+        rng = roll_high - roll_low
+        rng = rng.where(rng > 1e-10, 1e-10)
+        features[f"pos_in_range_{n}"] = (close_s - roll_low) / rng
+
+    roll_high_20 = high_s.rolling(20).max()
+    roll_low_20 = low_s.rolling(20).min()
+    roll_high_50 = high_s.rolling(50).max()
+    features["dist_from_high_20"] = close_s / roll_high_20.where(roll_high_20 > 0, 1)
+    features["dist_from_low_20"] = close_s / roll_low_20.where(roll_low_20 > 0, 1)
+    features["dist_from_high_50"] = close_s / roll_high_50.where(roll_high_50 > 0, 1)
+
+    # ── 4. Momentum oscillators (10) ──
+    features["rsi_14"] = talib.RSI(close, timeperiod=14)
+    features["rsi_7"] = talib.RSI(close, timeperiod=7)
+
+    macd, macd_signal, macd_hist = talib.MACD(close, fastperiod=12, slowperiod=26, signalperiod=9)
+    features["macd_hist"] = macd_hist
+    close_safe = np.where(close < 1e-10, 1e-10, close)
+    features["macd_signal_dist"] = (macd - macd_signal) / close_safe
+
+    slowk, slowd = talib.STOCH(high, low, close, fastk_period=14, slowk_period=3, slowd_period=3)
+    features["stoch_k"] = slowk
+    features["stoch_d"] = slowd
+
+    features["willr_14"] = talib.WILLR(high, low, close, timeperiod=14)
+    features["cci_20"] = talib.CCI(high, low, close, timeperiod=20)
+    features["mfi_14"] = talib.MFI(high, low, close, volume, timeperiod=14)
+    features["ultosc"] = talib.ULTOSC(high, low, close, timeperiod1=7, timeperiod2=14, timeperiod3=28)
+
+    # ── 5. Volatility (6) ──
+    atr_14 = talib.ATR(high, low, close, timeperiod=14)
+    atr_7 = talib.ATR(high, low, close, timeperiod=7)
+    features["atr_pct_14"] = atr_14 / close_safe
+    features["atr_pct_7"] = atr_7 / close_safe
+
+    upper, middle, lower = talib.BBANDS(close, timeperiod=20, nbdevup=2, nbdevdn=2)
+    mid_safe = np.where(middle < 1e-10, 1e-10, middle)
+    features["bb_width"] = (upper - lower) / mid_safe
+    band_w = upper - lower
+    band_w_safe = np.where(band_w < 1e-10, 1e-10, band_w)
+    features["bb_pct_b"] = (close - lower) / band_w_safe
+
+    ret_series = close_s.pct_change()
+    features["realized_vol_10"] = ret_series.rolling(10).std() * np.sqrt(6)  # annualize 4H
+    features["realized_vol_20"] = ret_series.rolling(20).std() * np.sqrt(6)
+
+    # ── 6. Trend (8) ──
+    features["adx_14"] = talib.ADX(high, low, close, timeperiod=14)
+    plus_di = talib.PLUS_DI(high, low, close, timeperiod=14)
+    minus_di = talib.MINUS_DI(high, low, close, timeperiod=14)
+    features["plus_di_minus_di"] = (plus_di - minus_di) / 100.0
+
+    for fast, slow, name in [
+        (1, 10, "ema_ratio_1_10"), (1, 20, "ema_ratio_1_20"),
+        (1, 50, "ema_ratio_1_50"), (20, 50, "ema_ratio_20_50"),
+        (50, 200, "ema_ratio_50_200"),
+    ]:
+        ema_fast = close if fast == 1 else talib.EMA(close, timeperiod=fast)
+        ema_slow = talib.EMA(close, timeperiod=slow)
+        features[name] = np.where(np.isnan(ema_slow), np.nan, ema_fast / ema_slow)
+
+    sma30 = talib.SMA(close, timeperiod=30)
+    std30 = talib.STDDEV(close, timeperiod=30)
+    std30_safe = np.where(std30 < 1e-10, 1e-10, std30)
+    features["price_zscore"] = (close - sma30) / std30_safe
+
+    # ── 7. Volume (7) ──
+    vol_sma30 = talib.SMA(volume, timeperiod=30)
+    vol_std30 = talib.STDDEV(volume, timeperiod=30)
+    vol_std_safe = np.where(vol_std30 < 1e-10, 1e-10, vol_std30)
+    features["volume_zscore"] = (volume - vol_sma30) / vol_std_safe
+
+    vol_sma5 = talib.SMA(volume, timeperiod=5)
+    vol_sma20 = talib.SMA(volume, timeperiod=20)
+    features["volume_ratio_5"] = np.where(vol_sma5 < 1e-10, 1, volume / np.where(vol_sma5 < 1e-10, 1, vol_sma5))
+    features["volume_ratio_20"] = np.where(vol_sma20 < 1e-10, 1, volume / np.where(vol_sma20 < 1e-10, 1, vol_sma20))
+
+    obv = talib.OBV(close, volume)
+    obv_s = pd.Series(obv, index=df.index)
+    obv_mean = obv_s.rolling(20).mean()
+    obv_std = obv_s.rolling(20).std()
+    obv_std_safe = obv_std.where(obv_std.abs() > 1e-10, 1e-10)
+    features["obv_zscore"] = (obv_s - obv_mean) / obv_std_safe
+
+    features["volume_ret_1"] = volume_s.pct_change(1)
+    features["volume_ret_5"] = volume_s.pct_change(5)
+    features["close_pct_change"] = close_s.pct_change()
+
+    # ── 8. Calendar (3) ──
+    if include_temporal and "timestamp" in df.columns:
+        ts = pd.to_datetime(df["timestamp"])
+        features["samples_in_day"] = (ts.dt.hour // 4).astype(np.float64)
+        features["day_of_week"] = ts.dt.dayofweek.astype(np.float64)
+        features["month"] = ts.dt.month.astype(np.float64)
+    else:
+        features["samples_in_day"] = 0.0
+        features["day_of_week"] = 0.0
+        features["month"] = 0.0
+
+    return features
+
+
+def extract_single_features_tree(
+    market_data: dict,
+    indicators: dict,
+) -> np.ndarray:
+    """Extract tree_60 features for a single time point (live inference).
+
+    Most features require history and should be pre-computed via
+    calculate_mlp_features_tree on a history DataFrame.
+    This function reads pre-computed values from the indicators dict.
+    """
+    features = np.zeros(NUM_FEATURES_TREE, dtype=np.float32)
+    feature_index = {name: idx for idx, name in enumerate(FEATURE_NAMES_TREE)}
+
+    for name in FEATURE_NAMES_TREE:
+        if name in indicators:
+            features[feature_index[name]] = float(indicators[name])
+
+    # Calendar features from timestamp
+    if "timestamp" in market_data:
+        ts = pd.to_datetime(market_data["timestamp"], unit="ms", errors="coerce")
+        if pd.notna(ts):
+            features[feature_index["samples_in_day"]] = float(ts.hour // 4)
+            features[feature_index["day_of_week"]] = float(ts.dayofweek)
+            features[feature_index["month"]] = float(ts.month)
+
+    return features

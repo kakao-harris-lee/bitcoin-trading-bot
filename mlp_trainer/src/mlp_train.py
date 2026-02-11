@@ -249,6 +249,7 @@ class MLPTrainer:
         X_val: np.ndarray,
         y_val: np.ndarray,
         run_name: Optional[str] = None,
+        normalize: bool = False,
     ) -> dict:
         """
         Train the model.
@@ -259,10 +260,20 @@ class MLPTrainer:
             X_val: Validation features
             y_val: Validation labels
             run_name: Optional name for MLflow run
+            normalize: If True, apply StandardScaler normalization
 
         Returns:
             Dict with training history and best metrics
         """
+        # Optional feature normalization
+        self.scaler = None
+        if normalize:
+            from sklearn.preprocessing import StandardScaler
+            self.scaler = StandardScaler()
+            X_train = self.scaler.fit_transform(X_train)
+            X_val = self.scaler.transform(X_val)
+            logger.info(f"StandardScaler applied (mean range: [{self.scaler.mean_.min():.3f}, {self.scaler.mean_.max():.3f}])")
+
         # Create data loaders
         train_dataset = TensorDataset(
             torch.FloatTensor(X_train),
@@ -427,7 +438,7 @@ class MLPTrainer:
             filename = f"model_epoch{epoch+1}.pt"
 
         path = self.output_dir / filename
-        self.model.save(str(path))
+        self.model.save(str(path), scaler=getattr(self, 'scaler', None))
 
         return path
 
@@ -446,6 +457,9 @@ class MLPTrainer:
         Returns:
             Dict with evaluation metrics
         """
+        if self.scaler is not None:
+            X_test = self.scaler.transform(X_test)
+
         test_dataset = TensorDataset(
             torch.FloatTensor(X_test),
             torch.LongTensor(y_test),
@@ -583,6 +597,11 @@ def main():
         default="0.25,0.5,0.5",
         help="Focal loss alpha weights (comma-separated, default: 0.25,0.5,0.5)",
     )
+    parser.add_argument(
+        "--normalize",
+        action="store_true",
+        help="Apply StandardScaler normalization to features",
+    )
 
     args = parser.parse_args()
 
@@ -639,6 +658,7 @@ def main():
         X_val,
         y_val,
         run_name=args.run_name,
+        normalize=args.normalize,
     )
 
     # Evaluate on test set

@@ -84,6 +84,7 @@ outputs/
 # Backtest CSV logs (generated for analysis)
 backtest_logs/
 .serena/project.yml
+GEMINI.md
 
 # Generated MLP training artifacts (local)
 data/mlp_datasets/c9/

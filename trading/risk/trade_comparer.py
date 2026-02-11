@@ -71,148 +71,168 @@ class TradeComparer:
         """
         trade_comparisons: List[TradeComparison] = []
         discrepancies: List[DiscrepancyRecord] = []
-
-        # Track which trades have been matched
-        matched_actual = set()
         matched_backtest = set()
+        sorted_actual, sorted_backtest = self._sort_trade_inputs(actual_trades, backtest_trades)
 
-        # Sort trades by timestamp
-        sorted_actual = sorted(actual_trades, key=lambda t: t.timestamp)
-        sorted_backtest = sorted(backtest_trades, key=lambda t: t.timestamp)
-
-        # Match actual trades to backtest trades
-        for i, actual in enumerate(sorted_actual):
-            best_match: Optional[Tuple[int, BacktestTrade]] = None
-            best_time_diff = timedelta.max
-
-            for j, backtest in enumerate(sorted_backtest):
-                if j in matched_backtest:
-                    continue
-
-                time_diff = abs(actual.timestamp - backtest.timestamp)
-
-                if time_diff <= self.tolerance_delta and time_diff < best_time_diff:
-                    best_match = (j, backtest)
-                    best_time_diff = time_diff
-
-            if best_match:
-                j, backtest = best_match
-                matched_actual.add(i)
-                matched_backtest.add(j)
-
-                # Check if actions match (normalize case)
-                actual_action_norm = actual.action.upper()
-                backtest_action_norm = backtest.action.upper()
-                actions_match = actual_action_norm == backtest_action_norm
-
-                # Calculate price difference
-                price_diff = abs(actual.price - backtest.price)
-                price_diff_pct = (price_diff / backtest.price * 100) if backtest.price > 0 else 0.0
-
-                if actions_match:
-                    match_status = MatchStatus.MATCH
-                else:
-                    match_status = MatchStatus.MISMATCH
-                    # Add discrepancy for wrong direction
-                    pnl_impact = actual.profit if actual.profit else 0.0
-                    pnl_impact_pct = actual.profit_pct if actual.profit_pct else 0.0
-
-                    discrepancy = DiscrepancyRecord(
-                        timestamp=actual.timestamp,
-                        discrepancy_type=DiscrepancyType.WRONG_DIRECTION,
-                        severity=self.calculate_severity(DiscrepancyType.WRONG_DIRECTION, pnl_impact_pct),
-                        actual_value=actual_action_norm,
-                        expected_value=backtest_action_norm,
-                        pnl_impact=pnl_impact,
-                        pnl_impact_pct=pnl_impact_pct,
-                        explanation=f"Trade direction mismatch: actual {actual_action_norm}, expected {backtest_action_norm}"
-                    )
-                    discrepancies.append(discrepancy)
-
-                comparison = TradeComparison(
-                    actual_timestamp=actual.timestamp,
-                    backtest_timestamp=backtest.timestamp,
-                    actual_action=actual_action_norm,
-                    backtest_action=backtest_action_norm,
-                    actual_price=actual.price,
-                    backtest_price=backtest.price,
-                    price_difference=price_diff,
-                    price_difference_pct=price_diff_pct,
-                    match_status=match_status
-                )
+        for actual in sorted_actual:
+            match = self._find_best_backtest_match(actual, sorted_backtest, matched_backtest)
+            if match is None:
+                comparison, discrepancy = self._build_extra_trade_records(actual)
                 trade_comparisons.append(comparison)
-            else:
-                # Extra trade - actual trade with no matching backtest trade
-                comparison = TradeComparison(
-                    actual_timestamp=actual.timestamp,
-                    backtest_timestamp=None,
-                    actual_action=actual.action.upper(),
-                    backtest_action=None,
-                    actual_price=actual.price,
-                    backtest_price=None,
-                    price_difference=0.0,
-                    price_difference_pct=0.0,
-                    match_status=MatchStatus.EXTRA
-                )
-                trade_comparisons.append(comparison)
-
-                pnl_impact = actual.profit if actual.profit else 0.0
-                pnl_impact_pct = actual.profit_pct if actual.profit_pct else 0.0
-
-                discrepancy = DiscrepancyRecord(
-                    timestamp=actual.timestamp,
-                    discrepancy_type=DiscrepancyType.EXTRA_TRADE,
-                    severity=self.calculate_severity(DiscrepancyType.EXTRA_TRADE, pnl_impact_pct),
-                    actual_value=f"{actual.action.upper()} @ {actual.price:,.0f}",
-                    expected_value=None,
-                    pnl_impact=pnl_impact,
-                    pnl_impact_pct=pnl_impact_pct,
-                    explanation=f"Extra trade executed not in backtest: {actual.action.upper()} at {actual.timestamp}"
-                )
                 discrepancies.append(discrepancy)
+                continue
 
-        # Handle missed trades - backtest trades with no matching actual trade
-        for j, backtest in enumerate(sorted_backtest):
-            if j not in matched_backtest:
-                comparison = TradeComparison(
-                    actual_timestamp=None,
-                    backtest_timestamp=backtest.timestamp,
-                    actual_action=None,
-                    backtest_action=backtest.action.upper(),
-                    actual_price=None,
-                    backtest_price=backtest.price,
-                    price_difference=0.0,
-                    price_difference_pct=0.0,
-                    match_status=MatchStatus.MISSING
-                )
-                trade_comparisons.append(comparison)
+            backtest_index, backtest = match
+            matched_backtest.add(backtest_index)
+            comparison, mismatch_discrepancy = self._build_matched_trade_records(actual, backtest)
+            trade_comparisons.append(comparison)
+            if mismatch_discrepancy is not None:
+                discrepancies.append(mismatch_discrepancy)
 
-                # Estimate P/L impact from missed trade
-                pnl_impact = backtest.profit_loss if backtest.profit_loss else 0.0
-                pnl_impact_pct = backtest.profit_loss_pct if backtest.profit_loss_pct else 0.0
+        for backtest_index, backtest in enumerate(sorted_backtest):
+            if backtest_index in matched_backtest:
+                continue
+            comparison, discrepancy = self._build_missing_trade_records(backtest)
+            trade_comparisons.append(comparison)
+            discrepancies.append(discrepancy)
 
-                discrepancy = DiscrepancyRecord(
-                    timestamp=backtest.timestamp,
-                    discrepancy_type=DiscrepancyType.MISSED_TRADE,
-                    severity=self.calculate_severity(DiscrepancyType.MISSED_TRADE, pnl_impact_pct),
-                    actual_value=None,
-                    expected_value=f"{backtest.action.upper()} @ {backtest.price:,.0f}",
-                    pnl_impact=pnl_impact,
-                    pnl_impact_pct=pnl_impact_pct,
-                    explanation=f"Missed trade from backtest: {backtest.action.upper()} at {backtest.timestamp}"
-                )
-                discrepancies.append(discrepancy)
+        match_rate = self._calculate_match_rate(trade_comparisons, actual_trades, backtest_trades)
+        return ComparisonResult(trade_comparisons=trade_comparisons, discrepancies=discrepancies, match_rate=match_rate)
 
-        # Calculate match rate
-        total_trades = max(len(actual_trades), len(backtest_trades))
-        matched_count = len([tc for tc in trade_comparisons if tc.match_status == MatchStatus.MATCH])
-        match_rate = matched_count / total_trades if total_trades > 0 else 1.0
-
-        return ComparisonResult(
-            trade_comparisons=trade_comparisons,
-            discrepancies=discrepancies,
-            match_rate=match_rate
+    def _sort_trade_inputs(
+        self, actual_trades: List[ActualTrade], backtest_trades: List[BacktestTrade]
+    ) -> Tuple[List[ActualTrade], List[BacktestTrade]]:
+        return (
+            sorted(actual_trades, key=lambda trade: trade.timestamp),
+            sorted(backtest_trades, key=lambda trade: trade.timestamp),
         )
+
+    def _find_best_backtest_match(
+        self,
+        actual: ActualTrade,
+        sorted_backtest: List[BacktestTrade],
+        matched_backtest: set,
+    ) -> Optional[Tuple[int, BacktestTrade]]:
+        best_match: Optional[Tuple[int, BacktestTrade]] = None
+        best_time_diff = timedelta.max
+        for index, backtest in enumerate(sorted_backtest):
+            if index in matched_backtest:
+                continue
+            time_diff = abs(actual.timestamp - backtest.timestamp)
+            if time_diff <= self.tolerance_delta and time_diff < best_time_diff:
+                best_match = (index, backtest)
+                best_time_diff = time_diff
+        return best_match
+
+    def _build_matched_trade_records(
+        self, actual: ActualTrade, backtest: BacktestTrade
+    ) -> Tuple[TradeComparison, Optional[DiscrepancyRecord]]:
+        actual_action = actual.action.upper()
+        backtest_action = backtest.action.upper()
+        price_diff = abs(actual.price - backtest.price)
+        price_diff_pct = (price_diff / backtest.price * 100) if backtest.price > 0 else 0.0
+        is_match = actual_action == backtest_action
+
+        comparison = TradeComparison(
+            actual_timestamp=actual.timestamp,
+            backtest_timestamp=backtest.timestamp,
+            actual_action=actual_action,
+            backtest_action=backtest_action,
+            actual_price=actual.price,
+            backtest_price=backtest.price,
+            price_difference=price_diff,
+            price_difference_pct=price_diff_pct,
+            match_status=MatchStatus.MATCH if is_match else MatchStatus.MISMATCH,
+        )
+        if is_match:
+            return comparison, None
+        return comparison, self._build_wrong_direction_discrepancy(actual, actual_action, backtest_action)
+
+    def _build_wrong_direction_discrepancy(
+        self, actual: ActualTrade, actual_action: str, backtest_action: str
+    ) -> DiscrepancyRecord:
+        pnl_impact = actual.profit if actual.profit else 0.0
+        pnl_impact_pct = actual.profit_pct if actual.profit_pct else 0.0
+        return DiscrepancyRecord(
+            timestamp=actual.timestamp,
+            discrepancy_type=DiscrepancyType.WRONG_DIRECTION,
+            severity=self.calculate_severity(DiscrepancyType.WRONG_DIRECTION, pnl_impact_pct),
+            actual_value=actual_action,
+            expected_value=backtest_action,
+            pnl_impact=pnl_impact,
+            pnl_impact_pct=pnl_impact_pct,
+            explanation=f"Trade direction mismatch: actual {actual_action}, expected {backtest_action}",
+        )
+
+    def _build_extra_trade_records(
+        self, actual: ActualTrade
+    ) -> Tuple[TradeComparison, DiscrepancyRecord]:
+        comparison = TradeComparison(
+            actual_timestamp=actual.timestamp,
+            backtest_timestamp=None,
+            actual_action=actual.action.upper(),
+            backtest_action=None,
+            actual_price=actual.price,
+            backtest_price=None,
+            price_difference=0.0,
+            price_difference_pct=0.0,
+            match_status=MatchStatus.EXTRA,
+        )
+        pnl_impact = actual.profit if actual.profit else 0.0
+        pnl_impact_pct = actual.profit_pct if actual.profit_pct else 0.0
+        discrepancy = DiscrepancyRecord(
+            timestamp=actual.timestamp,
+            discrepancy_type=DiscrepancyType.EXTRA_TRADE,
+            severity=self.calculate_severity(DiscrepancyType.EXTRA_TRADE, pnl_impact_pct),
+            actual_value=f"{actual.action.upper()} @ {actual.price:,.0f}",
+            expected_value=None,
+            pnl_impact=pnl_impact,
+            pnl_impact_pct=pnl_impact_pct,
+            explanation=f"Extra trade executed not in backtest: {actual.action.upper()} at {actual.timestamp}",
+        )
+        return comparison, discrepancy
+
+    def _build_missing_trade_records(
+        self, backtest: BacktestTrade
+    ) -> Tuple[TradeComparison, DiscrepancyRecord]:
+        comparison = TradeComparison(
+            actual_timestamp=None,
+            backtest_timestamp=backtest.timestamp,
+            actual_action=None,
+            backtest_action=backtest.action.upper(),
+            actual_price=None,
+            backtest_price=backtest.price,
+            price_difference=0.0,
+            price_difference_pct=0.0,
+            match_status=MatchStatus.MISSING,
+        )
+        pnl_impact = backtest.profit_loss if backtest.profit_loss else 0.0
+        pnl_impact_pct = backtest.profit_loss_pct if backtest.profit_loss_pct else 0.0
+        discrepancy = DiscrepancyRecord(
+            timestamp=backtest.timestamp,
+            discrepancy_type=DiscrepancyType.MISSED_TRADE,
+            severity=self.calculate_severity(DiscrepancyType.MISSED_TRADE, pnl_impact_pct),
+            actual_value=None,
+            expected_value=f"{backtest.action.upper()} @ {backtest.price:,.0f}",
+            pnl_impact=pnl_impact,
+            pnl_impact_pct=pnl_impact_pct,
+            explanation=f"Missed trade from backtest: {backtest.action.upper()} at {backtest.timestamp}",
+        )
+        return comparison, discrepancy
+
+    def _calculate_match_rate(
+        self,
+        trade_comparisons: List[TradeComparison],
+        actual_trades: List[ActualTrade],
+        backtest_trades: List[BacktestTrade],
+    ) -> float:
+        total_trades = max(len(actual_trades), len(backtest_trades))
+        if total_trades <= 0:
+            return 1.0
+        matched_count = len(
+            [comparison for comparison in trade_comparisons if comparison.match_status == MatchStatus.MATCH]
+        )
+        return matched_count / total_trades
 
     def calculate_severity(
         self,

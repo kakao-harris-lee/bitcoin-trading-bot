@@ -217,76 +217,91 @@ class ComponentStrategyAdapter:
             return
 
         try:
-            from trading.indicators.mlp_features import calculate_mlp_features, FEATURE_SET_PAPER
-            import torch
-            from pathlib import Path
-
-            # Check for ensemble configuration
-            ensemble_configs = self.config.get("ensemble_models", None)
-            use_ensemble = ensemble_configs and len(ensemble_configs) > 0
-
-            if use_ensemble:
-                from trading.strategies.components.mlp_ensemble import MLPEnsemblePredictor
-
-                if self._mlp_ensemble is None:
-                    self._mlp_ensemble = MLPEnsemblePredictor(ensemble_configs)
-                    self._mlp_available = self._mlp_ensemble.load(device="cpu")
-
-            else:
-                from mlp_trainer.src.mlp_model import MLPDirectionClassifier
-
-                model_path = Path(self.config.get("model_path", "models/mlp_direction/model_final.pt"))
-                if not model_path.exists():
-                    return
-
-                if self._mlp_model is None:
-                    self._mlp_model = MLPDirectionClassifier.load(str(model_path), device="cpu")
-                    self._mlp_model.eval()
-                    self._mlp_available = True
-
-            if not self._mlp_available:
+            if not self._ensure_mlp_predictor():
                 return
-
-            # Calculate MLP features for entire DataFrame
-            feature_set = self.config.get("mlp_feature_set", FEATURE_SET_PAPER)
-            mlp_features = calculate_mlp_features(
-                df,
-                bwin=self.config.get("bwin", 5),
-                include_temporal=True,
-                feature_set=feature_set,
-            )
-
-            # Batch predict
-            self._mlp_cache = {}
-            valid_indices = mlp_features.dropna().index
-
+            valid_indices, features, use_ensemble = self._prepare_mlp_features(df)
             if len(valid_indices) == 0:
                 return
-
-            X = mlp_features.loc[valid_indices].values
-
-            if use_ensemble and self._mlp_ensemble is not None:
-                predictions, confidences, probs = self._mlp_ensemble.predict_batch(X)
-            else:
-                X_tensor = torch.FloatTensor(X)
-                with torch.no_grad():
-                    probs = self._mlp_model.predict_proba(X_tensor).cpu().numpy()
-                predictions = probs.argmax(axis=1)
-                confidences = probs[np.arange(len(probs)), predictions]
-
-            # Store predictions in cache
-            for df_idx, pred, conf, prob in zip(valid_indices, predictions, confidences, probs):
-                iloc_pos = df.index.get_loc(df_idx)
-                self._mlp_cache[iloc_pos] = {
-                    "prediction": int(pred),
-                    "confidence": float(conf),
-                    "probs": prob.tolist() if hasattr(prob, 'tolist') else list(prob),
-                }
-
+            predictions, confidences, probs = self._predict_mlp_batch(features, use_ensemble)
+            self._store_mlp_cache(df, valid_indices, predictions, confidences, probs)
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f"MLP precompute failed: {e}")
             self._mlp_available = False
+
+    def _ensure_mlp_predictor(self) -> bool:
+        from pathlib import Path
+
+        ensemble_configs = self.config.get("ensemble_models", None)
+        use_ensemble = bool(ensemble_configs and len(ensemble_configs) > 0)
+        if use_ensemble:
+            from trading.strategies.components.mlp_ensemble import MLPEnsemblePredictor
+
+            if self._mlp_ensemble is None:
+                self._mlp_ensemble = MLPEnsemblePredictor(ensemble_configs)
+                self._mlp_available = self._mlp_ensemble.load(device="cpu")
+            return self._mlp_available
+
+        from mlp_trainer.src.mlp_model import MLPDirectionClassifier
+
+        model_path = Path(self.config.get("model_path", "models/mlp_direction/model_final.pt"))
+        if not model_path.exists():
+            return False
+        if self._mlp_model is None:
+            self._mlp_model = MLPDirectionClassifier.load(str(model_path), device="cpu")
+            self._mlp_model.eval()
+            self._mlp_available = True
+        return self._mlp_available
+
+    def _prepare_mlp_features(self, df: pd.DataFrame) -> tuple[pd.Index, Any, bool]:
+        from trading.indicators.mlp_features import FEATURE_SET_PAPER, calculate_mlp_features
+
+        feature_set = self.config.get("mlp_feature_set", FEATURE_SET_PAPER)
+        mlp_features = calculate_mlp_features(
+            df,
+            bwin=self.config.get("bwin", 5),
+            include_temporal=True,
+            feature_set=feature_set,
+        )
+        valid_indices = mlp_features.dropna().index
+        features = mlp_features.loc[valid_indices].values if len(valid_indices) > 0 else mlp_features.iloc[0:0].values
+        ensemble_configs = self.config.get("ensemble_models", None)
+        use_ensemble = bool(ensemble_configs and len(ensemble_configs) > 0)
+        return valid_indices, features, use_ensemble
+
+    def _predict_mlp_batch(self, features: Any, use_ensemble: bool):
+        import torch
+
+        if use_ensemble and self._mlp_ensemble is not None:
+            return self._mlp_ensemble.predict_batch(features)
+        probs = self._predict_single_model_probs(features)
+        predictions = probs.argmax(axis=1)
+        confidences = probs[np.arange(len(probs)), predictions]
+        return predictions, confidences, probs
+
+    def _predict_single_model_probs(self, features: Any):
+        import torch
+
+        X_tensor = torch.FloatTensor(features)
+        with torch.no_grad():
+            return self._mlp_model.predict_proba(X_tensor).cpu().numpy()
+
+    def _store_mlp_cache(
+        self,
+        df: pd.DataFrame,
+        valid_indices: pd.Index,
+        predictions: Any,
+        confidences: Any,
+        probs: Any,
+    ) -> None:
+        self._mlp_cache = {}
+        for df_idx, pred, conf, prob in zip(valid_indices, predictions, confidences, probs):
+            iloc_pos = df.index.get_loc(df_idx)
+            self._mlp_cache[iloc_pos] = {
+                "prediction": int(pred),
+                "confidence": float(conf),
+                "probs": prob.tolist() if hasattr(prob, 'tolist') else list(prob),
+            }
 
     def _determine_regime(self, mfi: float, adx: float) -> str:
         """Determine market regime using strategy-specific logic if available."""
@@ -299,532 +314,557 @@ class ComponentStrategyAdapter:
 
     def __call__(self, df: pd.DataFrame, i: int, params: Dict = None) -> Dict[str, Any]:
         """Callable interface for Backtester.run(strategy_func)."""
-
         row = df.iloc[i]
+        self._decrement_timers()
+        values = self._extract_row_values(row)
+        mlp_prediction, mlp_confidence = self._get_cached_mlp_prediction(i)
+        context = self._build_context(row, values)
+        indicators = self._extract_indicators(row)
+        market_data = self._build_market_data(row, values, indicators)
 
-        # Decrement cooldown counter each candle
+        if self.current_position:
+            return self._evaluate_exit(
+                row=row,
+                market_data=market_data,
+                context=context,
+                mlp_prediction=mlp_prediction,
+                mlp_confidence=mlp_confidence,
+                values=values,
+            )
+
+        return self._evaluate_entry(
+            row=row,
+            market_data=market_data,
+            context=context,
+            mlp_prediction=mlp_prediction,
+            mlp_confidence=mlp_confidence,
+            values=values,
+        )
+
+    def _decrement_timers(self) -> None:
         if self._cooldown_remaining > 0:
             self._cooldown_remaining -= 1
-
-        # Decrement loss pause counter each candle
         if self._loss_pause_remaining > 0:
             self._loss_pause_remaining -= 1
 
-        # Extract indicators for context building
-        mfi = row.get('mfi', 50.0)
-        adx = row.get('adx', 20.0)
-        atr = row.get('atr', 0.0)
-        close = row['close']
-        volume = row.get('volume', 0.0)
-        avg_volume = row.get('avg_volume_20', 0.0)
-        ts_value = row.get('timestamp', 0)
-        if hasattr(ts_value, 'timestamp'):
+    def _extract_row_values(self, row: pd.Series) -> Dict[str, Any]:
+        mfi = row.get("mfi", 50.0)
+        adx = row.get("adx", 20.0)
+        atr = row.get("atr", 0.0)
+        close = row["close"]
+        volume = row.get("volume", 0.0)
+        avg_volume = row.get("avg_volume_20", 0.0)
+        ts_value = row.get("timestamp", 0)
+        if hasattr(ts_value, "timestamp"):
             candle_ts = int(ts_value.timestamp() * 1000)
         else:
             candle_ts = int(ts_value) if ts_value else 0
+        return {
+            "mfi": mfi,
+            "adx": adx,
+            "atr": atr,
+            "close": close,
+            "volume": volume,
+            "avg_volume": avg_volume,
+            "candle_ts": candle_ts,
+        }
 
-        # === MLP Direction Prediction ===
-        # Get MLP prediction from pre-computed cache (backtest) for mlp_direction strategy
-        mlp_prediction: int | None = None
-        mlp_confidence: float | None = None
+    def _get_cached_mlp_prediction(self, i: int) -> tuple[int | None, float | None]:
+        if not self._uses_mlp_direction or self._mlp_cache is None or i not in self._mlp_cache:
+            return None, None
+        cached = self._mlp_cache[i]
+        return cached.get("prediction"), cached.get("confidence")
 
-        if self._uses_mlp_direction and self._mlp_cache is not None:
-            if i in self._mlp_cache:
-                cached_mlp = self._mlp_cache[i]
-                mlp_prediction = cached_mlp.get("prediction")
-                mlp_confidence = cached_mlp.get("confidence")
-
-        # Build Context using the standard function (ensures consistent regime/trend classification)
-        # Includes drawdown-based BEAR detection (configurable threshold)
+    def _build_context(self, row: pd.Series, values: Dict[str, Any]) -> MarketContext:
         context = build_market_context(
-            mfi=mfi,
-            adx=adx,
-            atr=atr,
-            close=close,
-            volume=volume,
-            avg_volume=avg_volume,
-            # Use 30-day high for drawdown detection (fall back to 20-period if not available)
-            recent_high=row.get('high_30d', 0.0) or row.get('prev_high_20', 0.0),
-            # Configurable drawdown threshold (default 15%, set higher to be less aggressive)
+            mfi=values["mfi"],
+            adx=values["adx"],
+            atr=values["atr"],
+            close=values["close"],
+            volume=values["volume"],
+            avg_volume=values["avg_volume"],
+            recent_high=row.get("high_30d", 0.0) or row.get("prev_high_20", 0.0),
             drawdown_bear_threshold=self._drawdown_bear_threshold,
         )
 
-        # Regime v2 filtering: replace regime classification (matches live task behavior)
-        self._v2_entry_allowed = True  # Used only for optional v2_exit_on_filter
-        volume_ratio = volume / avg_volume if avg_volume > 0 else 1.0
+        self._v2_entry_allowed = True
+        volume_ratio = values["volume"] / values["avg_volume"] if values["avg_volume"] > 0 else 1.0
         if self._regime_router is not None:
-            bb_upper = row.get('bb_upper', 0.0)
-            bb_lower = row.get('bb_lower', 0.0)
-            bb_middle = row.get('bb_middle', 0.0)
-            self._regime_router.update_from_lower_candle(
-                MTFCandle(
-                    open=float(row.get('open', close)) if pd.notna(row.get('open', close)) else close,
-                    high=float(row.get('high', close)) if pd.notna(row.get('high', close)) else close,
-                    low=float(row.get('low', close)) if pd.notna(row.get('low', close)) else close,
-                    close=float(close),
-                    volume=float(volume),
-                    mfi=float(mfi),
-                    adx=float(adx),
-                ),
-                candle_ts=candle_ts,
-            )
+            context = self._apply_v2_regime_filter(row, values, context, volume_ratio)
 
-            filtered_regime = self._regime_router.get_regime(
-                mfi=mfi,
-                adx=adx,
-                bb_upper=bb_upper,
-                bb_lower=bb_lower,
-                bb_middle=bb_middle,
-                volume_ratio=volume_ratio,
-            )
+        if self._v2_exit_on_filter and self._regime_router is not None and context.regime in ("BULL_STRONG", "BULL_MODERATE"):
+            if self._regime_router._volume_filter.should_block(volume_ratio, context.regime):
+                self._v2_entry_allowed = False
+            bbw_boosted = self._regime_router._volume_filter.is_boosted(volume_ratio)
+            if not bbw_boosted and self._regime_router._bbw_filter.should_block():
+                self._v2_entry_allowed = False
 
-            final_regime = filtered_regime
-            final_trend = context.trend
+        return context
 
-            if context.is_drawdown_bear and filtered_regime not in ("BEAR_STRONG", "BEAR_MODERATE"):
-                final_regime = "BEAR_STRONG" if context.adx >= 25 else "BEAR_MODERATE"
-                final_trend = "BEAR"
-            else:
-                if final_regime in ("BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP"):
-                    final_trend = "BULL"
-                elif final_regime in ("BEAR_STRONG", "BEAR_MODERATE", "SIDEWAYS_DOWN"):
-                    final_trend = "BEAR"
-                else:
-                    final_trend = "SIDEWAYS"
-
-            context = MarketContext(
-                trend=final_trend,
-                regime=final_regime,
-                volatility_score=context.volatility_score,
-                is_extreme_volatility=context.is_extreme_volatility,
-                adx=context.adx,
-                volume_ratio=context.volume_ratio,
-                is_high_volume=context.is_high_volume,
-                drawdown=context.drawdown,
-                is_drawdown_bear=context.is_drawdown_bear,
-            )
-
-        if self._v2_exit_on_filter and self._regime_router is not None:
-            if context.regime in ("BULL_STRONG", "BULL_MODERATE"):
-                if self._regime_router._volume_filter.should_block(volume_ratio, context.regime):
-                    self._v2_entry_allowed = False
-
-                bbw_boosted = self._regime_router._volume_filter.is_boosted(volume_ratio)
-                if not bbw_boosted and self._regime_router._bbw_filter.should_block():
-                    self._v2_entry_allowed = False
-
-        # Extract indicators
-        indicators = {}
-        for k, v in row.items():
-            if isinstance(k, str) and k.startswith(('ema', 'adx', 'rsi', 'plus', 'minus', 'bb')):
-                indicators[k] = v
-
-        # Explicit mapping for ShortV1 alias 'ema_fast'/'ema_slow'
-        if self.config:
-            ema_fast_len = self.config.get('ema_fast')
-            ema_slow_len = self.config.get('ema_slow')
-            if ema_fast_len:
-                col = f"ema_{ema_fast_len}"
-                if col in row: indicators['ema_fast'] = row[col]
-            if ema_slow_len:
-                col = f"ema_{ema_slow_len}"
-                if col in row: indicators['ema_slow'] = row[col]
-
-            # Map DI/ADX slope if needed and present
-            if 'plus_di' in row: indicators['plus_di'] = row['plus_di']
-            if 'minus_di' in row: indicators['minus_di'] = row['minus_di']
-            if 'adx_slope' in row: indicators['adx_slope'] = row['adx_slope']
-
-        # 1. MarketData construction with all fields needed by entry strategies
-        # Handle timestamp conversion
-        market_data = MarketData(
-            symbol=self.symbol,
-            close=close,
-            timestamp=candle_ts,
+    def _apply_v2_regime_filter(
+        self,
+        row: pd.Series,
+        values: Dict[str, Any],
+        context: MarketContext,
+        volume_ratio: float,
+    ) -> MarketContext:
+        close = values["close"]
+        mfi = values["mfi"]
+        adx = values["adx"]
+        volume = values["volume"]
+        self._regime_router.update_from_lower_candle(
+            MTFCandle(
+                open=float(row.get("open", close)) if pd.notna(row.get("open", close)) else close,
+                high=float(row.get("high", close)) if pd.notna(row.get("high", close)) else close,
+                low=float(row.get("low", close)) if pd.notna(row.get("low", close)) else close,
+                close=float(close),
+                volume=float(volume),
+                mfi=float(mfi),
+                adx=float(adx),
+            ),
+            candle_ts=values["candle_ts"],
+        )
+        filtered_regime = self._regime_router.get_regime(
             mfi=mfi,
             adx=adx,
-            rsi=row.get('rsi', 50.0),
-            # OHLCV for breakout/sequence models
-            open=float(row.get('open', close)) if pd.notna(row.get('open', close)) else close,
-            high=row.get('high', 0.0) or 0.0,
-            low=row.get('low', 0.0) or 0.0,
-            volume=volume,
-            # MACD for momentum entry
-            macd=row.get('macd', 0.0),
-            macd_signal=row.get('macd_signal', 0.0),
-            # Stochastic for conservative entry
-            stoch_k=row.get('stoch_k', 50.0),
-            stoch_d=row.get('stoch_d', 50.0),
-            # Bollinger Bands for range entry
-            bb_upper=row.get('bb_upper', 0.0),
-            bb_lower=row.get('bb_lower', 0.0),
-            bb_middle=row.get('bb_middle', 0.0),
-            # Volume for breakout entry
-            avg_volume_20=avg_volume,
-            # Support/resistance levels
-            prev_high_20=row.get('prev_high_20', 0.0),
-            prev_low_20=row.get('prev_low_20', 0.0),
-            # ATR for volatility
-            atr=atr,
-            # EMA for trend filter
-            ema_120=row.get('ema_120', 0.0),
-            ema_200=row.get('ema_200', 0.0),
-            # Market stress indicator
-            market_stress=row.get('market_stress', 0.0),
-            # 30-day high for drawdown-based BEAR detection
-            high_30d=row.get('high_30d', 0.0),
-            # Volatility breakout (Larry Williams strategy)
-            breakout_signal=int(row.get('breakout_signal', 0)) if pd.notna(row.get('breakout_signal')) else 0,
-            target_price=float(row.get('target_price', 0.0)) if pd.notna(row.get('target_price')) else 0.0,
-            # Indicators map and HWM
-            indicators=indicators,
-            high_water_mark=self.high_water_mark
+            bb_upper=row.get("bb_upper", 0.0),
+            bb_lower=row.get("bb_lower", 0.0),
+            bb_middle=row.get("bb_middle", 0.0),
+            volume_ratio=volume_ratio,
         )
 
-        # 2. Check Exits first (if we have a position)
-        if self.current_position:
-            # Update high water mark
-            is_long = getattr(self.current_position, 'side', 'long') == 'long'
-
-            if is_long:
-                if self.high_water_mark is None or close > self.high_water_mark:
-                    self.high_water_mark = close
-            else:
-                if self.high_water_mark is None or close < self.high_water_mark:
-                    self.high_water_mark = close
-
-            # Create new MarketData with updated HWM (frozen dataclass)
-            market_data = replace(market_data, high_water_mark=self.high_water_mark)
-
-            # === PORTFOLIO DRAWDOWN PROTECTION ===
-            # Graduated response to portfolio-level drawdown (capital preservation)
-            # This is CRITICAL for MDD control - triggers BEFORE other exit logic
-            if self._drawdown_enabled and self._current_drawdown_pct > 0:
-                # Level 3: FULL EXIT at drawdown_exit_pct (default 12%)
-                if self._current_drawdown_pct >= self._drawdown_exit_pct:
-                    self.current_position = None
-                    self.high_water_mark = None
-                    try:
-                        self.exit_strategy.on_position_closed(self.symbol)
-                    except Exception as e:
-                        logger.debug(f"on_position_closed failed: {e}")
-                    # Trigger extended pause after drawdown exit
-                    self._loss_pause_remaining = self._loss_pause_candles
-                    return {
-                        'action': 'sell' if is_long else 'close_short',
-                        'fraction': 1.0,
-                        'reason': f'DRAWDOWN_EXIT: {self._current_drawdown_pct:.1f}% >= {self._drawdown_exit_pct:.1f}%'
-                    }
-
-                # Level 2: PARTIAL EXIT at drawdown_reduce_pct (default 10%)
-                if self._current_drawdown_pct >= self._drawdown_reduce_pct and not self._partial_exit_done:
-                    self._partial_exit_done = True
-                    # Don't clear position - just reduce by configured fraction
-                    return {
-                        'action': 'sell' if is_long else 'close_short',
-                        'fraction': self._drawdown_partial_exit_fraction,
-                        'reason': (
-                            f'DRAWDOWN_REDUCE: {self._current_drawdown_pct:.1f}% >= '
-                            f'{self._drawdown_reduce_pct:.1f}%'
-                        )
-                    }
-
-                # Level 1: WARNING at drawdown_warning_pct (default 8%)
-                # This reduces leverage for FUTURE entries (not immediate action)
-                # The leverage reduction is applied when checking entry below
-
-            # === V2 Filter Exit for Existing Positions ===
-            # If v2 filter blocks AND we have a position, exit to protect capital
-            if self._v2_exit_on_filter and self._regime_router is not None and not self._v2_entry_allowed:
-                self.current_position = None
-                self.high_water_mark = None
-                try:
-                    self.exit_strategy.on_position_closed(self.symbol)
-                except Exception as e:
-                    logger.debug(f"on_position_closed failed: {e}")
-                return {
-                    'action': 'sell' if is_long else 'close_short',
-                    'fraction': 1.0,
-                    'reason': 'v2_filter_protective_exit'
-                }
-
-            # === MA120 Panic Sell: Force exit when price < EMA120 ===
-            # More aggressive MDD defense than EMA200
-            ema_120 = row.get('ema_120', 0.0)
-            if self._panic_sell_below_ma120 and is_long and ema_120 > 0 and close < ema_120:
-                self.current_position = None
-                self.high_water_mark = None
-                try:
-                    self.exit_strategy.on_position_closed(self.symbol)
-                except Exception as e:
-                    logger.debug(f"on_position_closed failed: {e}")
-                return {
-                    'action': 'sell',
-                    'fraction': 1.0,
-                    'reason': f'MA120 panic_sell: close={close:.0f} < ema120={ema_120:.0f}'
-                }
-
-            # EMA200 protective exit: close long positions when price drops below EMA200
-            # This defends against major drawdowns in bear markets
-            ema_200 = row.get('ema_200', 0.0)
-            if self._cash_below_ema200 and is_long and ema_200 > 0 and close < ema_200:
-                self.current_position = None
-                self.high_water_mark = None
-                try:
-                    self.exit_strategy.on_position_closed(self.symbol)
-                except Exception as e:
-                    logger.debug(f"on_position_closed failed: {e}")
-                return {
-                    'action': 'sell',
-                    'fraction': 1.0,
-                    'reason': f'EMA200 protective exit: close={close:.0f} < ema200={ema_200:.0f}'
-                }
-
-            # Build TradingContext for new interface (immutable positions)
-            positions = {self.strategy_name: self.current_position}
-            ctx = TradingContext(
-                symbol=self.symbol,
-                timestamp=market_data.timestamp,
-                market=market_data,
-                regime=context,
-                positions=MappingProxyType(positions),
-                mlp_prediction=mlp_prediction,
-                mlp_confidence=mlp_confidence,
-            )
-            signal = self.exit_strategy.check_exit(ctx, self.current_position)
-
-            if signal:
-                action = 'close_short' if not is_long else 'sell'
-                reason = signal.reason or ""
-
-                # Support partial exits: use signal.quantity vs current_position.quantity
-                exit_qty = getattr(signal, "quantity", None)
-                if exit_qty is not None and self.current_position and self.current_position.quantity > 0:
-                    try:
-                        exit_qty = float(exit_qty)
-                        current_qty = float(self.current_position.quantity)
-                    except Exception:
-                        exit_qty = None
-                        current_qty = 0.0
-
-                    if exit_qty is not None and current_qty > 0:
-                        fraction = max(min(exit_qty / current_qty, 1.0), 0.0)
-                        if fraction < 1.0:
-                            remaining_qty = max(current_qty - exit_qty, 0.0)
-                            # Treat near-zero quantity as full exit (prevents floating-point ghost positions)
-                            if remaining_qty < 1e-10:
-                                # Full exit - will be handled by code below
-                                pass
-                            else:
-                                self.current_position = replace(self.current_position, quantity=remaining_qty)
-                                return {
-                                    'action': action,
-                                    'fraction': fraction,
-                                    'reason': reason,
-                                    'consecutive_losses': self._consecutive_losses,
-                                }
-
-                # Full exit
-                self.current_position = None
-                self.high_water_mark = None
-                try:
-                    self.exit_strategy.on_position_closed(self.symbol)
-                except Exception as e:
-                    logger.debug(f"on_position_closed failed: {e}")
-
-                # Detect stop loss exit and trigger cooldown + consecutive loss tracking
-                is_stop_loss = "stop loss" in reason.lower() or "stoploss" in reason.lower()
-
-                if is_stop_loss:
-                    self._cooldown_remaining = self._cooldown_candles
-                    # Track consecutive losses
-                    self._consecutive_losses += 1
-                    if self._consecutive_losses >= self._max_consecutive_losses:
-                        # Trigger extended pause after multiple consecutive losses
-                        self._loss_pause_remaining = self._loss_pause_candles
-                        self._consecutive_losses = 0  # Reset counter after pause
-                else:
-                    # Profitable exit or non-stop-loss exit resets consecutive loss counter
-                    self._consecutive_losses = 0
-
-                return {
-                    'action': action,
-                    'fraction': 1.0,
-                    'reason': reason,
-                    'consecutive_losses': self._consecutive_losses,
-                }
-
-            return {'action': 'hold'}
-
-        # 3. Check Entries (if no position)
+        if context.is_drawdown_bear and filtered_regime not in ("BEAR_STRONG", "BEAR_MODERATE"):
+            final_regime = "BEAR_STRONG" if context.adx >= 25 else "BEAR_MODERATE"
+            final_trend = "BEAR"
         else:
-            # === NEW: Loss pause check (after consecutive losses) ===
-            if self._loss_pause_remaining > 0:
-                return {'action': 'hold', 'reason': f'loss_pause:{self._loss_pause_remaining}'}
-
-            # Stop loss cooldown: block entry if still in cooldown period
-            if self._cooldown_remaining > 0:
-                return {'action': 'hold', 'reason': f'cooldown:{self._cooldown_remaining}'}
-
-            # Cash strategy: no entry in BEAR regime
-            current_regime = context.regime
-            if self._cash_in_bear and current_regime in ("BEAR_STRONG", "BEAR_MODERATE"):
-                return {'action': 'hold', 'reason': 'cash_bear_regime'}
-
-            # Cash strategy: no entry below EMA200
-            ema_200 = row.get('ema_200', 0.0)
-            if self._cash_below_ema200 and ema_200 > 0 and close < ema_200:
-                return {'action': 'hold', 'reason': 'cash_below_ema200'}
-
-            # === Bull Probability Filter ===
-            # Use MFI proxy for bullish probability
-            # Block entry if bull_prob < threshold (e.g., 0.6 = 60%)
-            if self._bull_prob_enabled:
-                bull_prob = mfi / 100.0  # MFI 0-100 -> 0.0-1.0
-
-                if bull_prob < self._bull_prob_threshold:
-                    return {'action': 'hold', 'reason': f'bull_prob_low(mfi):{bull_prob:.2f}<{self._bull_prob_threshold:.2f}'}
-
-            # NOTE: MA120 is used for EXIT only (panic sell), not for entry blocking
-            # Entry blocking is handled by cash_below_ema200 (EMA200 filter)
-
-            # Calculate dynamic leverage based on regime
-            if self._dynamic_leverage_enabled:
-                if current_regime == "BULL_STRONG":
-                    self._current_leverage = self._leverage_bull_strong
-                elif current_regime == "BULL_MODERATE":
-                    self._current_leverage = self._leverage_bull_moderate
-                elif current_regime in ("SIDEWAYS_UP", "SIDEWAYS_FLAT", "SIDEWAYS_DOWN"):
-                    self._current_leverage = self._leverage_sideways
-                else:  # BEAR regimes
-                    self._current_leverage = self._leverage_bear
-                    if self._current_leverage == 0:
-                        return {'action': 'hold', 'reason': 'dynamic_lev_zero'}
+            final_regime = filtered_regime
+            if final_regime in ("BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP"):
+                final_trend = "BULL"
+            elif final_regime in ("BEAR_STRONG", "BEAR_MODERATE", "SIDEWAYS_DOWN"):
+                final_trend = "BEAR"
             else:
-                # Use market-appropriate default (1.0 for spot, 3.0 for futures)
-                self._current_leverage = self._default_leverage
+                final_trend = "SIDEWAYS"
 
-            # === DRAWDOWN WARNING: Reduce leverage when approaching drawdown limits ===
-            # Apply leverage reduction when in warning zone (8%+ drawdown)
-            if self._drawdown_enabled and self._current_drawdown_pct >= self._drawdown_warning_pct:
-                original_leverage = self._current_leverage
-                self._current_leverage *= self._drawdown_leverage_reduction
-                # Log reduction (reason will be visible in backtest)
-                # At 8%+ drawdown, reduce risk by cutting leverage in half
+        return MarketContext(
+            trend=final_trend,
+            regime=final_regime,
+            volatility_score=context.volatility_score,
+            is_extreme_volatility=context.is_extreme_volatility,
+            adx=context.adx,
+            volume_ratio=context.volume_ratio,
+            is_high_volume=context.is_high_volume,
+            drawdown=context.drawdown,
+            is_drawdown_bear=context.is_drawdown_bear,
+        )
 
-            # === NEW: Probability-based leverage adjustment ===
-            # Override leverage based on MFI (bull probability proxy)
-            # Higher MFI = higher confidence = allow higher leverage
-            if self._prob_leverage_enabled:
-                if mfi >= 70:
-                    self._current_leverage = min(self._current_leverage, self._prob_leverage_max)
-                elif mfi >= 60:
-                    self._current_leverage = min(self._current_leverage, self._prob_leverage_high)
-                elif mfi >= 50:
-                    self._current_leverage = min(self._current_leverage, self._prob_leverage_mid)
-                elif mfi >= 40:
-                    self._current_leverage = min(self._current_leverage, self._prob_leverage_low)
-                elif mfi >= 30:
-                    self._current_leverage = min(self._current_leverage, self._prob_leverage_min)
-                else:  # MFI < 30: no entry
-                    return {'action': 'hold', 'reason': f'prob_lev_zero:mfi={mfi:.1f}'}
+    def _extract_indicators(self, row: pd.Series) -> Dict[str, Any]:
+        indicators: Dict[str, Any] = {}
+        for k, v in row.items():
+            if isinstance(k, str) and k.startswith(("ema", "adx", "rsi", "plus", "minus", "bb")):
+                indicators[k] = v
+        self._augment_config_indicators(row, indicators)
+        return indicators
 
-            # Build TradingContext for new interface (immutable positions)
-            ctx = TradingContext(
-                symbol=self.symbol,
-                timestamp=market_data.timestamp,
-                market=market_data,
-                regime=context,
-                positions=MappingProxyType({}),  # No position when checking entry
-                mlp_prediction=mlp_prediction,
-                mlp_confidence=mlp_confidence,
+    def _augment_config_indicators(self, row: pd.Series, indicators: Dict[str, Any]) -> None:
+        if not self.config:
+            return
+        self._add_config_ema_indicator(row, indicators, "ema_fast", self.config.get("ema_fast"))
+        self._add_config_ema_indicator(row, indicators, "ema_slow", self.config.get("ema_slow"))
+        for key in ("plus_di", "minus_di", "adx_slope"):
+            if key in row:
+                indicators[key] = row[key]
+
+    def _add_config_ema_indicator(self, row: pd.Series, indicators: Dict[str, Any], output_key: str, ema_len: Any) -> None:
+        if not ema_len:
+            return
+        col = f"ema_{ema_len}"
+        if col in row:
+            indicators[output_key] = row[col]
+
+    def _build_market_data(self, row: pd.Series, values: Dict[str, Any], indicators: Dict[str, Any]) -> MarketData:
+        close = values["close"]
+        return MarketData(
+            symbol=self.symbol,
+            close=close,
+            timestamp=values["candle_ts"],
+            mfi=values["mfi"],
+            adx=values["adx"],
+            rsi=row.get("rsi", 50.0),
+            open=float(row.get("open", close)) if pd.notna(row.get("open", close)) else close,
+            high=row.get("high", 0.0) or 0.0,
+            low=row.get("low", 0.0) or 0.0,
+            volume=values["volume"],
+            macd=row.get("macd", 0.0),
+            macd_signal=row.get("macd_signal", 0.0),
+            stoch_k=row.get("stoch_k", 50.0),
+            stoch_d=row.get("stoch_d", 50.0),
+            bb_upper=row.get("bb_upper", 0.0),
+            bb_lower=row.get("bb_lower", 0.0),
+            bb_middle=row.get("bb_middle", 0.0),
+            avg_volume_20=values["avg_volume"],
+            prev_high_20=row.get("prev_high_20", 0.0),
+            prev_low_20=row.get("prev_low_20", 0.0),
+            atr=values["atr"],
+            ema_120=row.get("ema_120", 0.0),
+            ema_200=row.get("ema_200", 0.0),
+            market_stress=row.get("market_stress", 0.0),
+            high_30d=row.get("high_30d", 0.0),
+            breakout_signal=int(row.get("breakout_signal", 0)) if pd.notna(row.get("breakout_signal")) else 0,
+            target_price=float(row.get("target_price", 0.0)) if pd.notna(row.get("target_price")) else 0.0,
+            indicators=indicators,
+            high_water_mark=self.high_water_mark,
+        )
+
+    def _build_trading_context(
+        self,
+        market_data: MarketData,
+        context: MarketContext,
+        mlp_prediction: int | None,
+        mlp_confidence: float | None,
+        with_position: bool,
+    ) -> TradingContext:
+        positions = MappingProxyType(
+            {self.strategy_name: self.current_position} if with_position and self.current_position else {}
+        )
+        return TradingContext(
+            symbol=self.symbol,
+            timestamp=market_data.timestamp,
+            market=market_data,
+            regime=context,
+            positions=positions,
+            mlp_prediction=mlp_prediction,
+            mlp_confidence=mlp_confidence,
+        )
+
+    def _close_position(self) -> None:
+        self.current_position = None
+        self.high_water_mark = None
+        try:
+            self.exit_strategy.on_position_closed(self.symbol)
+        except Exception as e:
+            logger.debug(f"on_position_closed failed: {e}")
+
+    def _evaluate_exit(
+        self,
+        row: pd.Series,
+        market_data: MarketData,
+        context: MarketContext,
+        mlp_prediction: int | None,
+        mlp_confidence: float | None,
+        values: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        close = values["close"]
+        is_long = getattr(self.current_position, "side", "long") == "long"
+        market_data = self._update_exit_hwm(market_data, close, is_long)
+
+        protective_action = self._get_protective_exit_action(row, close, is_long)
+        if protective_action is not None:
+            return protective_action
+
+        signal = self._run_exit_signal(market_data, context, mlp_prediction, mlp_confidence)
+        if not signal:
+            return {"action": "hold"}
+        return self._finalize_exit_signal(signal, is_long)
+
+    def _update_exit_hwm(self, market_data: MarketData, close: float, is_long: bool) -> MarketData:
+        if is_long:
+            if self.high_water_mark is None or close > self.high_water_mark:
+                self.high_water_mark = close
+        else:
+            if self.high_water_mark is None or close < self.high_water_mark:
+                self.high_water_mark = close
+        return replace(market_data, high_water_mark=self.high_water_mark)
+
+    def _get_protective_exit_action(
+        self,
+        row: pd.Series,
+        close: float,
+        is_long: bool,
+    ) -> Dict[str, Any] | None:
+        action = self._check_drawdown_exit_action(is_long)
+        if action is not None:
+            return action
+        action = self._check_v2_filter_exit_action(is_long)
+        if action is not None:
+            return action
+        return self._check_ma_exit_action(row, close, is_long)
+
+    def _check_v2_filter_exit_action(self, is_long: bool) -> Dict[str, Any] | None:
+        if not (self._v2_exit_on_filter and self._regime_router is not None and not self._v2_entry_allowed):
+            return None
+        self._close_position()
+        return {
+            "action": "sell" if is_long else "close_short",
+            "fraction": 1.0,
+            "reason": "v2_filter_protective_exit",
+        }
+
+    def _check_ma_exit_action(
+        self,
+        row: pd.Series,
+        close: float,
+        is_long: bool,
+    ) -> Dict[str, Any] | None:
+        ema_120 = row.get("ema_120", 0.0)
+        if self._panic_sell_below_ma120 and is_long and ema_120 > 0 and close < ema_120:
+            self._close_position()
+            return {
+                "action": "sell",
+                "fraction": 1.0,
+                "reason": f"MA120 panic_sell: close={close:.0f} < ema120={ema_120:.0f}",
+            }
+
+        ema_200 = row.get("ema_200", 0.0)
+        if self._cash_below_ema200 and is_long and ema_200 > 0 and close < ema_200:
+            self._close_position()
+            return {
+                "action": "sell",
+                "fraction": 1.0,
+                "reason": f"EMA200 protective exit: close={close:.0f} < ema200={ema_200:.0f}",
+            }
+
+        return None
+
+    def _run_exit_signal(
+        self,
+        market_data: MarketData,
+        context: MarketContext,
+        mlp_prediction: int | None,
+        mlp_confidence: float | None,
+    ) -> Signal | None:
+        ctx = self._build_trading_context(
+            market_data, context, mlp_prediction, mlp_confidence, with_position=True
+        )
+        return self.exit_strategy.check_exit(ctx, self.current_position)
+
+    def _finalize_exit_signal(self, signal: Signal, is_long: bool) -> Dict[str, Any]:
+        action = "close_short" if not is_long else "sell"
+        reason = signal.reason or ""
+        partial = self._maybe_handle_partial_exit(signal, action, reason)
+        if partial is not None:
+            return partial
+        self._close_position()
+        self._update_loss_tracking(reason)
+        return {
+            "action": action,
+            "fraction": 1.0,
+            "reason": reason,
+            "consecutive_losses": self._consecutive_losses,
+        }
+
+    def _check_drawdown_exit_action(self, is_long: bool) -> Dict[str, Any] | None:
+        if not (self._drawdown_enabled and self._current_drawdown_pct > 0):
+            return None
+        if self._current_drawdown_pct >= self._drawdown_exit_pct:
+            self._close_position()
+            self._loss_pause_remaining = self._loss_pause_candles
+            return {
+                "action": "sell" if is_long else "close_short",
+                "fraction": 1.0,
+                "reason": f"DRAWDOWN_EXIT: {self._current_drawdown_pct:.1f}% >= {self._drawdown_exit_pct:.1f}%",
+            }
+        if self._current_drawdown_pct >= self._drawdown_reduce_pct and not self._partial_exit_done:
+            self._partial_exit_done = True
+            return {
+                "action": "sell" if is_long else "close_short",
+                "fraction": self._drawdown_partial_exit_fraction,
+                "reason": f"DRAWDOWN_REDUCE: {self._current_drawdown_pct:.1f}% >= {self._drawdown_reduce_pct:.1f}%",
+            }
+        return None
+
+    def _maybe_handle_partial_exit(self, signal: Signal, action: str, reason: str) -> Dict[str, Any] | None:
+        exit_qty = getattr(signal, "quantity", None)
+        if exit_qty is None or not self.current_position or self.current_position.quantity <= 0:
+            return None
+        try:
+            exit_qty = float(exit_qty)
+            current_qty = float(self.current_position.quantity)
+        except Exception:
+            return None
+        if current_qty <= 0:
+            return None
+
+        fraction = max(min(exit_qty / current_qty, 1.0), 0.0)
+        if fraction >= 1.0:
+            return None
+
+        remaining_qty = max(current_qty - exit_qty, 0.0)
+        if remaining_qty < 1e-10:
+            return None
+
+        self.current_position = replace(self.current_position, quantity=remaining_qty)
+        return {
+            "action": action,
+            "fraction": fraction,
+            "reason": reason,
+            "consecutive_losses": self._consecutive_losses,
+        }
+
+    def _update_loss_tracking(self, reason: str) -> None:
+        is_stop_loss = "stop loss" in reason.lower() or "stoploss" in reason.lower()
+        if is_stop_loss:
+            self._cooldown_remaining = self._cooldown_candles
+            self._consecutive_losses += 1
+            if self._consecutive_losses >= self._max_consecutive_losses:
+                self._loss_pause_remaining = self._loss_pause_candles
+                self._consecutive_losses = 0
+            return
+        self._consecutive_losses = 0
+
+    def _evaluate_entry(
+        self,
+        row: pd.Series,
+        market_data: MarketData,
+        context: MarketContext,
+        mlp_prediction: int | None,
+        mlp_confidence: float | None,
+        values: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        hold_reason = self._entry_hold_reason(row, context, values)
+        if hold_reason is not None:
+            return {"action": "hold", "reason": hold_reason}
+
+        leverage = self._resolve_entry_leverage(context.regime, values["mfi"])
+        if leverage is None:
+            return {"action": "hold", "reason": "dynamic_lev_zero"}
+        self._current_leverage = leverage
+
+        ctx = self._build_trading_context(market_data, context, mlp_prediction, mlp_confidence, with_position=False)
+        signal = self.entry_strategy.check_entry(ctx)
+        if not signal:
+            return {"action": "hold"}
+        return self._open_position_from_signal(row, signal, values, context)
+
+    def _entry_hold_reason(self, row: pd.Series, context: MarketContext, values: Dict[str, Any]) -> str | None:
+        if self._loss_pause_remaining > 0:
+            return f"loss_pause:{self._loss_pause_remaining}"
+        if self._cooldown_remaining > 0:
+            return f"cooldown:{self._cooldown_remaining}"
+        if self._cash_in_bear and context.regime in ("BEAR_STRONG", "BEAR_MODERATE"):
+            return "cash_bear_regime"
+        ema_200 = row.get("ema_200", 0.0)
+        if self._cash_below_ema200 and ema_200 > 0 and values["close"] < ema_200:
+            return "cash_below_ema200"
+        if self._bull_prob_enabled:
+            bull_prob = values["mfi"] / 100.0
+            if bull_prob < self._bull_prob_threshold:
+                return f"bull_prob_low(mfi):{bull_prob:.2f}<{self._bull_prob_threshold:.2f}"
+        return None
+
+    def _resolve_entry_leverage(self, current_regime: str, mfi: float) -> float | None:
+        leverage = self._resolve_regime_leverage(current_regime)
+        if leverage is None:
+            return None
+        leverage = self._apply_drawdown_leverage(leverage)
+        return self._apply_probability_leverage(leverage, mfi)
+
+    def _resolve_regime_leverage(self, current_regime: str) -> float | None:
+        if not self._dynamic_leverage_enabled:
+            return self._default_leverage
+        if current_regime == "BULL_STRONG":
+            return self._leverage_bull_strong
+        if current_regime == "BULL_MODERATE":
+            return self._leverage_bull_moderate
+        if current_regime in ("SIDEWAYS_UP", "SIDEWAYS_FLAT", "SIDEWAYS_DOWN"):
+            return self._leverage_sideways
+        return None if self._leverage_bear == 0 else self._leverage_bear
+
+    def _apply_drawdown_leverage(self, leverage: float) -> float:
+        if self._drawdown_enabled and self._current_drawdown_pct >= self._drawdown_warning_pct:
+            return leverage * self._drawdown_leverage_reduction
+        return leverage
+
+    def _apply_probability_leverage(self, leverage: float, mfi: float) -> float | None:
+        if not self._prob_leverage_enabled:
+            return leverage
+        if mfi >= 70:
+            return min(leverage, self._prob_leverage_max)
+        if mfi >= 60:
+            return min(leverage, self._prob_leverage_high)
+        if mfi >= 50:
+            return min(leverage, self._prob_leverage_mid)
+        if mfi >= 40:
+            return min(leverage, self._prob_leverage_low)
+        if mfi >= 30:
+            return min(leverage, self._prob_leverage_min)
+        return None
+
+    def _open_position_from_signal(
+        self,
+        row: pd.Series,
+        signal: Signal,
+        values: Dict[str, Any],
+        context: MarketContext,
+    ) -> Dict[str, Any]:
+        is_short = signal.side == "sell"
+        ts_ms = self._extract_timestamp_ms(row)
+        self.current_position = self._build_position_from_signal(signal, values["close"], is_short, ts_ms)
+        self.high_water_mark = values["close"]
+        self._notify_position_opened(ts_ms)
+
+        fraction, position_reason = self._resolve_entry_fraction(signal, values["atr"], values["close"])
+        reason = self._compose_entry_reason(signal.reason or "", position_reason)
+
+        return {
+            "action": "open_short" if is_short else "buy",
+            "fraction": fraction,
+            "price": values["close"],
+            "reason": reason,
+            "leverage": self._current_leverage,
+            "regime": context.regime,
+        }
+
+    def _extract_timestamp_ms(self, row: pd.Series) -> int:
+        ts_raw = row["timestamp"]
+        return int(ts_raw.timestamp() * 1000) if hasattr(ts_raw, "timestamp") else 0
+
+    def _build_position_from_signal(self, signal: Signal, close: float, is_short: bool, ts_ms: int) -> Position:
+        entry_reason = getattr(signal, "reason", "") or ""
+        strategy_with_reason = f"{self.strategy_name}|{entry_reason}" if entry_reason else self.strategy_name
+        return Position(
+            symbol=self.symbol,
+            quantity=getattr(signal, "quantity", 1.0) or 1.0,
+            entry_price=close,
+            side="short" if is_short else "long",
+            strategy=strategy_with_reason,
+            market=self.market,
+            timestamp=ts_ms,
+        )
+
+    def _notify_position_opened(self, ts_ms: int) -> None:
+        try:
+            self.exit_strategy.on_position_opened(self.current_position, entry_timestamp=ts_ms)
+        except TypeError:
+            self.exit_strategy.on_position_opened(self.current_position)
+        except Exception as e:
+            logger.debug(f"on_position_opened failed: {e}")
+
+    def _compose_entry_reason(self, base_reason: str, position_reason: str) -> str:
+        if not position_reason:
+            return base_reason
+        return f"{base_reason} | {position_reason}" if base_reason else position_reason
+
+    def _resolve_entry_fraction(self, signal: Signal, atr: float, close: float) -> tuple[float, str]:
+        signal_qty = getattr(signal, "quantity", None)
+        position_pct = float(self.config.get("position_pct", 0.02))
+        if signal_qty is not None and signal_qty > 0:
+            fraction = signal_qty
+            position_reason = f"regime_size:{signal_qty:.2f}"
+        else:
+            fraction = position_pct
+            position_reason = f"config_pct:{position_pct:.2f}"
+
+        if self._vol_sizing_enabled and atr > 0 and close > 0:
+            from trading.risk.volatility_scaler import compute_volatility_scale
+
+            vol_scale = compute_volatility_scale(
+                atr=atr,
+                price=close,
+                target_vol=self._vol_target,
+                min_scale=self._vol_min_scale,
+                max_scale=self._vol_max_scale,
             )
-            signal = self.entry_strategy.check_entry(ctx)
+            fraction *= vol_scale
+            position_reason += f" vol_scale:{vol_scale:.2f}"
 
-            if signal:
-                is_short = signal.side == 'sell'
-                pos_side = 'short' if is_short else 'long'
-
-                # Create simulated position
-                ts_ms = int(row['timestamp'].timestamp() * 1000) if hasattr(row['timestamp'], 'timestamp') else 0
-
-                # Include entry signal reason in strategy field so exit strategy
-                # can determine market state for TP level selection
-                # (e.g. "MOMENTUM_STRONG" → BULL_STRONG TP levels)
-                entry_reason = getattr(signal, "reason", "") or ""
-                strategy_with_reason = (
-                    f"{self.strategy_name}|{entry_reason}"
-                    if entry_reason else self.strategy_name
-                )
-
-                self.current_position = Position(
-                    symbol=self.symbol,
-                    quantity=getattr(signal, "quantity", 1.0) or 1.0,
-                    entry_price=row['close'],
-                    side=pos_side,
-                    strategy=strategy_with_reason,
-                    market=self.market,  # Use strategy's market type (spot or futures)
-                    timestamp=ts_ms
-                )
-                self.high_water_mark = row['close']
-
-                # Notify exit strategy (stateful exits may track entry)
-                try:
-                    # Pass entry timestamp for FWin-based exits (MLP Direction)
-                    self.exit_strategy.on_position_opened(
-                        self.current_position, entry_timestamp=ts_ms
-                    )
-                except TypeError:
-                    # Fallback for exit strategies without entry_timestamp param
-                    self.exit_strategy.on_position_opened(self.current_position)
-                except Exception as e:
-                    logger.debug(f"on_position_opened failed: {e}")
-
-                # Use action names expected by backtest_runner:
-                # 'buy' for opening long, 'open_short' for opening short
-                action = "open_short" if is_short else "buy"
-
-                # Position sizing priority:
-                # 1. Entry strategy's signal.quantity (regime-based sizing from entry strategy etc.)
-                # 2. Config position_size fallback
-                signal_qty = getattr(signal, "quantity", None)
-                use_dynamic = self.config.get("dynamic_sizing", False)
-                position_pct = float(self.config.get("position_pct", 0.02))
-                position_reason = ""
-
-                if signal_qty is not None and signal_qty > 0:
-                    # Entry strategy returned regime-based position size (e.g., entry strategy)
-                    fraction = signal_qty
-                    position_reason = f"regime_size:{signal_qty:.2f}"
-                else:
-                    # Fallback to config position_pct (percentage) or position_size
-                    fraction = position_pct
-                    position_reason = f"config_pct:{position_pct:.2f}"
-
-                # Volatility-based position scaling
-                if self._vol_sizing_enabled and atr > 0 and close > 0:
-                    from trading.risk.volatility_scaler import compute_volatility_scale
-                    vol_scale = compute_volatility_scale(
-                        atr=atr,
-                        price=close,
-                        target_vol=self._vol_target,
-                        min_scale=self._vol_min_scale,
-                        max_scale=self._vol_max_scale,
-                    )
-                    fraction *= vol_scale
-                    position_reason += f" vol_scale:{vol_scale:.2f}"
-
-                reason = signal.reason or ""
-                if position_reason:
-                    reason = f"{reason} | {position_reason}" if reason else position_reason
-
-                return {
-                    "action": action,
-                    "fraction": fraction,
-                    "price": close,
-                    "reason": reason,
-                    "leverage": self._current_leverage,  # Dynamic leverage
-                    "regime": current_regime,  # For debugging
-                }
-
-        return {"action": "hold"}
+        return fraction, position_reason

@@ -173,58 +173,83 @@ class ParameterSweepRunner:
         Returns:
             List of BacktestResult objects, one per combination
         """
-        results = []
-        chart_paths = []
+        results: List[BacktestResult] = []
+        chart_paths: List[Optional[str]] = []
         total = sweep.total_combinations
-        # Generate safe sweep_id using UUID (inherently safe)
-        sweep_id = f"sweep_{uuid.uuid4().hex[:8]}"
-        safe_sweep_id = _sanitize_sweep_id(sweep_id)
+        safe_sweep_id = self._build_safe_sweep_id()
 
         logger.info(f"Starting parameter sweep: {total} combinations (sweep_id={safe_sweep_id})")
 
         for i, config in enumerate(sweep.generate_combinations()):
             if progress_callback:
                 progress_callback(i + 1, total)
-
-            # Run backtest
-            result = self.backtester.run_strategy(
-                df,
-                strategy_name=sweep.strategy_name,
-                config=config,
-                symbol=sweep.symbol,
-                return_backtest_result=True,
-            )
-
+            result = self._run_single_combination(df, sweep, config)
             results.append(result)
+            chart_paths.append(self._maybe_generate_chart(result, safe_sweep_id, i + 1, generate_charts))
 
-            # Generate chart with sanitized filename
-            chart_path = None
-            if generate_charts and self.visualizer:
-                try:
-                    # Use sanitized sweep_id in filename
-                    safe_filename = f"{safe_sweep_id}_run_{i+1}.png"
-                    chart_path = self.visualizer.create_chart(
-                        result,
-                        output_path=safe_filename,
-                    )
-                    chart_paths.append(chart_path)
-                except Exception as e:
-                    logger.warning(f"Chart generation failed for run {i+1}: {e}")
-                    chart_paths.append(None)
-
-        # Log all results to MLflow
-        if log_to_mlflow and self.mlflow_tracker and self.mlflow_tracker.enabled:
-            try:
-                self.mlflow_tracker.log_sweep(
-                    results,
-                    sweep_id=safe_sweep_id,
-                    chart_paths=chart_paths if generate_charts else None,
-                )
-                logger.info(f"Logged {len(results)} runs to MLflow (sweep_id={safe_sweep_id})")
-            except Exception as e:
-                logger.warning(f"MLflow logging failed for sweep: {e}")
+        self._maybe_log_sweep_to_mlflow(
+            results=results,
+            sweep_id=safe_sweep_id,
+            chart_paths=chart_paths,
+            log_to_mlflow=log_to_mlflow,
+            generate_charts=generate_charts,
+        )
 
         return results
+
+    def _build_safe_sweep_id(self) -> str:
+        sweep_id = f"sweep_{uuid.uuid4().hex[:8]}"
+        return _sanitize_sweep_id(sweep_id)
+
+    def _run_single_combination(
+        self,
+        df: pd.DataFrame,
+        sweep: ParameterSweep,
+        config: Dict[str, Any],
+    ) -> BacktestResult:
+        return self.backtester.run_strategy(
+            df,
+            strategy_name=sweep.strategy_name,
+            config=config,
+            symbol=sweep.symbol,
+            return_backtest_result=True,
+        )
+
+    def _maybe_generate_chart(
+        self,
+        result: BacktestResult,
+        safe_sweep_id: str,
+        run_index: int,
+        generate_charts: bool,
+    ) -> Optional[str]:
+        if not (generate_charts and self.visualizer):
+            return None
+        try:
+            safe_filename = f"{safe_sweep_id}_run_{run_index}.png"
+            return self.visualizer.create_chart(result, output_path=safe_filename)
+        except Exception as e:
+            logger.warning(f"Chart generation failed for run {run_index}: {e}")
+            return None
+
+    def _maybe_log_sweep_to_mlflow(
+        self,
+        results: List[BacktestResult],
+        sweep_id: str,
+        chart_paths: List[Optional[str]],
+        log_to_mlflow: bool,
+        generate_charts: bool,
+    ) -> None:
+        if not (log_to_mlflow and self.mlflow_tracker and self.mlflow_tracker.enabled):
+            return
+        try:
+            self.mlflow_tracker.log_sweep(
+                results,
+                sweep_id=sweep_id,
+                chart_paths=chart_paths if generate_charts else None,
+            )
+            logger.info(f"Logged {len(results)} runs to MLflow (sweep_id={sweep_id})")
+        except Exception as e:
+            logger.warning(f"MLflow logging failed for sweep: {e}")
 
     def get_best_result(
         self,

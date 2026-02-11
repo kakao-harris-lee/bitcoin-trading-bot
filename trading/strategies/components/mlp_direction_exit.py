@@ -240,63 +240,128 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             Signal to close position, or None to hold.
         """
         market_data = ctx.market
-        key = self._get_position_key(position)
-        symbol = position.symbol
-        entry_price = position.entry_price
-        current_price = market_data.close
-
-        if entry_price <= 0 or position.quantity <= 0:
+        if position.entry_price <= 0 or position.quantity <= 0:
             return None
 
-        p = self.params
+        key = self._get_position_key(position)
+        pnl_pct, hwm, hwm_pnl = self._compute_position_metrics(position, market_data, key)
 
-        # Calculate P&L percentage
+        stop_signal = self._check_stop_loss_exit(ctx, position, pnl_pct, key)
+        if stop_signal:
+            return stop_signal
+
+        fwin_signal = self._check_fwin_exit_if_enabled(ctx, position, pnl_pct, key)
+        if fwin_signal:
+            return fwin_signal
+
+        take_profit_signal = self._check_take_profit_exit(position, pnl_pct, key)
+        if take_profit_signal:
+            return take_profit_signal
+
+        sell_signal = self._check_mlp_sell_exit_if_enabled(ctx, position, pnl_pct, key)
+        if sell_signal:
+            return sell_signal
+
+        trailing_signal = self._check_trailing_stop_exit(
+            position=position,
+            current_price=market_data.close,
+            hwm=hwm,
+            hwm_pnl=hwm_pnl,
+            key=key,
+        )
+        if trailing_signal:
+            return trailing_signal
+
+        return None
+
+    def _compute_position_metrics(
+        self,
+        position: Position,
+        market_data: MarketData,
+        key: str,
+    ) -> tuple[float, float, float]:
+        current_price = market_data.close
+        entry_price = position.entry_price
         pnl_pct = calculate_pnl_pct(current_price, entry_price, "long")
-
-        # Update high water mark using the HIGH price (true peak)
         check_price = market_data.high if market_data.high > 0 else current_price
         hwm = self._update_hwm(key, check_price, entry_price)
         hwm_pnl = calculate_hwm_pnl_pct(hwm, entry_price)
+        return pnl_pct, hwm, hwm_pnl
 
-        # === Exit condition 1: Stop loss (fixed or ATR-based) ===
-        effective_stop_pct = self._calculate_stop_loss(ctx, market_data, entry_price)
+    def _check_stop_loss_exit(
+        self,
+        ctx: TradingContext,
+        position: Position,
+        pnl_pct: float,
+        key: str,
+    ) -> Signal | None:
+        stop_pct = self._calculate_stop_loss(ctx, ctx.market, position.entry_price)
+        if pnl_pct > -stop_pct:
+            return None
+        reason = f"MLPDirection exit: Stop loss {pnl_pct:.2f}% (limit: -{stop_pct:.1f}%)"
+        logger.info(f"{position.symbol}: {reason}")
+        self._clear_state(key)
+        return self._create_exit_signal(position, reason)
 
-        if pnl_pct <= -effective_stop_pct:
-            reason = f"MLPDirection exit: Stop loss {pnl_pct:.2f}% (limit: -{effective_stop_pct:.1f}%)"
-            logger.info(f"{symbol}: {reason}")
-            self._clear_state(key)
-            return self._create_exit_signal(position, reason)
+    def _check_fwin_exit_if_enabled(
+        self,
+        ctx: TradingContext,
+        position: Position,
+        pnl_pct: float,
+        key: str,
+    ) -> Signal | None:
+        if not self.params.fwin_exit_enabled:
+            return None
+        return self._check_fwin_exit(ctx, position, pnl_pct, key)
 
-        # === Exit condition 2: Forward Window exit (paper methodology) ===
-        if p.fwin_exit_enabled:
-            fwin_signal = self._check_fwin_exit(ctx, position, pnl_pct, key)
-            if fwin_signal:
-                return fwin_signal
+    def _check_take_profit_exit(
+        self,
+        position: Position,
+        pnl_pct: float,
+        key: str,
+    ) -> Signal | None:
+        p = self.params
+        if not p.take_profit_enabled or pnl_pct < p.take_profit_pct:
+            return None
+        reason = (
+            f"MLPDirection exit: Take profit {pnl_pct:.2f}% "
+            f"(target: +{p.take_profit_pct:.1f}%)"
+        )
+        logger.info(f"{position.symbol}: {reason}")
+        self._clear_state(key)
+        return self._create_exit_signal(position, reason)
 
-        # === Exit condition 3: Take profit (if enabled) ===
-        if p.take_profit_enabled and pnl_pct >= p.take_profit_pct:
-            reason = f"MLPDirection exit: Take profit {pnl_pct:.2f}% (target: +{p.take_profit_pct:.1f}%)"
-            logger.info(f"{symbol}: {reason}")
-            self._clear_state(key)
-            return self._create_exit_signal(position, reason)
+    def _check_mlp_sell_exit_if_enabled(
+        self,
+        ctx: TradingContext,
+        position: Position,
+        pnl_pct: float,
+        key: str,
+    ) -> Signal | None:
+        p = self.params
+        if not p.use_mlp_sell_exit or pnl_pct < p.min_profit_for_sell_exit:
+            return None
+        return self._check_mlp_sell_exit(ctx, position, pnl_pct, key)
 
-        # === Exit condition 4: MLP SELL prediction (if enabled) ===
-        if p.use_mlp_sell_exit and pnl_pct >= p.min_profit_for_sell_exit:
-            sell_signal = self._check_mlp_sell_exit(ctx, position, pnl_pct, key)
-            if sell_signal:
-                return sell_signal
-
-        # === Exit condition 5: Trailing stop (if enabled) ===
-        if p.trailing_enabled and hwm_pnl >= p.trailing_activation:
-            trailing_stop_price = hwm * (1 - p.trailing_distance / 100)
-            if current_price <= trailing_stop_price:
-                locked_pnl = ((trailing_stop_price - entry_price) / entry_price) * 100
-                reason = f"MLPDirection exit: Trailing stop {locked_pnl:.2f}% (HWM={hwm_pnl:.2f}%)"
-                logger.info(f"{symbol}: {reason}")
-                self._clear_state(key)
-                return self._create_exit_signal(position, reason)
-
-        return None
+    def _check_trailing_stop_exit(
+        self,
+        position: Position,
+        current_price: float,
+        hwm: float,
+        hwm_pnl: float,
+        key: str,
+    ) -> Signal | None:
+        p = self.params
+        if not p.trailing_enabled or hwm_pnl < p.trailing_activation:
+            return None
+        trailing_stop_price = hwm * (1 - p.trailing_distance / 100)
+        if current_price > trailing_stop_price:
+            return None
+        locked_pnl = ((trailing_stop_price - position.entry_price) / position.entry_price) * 100
+        reason = f"MLPDirection exit: Trailing stop {locked_pnl:.2f}% (HWM={hwm_pnl:.2f}%)"
+        logger.info(f"{position.symbol}: {reason}")
+        self._clear_state(key)
+        return self._create_exit_signal(position, reason)
 
     def _calculate_stop_loss(
         self,

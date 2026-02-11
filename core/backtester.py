@@ -420,108 +420,32 @@ class Backtester:
         """
         self.reset()
 
-        if strategy_params is None:
-            strategy_params = {}
-
-        # Initialize CSV logger if enabled
-        logger: Optional[BacktestLogger] = None
-        if csv_log:
-            logger = BacktestLogger(strategy_name, symbol, csv_log_dir)
+        strategy_params = strategy_params or {}
+        logger = BacktestLogger(strategy_name, symbol, csv_log_dir) if csv_log else None
 
         for i in range(len(df)):
             row = df.iloc[i]
             timestamp = row['timestamp']
             price = row['close']
 
-            # Update portfolio equity for strategies that use drawdown protection
-            if hasattr(strategy_func, "update_equity"):
-                current_equity = self.cash + (self.position * price if self.position != 0 else 0.0)
-                strategy_func.update_equity(current_equity)
-
-            # 전략 시그널 생성
+            self._update_strategy_equity(strategy_func, price)
             signal = strategy_func(df, i, strategy_params)
             action = signal.get('action', 'hold')
-            fraction = signal.get('fraction', 1.0)  # 투자 비율
-
-            # 액션 실행
-            if action == 'buy':
-                self._execute_buy(timestamp, price, fraction)
-            elif action == 'sell':
-                self._execute_sell(timestamp, price, fraction)
-
-            # 포지션 가치 업데이트
-            if self.position > 0:
-                self.position_value = self.position * price
-            else:
-                self.position_value = 0.0
-
-            # Equity curve 기록
-            total_equity = self.cash + self.position_value
-            self.equity_curve.append({
-                'timestamp': timestamp,
-                'cash': self.cash,
-                'position_value': self.position_value,
-                'total_equity': total_equity
-            })
-
-            # CSV logging
+            fraction = signal.get('fraction', 1.0)
+            self._execute_action(action, timestamp, price, fraction)
+            total_equity = self._record_equity_snapshot(timestamp, price)
             if logger is not None:
-                # Calculate metrics for logging
-                peak_equity = max(eq['total_equity'] for eq in self.equity_curve) if self.equity_curve else total_equity
-                drawdown = peak_equity - total_equity
-                drawdown_pct = (drawdown / peak_equity * 100) if peak_equity > 0 else 0.0
-
-                # Determine position state
-                position_type = "long" if self.position > 0 else "none"
-                entry_price = 0.0
-                if self.trades:
-                    last_trade = self.trades[-1]
-                    if last_trade.exit_time is None:
-                        entry_price = last_trade.entry_price
-
-                # Calculate unrealized PnL
-                unrealized_pnl = 0.0
-                if self.position > 0 and entry_price > 0:
-                    unrealized_pnl = (price - entry_price) * self.position
-
-                # Calculate cumulative realized PnL
-                cumulative_pnl = sum(
-                    t.profit_loss for t in self.trades
-                    if t.profit_loss is not None
+                self._log_backtest_candle(
+                    logger=logger,
+                    row=row,
+                    signal=signal,
+                    action=action,
+                    strategy_func=strategy_func,
+                    total_equity=total_equity,
+                    price=price,
                 )
 
-                # Get regime/trend from strategy if available
-                regime = signal.get('regime', '')
-                trend = ''
-                if hasattr(strategy_func, 'current_position') and hasattr(strategy_func, 'config'):
-                    # ComponentStrategyAdapter
-                    trend = getattr(strategy_func, '_current_trend', '')
-
-                state = build_candle_state(
-                    row=row.to_dict(),
-                    position=position_type,
-                    position_qty=self.position,
-                    entry_price=entry_price,
-                    portfolio_value=total_equity,
-                    cash=self.cash,
-                    unrealized_pnl=unrealized_pnl,
-                    realized_pnl=signal.get('realized_pnl', 0.0),
-                    cumulative_pnl=cumulative_pnl,
-                    drawdown=drawdown,
-                    drawdown_pct=drawdown_pct,
-                    high_water_mark=peak_equity,
-                    signal=action,
-                    signal_reason=signal.get('reason', ''),
-                    regime=regime,
-                    trend=trend,
-                    rf_confidence=signal.get('rf_confidence', ''),
-                )
-                logger.log_candle(state)
-
-        # 마지막 포지션 정리 (남은 포지션 매도)
-        if self.position > 0:
-            last_row = df.iloc[-1]
-            self._execute_sell(last_row['timestamp'], last_row['close'], 1.0)
+        self._liquidate_remaining_position(df)
 
         results = self._generate_results()
 
@@ -531,6 +455,108 @@ class Backtester:
             results['csv_log_path'] = csv_path
 
         return results
+
+    def _update_strategy_equity(self, strategy_func: Callable, price: float) -> None:
+        """Update strategy equity callback for drawdown-aware strategies."""
+        if not hasattr(strategy_func, "update_equity"):
+            return
+        current_equity = self.cash + (self.position * price if self.position != 0 else 0.0)
+        strategy_func.update_equity(current_equity)
+
+    def _execute_action(self, action: str, timestamp: Any, price: float, fraction: float) -> None:
+        """Execute buy/sell action for the current candle."""
+        if action == 'buy':
+            self._execute_buy(timestamp, price, fraction)
+            return
+        if action == 'sell':
+            self._execute_sell(timestamp, price, fraction)
+
+    def _record_equity_snapshot(self, timestamp: Any, price: float) -> float:
+        """Update position value and append equity curve snapshot."""
+        self.position_value = self.position * price if self.position > 0 else 0.0
+        total_equity = self.cash + self.position_value
+        self.equity_curve.append({
+            'timestamp': timestamp,
+            'cash': self.cash,
+            'position_value': self.position_value,
+            'total_equity': total_equity,
+        })
+        return total_equity
+
+    def _log_backtest_candle(
+        self,
+        logger: BacktestLogger,
+        row: pd.Series,
+        signal: Dict[str, Any],
+        action: str,
+        strategy_func: Callable,
+        total_equity: float,
+        price: float,
+    ) -> None:
+        """Log per-candle backtest state to CSV logger."""
+        peak_equity, drawdown, drawdown_pct = self._compute_equity_drawdown(total_equity)
+        position_type, entry_price = self._current_position_snapshot()
+        unrealized_pnl = self._compute_unrealized_pnl(price, entry_price)
+        cumulative_pnl = self._compute_cumulative_pnl()
+        regime = signal.get('regime', '')
+        trend = self._extract_strategy_trend(strategy_func)
+
+        state = build_candle_state(
+            row=row.to_dict(),
+            position=position_type,
+            position_qty=self.position,
+            entry_price=entry_price,
+            portfolio_value=total_equity,
+            cash=self.cash,
+            unrealized_pnl=unrealized_pnl,
+            realized_pnl=signal.get('realized_pnl', 0.0),
+            cumulative_pnl=cumulative_pnl,
+            drawdown=drawdown,
+            drawdown_pct=drawdown_pct,
+            high_water_mark=peak_equity,
+            signal=action,
+            signal_reason=signal.get('reason', ''),
+            regime=regime,
+            trend=trend,
+            rf_confidence=signal.get('rf_confidence', ''),
+        )
+        logger.log_candle(state)
+
+    def _compute_equity_drawdown(self, total_equity: float) -> tuple[float, float, float]:
+        peak_equity = max(eq['total_equity'] for eq in self.equity_curve) if self.equity_curve else total_equity
+        drawdown = peak_equity - total_equity
+        drawdown_pct = (drawdown / peak_equity * 100) if peak_equity > 0 else 0.0
+        return peak_equity, drawdown, drawdown_pct
+
+    def _current_position_snapshot(self) -> tuple[str, float]:
+        if self.position <= 0:
+            return "none", 0.0
+        if not self.trades:
+            return "long", 0.0
+        last_trade = self.trades[-1]
+        if last_trade.exit_time is None:
+            return "long", last_trade.entry_price
+        return "long", 0.0
+
+    def _compute_unrealized_pnl(self, price: float, entry_price: float) -> float:
+        if self.position <= 0 or entry_price <= 0:
+            return 0.0
+        return (price - entry_price) * self.position
+
+    def _compute_cumulative_pnl(self) -> float:
+        return sum(t.profit_loss for t in self.trades if t.profit_loss is not None)
+
+    def _extract_strategy_trend(self, strategy_func: Callable) -> str:
+        if hasattr(strategy_func, 'current_position') and hasattr(strategy_func, 'config'):
+            return getattr(strategy_func, '_current_trend', '')
+        return ''
+
+    def _liquidate_remaining_position(self, df: pd.DataFrame) -> None:
+        """Close remaining position at final candle close."""
+        if self.position <= 0:
+            return
+        last_row = df.iloc[-1]
+        self._execute_sell(last_row['timestamp'], last_row['close'], 1.0)
 
     def run_strategy(
         self,
@@ -781,61 +807,99 @@ class Backtester:
         """
         final_equity = self.cash + self.position_value
         total_return = ((final_equity - self.initial_capital) / self.initial_capital) * 100
-
-        # Create equity curve DataFrame
         equity_df = pd.DataFrame(self.equity_curve)
-
-        # Calculate risk metrics from equity curve
         sharpe_ratio = calculate_sharpe_ratio(equity_df) if not equity_df.empty else 0.0
         max_drawdown_pct = calculate_max_drawdown(equity_df) if not equity_df.empty else 0.0
-
-        # 완료된 거래만 추출
         closed_trades = [t for t in self.trades if t.exit_time is not None]
-
         if not closed_trades:
-            return {
-                'initial_capital': self.initial_capital,
-                'final_capital': final_equity,
-                'total_return': total_return,
-                'total_trades': 0,
-                'winning_trades': 0,
-                'losing_trades': 0,
-                'win_rate': 0.0,
-                'sharpe_ratio': sharpe_ratio,
-                'max_drawdown_pct': max_drawdown_pct,
-                'profit_factor': 0.0,
-                'equity_curve': equity_df
-            }
+            return self._build_results_without_trades(
+                final_equity, total_return, sharpe_ratio, max_drawdown_pct, equity_df
+            )
+        return self._build_results_with_trades(
+            final_equity, total_return, sharpe_ratio, max_drawdown_pct, equity_df, closed_trades
+        )
 
-        # 승리/패배 거래
-        winning_trades = [t for t in closed_trades if t.profit_loss > 0]
-        losing_trades = [t for t in closed_trades if t.profit_loss <= 0]
+    def _build_results_without_trades(
+        self,
+        final_equity: float,
+        total_return: float,
+        sharpe_ratio: float,
+        max_drawdown_pct: float,
+        equity_df: pd.DataFrame,
+    ) -> Dict:
+        return {
+            'initial_capital': self.initial_capital,
+            'final_capital': final_equity,
+            'total_return': total_return,
+            'total_trades': 0,
+            'winning_trades': 0,
+            'losing_trades': 0,
+            'win_rate': 0.0,
+            'sharpe_ratio': sharpe_ratio,
+            'max_drawdown_pct': max_drawdown_pct,
+            'profit_factor': 0.0,
+            'equity_curve': equity_df,
+        }
 
-        # 통계
-        win_rate = len(winning_trades) / len(closed_trades) if closed_trades else 0
-        avg_profit = np.mean([t.profit_loss for t in winning_trades]) if winning_trades else 0
-        avg_loss = abs(np.mean([t.profit_loss for t in losing_trades])) if losing_trades else 0
-
-        gross_profit = sum(t.profit_loss for t in winning_trades) if winning_trades else 0
-        gross_loss = abs(sum(t.profit_loss for t in losing_trades)) if losing_trades else 0
-        profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0.0
-
+    def _build_results_with_trades(
+        self,
+        final_equity: float,
+        total_return: float,
+        sharpe_ratio: float,
+        max_drawdown_pct: float,
+        equity_df: pd.DataFrame,
+        closed_trades: List[Trade],
+    ) -> Dict:
+        stats = self._summarize_closed_trades(closed_trades)
         return {
             'initial_capital': self.initial_capital,
             'final_capital': final_equity,
             'total_return': total_return,
             'total_trades': len(closed_trades),
-            'winning_trades': len(winning_trades),
-            'losing_trades': len(losing_trades),
+            'winning_trades': stats['winning_trades'],
+            'losing_trades': stats['losing_trades'],
+            'win_rate': stats['win_rate'],
+            'avg_profit': stats['avg_profit'],
+            'avg_loss': stats['avg_loss'],
+            'sharpe_ratio': sharpe_ratio,
+            'max_drawdown_pct': max_drawdown_pct,
+            'profit_factor': stats['profit_factor'],
+            'trades': closed_trades,
+            'equity_curve': equity_df,
+        }
+
+    def _summarize_closed_trades(self, closed_trades: List[Trade]) -> Dict[str, float]:
+        winning_profits, losing_profits = self._split_trade_profits(closed_trades)
+        avg_profit = self._mean_or_zero(winning_profits)
+        avg_loss = abs(self._mean_or_zero(losing_profits))
+        gross_profit = sum(winning_profits)
+        gross_loss = abs(sum(losing_profits))
+        win_rate = len(winning_profits) / len(closed_trades) if closed_trades else 0.0
+        profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0.0
+        return {
+            'winning_trades': len(winning_profits),
+            'losing_trades': len(losing_profits),
             'win_rate': win_rate,
             'avg_profit': avg_profit,
             'avg_loss': avg_loss,
-            'sharpe_ratio': sharpe_ratio,
-            'max_drawdown_pct': max_drawdown_pct,
             'profit_factor': profit_factor,
-            'trades': closed_trades,
-            'equity_curve': equity_df
         }
+
+    def _split_trade_profits(self, closed_trades: List[Trade]) -> tuple[List[float], List[float]]:
+        winning: List[float] = []
+        losing: List[float] = []
+        for trade in closed_trades:
+            profit = trade.profit_loss
+            if profit > 0:
+                winning.append(profit)
+            else:
+                losing.append(profit)
+        return winning, losing
+
+    def _mean_or_zero(self, values: List[float]) -> float:
+        if not values:
+            return 0.0
+        return float(np.mean(values))
 
 
 # Usage examples

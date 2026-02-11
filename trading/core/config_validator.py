@@ -253,61 +253,82 @@ class ConfigValidator:
     def _validate_entry_config(self, strategy: str, entry: Dict[str, Any]) -> ValidationResult:
         """Validate entry configuration."""
         result = ValidationResult(valid=True)
-
-        # Check for at least one entry condition
-        condition_keys = ["regime", "mfi", "rsi", "adx", "macd", "bb", "volume"]
-        has_condition = any(k in entry for k in condition_keys)
-        if not has_condition:
-            result.add_warning(f"Strategy '{strategy}': entry has no recognized conditions")
-
-        # Validate numeric ranges
-        if "mfi" in entry:
-            mfi_cfg = entry["mfi"]
-            if isinstance(mfi_cfg, dict):
-                low = mfi_cfg.get("low", 0)
-                high = mfi_cfg.get("high", 100)
-                if not (0 <= low <= 100) or not (0 <= high <= 100):
-                    result.add_error(f"Strategy '{strategy}': MFI values must be 0-100")
-                if low > high:
-                    result.add_error(f"Strategy '{strategy}': MFI low > high")
-
-        if "rsi" in entry:
-            rsi_cfg = entry["rsi"]
-            if isinstance(rsi_cfg, dict):
-                low = rsi_cfg.get("low", 0)
-                high = rsi_cfg.get("high", 100)
-                if not (0 <= low <= 100) or not (0 <= high <= 100):
-                    result.add_error(f"Strategy '{strategy}': RSI values must be 0-100")
-
+        self._warn_if_missing_entry_conditions(strategy, entry, result)
+        self._validate_entry_mfi(strategy, entry, result)
+        self._validate_entry_rsi(strategy, entry, result)
         return result
 
     def _validate_exit_config(self, strategy: str, exit_config: Dict[str, Any]) -> ValidationResult:
         """Validate exit configuration."""
         result = ValidationResult(valid=True)
-
-        # Check for take profit / stop loss
-        tp = exit_config.get("take_profit_pct") or exit_config.get("tp_pct")
-        sl = exit_config.get("stop_loss_pct") or exit_config.get("sl_pct")
-
-        if tp is not None:
-            if not isinstance(tp, (int, float)) or tp <= 0:
-                result.add_error(f"Strategy '{strategy}': take_profit_pct must be positive")
-            elif tp > 50:
-                result.add_warning(f"Strategy '{strategy}': take_profit_pct={tp}% is very high")
-
-        if sl is not None:
-            if not isinstance(sl, (int, float)) or sl <= 0:
-                result.add_error(f"Strategy '{strategy}': stop_loss_pct must be positive")
-            elif sl > 20:
-                result.add_warning(f"Strategy '{strategy}': stop_loss_pct={sl}% is very high")
-
-        # Check trailing stop if present
-        trailing = exit_config.get("trailing_stop_pct")
-        if trailing is not None:
-            if not isinstance(trailing, (int, float)) or trailing <= 0:
-                result.add_error(f"Strategy '{strategy}': trailing_stop_pct must be positive")
-
+        self._validate_take_profit(strategy, exit_config, result)
+        self._validate_stop_loss(strategy, exit_config, result)
+        self._validate_trailing_stop(strategy, exit_config, result)
         return result
+
+    def _warn_if_missing_entry_conditions(
+        self, strategy: str, entry: Dict[str, Any], result: ValidationResult
+    ) -> None:
+        condition_keys = ["regime", "mfi", "rsi", "adx", "macd", "bb", "volume"]
+        if not any(key in entry for key in condition_keys):
+            result.add_warning(f"Strategy '{strategy}': entry has no recognized conditions")
+
+    def _validate_entry_mfi(
+        self, strategy: str, entry: Dict[str, Any], result: ValidationResult
+    ) -> None:
+        mfi_cfg = entry.get("mfi")
+        if not isinstance(mfi_cfg, dict):
+            return
+        low = mfi_cfg.get("low", 0)
+        high = mfi_cfg.get("high", 100)
+        if not (0 <= low <= 100) or not (0 <= high <= 100):
+            result.add_error(f"Strategy '{strategy}': MFI values must be 0-100")
+        if low > high:
+            result.add_error(f"Strategy '{strategy}': MFI low > high")
+
+    def _validate_entry_rsi(
+        self, strategy: str, entry: Dict[str, Any], result: ValidationResult
+    ) -> None:
+        rsi_cfg = entry.get("rsi")
+        if not isinstance(rsi_cfg, dict):
+            return
+        low = rsi_cfg.get("low", 0)
+        high = rsi_cfg.get("high", 100)
+        if not (0 <= low <= 100) or not (0 <= high <= 100):
+            result.add_error(f"Strategy '{strategy}': RSI values must be 0-100")
+
+    def _validate_take_profit(
+        self, strategy: str, exit_config: Dict[str, Any], result: ValidationResult
+    ) -> None:
+        tp = exit_config.get("take_profit_pct") or exit_config.get("tp_pct")
+        if tp is None:
+            return
+        if not isinstance(tp, (int, float)) or tp <= 0:
+            result.add_error(f"Strategy '{strategy}': take_profit_pct must be positive")
+            return
+        if tp > 50:
+            result.add_warning(f"Strategy '{strategy}': take_profit_pct={tp}% is very high")
+
+    def _validate_stop_loss(
+        self, strategy: str, exit_config: Dict[str, Any], result: ValidationResult
+    ) -> None:
+        sl = exit_config.get("stop_loss_pct") or exit_config.get("sl_pct")
+        if sl is None:
+            return
+        if not isinstance(sl, (int, float)) or sl <= 0:
+            result.add_error(f"Strategy '{strategy}': stop_loss_pct must be positive")
+            return
+        if sl > 20:
+            result.add_warning(f"Strategy '{strategy}': stop_loss_pct={sl}% is very high")
+
+    def _validate_trailing_stop(
+        self, strategy: str, exit_config: Dict[str, Any], result: ValidationResult
+    ) -> None:
+        trailing = exit_config.get("trailing_stop_pct")
+        if trailing is None:
+            return
+        if not isinstance(trailing, (int, float)) or trailing <= 0:
+            result.add_error(f"Strategy '{strategy}': trailing_stop_pct must be positive")
 
     def _validate_risk_config(self, strategy: str, risk: Dict[str, Any]) -> ValidationResult:
         """Validate risk configuration."""

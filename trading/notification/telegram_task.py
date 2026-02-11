@@ -236,64 +236,13 @@ class TelegramTask:
 
         daily_pnl = float(risk.get("daily_pnl", 0))
         blocked = risk.get("blocked", "false")
-
-        # Get latest prices from market stream
-        prices: dict[str, float] = {}
-        try:
-            entries = await self.redis._client.xrevrange("market:prices", count=100)
-            for _, data in entries:
-                symbol = data.get("symbol")
-                price_raw = data.get("price")
-                if symbol in ("BTC", "ETH", "SOL") and symbol not in prices and price_raw:
-                    prices[symbol] = float(price_raw)
-        except Exception:
-            prices = {}
-
-        market_text = ""
-        for symbol in ("BTC", "ETH", "SOL"):
-            if symbol in prices:
-                market_text += f"\n  {symbol}: ${prices[symbol]:,.2f}"
-        if not market_text:
-            market_text = "\n  No recent price data"
-
-        # Get latest decision/regime per symbol from strategy:decisions stream
-        signals_by_symbol: dict[str, str] = {}
-        try:
-            decision_entries = await self.redis._client.xrevrange("strategy:decisions", count=200)
-            for _, data in decision_entries:
-                symbol = data.get("symbol", "")
-                if symbol in ("BTC", "ETH", "SOL") and symbol not in signals_by_symbol:
-                    decision = (data.get("decision") or "WAIT").upper()
-                    regime = data.get("regime", "UNKNOWN")
-                    strategy = data.get("strategy", "unknown")
-                    signals_by_symbol[symbol] = f"{decision} | {regime} ({strategy})"
-                if len(signals_by_symbol) == 3:
-                    break
-        except Exception:
-            signals_by_symbol = {}
-
-        signal_text = ""
-        for symbol in ("BTC", "ETH", "SOL"):
-            if symbol in signals_by_symbol:
-                signal_text += f"\n  {symbol}: {signals_by_symbol[symbol]}"
-        if not signal_text:
-            signal_text = "\n  No recent strategy signals"
-
-        # Get positions
-        positions_text = ""
-        for symbol in ["BTC", "ETH", "SOL"]:
-            for market in ["spot", "futures"]:
-                pos = await self.redis.get_position(symbol, market)
-                if pos and pos.get("quantity"):
-                    qty = float(pos.get("quantity", 0))
-                    entry = float(pos.get("entry_price", 0))
-                    strategy = pos.get("strategy", "unknown")
-                    positions_text += f"\n  {symbol} {market}: {qty:.4f} @ ${entry:,.2f} ({strategy})"
-
-        if not positions_text:
-            positions_text = "\n  None"
-
         blocked_text = " (BLOCKED)" if blocked == "true" else ""
+
+        prices = await self._get_latest_prices()
+        signals_by_symbol = await self._get_latest_signals()
+        positions_text = await self._get_positions_text()
+        market_text = self._format_prices_text(prices)
+        signal_text = self._format_signals_text(signals_by_symbol)
 
         message = f"""*System Status*
 
@@ -308,6 +257,62 @@ class TelegramTask:
 _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
 """
         await self._send_message(message, bypass_rate_limit=True)
+
+    async def _get_latest_prices(self) -> dict[str, float]:
+        prices: dict[str, float] = {}
+        try:
+            entries = await self.redis._client.xrevrange("market:prices", count=100)
+            for _, data in entries:
+                symbol = data.get("symbol")
+                price_raw = data.get("price")
+                if symbol in ("BTC", "ETH", "SOL") and symbol not in prices and price_raw:
+                    prices[symbol] = float(price_raw)
+        except Exception:
+            return {}
+        return prices
+
+    async def _get_latest_signals(self) -> dict[str, str]:
+        signals_by_symbol: dict[str, str] = {}
+        try:
+            entries = await self.redis._client.xrevrange("strategy:decisions", count=200)
+            for _, data in entries:
+                symbol = data.get("symbol", "")
+                if symbol in ("BTC", "ETH", "SOL") and symbol not in signals_by_symbol:
+                    decision = (data.get("decision") or "WAIT").upper()
+                    regime = data.get("regime", "UNKNOWN")
+                    strategy = data.get("strategy", "unknown")
+                    signals_by_symbol[symbol] = f"{decision} | {regime} ({strategy})"
+                if len(signals_by_symbol) == 3:
+                    break
+        except Exception:
+            return {}
+        return signals_by_symbol
+
+    async def _get_positions_text(self) -> str:
+        text = ""
+        for symbol in ("BTC", "ETH", "SOL"):
+            for market in ("spot", "futures"):
+                pos = await self.redis.get_position(symbol, market)
+                if pos and pos.get("quantity"):
+                    qty = float(pos.get("quantity", 0))
+                    entry = float(pos.get("entry_price", 0))
+                    strategy = pos.get("strategy", "unknown")
+                    text += f"\n  {symbol} {market}: {qty:.4f} @ ${entry:,.2f} ({strategy})"
+        return text or "\n  None"
+
+    def _format_prices_text(self, prices: dict[str, float]) -> str:
+        text = ""
+        for symbol in ("BTC", "ETH", "SOL"):
+            if symbol in prices:
+                text += f"\n  {symbol}: ${prices[symbol]:,.2f}"
+        return text or "\n  No recent price data"
+
+    def _format_signals_text(self, signals_by_symbol: dict[str, str]) -> str:
+        text = ""
+        for symbol in ("BTC", "ETH", "SOL"):
+            if symbol in signals_by_symbol:
+                text += f"\n  {symbol}: {signals_by_symbol[symbol]}"
+        return text or "\n  No recent strategy signals"
 
     async def _cmd_dashboard(self) -> None:
         """Handle /dashboard command - show TOTP code for dashboard access."""

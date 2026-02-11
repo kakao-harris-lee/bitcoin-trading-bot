@@ -17,61 +17,22 @@ def calculate_metrics(trades: list, period: str = '30d') -> dict:
     Returns:
         Dictionary with calculated metrics
     """
-    # Filter trades by period
-    now = datetime.now()
-
-    if period != 'all':
-        days = int(period.replace('d', ''))
-        cutoff = now - timedelta(days=days)
-        cutoff_str = cutoff.isoformat()
-        trades = [t for t in trades if t.get('timestamp', '') >= cutoff_str]
+    trades = _filter_trades_by_period(trades, period)
 
     if not trades:
         return _empty_metrics(period)
 
-    # Calculate basic stats
     total_trades = len(trades)
-    sell_trades = [t for t in trades if t.get('action', '').upper() == 'SELL' and t.get('profit') is not None]
-
+    sell_trades = _extract_closed_sell_trades(trades)
     if not sell_trades:
         return _empty_metrics(period)
 
-    wins = [t for t in sell_trades if t.get('profit', 0) > 0]
-    losses = [t for t in sell_trades if t.get('profit', 0) <= 0]
-
-    winning_trades = len(wins)
-    losing_trades = len(losses)
-    closed_trades = len(sell_trades)
-
-    win_rate = (winning_trades / closed_trades * 100) if closed_trades > 0 else 0
-
-    # Calculate P&L
-    total_profit = sum(t.get('profit', 0) for t in sell_trades)
-    total_wins = sum(t.get('profit', 0) for t in wins)
-    total_losses = abs(sum(t.get('profit', 0) for t in losses))
-
-    profit_factor = (total_wins / total_losses) if total_losses > 0 else float('inf') if total_wins > 0 else 0
-
-    avg_trade = total_profit / closed_trades if closed_trades > 0 else 0
-    avg_win = total_wins / winning_trades if winning_trades > 0 else 0
-    avg_loss = total_losses / losing_trades if losing_trades > 0 else 0
-
-    # Calculate return percentage
-    profit_pcts = [t.get('profit_pct', 0) for t in sell_trades if t.get('profit_pct') is not None]
+    stats = _calculate_trade_stats(sell_trades)
+    profit_pcts = _extract_profit_pcts(sell_trades)
     total_return = sum(profit_pcts) if profit_pcts else 0
-
-    # Get date range
-    timestamps = [t.get('timestamp', '') for t in trades if t.get('timestamp')]
-    start_date = min(timestamps)[:10] if timestamps else ''
-    end_date = max(timestamps)[:10] if timestamps else ''
-
-    # Calculate max drawdown (simplified)
+    start_date, end_date = _extract_date_range(trades)
     max_drawdown, max_drawdown_pct = _calculate_max_drawdown(sell_trades)
-
-    # Calculate Sharpe ratio (simplified - using profit_pct as returns)
     sharpe_ratio = _calculate_sharpe(profit_pcts)
-
-    # Group by strategy
     by_strategy = _group_by_strategy(sell_trades)
 
     return {
@@ -79,21 +40,101 @@ def calculate_metrics(trades: list, period: str = '30d') -> dict:
         'start_date': start_date,
         'end_date': end_date,
         'total_return': total_return,
-        'total_return_krw': total_profit,
-        'win_rate': win_rate,
+        'total_return_krw': stats['total_profit'],
+        'win_rate': stats['win_rate'],
         'total_trades': total_trades,
-        'closed_trades': closed_trades,
-        'winning_trades': winning_trades,
-        'losing_trades': losing_trades,
-        'profit_factor': round(profit_factor, 2) if profit_factor != float('inf') else 999,
-        'avg_trade': avg_trade,
-        'avg_win': avg_win,
-        'avg_loss': avg_loss,
+        'closed_trades': stats['closed_trades'],
+        'winning_trades': stats['winning_trades'],
+        'losing_trades': stats['losing_trades'],
+        'profit_factor': stats['profit_factor'],
+        'avg_trade': stats['avg_trade'],
+        'avg_win': stats['avg_win'],
+        'avg_loss': stats['avg_loss'],
         'sharpe_ratio': sharpe_ratio,
         'max_drawdown': max_drawdown_pct,
         'max_drawdown_krw': max_drawdown,
         'by_strategy': by_strategy
     }
+
+
+def _filter_trades_by_period(trades: list, period: str) -> list:
+    if period == 'all':
+        return trades
+    days = int(period.replace('d', ''))
+    cutoff = datetime.now() - timedelta(days=days)
+    cutoff_str = cutoff.isoformat()
+    return [t for t in trades if t.get('timestamp', '') >= cutoff_str]
+
+
+def _extract_closed_sell_trades(trades: list) -> list:
+    return [
+        t for t in trades
+        if t.get('action', '').upper() == 'SELL' and t.get('profit') is not None
+    ]
+
+
+def _calculate_trade_stats(sell_trades: list) -> dict:
+    wins, losses = _split_wins_losses(sell_trades)
+    winning_trades = len(wins)
+    losing_trades = len(losses)
+    closed_trades = len(sell_trades)
+    total_profit = sum(t.get('profit', 0) for t in sell_trades)
+    total_wins = sum(t.get('profit', 0) for t in wins)
+    total_losses = abs(sum(t.get('profit', 0) for t in losses))
+    win_rate = _safe_pct_ratio(winning_trades, closed_trades)
+    profit_factor = _compute_profit_factor(total_wins, total_losses)
+    return {
+        'closed_trades': closed_trades,
+        'winning_trades': winning_trades,
+        'losing_trades': losing_trades,
+        'win_rate': win_rate,
+        'total_profit': total_profit,
+        'avg_trade': _safe_div(total_profit, closed_trades),
+        'avg_win': _safe_div(total_wins, winning_trades),
+        'avg_loss': _safe_div(total_losses, losing_trades),
+        'profit_factor': _format_profit_factor(profit_factor),
+    }
+
+
+def _split_wins_losses(sell_trades: list) -> tuple[list, list]:
+    wins = [t for t in sell_trades if t.get('profit', 0) > 0]
+    losses = [t for t in sell_trades if t.get('profit', 0) <= 0]
+    return wins, losses
+
+
+def _safe_div(numerator: float, denominator: int) -> float:
+    if denominator <= 0:
+        return 0
+    return numerator / denominator
+
+
+def _safe_pct_ratio(numerator: int, denominator: int) -> float:
+    return _safe_div(numerator * 100, denominator)
+
+
+def _compute_profit_factor(total_wins: float, total_losses: float) -> float:
+    if total_losses > 0:
+        return total_wins / total_losses
+    if total_wins > 0:
+        return float('inf')
+    return 0
+
+
+def _format_profit_factor(profit_factor: float) -> float | int:
+    if profit_factor == float('inf'):
+        return 999
+    return round(profit_factor, 2)
+
+
+def _extract_profit_pcts(sell_trades: list) -> list:
+    return [t.get('profit_pct', 0) for t in sell_trades if t.get('profit_pct') is not None]
+
+
+def _extract_date_range(trades: list) -> tuple[str, str]:
+    timestamps = [t.get('timestamp', '') for t in trades if t.get('timestamp')]
+    if not timestamps:
+        return '', ''
+    return min(timestamps)[:10], max(timestamps)[:10]
 
 
 def calculate_equity_curve(trades: list, period: str = '30d', initial_capital: float = 10000000) -> dict:

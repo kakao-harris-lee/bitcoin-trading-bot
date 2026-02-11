@@ -75,69 +75,30 @@ class BearShortEntryStrategy:
         context = ctx.regime
         regime = context.regime
         symbol = market_data.symbol
-        p = self.params
 
-        # Track consecutive BEAR_STRONG candles
-        if regime == "BEAR_STRONG":
-            self._consecutive_bear[symbol] = self._consecutive_bear.get(symbol, 0) + 1
-        else:
-            self._consecutive_bear[symbol] = 0
+        self._update_consecutive_bear(symbol, regime)
 
         # Gate 1: Regime must be BEAR_STRONG only (strict)
         if regime != "BEAR_STRONG":
             return None
 
-        # Gate 2: MACD bearish momentum (MACD < Signal)
-        if market_data.macd >= market_data.macd_signal:
-            logger.debug(
-                f"{symbol}: BearShort skip - MACD={market_data.macd:.2f} "
-                f">= Signal={market_data.macd_signal:.2f}"
-            )
+        if not self._passes_macd_gate(market_data):
             return None
 
-        # Gate 3: EMA200 filter (price must be below 200-EMA)
-        if p.ema200_filter and market_data.ema_200 > 0:
-            if market_data.close >= market_data.ema_200:
-                logger.debug(
-                    f"{symbol}: BearShort skip - price {market_data.close:.0f} "
-                    f">= EMA200 {market_data.ema_200:.0f}"
-                )
-                return None
-
-        # Gate 4: RSI ceiling
-        if p.rsi_max > 0 and market_data.rsi >= p.rsi_max:
-            logger.debug(
-                f"{symbol}: BearShort skip - RSI {market_data.rsi:.1f} "
-                f">= max {p.rsi_max}"
-            )
+        if not self._passes_ema200_gate(market_data):
             return None
 
-        # Gate 5: Consecutive BEAR_STRONG candles
-        consec = self._consecutive_bear.get(symbol, 0)
-        if consec < p.min_consecutive_bear:
-            logger.debug(
-                f"{symbol}: BearShort skip - {consec} consecutive BEAR_STRONG "
-                f"< required {p.min_consecutive_bear}"
-            )
+        if not self._passes_rsi_gate(market_data):
             return None
 
-        # Gate 6: Volume confirmation (optional, disabled by default)
-        if p.volume_ratio_threshold > 0 and context.volume_ratio < p.volume_ratio_threshold:
-            logger.debug(
-                f"{symbol}: BearShort skip - volume_ratio="
-                f"{context.volume_ratio:.2f} < {p.volume_ratio_threshold}"
-            )
+        if not self._passes_consecutive_bear_gate(symbol):
+            return None
+
+        if not self._passes_volume_gate(symbol, context.volume_ratio):
             return None
 
         # All conditions met
-        reason = (
-            f"BearShort entry: {regime}, "
-            f"MACD={market_data.macd:.2f}<Signal={market_data.macd_signal:.2f}"
-        )
-        if p.ema200_filter:
-            reason += f", <EMA200"
-        if p.rsi_max > 0:
-            reason += f", RSI={market_data.rsi:.1f}"
+        reason = self._build_reason(market_data, regime)
         logger.info(f"{symbol}: {reason}")
 
         return Signal(
@@ -147,3 +108,72 @@ class BearShortEntryStrategy:
             quantity=self.params.position_size,
             reason=reason,
         )
+
+    def _update_consecutive_bear(self, symbol: str, regime: str) -> None:
+        if regime == "BEAR_STRONG":
+            self._consecutive_bear[symbol] = self._consecutive_bear.get(symbol, 0) + 1
+            return
+        self._consecutive_bear[symbol] = 0
+
+    def _passes_macd_gate(self, market_data: MarketData) -> bool:
+        if market_data.macd < market_data.macd_signal:
+            return True
+        logger.debug(
+            f"{market_data.symbol}: BearShort skip - MACD={market_data.macd:.2f} "
+            f">= Signal={market_data.macd_signal:.2f}"
+        )
+        return False
+
+    def _passes_ema200_gate(self, market_data: MarketData) -> bool:
+        if not self.params.ema200_filter or market_data.ema_200 <= 0:
+            return True
+        if market_data.close < market_data.ema_200:
+            return True
+        logger.debug(
+            f"{market_data.symbol}: BearShort skip - price {market_data.close:.0f} "
+            f">= EMA200 {market_data.ema_200:.0f}"
+        )
+        return False
+
+    def _passes_rsi_gate(self, market_data: MarketData) -> bool:
+        if self.params.rsi_max <= 0:
+            return True
+        if market_data.rsi < self.params.rsi_max:
+            return True
+        logger.debug(
+            f"{market_data.symbol}: BearShort skip - RSI {market_data.rsi:.1f} "
+            f">= max {self.params.rsi_max}"
+        )
+        return False
+
+    def _passes_consecutive_bear_gate(self, symbol: str) -> bool:
+        consec = self._consecutive_bear.get(symbol, 0)
+        if consec >= self.params.min_consecutive_bear:
+            return True
+        logger.debug(
+            f"{symbol}: BearShort skip - {consec} consecutive BEAR_STRONG "
+            f"< required {self.params.min_consecutive_bear}"
+        )
+        return False
+
+    def _passes_volume_gate(self, symbol: str, volume_ratio: float) -> bool:
+        threshold = self.params.volume_ratio_threshold
+        if threshold <= 0:
+            return True
+        if volume_ratio >= threshold:
+            return True
+        logger.debug(
+            f"{symbol}: BearShort skip - volume_ratio={volume_ratio:.2f} < {threshold}"
+        )
+        return False
+
+    def _build_reason(self, market_data: MarketData, regime: str) -> str:
+        reason = (
+            f"BearShort entry: {regime}, "
+            f"MACD={market_data.macd:.2f}<Signal={market_data.macd_signal:.2f}"
+        )
+        if self.params.ema200_filter:
+            reason += ", <EMA200"
+        if self.params.rsi_max > 0:
+            reason += f", RSI={market_data.rsi:.1f}"
+        return reason

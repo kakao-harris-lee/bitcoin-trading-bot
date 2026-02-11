@@ -204,44 +204,12 @@ def build_market_context(
     Returns:
         MarketContext with trend, regime, volatility, and volume analysis.
     """
-    # Calculate drawdown from recent high
-    drawdown = 0.0
-    if recent_high > 0 and close > 0:
-        drawdown = (recent_high - close) / recent_high
-
-    # Check if drawdown triggers BEAR override
+    drawdown = _compute_drawdown(recent_high, close)
     is_drawdown_bear = drawdown >= drawdown_bear_threshold
-
-    # Trend classification based on MFI (simple 3-level)
-    # Override to BEAR if significant drawdown
-    if is_drawdown_bear:
-        trend: Literal["BULL", "BEAR", "NEUTRAL"] = "BEAR"
-    elif mfi >= 52:
-        trend = "BULL"
-    elif mfi <= 48:
-        trend = "BEAR"
-    else:
-        trend = "NEUTRAL"
-
-    # Regime classification (7-level)
-    regime = _classify_regime(mfi, adx)
-
-    # Override to BEAR regime if significant drawdown
-    # This catches crashes where MFI stays in SIDEWAYS range
-    if is_drawdown_bear and regime not in BEAR_REGIMES:
-        # Use ADX to determine BEAR strength
-        if adx >= 25:
-            regime = "BEAR_STRONG"
-        else:
-            regime = "BEAR_MODERATE"
-
-    # Volatility classification
-    volatility_score = atr / close if close > 0 else 0.0
-    is_extreme_volatility = volatility_score > volatility_threshold
-
-    # Volume classification (for breakout/mean-reversion filtering)
-    volume_ratio = volume / avg_volume if avg_volume > 0 else 1.0
-    is_high_volume = volume_ratio > high_volume_threshold
+    trend = _classify_trend(mfi, is_drawdown_bear)
+    regime = _resolve_regime(mfi, adx, is_drawdown_bear)
+    volatility_score, is_extreme_volatility = _compute_volatility(atr, close, volatility_threshold)
+    volume_ratio, is_high_volume = _compute_volume(volume, avg_volume, high_volume_threshold)
 
     return MarketContext(
         trend=trend,
@@ -257,6 +225,43 @@ def build_market_context(
         rf_direction=rf_direction,
         rf_signal=rf_signal,
     )
+
+
+def _compute_drawdown(recent_high: float, close: float) -> float:
+    if recent_high > 0 and close > 0:
+        return (recent_high - close) / recent_high
+    return 0.0
+
+
+def _classify_trend(mfi: float, is_drawdown_bear: bool) -> Literal["BULL", "BEAR", "NEUTRAL"]:
+    if is_drawdown_bear:
+        return "BEAR"
+    if mfi >= 52:
+        return "BULL"
+    if mfi <= 48:
+        return "BEAR"
+    return "NEUTRAL"
+
+
+def _resolve_regime(mfi: float, adx: float, is_drawdown_bear: bool) -> Regime:
+    regime = _classify_regime(mfi, adx)
+    if not is_drawdown_bear or regime in BEAR_REGIMES:
+        return regime
+    return "BEAR_STRONG" if adx >= 25 else "BEAR_MODERATE"
+
+
+def _compute_volatility(
+    atr: float, close: float, volatility_threshold: float
+) -> tuple[float, bool]:
+    volatility_score = atr / close if close > 0 else 0.0
+    return volatility_score, volatility_score > volatility_threshold
+
+
+def _compute_volume(
+    volume: float, avg_volume: float, high_volume_threshold: float
+) -> tuple[float, bool]:
+    volume_ratio = volume / avg_volume if avg_volume > 0 else 1.0
+    return volume_ratio, volume_ratio > high_volume_threshold
 
 
 @lru_cache(maxsize=1024)

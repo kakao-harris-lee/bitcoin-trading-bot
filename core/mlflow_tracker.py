@@ -105,66 +105,14 @@ class MLflowTracker:
             return None
 
         try:
-            # Extract data from result
-            if isinstance(result, BacktestResult):
-                strategy_name = result.strategy_name
-                symbol = result.symbol
-                params = result.params
-                metrics = {
-                    "total_return_pct": result.total_return_pct,
-                    "sharpe_ratio": result.sharpe_ratio,
-                    "max_drawdown_pct": result.max_drawdown_pct,
-                    "win_rate": result.win_rate,
-                    "total_trades": result.total_trades,
-                    "profit_factor": result.profit_factor,
-                    "benchmark_return_pct": result.benchmark_return_pct,
-                }
-            else:
-                strategy_name = result.get("strategy_name", "unknown")
-                symbol = result.get("symbol", "unknown")
-                params = result.get("params", {})
-                metrics = {
-                    "total_return_pct": result.get("total_return", 0.0),
-                    "sharpe_ratio": result.get("sharpe_ratio", 0.0),
-                    "max_drawdown_pct": result.get("max_drawdown_pct", 0.0),
-                    "win_rate": result.get("win_rate", 0.0),
-                    "total_trades": result.get("total_trades", 0),
-                    "profit_factor": result.get("profit_factor", 0.0),
-                    "benchmark_return_pct": result.get("benchmark_return_pct", 0.0),
-                }
-
-            # Generate run name if not provided
-            if run_name is None:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                run_name = f"{strategy_name}_{symbol}_{timestamp}"
+            strategy_name, symbol, params, metrics = self._extract_run_payload(result)
+            run_name = run_name or self._build_run_name(strategy_name, symbol)
 
             with self._mlflow.start_run(run_name=run_name) as run:
-                # Log parameters
-                self._mlflow.log_param("strategy_name", strategy_name)
-                self._mlflow.log_param("symbol", symbol)
-
-                # Log strategy config params
-                for key, value in params.items():
-                    # MLflow params must be strings
-                    self._mlflow.log_param(key, str(value))
-
-                # Log metrics
-                for metric_name, metric_value in metrics.items():
-                    if metric_value is not None:
-                        self._mlflow.log_metric(metric_name, float(metric_value))
-
-                # Log tags
-                self._mlflow.set_tag("strategy_name", strategy_name)
-                self._mlflow.set_tag("symbol", symbol)
-
-                if tags:
-                    for tag_key, tag_value in tags.items():
-                        self._mlflow.set_tag(tag_key, tag_value)
-
-                # Log chart artifact if provided
-                if chart_path and Path(chart_path).exists():
-                    self._mlflow.log_artifact(chart_path)
-                    logger.debug(f"Logged artifact: {chart_path}")
+                self._log_run_params(strategy_name, symbol, params)
+                self._log_run_metrics(metrics)
+                self._log_run_tags(strategy_name, symbol, tags)
+                self._log_chart_artifact(chart_path)
 
                 run_id = run.info.run_id
                 logger.info(f"Logged MLflow run: {run_name} (id={run_id})")
@@ -173,6 +121,64 @@ class MLflowTracker:
         except Exception as e:
             logger.warning(f"MLflow logging failed: {e}, continuing without tracking")
             return None
+
+    def _extract_run_payload(
+        self, result: Union[BacktestResult, Dict[str, Any]]
+    ) -> tuple[str, str, Dict[str, Any], Dict[str, Any]]:
+        if isinstance(result, BacktestResult):
+            metrics = {
+                "total_return_pct": result.total_return_pct,
+                "sharpe_ratio": result.sharpe_ratio,
+                "max_drawdown_pct": result.max_drawdown_pct,
+                "win_rate": result.win_rate,
+                "total_trades": result.total_trades,
+                "profit_factor": result.profit_factor,
+                "benchmark_return_pct": result.benchmark_return_pct,
+            }
+            return result.strategy_name, result.symbol, result.params, metrics
+
+        metrics = {
+            "total_return_pct": result.get("total_return", 0.0),
+            "sharpe_ratio": result.get("sharpe_ratio", 0.0),
+            "max_drawdown_pct": result.get("max_drawdown_pct", 0.0),
+            "win_rate": result.get("win_rate", 0.0),
+            "total_trades": result.get("total_trades", 0),
+            "profit_factor": result.get("profit_factor", 0.0),
+            "benchmark_return_pct": result.get("benchmark_return_pct", 0.0),
+        }
+        return (
+            result.get("strategy_name", "unknown"),
+            result.get("symbol", "unknown"),
+            result.get("params", {}),
+            metrics,
+        )
+
+    def _build_run_name(self, strategy_name: str, symbol: str) -> str:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"{strategy_name}_{symbol}_{timestamp}"
+
+    def _log_run_params(self, strategy_name: str, symbol: str, params: Dict[str, Any]) -> None:
+        self._mlflow.log_param("strategy_name", strategy_name)
+        self._mlflow.log_param("symbol", symbol)
+        for key, value in params.items():
+            self._mlflow.log_param(key, str(value))
+
+    def _log_run_metrics(self, metrics: Dict[str, Any]) -> None:
+        for metric_name, metric_value in metrics.items():
+            if metric_value is not None:
+                self._mlflow.log_metric(metric_name, float(metric_value))
+
+    def _log_run_tags(self, strategy_name: str, symbol: str, tags: Optional[Dict[str, str]]) -> None:
+        self._mlflow.set_tag("strategy_name", strategy_name)
+        self._mlflow.set_tag("symbol", symbol)
+        if tags:
+            for tag_key, tag_value in tags.items():
+                self._mlflow.set_tag(tag_key, tag_value)
+
+    def _log_chart_artifact(self, chart_path: Optional[str]) -> None:
+        if chart_path and Path(chart_path).exists():
+            self._mlflow.log_artifact(chart_path)
+            logger.debug(f"Logged artifact: {chart_path}")
 
     def log_sweep(
         self,

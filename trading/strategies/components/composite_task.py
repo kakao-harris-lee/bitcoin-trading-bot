@@ -25,6 +25,7 @@ import asyncio
 import json
 import logging
 import time
+from dataclasses import replace
 from datetime import datetime
 from types import MappingProxyType
 from typing import Any, TYPE_CHECKING
@@ -116,21 +117,34 @@ class CompositeStrategyTask(BaseStrategyTask):
         self.history: dict[str, list[dict]] = {}
         # Track last recorded candle hour per symbol for decision logging
         self.last_decision_hour: dict[str, int] = {}
-        # Event emission for observability
+        self._init_eventing(emit_events, redis)
+        self._init_shared_services(indicator_service, context_builder)
+        self._init_evaluation_config()
+        self._init_regime_detectors(symbols, regime_version)
+        self._init_mlp_settings()
+        self._init_entry_and_leverage_controls()
+        self._init_drawdown_and_breakout_controls()
+        self._init_risk_controls(redis)
+        self._init_volatility_sizing()
+
+    def _init_eventing(self, emit_events: bool, redis: RedisStreams) -> None:
         self.emit_events = emit_events
         self.event_emitter: EventEmitter | None = None
-        if emit_events:
-            from trading.core.event_emitter import EventEmitter
-            self.event_emitter = EventEmitter(redis=redis, enabled=True)
+        if not emit_events:
+            return
+        from trading.core.event_emitter import EventEmitter
 
-        # Shared indicator service for centralized calculation (reduces CPU by ~75%)
-        self.indicator_service: IndicatorService | None = indicator_service
+        self.event_emitter = EventEmitter(redis=redis, enabled=True)
 
-        # Shared context builder for centralized TradingContext construction
-        self.context_builder: TradingContextBuilder | None = context_builder
+    def _init_shared_services(
+        self,
+        indicator_service: IndicatorService | None,
+        context_builder: TradingContextBuilder | None,
+    ) -> None:
+        self.indicator_service = indicator_service
+        self.context_builder = context_builder
 
-        # Evaluation throttling to reduce CPU usage (legacy, used if no indicator_service)
-        # Only recalculate indicators at this interval (seconds), not on every tick
+    def _init_evaluation_config(self) -> None:
         self.evaluation_interval = self.config.get("evaluation_interval_seconds", 60)
         self._last_evaluation_time: dict[str, float] = {}
         self._market_data_cache: dict[str, MarketData] = {}
@@ -140,70 +154,84 @@ class CompositeStrategyTask(BaseStrategyTask):
         )
         self._last_entry_candle_ts: dict[str, int] = {}
 
-        # Regime smoothing to reduce noise (78% fewer transitions)
-        # v1: Original RegimeSmoother (EMA + persistence)
-        # v2: EnhancedRegimeRouter (BBW + MTF + Volume filters)
+    def _init_regime_detectors(self, symbols: list[str], regime_version: str) -> None:
         self.regime_version = regime_version
         self.use_regime_smoothing = self.config.get("use_regime_smoothing", True)
         self._regime_smoothers: dict[str, RegimeSmoother] = {}
         self._enhanced_routers: dict[str, EnhancedRegimeRouter] = {}
-
         if self.regime_version == "v2":
-            # Enhanced regime detection with BBW, MTF, and Volume filters
-            bbw_block = self.config.get("bbw_block_threshold", 25)
-            bbw_confirm = self.config.get("bbw_confirm_threshold", 50)
-            volume_block = self.config.get("volume_block_ratio", 0.8)
-            volume_boost = self.config.get("volume_boost_ratio", 1.2)
-            mtf_enabled = self.config.get("mtf_enabled", True)
-            for symbol in symbols:
-                self._enhanced_routers[symbol] = EnhancedRegimeRouter(
-                    bbw_block_threshold=bbw_block,
-                    bbw_confirm_threshold=bbw_confirm,
-                    volume_block_ratio=volume_block,
-                    volume_boost_ratio=volume_boost,
-                    mtf_enabled=mtf_enabled,
-                )
+            self._init_enhanced_routers(symbols)
             logger.info(f"{self.name} using enhanced regime detection v2")
-        elif self.use_regime_smoothing:
-            # Original v1 regime smoothing
-            ema_alpha = self.config.get("regime_ema_alpha", 0.3)  # ~5-period EMA
-            persistence = self.config.get("regime_persistence", 2)  # 2-tick confirmation
-            for symbol in symbols:
-                self._regime_smoothers[symbol] = RegimeSmoother(
-                    ema_alpha=ema_alpha,
-                    persistence=persistence,
-                )
+            return
+        if self.use_regime_smoothing:
+            self._init_regime_smoothers(symbols)
 
-        # MLP Direction integration (optional)
-        self._use_mlp_direction: bool = self._detect_mlp_direction()
-        self._mlp_feature_set = (
-            self.config.get("mlp_feature_set")
-            or self.config.get("entry", {}).get("params", {}).get("mlp_feature_set")
-            or self.config.get("exit", {}).get("params", {}).get("mlp_feature_set")
-            or "paper_36"
-        )
-        self._mlp_bwin = (
-            self.config.get("bwin")
-            or self.config.get("entry", {}).get("params", {}).get("bwin")
-            or self.config.get("exit", {}).get("params", {}).get("bwin")
-            or 5
-        )
-        self._mlp_model_path = (
-            self.config.get("model_path")
-            or self.config.get("entry", {}).get("params", {}).get("model_path")
-            or self.config.get("exit", {}).get("params", {}).get("model_path")
-            or "models/mlp_direction/model_final.pt"
+    def _init_enhanced_routers(self, symbols: list[str]) -> None:
+        bbw_block = self.config.get("bbw_block_threshold", 25)
+        bbw_confirm = self.config.get("bbw_confirm_threshold", 50)
+        volume_block = self.config.get("volume_block_ratio", 0.8)
+        volume_boost = self.config.get("volume_boost_ratio", 1.2)
+        mtf_enabled = self.config.get("mtf_enabled", True)
+        for symbol in symbols:
+            self._enhanced_routers[symbol] = EnhancedRegimeRouter(
+                bbw_block_threshold=bbw_block,
+                bbw_confirm_threshold=bbw_confirm,
+                volume_block_ratio=volume_block,
+                volume_boost_ratio=volume_boost,
+                mtf_enabled=mtf_enabled,
+            )
+
+    def _init_regime_smoothers(self, symbols: list[str]) -> None:
+        ema_alpha = self.config.get("regime_ema_alpha", 0.3)
+        persistence = self.config.get("regime_persistence", 2)
+        for symbol in symbols:
+            self._regime_smoothers[symbol] = RegimeSmoother(
+                ema_alpha=ema_alpha,
+                persistence=persistence,
+            )
+
+    def _init_mlp_settings(self) -> None:
+        self._use_mlp_direction = self._detect_mlp_direction()
+        self._mlp_feature_set = self._resolve_config_param("mlp_feature_set", "paper_36")
+        self._mlp_bwin = self._resolve_config_param("bwin", 5)
+        self._mlp_model_path = self._resolve_config_param(
+            "model_path",
+            "models/mlp_direction/model_final.pt",
         )
         self._mlp_model = None
         self._mlp_ensemble = None
-        self._mlp_ensemble_configs = (
-            self.config.get("ensemble_models")
-            or self.config.get("entry", {}).get("params", {}).get("ensemble_models")
+        self._mlp_ensemble_configs = self._resolve_config_param(
+            "ensemble_models",
+            None,
+            include_exit=False,
         )
         self._mlp_available: bool | None = None
         self._mlp_cache: dict[str, dict[str, float | int]] = {}
 
-        # Entry gating and leverage controls
+    def _resolve_config_param(
+        self,
+        key: str,
+        default: Any,
+        include_exit: bool = True,
+    ) -> Any:
+        value = self.config.get(key)
+        if value is not None:
+            return value
+
+        entry_params = self.config.get("entry", {}).get("params", {})
+        value = entry_params.get(key)
+        if value is not None:
+            return value
+
+        if include_exit:
+            exit_params = self.config.get("exit", {}).get("params", {})
+            value = exit_params.get(key)
+            if value is not None:
+                return value
+
+        return default
+
+    def _init_entry_and_leverage_controls(self) -> None:
         self._cash_in_bear = self.config.get("cash_in_bear", False)
         self._cash_below_ema200 = self.config.get("cash_below_ema200", False)
         self._cooldown_candles = int(self.config.get("stop_loss_cooldown", 24))
@@ -221,18 +249,16 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._leverage_bull_moderate = float(self.config.get("leverage_bull_moderate", 2.0))
         self._leverage_sideways = float(self.config.get("leverage_sideways", 1.0))
         self._leverage_bear = float(self.config.get("leverage_bear", 0.0))
-
         self._prob_leverage_enabled = self.config.get("prob_leverage_enabled", False)
         self._prob_leverage_max = float(self.config.get("prob_leverage_max", 3.0))
         self._prob_leverage_high = float(self.config.get("prob_leverage_high", 2.5))
         self._prob_leverage_mid = float(self.config.get("prob_leverage_mid", 2.0))
         self._prob_leverage_low = float(self.config.get("prob_leverage_low", 1.0))
         self._prob_leverage_min = float(self.config.get("prob_leverage_min", 0.5))
-
         self._bull_prob_threshold = float(self.config.get("bull_prob_threshold", 0.0))
         self._bull_prob_enabled = self._bull_prob_threshold > 0
 
-        # Drawdown protection (portfolio-level)
+    def _init_drawdown_and_breakout_controls(self) -> None:
         self._drawdown_enabled = self.config.get("drawdown_enabled", False)
         self._drawdown_warning_pct = float(self.config.get("drawdown_warning_pct", 8.0))
         self._drawdown_reduce_pct = float(self.config.get("drawdown_reduce_pct", 10.0))
@@ -240,59 +266,48 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._drawdown_leverage_reduction = float(self.config.get("drawdown_leverage_reduction", 0.5))
         self._drawdown_partial_exit_done: dict[str, bool] = {}
         self._drawdown_cache: tuple[float, float] = (0.0, 0.0)
+        self.breakout_k = self.config.get("breakout_k", 0.5)
+        self._prev_day_cache: dict[str, tuple[float, float, str]] = {}
 
-        # Volatility breakout filter config (Larry Williams strategy)
-        self.breakout_k = self.config.get("breakout_k", 0.5)  # k value for target_price
-        self._prev_day_cache: dict[str, tuple[float, float, str]] = {}  # (high, low, date)
-
-        # Risk-based position sizing (replaces percentage-based sizing)
+    def _init_risk_controls(self, redis: RedisStreams) -> None:
         self._risk_based_sizing = self.config.get("risk_based_sizing", False)
         self._position_sizer: PositionSizer | None = None
         self._portfolio_risk_mgr: PortfolioRiskManager | None = None
         self._correlation_filter: CorrelationFilter | None = None
-
-        # Context-level portfolio guardrails
         self._context_risk_enabled = self.config.get("context_risk_enabled", True)
         self._context_max_open_positions = int(
             self.config.get("context_max_open_positions", self.config.get("max_open_positions", 5))
         )
         self._context_max_symbol_positions = int(self.config.get("context_max_symbol_positions", 1))
-        self._context_max_total_exposure_pct = float(
-            self.config.get("context_max_total_exposure_pct", 1.0)
-        )
-        self._context_max_symbol_exposure_pct = float(
-            self.config.get("context_max_symbol_exposure_pct", 0.5)
-        )
+        self._context_max_total_exposure_pct = float(self.config.get("context_max_total_exposure_pct", 1.0))
+        self._context_max_symbol_exposure_pct = float(self.config.get("context_max_symbol_exposure_pct", 0.5))
         self._context_corr_enabled = bool(
             self.config.get("context_corr_enabled", self.config.get("correlation_filter", True))
         )
         if self._context_corr_enabled and self.config.get("correlation_filter", True):
             corr_config = CorrelationConfig.from_dict(self.config)
             self._correlation_filter = CorrelationFilter(corr_config, redis)
-
         if self._risk_based_sizing:
-            sizing_config = RiskSizingConfig.from_dict(self.config)
-            self._position_sizer = PositionSizer(sizing_config)
+            self._init_risk_based_sizing(redis)
 
-            # Portfolio risk manager with correlation filter
-            risk_cap_config = RiskCapConfig.from_dict(self.config)
+    def _init_risk_based_sizing(self, redis: RedisStreams) -> None:
+        sizing_config = RiskSizingConfig.from_dict(self.config)
+        self._position_sizer = PositionSizer(sizing_config)
+        risk_cap_config = RiskCapConfig.from_dict(self.config)
+        global_symbols = self.config.get("_global_symbols", ["BTC", "ETH", "SOL", "BNB"])
+        self._portfolio_risk_mgr = PortfolioRiskManager(
+            risk_cap_config,
+            redis,
+            self._correlation_filter,
+            symbols=global_symbols,
+        )
+        logger.info(
+            f"{self.name}: Risk-based sizing enabled "
+            f"(risk={sizing_config.risk_per_trade_pct*100:.1f}%, "
+            f"max_total={risk_cap_config.max_total_risk_pct*100:.1f}%)"
+        )
 
-            corr_filter = self._correlation_filter
-
-            # Get global symbols list for portfolio risk tracking
-            # This allows tracking positions across all strategies/symbols
-            global_symbols = self.config.get("_global_symbols", ["BTC", "ETH", "SOL", "BNB"])
-
-            self._portfolio_risk_mgr = PortfolioRiskManager(
-                risk_cap_config, redis, corr_filter, symbols=global_symbols
-            )
-            logger.info(
-                f"{self.name}: Risk-based sizing enabled "
-                f"(risk={sizing_config.risk_per_trade_pct*100:.1f}%, "
-                f"max_total={risk_cap_config.max_total_risk_pct*100:.1f}%)"
-            )
-
-        # Volatility-based position scaling (CTA vol-targeting)
+    def _init_volatility_sizing(self) -> None:
         vol_cfg = self.config.get("volatility_sizing", {})
         self._vol_sizing_enabled = vol_cfg.get("enabled", False)
         self._vol_target = vol_cfg.get("target_vol", 0.02)
@@ -370,8 +385,95 @@ class CompositeStrategyTask(BaseStrategyTask):
         if self.context_builder is not None:
             await self.context_builder.refresh_positions()
 
-        # Refresh indicator history with real candle data if needed
-        # (replaces estimated volume from tick aggregation with real Binance OHLCV)
+        await self._refresh_indicator_history(symbol)
+
+        # Build MarketData from indicators
+        market_data = self._build_market_data(symbol)
+        if market_data is None:
+            return None
+
+        context, ctx = self._build_entry_context(symbol, market_data)
+
+        # Record decision at candle close for dashboard visibility
+        await self._check_and_record_decision(symbol, market_data, context)
+
+        if not self._passes_entry_gates(symbol, market_data, context):
+            return None
+
+        leverage = await self._resolve_entry_leverage(context, market_data)
+        if leverage is None:
+            return None
+
+        signal = self.entry_strategy.check_entry(ctx)
+
+        # Emit entry evaluation event for observability
+        await self._emit_entry_evaluation(market_data, context, signal)
+
+        if not signal:
+            return None
+
+        return await self._build_entry_order(
+            symbol=symbol,
+            signal=signal,
+            market_data=market_data,
+            context=context,
+            leverage=leverage,
+        )
+
+    async def evaluate_exit(self, symbol: str, position_dict: dict) -> dict[str, Any] | None:
+        """Evaluate exit conditions by delegating to exit component.
+
+        Uses TradingContextBuilder for centralized context (if available),
+        which provides cached regime classification and cross-strategy positions.
+
+        Args:
+            symbol: Trading symbol.
+            position_dict: Position dict from Redis.
+
+        Returns:
+            Order intent dict or None.
+        """
+        await self._refresh_indicator_history(symbol)
+
+        if self.context_builder is not None:
+            await self.context_builder.refresh_positions()
+
+        # Build MarketData from indicators
+        market_data = self._build_market_data(symbol)
+        if market_data is None:
+            return None
+
+        self._decrement_entry_blocks(symbol)
+
+        # Record decision at candle close for dashboard visibility (with position)
+        await self._check_and_record_decision(symbol, market_data)
+
+        # Build Position model from dict
+        position = self._dict_to_position(position_dict)
+
+        context, ctx = self._build_exit_context(symbol, position, market_data)
+
+        protective_exit = await self._check_protective_exit_conditions(
+            symbol=symbol,
+            position=position,
+            market_data=market_data,
+            context=context,
+        )
+        if protective_exit:
+            return protective_exit
+
+        signal = await self._evaluate_exit_signal(ctx, position)
+
+        # Emit exit evaluation event for observability
+        await self._emit_exit_evaluation(position, market_data, signal)
+
+        if not signal:
+            return None
+
+        self._update_exit_loss_tracking(symbol, signal)
+        return self._signal_to_dict(signal, signal.quantity)
+
+    async def _refresh_indicator_history(self, symbol: str) -> None:
         if self.indicator_service and self.indicator_service.needs_refresh(symbol):
             try:
                 market = self.config.get("market", "futures") if self.config else "futures"
@@ -379,12 +481,11 @@ class CompositeStrategyTask(BaseStrategyTask):
             except Exception as e:
                 logger.warning(f"Candle refresh failed for {symbol}: {e}")
 
-        # Build MarketData from indicators
-        market_data = self._build_market_data(symbol)
-        if market_data is None:
-            return None
-
-        # Build context locally to ensure v2 regime + RF features are applied
+    def _build_entry_context(
+        self,
+        symbol: str,
+        market_data: MarketData,
+    ) -> tuple[MarketContext, TradingContext]:
         context = self._build_market_context(market_data)
         positions = MappingProxyType({})
         if self.context_builder is not None:
@@ -406,207 +507,201 @@ class CompositeStrategyTask(BaseStrategyTask):
             mlp_prediction=mlp_prediction,
             mlp_confidence=mlp_confidence,
         )
+        return context, ctx
 
-        # Record decision at candle close for dashboard visibility
-        await self._check_and_record_decision(symbol, market_data, context)
-
-        # Entry gating (optional risk controls)
+    def _passes_entry_gates(
+        self,
+        symbol: str,
+        market_data: MarketData,
+        context: MarketContext,
+    ) -> bool:
         if self._cash_in_bear and context.regime in BEAR_REGIMES:
-            return None
-
-        if self._cash_below_ema200 and market_data.ema_200 > 0:
-            if market_data.close < market_data.ema_200:
-                return None
-
+            return False
+        if self._cash_below_ema200 and market_data.ema_200 > 0 and market_data.close < market_data.ema_200:
+            return False
         if self._loss_pause_remaining.get(symbol, 0) > 0:
-            return None
-
+            return False
         if self._cooldown_remaining.get(symbol, 0) > 0:
-            return None
+            return False
+        if self._bull_prob_enabled and (market_data.mfi / 100.0) < self._bull_prob_threshold:
+            return False
+        return True
 
-        if self._bull_prob_enabled:
-            bull_prob = market_data.mfi / 100.0
-            if bull_prob < self._bull_prob_threshold:
-                return None
-
+    async def _resolve_entry_leverage(
+        self,
+        context: MarketContext,
+        market_data: MarketData,
+    ) -> float | None:
         leverage = float(self.config.get("leverage", 1))
         if self._dynamic_leverage_enabled:
-            if context.regime == "BULL_STRONG":
-                leverage = self._leverage_bull_strong
-            elif context.regime == "BULL_MODERATE":
-                leverage = self._leverage_bull_moderate
-            elif context.regime in ("SIDEWAYS_UP", "SIDEWAYS_FLAT", "SIDEWAYS_DOWN"):
-                leverage = self._leverage_sideways
-            else:
-                leverage = self._leverage_bear
-                if leverage <= 0:
-                    return None
+            leverage = self._get_dynamic_leverage_for_regime(context.regime)
+            if leverage is None:
+                return None
 
         if self._drawdown_enabled:
             drawdown_pct = await self._get_drawdown_pct()
             if drawdown_pct >= self._drawdown_warning_pct:
                 leverage *= self._drawdown_leverage_reduction
 
-        if self._prob_leverage_enabled:
-            mfi = market_data.mfi
-            if mfi >= 70:
-                leverage = min(leverage, self._prob_leverage_max)
-            elif mfi >= 60:
-                leverage = min(leverage, self._prob_leverage_high)
-            elif mfi >= 50:
-                leverage = min(leverage, self._prob_leverage_mid)
-            elif mfi >= 40:
-                leverage = min(leverage, self._prob_leverage_low)
-            elif mfi >= 30:
-                leverage = min(leverage, self._prob_leverage_min)
-            else:
-                return None
-
-        # Leverage must be >= 1 for futures; treat fractional leverage as 1x
-        if 0 < leverage < 1:
-            leverage = 1.0
-
-        signal = self.entry_strategy.check_entry(ctx)
-
-        # Emit entry evaluation event for observability
-        await self._emit_entry_evaluation(market_data, context, signal)
-
-        if signal:
-            # Get quantity (risk-based or legacy)
-            quantity, stop_price = await self._get_quantity(
-                symbol, market_data.close, signal.quantity, context, market_data
-            )
-
-            allowed, reason = await self._passes_context_risk_caps(
-                symbol=symbol,
-                quantity=quantity,
-                price=market_data.close,
-            )
-            if not allowed:
-                logger.info(f"{symbol}: Context risk cap blocked entry - {reason}")
-                return None
-
-            # Volatility-based position scaling
-            if self._vol_sizing_enabled and market_data.atr > 0:
-                from trading.risk.volatility_scaler import compute_volatility_scale
-                vol_scale = compute_volatility_scale(
-                    atr=market_data.atr,
-                    price=market_data.close,
-                    target_vol=self._vol_target,
-                    min_scale=self._vol_min_scale,
-                    max_scale=self._vol_max_scale,
-                )
-                quantity *= vol_scale
-                logger.info(
-                    f"{symbol}: Vol sizing: ATR%={market_data.atr/market_data.close*100:.2f}%, "
-                    f"scale={vol_scale:.2f}, qty={quantity:.6f}"
-                )
-
-                allowed, reason = await self._passes_context_risk_caps(
-                    symbol=symbol,
-                    quantity=quantity,
-                    price=market_data.close,
-                )
-                if not allowed:
-                    logger.info(f"{symbol}: Context risk cap blocked entry - {reason}")
-                    return None
-
-            if quantity <= 0:
-                logger.debug(f"{symbol}: Quantity too small, skipping entry")
-                return None
-
-            # Portfolio risk check (if risk-based sizing enabled)
-            if self._portfolio_risk_mgr and self._risk_based_sizing:
-                equity = await self._get_account_equity()
-                if equity <= 0:
-                    logger.warning(f"{symbol}: Cannot get equity, skipping entry")
-                    return None
-
-                # Calculate proposed risk
-                if stop_price and stop_price > 0:
-                    stop_pct = abs(market_data.close - stop_price) / market_data.close
-                else:
-                    stop_pct = 0.03  # Default 3% if no stop
-
-                proposed_risk = quantity * market_data.close * stop_pct
-
-                risk_check = await self._portfolio_risk_mgr.can_open_trade(
-                    symbol=symbol,
-                    proposed_risk=proposed_risk,
-                    equity=equity,
-                )
-
-                if not risk_check.allowed:
-                    logger.info(
-                        f"{symbol}: Entry blocked by portfolio risk - {risk_check.reason}"
-                    )
-                    return None
-
-                # If correlation filter suggests reduced risk, recalculate quantity
-                if risk_check.adjusted_risk_pct and self._position_sizer:
-                    original_risk_pct = self.config.get("risk_per_trade_pct", 0.01)
-                    reduction_factor = risk_check.adjusted_risk_pct / original_risk_pct
-                    quantity = quantity * reduction_factor
-                    logger.info(
-                        f"{symbol}: Quantity reduced by correlation filter "
-                        f"({reduction_factor:.2f}x) -> {quantity:.6f}"
-                    )
-
-            # Create order with stop_price for position tracking
-            order = self._signal_to_dict(signal, quantity, leverage=leverage)
-
-            # Include stop price for position tracking
-            if stop_price and stop_price > 0:
-                order["stop_price"] = stop_price
-
-            # Pass stop_loss_pct for server-side stop-loss placement
-            if hasattr(self.exit_strategy, 'params'):
-                slp = getattr(self.exit_strategy.params, 'stop_loss_pct', None)
-                if slp is not None:
-                    order["stop_loss_pct"] = slp
-
-            return order
-
-        return None
-
-    async def evaluate_exit(self, symbol: str, position_dict: dict) -> dict[str, Any] | None:
-        """Evaluate exit conditions by delegating to exit component.
-
-        Uses TradingContextBuilder for centralized context (if available),
-        which provides cached regime classification and cross-strategy positions.
-
-        Args:
-            symbol: Trading symbol.
-            position_dict: Position dict from Redis.
-
-        Returns:
-            Order intent dict or None.
-        """
-        # Refresh indicator history with real candle data if needed
-        if self.indicator_service and self.indicator_service.needs_refresh(symbol):
-            try:
-                market = self.config.get("market", "futures") if self.config else "futures"
-                await self.indicator_service.refresh_history(symbol, market=market)
-            except Exception as e:
-                logger.warning(f"Candle refresh failed for {symbol}: {e}")
-
-        if self.context_builder is not None:
-            await self.context_builder.refresh_positions()
-
-        # Build MarketData from indicators
-        market_data = self._build_market_data(symbol)
-        if market_data is None:
+        leverage = self._apply_probability_leverage(leverage, market_data.mfi)
+        if leverage is None:
             return None
 
-        self._decrement_entry_blocks(symbol)
+        if 0 < leverage < 1:
+            return 1.0
+        return leverage
 
-        # Record decision at candle close for dashboard visibility (with position)
-        await self._check_and_record_decision(symbol, market_data)
+    def _get_dynamic_leverage_for_regime(self, regime: str) -> float | None:
+        if regime == "BULL_STRONG":
+            return self._leverage_bull_strong
+        if regime == "BULL_MODERATE":
+            return self._leverage_bull_moderate
+        if regime in ("SIDEWAYS_UP", "SIDEWAYS_FLAT", "SIDEWAYS_DOWN"):
+            return self._leverage_sideways
+        leverage = self._leverage_bear
+        if leverage <= 0:
+            return None
+        return leverage
 
-        # Build Position model from dict
-        position = self._dict_to_position(position_dict)
+    def _apply_probability_leverage(self, leverage: float, mfi: float) -> float | None:
+        if not self._prob_leverage_enabled:
+            return leverage
+        if mfi >= 70:
+            return min(leverage, self._prob_leverage_max)
+        if mfi >= 60:
+            return min(leverage, self._prob_leverage_high)
+        if mfi >= 50:
+            return min(leverage, self._prob_leverage_mid)
+        if mfi >= 40:
+            return min(leverage, self._prob_leverage_low)
+        if mfi >= 30:
+            return min(leverage, self._prob_leverage_min)
+        return None
 
-        # Build context locally to ensure v2 regime + RF features are applied
+    async def _build_entry_order(
+        self,
+        symbol: str,
+        signal: Signal,
+        market_data: MarketData,
+        context: MarketContext,
+        leverage: float,
+    ) -> dict[str, Any] | None:
+        quantity, stop_price = await self._get_quantity(
+            symbol, market_data.close, signal.quantity, context, market_data
+        )
+
+        allowed, reason = await self._passes_context_risk_caps(
+            symbol=symbol,
+            quantity=quantity,
+            price=market_data.close,
+        )
+        if not allowed:
+            logger.info(f"{symbol}: Context risk cap blocked entry - {reason}")
+            return None
+
+        quantity = await self._apply_volatility_sizing(symbol, quantity, market_data)
+        if quantity <= 0:
+            logger.debug(f"{symbol}: Quantity too small, skipping entry")
+            return None
+
+        if self._portfolio_risk_mgr and self._risk_based_sizing:
+            quantity = await self._apply_portfolio_risk_checks(
+                symbol=symbol,
+                quantity=quantity,
+                market_data=market_data,
+                stop_price=stop_price,
+            )
+            if quantity <= 0:
+                return None
+
+        order = self._signal_to_dict(signal, quantity, leverage=leverage)
+        if stop_price and stop_price > 0:
+            order["stop_price"] = stop_price
+        if hasattr(self.exit_strategy, "params"):
+            slp = getattr(self.exit_strategy.params, "stop_loss_pct", None)
+            if slp is not None:
+                order["stop_loss_pct"] = slp
+        return order
+
+    async def _apply_volatility_sizing(
+        self,
+        symbol: str,
+        quantity: float,
+        market_data: MarketData,
+    ) -> float:
+        if not self._vol_sizing_enabled or market_data.atr <= 0:
+            return quantity
+
+        from trading.risk.volatility_scaler import compute_volatility_scale
+
+        vol_scale = compute_volatility_scale(
+            atr=market_data.atr,
+            price=market_data.close,
+            target_vol=self._vol_target,
+            min_scale=self._vol_min_scale,
+            max_scale=self._vol_max_scale,
+        )
+        quantity *= vol_scale
+        logger.info(
+            f"{symbol}: Vol sizing: ATR%={market_data.atr/market_data.close*100:.2f}%, "
+            f"scale={vol_scale:.2f}, qty={quantity:.6f}"
+        )
+
+        allowed, reason = await self._passes_context_risk_caps(
+            symbol=symbol,
+            quantity=quantity,
+            price=market_data.close,
+        )
+        if not allowed:
+            logger.info(f"{symbol}: Context risk cap blocked entry - {reason}")
+            return 0.0
+
+        return quantity
+
+    async def _apply_portfolio_risk_checks(
+        self,
+        symbol: str,
+        quantity: float,
+        market_data: MarketData,
+        stop_price: float | None,
+    ) -> float:
+        equity = await self._get_account_equity()
+        if equity <= 0:
+            logger.warning(f"{symbol}: Cannot get equity, skipping entry")
+            return 0.0
+
+        if stop_price and stop_price > 0:
+            stop_pct = abs(market_data.close - stop_price) / market_data.close
+        else:
+            stop_pct = 0.03
+        proposed_risk = quantity * market_data.close * stop_pct
+
+        risk_check = await self._portfolio_risk_mgr.can_open_trade(
+            symbol=symbol,
+            proposed_risk=proposed_risk,
+            equity=equity,
+        )
+        if not risk_check.allowed:
+            logger.info(f"{symbol}: Entry blocked by portfolio risk - {risk_check.reason}")
+            return 0.0
+
+        if risk_check.adjusted_risk_pct and self._position_sizer:
+            original_risk_pct = self.config.get("risk_per_trade_pct", 0.01)
+            reduction_factor = risk_check.adjusted_risk_pct / original_risk_pct
+            quantity = quantity * reduction_factor
+            logger.info(
+                f"{symbol}: Quantity reduced by correlation filter "
+                f"({reduction_factor:.2f}x) -> {quantity:.6f}"
+            )
+
+        return quantity
+
+    def _build_exit_context(
+        self,
+        symbol: str,
+        position: Position,
+        market_data: MarketData,
+    ) -> tuple[MarketContext, TradingContext]:
         context = self._build_market_context(market_data)
         positions = {self.name: position}
         if self.context_builder is not None:
@@ -628,101 +723,146 @@ class CompositeStrategyTask(BaseStrategyTask):
             mlp_prediction=mlp_prediction,
             mlp_confidence=mlp_confidence,
         )
+        return context, ctx
 
-        # Drawdown-based exits (portfolio-level protection)
-        if self._drawdown_enabled:
-            drawdown_pct = await self._get_drawdown_pct()
-            if drawdown_pct >= self._drawdown_exit_pct:
-                if self._loss_pause_candles > 0:
-                    self._loss_pause_remaining[symbol] = self._loss_pause_candles
+    async def _check_protective_exit_conditions(
+        self,
+        symbol: str,
+        position: Position,
+        market_data: MarketData,
+        context: MarketContext,
+    ) -> dict[str, Any] | None:
+        drawdown_exit = await self._check_drawdown_protection_exit(symbol, position)
+        if drawdown_exit:
+            return drawdown_exit
+
+        v2_filter_exit = self._check_v2_filter_protective_exit(symbol, position, market_data, context)
+        if v2_filter_exit:
+            return v2_filter_exit
+
+        return self._check_ma120_panic_exit(symbol, position, market_data)
+
+    async def _check_drawdown_protection_exit(
+        self,
+        symbol: str,
+        position: Position,
+    ) -> dict[str, Any] | None:
+        if not self._drawdown_enabled:
+            return None
+        drawdown_pct = await self._get_drawdown_pct()
+        if drawdown_pct >= self._drawdown_exit_pct:
+            if self._loss_pause_candles > 0:
+                self._loss_pause_remaining[symbol] = self._loss_pause_candles
+            return {
+                "symbol": symbol,
+                "side": "sell",
+                "market": self.market,
+                "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
+                "reason": f"DRAWDOWN_EXIT:{drawdown_pct:.1f}%>={self._drawdown_exit_pct:.1f}%",
+            }
+
+        if (
+            drawdown_pct >= self._drawdown_reduce_pct
+            and not self._drawdown_partial_exit_done.get(symbol, False)
+        ):
+            self._drawdown_partial_exit_done[symbol] = True
+            exit_qty = self._spot_adjusted_qty(symbol, position.quantity * 0.5)
+            if exit_qty > 0:
                 return {
                     "symbol": symbol,
                     "side": "sell",
                     "market": self.market,
-                    "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
-                    "reason": f"DRAWDOWN_EXIT:{drawdown_pct:.1f}%>={self._drawdown_exit_pct:.1f}%",
+                    "quantity": str(exit_qty),
+                    "reason": f"DRAWDOWN_REDUCE:{drawdown_pct:.1f}%>={self._drawdown_reduce_pct:.1f}%",
                 }
-
-            if (
-                drawdown_pct >= self._drawdown_reduce_pct
-                and not self._drawdown_partial_exit_done.get(symbol, False)
-            ):
-                self._drawdown_partial_exit_done[symbol] = True
-                exit_qty = self._spot_adjusted_qty(symbol, position.quantity * 0.5)
-                if exit_qty > 0:
-                    return {
-                        "symbol": symbol,
-                        "side": "sell",
-                        "market": self.market,
-                        "quantity": str(exit_qty),
-                        "reason": f"DRAWDOWN_REDUCE:{drawdown_pct:.1f}%>={self._drawdown_reduce_pct:.1f}%",
-                    }
-
-        # V2 filter protective exit (optional)
-        if self._v2_exit_on_filter and self.regime_version == "v2":
-            router = self._enhanced_routers.get(symbol)
-            if router is not None:
-                volume_ratio = (
-                    market_data.volume / market_data.avg_volume_20
-                    if market_data.avg_volume_20 > 0
-                    else 1.0
-                )
-                v2_entry_allowed = True
-                if context.regime in ("BULL_STRONG", "BULL_MODERATE"):
-                    if router._volume_filter.should_block(volume_ratio, context.regime):
-                        v2_entry_allowed = False
-                    bbw_boosted = router._volume_filter.is_boosted(volume_ratio)
-                    if not bbw_boosted and router._bbw_filter.should_block():
-                        v2_entry_allowed = False
-
-                if not v2_entry_allowed:
-                    return {
-                        "symbol": symbol,
-                        "side": "sell",
-                        "market": self.market,
-                        "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
-                        "reason": "v2_filter_protective_exit",
-                    }
-
-        # MA120 panic sell (optional)
-        if self._panic_sell_below_ma120 and market_data.ema_120 > 0:
-            if market_data.close < market_data.ema_120:
-                return {
-                    "symbol": symbol,
-                    "side": "sell",
-                    "market": self.market,
-                    "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
-                    "reason": f"MA120 panic_sell: close={market_data.close:.0f} < ema120={market_data.ema_120:.0f}",
-                }
-
-        # Delegate to exit component
-        # Handle both sync and async exit strategies using proper detection
-        check_exit_method = self.exit_strategy.check_exit
-        if asyncio.iscoroutinefunction(check_exit_method):
-            signal = await check_exit_method(ctx, position)
-        else:
-            signal = check_exit_method(ctx, position)
-
-        # Emit exit evaluation event for observability
-        await self._emit_exit_evaluation(position, market_data, signal)
-
-        if signal:
-            reason = signal.reason or ""
-            is_stop_loss = "stop loss" in reason.lower() or "stoploss" in reason.lower()
-            if is_stop_loss:
-                if self._cooldown_candles > 0:
-                    self._cooldown_remaining[symbol] = self._cooldown_candles
-                losses = self._consecutive_losses.get(symbol, 0) + 1
-                if losses >= self._max_consecutive_losses:
-                    if self._loss_pause_candles > 0:
-                        self._loss_pause_remaining[symbol] = self._loss_pause_candles
-                    losses = 0
-                self._consecutive_losses[symbol] = losses
-            else:
-                self._consecutive_losses[symbol] = 0
-            return self._signal_to_dict(signal, signal.quantity)
 
         return None
+
+    def _check_v2_filter_protective_exit(
+        self,
+        symbol: str,
+        position: Position,
+        market_data: MarketData,
+        context: MarketContext,
+    ) -> dict[str, Any] | None:
+        if not (self._v2_exit_on_filter and self.regime_version == "v2"):
+            return None
+
+        router = self._enhanced_routers.get(symbol)
+        if router is None:
+            return None
+
+        volume_ratio = (
+            market_data.volume / market_data.avg_volume_20
+            if market_data.avg_volume_20 > 0
+            else 1.0
+        )
+        v2_entry_allowed = True
+        if context.regime in ("BULL_STRONG", "BULL_MODERATE"):
+            if router._volume_filter.should_block(volume_ratio, context.regime):
+                v2_entry_allowed = False
+            bbw_boosted = router._volume_filter.is_boosted(volume_ratio)
+            if not bbw_boosted and router._bbw_filter.should_block():
+                v2_entry_allowed = False
+
+        if v2_entry_allowed:
+            return None
+
+        return {
+            "symbol": symbol,
+            "side": "sell",
+            "market": self.market,
+            "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
+            "reason": "v2_filter_protective_exit",
+        }
+
+    def _check_ma120_panic_exit(
+        self,
+        symbol: str,
+        position: Position,
+        market_data: MarketData,
+    ) -> dict[str, Any] | None:
+        if not self._panic_sell_below_ma120 or market_data.ema_120 <= 0:
+            return None
+        if market_data.close >= market_data.ema_120:
+            return None
+        return {
+            "symbol": symbol,
+            "side": "sell",
+            "market": self.market,
+            "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
+            "reason": (
+                f"MA120 panic_sell: close={market_data.close:.0f} < "
+                f"ema120={market_data.ema_120:.0f}"
+            ),
+        }
+
+    async def _evaluate_exit_signal(
+        self,
+        ctx: TradingContext,
+        position: Position,
+    ) -> Signal | None:
+        check_exit_method = self.exit_strategy.check_exit
+        if asyncio.iscoroutinefunction(check_exit_method):
+            return await check_exit_method(ctx, position)
+        return check_exit_method(ctx, position)
+
+    def _update_exit_loss_tracking(self, symbol: str, signal: Signal) -> None:
+        reason = signal.reason or ""
+        is_stop_loss = "stop loss" in reason.lower() or "stoploss" in reason.lower()
+        if not is_stop_loss:
+            self._consecutive_losses[symbol] = 0
+            return
+
+        if self._cooldown_candles > 0:
+            self._cooldown_remaining[symbol] = self._cooldown_candles
+
+        losses = self._consecutive_losses.get(symbol, 0) + 1
+        if losses >= self._max_consecutive_losses:
+            if self._loss_pause_candles > 0:
+                self._loss_pause_remaining[symbol] = self._loss_pause_candles
+            losses = 0
+        self._consecutive_losses[symbol] = losses
 
     async def on_position_opened(self, symbol: str, position_dict: dict) -> None:
         """Notify exit strategy when position is opened.
@@ -875,121 +1015,154 @@ class CompositeStrategyTask(BaseStrategyTask):
             MarketData instance or None if indicators unavailable.
         """
         # Use shared IndicatorService if available (preferred - reduces CPU by ~75%)
-        if self.indicator_service:
-            buffer = self.price_buffer.get(symbol, [])
-            current_price = float(buffer[-1]["price"]) if buffer else None
-            return self.indicator_service.get_market_data(symbol, current_price)
+        service_data = self._build_market_data_from_service(symbol)
+        if service_data is not None:
+            return service_data
 
         # Fallback to local calculation (legacy path)
         try:
-            # Check if we can use cached data
-            should_recalc = force_recalculate or self._should_recalculate(symbol)
-
-            # Get current price from buffer
-            buffer = self.price_buffer.get(symbol, [])
-            if buffer:
-                current_price = float(buffer[-1]["price"])
-                current_timestamp = int(buffer[-1].get("timestamp", 0))
-            else:
-                # No buffer, need history
-                history = self.history.get(symbol)
-                if not history:
-                    return None
-                current_price = float(history[-1]["close"])
-                current_timestamp = 0
-
-            # If we have cached data and shouldn't recalculate, update price and return
-            cached = self._market_data_cache.get(symbol)
-            if cached and not should_recalc:
-                # Return cached data with updated close price for accurate P&L
-                from dataclasses import replace
-                return replace(cached, close=current_price, timestamp=current_timestamp)
-
-            # Need to recalculate indicators
-            history = self.history.get(symbol)
-            if not history:
+            price_point = self._resolve_current_price_point(symbol)
+            if price_point is None:
                 return None
+            current_price, current_timestamp = price_point
 
-            # Create DF and update last row
-            df = pd.DataFrame(history)
+            cached = self._resolve_cached_market_data(
+                symbol=symbol,
+                current_price=current_price,
+                current_timestamp=current_timestamp,
+                force_recalculate=force_recalculate,
+            )
+            if cached is not None:
+                return cached
 
-            # Update last candle with current price
-            idx = df.index[-1]
-            # Ensure we have required columns before updating
-            if 'close' in df.columns:
-                df.at[idx, "close"] = current_price
-            if 'high' in df.columns:
-                df.at[idx, "high"] = max(df.at[idx, "high"], current_price)
-            if 'low' in df.columns:
-                df.at[idx, "low"] = min(df.at[idx, "low"], current_price)
-
-            # Calculate indicators using pandas-ta/ta-lib wrapper
-            df = add_all_indicators(df)
-            last_row = df.iloc[-1]
-
-            # Calculate 20-period lookback values for breakout/range detection
-            lookback = 20
-            if len(df) >= lookback:
-                prev_df = df.iloc[-lookback-1:-1]  # Previous 20 candles (not including current)
-                prev_high_20 = float(prev_df['high'].max())
-                prev_low_20 = float(prev_df['low'].min())
-                avg_volume_20 = float(prev_df['volume'].mean())
-            else:
-                prev_high_20 = 0.0
-                prev_low_20 = 0.0
-                avg_volume_20 = 0.0
-
-            # Calculate volatility breakout signal (Larry Williams strategy)
+            prepared = self._prepare_market_indicator_frame(symbol, current_price)
+            if prepared is None:
+                return None
+            df, last_row = prepared
+            prev_high_20, prev_low_20, avg_volume_20 = self._calculate_lookback_stats(df)
             breakout_signal, target_price = self._calc_breakout_signal(symbol, df, current_price)
 
-            market_data = MarketData(
+            market_data = self._create_market_data_snapshot(
                 symbol=symbol,
-                open=float(last_row.get("open", current_price)),
-                close=float(current_price),
-                mfi=float(last_row.get("mfi", 50)),
-                adx=float(last_row.get("adx", 20)),
-                rsi=float(last_row.get("rsi", 50)),
-                timestamp=current_timestamp,
-                # OHLCV data
-                high=float(last_row.get("high", current_price)),
-                low=float(last_row.get("low", current_price)),
-                volume=float(last_row.get("volume", 0)),
-                # MACD indicators for momentum entry/exit
-                macd=float(last_row.get("macd", 0)),
-                macd_signal=float(last_row.get("macd_signal", 0)),
-                # Stochastic for conservative entry
-                stoch_k=float(last_row.get("stoch_k", 50)),
-                stoch_d=float(last_row.get("stoch_d", 50)),
-                # Bollinger Bands
-                bb_upper=float(last_row.get("bb_upper", 0)),
-                bb_lower=float(last_row.get("bb_lower", 0)),
-                bb_middle=float(last_row.get("bb_middle", 0)),
-                # ATR for volatility measurement
-                atr=float(last_row.get("atr", 0)),
-                # EMA120 for MA120 panic sell
-                ema_120=float(last_row.get("ema_120", 0)),
-                # EMA200 for trend filter (bear market protection)
-                ema_200=float(last_row.get("ema_200", 0)),
-                # Market stress indicator (pause trading)
-                market_stress=float(last_row.get("market_stress", 0)),
-                # Historical reference points for breakout/range detection
+                current_price=current_price,
+                current_timestamp=current_timestamp,
+                last_row=last_row,
                 prev_high_20=prev_high_20,
                 prev_low_20=prev_low_20,
                 avg_volume_20=avg_volume_20,
-                # 30-day high for drawdown-based BEAR detection
-                high_30d=float(last_row.get("high_30d", 0)),
-                # Volatility breakout (Larry Williams strategy)
                 breakout_signal=breakout_signal,
                 target_price=target_price,
             )
-
-            # Cache the result
             self._market_data_cache[symbol] = market_data
             return market_data
 
         except Exception as e:
             logger.error(f"Failed to build MarketData for {symbol}: {e}")
         return None
+
+    def _build_market_data_from_service(self, symbol: str) -> MarketData | None:
+        if not self.indicator_service:
+            return None
+        buffer = self.price_buffer.get(symbol, [])
+        current_price = float(buffer[-1]["price"]) if buffer else None
+        return self.indicator_service.get_market_data(symbol, current_price)
+
+    def _resolve_current_price_point(self, symbol: str) -> tuple[float, int] | None:
+        buffer = self.price_buffer.get(symbol, [])
+        if buffer:
+            return float(buffer[-1]["price"]), int(buffer[-1].get("timestamp", 0))
+
+        history = self.history.get(symbol)
+        if not history:
+            return None
+        return float(history[-1]["close"]), 0
+
+    def _resolve_cached_market_data(
+        self,
+        symbol: str,
+        current_price: float,
+        current_timestamp: int,
+        force_recalculate: bool,
+    ) -> MarketData | None:
+        should_recalc = force_recalculate or self._should_recalculate(symbol)
+        cached = self._market_data_cache.get(symbol)
+        if cached and not should_recalc:
+            return replace(cached, close=current_price, timestamp=current_timestamp)
+        return None
+
+    def _prepare_market_indicator_frame(
+        self,
+        symbol: str,
+        current_price: float,
+    ) -> tuple[pd.DataFrame, pd.Series] | None:
+        history = self.history.get(symbol)
+        if not history:
+            return None
+        df = pd.DataFrame(history)
+        self._update_indicator_frame_with_current_price(df, current_price)
+        df = add_all_indicators(df)
+        return df, df.iloc[-1]
+
+    def _update_indicator_frame_with_current_price(self, df: pd.DataFrame, current_price: float) -> None:
+        idx = df.index[-1]
+        if "close" in df.columns:
+            df.at[idx, "close"] = current_price
+        if "high" in df.columns:
+            df.at[idx, "high"] = max(df.at[idx, "high"], current_price)
+        if "low" in df.columns:
+            df.at[idx, "low"] = min(df.at[idx, "low"], current_price)
+
+    def _calculate_lookback_stats(self, df: pd.DataFrame, lookback: int = 20) -> tuple[float, float, float]:
+        if len(df) >= lookback:
+            prev_df = df.iloc[-lookback - 1 : -1]
+            return (
+                float(prev_df["high"].max()),
+                float(prev_df["low"].min()),
+                float(prev_df["volume"].mean()),
+            )
+        return 0.0, 0.0, 0.0
+
+    def _create_market_data_snapshot(
+        self,
+        symbol: str,
+        current_price: float,
+        current_timestamp: int,
+        last_row: pd.Series,
+        prev_high_20: float,
+        prev_low_20: float,
+        avg_volume_20: float,
+        breakout_signal: int,
+        target_price: float,
+    ) -> MarketData:
+        return MarketData(
+            symbol=symbol,
+            open=float(last_row.get("open", current_price)),
+            close=float(current_price),
+            mfi=float(last_row.get("mfi", 50)),
+            adx=float(last_row.get("adx", 20)),
+            rsi=float(last_row.get("rsi", 50)),
+            timestamp=current_timestamp,
+            high=float(last_row.get("high", current_price)),
+            low=float(last_row.get("low", current_price)),
+            volume=float(last_row.get("volume", 0)),
+            macd=float(last_row.get("macd", 0)),
+            macd_signal=float(last_row.get("macd_signal", 0)),
+            stoch_k=float(last_row.get("stoch_k", 50)),
+            stoch_d=float(last_row.get("stoch_d", 50)),
+            bb_upper=float(last_row.get("bb_upper", 0)),
+            bb_lower=float(last_row.get("bb_lower", 0)),
+            bb_middle=float(last_row.get("bb_middle", 0)),
+            atr=float(last_row.get("atr", 0)),
+            ema_120=float(last_row.get("ema_120", 0)),
+            ema_200=float(last_row.get("ema_200", 0)),
+            market_stress=float(last_row.get("market_stress", 0)),
+            prev_high_20=prev_high_20,
+            prev_low_20=prev_low_20,
+            avg_volume_20=avg_volume_20,
+            high_30d=float(last_row.get("high_30d", 0)),
+            breakout_signal=breakout_signal,
+            target_price=target_price,
+        )
 
     def _decrement_entry_blocks(self, symbol: str) -> None:
         """Decrement cooldown and loss pause counters for a symbol."""
@@ -1109,9 +1282,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None, None
 
         candle_ts = self._get_latest_candle_timestamp(symbol, market_data)
-        cached = self._mlp_cache.get(symbol)
-        if cached and cached.get("candle_timestamp") == candle_ts:
-            return cached.get("prediction"), cached.get("confidence")
+        cached_prediction = self._get_cached_mlp_prediction(symbol, candle_ts)
+        if cached_prediction is not None:
+            return cached_prediction
 
         if not self._ensure_mlp_model():
             logger.debug(f"{self.name}: MLP model not available")
@@ -1122,6 +1295,30 @@ class CompositeStrategyTask(BaseStrategyTask):
             logger.info(f"{self.name}: No history df for {symbol}")
             return None, None
 
+        self._update_latest_history_candle(df, market_data)
+
+        try:
+            features = self._extract_latest_mlp_features(df)
+            if features is None:
+                return None, None
+            pred_class, confidence = self._predict_mlp_from_features(features)
+            self._log_mlp_prediction(pred_class, confidence)
+        except Exception as e:
+            logger.warning(f"{self.name}: MLP prediction failed: {e}")
+            return None, None
+
+        self._cache_mlp_prediction(symbol, candle_ts, pred_class, confidence)
+        return pred_class, confidence
+
+    def _get_cached_mlp_prediction(
+        self, symbol: str, candle_ts: int
+    ) -> tuple[int | None, float | None] | None:
+        cached = self._mlp_cache.get(symbol)
+        if not cached or cached.get("candle_timestamp") != candle_ts:
+            return None
+        return cached.get("prediction"), cached.get("confidence")
+
+    def _update_latest_history_candle(self, df: pd.DataFrame, market_data: MarketData) -> None:
         try:
             idx = df.index[-1]
             if "close" in df.columns:
@@ -1136,54 +1333,57 @@ class CompositeStrategyTask(BaseStrategyTask):
             # Non-fatal if we can't update last candle
             pass
 
-        try:
-            from trading.indicators.mlp_features import calculate_mlp_features
-            import torch
+    def _extract_latest_mlp_features(self, df: pd.DataFrame):
+        from trading.indicators.mlp_features import calculate_mlp_features
+        import numpy as np
 
-            logger.info(f"{self.name}: Computing MLP features (df={len(df)} rows, feature_set={self._mlp_feature_set})")
+        logger.info(
+            f"{self.name}: Computing MLP features (df={len(df)} rows, feature_set={self._mlp_feature_set})"
+        )
+        mlp_features = calculate_mlp_features(
+            df,
+            bwin=int(self._mlp_bwin),
+            include_temporal=True,
+            feature_set=self._mlp_feature_set,
+        )
+        if mlp_features is None or mlp_features.empty:
+            logger.info(f"{self.name}: MLP features empty, skipping prediction")
+            return None
 
-            mlp_features = calculate_mlp_features(
-                df,
-                bwin=int(self._mlp_bwin),
-                include_temporal=True,
-                feature_set=self._mlp_feature_set,
-            )
-            if mlp_features is None or mlp_features.empty:
-                logger.info(f"{self.name}: MLP features empty, skipping prediction")
-                return None, None
+        row = mlp_features.iloc[-1]
+        if row.isna().any():
+            valid = mlp_features.dropna()
+            if valid.empty:
+                return None
+            row = valid.iloc[-1]
+        return np.array(row.values, dtype=np.float32)
 
-            row = mlp_features.iloc[-1]
-            if row.isna().any():
-                valid = mlp_features.dropna()
-                if valid.empty:
-                    return None, None
-                row = valid.iloc[-1]
+    def _predict_mlp_from_features(self, features) -> tuple[int, float]:
+        if self._mlp_ensemble is not None:
+            pred_class, confidence, _ = self._mlp_ensemble.predict(features)
+            return int(pred_class), float(confidence)
 
-            import numpy as np
+        import torch
 
-            features = np.array(row.values, dtype=np.float32)
+        x = torch.FloatTensor(features).unsqueeze(0)
+        with torch.no_grad():
+            probs = self._mlp_model.predict_proba(x).cpu().numpy()[0]
+        pred_class = int(probs.argmax())
+        confidence = float(probs[pred_class])
+        return pred_class, confidence
 
-            if self._mlp_ensemble is not None:
-                pred_class, confidence, probs = self._mlp_ensemble.predict(features)
-            else:
-                x = torch.FloatTensor(features).unsqueeze(0)
-                with torch.no_grad():
-                    probs = self._mlp_model.predict_proba(x).cpu().numpy()[0]
-                pred_class = int(probs.argmax())
-                confidence = float(probs[pred_class])
-            labels = {0: "HOLD", 1: "BUY", 2: "SELL"}
-            logger.info(f"{self.name}: MLP prediction: {labels.get(pred_class, 'UNK')} (conf={confidence:.2f})")
+    def _log_mlp_prediction(self, pred_class: int, confidence: float) -> None:
+        labels = {0: "HOLD", 1: "BUY", 2: "SELL"}
+        logger.info(f"{self.name}: MLP prediction: {labels.get(pred_class, 'UNK')} (conf={confidence:.2f})")
 
-        except Exception as e:
-            logger.warning(f"{self.name}: MLP prediction failed: {e}")
-            return None, None
-
+    def _cache_mlp_prediction(
+        self, symbol: str, candle_ts: int, prediction: int, confidence: float
+    ) -> None:
         self._mlp_cache[symbol] = {
             "candle_timestamp": candle_ts,
-            "prediction": pred_class,
+            "prediction": prediction,
             "confidence": confidence,
         }
-        return pred_class, confidence
 
     async def _get_drawdown_pct(self) -> float:
         """Fetch portfolio drawdown percentage from Redis (cached)."""
@@ -1232,109 +1432,86 @@ class CompositeStrategyTask(BaseStrategyTask):
         Returns:
             MarketContext with trend and volatility analysis.
         """
-        # Build base context with drawdown-based BEAR detection
-        # Use 30-day high (high_30d) for drawdown calculation - better crash detection
-        # Falls back to 20-period high if 30-day not available
+        context = self._build_base_market_context(market_data)
+        if self.regime_version == "v2" and market_data.symbol in self._enhanced_routers:
+            return self._apply_v2_regime_context(context, market_data)
+        if self.use_regime_smoothing and market_data.symbol in self._regime_smoothers:
+            return self._apply_v1_smoothed_context(context, market_data)
+        return context
+
+    def _build_base_market_context(self, market_data: MarketData) -> MarketContext:
         recent_high = market_data.high_30d if market_data.high_30d > 0 else market_data.prev_high_20
-        context = build_market_context(
+        return build_market_context(
             mfi=market_data.mfi,
             adx=market_data.adx,
             atr=market_data.atr,
             close=market_data.close,
             volume=market_data.volume,
             avg_volume=market_data.avg_volume_20,
-            recent_high=recent_high,  # Use 30-day high for drawdown BEAR detection
+            recent_high=recent_high,
             drawdown_bear_threshold=self._drawdown_bear_threshold,
         )
 
-        # Apply regime filtering/smoothing based on version
-        if self.regime_version == "v2" and market_data.symbol in self._enhanced_routers:
-            # Enhanced regime detection v2: BBW + MTF + Volume filters
-            router = self._enhanced_routers[market_data.symbol]
-            candle_ts = self._get_latest_candle_timestamp(market_data.symbol, market_data)
-            router.update_from_lower_candle(
-                MTFCandle(
-                    open=market_data.open,
-                    high=market_data.high,
-                    low=market_data.low,
-                    close=market_data.close,
-                    volume=market_data.volume,
-                    mfi=market_data.mfi,
-                    adx=market_data.adx,
-                ),
-                candle_ts=candle_ts,
-            )
-            volume_ratio = (
-                market_data.volume / market_data.avg_volume_20
-                if market_data.avg_volume_20 > 0
-                else 1.0
-            )
-            filtered_regime = router.get_regime(
+    def _apply_v2_regime_context(self, context: MarketContext, market_data: MarketData) -> MarketContext:
+        router = self._enhanced_routers[market_data.symbol]
+        candle_ts = self._get_latest_candle_timestamp(market_data.symbol, market_data)
+        router.update_from_lower_candle(
+            MTFCandle(
+                open=market_data.open,
+                high=market_data.high,
+                low=market_data.low,
+                close=market_data.close,
+                volume=market_data.volume,
                 mfi=market_data.mfi,
                 adx=market_data.adx,
-                bb_upper=market_data.bb_upper,
-                bb_lower=market_data.bb_lower,
-                bb_middle=market_data.bb_middle,
-                volume_ratio=volume_ratio,
-            )
+            ),
+            candle_ts=candle_ts,
+        )
+        volume_ratio = market_data.volume / market_data.avg_volume_20 if market_data.avg_volume_20 > 0 else 1.0
+        filtered_regime = router.get_regime(
+            mfi=market_data.mfi,
+            adx=market_data.adx,
+            bb_upper=market_data.bb_upper,
+            bb_lower=market_data.bb_lower,
+            bb_middle=market_data.bb_middle,
+            volume_ratio=volume_ratio,
+        )
+        final_regime = self._resolve_regime_with_drawdown(context, filtered_regime)
+        return self._context_with_regime(context, final_regime, trend=self._trend_from_regime(final_regime))
 
-            # Create new context with filtered regime
-            final_regime = filtered_regime
-            final_trend = context.trend
+    def _apply_v1_smoothed_context(self, context: MarketContext, market_data: MarketData) -> MarketContext:
+        smoother = self._regime_smoothers[market_data.symbol]
+        smoothed_regime = smoother.update(market_data.mfi, market_data.adx)
+        final_regime = self._resolve_regime_with_drawdown(context, smoothed_regime)
+        final_trend = "BEAR" if context.is_drawdown_bear and final_regime in ("BEAR_STRONG", "BEAR_MODERATE") else context.trend
+        return self._context_with_regime(context, final_regime, trend=final_trend)
 
-            # Preserve drawdown-based BEAR override
-            if context.is_drawdown_bear and filtered_regime not in ("BEAR_STRONG", "BEAR_MODERATE"):
-                final_regime = "BEAR_STRONG" if context.adx >= 25 else "BEAR_MODERATE"
-                final_trend = "BEAR"
+    def _resolve_regime_with_drawdown(self, context: MarketContext, regime: str) -> str:
+        if not context.is_drawdown_bear or regime in ("BEAR_STRONG", "BEAR_MODERATE"):
+            return regime
+        return "BEAR_STRONG" if context.adx >= 25 else "BEAR_MODERATE"
 
-            # Determine trend from regime
-            if final_regime in ("BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP"):
-                final_trend = "BULL"
-            elif final_regime in ("BEAR_STRONG", "BEAR_MODERATE", "SIDEWAYS_DOWN"):
-                final_trend = "BEAR"
-            else:
-                final_trend = "SIDEWAYS"
+    def _trend_from_regime(self, regime: str) -> str:
+        if regime in ("BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP"):
+            return "BULL"
+        if regime in ("BEAR_STRONG", "BEAR_MODERATE", "SIDEWAYS_DOWN"):
+            return "BEAR"
+        return "SIDEWAYS"
 
-            context = MarketContext(
-                trend=final_trend,
-                regime=final_regime,
-                volatility_score=context.volatility_score,
-                is_extreme_volatility=context.is_extreme_volatility,
-                adx=context.adx,
-                volume_ratio=context.volume_ratio,
-                is_high_volume=context.is_high_volume,
-                drawdown=context.drawdown,
-                is_drawdown_bear=context.is_drawdown_bear,
-            )
-
-        elif self.use_regime_smoothing and market_data.symbol in self._regime_smoothers:
-            # v1: Original regime smoothing (EMA + persistence)
-            smoother = self._regime_smoothers[market_data.symbol]
-            smoothed_regime = smoother.update(market_data.mfi, market_data.adx)
-
-            # Create new context with smoothed regime (MarketContext is frozen)
-            # Preserve drawdown-based BEAR override even with smoothing
-            final_regime = smoothed_regime
-            final_trend = context.trend
-
-            # If drawdown triggers BEAR, don't let smoothing override it
-            if context.is_drawdown_bear and smoothed_regime not in ("BEAR_STRONG", "BEAR_MODERATE"):
-                final_regime = "BEAR_STRONG" if context.adx >= 25 else "BEAR_MODERATE"
-                final_trend = "BEAR"
-
-            context = MarketContext(
-                trend=final_trend,
-                regime=final_regime,
-                volatility_score=context.volatility_score,
-                is_extreme_volatility=context.is_extreme_volatility,
-                adx=context.adx,
-                volume_ratio=context.volume_ratio,
-                is_high_volume=context.is_high_volume,
-                drawdown=context.drawdown,
-                is_drawdown_bear=context.is_drawdown_bear,
-            )
-
-        return context
+    def _context_with_regime(
+        self, context: MarketContext, regime: str, trend: str
+    ) -> MarketContext:
+        return MarketContext(
+            trend=trend,
+            regime=regime,
+            volatility_score=context.volatility_score,
+            is_extreme_volatility=context.is_extreme_volatility,
+            adx=context.adx,
+            volume_ratio=context.volume_ratio,
+            is_high_volume=context.is_high_volume,
+            drawdown=context.drawdown,
+            is_drawdown_bear=context.is_drawdown_bear,
+        )
 
     def _dict_to_position(self, position_dict: dict) -> Position:
         """Convert position dict to Position model.
@@ -1428,74 +1605,87 @@ class CompositeStrategyTask(BaseStrategyTask):
         Returns:
             Tuple of (quantity, stop_price). stop_price is None for legacy sizing.
         """
-        # === Risk-based sizing (preferred) ===
-        if self._risk_based_sizing and self._position_sizer and market_data:
-            equity = await self._get_account_equity()
-            if equity <= 0:
-                logger.warning(f"{symbol}: Cannot get equity for risk sizing")
-                return (0.0, None)
+        risk_sized = await self._get_risk_sized_quantity(symbol, price, market_data)
+        if risk_sized is not None:
+            return risk_sized
+        return await self._get_legacy_quantity(symbol, price, default_quantity)
 
-            # Get ATR for stop calculation
-            atr = market_data.atr
-            if atr <= 0:
-                atr = price * 0.02  # Fallback: 2% of price
+    async def _get_risk_sized_quantity(
+        self,
+        symbol: str,
+        price: float,
+        market_data: MarketData | None,
+    ) -> tuple[float, float | None] | None:
+        if not (self._risk_based_sizing and self._position_sizer and market_data):
+            return None
 
-            leverage = int(self.config.get("leverage", 1))
+        equity = await self._get_account_equity()
+        if equity <= 0:
+            logger.warning(f"{symbol}: Cannot get equity for risk sizing")
+            return (0.0, None)
 
-            # Size position based on risk
-            result = self._position_sizer.size_position(
-                equity=equity,
-                entry_price=price,
-                atr=atr,
-                symbol=symbol,
-                leverage=leverage,
-                direction="long",
-            )
+        atr = market_data.atr if market_data.atr > 0 else price * 0.02
+        leverage = int(self.config.get("leverage", 1))
+        result = self._position_sizer.size_position(
+            equity=equity,
+            entry_price=price,
+            atr=atr,
+            symbol=symbol,
+            leverage=leverage,
+            direction="long",
+        )
 
-            if result.quantity == 0:
-                logger.info(
-                    f"{symbol}: Risk sizing rejected - {result.rejection_reason}"
-                )
-                return (0.0, None)
+        if result.quantity == 0:
+            logger.info(f"{symbol}: Risk sizing rejected - {result.rejection_reason}")
+            return (0.0, None)
 
-            # Calculate stop price for position tracking
-            stop_price = price * (1 - result.stop_distance_pct / 100)
+        stop_price = price * (1 - result.stop_distance_pct / 100)
+        logger.info(
+            f"{symbol}: Risk-sized qty={result.quantity:.6f}, "
+            f"risk=${result.risk_amount:.2f}, stop={result.stop_distance_pct:.1f}%"
+        )
+        return (result.quantity, stop_price)
 
-            logger.info(
-                f"{symbol}: Risk-sized qty={result.quantity:.6f}, "
-                f"risk=${result.risk_amount:.2f}, stop={result.stop_distance_pct:.1f}%"
-            )
-
-            return (result.quantity, stop_price)
-
-        # === Legacy: Percentage-based sizing ===
+    async def _get_legacy_quantity(
+        self,
+        symbol: str,
+        price: float,
+        default_quantity: float,
+    ) -> tuple[float, float | None]:
         use_dynamic = self.config.get("dynamic_sizing", False)
         position_pct = float(self.config.get("position_pct", 0.02))
-
         if use_dynamic:
             qty = await self.get_dynamic_position_size(symbol, price, position_pct)
             return (qty, None)
 
-        use_signal_quantity = bool(self.config.get("use_signal_quantity", False))
-        configured_size = float(default_quantity if use_signal_quantity else self.config.get("position_size", default_quantity))
+        configured_size = self._resolve_configured_position_size(default_quantity)
         if configured_size <= 0:
             return (0.0, None)
-
-        # Legacy configs use position_size as cash fraction (e.g., 0.9 = 90%).
-        # Convert fraction to executable quantity for live/paper parity.
         if configured_size <= 1.0:
-            equity = await self._get_account_equity()
-            if equity <= 0:
-                logger.warning(
-                    f"{symbol}: Cannot resolve equity for fractional position_size={configured_size:.3f}"
-                )
-                return (0.0, None)
-            notional = equity * configured_size
-            quantity = notional / price if price > 0 else 0.0
+            quantity = await self._resolve_fractional_quantity(symbol, price, configured_size)
             return (quantity, None)
-
-        # Absolute quantity mode (position_size > 1.0)
         return (configured_size, None)
+
+    def _resolve_configured_position_size(self, default_quantity: float) -> float:
+        use_signal_quantity = bool(self.config.get("use_signal_quantity", False))
+        if use_signal_quantity:
+            return float(default_quantity)
+        return float(self.config.get("position_size", default_quantity))
+
+    async def _resolve_fractional_quantity(
+        self,
+        symbol: str,
+        price: float,
+        configured_size: float,
+    ) -> float:
+        equity = await self._get_account_equity()
+        if equity <= 0:
+            logger.warning(
+                f"{symbol}: Cannot resolve equity for fractional position_size={configured_size:.3f}"
+            )
+            return 0.0
+        notional = equity * configured_size
+        return notional / price if price > 0 else 0.0
 
     async def _get_account_equity(self) -> float:
         """Get current account equity from Redis.
@@ -1541,44 +1731,99 @@ class CompositeStrategyTask(BaseStrategyTask):
         if self.context_builder is None:
             return True, "NO_CONTEXT_BUILDER"
 
+        open_positions, open_symbols, symbol_positions = self._get_context_portfolio_state(symbol)
+
+        allowed, reason = self._passes_context_position_count_caps(
+            symbol=symbol,
+            open_symbols=open_symbols,
+            symbol_positions=symbol_positions,
+        )
+        if not allowed:
+            return False, reason
+
+        proposed_notional = abs(quantity * price)
+        allowed, reason = await self._passes_context_exposure_caps(
+            proposed_notional=proposed_notional,
+            open_positions=open_positions,
+            symbol_positions=symbol_positions,
+        )
+        if not allowed:
+            return False, reason
+
+        allowed, reason = await self._passes_context_correlation_caps(symbol, open_symbols)
+        if not allowed:
+            return False, reason
+
+        return True, "OK"
+
+    def _get_context_portfolio_state(
+        self, symbol: str
+    ) -> tuple[list[Position], list[str], list[Position]]:
         portfolio = self.context_builder.get_portfolio_positions()
         open_positions = [p for p in portfolio.values() if p.quantity > 0]
         open_symbols = sorted({p.symbol for p in open_positions})
         symbol_positions = [p for p in open_positions if p.symbol == symbol]
+        return open_positions, open_symbols, symbol_positions
 
+    def _passes_context_position_count_caps(
+        self,
+        symbol: str,
+        open_symbols: list[str],
+        symbol_positions: list[Position],
+    ) -> tuple[bool, str]:
         if symbol not in open_symbols and len(open_symbols) >= self._context_max_open_positions:
-            return False, f"CTX_MAX_OPEN_POSITIONS:{len(open_symbols)}>={self._context_max_open_positions}"
-
+            return (
+                False,
+                f"CTX_MAX_OPEN_POSITIONS:{len(open_symbols)}>={self._context_max_open_positions}",
+            )
         if len(symbol_positions) >= self._context_max_symbol_positions:
-            return False, f"CTX_MAX_SYMBOL_POSITIONS:{len(symbol_positions)}>={self._context_max_symbol_positions}"
+            return (
+                False,
+                f"CTX_MAX_SYMBOL_POSITIONS:{len(symbol_positions)}>={self._context_max_symbol_positions}",
+            )
+        return True, "OK"
 
-        proposed_notional = abs(quantity * price)
+    async def _passes_context_exposure_caps(
+        self,
+        proposed_notional: float,
+        open_positions: list[Position],
+        symbol_positions: list[Position],
+    ) -> tuple[bool, str]:
         total_notional = sum(abs(p.quantity * p.entry_price) for p in open_positions)
         symbol_notional = sum(abs(p.quantity * p.entry_price) for p in symbol_positions)
 
         equity = await self._get_account_equity()
-        if equity > 0:
-            new_total_exposure = (total_notional + proposed_notional) / equity
-            new_symbol_exposure = (symbol_notional + proposed_notional) / equity
+        if equity <= 0:
+            return True, "OK"
 
-            if new_total_exposure > self._context_max_total_exposure_pct:
-                return (
-                    False,
-                    f"CTX_TOTAL_EXPOSURE:{new_total_exposure:.2f}>{self._context_max_total_exposure_pct:.2f}",
-                )
-            if new_symbol_exposure > self._context_max_symbol_exposure_pct:
-                return (
-                    False,
-                    f"CTX_SYMBOL_EXPOSURE:{new_symbol_exposure:.2f}>{self._context_max_symbol_exposure_pct:.2f}",
-                )
+        new_total_exposure = (total_notional + proposed_notional) / equity
+        new_symbol_exposure = (symbol_notional + proposed_notional) / equity
 
-        if self._context_corr_enabled and self._correlation_filter is not None:
-            existing_symbols = [s for s in open_symbols if s != symbol]
-            if existing_symbols:
-                blocked, reason = await self._correlation_filter.should_block(symbol, existing_symbols)
-                if blocked:
-                    return False, f"CTX_{reason}"
+        if new_total_exposure > self._context_max_total_exposure_pct:
+            return (
+                False,
+                f"CTX_TOTAL_EXPOSURE:{new_total_exposure:.2f}>{self._context_max_total_exposure_pct:.2f}",
+            )
+        if new_symbol_exposure > self._context_max_symbol_exposure_pct:
+            return (
+                False,
+                f"CTX_SYMBOL_EXPOSURE:{new_symbol_exposure:.2f}>{self._context_max_symbol_exposure_pct:.2f}",
+            )
+        return True, "OK"
 
+    async def _passes_context_correlation_caps(
+        self,
+        symbol: str,
+        open_symbols: list[str],
+    ) -> tuple[bool, str]:
+        if not self._context_corr_enabled or self._correlation_filter is None:
+            return True, "OK"
+        existing_symbols = [s for s in open_symbols if s != symbol]
+        if not existing_symbols:
+            return True, "OK"
+        blocked, reason = await self._correlation_filter.should_block(symbol, existing_symbols)
+        if blocked:
+            return False, f"CTX_{reason}"
         return True, "OK"
 
     async def _check_and_record_decision(
@@ -1605,74 +1850,162 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         self.last_decision_hour[symbol] = current_hour
 
-        # Get regime from context (preferred) or build it
-        if context is not None:
-            regime = context.regime
-        else:
-            ctx = self._build_market_context(market_data)
-            regime = ctx.regime
-
-        # Determine decision and reason based on position state
+        regime = self._get_decision_regime(market_data, context)
         position = await self._get_position(symbol)
-
-        # Get entry thresholds for detailed logging
-        mfi_bull = 52.0
-        mfi_bear = 48.0
-        adx_trend = 20.0
-        if hasattr(self.entry_strategy, 'params'):
-            params = self.entry_strategy.params
-            mfi_bull = getattr(params, 'mfi_bull', 52.0)
-            mfi_bear = getattr(params, 'mfi_bear', 48.0)
-            adx_trend = getattr(params, 'adx_trend', 20.0)
-
-        if position and float(position.get('quantity', 0)) > 0:
-            entry_price = float(position.get('entry_price', 0))
-            quantity = float(position.get('quantity', 0))
-            unrealized_pnl = (market_data.close - entry_price) * quantity
-            unrealized_pnl_pct = ((market_data.close - entry_price) / entry_price * 100) if entry_price > 0 else 0
-            price_change = market_data.close - entry_price
-
-            decision = "HOLD"
-            reason = (
-                f"Position: {quantity:.6f} @ ${entry_price:,.2f} | "
-                f"Current: ${market_data.close:,.2f} ({'+' if price_change >= 0 else ''}{price_change:,.2f}) | "
-                f"P&L: {'+' if unrealized_pnl_pct >= 0 else ''}{unrealized_pnl_pct:.2f}%"
-            )
-            position_data = {
-                "active": True,
-                "entry_price": entry_price,
-                "quantity": quantity,
-                "unrealized_pnl": round(unrealized_pnl, 2),
-                "unrealized_pnl_pct": round(unrealized_pnl_pct, 2),
-            }
-        else:
-            # Check if conditions would trigger entry
-            should_enter = hasattr(self.entry_strategy, '_should_enter') and \
-                          self.entry_strategy._should_enter(regime)
-
-            if should_enter:
-                decision = "BUY"
-                reason = f"Entry signal: {regime} (MFI={market_data.mfi:.1f} >= {mfi_bull}, ADX={market_data.adx:.1f} >= {adx_trend})"
-            else:
-                # Detailed reason why not entering
-                reasons = []
-                if market_data.mfi < mfi_bull:
-                    reasons.append(f"MFI={market_data.mfi:.1f} < {mfi_bull}")
-                if market_data.mfi > mfi_bear:
-                    reasons.append(f"MFI={market_data.mfi:.1f} > {mfi_bear}")
-                if market_data.adx < adx_trend:
-                    reasons.append(f"ADX={market_data.adx:.1f} < {adx_trend}")
-
-                decision = "WAIT"
-                reason = f"No entry: {regime} | " + ", ".join(reasons) if reasons else f"No entry: {regime}"
-
-            position_data = {"active": False}
+        mfi_bull, mfi_bear, adx_trend = self._get_entry_thresholds_for_decision()
+        decision, reason, position_data = self._build_decision_snapshot(
+            market_data=market_data,
+            regime=regime,
+            position=position,
+            mfi_bull=mfi_bull,
+            mfi_bear=mfi_bear,
+            adx_trend=adx_trend,
+        )
 
         # Get current mode from Redis
         risk_data = await self.redis._client.hgetall("risk")
         mode = risk_data.get("mode", "paper") if risk_data else "paper"
 
-        # Build decision record
+        decision_record = self._build_decision_record(
+            symbol=symbol,
+            market_data=market_data,
+            regime=regime,
+            decision=decision,
+            reason=reason,
+            position_data=position_data,
+            mode=mode,
+            context=context,
+        )
+
+        try:
+            await self.redis._client.xadd(
+                "strategy:decisions",
+                decision_record,
+                maxlen=5000,  # ~48h * 3 symbols * ~30 strategies
+            )
+            self._log_decision_details(
+                market_data=market_data,
+                decision=decision,
+                reason=reason,
+                position_data=position_data,
+                regime=regime,
+                mfi_bull=mfi_bull,
+                mfi_bear=mfi_bear,
+                adx_trend=adx_trend,
+                context=context,
+            )
+            self._emit_structured_decision_log(
+                symbol=symbol,
+                market_data=market_data,
+                decision=decision,
+                regime=regime,
+                reason=reason,
+            )
+        except Exception as e:
+            logger.error(f"Failed to record decision for {symbol}: {e}")
+
+    def _get_decision_regime(
+        self,
+        market_data: MarketData,
+        context: MarketContext | None,
+    ) -> str:
+        if context is not None:
+            return context.regime
+        return self._build_market_context(market_data).regime
+
+    def _get_entry_thresholds_for_decision(self) -> tuple[float, float, float]:
+        mfi_bull = 52.0
+        mfi_bear = 48.0
+        adx_trend = 20.0
+        if hasattr(self.entry_strategy, "params"):
+            params = self.entry_strategy.params
+            mfi_bull = getattr(params, "mfi_bull", 52.0)
+            mfi_bear = getattr(params, "mfi_bear", 48.0)
+            adx_trend = getattr(params, "adx_trend", 20.0)
+        return mfi_bull, mfi_bear, adx_trend
+
+    def _build_decision_snapshot(
+        self,
+        market_data: MarketData,
+        regime: str,
+        position: dict | None,
+        mfi_bull: float,
+        mfi_bear: float,
+        adx_trend: float,
+    ) -> tuple[str, str, dict[str, Any]]:
+        if position and float(position.get("quantity", 0)) > 0:
+            return self._build_hold_decision_snapshot(market_data, position)
+        return self._build_entry_decision_snapshot(
+            market_data=market_data,
+            regime=regime,
+            mfi_bull=mfi_bull,
+            mfi_bear=mfi_bear,
+            adx_trend=adx_trend,
+        )
+
+    def _build_hold_decision_snapshot(
+        self,
+        market_data: MarketData,
+        position: dict,
+    ) -> tuple[str, str, dict[str, Any]]:
+        entry_price = float(position.get("entry_price", 0))
+        quantity = float(position.get("quantity", 0))
+        unrealized_pnl = (market_data.close - entry_price) * quantity
+        unrealized_pnl_pct = ((market_data.close - entry_price) / entry_price * 100) if entry_price > 0 else 0
+        price_change = market_data.close - entry_price
+
+        reason = (
+            f"Position: {quantity:.6f} @ ${entry_price:,.2f} | "
+            f"Current: ${market_data.close:,.2f} ({'+' if price_change >= 0 else ''}{price_change:,.2f}) | "
+            f"P&L: {'+' if unrealized_pnl_pct >= 0 else ''}{unrealized_pnl_pct:.2f}%"
+        )
+        position_data = {
+            "active": True,
+            "entry_price": entry_price,
+            "quantity": quantity,
+            "unrealized_pnl": round(unrealized_pnl, 2),
+            "unrealized_pnl_pct": round(unrealized_pnl_pct, 2),
+        }
+        return "HOLD", reason, position_data
+
+    def _build_entry_decision_snapshot(
+        self,
+        market_data: MarketData,
+        regime: str,
+        mfi_bull: float,
+        mfi_bear: float,
+        adx_trend: float,
+    ) -> tuple[str, str, dict[str, Any]]:
+        should_enter = hasattr(self.entry_strategy, "_should_enter") and self.entry_strategy._should_enter(regime)
+
+        if should_enter:
+            reason = (
+                f"Entry signal: {regime} (MFI={market_data.mfi:.1f} >= {mfi_bull}, "
+                f"ADX={market_data.adx:.1f} >= {adx_trend})"
+            )
+            return "BUY", reason, {"active": False}
+
+        reasons = []
+        if market_data.mfi < mfi_bull:
+            reasons.append(f"MFI={market_data.mfi:.1f} < {mfi_bull}")
+        if market_data.mfi > mfi_bear:
+            reasons.append(f"MFI={market_data.mfi:.1f} > {mfi_bear}")
+        if market_data.adx < adx_trend:
+            reasons.append(f"ADX={market_data.adx:.1f} < {adx_trend}")
+        reason = f"No entry: {regime} | " + ", ".join(reasons) if reasons else f"No entry: {regime}"
+        return "WAIT", reason, {"active": False}
+
+    def _build_decision_record(
+        self,
+        symbol: str,
+        market_data: MarketData,
+        regime: str,
+        decision: str,
+        reason: str,
+        position_data: dict[str, Any],
+        mode: str,
+        context: MarketContext | None,
+    ) -> dict[str, str]:
         decision_record = {
             "timestamp": datetime.now().isoformat(),
             "symbol": symbol,
@@ -1688,61 +2021,72 @@ class CompositeStrategyTask(BaseStrategyTask):
             "paper": "true" if mode == "paper" else "false",
         }
 
-        # Add context info if available
         if context:
             decision_record["trend"] = context.trend
             decision_record["volatility_score"] = str(round(context.volatility_score, 4))
             decision_record["is_extreme_volatility"] = str(context.is_extreme_volatility)
+        return decision_record
 
-        # Write to Redis stream with auto-trim (keep ~48 hours of hourly data)
-        try:
-            await self.redis._client.xadd(
-                "strategy:decisions",
-                decision_record,
-                maxlen=5000,  # ~48h * 3 symbols * ~30 strategies
+    def _log_decision_details(
+        self,
+        market_data: MarketData,
+        decision: str,
+        reason: str,
+        position_data: dict[str, Any],
+        regime: str,
+        mfi_bull: float,
+        mfi_bear: float,
+        adx_trend: float,
+        context: MarketContext | None,
+    ) -> None:
+        log_lines = [
+            f"{'='*60}",
+            f"[{self.name.upper()}] {market_data.symbol} ({self.market}) - HOURLY DECISION",
+            f"{'='*60}",
+            f"  Time:     {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"  Price:    ${market_data.close:,.2f}",
+            f"  MFI:      {market_data.mfi:.1f} (Bull>{mfi_bull}, Bear<{mfi_bear})",
+            f"  ADX:      {market_data.adx:.1f} (Trend>{adx_trend})",
+            f"  Regime:   {regime}",
+        ]
+        if context:
+            vol_pct = context.volatility_score * 100
+            vol_status = "EXTREME" if context.is_extreme_volatility else "normal"
+            log_lines.append(f"  Trend:    {context.trend}")
+            log_lines.append(f"  Volatility: {vol_pct:.2f}% ({vol_status})")
+        log_lines.extend([
+            f"  Decision: {decision}",
+            f"  Reason:   {reason}",
+        ])
+        if position_data.get("active"):
+            log_lines.append(
+                f"  Position: {position_data['quantity']:.6f} @ ${position_data['entry_price']:,.2f}"
             )
-
-            # Detailed log message
-            log_lines = [
-                f"{'='*60}",
-                f"[{self.name.upper()}] {symbol} ({self.market}) - HOURLY DECISION",
-                f"{'='*60}",
-                f"  Time:     {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                f"  Price:    ${market_data.close:,.2f}",
-                f"  MFI:      {market_data.mfi:.1f} (Bull>{mfi_bull}, Bear<{mfi_bear})",
-                f"  ADX:      {market_data.adx:.1f} (Trend>{adx_trend})",
-                f"  Regime:   {regime}",
-            ]
-            # Add context info if available
-            if context:
-                vol_pct = context.volatility_score * 100
-                vol_status = "EXTREME" if context.is_extreme_volatility else "normal"
-                log_lines.append(f"  Trend:    {context.trend}")
-                log_lines.append(f"  Volatility: {vol_pct:.2f}% ({vol_status})")
-            log_lines.extend([
-                f"  Decision: {decision}",
-                f"  Reason:   {reason}",
-            ])
-            if position_data.get("active"):
-                log_lines.append(f"  Position: {position_data['quantity']:.6f} @ ${position_data['entry_price']:,.2f}")
-                log_lines.append(f"  P&L:      ${position_data['unrealized_pnl']:,.2f} ({position_data['unrealized_pnl_pct']:+.2f}%)")
-            log_lines.append(f"{'='*60}")
-
-            logger.info("\n".join(log_lines))
-
-            # Structured one-line JSON log for trade analysis
-            trade_logger.decision(
-                symbol=symbol,
-                strategy=self.name,
-                decision=decision,
-                price=market_data.close,
-                mfi=market_data.mfi,
-                adx=market_data.adx,
-                regime=regime,
-                reason=reason[:100] if len(reason) > 100 else reason,
+            log_lines.append(
+                f"  P&L:      ${position_data['unrealized_pnl']:,.2f} "
+                f"({position_data['unrealized_pnl_pct']:+.2f}%)"
             )
-        except Exception as e:
-            logger.error(f"Failed to record decision for {symbol}: {e}")
+        log_lines.append(f"{'='*60}")
+        logger.info("\n".join(log_lines))
+
+    def _emit_structured_decision_log(
+        self,
+        symbol: str,
+        market_data: MarketData,
+        decision: str,
+        regime: str,
+        reason: str,
+    ) -> None:
+        trade_logger.decision(
+            symbol=symbol,
+            strategy=self.name,
+            decision=decision,
+            price=market_data.close,
+            mfi=market_data.mfi,
+            adx=market_data.adx,
+            regime=regime,
+            reason=reason[:100] if len(reason) > 100 else reason,
+        )
 
     async def _emit_entry_evaluation(
         self,
@@ -1762,30 +2106,8 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         from trading.core.event_emitter import EntryEvaluationEvent, SafetyRejectionEvent
 
-        # Get thresholds from entry strategy params or config
-        # Defaults match allocation.json defaults.market_context
-        mfi_threshold = 52.0
-        adx_threshold = 20.0
-        volatility_threshold = 0.03
-        if hasattr(self.entry_strategy, 'params'):
-            params = self.entry_strategy.params
-            # Use getattr with None check to avoid MagicMock issues in tests
-            val = getattr(params, 'mfi_bull', None)
-            if val is not None and isinstance(val, (int, float)):
-                mfi_threshold = val
-            val = getattr(params, 'adx_trend', None)
-            if val is not None and isinstance(val, (int, float)):
-                adx_threshold = val
-            val = getattr(params, 'volatility_threshold', None)
-            if val is not None and isinstance(val, (int, float)):
-                volatility_threshold = val
-
-        # Determine filter pass status
-        adx_passed = market_data.adx >= adx_threshold
-        mfi_passed = market_data.mfi >= mfi_threshold
-        volatility_passed = context.volatility_score <= volatility_threshold
-        regime_allowed = context.regime in {"BULL_STRONG", "BULL_MODERATE"}
-        macd_crossed = market_data.macd > market_data.macd_signal
+        thresholds = self._resolve_entry_thresholds()
+        checks = self._build_entry_filter_checks(market_data, context, thresholds)
 
         event = EntryEvaluationEvent(
             timestamp=datetime.now().isoformat(),
@@ -1793,19 +2115,19 @@ class CompositeStrategyTask(BaseStrategyTask):
             symbol=market_data.symbol,
             market=self.market,
             adx=market_data.adx,
-            adx_threshold=adx_threshold,
-            adx_passed=adx_passed,
+            adx_threshold=thresholds["adx"],
+            adx_passed=checks["adx_passed"],
             regime=context.regime,
-            regime_allowed=regime_allowed,
+            regime_allowed=checks["regime_allowed"],
             volatility_score=context.volatility_score,
-            volatility_threshold=volatility_threshold,
-            volatility_passed=volatility_passed,
+            volatility_threshold=thresholds["volatility"],
+            volatility_passed=checks["volatility_passed"],
             mfi=market_data.mfi,
-            mfi_threshold=mfi_threshold,
-            mfi_passed=mfi_passed,
+            mfi_threshold=thresholds["mfi"],
+            mfi_passed=checks["mfi_passed"],
             macd=market_data.macd,
             macd_signal=market_data.macd_signal,
-            macd_crossed=macd_crossed,
+            macd_crossed=checks["macd_crossed"],
             rsi=market_data.rsi,
             signal_generated=signal is not None,
             reason=signal.reason if signal else "No entry signal",
@@ -1813,38 +2135,25 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         await self.event_emitter.emit_entry_evaluation(event)
 
-        # Emit safety rejection event if entry was blocked
-        if signal is None:
-            rejection_type = None
-            reason = ""
-
-            if not adx_passed:
-                rejection_type = "weak_trend"
-                reason = f"ADX={market_data.adx:.1f} < {adx_threshold} threshold"
-            elif not regime_allowed:
-                rejection_type = "wrong_regime"
-                reason = f"Regime {context.regime} not allowed for entry"
-            elif not volatility_passed:
-                rejection_type = "extreme_volatility"
-                reason = f"Volatility {context.volatility_score:.4f} > {volatility_threshold}"
-            elif not mfi_passed:
-                rejection_type = "weak_momentum"
-                reason = f"MFI={market_data.mfi:.1f} < {mfi_threshold}"
-
-            if rejection_type:
-                safety_event = SafetyRejectionEvent(
-                    timestamp=datetime.now().isoformat(),
-                    strategy=self.name,
-                    symbol=market_data.symbol,
-                    market=self.market,
-                    rejection_type=rejection_type,
-                    reason=reason,
-                    adx=market_data.adx,
-                    mfi=market_data.mfi,
-                    regime=context.regime,
-                    volatility_score=context.volatility_score,
-                )
-                await self.event_emitter.emit_safety_rejection(safety_event)
+        if signal is not None:
+            return
+        rejection = self._resolve_entry_rejection(market_data, context, thresholds, checks)
+        if rejection is None:
+            return
+        rejection_type, reason = rejection
+        safety_event = SafetyRejectionEvent(
+            timestamp=datetime.now().isoformat(),
+            strategy=self.name,
+            symbol=market_data.symbol,
+            market=self.market,
+            rejection_type=rejection_type,
+            reason=reason,
+            adx=market_data.adx,
+            mfi=market_data.mfi,
+            regime=context.regime,
+            volatility_score=context.volatility_score,
+        )
+        await self.event_emitter.emit_safety_rejection(safety_event)
 
     async def _emit_exit_evaluation(
         self,
@@ -1864,42 +2173,12 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         from trading.core.event_emitter import ExitEvaluationEvent
 
-        # Calculate P&L
-        unrealized_pnl = (market_data.close - position.entry_price) * position.quantity
-        unrealized_pnl_pct = (
-            (market_data.close - position.entry_price) / position.entry_price * 100
-            if position.entry_price > 0 else 0
+        pnl = self._calculate_unrealized_pnl(position, market_data.close)
+        exit_levels = self._resolve_exit_levels(position, market_data)
+        triggers = self._build_exit_triggers(market_data, exit_levels)
+        reason = signal.reason if signal else (
+            f"Holding: P&L {'+' if pnl['pct'] >= 0 else ''}{pnl['pct']:.2f}%"
         )
-
-        # Get exit parameters if available from strategy
-        stop_loss_price = 0.0
-        take_profit_price = 0.0
-        trailing_stop_price = 0.0
-        high_water_mark = market_data.close
-        drawdown_from_hwm_pct = 0.0
-
-        if hasattr(self.exit_strategy, 'params'):
-            params = self.exit_strategy.params
-            # Calculate stop loss/take profit from params if available
-            stop_loss_pct = getattr(params, 'stop_loss_pct', 0.02)
-            take_profit_pct = getattr(params, 'take_profit_pct', 0.05)
-            stop_loss_price = position.entry_price * (1 - stop_loss_pct)
-            take_profit_price = position.entry_price * (1 + take_profit_pct)
-
-        # Get HWM from exit strategy state if available
-        if hasattr(self.exit_strategy, 'state') and hasattr(self.exit_strategy.state, 'get'):
-            hwm_state = self.exit_strategy.state.get(position.symbol, {})
-            if isinstance(hwm_state, dict):
-                high_water_mark = hwm_state.get('high_water_mark', market_data.close)
-                trailing_stop_price = hwm_state.get('trailing_stop', 0.0)
-                if high_water_mark > 0:
-                    drawdown_from_hwm_pct = (high_water_mark - market_data.close) / high_water_mark * 100
-
-        # Determine trigger status
-        stop_loss_triggered = market_data.close <= stop_loss_price if stop_loss_price > 0 else False
-        take_profit_triggered = market_data.close >= take_profit_price if take_profit_price > 0 else False
-        trailing_stop_triggered = market_data.close <= trailing_stop_price if trailing_stop_price > 0 else False
-        macd_exit_signal = market_data.macd < market_data.macd_signal
 
         event = ExitEvaluationEvent(
             timestamp=datetime.now().isoformat(),
@@ -1909,22 +2188,107 @@ class CompositeStrategyTask(BaseStrategyTask):
             entry_price=position.entry_price,
             current_price=market_data.close,
             quantity=position.quantity,
-            unrealized_pnl=unrealized_pnl,
-            unrealized_pnl_pct=unrealized_pnl_pct,
-            stop_loss_price=stop_loss_price,
-            stop_loss_triggered=stop_loss_triggered,
-            take_profit_price=take_profit_price,
-            take_profit_triggered=take_profit_triggered,
-            trailing_stop_price=trailing_stop_price,
-            trailing_stop_triggered=trailing_stop_triggered,
-            macd_exit_signal=macd_exit_signal,
-            high_water_mark=high_water_mark,
-            drawdown_from_hwm_pct=drawdown_from_hwm_pct,
+            unrealized_pnl=pnl["value"],
+            unrealized_pnl_pct=pnl["pct"],
+            stop_loss_price=exit_levels["stop_loss_price"],
+            stop_loss_triggered=triggers["stop_loss_triggered"],
+            take_profit_price=exit_levels["take_profit_price"],
+            take_profit_triggered=triggers["take_profit_triggered"],
+            trailing_stop_price=exit_levels["trailing_stop_price"],
+            trailing_stop_triggered=triggers["trailing_stop_triggered"],
+            macd_exit_signal=triggers["macd_exit_signal"],
+            high_water_mark=exit_levels["high_water_mark"],
+            drawdown_from_hwm_pct=exit_levels["drawdown_from_hwm_pct"],
             signal_generated=signal is not None,
-            reason=signal.reason if signal else f"Holding: P&L {'+' if unrealized_pnl_pct >= 0 else ''}{unrealized_pnl_pct:.2f}%",
+            reason=reason,
         )
 
         await self.event_emitter.emit_exit_evaluation(event)
+
+    def _resolve_entry_thresholds(self) -> dict[str, float]:
+        thresholds = {"mfi": 52.0, "adx": 20.0, "volatility": 0.03}
+        if not hasattr(self.entry_strategy, "params"):
+            return thresholds
+        params = self.entry_strategy.params
+        mfi = getattr(params, "mfi_bull", None)
+        adx = getattr(params, "adx_trend", None)
+        volatility = getattr(params, "volatility_threshold", None)
+        if isinstance(mfi, (int, float)):
+            thresholds["mfi"] = float(mfi)
+        if isinstance(adx, (int, float)):
+            thresholds["adx"] = float(adx)
+        if isinstance(volatility, (int, float)):
+            thresholds["volatility"] = float(volatility)
+        return thresholds
+
+    def _build_entry_filter_checks(
+        self, market_data: MarketData, context: MarketContext, thresholds: dict[str, float]
+    ) -> dict[str, bool]:
+        return {
+            "adx_passed": market_data.adx >= thresholds["adx"],
+            "mfi_passed": market_data.mfi >= thresholds["mfi"],
+            "volatility_passed": context.volatility_score <= thresholds["volatility"],
+            "regime_allowed": context.regime in {"BULL_STRONG", "BULL_MODERATE"},
+            "macd_crossed": market_data.macd > market_data.macd_signal,
+        }
+
+    def _resolve_entry_rejection(
+        self,
+        market_data: MarketData,
+        context: MarketContext,
+        thresholds: dict[str, float],
+        checks: dict[str, bool],
+    ) -> tuple[str, str] | None:
+        if not checks["adx_passed"]:
+            return "weak_trend", f"ADX={market_data.adx:.1f} < {thresholds['adx']} threshold"
+        if not checks["regime_allowed"]:
+            return "wrong_regime", f"Regime {context.regime} not allowed for entry"
+        if not checks["volatility_passed"]:
+            return (
+                "extreme_volatility",
+                f"Volatility {context.volatility_score:.4f} > {thresholds['volatility']}",
+            )
+        if not checks["mfi_passed"]:
+            return "weak_momentum", f"MFI={market_data.mfi:.1f} < {thresholds['mfi']}"
+        return None
+
+    def _calculate_unrealized_pnl(self, position: Position, close: float) -> dict[str, float]:
+        pnl = (close - position.entry_price) * position.quantity
+        pnl_pct = ((close - position.entry_price) / position.entry_price * 100) if position.entry_price > 0 else 0.0
+        return {"value": pnl, "pct": pnl_pct}
+
+    def _resolve_exit_levels(self, position: Position, market_data: MarketData) -> dict[str, float]:
+        levels = {
+            "stop_loss_price": 0.0,
+            "take_profit_price": 0.0,
+            "trailing_stop_price": 0.0,
+            "high_water_mark": market_data.close,
+            "drawdown_from_hwm_pct": 0.0,
+        }
+        if hasattr(self.exit_strategy, "params"):
+            params = self.exit_strategy.params
+            stop_loss_pct = getattr(params, "stop_loss_pct", 0.02)
+            take_profit_pct = getattr(params, "take_profit_pct", 0.05)
+            levels["stop_loss_price"] = position.entry_price * (1 - stop_loss_pct)
+            levels["take_profit_price"] = position.entry_price * (1 + take_profit_pct)
+        if hasattr(self.exit_strategy, "state") and hasattr(self.exit_strategy.state, "get"):
+            hwm_state = self.exit_strategy.state.get(position.symbol, {})
+            if isinstance(hwm_state, dict):
+                levels["high_water_mark"] = hwm_state.get("high_water_mark", market_data.close)
+                levels["trailing_stop_price"] = hwm_state.get("trailing_stop", 0.0)
+                if levels["high_water_mark"] > 0:
+                    levels["drawdown_from_hwm_pct"] = (
+                        (levels["high_water_mark"] - market_data.close) / levels["high_water_mark"] * 100
+                    )
+        return levels
+
+    def _build_exit_triggers(self, market_data: MarketData, levels: dict[str, float]) -> dict[str, bool]:
+        return {
+            "stop_loss_triggered": market_data.close <= levels["stop_loss_price"] if levels["stop_loss_price"] > 0 else False,
+            "take_profit_triggered": market_data.close >= levels["take_profit_price"] if levels["take_profit_price"] > 0 else False,
+            "trailing_stop_triggered": market_data.close <= levels["trailing_stop_price"] if levels["trailing_stop_price"] > 0 else False,
+            "macd_exit_signal": market_data.macd < market_data.macd_signal,
+        }
 
 
 async def create_composite_task(

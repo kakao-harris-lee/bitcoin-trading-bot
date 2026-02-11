@@ -150,67 +150,107 @@ class PortfolioRiskManager:
         Returns:
             RiskCheckResult indicating whether trade is allowed.
         """
-        # Refresh cache if stale
         await self._refresh_risk_cache()
-
-        # Get current state
         open_positions = self._risk_cache
-        current_total_risk = sum(p.risk_amount for p in open_positions.values())
-        max_total_risk = equity * self.config.max_total_risk_pct
+        current_total_risk, max_total_risk = self._calculate_risk_totals(open_positions, equity)
 
-        # 1. Check position count (cache keys are {symbol}_{market})
-        has_existing = any(k.startswith(f"{symbol}_") for k in open_positions)
-        if not has_existing:
+        if not self._has_existing_symbol_position(symbol, open_positions):
             if len(open_positions) >= self.config.max_open_positions:
-                return RiskCheckResult(
-                    allowed=False,
+                return self._blocked_result(
                     reason=f"MAX_POSITIONS:{len(open_positions)}>={self.config.max_open_positions}",
                     current_total_risk=current_total_risk,
-                    remaining_risk_budget=max(0, max_total_risk - current_total_risk),
+                    remaining_risk=max(0, max_total_risk - current_total_risk),
                 )
 
-        # 2. Check total risk cap
         new_total_risk = current_total_risk + proposed_risk
         if new_total_risk > max_total_risk:
-            return RiskCheckResult(
-                allowed=False,
+            return self._blocked_result(
                 reason=f"TOTAL_RISK_CAP:${new_total_risk:.0f}>${max_total_risk:.0f}",
                 current_total_risk=current_total_risk,
-                remaining_risk_budget=max(0, max_total_risk - current_total_risk),
+                remaining_risk=max(0, max_total_risk - current_total_risk),
             )
 
-        # 3. Correlation filter (if enabled)
         adjusted_risk_pct = None
         if self.config.use_correlation_filter and self.correlation_filter:
-            existing_symbols = list({k.split("_")[0] for k in open_positions if k.split("_")[0] != symbol})
+            existing_symbols = self._existing_symbols(open_positions, symbol)
             if existing_symbols:
                 corr_result = await self._check_correlation(
                     symbol, existing_symbols, proposed_risk, equity
                 )
                 if not corr_result.allowed:
                     return corr_result
-                # Capture adjusted risk if correlation filter suggests reduction
                 if corr_result.adjusted_risk_pct:
                     adjusted_risk_pct = corr_result.adjusted_risk_pct
 
-        # All checks passed
-        reason = "OK"
-        if adjusted_risk_pct:
-            reason = f"CORR_ADJUSTED:{adjusted_risk_pct:.4f}"
-
+        reason = self._approval_reason(adjusted_risk_pct)
         logger.info(
             f"{symbol}: risk check PASSED - "
             f"proposed=${proposed_risk:.0f}, "
             f"total=${new_total_risk:.0f}/${max_total_risk:.0f} "
             f"({new_total_risk/equity*100:.1f}%)"
         )
+        return self._approved_result(
+            reason=reason,
+            adjusted_risk_pct=adjusted_risk_pct,
+            current_total_risk=current_total_risk,
+            remaining_risk=max(0, max_total_risk - new_total_risk),
+        )
 
+    def _calculate_risk_totals(
+        self,
+        open_positions: Dict[str, OpenPositionRisk],
+        equity: float,
+    ) -> tuple[float, float]:
+        current_total_risk = sum(p.risk_amount for p in open_positions.values())
+        max_total_risk = equity * self.config.max_total_risk_pct
+        return current_total_risk, max_total_risk
+
+    def _has_existing_symbol_position(
+        self,
+        symbol: str,
+        open_positions: Dict[str, OpenPositionRisk],
+    ) -> bool:
+        return any(key.startswith(f"{symbol}_") for key in open_positions)
+
+    def _existing_symbols(
+        self,
+        open_positions: Dict[str, OpenPositionRisk],
+        symbol: str,
+    ) -> List[str]:
+        return list({key.split("_")[0] for key in open_positions if key.split("_")[0] != symbol})
+
+    @staticmethod
+    def _approval_reason(adjusted_risk_pct: Optional[float]) -> str:
+        if adjusted_risk_pct:
+            return f"CORR_ADJUSTED:{adjusted_risk_pct:.4f}"
+        return "OK"
+
+    @staticmethod
+    def _blocked_result(
+        reason: str,
+        current_total_risk: float,
+        remaining_risk: float,
+    ) -> RiskCheckResult:
+        return RiskCheckResult(
+            allowed=False,
+            reason=reason,
+            current_total_risk=current_total_risk,
+            remaining_risk_budget=remaining_risk,
+        )
+
+    @staticmethod
+    def _approved_result(
+        reason: str,
+        adjusted_risk_pct: Optional[float],
+        current_total_risk: float,
+        remaining_risk: float,
+    ) -> RiskCheckResult:
         return RiskCheckResult(
             allowed=True,
             reason=reason,
             adjusted_risk_pct=adjusted_risk_pct,
             current_total_risk=current_total_risk,
-            remaining_risk_budget=max(0, max_total_risk - new_total_risk),
+            remaining_risk_budget=remaining_risk,
         )
 
     async def _refresh_risk_cache(self) -> None:
@@ -282,58 +322,84 @@ class PortfolioRiskManager:
         if not self.correlation_filter:
             return RiskCheckResult(allowed=True, reason="NO_CORR_FILTER")
 
-        max_corr = 0.0
-        correlated_with = None
-
-        for existing in existing_symbols:
-            corr = await self.correlation_filter.get_correlation(new_symbol, existing)
-            if corr > max_corr:
-                max_corr = corr
-                correlated_with = existing
+        max_corr, correlated_with = await self._find_max_correlation(new_symbol, existing_symbols)
 
         if max_corr <= self.config.corr_threshold:
             return RiskCheckResult(allowed=True, reason="CORR_OK")
 
-        # High correlation detected
         logger.warning(
             f"{new_symbol}: high correlation with {correlated_with} "
             f"(corr={max_corr:.2f} > {self.config.corr_threshold})"
         )
 
         if self.config.corr_action == "block":
-            return RiskCheckResult(
-                allowed=False,
-                reason=f"HIGH_CORR:{new_symbol}-{correlated_with}={max_corr:.2f}",
-            )
-
-        elif self.config.corr_action == "reduce":
-            # Reduce risk allocation for correlated trades
+            return self._correlation_block_result(new_symbol, correlated_with, max_corr)
+        if self.config.corr_action == "reduce":
             adjusted_risk = self.config.risk_per_trade_pct * self.config.corr_reduction_factor
             return RiskCheckResult(
                 allowed=True,
                 reason=f"CORR_REDUCED:{new_symbol}-{correlated_with}={max_corr:.2f}",
                 adjusted_risk_pct=adjusted_risk,
             )
-
-        elif self.config.corr_action == "group_cap":
-            # Check combined risk of correlated group (sum across markets)
-            corr_risk = sum(
-                p.risk_amount for k, p in self._risk_cache.items()
-                if k.startswith(f"{correlated_with}_")
+        if self.config.corr_action == "group_cap":
+            return self._correlation_group_cap_result(
+                new_symbol=new_symbol,
+                correlated_with=correlated_with,
+                proposed_risk=proposed_risk,
+                equity=equity,
             )
-            group_risk = corr_risk + proposed_risk
-
-            # Group cap is 2x single position risk
-            group_cap = equity * self.config.risk_per_trade_pct * 2
-            if group_risk > group_cap:
-                return RiskCheckResult(
-                    allowed=False,
-                    reason=f"CORR_GROUP_CAP:{group_risk:.0f}>{group_cap:.0f}",
-                )
-
-            return RiskCheckResult(allowed=True, reason="CORR_GROUP_OK")
-
         return RiskCheckResult(allowed=True, reason="UNKNOWN_CORR_ACTION")
+
+    async def _find_max_correlation(
+        self,
+        new_symbol: str,
+        existing_symbols: List[str],
+    ) -> tuple[float, str | None]:
+        max_corr = 0.0
+        correlated_with: str | None = None
+        for existing in existing_symbols:
+            corr = await self.correlation_filter.get_correlation(new_symbol, existing)
+            if corr > max_corr:
+                max_corr = corr
+                correlated_with = existing
+        return max_corr, correlated_with
+
+    @staticmethod
+    def _correlation_block_result(
+        new_symbol: str,
+        correlated_with: str | None,
+        max_corr: float,
+    ) -> RiskCheckResult:
+        return RiskCheckResult(
+            allowed=False,
+            reason=f"HIGH_CORR:{new_symbol}-{correlated_with}={max_corr:.2f}",
+        )
+
+    def _correlation_group_cap_result(
+        self,
+        new_symbol: str,
+        correlated_with: str | None,
+        proposed_risk: float,
+        equity: float,
+    ) -> RiskCheckResult:
+        corr_risk = self._correlated_symbol_risk(correlated_with)
+        group_risk = corr_risk + proposed_risk
+        group_cap = equity * self.config.risk_per_trade_pct * 2
+        if group_risk > group_cap:
+            return RiskCheckResult(
+                allowed=False,
+                reason=f"CORR_GROUP_CAP:{group_risk:.0f}>{group_cap:.0f}",
+            )
+        return RiskCheckResult(allowed=True, reason="CORR_GROUP_OK")
+
+    def _correlated_symbol_risk(self, correlated_with: str | None) -> float:
+        if not correlated_with:
+            return 0.0
+        return sum(
+            position.risk_amount
+            for key, position in self._risk_cache.items()
+            if key.startswith(f"{correlated_with}_")
+        )
 
     async def get_portfolio_risk_summary(self, equity: float) -> Dict:
         """Get current portfolio risk summary.

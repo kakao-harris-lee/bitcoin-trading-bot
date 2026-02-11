@@ -220,31 +220,43 @@ class ComparisonReportGenerator:
         """
         logger.info(f"Running backtest for {report_date} - {strategy_name}")
 
-        # Check strategy existence
         if strategy_name not in STRATEGY_REGISTRY:
-             raise BacktestError(f"Unknown strategy: {strategy_name}")
+            raise BacktestError(f"Unknown strategy: {strategy_name}")
 
-        # Create Adapter
-        config = {}
-        config_path = _PROJECT_ROOT / f"config/strategies/{strategy_name}.json"
-        if config_path.exists():
-             try:
-                 with open(config_path) as f:
-                     config = json.load(f)
-             except Exception:
-                 pass
+        adapter = self._build_component_adapter(strategy_name)
+        df = self._load_backtest_dataframe(report_date, strategy_name, exchange)
+        add_all_indicators(df)
+        trades = self._replay_backtest_day(df, report_date, adapter)
 
+        logger.info(f"Backtest complete: {len(trades)} trades on {report_date}")
+        return trades
+
+    def _build_component_adapter(self, strategy_name: str):
+        config = self._load_strategy_config(strategy_name)
         # Lazy import to avoid circular dependency
         from core.component_adapter import ComponentStrategyAdapter
-        adapter = ComponentStrategyAdapter(self.factory, strategy_name, config)
+        return ComponentStrategyAdapter(self.factory, strategy_name, config)
 
-        # Load market data
+    def _load_strategy_config(self, strategy_name: str) -> Dict[str, Any]:
+        config_path = _PROJECT_ROOT / f"config/strategies/{strategy_name}.json"
+        if not config_path.exists():
+            return {}
+        try:
+            with open(config_path) as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def _load_backtest_dataframe(
+        self,
+        report_date: date,
+        strategy_name: str,
+        exchange: str,
+    ) -> pd.DataFrame:
         warmup_days = 20
         start_date = report_date - timedelta(days=warmup_days)
         end_date = report_date + timedelta(days=1)
-
-        spec = STRATEGY_REGISTRY[strategy_name]
-        timeframe = spec.timeframe
+        timeframe = STRATEGY_REGISTRY[strategy_name].timeframe
 
         try:
             loader = self._get_data_loader(exchange)
@@ -253,168 +265,158 @@ class ComparisonReportGenerator:
                 start_date=start_date.strftime("%Y-%m-%d"),
                 end_date=end_date.strftime("%Y-%m-%d"),
             )
-
             if df.empty:
                 raise DataNotFoundError(
                     f"No market data for {report_date} on {exchange}"
                 )
-
+            return df
         except FileNotFoundError:
             raise DataNotFoundError(f"Market database not found for {exchange}")
 
-        # Add indicators
-        add_all_indicators(df)
-
-        # Run Backtest logic manually
+    def _replay_backtest_day(self, df: pd.DataFrame, report_date: date, adapter) -> List[BacktestTrade]:
         adapter.symbol = "BTC"
         date_str = report_date.strftime("%Y-%m-%d")
-
-        trades = []
+        trades: List[BacktestTrade] = []
         position_size = 0.0
 
         for i in range(len(df)):
-             signal = adapter(df, i)
-             row = df.iloc[i]
-             ts_str = str(row.get('timestamp', row.name))
-             is_target_day = ts_str.startswith(date_str)
+            signal = adapter(df, i)
+            row = df.iloc[i]
+            ts_str = str(row.get("timestamp", row.name))
+            is_target_day = ts_str.startswith(date_str)
+            action = signal.get("action", "hold")
 
-             action = signal.get('action', 'hold')
+            if not is_target_day:
+                position_size = self._apply_warmup_action(action, position_size)
+                continue
 
-             if not is_target_day:
-                 # Update state but don't log trade
-                 if action in ('buy', 'open_short') and position_size == 0:
-                     position_size = 1.0 if action == 'buy' else -1.0
-                 elif action in ('sell', 'close_short') and position_size != 0:
-                     position_size = 0
-                 continue
+            position_size = self._apply_target_day_action(
+                action=action,
+                position_size=position_size,
+                ts_str=ts_str,
+                close_price=row["close"],
+                trades=trades,
+            )
 
-             # Target day
-             if action == 'buy' and position_size == 0:
-                  position_size = 1.0
-                  trades.append(BacktestTrade(
-                      timestamp=datetime.fromisoformat(ts_str),
-                      action="buy",
-                      price=row['close'],
-                      volume=1.0,
-                      profit=None, profit_pct=None
-                  ))
-             elif action == 'open_short' and position_size == 0:
-                  position_size = -1.0
-                  trades.append(BacktestTrade(
-                      timestamp=datetime.fromisoformat(ts_str),
-                      action="sell", # Short Open as sell
-                      price=row['close'],
-                      volume=1.0,
-                      profit=None, profit_pct=None
-                  ))
-             elif action == 'sell' and position_size > 0:
-                  position_size = 0
-                  trades.append(BacktestTrade(
-                      timestamp=datetime.fromisoformat(ts_str),
-                      action="sell",
-                      price=row['close'],
-                      volume=1.0,
-                      profit=0, profit_pct=0
-                  ))
-             elif action == 'close_short' and position_size < 0:
-                  position_size = 0
-                  trades.append(BacktestTrade(
-                      timestamp=datetime.fromisoformat(ts_str),
-                      action="buy", # Cover
-                      price=row['close'],
-                      volume=1.0,
-                      profit=0, profit_pct=0
-                  ))
-
-        logger.info(f"Backtest complete: {len(trades)} trades on {report_date}")
         return trades
+
+    def _apply_warmup_action(self, action: str, position_size: float) -> float:
+        if action in ("buy", "open_short") and position_size == 0:
+            return 1.0 if action == "buy" else -1.0
+        if action in ("sell", "close_short") and position_size != 0:
+            return 0.0
+        return position_size
+
+    def _apply_target_day_action(
+        self,
+        action: str,
+        position_size: float,
+        ts_str: str,
+        close_price: float,
+        trades: List[BacktestTrade],
+    ) -> float:
+        if action == "buy" and position_size == 0:
+            trades.append(
+                BacktestTrade(
+                    timestamp=datetime.fromisoformat(ts_str),
+                    action="buy",
+                    price=close_price,
+                    volume=1.0,
+                    profit=None,
+                    profit_pct=None,
+                )
+            )
+            return 1.0
+
+        if action == "open_short" and position_size == 0:
+            trades.append(
+                BacktestTrade(
+                    timestamp=datetime.fromisoformat(ts_str),
+                    action="sell",
+                    price=close_price,
+                    volume=1.0,
+                    profit=None,
+                    profit_pct=None,
+                )
+            )
+            return -1.0
+
+        if action == "sell" and position_size > 0:
+            trades.append(
+                BacktestTrade(
+                    timestamp=datetime.fromisoformat(ts_str),
+                    action="sell",
+                    price=close_price,
+                    volume=1.0,
+                    profit=0,
+                    profit_pct=0,
+                )
+            )
+            return 0.0
+
+        if action == "close_short" and position_size < 0:
+            trades.append(
+                BacktestTrade(
+                    timestamp=datetime.fromisoformat(ts_str),
+                    action="buy",
+                    price=close_price,
+                    volume=1.0,
+                    profit=0,
+                    profit_pct=0,
+                )
+            )
+            return 0.0
+
+        return position_size
 
     def _calculate_metrics(self, trades: List[Dict]) -> Dict[str, float]:
         """Calculate metrics from actual trades."""
         if not trades:
-            return {
-                "pnl": 0.0,
-                "pnl_pct": 0.0,
-                "max_drawdown": 0.0,
-                "win_rate": 0.0,
-            }
+            return self._empty_metrics()
 
-        # Sum P/L from sell trades
-        total_pnl = sum(
-            t.get("profit", 0) or 0
-            for t in trades
-            if t.get("action", "").upper() == "SELL"
-        )
-
-        total_pnl_pct = sum(
-            t.get("profit_pct", 0) or 0
-            for t in trades
-            if t.get("action", "").upper() == "SELL"
-        )
-
-        # Win rate
-        sell_trades = [t for t in trades if t.get("action", "").upper() == "SELL"]
-        winning = sum(1 for t in sell_trades if (t.get("profit", 0) or 0) > 0)
-        win_rate = winning / len(sell_trades) if sell_trades else 0.0
-
-        # Simple max drawdown (from sequential P/L)
-        cumulative = 0.0
-        peak = 0.0
-        max_dd = 0.0
-        for t in trades:
-            if t.get("action", "").upper() == "SELL":
-                cumulative += t.get("profit_pct", 0) or 0
-                peak = max(peak, cumulative)
-                dd = peak - cumulative
-                max_dd = max(max_dd, dd)
-
-        return {
-            "pnl": total_pnl,
-            "pnl_pct": total_pnl_pct,
-            "max_drawdown": max_dd,
-            "win_rate": win_rate,
-        }
+        sell_trades = [trade for trade in trades if trade.get("action", "").upper() == "SELL"]
+        profits = [(trade.get("profit", 0) or 0) for trade in sell_trades]
+        profit_pcts = [(trade.get("profit_pct", 0) or 0) for trade in sell_trades]
+        return self._calculate_metrics_from_values(profits, profit_pcts)
 
     def _calculate_backtest_metrics(
         self, trades: List[BacktestTrade]
     ) -> Dict[str, float]:
         """Calculate metrics from backtest trades."""
         if not trades:
-            return {
-                "pnl": 0.0,
-                "pnl_pct": 0.0,
-                "max_drawdown": 0.0,
-                "win_rate": 0.0,
-            }
+            return self._empty_metrics()
 
-        # Sum P/L from trades with profit info
-        total_pnl = sum(t.profit_loss or 0 for t in trades if t.profit_loss is not None)
-        total_pnl_pct = sum(
-            t.profit_loss_pct or 0 for t in trades if t.profit_loss_pct is not None
-        )
+        trades_with_pnl = [trade for trade in trades if trade.profit_loss is not None]
+        profits = [trade.profit_loss or 0 for trade in trades_with_pnl]
+        profit_pcts = [trade.profit_loss_pct or 0 for trade in trades if trade.profit_loss_pct is not None]
+        return self._calculate_metrics_from_values(profits, profit_pcts)
 
-        # Win rate
-        trades_with_pnl = [t for t in trades if t.profit_loss is not None]
-        winning = sum(1 for t in trades_with_pnl if t.profit_loss > 0)
-        win_rate = winning / len(trades_with_pnl) if trades_with_pnl else 0.0
+    def _empty_metrics(self) -> Dict[str, float]:
+        return {"pnl": 0.0, "pnl_pct": 0.0, "max_drawdown": 0.0, "win_rate": 0.0}
 
-        # Simple max drawdown
-        cumulative = 0.0
-        peak = 0.0
-        max_dd = 0.0
-        for t in trades:
-            if t.profit_loss_pct is not None:
-                cumulative += t.profit_loss_pct
-                peak = max(peak, cumulative)
-                dd = peak - cumulative
-                max_dd = max(max_dd, dd)
-
+    def _calculate_metrics_from_values(
+        self, profits: List[float], profit_pcts: List[float]
+    ) -> Dict[str, float]:
+        total_pnl = sum(profits)
+        total_pnl_pct = sum(profit_pcts)
+        winning = sum(1 for profit in profits if profit > 0)
+        win_rate = winning / len(profits) if profits else 0.0
         return {
             "pnl": total_pnl,
             "pnl_pct": total_pnl_pct,
-            "max_drawdown": max_dd,
+            "max_drawdown": self._max_drawdown_from_pcts(profit_pcts),
             "win_rate": win_rate,
         }
+
+    def _max_drawdown_from_pcts(self, profit_pcts: List[float]) -> float:
+        cumulative = 0.0
+        peak = 0.0
+        max_dd = 0.0
+        for value in profit_pcts:
+            cumulative += value
+            peak = max(peak, cumulative)
+            max_dd = max(max_dd, peak - cumulative)
+        return max_dd
 
     def _get_max_severity(self, discrepancies: List[DiscrepancyRecord]) -> Severity:
         """Get the maximum severity from discrepancies."""

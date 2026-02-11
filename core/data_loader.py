@@ -149,16 +149,7 @@ class DataLoader:
         # Use auto-detected table name based on database
         table_name = self._get_table_name(timeframe)
 
-        # Build query with parameterized placeholders
-        params = []
-        conditions = []
-
-        if start_date:
-            conditions.append("timestamp >= ?")
-            params.append(start_date)
-        if end_date:
-            conditions.append("timestamp <= ?")
-            params.append(end_date)
+        conditions, params = self._build_date_conditions(start_date, end_date)
 
         # Table name is safe (from internal mapping), but dates use parameters
         query = f"SELECT * FROM {table_name}"
@@ -171,17 +162,31 @@ class DataLoader:
         # Binance 컬럼명은 이미 표준 형식
         df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-        if columns is None:
-            # 필요한 컬럼만 선택 (funding_rate 등 추가 컬럼 제외)
-            cols = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
-            df = df[[c for c in cols if c in df.columns]]
-        else:
-            cols = [c for c in columns if c in df.columns]
-            if 'timestamp' in df.columns and 'timestamp' not in cols:
-                cols = ['timestamp'] + cols
-            df = df[cols]
+        return self._select_columns(df, columns)
 
-        return df
+    def _build_date_conditions(
+        self, start_date: Optional[str], end_date: Optional[str]
+    ) -> Tuple[List[str], List[str]]:
+        conditions: List[str] = []
+        params: List[str] = []
+        if start_date:
+            conditions.append("timestamp >= ?")
+            params.append(start_date)
+        if end_date:
+            conditions.append("timestamp <= ?")
+            params.append(end_date)
+        return conditions, params
+
+    def _select_columns(self, df: pd.DataFrame, columns: Optional[List[str]]) -> pd.DataFrame:
+        if columns is None:
+            default_cols = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            selected_cols = [col for col in default_cols if col in df.columns]
+            return df[selected_cols]
+
+        selected_cols = [col for col in columns if col in df.columns]
+        if 'timestamp' in df.columns and 'timestamp' not in selected_cols:
+            selected_cols = ['timestamp'] + selected_cols
+        return df[selected_cols]
 
     def load_binance(
         self,

@@ -224,48 +224,13 @@ class BaseStrategyTask(ABC):
         if await self._get_cached_blocked():
             return
 
-        # Check if already has position - evaluate exit only for own positions (cached)
         position = await self._get_cached_position(symbol)
-        if not position:
-            # Position closed - clear pending exit flag
-            if symbol in self._pending_exits:
-                self._pending_exits.discard(symbol)
-                self._notified_positions.discard(symbol)
-                await self.on_position_closed(symbol)
-                logger.info(f"Strategy {self.name}: {symbol} position closed, cleared pending exit")
-
         if position:
-            position_strategy = position.get("strategy", "")
-            # If another strategy owns the position, skip entry/exit evaluation
-            if position_strategy != self.name:
-                self._pending_entry.pop(symbol, None)
+            handled = await self._handle_existing_position(symbol, msg, position)
+            if handled:
                 return
-
-            # Clear pending flag since position now exists
-            self._pending_entry.pop(symbol, None)
-            # Notify exit strategy about new position (once per position)
-            if symbol not in self._notified_positions:
-                self._notified_positions.add(symbol)
-                await self.on_position_opened(symbol, position)
-
-            # Skip if exit signal already pending (avoid spam)
-            if symbol in self._pending_exits:
-                return
-
-            if not self._should_evaluate_exit(symbol, msg, position):
-                return
-
-            exit_signal = await self.evaluate_exit(symbol, position)
-            if exit_signal:
-                if self.use_smart_exit:
-                    self._pending_exits.add(symbol)
-                await self._publish_exit(exit_signal, position)
-                if not self.use_smart_exit:
-                    await self.redis.clear_position(symbol, self.market)
-                    # Notify exit strategy about position close
-                    self._notified_positions.discard(symbol)
-                    await self.on_position_closed(symbol)
-            return  # Only return if we own the position
+        else:
+            await self._handle_position_cleared(symbol)
 
         # Check if entry is already pending (order published but not yet filled)
         if self._pending_entry.get(symbol):
@@ -279,6 +244,63 @@ class BaseStrategyTask(ABC):
         if signal:
             self._pending_entry[symbol] = True
             await self._publish_order(signal)
+
+    async def _handle_position_cleared(self, symbol: str) -> None:
+        """Handle transition from existing position to no position."""
+        if symbol not in self._pending_exits:
+            return
+        self._pending_exits.discard(symbol)
+        self._notified_positions.discard(symbol)
+        await self.on_position_closed(symbol)
+        logger.info(f"Strategy {self.name}: {symbol} position closed, cleared pending exit")
+
+    async def _handle_existing_position(
+        self,
+        symbol: str,
+        msg: dict[str, Any],
+        position: dict[str, Any],
+    ) -> bool:
+        """Handle exit evaluation flow when a position exists.
+
+        Returns:
+            True if message processing should stop after this handler.
+        """
+        position_strategy = position.get("strategy", "")
+        if position_strategy != self.name:
+            self._pending_entry.pop(symbol, None)
+            return True
+
+        self._pending_entry.pop(symbol, None)
+        if symbol not in self._notified_positions:
+            self._notified_positions.add(symbol)
+            await self.on_position_opened(symbol, position)
+
+        if symbol in self._pending_exits:
+            return True
+        if not self._should_evaluate_exit(symbol, msg, position):
+            return True
+
+        exit_signal = await self.evaluate_exit(symbol, position)
+        if exit_signal:
+            await self._handle_exit_signal(symbol, position, exit_signal)
+        return True
+
+    async def _handle_exit_signal(
+        self,
+        symbol: str,
+        position: dict[str, Any],
+        exit_signal: dict[str, Any],
+    ) -> None:
+        """Publish exit signal and update position lifecycle state."""
+        if self.use_smart_exit:
+            self._pending_exits.add(symbol)
+        await self._publish_exit(exit_signal, position)
+        if self.use_smart_exit:
+            return
+
+        await self.redis.clear_position(symbol, self.market)
+        self._notified_positions.discard(symbol)
+        await self.on_position_closed(symbol)
 
     def _update_buffer(self, symbol: str, msg: dict[str, Any]) -> None:
         """Update price buffer for symbol."""

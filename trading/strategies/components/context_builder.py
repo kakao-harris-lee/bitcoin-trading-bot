@@ -82,40 +82,51 @@ class PositionManager:
         if not force and now - self._cache_ts < self._cache_ttl_seconds:
             return
 
-        if not symbols:
-            keys = await self._redis.keys("positions:*:*")
-            symbols = sorted(
-                {
-                    parts[1]
-                    for key in keys
-                    for parts in [key.split(":")]
-                    if len(parts) >= 3
-                }
-            )
+        symbols = symbols or await self._discover_symbols()
         if not symbols:
             return
 
-        markets = ("spot", "futures")
         by_symbol: dict[str, dict[str, Position]] = {}
         portfolio: dict[str, Position] = {}
-
         for symbol in symbols:
-            symbol_positions: dict[str, Position] = {}
-            for market in markets:
-                key = f"positions:{symbol}:{market}"
-                raw = await self._redis.hgetall(key)
-                if not raw:
-                    continue
-                parsed = self._parse_position(symbol, market, raw)
-                if parsed is None:
-                    continue
-                symbol_positions[parsed.strategy] = parsed
-                portfolio[f"{symbol}:{market}:{parsed.strategy}"] = parsed
+            symbol_positions = await self._load_symbol_positions(symbol)
             by_symbol[symbol] = symbol_positions
+            portfolio.update(self._portfolio_entries_for_symbol(symbol_positions))
 
         self._positions_by_symbol = by_symbol
         self._portfolio_positions = portfolio
         self._cache_ts = now
+
+    async def _discover_symbols(self) -> list[str]:
+        keys = await self._redis.keys("positions:*:*")
+        return sorted(
+            {
+                parts[1]
+                for key in keys
+                for parts in [key.split(":")]
+                if len(parts) >= 3
+            }
+        )
+
+    async def _load_symbol_positions(self, symbol: str) -> dict[str, Position]:
+        symbol_positions: dict[str, Position] = {}
+        for market in ("spot", "futures"):
+            key = f"positions:{symbol}:{market}"
+            raw = await self._redis.hgetall(key)
+            parsed = self._parse_position(symbol, market, raw) if raw else None
+            if parsed is None:
+                continue
+            symbol_positions[parsed.strategy] = parsed
+        return symbol_positions
+
+    def _portfolio_entries_for_symbol(
+        self, symbol_positions: dict[str, Position]
+    ) -> dict[str, Position]:
+        entries: dict[str, Position] = {}
+        for strategy, position in symbol_positions.items():
+            cache_key = f"{position.symbol}:{position.market}:{strategy}"
+            entries[cache_key] = position
+        return entries
 
     def get_positions_for_symbol(self, symbol: str) -> dict[str, Position]:
         """Get all positions for a symbol across strategies.

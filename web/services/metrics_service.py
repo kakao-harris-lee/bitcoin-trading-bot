@@ -117,75 +117,108 @@ class MetricsService:
 
         prices = self._get_last_prices()
         risk = self._get_risk()
+        positions, total_position_value, configured_strategies = self._collect_positions(prices)
+        btc_price = prices.get("BTC:spot", 0.0)
+        strategy_str = ", ".join(sorted(configured_strategies)) if configured_strategies else "None"
+        daily_pnl = float(risk.get("daily_pnl", 0))
+        kill_switch = risk.get("kill_switch", "false") == "true"
+        blocked = risk.get("blocked", "false") == "true"
+        return self._build_exchange_data_response(
+            exchange=exchange,
+            strategy_str=strategy_str,
+            btc_price=btc_price,
+            positions=positions,
+            total_position_value=total_position_value,
+            daily_pnl=daily_pnl,
+            kill_switch=kill_switch,
+            blocked=blocked,
+        )
 
-        positions = []
+    def _collect_positions(self, prices: dict[str, float]) -> tuple[list[dict], float, set[str]]:
+        positions: list[dict] = []
         total_position_value = 0.0
-        configured_strategies = set()
-
+        configured_strategies: set[str] = set()
         for symbol in self.SYMBOLS:
             for market in self.MARKETS:
                 pos = self._get_position(symbol, market)
                 if not pos:
                     continue
+                entry = self._parse_position_entry(pos, symbol, market, prices)
+                if entry["strategy"]:
+                    configured_strategies.add(entry["strategy"])
+                if entry["position"] is not None:
+                    positions.append(entry["position"])
+                    total_position_value += entry["position"]["value"]
+        return positions, total_position_value, configured_strategies
 
-                qty = float(pos.get("quantity", 0))
-                entry_price = float(pos.get("entry_price", 0))
-                strategy = pos.get("strategy", "unknown")
-
-                if strategy:
-                    configured_strategies.add(strategy)
-
-                if qty > 0:
-                    # Get current price
-                    price_key = f"{symbol}:{market}"
-                    current_price = prices.get(price_key, entry_price)
-
-                    position_value = qty * current_price
-                    total_position_value += position_value
-
-                    # Calculate unrealized P&L
-                    if entry_price > 0:
-                        pnl = (current_price - entry_price) * qty
-                        pnl_pct = ((current_price - entry_price) / entry_price) * 100
-                    else:
-                        pnl = 0.0
-                        pnl_pct = 0.0
-
-                    positions.append({
-                        'asset': symbol,
-                        'market': market,
-                        'qty': qty,
-                        'entry_price': entry_price,
-                        'current_price': current_price,
-                        'value': position_value,
-                        'strategy': strategy,
-                        'unrealized_pnl': pnl,
-                        'unrealized_pnl_pct': pnl_pct,
-                    })
-
-        # Get primary price (BTC spot)
-        btc_price = prices.get("BTC:spot", 0.0)
-
-        strategy_str = ', '.join(sorted(configured_strategies)) if configured_strategies else 'None'
-
-        daily_pnl = float(risk.get("daily_pnl", 0))
-        kill_switch = risk.get("kill_switch", "false") == "true"
-        blocked = risk.get("blocked", "false") == "true"
-
+    def _parse_position_entry(
+        self,
+        pos: dict,
+        symbol: str,
+        market: str,
+        prices: dict[str, float],
+    ) -> dict:
+        qty = float(pos.get("quantity", 0))
+        entry_price = float(pos.get("entry_price", 0))
+        strategy = pos.get("strategy", "unknown")
+        if qty <= 0:
+            return {"strategy": strategy, "position": None}
+        price_key = f"{symbol}:{market}"
+        current_price = prices.get(price_key, entry_price)
+        position_value = qty * current_price
+        pnl, pnl_pct = self._calculate_unrealized_pnl(qty, current_price, entry_price)
         return {
-            'exchange': exchange,
-            'mode': 'live' if not blocked else 'blocked',
-            'strategy': strategy_str,
-            'regime': 'N/A',  # No centralized regime in new architecture
-            'market_state': 'ACTIVE' if not kill_switch else 'STOPPED',
-            'current_price': btc_price,
-            'position_active': len(positions) > 0,
-            'positions': positions,
-            'total_position_value': total_position_value,
-            'daily_pnl': daily_pnl,
-            'kill_switch': kill_switch,
-            'blocked': blocked,
-            'last_updated': datetime.now().isoformat(),
+            "strategy": strategy,
+            "position": {
+                "asset": symbol,
+                "market": market,
+                "qty": qty,
+                "entry_price": entry_price,
+                "current_price": current_price,
+                "value": position_value,
+                "strategy": strategy,
+                "unrealized_pnl": pnl,
+                "unrealized_pnl_pct": pnl_pct,
+            },
+        }
+
+    def _calculate_unrealized_pnl(
+        self,
+        qty: float,
+        current_price: float,
+        entry_price: float,
+    ) -> tuple[float, float]:
+        if entry_price <= 0:
+            return 0.0, 0.0
+        pnl = (current_price - entry_price) * qty
+        pnl_pct = ((current_price - entry_price) / entry_price) * 100
+        return pnl, pnl_pct
+
+    def _build_exchange_data_response(
+        self,
+        exchange: str,
+        strategy_str: str,
+        btc_price: float,
+        positions: list[dict],
+        total_position_value: float,
+        daily_pnl: float,
+        kill_switch: bool,
+        blocked: bool,
+    ) -> dict:
+        return {
+            "exchange": exchange,
+            "mode": "live" if not blocked else "blocked",
+            "strategy": strategy_str,
+            "regime": "N/A",
+            "market_state": "ACTIVE" if not kill_switch else "STOPPED",
+            "current_price": btc_price,
+            "position_active": len(positions) > 0,
+            "positions": positions,
+            "total_position_value": total_position_value,
+            "daily_pnl": daily_pnl,
+            "kill_switch": kill_switch,
+            "blocked": blocked,
+            "last_updated": datetime.now().isoformat(),
         }
 
     def get_connection_status(self, exchange: str) -> dict:
@@ -255,61 +288,64 @@ class MetricsService:
 
         try:
             r = self._get_redis()
-
-            # Get current mode from Redis
-            risk_data = r.hgetall("risk") or {}
-            mode = risk_data.get("mode", "paper")
-            is_paper_mode = (mode == "paper")
-
-            # Read from strategy:decisions stream (newest first)
-            # Read more entries to account for mode filtering
-            entries = r.xrevrange("strategy:decisions", count=limit * 2)
-
-            # If no entries in stream, fall back to position-based decisions
+            is_paper_mode = self._is_paper_mode(r)
+            entries = self._read_decision_entries(r, limit)
             if not entries:
                 return self._get_position_based_decisions(limit)
-
-            decisions = []
-            for msg_id, data in entries:
-                # Filter by mode (paper field may not exist in old entries)
-                entry_is_paper = data.get("paper", "true") == "true"
-                if entry_is_paper != is_paper_mode:
-                    continue
-                # Parse position JSON
-                position_data = {}
-                if data.get("position"):
-                    try:
-                        position_data = json.loads(data["position"])
-                    except (json.JSONDecodeError, TypeError):
-                        position_data = {}
-
-                decisions.append({
-                    'timestamp': data.get('timestamp', ''),
-                    'exchange': 'binance',
-                    'symbol': data.get('symbol', ''),
-                    'market': data.get('market', 'futures'),
-                    'strategy': data.get('strategy', ''),
-                    'decision': data.get('decision', ''),
-                    'reason': data.get('reason', ''),
-                    'regime': data.get('regime', ''),
-                    'indicators': {
-                        'price': float(data.get('price', 0)),
-                        'mfi': float(data.get('mfi', 0)),
-                        'adx': float(data.get('adx', 0)),
-                    },
-                    'position': position_data,
-                })
-
-                # Stop when we have enough
-                if len(decisions) >= limit:
-                    break
-
-            return decisions
+            return self._parse_decision_entries(entries, is_paper_mode, limit)
 
         except Exception as e:
             # Any error - fall back to position-based decisions
             print(f"Error reading strategy:decisions stream: {e}")
             return self._get_position_based_decisions(limit)
+
+    def _is_paper_mode(self, redis_client: redis.Redis) -> bool:
+        risk_data = redis_client.hgetall("risk") or {}
+        return risk_data.get("mode", "paper") == "paper"
+
+    def _read_decision_entries(self, redis_client: redis.Redis, limit: int) -> list:
+        return redis_client.xrevrange("strategy:decisions", count=limit * 2)
+
+    def _parse_decision_entries(self, entries: list, is_paper_mode: bool, limit: int) -> list[dict]:
+        decisions: list[dict] = []
+        for _msg_id, data in entries:
+            decision = self._parse_single_decision(data, is_paper_mode)
+            if decision is None:
+                continue
+            decisions.append(decision)
+            if len(decisions) >= limit:
+                break
+        return decisions
+
+    def _parse_single_decision(self, data: dict, is_paper_mode: bool) -> Optional[dict]:
+        entry_is_paper = data.get("paper", "true") == "true"
+        if entry_is_paper != is_paper_mode:
+            return None
+        position_data = self._parse_position_payload(data.get("position"))
+        return {
+            "timestamp": data.get("timestamp", ""),
+            "exchange": "binance",
+            "symbol": data.get("symbol", ""),
+            "market": data.get("market", "futures"),
+            "strategy": data.get("strategy", ""),
+            "decision": data.get("decision", ""),
+            "reason": data.get("reason", ""),
+            "regime": data.get("regime", ""),
+            "indicators": {
+                "price": float(data.get("price", 0)),
+                "mfi": float(data.get("mfi", 0)),
+                "adx": float(data.get("adx", 0)),
+            },
+            "position": position_data,
+        }
+
+    def _parse_position_payload(self, payload: Optional[str]) -> dict:
+        if not payload:
+            return {}
+        try:
+            return json.loads(payload)
+        except (json.JSONDecodeError, TypeError):
+            return {}
 
     def _get_position_based_decisions(self, limit: int = 50) -> list[dict]:
         """Fallback: generate decisions from current position state.

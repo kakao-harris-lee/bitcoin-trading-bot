@@ -150,44 +150,22 @@ class BacktestVisualizer:
         Returns:
             Path to saved chart file, or None if generation failed.
         """
-        # Extract data from result
-        if isinstance(result, BacktestResult):
-            equity_curve = result.equity_curve
-            benchmark_curve = result.benchmark_curve
-            strategy_name = result.strategy_name
-            symbol = result.symbol
-            total_return = result.total_return_pct
-            benchmark_return = result.benchmark_return_pct
-        else:
-            equity_curve = result.get("equity_curve", pd.DataFrame())
-            benchmark_curve = result.get("benchmark_curve")
-            strategy_name = result.get("strategy_name", "Strategy")
-            symbol = result.get("symbol", "")
-            total_return = result.get("total_return", 0.0)
-            benchmark_return = result.get("benchmark_return_pct", 0.0)
+        parsed = self._parse_backtest_result(result)
+        equity_curve = parsed["equity_curve"]
+        benchmark_curve = parsed["benchmark_curve"]
+        strategy_name = parsed["strategy_name"]
+        symbol = parsed["symbol"]
+        total_return = parsed["total_return"]
+        benchmark_return = parsed["benchmark_return"]
 
-        # Validate data
         if equity_curve is None or equity_curve.empty:
             logger.warning("No equity curve data, cannot generate chart")
             return None
 
-        # Handle edge case: missing benchmark data
         has_benchmark = benchmark_curve is not None and len(benchmark_curve) > 0
 
-        # Create figure
         fig, ax1 = plt.subplots(figsize=(self.config.width, self.config.height))
-
-        # Extract timestamps and equity values
-        if "timestamp" in equity_curve.columns:
-            timestamps = pd.to_datetime(equity_curve["timestamp"])
-        else:
-            timestamps = equity_curve.index
-
-        if "total_equity" in equity_curve.columns:
-            equity_values = equity_curve["total_equity"]
-        else:
-            # Fallback for different column names
-            equity_values = equity_curve.iloc[:, -1]
+        timestamps, equity_values = self._extract_equity_series(equity_curve)
 
         # Left axis: Strategy equity
         ax1.set_xlabel("Date")
@@ -213,29 +191,13 @@ class BacktestVisualizer:
         lines = line1
         labels = [line1[0].get_label()]
 
-        # Right axis: Benchmark equity (if available)
         if has_benchmark:
-            ax2 = ax1.twinx()
-            ax2.set_ylabel("Benchmark Equity ($)", color=self.config.benchmark_color)
-
-            # Align benchmark timestamps with equity curve if needed
-            if hasattr(benchmark_curve, "index"):
-                bench_timestamps = pd.to_datetime(benchmark_curve.index)
-                bench_values = benchmark_curve.values
-            else:
-                bench_timestamps = timestamps
-                bench_values = benchmark_curve
-
-            line2 = ax2.plot(
-                bench_timestamps,
-                bench_values,
-                color=self.config.benchmark_color,
-                linestyle=self.config.benchmark_linestyle,
-                label=f"Buy & Hold ({benchmark_return:+.2f}%)",
-                linewidth=1.5,
+            line2 = self._plot_benchmark_axis(
+                ax1=ax1,
+                benchmark_curve=benchmark_curve,
+                timestamps=timestamps,
+                benchmark_return=benchmark_return,
             )
-            ax2.tick_params(axis="y", labelcolor=self.config.benchmark_color)
-
             lines = line1 + line2
             labels = [line1[0].get_label(), line2[0].get_label()]
         else:
@@ -244,13 +206,7 @@ class BacktestVisualizer:
         # Combined legend
         ax1.legend(lines, labels, loc=self.config.legend_location)
 
-        # Title
-        if title:
-            chart_title = title
-        else:
-            chart_title = f"Backtest: {strategy_name}"
-            if symbol:
-                chart_title += f" ({symbol})"
+        chart_title = self._build_chart_title(title, strategy_name, symbol)
         plt.title(chart_title)
 
         # Use tight_layout with rect to reserve space for right Y-axis on dual-axis charts
@@ -259,32 +215,105 @@ class BacktestVisualizer:
         else:
             fig.tight_layout()
 
-        # Validate format
-        chart_format = self.config.format.lower()
-        if chart_format not in ALLOWED_FORMATS:
-            logger.warning(f"Invalid format '{chart_format}', defaulting to 'png'")
-            chart_format = "png"
-
-        # Generate output path if not provided
-        if output_path is None:
-            safe_strategy = _sanitize_filename(strategy_name)
-            safe_symbol = _sanitize_filename(symbol) if symbol else "unknown"
-            output_path = f"backtest_{safe_strategy}_{safe_symbol}.{chart_format}"
-
-        # Validate and sanitize output path
-        try:
-            safe_path = _validate_output_path(output_path)
-        except ValueError as e:
-            logger.error(f"Invalid output path: {e}")
+        safe_path, chart_format = self._resolve_chart_output_path(
+            output_path=output_path,
+            strategy_name=strategy_name,
+            symbol=symbol,
+        )
+        if safe_path is None:
             plt.close(fig)
             return None
 
-        # Save chart
         plt.savefig(str(safe_path), dpi=self.config.dpi, format=chart_format)
         plt.close(fig)
 
         logger.info(f"Chart saved to: {safe_path}")
         return str(safe_path)
+
+    def _parse_backtest_result(self, result: Union[BacktestResult, dict]) -> Dict[str, Any]:
+        if isinstance(result, BacktestResult):
+            return {
+                "equity_curve": result.equity_curve,
+                "benchmark_curve": result.benchmark_curve,
+                "strategy_name": result.strategy_name,
+                "symbol": result.symbol,
+                "total_return": result.total_return_pct,
+                "benchmark_return": result.benchmark_return_pct,
+            }
+        return {
+            "equity_curve": result.get("equity_curve", pd.DataFrame()),
+            "benchmark_curve": result.get("benchmark_curve"),
+            "strategy_name": result.get("strategy_name", "Strategy"),
+            "symbol": result.get("symbol", ""),
+            "total_return": result.get("total_return", 0.0),
+            "benchmark_return": result.get("benchmark_return_pct", 0.0),
+        }
+
+    def _extract_equity_series(self, equity_curve: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+        if "timestamp" in equity_curve.columns:
+            timestamps = pd.to_datetime(equity_curve["timestamp"])
+        else:
+            timestamps = equity_curve.index
+        if "total_equity" in equity_curve.columns:
+            equity_values = equity_curve["total_equity"]
+        else:
+            equity_values = equity_curve.iloc[:, -1]
+        return timestamps, equity_values
+
+    def _plot_benchmark_axis(
+        self,
+        ax1: Any,
+        benchmark_curve: Any,
+        timestamps: pd.Series,
+        benchmark_return: float,
+    ):
+        ax2 = ax1.twinx()
+        ax2.set_ylabel("Benchmark Equity ($)", color=self.config.benchmark_color)
+        if hasattr(benchmark_curve, "index"):
+            bench_timestamps = pd.to_datetime(benchmark_curve.index)
+            bench_values = benchmark_curve.values
+        else:
+            bench_timestamps = timestamps
+            bench_values = benchmark_curve
+        line2 = ax2.plot(
+            bench_timestamps,
+            bench_values,
+            color=self.config.benchmark_color,
+            linestyle=self.config.benchmark_linestyle,
+            label=f"Buy & Hold ({benchmark_return:+.2f}%)",
+            linewidth=1.5,
+        )
+        ax2.tick_params(axis="y", labelcolor=self.config.benchmark_color)
+        return line2
+
+    def _build_chart_title(self, title: Optional[str], strategy_name: str, symbol: str) -> str:
+        if title:
+            return title
+        chart_title = f"Backtest: {strategy_name}"
+        if symbol:
+            chart_title += f" ({symbol})"
+        return chart_title
+
+    def _resolve_chart_output_path(
+        self,
+        output_path: Optional[str],
+        strategy_name: str,
+        symbol: str,
+    ) -> tuple[Optional[Path], str]:
+        chart_format = self.config.format.lower()
+        if chart_format not in ALLOWED_FORMATS:
+            logger.warning(f"Invalid format '{chart_format}', defaulting to 'png'")
+            chart_format = "png"
+        if output_path is None:
+            safe_strategy = _sanitize_filename(strategy_name)
+            safe_symbol = _sanitize_filename(symbol) if symbol else "unknown"
+            output_path = f"backtest_{safe_strategy}_{safe_symbol}.{chart_format}"
+        try:
+            safe_path = _validate_output_path(output_path)
+        except ValueError as e:
+            logger.error(f"Invalid output path: {e}")
+            return None, chart_format
+        return safe_path, chart_format
 
     def create_comparison_chart(
         self,
@@ -307,84 +336,24 @@ class BacktestVisualizer:
             return None
 
         fig, ax = plt.subplots(figsize=(self.config.width, self.config.height))
-
-        # Color cycle for multiple strategies
         colors = plt.cm.tab10.colors
 
         for i, result in enumerate(results):
-            if isinstance(result, BacktestResult):
-                equity_curve = result.equity_curve
-                strategy_name = result.strategy_name
-                symbol = result.symbol
-                total_return = result.total_return_pct
-            else:
-                equity_curve = result.get("equity_curve", pd.DataFrame())
-                strategy_name = result.get("strategy_name", f"Strategy {i+1}")
-                symbol = result.get("symbol", "")
-                total_return = result.get("total_return", 0.0)
-
-            if equity_curve is None or equity_curve.empty:
+            comparison = self._build_comparison_line(result, i)
+            if comparison is None:
                 continue
-
-            # Extract timestamps and equity
-            if "timestamp" in equity_curve.columns:
-                timestamps = pd.to_datetime(equity_curve["timestamp"])
-            else:
-                timestamps = equity_curve.index
-
-            if "total_equity" in equity_curve.columns:
-                equity_values = equity_curve["total_equity"]
-            else:
-                equity_values = equity_curve.iloc[:, -1]
-
-            # Normalize to percentage return for comparison
-            initial_equity = equity_values.iloc[0]
-            normalized = ((equity_values / initial_equity) - 1) * 100
-
-            label = f"{strategy_name}"
-            if symbol:
-                label += f" ({symbol})"
-            label += f" [{total_return:+.2f}%]"
-
             ax.plot(
-                timestamps,
-                normalized,
+                comparison["timestamps"],
+                comparison["normalized"],
                 color=colors[i % len(colors)],
-                label=label,
+                label=comparison["label"],
                 linewidth=1.5,
             )
 
-        ax.set_xlabel("Date")
-        ax.set_ylabel("Return (%)")
-        ax.axhline(y=0, color="gray", linestyle="--", alpha=0.5)
-
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
-        ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-        plt.xticks(rotation=45)
-
-        if self.config.grid:
-            ax.grid(True, alpha=0.3)
-
-        ax.legend(loc=self.config.legend_location)
-        plt.title(title)
-
+        self._style_comparison_axes(ax, title)
         fig.tight_layout()
-
-        # Validate format
-        chart_format = self.config.format.lower()
-        if chart_format not in ALLOWED_FORMATS:
-            logger.warning(f"Invalid format '{chart_format}', defaulting to 'png'")
-            chart_format = "png"
-
-        # Generate output path if not provided
-        if output_path is None:
-            output_path = f"comparison_chart.{chart_format}"
-
-        # Validate and sanitize output path
-        try:
-            safe_path = _validate_output_path(output_path)
-        except ValueError as e:
-            logger.error(f"Invalid output path: {e}")
+        safe_path, chart_format = self._resolve_comparison_output_path(output_path)
+        if safe_path is None:
             plt.close(fig)
             return None
 
@@ -394,6 +363,73 @@ class BacktestVisualizer:
         logger.info(f"Comparison chart saved to: {safe_path}")
         return str(safe_path)
 
+    def _build_comparison_line(
+        self, result: Union[BacktestResult, dict], index: int
+    ) -> Optional[Dict[str, Any]]:
+        if isinstance(result, BacktestResult):
+            equity_curve = result.equity_curve
+            strategy_name = result.strategy_name
+            symbol = result.symbol
+            total_return = result.total_return_pct
+        else:
+            equity_curve = result.get("equity_curve", pd.DataFrame())
+            strategy_name = result.get("strategy_name", f"Strategy {index+1}")
+            symbol = result.get("symbol", "")
+            total_return = result.get("total_return", 0.0)
+
+        if equity_curve is None or equity_curve.empty:
+            return None
+        timestamps = self._extract_comparison_timestamps(equity_curve)
+        equity_values = self._extract_comparison_equity(equity_curve)
+        if len(equity_values) == 0:
+            return None
+        initial_equity = equity_values.iloc[0]
+        normalized = ((equity_values / initial_equity) - 1) * 100
+        label = self._build_comparison_label(strategy_name, symbol, total_return)
+        return {"timestamps": timestamps, "normalized": normalized, "label": label}
+
+    def _extract_comparison_timestamps(self, equity_curve: pd.DataFrame):
+        if "timestamp" in equity_curve.columns:
+            return pd.to_datetime(equity_curve["timestamp"])
+        return equity_curve.index
+
+    def _extract_comparison_equity(self, equity_curve: pd.DataFrame):
+        if "total_equity" in equity_curve.columns:
+            return equity_curve["total_equity"]
+        return equity_curve.iloc[:, -1]
+
+    def _build_comparison_label(self, strategy_name: str, symbol: str, total_return: float) -> str:
+        label = strategy_name
+        if symbol:
+            label += f" ({symbol})"
+        return f"{label} [{total_return:+.2f}%]"
+
+    def _style_comparison_axes(self, ax: plt.Axes, title: str) -> None:
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Return (%)")
+        ax.axhline(y=0, color="gray", linestyle="--", alpha=0.5)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+        plt.xticks(rotation=45)
+        if self.config.grid:
+            ax.grid(True, alpha=0.3)
+        ax.legend(loc=self.config.legend_location)
+        plt.title(title)
+
+    def _resolve_comparison_output_path(self, output_path: Optional[str]) -> tuple[Optional[Path], str]:
+        chart_format = self.config.format.lower()
+        if chart_format not in ALLOWED_FORMATS:
+            logger.warning(f"Invalid format '{chart_format}', defaulting to 'png'")
+            chart_format = "png"
+        if output_path is None:
+            output_path = f"comparison_chart.{chart_format}"
+        try:
+            safe_path = _validate_output_path(output_path)
+        except ValueError as e:
+            logger.error(f"Invalid output path: {e}")
+            return None, chart_format
+        return safe_path, chart_format
+
     def create_regime_chart(
         self,
         df: pd.DataFrame,
@@ -402,265 +438,231 @@ class BacktestVisualizer:
         output_path: Optional[str] = None,
         title: str = "Regime Analysis Chart",
     ) -> Optional[str]:
-        """Create mplfinance-based regime analysis chart.
-
-        Generates a compact 3-panel chart:
-        - Main panel: Candlestick + Bollinger Bands + trade markers + equity overlay
-        - Panel 2: MFI + ADX overlay
-        - Panel 3: Volume + Regime color background
-
-        Args:
-            df: DataFrame with OHLCV and indicator columns.
-                Required: open, high, low, close, volume
-                Optional: bb_upper, bb_lower, mfi, adx, regime
-            trades: List of trade dicts with 'timestamp', 'action', 'price'
-            equity_curve: List of dicts with 'date' and 'equity' for profit overlay
-            output_path: Path to save chart. Auto-generated if None.
-            title: Chart title.
-
-        Returns:
-            Path to saved chart file, or None if generation failed.
-        """
+        """Create mplfinance-based regime analysis chart."""
         if not HAS_MPLFINANCE:
             logger.error("mplfinance not installed. Run: pip install mplfinance")
             return None
-
         if df is None or df.empty:
             logger.warning("No data provided for regime chart")
             return None
 
-        # Ensure DataFrame has DatetimeIndex for mplfinance
-        df = df.copy()
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            df.set_index('timestamp', inplace=True)
-        elif not isinstance(df.index, pd.DatetimeIndex):
-            logger.warning("DataFrame needs timestamp column or DatetimeIndex")
+        prepared = self._prepare_regime_chart_data(df, trades)
+        if prepared is None:
+            return None
+        df, trades = prepared
+
+        addplots = self._build_regime_addplots(df, trades, equity_curve)
+        style = self._build_regime_style()
+        safe_path, chart_format = self._resolve_regime_output_path(output_path)
+        if safe_path is None:
             return None
 
-        # Resample to daily if data is too dense (> 1000 points)
-        if len(df) > 1000:
-            logger.info(f"Resampling {len(df)} data points to daily for better visibility")
-            # OHLCV aggregation rules
-            ohlcv_agg = {
-                'open': 'first',
-                'high': 'max',
-                'low': 'min',
-                'close': 'last',
-                'volume': 'sum',
-            }
-            # Indicator aggregation (use last value of day)
-            indicator_cols = ['mfi', 'adx', 'bb_upper', 'bb_lower', 'bb_middle',
-                              'ema_200', 'macd', 'macd_signal', 'regime']
-            indicator_agg = {col: 'last' for col in indicator_cols if col in df.columns}
-
-            agg_dict = {**ohlcv_agg, **indicator_agg}
-            # Only include columns that exist
-            agg_dict = {k: v for k, v in agg_dict.items() if k in df.columns}
-
-            df = df.resample('D').agg(agg_dict).dropna(subset=['close'])
-
-            # Also aggregate trades to daily level
-            if trades:
-                daily_trades = {}
-                for t in trades:
-                    ts = pd.to_datetime(t.get('timestamp'))
-                    day = ts.normalize()  # Start of day
-                    action = t.get('action', '').lower()
-                    price = t.get('price', 0)
-                    # Keep first buy/sell of each day
-                    key = (day, action)
-                    if key not in daily_trades:
-                        daily_trades[key] = {'timestamp': day, 'action': action, 'price': price}
-                trades = list(daily_trades.values())
-
-            logger.info(f"Resampled to {len(df)} daily bars")
-
-        # Validate required columns
-        required_cols = ['open', 'high', 'low', 'close', 'volume']
-        # Handle case-insensitive column names
-        col_map = {c.lower(): c for c in df.columns}
-        for req in required_cols:
-            if req not in col_map:
-                logger.warning(f"Missing required column: {req}")
-                return None
-
-        # Normalize column names to lowercase
-        df.columns = df.columns.str.lower()
-
-        # Build addplot list for overlays
-        addplots = []
-
-        # === Main Panel (0): Bollinger Bands Overlay ===
-        has_bb = 'bb_upper' in df.columns and 'bb_lower' in df.columns
-        if has_bb:
-            bb_upper_valid = df['bb_upper'].notna().sum()
-            bb_lower_valid = df['bb_lower'].notna().sum()
-            logger.info(f"BB columns found: upper={bb_upper_valid} valid, lower={bb_lower_valid} valid")
-
-            if bb_upper_valid > 0 and bb_lower_valid > 0:
-                # Fill NaN with forward fill for continuous lines
-                bb_upper = df['bb_upper'].ffill().bfill()
-                bb_lower = df['bb_lower'].ffill().bfill()
-
-                # Upper band - blue dashed line
-                addplots.append(mpf.make_addplot(
-                    bb_upper, panel=0, color='#2196F3', width=1.2,
-                    linestyle='--', alpha=0.9
-                ))
-                # Lower band - blue dashed line
-                addplots.append(mpf.make_addplot(
-                    bb_lower, panel=0, color='#2196F3', width=1.2,
-                    linestyle='--', alpha=0.9
-                ))
-                # Middle band (SMA) - solid blue line
-                if 'bb_middle' in df.columns:
-                    bb_middle = df['bb_middle'].ffill().bfill()
-                    addplots.append(mpf.make_addplot(
-                        bb_middle, panel=0, color='#1976D2', width=1.5,
-                        linestyle='-', alpha=0.9
-                    ))
-                logger.info("Bollinger Bands added to chart")
-            else:
-                logger.warning("BB columns exist but have no valid data")
-        else:
-            logger.info(f"BB columns not found. Available: {list(df.columns)}")
-
-        # Add trade markers if provided
-        # Marker size 175 (reduced 30% from 250) with edge color for visibility
-        if trades:
-            buy_signals = self._create_trade_markers(df, trades, 'buy')
-            sell_signals = self._create_trade_markers(df, trades, 'sell')
-
-            if buy_signals is not None and not buy_signals.isna().all():
-                addplots.append(mpf.make_addplot(
-                    buy_signals, panel=0, type='scatter',
-                    marker='^', markersize=175, color='#00E676',
-                    edgecolors='#1B5E20', linewidths=1.2
-                ))
-                logger.info(f"Buy markers: {buy_signals.notna().sum()} signals")
-            if sell_signals is not None and not sell_signals.isna().all():
-                addplots.append(mpf.make_addplot(
-                    sell_signals, panel=0, type='scatter',
-                    marker='v', markersize=175, color='#FF5252',
-                    edgecolors='#B71C1C', linewidths=1.2
-                ))
-                logger.info(f"Sell markers: {sell_signals.notna().sum()} signals")
-
-        # Add equity curve overlay (cumulative return %)
-        has_equity = False
-        if equity_curve and len(equity_curve) > 0:
-            try:
-                equity_df = pd.DataFrame(equity_curve)
-                equity_df['date'] = pd.to_datetime(equity_df['date']).dt.date
-
-                # Aggregate to daily: take last equity value of each day
-                daily_equity = equity_df.groupby('date')['equity'].last().reset_index()
-
-                # Calculate cumulative return percentage
-                initial_equity = daily_equity['equity'].iloc[0]
-                if initial_equity > 0:
-                    daily_equity['return_pct'] = ((daily_equity['equity'] / initial_equity) - 1) * 100
-
-                    # Create date-to-return mapping
-                    date_to_return = dict(zip(daily_equity['date'], daily_equity['return_pct']))
-
-                    # Map each price bar's date to the corresponding return %
-                    # Handle both datetime index and timestamp column
-                    if isinstance(df.index, pd.DatetimeIndex):
-                        price_dates = df.index.date
-                    else:
-                        price_dates = pd.to_datetime(df.index).date
-
-                    aligned_returns = pd.Series(
-                        [date_to_return.get(d, np.nan) for d in price_dates],
-                        index=df.index
-                    )
-                    # Forward fill any missing values
-                    aligned_returns = aligned_returns.ffill().fillna(0)
-
-                    # Add as secondary y-axis overlay on main panel
-                    addplots.append(mpf.make_addplot(
-                        aligned_returns, panel=0, color='#E91E63', width=1.5,
-                        linestyle='-', secondary_y=True, ylabel='Return %'
-                    ))
-                    has_equity = True
-            except Exception as e:
-                logger.warning(f"Failed to add equity overlay: {e}")
-
-        # Panel configuration: Main (with BB overlay) + Volume
-        # MFI/ADX panel removed for cleaner visualization
-        panel_ratios = (8, 2)
-        use_volume = True  # Use built-in volume panel
-
-        # Create custom style
-        mc = mpf.make_marketcolors(
-            up='#4CAF50', down='#F44336',
-            edge='inherit',
-            wick='inherit',
-            volume={'up': '#81C784', 'down': '#EF5350'}
-        )
-        style = mpf.make_mpf_style(
-            base_mpf_style='charles',
-            marketcolors=mc,
-            rc={
-                'font.size': 7,
-                'axes.titlesize': 8,
-                'axes.labelsize': 7,
-                'xtick.labelsize': 6,
-                'ytick.labelsize': 6,
-            }
-        )
-
-        # Generate output path
-        chart_format = self.config.format.lower()
-        if chart_format not in ALLOWED_FORMATS:
-            chart_format = "png"
-
-        if output_path is None:
-            output_path = f"regime_chart.{chart_format}"
-
-        try:
-            safe_path = _validate_output_path(output_path)
-        except ValueError as e:
-            logger.error(f"Invalid output path: {e}")
-            return None
-
-        # Create the chart
         try:
             fig, axes = mpf.plot(
                 df,
-                type='candle',
+                type="candle",
                 style=style,
                 addplot=addplots if addplots else None,
-                volume=use_volume,
-                panel_ratios=panel_ratios,
+                volume=True,
+                panel_ratios=(8, 2),
                 title=title,
                 figsize=(self.config.width, self.config.height),
                 returnfig=True,
                 warn_too_much_data=5000,
             )
-
-            # Add regime background coloring to volume panel
-            if 'regime' in df.columns:
+            if "regime" in df.columns:
                 self._add_regime_background(fig, axes, df)
-
-            # Add legend
             self._add_regime_legend(fig)
-
-            # Save
-            fig.savefig(str(safe_path), dpi=self.config.dpi, format=chart_format,
-                       bbox_inches='tight', facecolor='white')
+            fig.savefig(
+                str(safe_path),
+                dpi=self.config.dpi,
+                format=chart_format,
+                bbox_inches="tight",
+                facecolor="white",
+            )
             plt.close(fig)
-
             logger.info(f"Regime chart saved to: {safe_path}")
             return str(safe_path)
-
         except Exception as e:
             logger.error(f"Failed to create regime chart: {e}")
             import traceback
             traceback.print_exc()
             return None
+
+    def _prepare_regime_chart_data(
+        self,
+        df: pd.DataFrame,
+        trades: Optional[List[dict]],
+    ) -> Optional[tuple[pd.DataFrame, Optional[List[dict]]]]:
+        df = df.copy()
+        if "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            df.set_index("timestamp", inplace=True)
+        elif not isinstance(df.index, pd.DatetimeIndex):
+            logger.warning("DataFrame needs timestamp column or DatetimeIndex")
+            return None
+
+        if len(df) > 1000:
+            df, trades = self._resample_regime_data(df, trades)
+
+        if not self._has_required_regime_columns(df):
+            return None
+
+        df.columns = df.columns.str.lower()
+        return df, trades
+
+    def _resample_regime_data(
+        self,
+        df: pd.DataFrame,
+        trades: Optional[List[dict]],
+    ) -> tuple[pd.DataFrame, Optional[List[dict]]]:
+        logger.info(f"Resampling {len(df)} data points to daily for better visibility")
+        ohlcv_agg = {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
+        indicator_cols = ["mfi", "adx", "bb_upper", "bb_lower", "bb_middle", "ema_200", "macd", "macd_signal", "regime"]
+        indicator_agg = {col: "last" for col in indicator_cols if col in df.columns}
+        agg_dict = {k: v for k, v in {**ohlcv_agg, **indicator_agg}.items() if k in df.columns}
+        df = df.resample("D").agg(agg_dict).dropna(subset=["close"])
+        trades = self._aggregate_daily_trades(trades)
+        logger.info(f"Resampled to {len(df)} daily bars")
+        return df, trades
+
+    def _aggregate_daily_trades(self, trades: Optional[List[dict]]) -> Optional[List[dict]]:
+        if not trades:
+            return trades
+        daily_trades = {}
+        for t in trades:
+            ts = pd.to_datetime(t.get("timestamp"))
+            day = ts.normalize()
+            action = t.get("action", "").lower()
+            key = (day, action)
+            if key not in daily_trades:
+                daily_trades[key] = {"timestamp": day, "action": action, "price": t.get("price", 0)}
+        return list(daily_trades.values())
+
+    def _has_required_regime_columns(self, df: pd.DataFrame) -> bool:
+        required_cols = ["open", "high", "low", "close", "volume"]
+        col_map = {c.lower(): c for c in df.columns}
+        for req in required_cols:
+            if req not in col_map:
+                logger.warning(f"Missing required column: {req}")
+                return False
+        return True
+
+    def _build_regime_addplots(
+        self,
+        df: pd.DataFrame,
+        trades: Optional[List[dict]],
+        equity_curve: Optional[List[dict]],
+    ) -> List[Any]:
+        addplots: List[Any] = []
+        self._append_bollinger_addplots(df, addplots)
+        self._append_trade_marker_addplots(df, trades, addplots)
+        self._append_equity_addplot(df, equity_curve, addplots)
+        return addplots
+
+    def _append_bollinger_addplots(self, df: pd.DataFrame, addplots: List[Any]) -> None:
+        if "bb_upper" not in df.columns or "bb_lower" not in df.columns:
+            logger.info(f"BB columns not found. Available: {list(df.columns)}")
+            return
+        bb_upper_valid = df["bb_upper"].notna().sum()
+        bb_lower_valid = df["bb_lower"].notna().sum()
+        logger.info(f"BB columns found: upper={bb_upper_valid} valid, lower={bb_lower_valid} valid")
+        if bb_upper_valid <= 0 or bb_lower_valid <= 0:
+            logger.warning("BB columns exist but have no valid data")
+            return
+
+        bb_upper = df["bb_upper"].ffill().bfill()
+        bb_lower = df["bb_lower"].ffill().bfill()
+        addplots.append(mpf.make_addplot(bb_upper, panel=0, color="#2196F3", width=1.2, linestyle="--", alpha=0.9))
+        addplots.append(mpf.make_addplot(bb_lower, panel=0, color="#2196F3", width=1.2, linestyle="--", alpha=0.9))
+        if "bb_middle" in df.columns:
+            bb_middle = df["bb_middle"].ffill().bfill()
+            addplots.append(mpf.make_addplot(bb_middle, panel=0, color="#1976D2", width=1.5, linestyle="-", alpha=0.9))
+        logger.info("Bollinger Bands added to chart")
+
+    def _append_trade_marker_addplots(
+        self,
+        df: pd.DataFrame,
+        trades: Optional[List[dict]],
+        addplots: List[Any],
+    ) -> None:
+        if not trades:
+            return
+        buy_signals = self._create_trade_markers(df, trades, "buy")
+        sell_signals = self._create_trade_markers(df, trades, "sell")
+        if buy_signals is not None and not buy_signals.isna().all():
+            addplots.append(
+                mpf.make_addplot(
+                    buy_signals, panel=0, type="scatter", marker="^",
+                    markersize=175, color="#00E676", edgecolors="#1B5E20", linewidths=1.2
+                )
+            )
+            logger.info(f"Buy markers: {buy_signals.notna().sum()} signals")
+        if sell_signals is not None and not sell_signals.isna().all():
+            addplots.append(
+                mpf.make_addplot(
+                    sell_signals, panel=0, type="scatter", marker="v",
+                    markersize=175, color="#FF5252", edgecolors="#B71C1C", linewidths=1.2
+                )
+            )
+            logger.info(f"Sell markers: {sell_signals.notna().sum()} signals")
+
+    def _append_equity_addplot(
+        self,
+        df: pd.DataFrame,
+        equity_curve: Optional[List[dict]],
+        addplots: List[Any],
+    ) -> None:
+        if not equity_curve:
+            return
+        try:
+            equity_df = pd.DataFrame(equity_curve)
+            equity_df["date"] = pd.to_datetime(equity_df["date"]).dt.date
+            daily_equity = equity_df.groupby("date")["equity"].last().reset_index()
+            initial_equity = daily_equity["equity"].iloc[0]
+            if initial_equity <= 0:
+                return
+
+            daily_equity["return_pct"] = ((daily_equity["equity"] / initial_equity) - 1) * 100
+            date_to_return = dict(zip(daily_equity["date"], daily_equity["return_pct"]))
+            price_dates = df.index.date if isinstance(df.index, pd.DatetimeIndex) else pd.to_datetime(df.index).date
+            aligned_returns = pd.Series([date_to_return.get(d, np.nan) for d in price_dates], index=df.index)
+            aligned_returns = aligned_returns.ffill().fillna(0)
+            addplots.append(
+                mpf.make_addplot(
+                    aligned_returns, panel=0, color="#E91E63", width=1.5,
+                    linestyle="-", secondary_y=True, ylabel="Return %"
+                )
+            )
+        except Exception as e:
+            logger.warning(f"Failed to add equity overlay: {e}")
+
+    def _build_regime_style(self):
+        mc = mpf.make_marketcolors(
+            up="#4CAF50",
+            down="#F44336",
+            edge="inherit",
+            wick="inherit",
+            volume={"up": "#81C784", "down": "#EF5350"},
+        )
+        return mpf.make_mpf_style(
+            base_mpf_style="charles",
+            marketcolors=mc,
+            rc={"font.size": 7, "axes.titlesize": 8, "axes.labelsize": 7, "xtick.labelsize": 6, "ytick.labelsize": 6},
+        )
+
+    def _resolve_regime_output_path(self, output_path: Optional[str]) -> tuple[Optional[Path], str]:
+        chart_format = self.config.format.lower()
+        if chart_format not in ALLOWED_FORMATS:
+            chart_format = "png"
+        if output_path is None:
+            output_path = f"regime_chart.{chart_format}"
+        try:
+            safe_path = _validate_output_path(output_path)
+        except ValueError as e:
+            logger.error(f"Invalid output path: {e}")
+            return None, chart_format
+        return safe_path, chart_format
 
     def _create_trade_markers(
         self,
@@ -681,47 +683,52 @@ class BacktestVisualizer:
         markers = pd.Series(index=df.index, dtype=float)
         markers[:] = np.nan
 
-        # Build date-to-index lookup for flexible timestamp matching
-        # This handles daily resampling where exact timestamps don't match
-        date_to_idx = {}
-        for idx in df.index:
-            dt = pd.to_datetime(idx)
-            date_key = dt.date()
-            if date_key not in date_to_idx:
-                date_to_idx[date_key] = idx
+        date_to_idx = self._build_date_to_index_lookup(df)
 
         matched = 0
         unmatched = 0
 
         for trade in trades:
-            trade_action = trade.get('action', '').lower()
-            is_buy = action == 'buy' and trade_action in ('buy', 'long', 'entry')
-            is_sell = action == 'sell' and trade_action in ('sell', 'short', 'exit', 'cover')
-
-            if is_buy or is_sell:
-                ts = pd.to_datetime(trade.get('timestamp'))
-
-                # Try exact match first
-                if ts in df.index:
-                    idx = ts
-                else:
-                    # Fall back to date-based matching (for resampled data)
-                    date_key = ts.date()
-                    idx = date_to_idx.get(date_key)
-
-                if idx is not None and idx in df.index:
-                    if is_buy:
-                        markers.loc[idx] = df.loc[idx, 'low'] * 0.995
-                    else:
-                        markers.loc[idx] = df.loc[idx, 'high'] * 1.005
-                    matched += 1
-                else:
-                    unmatched += 1
+            if not self._trade_matches_action(trade, action):
+                continue
+            idx = self._match_trade_index(df, trade, date_to_idx)
+            if idx is None or idx not in df.index:
+                unmatched += 1
+                continue
+            if action == 'buy':
+                markers.loc[idx] = df.loc[idx, 'low'] * 0.995
+            else:
+                markers.loc[idx] = df.loc[idx, 'high'] * 1.005
+            matched += 1
 
         if unmatched > 0:
             logger.debug(f"Trade markers: {matched} matched, {unmatched} unmatched for {action}")
 
         return markers if not markers.isna().all() else None
+
+    def _build_date_to_index_lookup(self, df: pd.DataFrame) -> Dict[date, pd.Timestamp]:
+        lookup: Dict[date, pd.Timestamp] = {}
+        for idx in df.index:
+            day = pd.to_datetime(idx).date()
+            lookup.setdefault(day, idx)
+        return lookup
+
+    def _trade_matches_action(self, trade: dict, action: str) -> bool:
+        trade_action = trade.get('action', '').lower()
+        if action == 'buy':
+            return trade_action in ('buy', 'long', 'entry')
+        return trade_action in ('sell', 'short', 'exit', 'cover')
+
+    def _match_trade_index(
+        self,
+        df: pd.DataFrame,
+        trade: dict,
+        date_to_idx: Dict[date, pd.Timestamp],
+    ) -> Optional[pd.Timestamp]:
+        ts = pd.to_datetime(trade.get('timestamp'))
+        if ts in df.index:
+            return ts
+        return date_to_idx.get(ts.date())
 
     def _add_regime_background(
         self,
@@ -817,19 +824,10 @@ class BacktestVisualizer:
             logger.warning("No data provided for yearly regime charts")
             return []
 
-        # Ensure timestamp column
-        df = df.copy()
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-        elif isinstance(df.index, pd.DatetimeIndex):
-            df['timestamp'] = df.index
-
-        # Get year range
-        years = df['timestamp'].dt.year.unique()
-        years = sorted(years)
+        df = self._ensure_timestamp_column(df)
+        years = sorted(df['timestamp'].dt.year.unique())
 
         if len(years) <= 1:
-            # Only one year, use regular chart
             chart_path = self.create_regime_chart(
                 df, trades, equity_curve,
                 output_path=f"{output_dir or '.'}/regime_chart.png",
@@ -837,51 +835,62 @@ class BacktestVisualizer:
             )
             return [chart_path] if chart_path else []
 
-        saved_paths = []
-        output_dir = Path(output_dir) if output_dir else Path.cwd()
-        output_dir.mkdir(parents=True, exist_ok=True)
+        out_dir = self._ensure_output_dir(output_dir)
+        return self._generate_yearly_regime_charts(df, years, trades, equity_curve, out_dir, title_prefix)
 
+    def _ensure_timestamp_column(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        elif isinstance(df.index, pd.DatetimeIndex):
+            df['timestamp'] = df.index
+        return df
+
+    def _ensure_output_dir(self, output_dir: Optional[str]) -> Path:
+        out_dir = Path(output_dir) if output_dir else Path.cwd()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        return out_dir
+
+    def _generate_yearly_regime_charts(
+        self,
+        df: pd.DataFrame,
+        years: List[int],
+        trades: Optional[List[dict]],
+        equity_curve: Optional[List[dict]],
+        output_dir: Path,
+        title_prefix: str,
+    ) -> List[str]:
+        saved_paths: List[str] = []
         for year in years:
-            # Filter data for this year
-            year_mask = df['timestamp'].dt.year == year
-            year_df = df[year_mask].copy()
-
+            year_df = df[df['timestamp'].dt.year == year].copy()
             if year_df.empty:
                 continue
-
-            # Filter trades for this year
-            year_trades = None
-            if trades:
-                year_trades = []
-                for t in trades:
-                    ts = pd.to_datetime(t.get('timestamp'))
-                    if ts.year == year:
-                        year_trades.append(t)
-
-            # Filter equity curve for this year
-            year_equity = None
-            if equity_curve:
-                year_equity = []
-                for e in equity_curve:
-                    date = pd.to_datetime(e.get('date'))
-                    if date.year == year:
-                        year_equity.append(e)
-
-            # Generate chart for this year
+            year_trades = self._filter_records_by_year(trades, year, "timestamp")
+            year_equity = self._filter_records_by_year(equity_curve, year, "date")
             output_path = output_dir / f"regime_{year}.png"
             chart_path = self.create_regime_chart(
                 year_df,
                 trades=year_trades,
                 equity_curve=year_equity,
                 output_path=str(output_path),
-                title=f"{title_prefix} - {year}"
+                title=f"{title_prefix} - {year}",
             )
-
             if chart_path:
                 saved_paths.append(chart_path)
                 logger.info(f"Generated yearly chart: {chart_path}")
-
         return saved_paths
+
+    def _filter_records_by_year(
+        self, records: Optional[List[dict]], year: int, date_key: str
+    ) -> Optional[List[dict]]:
+        if not records:
+            return None
+        filtered: List[dict] = []
+        for record in records:
+            ts = pd.to_datetime(record.get(date_key))
+            if ts.year == year:
+                filtered.append(record)
+        return filtered
 
     def create_wide_regime_chart(
         self,

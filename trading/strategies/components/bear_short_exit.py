@@ -95,69 +95,107 @@ class BearShortExitStrategy(BaseExitStrategy):
             Signal to close (cover) position, or None to hold.
         """
         market_data = ctx.market
-        symbol = position.symbol
-        entry_price = position.entry_price
-        quantity = position.quantity
-        current_price = market_data.close
-        key = self._get_position_key(position)
-
-        if entry_price <= 0 or quantity <= 0:
+        if position.entry_price <= 0 or position.quantity <= 0:
             return None
 
-        p = self.params
-
-        # For shorts: profit when price drops, loss when price rises
+        key = self._get_position_key(position)
+        entry_price = position.entry_price
+        current_price = market_data.close
         pnl_pct = ((entry_price - current_price) / entry_price) * 100
-
-        # Update Low Water Mark (lowest price seen = best profit point for shorts)
         lwm = self._update_lwm(key, current_price, entry_price)
 
-        # Exit 1: Stop loss (price rose too much)
-        if pnl_pct <= -p.stop_loss_pct:
-            reason = f"BearShort exit: Stop loss {pnl_pct:.2f}%"
-            logger.info(f"{symbol}: {reason}")
-            self._clear_state(key)
-            return self._create_exit_signal(position, reason, quantity=position.quantity, side="buy")
+        stop_signal = self._check_stop_loss_exit(position, pnl_pct, key)
+        if stop_signal:
+            return stop_signal
 
-        # Exit 2: Take profit (price dropped enough)
-        if pnl_pct >= p.take_profit_pct:
-            reason = f"BearShort exit: Take profit {pnl_pct:.2f}%"
-            logger.info(f"{symbol}: {reason}")
-            self._clear_state(key)
-            return self._create_exit_signal(position, reason, quantity=position.quantity, side="buy")
+        take_profit_signal = self._check_take_profit_exit(position, pnl_pct, key)
+        if take_profit_signal:
+            return take_profit_signal
 
-        # Exit 3: Trailing stop (lock profit on bounce from low)
-        if p.trailing_enabled and lwm > 0:
-            lwm_pnl = ((entry_price - lwm) / entry_price) * 100  # profit % at LWM
-            if lwm_pnl >= p.trailing_activation:
-                trailing_stop_price = lwm * (1 + p.trailing_distance / 100)
-                if current_price >= trailing_stop_price:
-                    locked_pnl = ((entry_price - trailing_stop_price) / entry_price) * 100
-                    reason = (
-                        f"BearShort exit: Trailing stop {pnl_pct:.2f}% "
-                        f"(LWM profit={lwm_pnl:.2f}%, locked~{locked_pnl:.2f}%)"
-                    )
-                    logger.info(f"{symbol}: {reason}")
-                    self._clear_state(key)
-                    return self._create_exit_signal(position, reason, quantity=position.quantity, side="buy")
+        trailing_signal = self._check_trailing_stop_exit(
+            position=position,
+            pnl_pct=pnl_pct,
+            entry_price=entry_price,
+            current_price=current_price,
+            lwm=lwm,
+            key=key,
+        )
+        if trailing_signal:
+            return trailing_signal
 
-        # Exit 4: Regime change (no longer in bearish/sideways zone)
-        regime = ctx.regime.regime
-        if regime not in BEAR_SHORT_HOLD_REGIMES:
-            self._regime_exit_count[key] = self._regime_exit_count.get(key, 0) + 1
-            if self._regime_exit_count[key] >= p.regime_exit_grace:
-                reason = (
-                    f"BearShort exit: Regime {regime} for "
-                    f"{self._regime_exit_count[key]} candles, P&L={pnl_pct:.2f}%"
-                )
-                logger.info(f"{symbol}: {reason}")
-                self._clear_state(key)
-                return self._create_exit_signal(position, reason, quantity=position.quantity, side="buy")
-        else:
-            # Reset counter when regime returns to hold zone
-            self._regime_exit_count.pop(key, None)
+        regime_signal = self._check_regime_change_exit(
+            position=position,
+            regime=ctx.regime.regime,
+            pnl_pct=pnl_pct,
+            key=key,
+        )
+        if regime_signal:
+            return regime_signal
 
         return None
+
+    def _build_exit_signal(self, position: Position, reason: str, key: str) -> Signal:
+        logger.info(f"{position.symbol}: {reason}")
+        self._clear_state(key)
+        return self._create_exit_signal(position, reason, quantity=position.quantity, side="buy")
+
+    def _check_stop_loss_exit(self, position: Position, pnl_pct: float, key: str) -> Signal | None:
+        if pnl_pct > -self.params.stop_loss_pct:
+            return None
+        reason = f"BearShort exit: Stop loss {pnl_pct:.2f}%"
+        return self._build_exit_signal(position, reason, key)
+
+    def _check_take_profit_exit(self, position: Position, pnl_pct: float, key: str) -> Signal | None:
+        if pnl_pct < self.params.take_profit_pct:
+            return None
+        reason = f"BearShort exit: Take profit {pnl_pct:.2f}%"
+        return self._build_exit_signal(position, reason, key)
+
+    def _check_trailing_stop_exit(
+        self,
+        position: Position,
+        pnl_pct: float,
+        entry_price: float,
+        current_price: float,
+        lwm: float,
+        key: str,
+    ) -> Signal | None:
+        p = self.params
+        if not p.trailing_enabled or lwm <= 0:
+            return None
+        lwm_pnl = ((entry_price - lwm) / entry_price) * 100
+        if lwm_pnl < p.trailing_activation:
+            return None
+        trailing_stop_price = lwm * (1 + p.trailing_distance / 100)
+        if current_price < trailing_stop_price:
+            return None
+        locked_pnl = ((entry_price - trailing_stop_price) / entry_price) * 100
+        reason = (
+            f"BearShort exit: Trailing stop {pnl_pct:.2f}% "
+            f"(LWM profit={lwm_pnl:.2f}%, locked~{locked_pnl:.2f}%)"
+        )
+        return self._build_exit_signal(position, reason, key)
+
+    def _check_regime_change_exit(
+        self,
+        position: Position,
+        regime: str,
+        pnl_pct: float,
+        key: str,
+    ) -> Signal | None:
+        if regime in BEAR_SHORT_HOLD_REGIMES:
+            self._regime_exit_count.pop(key, None)
+            return None
+
+        self._regime_exit_count[key] = self._regime_exit_count.get(key, 0) + 1
+        if self._regime_exit_count[key] < self.params.regime_exit_grace:
+            return None
+
+        reason = (
+            f"BearShort exit: Regime {regime} for "
+            f"{self._regime_exit_count[key]} candles, P&L={pnl_pct:.2f}%"
+        )
+        return self._build_exit_signal(position, reason, key)
 
     # === Low Water Mark Management (mirror of HWM for shorts) ===
 

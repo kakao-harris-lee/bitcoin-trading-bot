@@ -187,66 +187,74 @@ class MLPDirectionEntryStrategy:
             return None
 
         try:
-            # Build market_data dict for feature extraction
-            data_dict = {
-                "open": indicators.get("open", market_data.open),
-                "high": indicators.get("high", market_data.high),
-                "low": indicators.get("low", market_data.low),
-                "close": market_data.close,
-                "volume": indicators.get("volume", market_data.volume),
-            }
-
-            # Build indicators dict (use getattr with defaults for optional fields)
-            ema_50 = getattr(market_data, "ema_50", market_data.close)
-            ema_200 = getattr(market_data, "ema_200", market_data.close)
-            rsi = getattr(market_data, "rsi", 50.0)
-
-            ind_dict = {
-                "bollinger_pct_b": indicators.get("bollinger_pct_b", 0.5),
-                "rsi": indicators.get("rsi", rsi),
-                "ultosc": indicators.get("ultosc", 50.0),
-                "ema_20": indicators.get("ema_20", ema_50),
-                "ema_21": indicators.get("ema_21", ema_50),
-                "ema_50": ema_50,
-                "ema_100": indicators.get("ema_100", ema_200),
-                "price_zscore": indicators.get("price_zscore", 0.0),
-                "volume_zscore": indicators.get("volume_zscore", 0.0),
-            }
-
-            # EMA cross ratios if available (paper set)
-            ema20 = ind_dict.get("ema_20", 0.0)
-            if ema20:
-                ind_dict["ema_cross_1_20"] = market_data.close / ema20
-            if ema20 and ema_50:
-                ind_dict["ema_cross_20_50"] = ema20 / ema_50
-            if ema_50 and ind_dict.get("ema_100", 0.0):
-                ind_dict["ema_cross_50_100"] = ema_50 / ind_dict["ema_100"]
-            if ema_50:
-                ind_dict["ema_cross_1_50"] = market_data.close / ema_50
-
-            # Add temporal features if available
-            if hasattr(market_data, "timestamp"):
-                import datetime
-                ts = market_data.timestamp / 1000  # Convert from ms
-                dt = datetime.datetime.fromtimestamp(ts)
-                ind_dict["hour_of_day"] = dt.hour
-                ind_dict["day_of_week"] = dt.weekday()
-                ind_dict["month"] = dt.month
-
-            try:
-                features = self._feature_extractor(
-                    data_dict,
-                    ind_dict,
-                    feature_set=self.params.mlp_feature_set,
-                )
-            except TypeError:
-                # Backward compatible with extractors that don't accept feature_set
-                features = self._feature_extractor(data_dict, ind_dict)
-            return features
-
+            data_dict = self._build_feature_data_dict(market_data, indicators)
+            ind_dict = self._build_feature_indicator_dict(market_data, indicators)
+            self._add_ema_cross_features(ind_dict, market_data.close)
+            self._add_temporal_features(ind_dict, getattr(market_data, "timestamp", None))
+            return self._run_feature_extractor(data_dict, ind_dict)
         except Exception as e:
             logger.warning(f"MLPDirectionEntry: Feature extraction failed: {e}")
             return None
+
+    def _build_feature_data_dict(self, market_data: MarketData, indicators: dict) -> dict:
+        return {
+            "open": indicators.get("open", market_data.open),
+            "high": indicators.get("high", market_data.high),
+            "low": indicators.get("low", market_data.low),
+            "close": market_data.close,
+            "volume": indicators.get("volume", market_data.volume),
+        }
+
+    def _build_feature_indicator_dict(self, market_data: MarketData, indicators: dict) -> dict:
+        ema_50 = getattr(market_data, "ema_50", market_data.close)
+        ema_200 = getattr(market_data, "ema_200", market_data.close)
+        rsi = getattr(market_data, "rsi", 50.0)
+        return {
+            "bollinger_pct_b": indicators.get("bollinger_pct_b", 0.5),
+            "rsi": indicators.get("rsi", rsi),
+            "ultosc": indicators.get("ultosc", 50.0),
+            "ema_20": indicators.get("ema_20", ema_50),
+            "ema_21": indicators.get("ema_21", ema_50),
+            "ema_50": ema_50,
+            "ema_100": indicators.get("ema_100", ema_200),
+            "price_zscore": indicators.get("price_zscore", 0.0),
+            "volume_zscore": indicators.get("volume_zscore", 0.0),
+        }
+
+    def _add_ema_cross_features(self, ind_dict: dict, close_price: float) -> None:
+        ema_20 = ind_dict.get("ema_20", 0.0)
+        ema_50 = ind_dict.get("ema_50", 0.0)
+        ema_100 = ind_dict.get("ema_100", 0.0)
+
+        if ema_20:
+            ind_dict["ema_cross_1_20"] = close_price / ema_20
+        if ema_20 and ema_50:
+            ind_dict["ema_cross_20_50"] = ema_20 / ema_50
+        if ema_50 and ema_100:
+            ind_dict["ema_cross_50_100"] = ema_50 / ema_100
+        if ema_50:
+            ind_dict["ema_cross_1_50"] = close_price / ema_50
+
+    def _add_temporal_features(self, ind_dict: dict, timestamp_ms: int | None) -> None:
+        if not timestamp_ms:
+            return
+        import datetime
+
+        dt = datetime.datetime.fromtimestamp(timestamp_ms / 1000)
+        ind_dict["hour_of_day"] = dt.hour
+        ind_dict["day_of_week"] = dt.weekday()
+        ind_dict["month"] = dt.month
+
+    def _run_feature_extractor(self, data_dict: dict, ind_dict: dict) -> np.ndarray:
+        try:
+            return self._feature_extractor(
+                data_dict,
+                ind_dict,
+                feature_set=self.params.mlp_feature_set,
+            )
+        except TypeError:
+            # Backward compatible with extractors that don't accept feature_set
+            return self._feature_extractor(data_dict, ind_dict)
 
     def _is_risk_on(self, market_data: MarketData, p: MLPDirectionEntryParams) -> bool:
         if market_data.mfi < p.switch_mfi_threshold:
@@ -270,71 +278,23 @@ class MLPDirectionEntryStrategy:
         market_data = ctx.market
         context = ctx.regime
         p = self.params
+        active_buy_threshold, active_position_size, switch_mode = self._resolve_runtime_profile(
+            market_data
+        )
 
-        active_buy_threshold = p.buy_confidence_threshold
-        active_position_size = p.position_size
-        switch_mode = "base"
-        if p.runtime_switch_enabled:
-            if self._is_risk_on(market_data, p):
-                switch_mode = "risk_on"
-                if p.risk_on_buy_confidence_threshold > 0:
-                    active_buy_threshold = p.risk_on_buy_confidence_threshold
-                if p.risk_on_position_size > 0:
-                    active_position_size = p.risk_on_position_size
-            else:
-                switch_mode = "risk_off"
-                if p.risk_off_buy_confidence_threshold > 0:
-                    active_buy_threshold = p.risk_off_buy_confidence_threshold
-                if p.risk_off_position_size > 0:
-                    active_position_size = p.risk_off_position_size
-
-        # === SAFETY FILTER 1: BEAR regime ===
-        if p.skip_bear_regime and context.regime in BEAR_REGIMES:
-            logger.debug(f"{market_data.symbol}: Skip - BEAR regime ({context.regime})")
+        if not self._passes_entry_safety_filters(market_data, context):
             return None
 
-        # === SAFETY FILTER 2: ADX threshold ===
-        if context.adx < p.adx_min:
-            logger.debug(f"{market_data.symbol}: Skip - weak ADX ({context.adx:.1f} < {p.adx_min})")
-            return None
-
-        # === SAFETY FILTER 3: EMA200 filter ===
-        if p.use_ema200_filter and market_data.ema_200 > 0:
-            if market_data.close < market_data.ema_200:
-                logger.debug(
-                    f"{market_data.symbol}: Skip - below EMA200 "
-                    f"({market_data.close:.0f} < {market_data.ema_200:.0f})"
-                )
-                return None
-
-        # === MLP PREDICTION ===
         if not self._ensure_model():
             logger.debug(f"{market_data.symbol}: Skip - MLP model not available")
             return None
 
-        # Update history buffer for live paper_36 computation
         self._update_history(market_data)
+        prediction_result = self._get_prediction_and_confidence(ctx, market_data)
+        if prediction_result is None:
+            return None
+        mlp_prediction, mlp_confidence = prediction_result
 
-        # Check if MLP features are pre-computed in context (backtest mode)
-        mlp_prediction = getattr(ctx, "mlp_prediction", None)
-        mlp_confidence = getattr(ctx, "mlp_confidence", None)
-
-        if mlp_prediction is None or mlp_confidence is None:
-            if p.mlp_feature_set in ("paper_36", "v2_36"):
-                # Live paper_36/v2_36: compute from history buffer
-                result = self._compute_history_features(market_data, p.mlp_feature_set)
-                if result is None:
-                    return None
-                mlp_prediction, mlp_confidence = result
-            else:
-                # Compute MLP prediction on the fly (shap_13 or other)
-                features = self._extract_features(market_data, {})
-                if features is None:
-                    logger.debug(f"{market_data.symbol}: Skip - feature extraction failed")
-                    return None
-                mlp_prediction, mlp_confidence = self._predict(features)
-
-        # === MLP FILTER 1: Prediction must be BUY ===
         if mlp_prediction != MLP_LABEL_BUY:
             logger.debug(
                 f"{market_data.symbol}: Skip - MLP prediction is "
@@ -342,7 +302,6 @@ class MLPDirectionEntryStrategy:
             )
             return None
 
-        # === MLP FILTER 2: Confidence threshold ===
         if mlp_confidence < active_buy_threshold:
             logger.debug(
                 f"{market_data.symbol}: Skip - low MLP confidence "
@@ -350,18 +309,99 @@ class MLPDirectionEntryStrategy:
             )
             return None
 
-        # All conditions met - generate entry signal
+        return self._build_entry_signal(
+            market_data=market_data,
+            context=context,
+            confidence=mlp_confidence,
+            position_size=active_position_size,
+            switch_mode=switch_mode,
+        )
+
+    def _resolve_runtime_profile(self, market_data: MarketData) -> tuple[float, float, str]:
+        p = self.params
+        threshold = p.buy_confidence_threshold
+        position_size = p.position_size
+        mode = "base"
+
+        if not p.runtime_switch_enabled:
+            return threshold, position_size, mode
+
+        if self._is_risk_on(market_data, p):
+            mode = "risk_on"
+            if p.risk_on_buy_confidence_threshold > 0:
+                threshold = p.risk_on_buy_confidence_threshold
+            if p.risk_on_position_size > 0:
+                position_size = p.risk_on_position_size
+            return threshold, position_size, mode
+
+        mode = "risk_off"
+        if p.risk_off_buy_confidence_threshold > 0:
+            threshold = p.risk_off_buy_confidence_threshold
+        if p.risk_off_position_size > 0:
+            position_size = p.risk_off_position_size
+        return threshold, position_size, mode
+
+    def _passes_entry_safety_filters(
+        self,
+        market_data: MarketData,
+        context,
+    ) -> bool:
+        p = self.params
+        if p.skip_bear_regime and context.regime in BEAR_REGIMES:
+            logger.debug(f"{market_data.symbol}: Skip - BEAR regime ({context.regime})")
+            return False
+        if context.adx < p.adx_min:
+            logger.debug(
+                f"{market_data.symbol}: Skip - weak ADX ({context.adx:.1f} < {p.adx_min})"
+            )
+            return False
+        if p.use_ema200_filter and market_data.ema_200 > 0 and market_data.close < market_data.ema_200:
+            logger.debug(
+                f"{market_data.symbol}: Skip - below EMA200 "
+                f"({market_data.close:.0f} < {market_data.ema_200:.0f})"
+            )
+            return False
+        return True
+
+    def _get_prediction_and_confidence(
+        self,
+        ctx: TradingContext,
+        market_data: MarketData,
+    ) -> tuple[int, float] | None:
+        p = self.params
+        mlp_prediction = getattr(ctx, "mlp_prediction", None)
+        mlp_confidence = getattr(ctx, "mlp_confidence", None)
+
+        if mlp_prediction is not None and mlp_confidence is not None:
+            return mlp_prediction, mlp_confidence
+
+        if p.mlp_feature_set in ("paper_36", "v2_36"):
+            return self._compute_history_features(market_data, p.mlp_feature_set)
+
+        features = self._extract_features(market_data, {})
+        if features is None:
+            logger.debug(f"{market_data.symbol}: Skip - feature extraction failed")
+            return None
+        return self._predict(features)
+
+    def _build_entry_signal(
+        self,
+        market_data: MarketData,
+        context,
+        confidence: float,
+        position_size: float,
+        switch_mode: str,
+    ) -> Signal:
         reason = (
-            f"MLPDirection: pred=BUY, conf={mlp_confidence:.2f}, "
+            f"MLPDirection: pred=BUY, conf={confidence:.2f}, "
             f"regime={context.regime}, ADX={context.adx:.1f}, mode={switch_mode}"
         )
         logger.info(f"{market_data.symbol}: {reason}")
-
         return Signal(
             symbol=market_data.symbol,
             side="buy",
-            market=p.market,
-            quantity=active_position_size,
+            market=self.params.market,
+            quantity=position_size,
             reason=reason,
         )
 

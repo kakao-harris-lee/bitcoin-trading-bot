@@ -465,64 +465,63 @@ class EnhancedRegimeRouter:
         Returns:
             Filtered regime classification
         """
-        # Calculate candidate regime using standard classification
         candidate = _classify_regime(mfi, adx)
-
-        # Use provided prev_regime or internal state
         if prev_regime is not None:
             self._prev_regime = prev_regime
-
-        # Initialize if first call
-        if self._prev_regime is None:
-            self._prev_regime = candidate
-            return candidate
-
-        # No change, no filtering needed
+        initialized = self._initialize_prev_regime(candidate)
+        if initialized is not None:
+            return initialized
         if candidate == self._prev_regime:
-            self._pending_regime = None
-            self._pending_count = 0
+            self._reset_pending_transition()
             return candidate
 
-        # Update BBW for history
         bbw = self._bbw_filter.calculate_bbw(bb_upper, bb_lower, bb_middle)
         self._bbw_filter.update_bbw(bbw)
-
-        # Check if volume boosts confidence (relaxes BBW)
         bbw_boosted = self._volume_filter.is_boosted(volume_ratio)
+        if self._is_transition_blocked(candidate, volume_ratio, bbw_boosted):
+            return self._prev_regime
+        if self._needs_confirmation(candidate, bbw_boosted):
+            return self._handle_pending_confirmation(candidate)
+        return self._accept_candidate(candidate)
 
-        # Filter 1: MTF direction check
-        if self._mtf_enabled and self._mtf_regime is not None:
-            if not self._mtf_filter.is_direction_aligned(candidate, self._mtf_regime):
-                return self._prev_regime  # Block: direction conflict
-
-        # Filter 2: BBW check (bypassed if high volume)
-        if not bbw_boosted and self._bbw_filter.should_block():
-            return self._prev_regime  # Block: low volatility
-
-        # Filter 3: Volume check (with BEAR/SIDEWAYS exceptions)
-        if self._volume_filter.should_block(volume_ratio, candidate):
-            return self._prev_regime  # Block: low volume
-
-        # Check if needs confirmation (BBW between thresholds)
-        if self._bbw_filter.needs_confirmation() and not bbw_boosted:
-            if candidate == self._pending_regime:
-                self._pending_count += 1
-                if self._pending_count >= 2:
-                    # Confirmed after 2 candles
-                    self._prev_regime = candidate
-                    self._pending_regime = None
-                    self._pending_count = 0
-                    return candidate
-            else:
-                # New pending regime
-                self._pending_regime = candidate
-                self._pending_count = 1
-            return self._prev_regime  # Needs more confirmation
-
-        # All filters passed - allow transition
+    def _initialize_prev_regime(self, candidate: Regime) -> Regime | None:
+        if self._prev_regime is not None:
+            return None
         self._prev_regime = candidate
+        return candidate
+
+    def _reset_pending_transition(self) -> None:
         self._pending_regime = None
         self._pending_count = 0
+
+    def _is_transition_blocked(
+        self, candidate: Regime, volume_ratio: float, bbw_boosted: bool
+    ) -> bool:
+        if self._mtf_enabled and self._mtf_regime is not None:
+            if not self._mtf_filter.is_direction_aligned(candidate, self._mtf_regime):
+                return True
+        if not bbw_boosted and self._bbw_filter.should_block():
+            return True
+        if self._volume_filter.should_block(volume_ratio, candidate):
+            return True
+        return False
+
+    def _needs_confirmation(self, candidate: Regime, bbw_boosted: bool) -> bool:
+        return self._bbw_filter.needs_confirmation() and not bbw_boosted
+
+    def _handle_pending_confirmation(self, candidate: Regime) -> Regime:
+        if candidate == self._pending_regime:
+            self._pending_count += 1
+            if self._pending_count >= 2:
+                return self._accept_candidate(candidate)
+        else:
+            self._pending_regime = candidate
+            self._pending_count = 1
+        return self._prev_regime
+
+    def _accept_candidate(self, candidate: Regime) -> Regime:
+        self._prev_regime = candidate
+        self._reset_pending_transition()
         return candidate
 
     def reset(self) -> None:

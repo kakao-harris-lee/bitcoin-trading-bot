@@ -448,6 +448,18 @@ def get_available_strategies() -> list:
             'default_params': {}
         })
 
+    # 4. Walk-forward backtest strategies (per-asset, tree_60 XGB+LGB ensemble)
+    for asset in ('BTC', 'ETH', 'SOL'):
+        wf_id = f'wf_tree60_{asset.lower()}'
+        if wf_id not in existing_ids:
+            strategies.append({
+                'id': wf_id,
+                'name': f'Walk-Forward Tree60 {asset}',
+                'description': f'Walk-forward XGB+LGB ensemble on tree_60 features ({asset} spot)',
+                'exchange': 'binance',
+                'default_params': {}
+            })
+
     return strategies
 
 
@@ -519,6 +531,8 @@ def run_backtest(job: BacktestJob) -> None:
         )
 
     def run_selected_backtest(strategy_id: str, start_date: str, end_date: str, initial_capital: float):
+        if strategy_id.startswith('wf_tree60_'):
+            return _run_walkforward_backtest(strategy_id, start_date, end_date, initial_capital, job)
         is_generic = (
             strategy_id in STRATEGY_REGISTRY
             or _is_tuned_strategy(strategy_id)
@@ -1410,6 +1424,134 @@ def _run_generic_backtest(
     return _build_generic_result(
         strategy_id, start_date, end_date, initial_capital, market_settings['leverage'], trade_state
     ), df
+
+
+def _run_walkforward_backtest(
+    strategy_id: str,
+    start_date: str,
+    end_date: str,
+    initial_capital: float,
+    job: BacktestJob,
+) -> tuple:
+    """Run walk-forward backtest for a single asset using tree_60 XGB+LGB ensemble.
+
+    Calls run_walkforward_asset() with recommended sliding-window config
+    and converts the Backtester output to dashboard format.
+    """
+    import numpy as np
+    from scripts.backtest.walkforward_backtest import run_walkforward_asset
+
+    # Extract asset from strategy_id: wf_tree60_btc -> BTC
+    asset = strategy_id.replace('wf_tree60_', '').upper()
+    if asset not in ('BTC', 'ETH', 'SOL'):
+        raise ValueError(f"Unknown walk-forward asset: {asset}")
+
+    job.progress = 10
+
+    # Run walk-forward with recommended sliding-window config
+    wf_result = run_walkforward_asset(
+        asset=asset,
+        start_date=start_date,
+        end_date=end_date,
+        capital=initial_capital,
+        n_splits=7,
+        max_train_folds=3,
+        temporal_decay=2.0,
+    )
+
+    if not wf_result:
+        raise ValueError(f"Walk-forward backtest produced no results for {asset}")
+
+    job.progress = 75
+
+    results_inner = wf_result['results']
+    metrics = wf_result.get('metrics', {})
+    equity_df = wf_result.get('equity_curve', pd.DataFrame())
+
+    # Convert equity_curve DataFrame to list of {date, equity} dicts
+    equity_curve = []
+    if equity_df is not None and not equity_df.empty:
+        for _, row in equity_df.iterrows():
+            ts = row.get('timestamp', row.name)
+            equity_curve.append({
+                'date': str(ts)[:10],
+                'equity': float(row.get('total_equity', row.get('equity', initial_capital))),
+            })
+
+    # Convert Trade objects to dashboard trade format
+    trades_list = []
+    raw_trades = results_inner.get('trades', [])
+    # raw_trades are Trade dataclass instances from Backtester
+    closed_trades = [t for t in raw_trades if t.exit_time is not None]
+    max_trades = 150
+    if len(closed_trades) > max_trades:
+        step = len(closed_trades) / max_trades
+        indices = [int(i * step) for i in range(max_trades)]
+        sampled = [closed_trades[i] for i in indices]
+    else:
+        sampled = closed_trades
+
+    for t in sampled:
+        trades_list.append({
+            'timestamp': str(t.entry_time)[:19],
+            'symbol': asset,
+            'action': 'BUY',
+            'price': t.entry_price,
+            'profit': None,
+        })
+        trades_list.append({
+            'timestamp': str(t.exit_time)[:19],
+            'symbol': asset,
+            'action': 'SELL',
+            'price': t.exit_price,
+            'profit': round(t.profit_loss, 0) if t.profit_loss else 0,
+        })
+
+    # Build standard metrics
+    total_return_pct = metrics.get('total_return', results_inner.get('total_return', 0))
+    final_capital = initial_capital * (1 + total_return_pct / 100)
+    wins = [t for t in closed_trades if t.profit_loss and t.profit_loss > 0]
+    losses = [t for t in closed_trades if t.profit_loss is not None and t.profit_loss <= 0]
+    win_rate = len(wins) / len(closed_trades) * 100 if closed_trades else 0
+
+    gross_profit = sum(t.profit_loss for t in wins) if wins else 0
+    gross_loss = abs(sum(t.profit_loss for t in losses)) if losses else 0
+    profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0.0
+
+    # Load price data for visualization (benchmark, regime chart)
+    db_mapping = {
+        'BTC': PROJECT_ROOT / "data" / "binance_bitcoin.db",
+        'ETH': PROJECT_ROOT / "data" / "binance_ethereum.db",
+        'SOL': PROJECT_ROOT / "data" / "binance_solana.db",
+    }
+    from core.data_loader import DataLoader
+    db_path = db_mapping.get(asset, db_mapping['BTC'])
+    with DataLoader(db_path=str(db_path)) as loader:
+        price_data = loader.load_timeframe('minute240', start_date, end_date)
+
+    job.progress = 85
+
+    return {
+        'strategy': strategy_id,
+        'preset': 'walkforward',
+        'start_date': start_date,
+        'end_date': end_date,
+        'initial_capital': initial_capital,
+        'final_capital': round(final_capital, 0),
+        'total_return': round(final_capital - initial_capital, 0),
+        'total_return_pct': round(total_return_pct, 2),
+        'leverage': 1,
+        'total_trades': len(closed_trades),
+        'winning_trades': len(wins),
+        'losing_trades': len(losses),
+        'win_rate': round(win_rate, 2),
+        'profit_factor': round(profit_factor, 2),
+        'max_drawdown': round(metrics.get('mdd', results_inner.get('max_drawdown_pct', 0)), 2),
+        'max_drawdown_pct': round(metrics.get('mdd', results_inner.get('max_drawdown_pct', 0)), 2),
+        'sharpe_ratio': round(metrics.get('sharpe', results_inner.get('sharpe_ratio', 0)), 2),
+        'equity_curve': equity_curve,
+        'trades': trades_list,
+    }, price_data
 
 
 class _EnhancedShortStrategyAdapter:

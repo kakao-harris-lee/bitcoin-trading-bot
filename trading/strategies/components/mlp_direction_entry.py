@@ -40,6 +40,7 @@ class MLPDirectionEntryParams:
     buy_confidence_threshold: float = 0.40  # Minimum confidence for BUY prediction (relaxed)
 
     # Regime filters
+    regime_bypass: bool = False  # Bypass all regime checks (for ablation study)
     skip_bear_regime: bool = False  # Allow entry in BEAR regimes (relaxed)
     adx_min: float = 0.0  # No ADX filter (relaxed)
 
@@ -347,6 +348,8 @@ class MLPDirectionEntryStrategy:
         context,
     ) -> bool:
         p = self.params
+        if p.regime_bypass:
+            return True
         if p.skip_bear_regime and context.regime in BEAR_REGIMES:
             logger.debug(f"{market_data.symbol}: Skip - BEAR regime ({context.regime})")
             return False

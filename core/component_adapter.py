@@ -24,7 +24,7 @@ class ComponentStrategyAdapter:
     """Adapts a StrategyFactory strategy into a Backtester-compatible function.
 
     Supports regime filtering via config:
-    - regime_version: "v1" (default) or "v2" (EnhancedRegimeRouter)
+    - regime_version: "v2" (default, EnhancedRegimeRouter)
     - bbw_block_threshold: BBW percentile below which to block (default 25)
     - bbw_confirm_threshold: BBW percentile requiring confirmation (default 50)
     - volume_block_ratio: Volume ratio below which to block (default 0.8)
@@ -66,7 +66,7 @@ class ComponentStrategyAdapter:
         # Initialize regime filter based on regime_version config
         self._regime_router: Optional[EnhancedRegimeRouter] = None
         self._v2_entry_allowed: bool = True  # Default: allow entry
-        regime_version = config.get('regime_version', 'v1')
+        regime_version = config.get('regime_version', 'v2')
         if regime_version == 'v2':
             self._regime_router = EnhancedRegimeRouter(
                 bbw_block_threshold=config.get('bbw_block_threshold', 25),
@@ -75,6 +75,8 @@ class ComponentStrategyAdapter:
                 volume_block_ratio=config.get('volume_block_ratio', 0.8),
                 volume_boost_ratio=config.get('volume_boost_ratio', 1.2),
                 mtf_enabled=config.get('mtf_enabled', True),
+                bbw_enabled=config.get('bbw_enabled', True),
+                volume_filter_enabled=config.get('volume_filter_enabled', True),
             )
 
         # Stop loss cooldown: prevent rapid re-entry after stop loss
@@ -180,6 +182,9 @@ class ComponentStrategyAdapter:
         self._vol_target: float = vol_cfg.get("target_vol", 0.02)
         self._vol_min_scale: float = vol_cfg.get("min_scale", 0.25)
         self._vol_max_scale: float = vol_cfg.get("max_scale", 1.0)
+
+        # Regime classification thresholds (externalised for optimisation)
+        self._regime_thresholds: Dict[str, float] = dict(config.get("regime_thresholds", {}))
 
     def update_equity(self, equity: float) -> None:
         """Update portfolio equity tracking for drawdown protection.
@@ -385,6 +390,7 @@ class ComponentStrategyAdapter:
             avg_volume=values["avg_volume"],
             recent_high=row.get("high_30d", 0.0) or row.get("prev_high_20", 0.0),
             drawdown_bear_threshold=self._drawdown_bear_threshold,
+            **self._regime_thresholds,
         )
 
         self._v2_entry_allowed = True

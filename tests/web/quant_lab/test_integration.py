@@ -6,7 +6,7 @@ pytest.importorskip("flask")
 
 from flask import Flask
 from web.quant_lab.routes import quant_lab_bp
-from web.quant_lab.optimizer.search_space import SearchSpaceConfig, build_search_space, sample_trial_config
+from web.quant_lab.optimizer.search_space import SearchSpaceConfig, build_search_space, sample_trial_config, REGIMES
 from web.quant_lab.optimizer.study_manager import StudyManager
 from unittest.mock import MagicMock
 import tempfile
@@ -61,9 +61,11 @@ class TestFullWorkflow:
 
         result = sample_trial_config(mock_trial, config)
 
-        # Verify result structure
-        assert len(result) == 7
-        for regime, regime_config in result.items():
+        # Verify result structure: 7 regimes + regime_thresholds
+        assert len(result) == 8
+        assert "regime_thresholds" in result
+        for regime in REGIMES:
+            regime_config = result[regime]
             assert "entry" in regime_config
             assert "exit" in regime_config
             assert "params" in regime_config

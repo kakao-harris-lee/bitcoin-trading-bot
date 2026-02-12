@@ -370,6 +370,8 @@ class EnhancedRegimeRouter:
         volume_block_ratio: float = 0.8,
         volume_boost_ratio: float = 1.2,
         mtf_enabled: bool = True,
+        bbw_enabled: bool = True,
+        volume_filter_enabled: bool = True,
     ):
         """Initialize EnhancedRegimeRouter.
 
@@ -380,6 +382,8 @@ class EnhancedRegimeRouter:
             volume_block_ratio: Volume ratio below which to block
             volume_boost_ratio: Volume ratio above which to boost confidence
             mtf_enabled: Whether to check MTF direction alignment
+            bbw_enabled: Whether to apply BBW filter
+            volume_filter_enabled: Whether to apply volume filter
         """
         self._bbw_filter = BBWFilter(
             block_threshold=bbw_block_threshold,
@@ -392,6 +396,8 @@ class EnhancedRegimeRouter:
         )
         self._mtf_filter = MTFFilter()
         self._mtf_enabled = mtf_enabled
+        self._bbw_enabled = bbw_enabled
+        self._volume_filter_enabled = volume_filter_enabled
         self._mtf_regime: Regime | None = None
         self._last_lower_candle_ts: int | None = None
         self._prev_regime: Regime | None = None
@@ -500,14 +506,14 @@ class EnhancedRegimeRouter:
         if self._mtf_enabled and self._mtf_regime is not None:
             if not self._mtf_filter.is_direction_aligned(candidate, self._mtf_regime):
                 return True
-        if not bbw_boosted and self._bbw_filter.should_block():
+        if self._bbw_enabled and not bbw_boosted and self._bbw_filter.should_block():
             return True
-        if self._volume_filter.should_block(volume_ratio, candidate):
+        if self._volume_filter_enabled and self._volume_filter.should_block(volume_ratio, candidate):
             return True
         return False
 
     def _needs_confirmation(self, candidate: Regime, bbw_boosted: bool) -> bool:
-        return self._bbw_filter.needs_confirmation() and not bbw_boosted
+        return self._bbw_enabled and self._bbw_filter.needs_confirmation() and not bbw_boosted
 
     def _handle_pending_confirmation(self, candidate: Regime) -> Regime:
         if candidate == self._pending_regime:

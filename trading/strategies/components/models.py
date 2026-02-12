@@ -165,6 +165,14 @@ def build_market_context(
     rf_confidence: float = 0.0,  # RF confidence score (0-1)
     rf_direction: str = "SIDEWAYS",  # RF predicted direction
     rf_signal: str = "HOLD",  # RF trading signal
+    # Regime classification thresholds (externalised for optimisation)
+    mfi_bull_strong: float = 54.0,
+    mfi_bull_moderate: float = 54.0,
+    mfi_sideways_up: float = 49.0,
+    mfi_bear_moderate: float = 41.0,
+    mfi_bear_strong: float = 34.0,
+    adx_strong_trend: float = 25.0,
+    adx_moderate_trend: float = 18.0,
 ) -> MarketContext:
     """Build MarketContext from indicators.
 
@@ -204,10 +212,19 @@ def build_market_context(
     Returns:
         MarketContext with trend, regime, volatility, and volume analysis.
     """
+    regime_kwargs = dict(
+        mfi_bull_strong=mfi_bull_strong,
+        mfi_bull_moderate=mfi_bull_moderate,
+        mfi_sideways_up=mfi_sideways_up,
+        mfi_bear_moderate=mfi_bear_moderate,
+        mfi_bear_strong=mfi_bear_strong,
+        adx_strong_trend=adx_strong_trend,
+        adx_moderate_trend=adx_moderate_trend,
+    )
     drawdown = _compute_drawdown(recent_high, close)
     is_drawdown_bear = drawdown >= drawdown_bear_threshold
     trend = _classify_trend(mfi, is_drawdown_bear)
-    regime = _resolve_regime(mfi, adx, is_drawdown_bear)
+    regime = _resolve_regime(mfi, adx, is_drawdown_bear, **regime_kwargs)
     volatility_score, is_extreme_volatility = _compute_volatility(atr, close, volatility_threshold)
     volume_ratio, is_high_volume = _compute_volume(volume, avg_volume, high_volume_threshold)
 
@@ -243,11 +260,12 @@ def _classify_trend(mfi: float, is_drawdown_bear: bool) -> Literal["BULL", "BEAR
     return "NEUTRAL"
 
 
-def _resolve_regime(mfi: float, adx: float, is_drawdown_bear: bool) -> Regime:
-    regime = _classify_regime(mfi, adx)
+def _resolve_regime(mfi: float, adx: float, is_drawdown_bear: bool, **regime_kwargs) -> Regime:
+    regime = _classify_regime(mfi, adx, **regime_kwargs)
     if not is_drawdown_bear or regime in BEAR_REGIMES:
         return regime
-    return "BEAR_STRONG" if adx >= 25 else "BEAR_MODERATE"
+    adx_strong = regime_kwargs.get("adx_strong_trend", 25.0)
+    return "BEAR_STRONG" if adx >= adx_strong else "BEAR_MODERATE"
 
 
 def _compute_volatility(
@@ -350,95 +368,6 @@ def _classify_regime(
         adx_strong_trend,
         adx_moderate_trend,
     )
-
-
-class RegimeSmoother:
-    """Smooths regime transitions to reduce noise.
-
-    Uses persistence filter on REGIME classification (not raw MFI/ADX values).
-    This prevents getting stuck when EMA smoothing prevents threshold crossings.
-
-    The persistence filter requires N consecutive readings of the same regime
-    before confirming a transition. This reduces noisy regime changes while
-    remaining responsive to actual market shifts.
-
-    Usage:
-        smoother = RegimeSmoother(persistence=2)
-        for tick in data:
-            regime = smoother.update(mfi, adx)
-    """
-
-    def __init__(
-        self,
-        ema_alpha: float = 0.3,  # Kept for backward compat, but no longer used
-        persistence: int = 2,    # Require N ticks before confirming regime change
-    ):
-        """Initialize smoother.
-
-        Args:
-            ema_alpha: Deprecated, kept for backward compatibility.
-            persistence: Number of consistent ticks required to confirm change.
-        """
-        self.ema_alpha = ema_alpha  # Kept for API compat but unused
-        self.persistence = persistence
-
-        # State
-        self._confirmed_regime: Regime | None = None
-        self._pending_regime: Regime | None = None
-        self._pending_count: int = 0
-
-    def update(self, mfi: float, adx: float) -> Regime:
-        """Update with new MFI/ADX values and return smoothed regime.
-
-        Classifies using RAW values (no EMA), then applies persistence filter
-        on the regime classification. This prevents getting stuck when EMA
-        smoothing makes threshold crossings too slow.
-
-        Args:
-            mfi: Current MFI value (0-100)
-            adx: Current ADX value
-
-        Returns:
-            Smoothed regime classification
-        """
-        # Classify using RAW values (no EMA smoothing)
-        raw_regime = _classify_regime(mfi, adx)
-
-        # Initialize if first call
-        if self._confirmed_regime is None:
-            self._confirmed_regime = raw_regime
-            return raw_regime
-
-        # Apply persistence filter on regime (not raw values)
-        if raw_regime == self._confirmed_regime:
-            # Same as confirmed, reset pending
-            self._pending_regime = None
-            self._pending_count = 0
-        elif raw_regime == self._pending_regime:
-            # Same as pending, increment count
-            self._pending_count += 1
-            if self._pending_count >= self.persistence:
-                # Confirm the new regime
-                self._confirmed_regime = self._pending_regime
-                self._pending_regime = None
-                self._pending_count = 0
-        else:
-            # New pending regime
-            self._pending_regime = raw_regime
-            self._pending_count = 1
-
-        return self._confirmed_regime
-
-    def reset(self) -> None:
-        """Reset smoother state."""
-        self._confirmed_regime = None
-        self._pending_regime = None
-        self._pending_count = 0
-
-    @property
-    def current_regime(self) -> Regime | None:
-        """Get current confirmed regime."""
-        return self._confirmed_regime
 
 
 @dataclass(frozen=True)

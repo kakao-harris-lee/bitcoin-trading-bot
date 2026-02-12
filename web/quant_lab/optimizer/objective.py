@@ -150,6 +150,9 @@ class RegimeBacktestObjective:
                 logger.warning(f"Failed to create components for {regime}: {e}")
                 regime_strategies[regime] = None
         
+        # Extract regime classification thresholds (if sampled by Optuna)
+        regime_thresholds = config.pop("regime_thresholds", {})
+
         # Create regime-aware strategy function for backtester
         current_position = {"position": None, "regime": None}
         
@@ -173,6 +176,7 @@ class RegimeBacktestObjective:
                 volume=row.get("volume", 0.0),
                 avg_volume=row.get("avg_volume_20", 0.0),
                 recent_high=recent_high,
+                **regime_thresholds,
             )
             current_regime = context.regime
             
@@ -357,6 +361,10 @@ class MLPDirectionObjective:
                      "drawdown_bear_threshold"):
             if key in adapter_params:
                 strategy_config[key] = adapter_params[key]
+
+        # Inject regime classification thresholds (if sampled)
+        if "regime_thresholds" in mlp_config:
+            strategy_config["regime_thresholds"] = mlp_config["regime_thresholds"]
 
         # Build entry/exit overrides from sampled params
         entry_overrides = dict(mlp_config.get("entry", {}))

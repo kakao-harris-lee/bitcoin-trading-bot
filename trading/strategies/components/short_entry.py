@@ -54,6 +54,9 @@ class ShortEntryParams:
     # Optional: use params-based regime classification for entry filters
     use_param_regime: bool = False
 
+    # Bypass all regime checks (for ablation study)
+    regime_bypass: bool = False
+
     # Position sizing
     position_size: float = 0.01
     market: Literal["futures"] = "futures"
@@ -104,30 +107,32 @@ class ShortEntryStrategy:
         symbol = market_data.symbol
         regime = self._resolve_regime(market_data, context)
 
-        if self._is_blocked_by_bullish_regime(regime):
-            logger.debug(
-                f"{symbol}: Skipping short entry - bullish regime ({regime})"
-            )
-            return None
+        if not self.params.regime_bypass:
+            if self._is_blocked_by_bullish_regime(regime):
+                logger.debug(
+                    f"{symbol}: Skipping short entry - bullish regime ({regime})"
+                )
+                return None
 
         legacy_signal = self._try_death_cross_entry(market_data)
         if legacy_signal is not None:
             return legacy_signal
 
-        # === SAFETY FILTER 2: SIDEWAYS requires extreme volatility ===
-        # Only short in SIDEWAYS_FLAT/DOWN if market is volatile
-        if not self._passes_sideways_volatility_gate(regime, context):
-            logger.debug(
-                f"{symbol}: Skipping short entry - SIDEWAYS without "
-                f"extreme volatility ({context.volatility_score*100:.2f}%)"
-            )
-            return None
+        if not self.params.regime_bypass:
+            # === SAFETY FILTER 2: SIDEWAYS requires extreme volatility ===
+            # Only short in SIDEWAYS_FLAT/DOWN if market is volatile
+            if not self._passes_sideways_volatility_gate(regime, context):
+                logger.debug(
+                    f"{symbol}: Skipping short entry - SIDEWAYS without "
+                    f"extreme volatility ({context.volatility_score*100:.2f}%)"
+                )
+                return None
 
-        # === Regime check ===
-        # BEAR_STRONG, BEAR_MODERATE: Always allow
-        # SIDEWAYS_FLAT, SIDEWAYS_DOWN: Only if extreme volatility (checked above)
-        if not self._should_enter(regime, context.is_extreme_volatility):
-            return None
+            # === Regime check ===
+            # BEAR_STRONG, BEAR_MODERATE: Always allow
+            # SIDEWAYS_FLAT, SIDEWAYS_DOWN: Only if extreme volatility (checked above)
+            if not self._should_enter(regime, context.is_extreme_volatility):
+                return None
 
         # Short when RSI is overbought in bear market
         if market_data.rsi > self.params.rsi_overbought:

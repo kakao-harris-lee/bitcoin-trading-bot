@@ -81,7 +81,8 @@ class TestSampleTrialConfig:
         config = SearchSpaceConfig()
         result = sample_trial_config(mock_trial, config)
 
-        assert len(result) == 7
+        assert len(result) == 8  # 7 regimes + regime_thresholds
+        assert "regime_thresholds" in result
         for regime in REGIMES:
             assert regime in result
             assert "entry" in result[regime]

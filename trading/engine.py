@@ -286,9 +286,11 @@ class TradingEngine:
 
         # Create shared TradingContextBuilder for centralized context
         position_manager = PositionManager(self.redis._client)
+        regime_thresholds = self.config.get("defaults", {}).get("regime_thresholds", {})
         context_builder = TradingContextBuilder(
             indicator_service=indicator_service,
             position_manager=position_manager,
+            regime_thresholds=regime_thresholds,
         )
         logger.info("Created shared TradingContextBuilder")
 
@@ -358,7 +360,7 @@ class TradingEngine:
                     use_smart_exit=effective_config.get("use_smart_exit", False),
                     indicator_service=indicator_service,
                     context_builder=context_builder,
-                    regime_version=effective_config.get("regime_version", "v1"),
+                    regime_version=effective_config.get("regime_version", "v2"),
                 )
 
                 self.tasks.append(asyncio.create_task(task.run()))

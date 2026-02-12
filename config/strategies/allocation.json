@@ -22,13 +22,24 @@
       "mfi_bear": 48.0,
       "adx_trend": 20.0
     },
+    "regime_thresholds": {
+      "mfi_bull_strong": 54.0,
+      "mfi_bull_moderate": 54.0,
+      "mfi_sideways_up": 49.0,
+      "mfi_bear_moderate": 41.0,
+      "mfi_bear_strong": 34.0,
+      "adx_strong_trend": 25.0,
+      "adx_moderate_trend": 18.0
+    },
     "regime_v2": {
-      "_comment": "Enhanced regime detection v2 filter defaults",
+      "_comment": "Enhanced regime detection v2 filter defaults (ablation: BBW/Volume filters marginal, disabled for MLP)",
       "bbw_block_threshold": 25,
       "bbw_confirm_threshold": 50,
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": true,
+      "volume_filter_enabled": true,
       "mtf_enabled_by_symbol": {
         "BTC": true,
         "ETH": true,
@@ -51,7 +62,7 @@
   },
   "strategies": {
     "mlp_direction_btc": {
-      "_comment": "BTC - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "_comment": "BTC - Mixed Ensemble (MLP+XGBoost+LightGBM)",
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
@@ -62,20 +73,28 @@
       },
       "ensemble_models": [
         {
-          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "weight": 0.15
         },
         {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-          "weight": 0.3
-        },
-        {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-          "weight": 0.35
-        },
-        {
-          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
+          "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+          "weight": 0.25
         }
       ],
       "symbols": [
@@ -83,7 +102,7 @@
       ],
       "bwin": 5,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
@@ -95,26 +114,36 @@
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": false,
+      "volume_filter_enabled": false,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "ensemble_models": [
             {
-              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
               "weight": 0.15
             },
             {
-              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-              "weight": 0.3
-            },
-            {
-              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-              "weight": 0.35
-            },
-            {
-              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
               "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
+              "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+              "weight": 0.25
             }
           ],
           "buy_confidence_threshold": 0.5,
@@ -137,14 +166,14 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.6,
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
       }
     },
     "mlp_direction_eth": {
-      "_comment": "ETH - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "_comment": "ETH - Mixed Ensemble (MLP+XGBoost+LightGBM)",
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
@@ -155,20 +184,28 @@
       },
       "ensemble_models": [
         {
-          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "weight": 0.15
         },
         {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-          "weight": 0.3
-        },
-        {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-          "weight": 0.35
-        },
-        {
-          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
+          "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+          "weight": 0.25
         }
       ],
       "symbols": [
@@ -176,7 +213,7 @@
       ],
       "bwin": 4,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
@@ -188,26 +225,36 @@
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": false,
+      "volume_filter_enabled": false,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "ensemble_models": [
             {
-              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
               "weight": 0.15
             },
             {
-              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-              "weight": 0.3
-            },
-            {
-              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-              "weight": 0.35
-            },
-            {
-              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
               "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
+              "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+              "weight": 0.25
             }
           ],
           "buy_confidence_threshold": 0.5,
@@ -230,14 +277,14 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.3,
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
       }
     },
     "mlp_direction_sol": {
-      "_comment": "SOL - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "_comment": "SOL - Mixed Ensemble (MLP+XGBoost+LightGBM)",
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
@@ -248,20 +295,28 @@
       },
       "ensemble_models": [
         {
-          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "weight": 0.15
         },
         {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-          "weight": 0.3
-        },
-        {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-          "weight": 0.35
-        },
-        {
-          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
+          "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+          "weight": 0.25
         }
       ],
       "symbols": [
@@ -269,7 +324,7 @@
       ],
       "bwin": 4,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
@@ -281,26 +336,36 @@
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": false,
+      "volume_filter_enabled": false,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "ensemble_models": [
             {
-              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
               "weight": 0.15
             },
             {
-              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-              "weight": 0.3
-            },
-            {
-              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-              "weight": 0.35
-            },
-            {
-              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
               "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
+              "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+              "weight": 0.25
             }
           ],
           "buy_confidence_threshold": 0.3,
@@ -323,14 +388,14 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.6,
-          "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
       }
     },
     "mlp_direction_bnb": {
-      "_comment": "BNB - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "_comment": "BNB - Mixed Ensemble (MLP+XGBoost+LightGBM)",
       "enabled": true,
       "market": "spot",
       "volatility_sizing": {
@@ -341,20 +406,28 @@
       },
       "ensemble_models": [
         {
-          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "weight": 0.15
         },
         {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-          "weight": 0.3
-        },
-        {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-          "weight": 0.35
-        },
-        {
-          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
+          "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+          "weight": 0.25
         }
       ],
       "symbols": [
@@ -362,7 +435,7 @@
       ],
       "bwin": 4,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
@@ -374,26 +447,36 @@
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": false,
+      "volume_filter_enabled": false,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "ensemble_models": [
             {
-              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
               "weight": 0.15
             },
             {
-              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-              "weight": 0.3
-            },
-            {
-              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-              "weight": 0.35
-            },
-            {
-              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
               "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
+              "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+              "weight": 0.25
             }
           ],
           "buy_confidence_threshold": 0.6,
@@ -416,14 +499,14 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.5,
-          "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
       }
     },
     "mlp_direction_xrp": {
-      "_comment": "XRP - Temporal Ensemble (bwin3/4/5/7 soft voting)",
+      "_comment": "XRP - Mixed Ensemble (MLP+XGBoost+LightGBM)",
       "enabled": false,
       "market": "spot",
       "volatility_sizing": {
@@ -434,20 +517,28 @@
       },
       "ensemble_models": [
         {
-          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "weight": 0.15
         },
         {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-          "weight": 0.3
-        },
-        {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-          "weight": 0.35
-        },
-        {
-          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
+          "weight": 0.1
+        },
+        {
+          "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
+          "weight": 0.2
+        },
+        {
+          "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+          "weight": 0.25
         }
       ],
       "symbols": [
@@ -455,7 +546,7 @@
       ],
       "bwin": 4,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
@@ -467,26 +558,36 @@
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": false,
+      "volume_filter_enabled": false,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "ensemble_models": [
             {
-              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
               "weight": 0.15
             },
             {
-              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
-              "weight": 0.3
-            },
-            {
-              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-              "weight": 0.35
-            },
-            {
-              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
               "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
+              "weight": 0.1
+            },
+            {
+              "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
+              "weight": 0.2
+            },
+            {
+              "model_path": "models/mlp_direction/lgb_bwin7_fwin3/model.txt",
+              "weight": 0.25
             }
           ],
           "buy_confidence_threshold": 0.0,
@@ -509,7 +610,7 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.0,
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }

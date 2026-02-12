@@ -13,6 +13,7 @@ from .optimizer.study_manager import StudyManager
 from .optimizer.search_space import (
     REGIMES, ENTRY_COMPONENTS, EXIT_COMPONENTS, COMPONENT_PARAMS,
     MLP_ENTRY_PARAMS, MLP_EXIT_PARAMS, MLP_ENSEMBLE_PARAMS, MLP_ADAPTER_PARAMS,
+    REGIME_THRESHOLD_PARAMS,
 )
 
 quant_lab_bp = Blueprint(
@@ -572,6 +573,14 @@ def _transform_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[st
 
             config['regime_routing'][regime] = regime_config
 
+    # Extract regime classification thresholds (regime_mfi_bull_strong → mfi_bull_strong)
+    regime_thresholds = {}
+    for key, value in params.items():
+        if key.startswith('regime_') and key[len('regime_'):] in REGIME_THRESHOLD_PARAMS:
+            regime_thresholds[key[len('regime_'):]] = value
+    if regime_thresholds:
+        config['regime_thresholds'] = regime_thresholds
+
     return config
 
 
@@ -599,6 +608,7 @@ def _transform_mlp_trial_to_config(params: Dict[str, Any], values: tuple) -> Dic
         'adapter_params': {},
     }
 
+    regime_thresholds = {}
     for key, value in params.items():
         if key.startswith('entry_'):
             config['entry_params'][key[len('entry_'):]] = value
@@ -608,6 +618,11 @@ def _transform_mlp_trial_to_config(params: Dict[str, Any], values: tuple) -> Dic
             config['ensemble_weights'][key[len('ensemble_'):]] = value
         elif key.startswith('adapter_'):
             config['adapter_params'][key[len('adapter_'):]] = value
+        elif key.startswith('regime_') and key[len('regime_'):] in REGIME_THRESHOLD_PARAMS:
+            regime_thresholds[key[len('regime_'):]] = value
+
+    if regime_thresholds:
+        config['regime_thresholds'] = regime_thresholds
 
     return config
 

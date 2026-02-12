@@ -1,10 +1,13 @@
-"""MLP Ensemble Predictor — Soft-voting across multiple temporal-scale models.
+"""Heterogeneous Ensemble Predictor — Soft-voting across MLP + tree models.
 
-Loads multiple MLP models (trained with different bwin/fwin label windows)
-and averages their probability outputs for more robust predictions.
+Loads multiple models (MLP, XGBoost, LightGBM) trained with different
+bwin/fwin label windows and/or architectures, then averages their
+probability outputs for more robust predictions.
 
-All models share the same feature set (paper_36); they differ only in what
-temporal patterns they learned through different labeling windows.
+Model type is auto-detected from file extension:
+    - .pt → MLP (MLPDirectionClassifier)
+    - .json → XGBoost (via TreeModelWrapper)
+    - .txt → LightGBM (via TreeModelWrapper)
 """
 
 from __future__ import annotations
@@ -47,8 +50,16 @@ class MLPEnsemblePredictor:
         self._loaded = False
         self._available = False
 
+    # File extensions that indicate tree-based models
+    _TREE_EXTENSIONS = {".json", ".txt"}
+
     def load(self, device: str = "cpu") -> bool:
         """Lazy-load all ensemble models.
+
+        Auto-detects model type from file extension:
+            - .pt → MLP (MLPDirectionClassifier)
+            - .json → XGBoost (TreeModelWrapper)
+            - .txt → LightGBM (TreeModelWrapper)
 
         Returns:
             True if at least one model loaded successfully.
@@ -58,11 +69,8 @@ class MLPEnsemblePredictor:
 
         self._loaded = True
 
-        try:
-            from mlp_trainer.src.mlp_model import MLPDirectionClassifier
-        except ImportError:
-            logger.error("MLPEnsemble: mlp_trainer not available")
-            return False
+        mlp_cls = None
+        tree_cls = None
 
         for cfg in self._configs:
             model_path = Path(cfg["model_path"])
@@ -73,14 +81,32 @@ class MLPEnsemblePredictor:
                 continue
 
             try:
-                model = MLPDirectionClassifier.load(
-                    str(model_path), device=device, validate_path=True,
-                )
+                if model_path.suffix.lower() in self._TREE_EXTENSIONS:
+                    # Tree model (XGBoost / LightGBM)
+                    if tree_cls is None:
+                        from .tree_model_wrapper import TreeModelWrapper
+                        tree_cls = TreeModelWrapper
+                    model = tree_cls.load(str(model_path))
+                    model_label = f"{model_path.parent.name}/{model_path.name}"
+                else:
+                    # MLP model (.pt)
+                    if mlp_cls is None:
+                        try:
+                            from mlp_trainer.src.mlp_model import MLPDirectionClassifier
+                            mlp_cls = MLPDirectionClassifier
+                        except ImportError:
+                            logger.error("MLPEnsemble: mlp_trainer not available")
+                            continue
+                    model = mlp_cls.load(
+                        str(model_path), device=device, validate_path=True,
+                    )
+                    model_label = model_path.parent.name
+
                 model.eval()
                 self._models.append(model)
                 self._weights.append(weight)
                 logger.info(
-                    f"MLPEnsemble: Loaded {model_path.parent.name} "
+                    f"MLPEnsemble: Loaded {model_label} "
                     f"(weight={weight:.2f})"
                 )
             except Exception as e:
@@ -106,6 +132,25 @@ class MLPEnsemblePredictor:
     def num_models(self) -> int:
         return len(self._models)
 
+    @staticmethod
+    def _to_numpy(probs) -> np.ndarray:
+        """Convert model output (torch Tensor or ndarray) to numpy."""
+        if hasattr(probs, "cpu"):
+            return probs.detach().cpu().numpy()
+        return np.asarray(probs)
+
+    def _prepare_input(self, features: np.ndarray):
+        """Prepare input suitable for both MLP (torch) and tree (numpy) models.
+
+        MLP models need torch Tensor; TreeModelWrapper handles both torch/numpy
+        internally. Using torch as the common input format works for all.
+        """
+        import torch
+        x = torch.FloatTensor(np.asarray(features, dtype=np.float32))
+        if x.ndim == 1:
+            x = x.unsqueeze(0)
+        return x
+
     def predict(self, features: np.ndarray) -> tuple[int, float, np.ndarray]:
         """Make ensemble prediction via weighted soft voting.
 
@@ -117,14 +162,14 @@ class MLPEnsemblePredictor:
         """
         import torch
 
-        x = torch.FloatTensor(features).unsqueeze(0)
+        x = self._prepare_input(features)
         weighted_probs = np.zeros(3)
         total_weight = 0.0
 
         for model, weight in zip(self._models, self._weights):
             try:
                 with torch.no_grad():
-                    probs = model.predict_proba(x).cpu().numpy()[0]
+                    probs = self._to_numpy(model.predict_proba(x))[0]
                 weighted_probs += weight * probs
                 total_weight += weight
             except Exception as e:
@@ -151,14 +196,14 @@ class MLPEnsemblePredictor:
         import torch
 
         N = features.shape[0]
-        x = torch.FloatTensor(features)
+        x = self._prepare_input(features)
         weighted_probs = np.zeros((N, 3))
         total_weight = 0.0
 
         for model, weight in zip(self._models, self._weights):
             try:
                 with torch.no_grad():
-                    probs = model.predict_proba(x).cpu().numpy()
+                    probs = self._to_numpy(model.predict_proba(x))
                 weighted_probs += weight * probs
                 total_weight += weight
             except Exception as e:

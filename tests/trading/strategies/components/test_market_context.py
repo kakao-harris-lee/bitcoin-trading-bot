@@ -543,6 +543,124 @@ class TestRegimeTypeAndCaching:
         assert info.hits >= 1
 
 
+class TestRegimeThresholdExternalization:
+    """Test that custom regime thresholds change classification."""
+
+    def test_custom_mfi_bull_strong_raises_bar(self):
+        """Higher mfi_bull_strong should make BULL_STRONG harder to reach."""
+        # Default: MFI=55 + ADX=26 → BULL_STRONG
+        ctx_default = build_market_context(mfi=55.0, adx=26.0, atr=100, close=10000)
+        assert ctx_default.regime == "BULL_STRONG"
+
+        # Custom: raise threshold to 58 → same MFI now only reaches BULL_MODERATE
+        ctx_custom = build_market_context(
+            mfi=55.0, adx=26.0, atr=100, close=10000,
+            mfi_bull_strong=58.0, mfi_bull_moderate=58.0,
+        )
+        assert ctx_custom.regime == "SIDEWAYS_UP"
+
+    def test_custom_mfi_bull_strong_lowers_bar(self):
+        """Lower mfi_bull_strong should make BULL_STRONG easier to reach."""
+        # Default: MFI=52 + ADX=26 → SIDEWAYS_UP (52 < 54)
+        ctx_default = build_market_context(mfi=52.0, adx=26.0, atr=100, close=10000)
+        assert ctx_default.regime == "SIDEWAYS_UP"
+
+        # Custom: lower threshold to 50 → now qualifies as BULL_STRONG
+        ctx_custom = build_market_context(
+            mfi=52.0, adx=26.0, atr=100, close=10000,
+            mfi_bull_strong=50.0, mfi_bull_moderate=50.0,
+        )
+        assert ctx_custom.regime == "BULL_STRONG"
+
+    def test_custom_adx_strong_trend_threshold(self):
+        """Custom ADX threshold changes trend strength classification."""
+        # Default: ADX=22 is NOT strong (< 25) → BULL_MODERATE
+        ctx_default = build_market_context(mfi=55.0, adx=22.0, atr=100, close=10000)
+        assert ctx_default.regime == "BULL_MODERATE"
+
+        # Custom: lower ADX threshold to 20 → now strong trend → BULL_STRONG
+        ctx_custom = build_market_context(
+            mfi=55.0, adx=22.0, atr=100, close=10000,
+            adx_strong_trend=20.0,
+        )
+        assert ctx_custom.regime == "BULL_STRONG"
+
+    def test_custom_mfi_bear_strong_threshold(self):
+        """Custom MFI bear threshold changes bear/sideways boundary."""
+        # Default: MFI=36 → SIDEWAYS_DOWN (>= 34)
+        ctx_default = build_market_context(mfi=36.0, adx=15.0, atr=100, close=10000)
+        assert ctx_default.regime == "SIDEWAYS_DOWN"
+
+        # Custom: raise bear_strong to 38 → MFI=36 now below threshold → BEAR_MODERATE
+        ctx_custom = build_market_context(
+            mfi=36.0, adx=15.0, atr=100, close=10000,
+            mfi_bear_strong=38.0,
+        )
+        assert ctx_custom.regime == "BEAR_MODERATE"
+
+    def test_custom_sideways_up_threshold(self):
+        """Custom sideways_up threshold changes sideways boundaries."""
+        # Default: MFI=50 → SIDEWAYS_UP (>= 49)
+        ctx_default = build_market_context(mfi=50.0, adx=15.0, atr=100, close=10000)
+        assert ctx_default.regime == "SIDEWAYS_UP"
+
+        # Custom: raise sideways_up to 52 → MFI=50 now SIDEWAYS_FLAT
+        ctx_custom = build_market_context(
+            mfi=50.0, adx=15.0, atr=100, close=10000,
+            mfi_sideways_up=52.0,
+        )
+        assert ctx_custom.regime == "SIDEWAYS_FLAT"
+
+    def test_default_thresholds_match_hardcoded(self):
+        """Passing default threshold values explicitly gives same result as no args."""
+        for mfi in [30.0, 38.0, 45.0, 50.0, 55.0]:
+            for adx in [15.0, 20.0, 26.0]:
+                ctx_implicit = build_market_context(mfi=mfi, adx=adx, atr=100, close=10000)
+                ctx_explicit = build_market_context(
+                    mfi=mfi, adx=adx, atr=100, close=10000,
+                    mfi_bull_strong=54.0,
+                    mfi_bull_moderate=54.0,
+                    mfi_sideways_up=49.0,
+                    mfi_bear_moderate=41.0,
+                    mfi_bear_strong=34.0,
+                    adx_strong_trend=25.0,
+                    adx_moderate_trend=18.0,
+                )
+                assert ctx_implicit.regime == ctx_explicit.regime, (
+                    f"Mismatch at MFI={mfi}, ADX={adx}: "
+                    f"{ctx_implicit.regime} != {ctx_explicit.regime}"
+                )
+
+    def test_drawdown_bear_override_uses_custom_adx(self):
+        """Drawdown BEAR override should use custom adx_strong_trend threshold."""
+        # Drawdown BEAR with ADX=22: default ADX threshold=25 → BEAR_MODERATE
+        ctx_default = build_market_context(
+            mfi=55.0, adx=22.0, atr=100, close=8500,
+            recent_high=10000, drawdown_bear_threshold=0.10,
+        )
+        assert ctx_default.is_drawdown_bear
+        assert ctx_default.regime == "BEAR_MODERATE"
+
+        # Custom: lower ADX threshold to 20 → ADX=22 now strong → BEAR_STRONG
+        ctx_custom = build_market_context(
+            mfi=55.0, adx=22.0, atr=100, close=8500,
+            recent_high=10000, drawdown_bear_threshold=0.10,
+            adx_strong_trend=20.0,
+        )
+        assert ctx_custom.is_drawdown_bear
+        assert ctx_custom.regime == "BEAR_STRONG"
+
+    def test_partial_threshold_override(self):
+        """Passing only some thresholds uses defaults for the rest."""
+        # Only override mfi_bull_strong, rest should use defaults
+        ctx = build_market_context(
+            mfi=55.0, adx=26.0, atr=100, close=10000,
+            mfi_bull_strong=60.0,  # Raised — MFI=55 won't qualify
+        )
+        # mfi_bull_moderate default is 54.0, ADX=26 >= adx_moderate_trend=18 → BULL_MODERATE
+        assert ctx.regime == "BULL_MODERATE"
+
+
 class TestMarketContextImmutability:
     """Test that MarketContext is immutable."""
 

@@ -93,9 +93,8 @@ data/mlp_datasets/mlp_dataset_bwin7_fwin3.npz
 data/mlp_datasets/mlp_dataset_v2_*.npz
 data/mlp_datasets/validation_v2_*.npz
 
-# Generated model outputs (local)
-models/mlp_direction/c9/
-models/mlp_direction/**/model_best.pt
+# Model artifacts (regenerate locally)
+models/mlp_direction/
 
 # Generated per-symbol parquet additions (local)
 data/multi_asset_4h/train/*.parquet

@@ -35,6 +35,9 @@ class SidewaysEntryParams:
     position_size: float = 0.01
     market: Literal["futures"] = "futures"
 
+    # Bypass all regime checks (for ablation study)
+    regime_bypass: bool = False
+
 
 @entry_strategy(params_class=SidewaysEntryParams)
 class SidewaysEntryStrategy:
@@ -88,7 +91,7 @@ class SidewaysEntryStrategy:
         # === SAFETY FILTER 2: Non-SIDEWAYS regime ===
         # Only trade mean reversion in range-bound markets
         regime = context.regime
-        if not self._should_enter(regime):
+        if not self.params.regime_bypass and not self._should_enter(regime):
             logger.debug(
                 f"{market_data.symbol}: Skipping sideways entry - not SIDEWAYS regime "
                 f"({regime})"

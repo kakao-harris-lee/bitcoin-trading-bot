@@ -464,16 +464,30 @@ class Backtester:
         strategy_func.update_equity(current_equity)
 
     def _execute_action(self, action: str, timestamp: Any, price: float, fraction: float) -> None:
-        """Execute buy/sell action for the current candle."""
+        """Execute buy/sell/short action for the current candle."""
         if action == 'buy':
             self._execute_buy(timestamp, price, fraction)
             return
         if action == 'sell':
             self._execute_sell(timestamp, price, fraction)
+            return
+        if action == 'open_short':
+            self._execute_open_short(timestamp, price, fraction)
+            return
+        if action == 'close_short':
+            self._execute_close_short(timestamp, price, fraction)
 
     def _record_equity_snapshot(self, timestamp: Any, price: float) -> float:
         """Update position value and append equity curve snapshot."""
-        self.position_value = self.position * price if self.position > 0 else 0.0
+        if self.position > 0:
+            # Long: position value is qty * price
+            self.position_value = self.position * price
+        elif self.position < 0:
+            # Short: unrealized PnL = (entry_price - current_price) * abs(qty)
+            # Cash already includes collateral; position_value is the unrealized PnL
+            self.position_value = self.position * price  # negative qty * price = negative
+        else:
+            self.position_value = 0.0
         total_equity = self.cash + self.position_value
         self.equity_curve.append({
             'timestamp': timestamp,
@@ -529,19 +543,23 @@ class Backtester:
         return peak_equity, drawdown, drawdown_pct
 
     def _current_position_snapshot(self) -> tuple[str, float]:
-        if self.position <= 0:
+        if self.position == 0:
             return "none", 0.0
         if not self.trades:
-            return "long", 0.0
+            return ("long" if self.position > 0 else "short"), 0.0
         last_trade = self.trades[-1]
         if last_trade.exit_time is None:
-            return "long", last_trade.entry_price
-        return "long", 0.0
+            side = "long" if self.position > 0 else "short"
+            return side, last_trade.entry_price
+        return "none", 0.0
 
     def _compute_unrealized_pnl(self, price: float, entry_price: float) -> float:
-        if self.position <= 0 or entry_price <= 0:
+        if self.position == 0 or entry_price <= 0:
             return 0.0
-        return (price - entry_price) * self.position
+        if self.position > 0:
+            return (price - entry_price) * self.position
+        # Short: profit when price drops
+        return (entry_price - price) * abs(self.position)
 
     def _compute_cumulative_pnl(self) -> float:
         return sum(t.profit_loss for t in self.trades if t.profit_loss is not None)
@@ -798,6 +816,76 @@ class Backtester:
                 trade.profit_loss = (execution_price - trade.entry_price) * trade.quantity
                 trade.profit_loss_pct = ((execution_price - trade.entry_price) / trade.entry_price) * 100
                 trade.reason += f' -> Sell {fraction*100:.1f}%'
+                break
+
+    def _execute_open_short(self, timestamp: datetime, price: float, fraction: float):
+        """Open a short position (futures margin model).
+
+        Margin model: selling borrowed asset.
+        cash += proceeds from short sale (qty * price)
+        position = -qty (we owe shares)
+        equity = cash + position * price (stays ~constant at open, moves with price)
+        When price drops: position * price becomes less negative → equity rises (profit).
+        """
+        if self.position != 0:
+            return  # Already in a position
+
+        available_cash = self.cash * fraction
+
+        if available_cash < self.min_order_amount:
+            return
+
+        # Slippage: unfavorable for shorts (we sell lower)
+        execution_price = price * (1 - self.slippage)
+
+        # Quantity we can short with available margin (leverage applied)
+        effective_cash = available_cash * self.leverage
+        quantity = effective_cash / (execution_price * (1 + self.fee_rate))
+
+        # Receive proceeds from short sale, minus fee
+        proceeds = quantity * execution_price * (1 - self.fee_rate)
+        self.cash += proceeds
+
+        # Track negative position
+        self.position = -quantity
+
+        trade = Trade(
+            entry_time=timestamp,
+            entry_price=execution_price,
+            quantity=quantity,
+            side='short',
+            reason=f'Short {fraction*100:.1f}% (leverage={self.leverage}x)',
+        )
+        self.trades.append(trade)
+
+    def _execute_close_short(self, timestamp: datetime, price: float, fraction: float):
+        """Close (cover) a short position."""
+        if self.position >= 0:
+            return  # No short position
+
+        quantity = abs(self.position) * fraction
+
+        # Slippage: unfavorable for covering (price rises)
+        execution_price = price * (1 + self.slippage)
+
+        # Cost to buy back + fees
+        cover_cost = quantity * execution_price * (1 + self.fee_rate)
+
+        if cover_cost < self.min_order_amount:
+            return
+
+        self.cash -= cover_cost
+        self.position += quantity  # Moves toward 0
+
+        # Match the open short trade (FIFO)
+        for trade in self.trades:
+            if trade.side == 'short' and trade.exit_time is None:
+                trade.exit_time = timestamp
+                trade.exit_price = execution_price
+                # Short profit: (entry - exit) * qty
+                trade.profit_loss = (trade.entry_price - execution_price) * trade.quantity
+                trade.profit_loss_pct = ((trade.entry_price - execution_price) / trade.entry_price) * 100
+                trade.reason += f' -> Cover {fraction*100:.1f}%'
                 break
 
     def _generate_results(self) -> Dict:

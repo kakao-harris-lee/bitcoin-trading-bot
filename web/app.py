@@ -340,6 +340,61 @@ def get_latest_prices() -> dict:
         return {}
 
 
+
+def _normalize_symbol(symbol: str) -> str:
+    """
+    Normalize symbol to base asset format (e.g., BTCUSDT -> BTC).
+    """
+    if not symbol:
+        return ""
+
+    normalized = str(symbol).strip().upper()
+    if "/" in normalized:
+        normalized = normalized.split("/", 1)[0]
+    if ":" in normalized:
+        normalized = normalized.split(":", 1)[0]
+
+    for suffix in ("USDT", "BUSD", "USDC", "USD"):
+        if normalized.endswith(suffix) and len(normalized) > len(suffix):
+            return normalized[:-len(suffix)]
+    return normalized
+
+
+def _read_latest_regime_status(r: redis.Redis, limit: int = 300) -> dict:
+    """
+    Read latest per-symbol regime/trend from strategy decisions stream.
+    """
+    regime_status = {}
+
+    try:
+        messages = r.xrevrange('strategy:decisions', count=limit)
+    except Exception as e:
+        print(f"Error reading regime status from Redis: {e}")
+        return regime_status
+
+    for msg_id, data in messages:
+        raw_symbol = data.get('symbol', '')
+        symbol = _normalize_symbol(raw_symbol)
+        if not symbol or symbol in regime_status:
+            continue
+
+        ts_raw = data.get('timestamp', msg_id.split('-')[0])
+        try:
+            ts_ms = int(float(ts_raw))
+            ts_iso = datetime.fromtimestamp(ts_ms / 1000).isoformat()
+        except (TypeError, ValueError):
+            ts_iso = str(ts_raw)
+
+        regime_status[symbol] = {
+            'symbol': symbol,
+            'regime': data.get('regime', 'UNKNOWN'),
+            'trend': data.get('trend', 'UNKNOWN'),
+            'decision': data.get('decision', data.get('action', 'WAIT')),
+            'timestamp': ts_iso,
+        }
+
+    return regime_status
+
 def read_redis_orders(limit: int = 200) -> list:
     """
     Read order intents/signals from Redis 'orders' stream.
@@ -492,16 +547,25 @@ def get_status():
 
     # Get current prices from Redis market:prices stream
     prices = {}
+    regime_status = {}
     try:
         r = get_redis()
         # Read most recent prices from stream
         price_msgs = r.xrevrange('market:prices', count=100)
         seen_symbols = set()
         for msg_id, data in price_msgs:
-            symbol = data.get('symbol', '')
+            symbol = str(data.get('symbol', '')).strip().upper()
             if symbol and symbol not in seen_symbols:
-                prices[symbol] = float(data.get('price', 0))
+                price = float(data.get('price', 0))
+                if price > 0:
+                    prices[symbol] = price
+                    base_symbol = _normalize_symbol(symbol)
+                    if base_symbol:
+                        prices[base_symbol] = price
                 seen_symbols.add(symbol)
+
+        # Read latest regime by symbol from decisions stream
+        regime_status = _read_latest_regime_status(r)
     except Exception as e:
         print(f"Error reading prices from Redis: {e}")
 
@@ -523,9 +587,10 @@ def get_status():
                 # Build per-asset response
                 assets = {}
                 for pos in binance_data.get('positions', []):
-                    symbol = pos.get('asset', 'BTC')
+                    symbol = _normalize_symbol(pos.get('asset', 'BTC'))
                     market = pos.get('market', 'futures')
                     key = f"{symbol}_{market}"
+                    regime_info = regime_status.get(symbol, {})
                     assets[key] = {
                         'symbol': symbol,
                         'exchange': 'binance',
@@ -539,22 +604,34 @@ def get_status():
                         'entry_price': pos.get('entry_price', 0),
                         'unrealized_pnl': pos.get('unrealized_pnl', 0),
                         'unrealized_pnl_pct': pos.get('unrealized_pnl_pct', 0),
+                        'regime': regime_info.get('regime', 'UNKNOWN'),
+                        'trend': regime_info.get('trend', 'UNKNOWN'),
+                        'regime_updated_at': regime_info.get('timestamp', ''),
                     }
 
                 # If no positions, show symbols with no position (one per symbol)
                 if not assets:
-                    for symbol in ['BTC', 'ETH', 'SOL']:
+                    fallback_symbols = ['BTC', 'ETH', 'SOL']
+                    for sym in regime_status.keys():
+                        if sym not in fallback_symbols:
+                            fallback_symbols.append(sym)
+
+                    for symbol in fallback_symbols:
                         key = f"{symbol}_futures"
+                        regime_info = regime_status.get(symbol, {})
                         assets[key] = {
                             'symbol': symbol,
                             'exchange': 'binance',
                             'market': 'futures',
                             'enabled': True,
-                            'price': prices.get(f'{symbol}USDT', 0),
+                            'price': prices.get(symbol, prices.get(f'{symbol}USDT', 0)),
                             'position_active': False,
                             'position_qty': 0,
                             'direction': 'long',
                             'strategy': 'None',
+                            'regime': regime_info.get('regime', 'UNKNOWN'),
+                            'trend': regime_info.get('trend', 'UNKNOWN'),
+                            'regime_updated_at': regime_info.get('timestamp', ''),
                         }
 
                 status = {
@@ -568,6 +645,7 @@ def get_status():
                     'kill_switch': _parse_kill_switch_value(risk.get('kill_switch', 'false')),
                     'daily_pnl': binance_data.get('daily_pnl', 0),
                     'prices': prices,
+                    'regime_status': regime_status,
                     'risk': risk,
                 }
                 return jsonify(status)
@@ -586,6 +664,7 @@ def get_status():
             'assets': ma_status.get('assets', {}),
             'portfolio': ma_status.get('portfolio', {}),
             'prices': prices,
+            'regime_status': regime_status,
             'risk': risk,
         })
 
@@ -596,6 +675,7 @@ def get_status():
         'engine_status': 'stopped' if not prices else 'running',
         'trading_mode': risk.get('mode', 'paper'),
         'prices': prices,
+        'regime_status': regime_status,
         'risk': risk,
     })
 

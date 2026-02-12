@@ -283,6 +283,88 @@ function getRegimeLabel(regime) {
     return regime.substring(0, 4).toUpperCase();
 }
 
+// Normalize symbol to base asset format (e.g., BTCUSDT -> BTC)
+function normalizeSymbol(symbol) {
+    if (!symbol) return '';
+    let normalized = String(symbol).trim().toUpperCase();
+
+    if (normalized.includes('/')) {
+        normalized = normalized.split('/')[0];
+    }
+    if (normalized.includes(':')) {
+        normalized = normalized.split(':')[0];
+    }
+
+    for (const suffix of ['USDT', 'BUSD', 'USDC', 'USD']) {
+        if (normalized.endsWith(suffix) && normalized.length > suffix.length) {
+            return normalized.slice(0, -suffix.length);
+        }
+    }
+
+    return normalized;
+}
+
+// Merge assets, prices, and regime status for consistent market snapshot cards.
+function buildAssetCardsData(statusData) {
+    const assets = statusData.assets || {};
+    const prices = statusData.prices || {};
+    const regimeStatus = statusData.regime_status || {};
+    const cards = {};
+
+    for (const [key, asset] of Object.entries(assets)) {
+        const symbol = normalizeSymbol(asset.symbol || key);
+        if (!symbol) continue;
+
+        const regimeInfo = regimeStatus[symbol] || {};
+        const fallbackPrice = prices[symbol] ?? prices[`${symbol}USDT`] ?? 0;
+
+        cards[key] = {
+            ...asset,
+            symbol,
+            exchange: asset.exchange || 'binance',
+            price: Number(asset.price || fallbackPrice || 0),
+            regime: asset.regime || regimeInfo.regime || 'UNKNOWN',
+            trend: asset.trend || regimeInfo.trend || 'UNKNOWN',
+            regime_updated_at: asset.regime_updated_at || regimeInfo.timestamp || '',
+        };
+    }
+
+    if (Object.keys(cards).length > 0) {
+        return cards;
+    }
+
+    const snapshotSymbols = new Set();
+    for (const key of Object.keys(prices)) {
+        const symbol = normalizeSymbol(key);
+        if (symbol) snapshotSymbols.add(symbol);
+    }
+    for (const key of Object.keys(regimeStatus)) {
+        const symbol = normalizeSymbol(key);
+        if (symbol) snapshotSymbols.add(symbol);
+    }
+
+    const orderedSymbols = Array.from(snapshotSymbols).sort();
+    for (const symbol of orderedSymbols) {
+        const regimeInfo = regimeStatus[symbol] || {};
+        cards[`${symbol}_snapshot`] = {
+            symbol,
+            exchange: 'binance',
+            market: 'snapshot',
+            enabled: true,
+            price: Number(prices[symbol] ?? prices[`${symbol}USDT`] ?? 0),
+            position_active: false,
+            position_qty: 0,
+            direction: 'long',
+            strategy: '-',
+            regime: regimeInfo.regime || 'UNKNOWN',
+            trend: regimeInfo.trend || 'UNKNOWN',
+            regime_updated_at: regimeInfo.timestamp || '',
+        };
+    }
+
+    return cards;
+}
+
 // Update price history for sparklines
 function updatePriceHistory(symbol, price) {
     if (!price || price <= 0) return;
@@ -421,12 +503,14 @@ function renderAssetCards(assets) {
 
     let html = '';
     for (const [key, data] of Object.entries(assets)) {
-        const regimeClass = getRegimeClass(data.regime);
-        const regimeLabel = getRegimeLabel(data.regime);
-        const exchangeClass = `exchange-${data.exchange}`;
+        const symbol = normalizeSymbol(data.symbol || key);
+        const regimeClass = getRegimeClass(data.regime) || 'regime-unknown';
+        const regimeLabel = getRegimeLabel(data.regime || 'UNKNOWN');
+        const exchange = (data.exchange || 'binance').toLowerCase();
+        const exchangeClass = `exchange-${exchange}`;
 
         // Update price history for sparkline
-        updatePriceHistory(data.symbol, data.price);
+        updatePriceHistory(symbol, data.price);
 
         // Position status and entry price tracking
         let positionStatus = 'None';
@@ -436,11 +520,11 @@ function renderAssetCards(assets) {
             positionStatus = data.direction === 'short' ? 'SHORT' : 'LONG';
             // Store entry price for sparkline indicator
             if (data.entry_price && data.entry_price > 0) {
-                entryPrices[data.symbol] = data.entry_price;
+                entryPrices[symbol] = data.entry_price;
             }
         } else {
             // Clear entry price when no position
-            delete entryPrices[data.symbol];
+            delete entryPrices[symbol];
         }
 
         // Get active strategy from strategies config
@@ -460,7 +544,7 @@ function renderAssetCards(assets) {
 
         // Calculate price change percentage if we have history
         let priceChange = '';
-        const history = priceHistory[data.symbol];
+        const history = priceHistory[symbol];
         if (history && history.length >= 2) {
             const firstPrice = history[0];
             const lastPrice = history[history.length - 1];
@@ -470,13 +554,14 @@ function renderAssetCards(assets) {
         }
 
         // Sparkline canvas ID
-        const sparklineId = `sparkline-${data.symbol.toLowerCase()}`;
+        const sparklineId = `sparkline-${symbol.toLowerCase()}`;
 
         html += `
             <div class="asset-card ${regimeClass} ${positionClass} ${exchangeClass}">
                 <div class="asset-header">
-                    <span class="asset-symbol">${data.symbol}</span>
-                    <span class="asset-exchange">${data.exchange.toUpperCase()}</span>
+                    <span class="asset-symbol">${escapeHtml(symbol)}</span>
+                    <span class="asset-exchange">${escapeHtml(exchange.toUpperCase())}</span>
+                    <span class="asset-regime ${regimeClass}">${escapeHtml(regimeLabel)}</span>
                 </div>
                 <div class="asset-chart">
                     <canvas id="${sparklineId}"></canvas>
@@ -493,6 +578,10 @@ function renderAssetCards(assets) {
                 </div>
                 <div class="asset-position">
                     <div class="info-row">
+                        <span class="label">Regime</span>
+                        <span class="value"><span class="regime-badge ${regimeClass}">${escapeHtml(data.regime || 'UNKNOWN')}</span></span>
+                    </div>
+                    <div class="info-row">
                         <span class="label">Strategy</span>
                         <span class="value">${escapeHtml(activeStrategy)}</span>
                     </div>
@@ -500,10 +589,16 @@ function renderAssetCards(assets) {
                         <span class="label">Position</span>
                         <span class="value ${positionClass} ${directionClass}">${positionStatus}</span>
                     </div>
+                    ${data.regime_updated_at ? `
+                    <div class="info-row">
+                        <span class="label">Regime At</span>
+                        <span class="value">${formatDateTime(data.regime_updated_at)}</span>
+                    </div>
+                    ` : ''}
                     ${data.position_active ? `
                     <div class="info-row">
                         <span class="label">Qty</span>
-                        <span class="value">${data.position_qty.toFixed(6)}</span>
+                        <span class="value">${Number(data.position_qty || 0).toFixed(6)}</span>
                     </div>
                     <div class="info-row">
                         <span class="label">Entry</span>
@@ -558,8 +653,9 @@ function updateStatus(data) {
     // Update portfolio
     updatePortfolio(data.portfolio);
 
-    // Render asset cards
-    renderAssetCards(data.assets);
+    // Render market snapshot cards using merged assets/prices/regime status
+    const assetCardsData = buildAssetCardsData(data);
+    renderAssetCards(assetCardsData);
 }
 
 // Update kill switch status

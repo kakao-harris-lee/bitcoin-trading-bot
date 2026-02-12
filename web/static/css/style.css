@@ -769,6 +769,12 @@ section h2 {
     background: rgba(210, 153, 34, 0.1);
 }
 
+.asset-regime.regime-unknown {
+    color: var(--text-secondary);
+    border: 1px solid rgba(139, 148, 158, 0.35);
+    background: rgba(139, 148, 158, 0.1);
+}
+
 /* Sparkline Chart Container */
 .asset-chart {
     width: 100%;

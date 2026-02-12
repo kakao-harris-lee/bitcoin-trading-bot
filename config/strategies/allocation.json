@@ -64,19 +64,19 @@
       },
       "ensemble_models": [
         {
-          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "weight": 0.1
         },
         {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "weight": 0.15
         },
         {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "weight": 0.2
         },
         {
-          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
           "weight": 0.1
         },
         {
@@ -93,7 +93,7 @@
       ],
       "bwin": 5,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
@@ -110,22 +110,22 @@
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "ensemble_models": [
             {
-              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
               "weight": 0.1
             },
             {
-              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
               "weight": 0.15
             },
             {
-              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
               "weight": 0.2
             },
             {
-              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
               "weight": 0.1
             },
             {
@@ -157,7 +157,7 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.6,
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -175,19 +175,19 @@
       },
       "ensemble_models": [
         {
-          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "weight": 0.1
         },
         {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "weight": 0.15
         },
         {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "weight": 0.2
         },
         {
-          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
           "weight": 0.1
         },
         {
@@ -204,7 +204,7 @@
       ],
       "bwin": 4,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
@@ -221,22 +221,22 @@
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "ensemble_models": [
             {
-              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
               "weight": 0.1
             },
             {
-              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
               "weight": 0.15
             },
             {
-              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
               "weight": 0.2
             },
             {
-              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
               "weight": 0.1
             },
             {
@@ -268,7 +268,7 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.3,
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -286,19 +286,19 @@
       },
       "ensemble_models": [
         {
-          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "weight": 0.1
         },
         {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "weight": 0.15
         },
         {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "weight": 0.2
         },
         {
-          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
           "weight": 0.1
         },
         {
@@ -315,7 +315,7 @@
       ],
       "bwin": 4,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
@@ -332,22 +332,22 @@
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "ensemble_models": [
             {
-              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
               "weight": 0.1
             },
             {
-              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
               "weight": 0.15
             },
             {
-              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
               "weight": 0.2
             },
             {
-              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
               "weight": 0.1
             },
             {
@@ -379,7 +379,7 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.6,
-          "model_path": "models/mlp_direction/sol_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -397,19 +397,19 @@
       },
       "ensemble_models": [
         {
-          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "weight": 0.1
         },
         {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "weight": 0.15
         },
         {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "weight": 0.2
         },
         {
-          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
           "weight": 0.1
         },
         {
@@ -426,7 +426,7 @@
       ],
       "bwin": 4,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
@@ -443,22 +443,22 @@
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "ensemble_models": [
             {
-              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
               "weight": 0.1
             },
             {
-              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
               "weight": 0.15
             },
             {
-              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
               "weight": 0.2
             },
             {
-              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
               "weight": 0.1
             },
             {
@@ -490,7 +490,7 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.5,
-          "model_path": "models/mlp_direction/bnb_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }
@@ -508,19 +508,19 @@
       },
       "ensemble_models": [
         {
-          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "weight": 0.1
         },
         {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "weight": 0.15
         },
         {
-          "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "weight": 0.2
         },
         {
-          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+          "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
           "weight": 0.1
         },
         {
@@ -537,7 +537,7 @@
       ],
       "bwin": 4,
       "mlp_feature_set": "paper_36",
-      "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+      "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
@@ -554,22 +554,22 @@
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "ensemble_models": [
             {
-              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
               "weight": 0.1
             },
             {
-              "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+              "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
               "weight": 0.15
             },
             {
-              "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
+              "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
               "weight": 0.2
             },
             {
-              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_final.pt",
+              "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
               "weight": 0.1
             },
             {
@@ -601,7 +601,7 @@
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
           "sell_confidence_threshold": 0.0,
-          "model_path": "models/mlp_direction/eth_bwin4_fwin2/model_final.pt",
+          "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36"
         }

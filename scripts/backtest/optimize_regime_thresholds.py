@@ -7,27 +7,35 @@ MFI/ADX thresholds for the 7-level regime classification per asset.
 
 Usage:
     python scripts/backtest/optimize_regime_thresholds.py --symbol BTC --n-trials 200
-    python scripts/backtest/optimize_regime_thresholds.py --symbol ETH --n-trials 100 --strategy mlp_direction
+    python scripts/backtest/optimize_regime_thresholds.py --symbol ETH --n-trials 100
     python scripts/backtest/optimize_regime_thresholds.py --symbol BTC --apply  # apply best to allocation.json
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import optuna
+import pandas as pd
 
-from scripts.backtest._common import load_data, compute_metrics, get_db_path
-from scripts.backtest.backtest_mlp import (
-    load_strategy_config,
-    MLPDirectionBacktester,
+from scripts.backtest._common import load_data, compute_metrics, compute_trade_stats
+from scripts.backtest.backtest_mlp import MLPDirectionBacktester
+from scripts.backtest.regime_ablation import (
+    _load_allocation,
+    _get_mlp_config,
+    ASSET_DB,
 )
+from core.backtester import Backtester
+from core.component_adapter import ComponentStrategyAdapter
+from trading.strategies.components.strategy_factory import StrategyFactory
 
 # Regime threshold search space (matches search_space.py)
 REGIME_THRESHOLD_SPACE = {
@@ -40,32 +48,54 @@ REGIME_THRESHOLD_SPACE = {
     "adx_moderate_trend": (12.0, 25.0),
 }
 
+DEFAULTS = {
+    "mfi_bull_strong": 54.0,
+    "mfi_bull_moderate": 54.0,
+    "mfi_sideways_up": 49.0,
+    "mfi_bear_moderate": 41.0,
+    "mfi_bear_strong": 34.0,
+    "adx_strong_trend": 25.0,
+    "adx_moderate_trend": 18.0,
+}
+
 
 def create_objective(
     symbol: str,
-    config_path: str,
     start_date: str,
     end_date: str,
 ):
     """Create Optuna objective that optimises regime thresholds for MLP strategy."""
 
-    # Load base config once
-    allocation, strategy_id, strategy_config = load_strategy_config(
-        config_path=config_path, symbol=symbol, mode="paper",
-    )
+    # Load base config from allocation.json (same as regime_ablation)
+    alloc = _load_allocation()
+    base_config = _get_mlp_config(symbol, alloc)
+    if not base_config:
+        raise ValueError(f"No MLP config found for {symbol} in allocation.json")
 
     # Resolve data path
-    db_path = get_db_path(symbol)
-    df_raw = load_data(db_path, "minute240", start_date, end_date, exchange="binance")
+    if symbol not in ASSET_DB:
+        raise ValueError(f"Unknown symbol: {symbol}. Must be one of {list(ASSET_DB)}")
+    db_path = str(PROJECT_ROOT / ASSET_DB[symbol])
+
+    # Load data with warmup
+    warmup_start = str(pd.Timestamp(start_date) - pd.DateOffset(months=3))
+    df_raw = load_data(db_path, "minute240", warmup_start, end_date, exchange="binance")
     if df_raw.empty:
         raise ValueError(f"No data for {symbol} ({start_date} to {end_date})")
 
     # Prepare data once (indicators + MLP features)
-    backtester_template = MLPDirectionBacktester(
-        symbol=symbol,
-        config=strategy_config,
-    )
-    df = backtester_template.prepare_data(df_raw)
+    mlp_bt = MLPDirectionBacktester(symbol=symbol, config=base_config)
+    df_prepared = mlp_bt.prepare_data(df_raw)
+
+    # Find warmup trim point
+    eval_start = 0
+    if "timestamp" in df_prepared.columns:
+        start_ts = pd.Timestamp(start_date)
+        mask = pd.to_datetime(df_prepared["timestamp"]) >= start_ts
+        if mask.any():
+            eval_start = mask.idxmax()
+
+    print(f"Data: {len(df_prepared):,} rows ({len(df_prepared) - eval_start:,} eval)")
 
     def objective(trial: optuna.Trial) -> float:
         """Maximise Sharpe ratio by tuning regime thresholds."""
@@ -75,16 +105,8 @@ def create_objective(
             regime_thresholds[name] = trial.suggest_float(name, lo, hi)
 
         # Inject thresholds into strategy config copy
-        trial_config = dict(strategy_config)
+        trial_config = copy.deepcopy(base_config)
         trial_config["regime_thresholds"] = regime_thresholds
-
-        bt = MLPDirectionBacktester(
-            symbol=symbol,
-            config=trial_config,
-        )
-
-        from core.component_adapter import ComponentStrategyAdapter
-        from trading.strategies.components.strategy_factory import StrategyFactory
 
         factory = StrategyFactory(redis=None)
         adapter = ComponentStrategyAdapter(
@@ -93,31 +115,40 @@ def create_objective(
             config=trial_config,
         )
         adapter.symbol = symbol
-        adapter.precompute_mlp_predictions(df)
+        adapter.precompute_mlp_predictions(df_prepared)
 
-        from core.backtester import Backtester
+        # Trim warmup + remap MLP cache
+        df_eval = df_prepared
+        if eval_start > 0:
+            if adapter._mlp_cache:
+                remapped = {}
+                for old_idx, val in adapter._mlp_cache.items():
+                    new_idx = old_idx - eval_start
+                    if new_idx >= 0:
+                        remapped[new_idx] = val
+                adapter._mlp_cache = remapped
+            df_eval = df_prepared.iloc[eval_start:].reset_index(drop=True)
 
-        backtester = Backtester(
-            initial_capital=10_000,
-            fee_rate=0.001,
-            slippage=0.0005,
-        )
+        bt = Backtester(initial_capital=10_000, fee_rate=0.001, slippage=0.0002)
 
         try:
-            results = backtester.run(df, adapter)
+            results = bt.run(df_eval, adapter, {})
         except Exception as e:
             print(f"  Trial {trial.number} failed: {e}")
             return -999.0
 
-        total_return = results.get("total_return", 0.0)
-        sharpe = results.get("sharpe_ratio", 0.0)
-        n_trades = results.get("trade_count", 0)
+        metrics = compute_metrics(results.get("equity_curve"), timeframe="minute240")
+        trade_stats = compute_trade_stats(results)
 
-        # Report intermediate values for pruning
+        total_return = metrics.get("total_return", 0.0)
+        sharpe = metrics.get("sharpe", 0.0)
+        n_trades = trade_stats.get("total_trades", 0)
+        mdd = metrics.get("mdd", 0.0)
+
         trial.set_user_attr("total_return", total_return)
         trial.set_user_attr("sharpe", sharpe)
         trial.set_user_attr("n_trades", n_trades)
-        trial.set_user_attr("max_drawdown", results.get("max_drawdown_pct", 0.0))
+        trial.set_user_attr("max_drawdown", mdd)
 
         # Penalise too few trades (< 10 trades in 6 years is suspicious)
         if n_trades < 10:
@@ -172,7 +203,6 @@ def main():
 
     objective = create_objective(
         symbol=args.symbol,
-        config_path=args.config,
         start_date=args.start_date,
         end_date=args.end_date,
     )
@@ -193,19 +223,13 @@ def main():
     best = study.best_trial
     print(f"\n{'='*60}")
     print(f"Best trial #{best.number}: Sharpe = {best.value:.4f}")
-    print(f"  Total return: {best.user_attrs.get('total_return', 'N/A'):.1f}%")
-    print(f"  Max drawdown: {best.user_attrs.get('max_drawdown', 'N/A'):.1f}%")
-    print(f"  Trades: {best.user_attrs.get('n_trades', 'N/A')}")
-    print(f"\nBest thresholds:")
+    print(f"  Total return: {best.user_attrs.get('total_return', 0):.1f}%")
+    print(f"  Max drawdown: {best.user_attrs.get('max_drawdown', 0):.1f}%")
+    print(f"  Trades: {best.user_attrs.get('n_trades', 0)}")
+    print(f"\nBest thresholds vs defaults:")
     for k in sorted(REGIME_THRESHOLD_SPACE.keys()):
-        default = {
-            "mfi_bull_strong": 54.0, "mfi_bull_moderate": 54.0,
-            "mfi_sideways_up": 49.0, "mfi_bear_moderate": 41.0,
-            "mfi_bear_strong": 34.0, "adx_strong_trend": 25.0,
-            "adx_moderate_trend": 18.0,
-        }
-        v = best.params.get(k, default[k])
-        d = default[k]
+        v = best.params.get(k, DEFAULTS[k])
+        d = DEFAULTS[k]
         delta = v - d
         print(f"  {k}: {v:.2f} (default: {d:.1f}, delta: {delta:+.2f})")
 

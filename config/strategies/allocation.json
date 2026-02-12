@@ -23,12 +23,14 @@
       "adx_trend": 20.0
     },
     "regime_v2": {
-      "_comment": "Enhanced regime detection v2 filter defaults",
+      "_comment": "Enhanced regime detection v2 filter defaults (ablation: BBW/Volume filters marginal, disabled for MLP)",
       "bbw_block_threshold": 25,
       "bbw_confirm_threshold": 50,
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": true,
+      "volume_filter_enabled": true,
       "mtf_enabled_by_symbol": {
         "BTC": true,
         "ETH": true,
@@ -103,6 +105,8 @@
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": false,
+      "volume_filter_enabled": false,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
@@ -212,6 +216,8 @@
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": false,
+      "volume_filter_enabled": false,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
@@ -321,6 +327,8 @@
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": false,
+      "volume_filter_enabled": false,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
@@ -430,6 +438,8 @@
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": false,
+      "volume_filter_enabled": false,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {
@@ -539,6 +549,8 @@
       "volume_block_ratio": 0.8,
       "volume_boost_ratio": 1.2,
       "mtf_enabled": true,
+      "bbw_enabled": false,
+      "volume_filter_enabled": false,
       "entry": {
         "class": "MLPDirectionEntryStrategy",
         "params": {

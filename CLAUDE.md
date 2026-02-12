@@ -80,6 +80,8 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - Bear Short Strategy Design → `docs/plans/2026-02-06-bear-short-strategy-design.md`
 - MLP Model Improvement Plan → `docs/plans/2026-02-08-mlp-model-improvement-plan.md`
 
+- Regime Improvement Design → `docs/plans/2026-02-12-regime-improvement-design.md`
+
 This prevents context loss! Update this file immediately when you create important documentation.
 
 ```bash

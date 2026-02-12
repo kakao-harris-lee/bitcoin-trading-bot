@@ -168,9 +168,11 @@ class TestStatusAPI:
 class TestKillSwitchAPI:
     """Test /api/kill_switch endpoints."""
 
+    @patch('web.app.get_redis')
     @patch('web.app.KILL_SWITCH_FILE')
-    def test_kill_switch_status_inactive(self, mock_file, client):
+    def test_kill_switch_status_inactive(self, mock_file, mock_get_redis, client):
         """Kill switch status when inactive."""
+        mock_get_redis.return_value.hgetall.return_value = {}
         mock_file.exists.return_value = False
         mock_file.__str__ = lambda self: '/data/KILL_SWITCH'
 
@@ -179,9 +181,11 @@ class TestKillSwitchAPI:
         data = json.loads(response.data)
         assert data['active'] == False
 
+    @patch('web.app.get_redis')
     @patch('web.app.KILL_SWITCH_FILE')
-    def test_kill_switch_status_active(self, mock_file, client):
+    def test_kill_switch_status_active(self, mock_file, mock_get_redis, client):
         """Kill switch status when active."""
+        mock_get_redis.return_value.hgetall.return_value = {}
         mock_file.exists.return_value = True
         mock_file.__str__ = lambda self: '/data/KILL_SWITCH'
 
@@ -189,6 +193,19 @@ class TestKillSwitchAPI:
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data['active'] == True
+
+    @patch('web.app.get_redis')
+    @patch('web.app.KILL_SWITCH_FILE')
+    def test_kill_switch_status_prefers_redis_state(self, mock_file, mock_get_redis, client):
+        """When Redis is available, status should reflect runtime risk state."""
+        mock_file.exists.return_value = False
+        mock_get_redis.return_value.hgetall.return_value = {"kill_switch": "true"}
+
+        response = client.get('/api/kill_switch/status')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['active'] == True
+        assert data['source'] == 'redis'
 
     def test_kill_switch_on_requires_token(self, client):
         """Kill switch on should require admin token."""
@@ -201,6 +218,33 @@ class TestKillSwitchAPI:
         """Kill switch off should require admin token."""
         response = client.post('/api/kill_switch/off')
         assert response.status_code == 403
+
+    @patch('web.app.get_redis')
+    @patch('web.app.KILL_SWITCH_FILE')
+    def test_kill_switch_on_sets_redis(self, mock_file, mock_get_redis, client):
+        """Kill switch on should update both file and Redis."""
+        mock_file.exists.return_value = True
+        mock_get_redis.return_value.hgetall.return_value = {"kill_switch": "true"}
+
+        with patch.dict(os.environ, {"WEB_ADMIN_TOKEN": "secret"}):
+            response = client.post('/api/kill_switch/on', headers={"X-Admin-Token": "secret"})
+
+        assert response.status_code == 200
+        mock_file.touch.assert_called_once()
+        mock_get_redis.return_value.hset.assert_called_with("risk", "kill_switch", "true")
+
+    @patch('web.app.get_redis')
+    @patch('web.app.KILL_SWITCH_FILE')
+    def test_kill_switch_off_sets_redis(self, mock_file, mock_get_redis, client):
+        """Kill switch off should update both file and Redis."""
+        mock_file.exists.return_value = False
+        mock_get_redis.return_value.hgetall.return_value = {"kill_switch": "false"}
+
+        with patch.dict(os.environ, {"WEB_ADMIN_TOKEN": "secret"}):
+            response = client.post('/api/kill_switch/off', headers={"X-Admin-Token": "secret"})
+
+        assert response.status_code == 200
+        mock_get_redis.return_value.hset.assert_called_with("risk", "kill_switch", "false")
 
 
 class TestTradesAPI:

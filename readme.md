@@ -6,16 +6,29 @@ Binance Futures 자동 트레이딩 봇
 
 ```bash
 # Paper Trading (시뮬레이션)
-python run.py --mode paper
+python run.py --trend paper
 
 # Live Trading (실거래)
-ENABLE_LIVE_TRADING=1 python run.py --mode live
+ENABLE_LIVE_TRADING=1 python run.py --trend live
 
 # 서버 실행
-./bot.sh start live
+./bot.sh start --trend=live
 ./bot.sh status
 ./bot.sh logs
 ./bot.sh stop
+```
+
+`live` 실행 전에는 최근 paper 성과 검증이 자동으로 수행됩니다.
+수동 점검:
+
+```bash
+python scripts/paper_readiness_check.py --config config/strategies/allocation.json --trades-log logs/trades.runtime.jsonl
+
+# 활성 전략 기간별 수익률 vs BnH 비교 (문제 구간 탐지)
+python scripts/backtest/period_vs_bnh.py --start-date 2025-01-01 --end-date 2026-01-11 --timeframe minute240
+
+# readiness 진행률 추적 (전략별 EXIT 부족분 확인)
+python scripts/paper_readiness_progress.py --trades-log logs/trades.runtime.jsonl --watch-seconds 60
 ```
 
 ## 프로젝트 구조
@@ -103,10 +116,8 @@ sudo apt-get install build-essential libta-lib-dev && pip install -r requirement
 ```
 python run.py --help
 
---mode {paper,live}           실행 모드 (기본: paper)
---interval INT                실행 간격 분 (기본: 60)
---binance-policy {short_v1,hold}
---no-telegram                 텔레그램 비활성화
+--trend {paper,live}          실행 모드 (기본: paper)
+--config PATH                 설정 파일 경로 (기본: config/strategies/allocation.json)
 ```
 
 ## 문서

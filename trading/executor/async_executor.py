@@ -75,6 +75,28 @@ class AsyncExecutor:
         """Signal executor to stop."""
         self._running = False
 
+    @staticmethod
+    def _normalize_stop_loss_pct(raw_value: Any, default: float = 0.10) -> float:
+        """Normalize stop-loss input to a fraction.
+
+        Accepts either:
+        - ratio form: 0.1 for 10%
+        - percent-point form: 10.0 for 10%
+        """
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError):
+            return default
+
+        if value <= 0:
+            return 0.0
+
+        # Backward compatibility with strategy configs that use percent points.
+        if value > 1.0:
+            return min(value, 100.0) / 100.0
+
+        return value
+
     async def _sync_account(self) -> None:
         """Sync positions and balance from Binance on startup."""
         logger.info("Syncing account with Binance...")
@@ -599,8 +621,9 @@ class AsyncExecutor:
             fill: Fill dict with filled_price and filled_qty
             order: Order dict with stop_loss_pct (optional)
         """
-        # Get stop_loss_pct from order metadata (default to 10%)
-        stop_loss_pct = float(order.get("stop_loss_pct", 0.10))
+        # Get stop_loss_pct from order metadata (default to 10%).
+        # Supports both 0.10 and 10.0 formats.
+        stop_loss_pct = self._normalize_stop_loss_pct(order.get("stop_loss_pct", 0.10))
         if stop_loss_pct <= 0:
             logger.debug(f"No stop-loss configured for {symbol} (stop_loss_pct={stop_loss_pct})")
             return
@@ -639,7 +662,12 @@ class AsyncExecutor:
             )
 
             if result:
-                order_id = str(result.get("orderId", ""))
+                if isinstance(result, dict):
+                    order_id = str(result.get("orderId", ""))
+                else:
+                    order_id = str(
+                        getattr(result, "orderId", getattr(result, "order_id", ""))
+                    )
                 # Store in Redis position hash
                 await self.redis.redis.hset(
                     f"positions:{symbol}:{market}",

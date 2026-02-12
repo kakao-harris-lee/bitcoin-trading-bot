@@ -65,19 +65,8 @@ class TradingEngine:
         self.redis = RedisStreams(url=self.config.get("redis_url", "redis://localhost:6379"))
         await self.redis.connect()
 
-        # Initialize risk state (only if not exists)
-        current_risk = await self.redis.get_risk()
-        if not current_risk:
-            await self.redis.set_risk({
-                "kill_switch": "false",
-                "blocked": "false",
-                "daily_pnl": "0",
-                "mode": mode,
-            })
-        else:
-            # Always update mode on startup
-            await self.redis._client.hset("risk", "mode", mode)
-            logger.info(f"Loaded existing risk state: daily_pnl={current_risk.get('daily_pnl')}")
+        # Initialize/sync risk state.
+        await self._initialize_risk_state(mode)
 
         symbols = self.config.get("symbols", ["BTC"])
 
@@ -228,6 +217,33 @@ class TradingEngine:
 
         # Graceful shutdown
         await self._shutdown()
+
+    async def _initialize_risk_state(self, mode: str) -> None:
+        """Initialize risk hash and normalize cross-mode startup behavior."""
+        assert self.redis is not None
+
+        current_risk = await self.redis.get_risk()
+        if not current_risk:
+            await self.redis.set_risk({
+                "kill_switch": "false",
+                "blocked": "false",
+                "daily_pnl": "0",
+                "mode": mode,
+            })
+            return
+
+        previous_mode = current_risk.get("mode")
+        updates: dict[str, str] = {"mode": mode}
+
+        # Avoid carrying paper PnL into live risk gates (and vice versa).
+        if previous_mode and previous_mode != mode:
+            updates["daily_pnl"] = "0"
+            logger.warning(
+                f"Mode changed ({previous_mode} -> {mode}); resetting daily_pnl to 0."
+            )
+
+        await self.redis._client.hset("risk", mapping=updates)
+        logger.info(f"Loaded existing risk state: daily_pnl={current_risk.get('daily_pnl')}")
 
     def _signal_handler(self) -> None:
         """Handle shutdown signals."""

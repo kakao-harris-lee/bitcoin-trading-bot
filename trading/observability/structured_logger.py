@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
+import os
 from datetime import datetime
 from typing import Any, Optional
 
@@ -26,18 +27,40 @@ _structured_logger.propagate = False  # Don't propagate to root logger
 
 # File handler for trade logs
 _file_handler: Optional[logging.FileHandler] = None
+_logging_disabled = False
 
 
-def _init_file_handler(log_path: str = "logs/trades.jsonl") -> None:
+def _is_structured_logging_enabled() -> bool:
+    """Return whether structured trade logging should write to disk.
+
+    Default behavior:
+    - enabled in runtime
+    - disabled under pytest to avoid polluting production logs
+    """
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return os.getenv("ENABLE_TEST_STRUCTURED_LOGS", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+    return True
+
+
+def _init_file_handler(log_path: str | None = None) -> None:
     """Initialize file handler for trade logs."""
-    global _file_handler
+    global _file_handler, _logging_disabled
     if _file_handler is not None:
         return
+    if not _is_structured_logging_enabled():
+        _logging_disabled = True
+        return
 
-    import os
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    resolved_path = log_path or os.getenv("TRADE_LOG_PATH", "logs/trades.jsonl")
 
-    _file_handler = logging.FileHandler(log_path)
+    os.makedirs(os.path.dirname(resolved_path), exist_ok=True)
+
+    _file_handler = logging.FileHandler(resolved_path)
     _file_handler.setLevel(logging.INFO)
     # No formatting - we output raw JSON
     _file_handler.setFormatter(logging.Formatter("%(message)s"))
@@ -47,6 +70,8 @@ def _init_file_handler(log_path: str = "logs/trades.jsonl") -> None:
 def _log_event(event_type: str, **kwargs: Any) -> None:
     """Log a structured event as single-line JSON."""
     _init_file_handler()
+    if _logging_disabled:
+        return
 
     record = {
         "ts": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),

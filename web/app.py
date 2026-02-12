@@ -397,6 +397,32 @@ def _require_admin_token() -> bool:
     return request.headers.get("X-Admin-Token") == token
 
 
+def _parse_kill_switch_value(value) -> bool:
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _get_redis_kill_switch() -> bool | None:
+    """Return Redis kill-switch status, or None when unavailable."""
+    try:
+        risk = get_redis().hgetall("risk") or {}
+        if "kill_switch" not in risk:
+            return None
+        return _parse_kill_switch_value(risk.get("kill_switch"))
+    except Exception as e:
+        print(f"Error reading kill_switch from Redis: {e}")
+        return None
+
+
+def _set_redis_kill_switch(active: bool) -> bool:
+    """Set Redis kill-switch flag. Returns True on success."""
+    try:
+        get_redis().hset("risk", "kill_switch", "true" if active else "false")
+        return True
+    except Exception as e:
+        print(f"Error writing kill_switch to Redis: {e}")
+        return False
+
+
 def _send_telegram_notification(message: str) -> bool:
     """텔레그램으로 알림 전송"""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -539,7 +565,7 @@ def get_status():
                     'trading_mode': risk.get('mode', 'paper'),
                     'assets': assets,
                     'portfolio': dashboard_state.get('portfolio', {}),
-                    'kill_switch': binance_data.get('kill_switch', False),
+                    'kill_switch': _parse_kill_switch_value(risk.get('kill_switch', 'false')),
                     'daily_pnl': binance_data.get('daily_pnl', 0),
                     'prices': prices,
                     'risk': risk,
@@ -676,8 +702,14 @@ def get_metrics():
 
 @app.route("/api/kill_switch/status")
 def kill_switch_status():
+    redis_active = _get_redis_kill_switch()
+    file_active = KILL_SWITCH_FILE.exists()
+    active = redis_active if redis_active is not None else file_active
     return jsonify({
-        "active": KILL_SWITCH_FILE.exists(),
+        "active": active,
+        "redis_active": redis_active,
+        "file_active": file_active,
+        "source": "redis" if redis_active is not None else "file",
         "path": str(KILL_SWITCH_FILE),
         "checked_at": datetime.now().isoformat(),
     })
@@ -689,6 +721,7 @@ def kill_switch_on():
         return jsonify({"error": "forbidden"}), 403
     KILL_SWITCH_FILE.parent.mkdir(parents=True, exist_ok=True)
     KILL_SWITCH_FILE.touch(exist_ok=True)
+    _set_redis_kill_switch(True)
     return kill_switch_status()
 
 
@@ -701,6 +734,7 @@ def kill_switch_off():
     except TypeError:
         if KILL_SWITCH_FILE.exists():
             KILL_SWITCH_FILE.unlink()
+    _set_redis_kill_switch(False)
     return kill_switch_status()
 
 

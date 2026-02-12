@@ -76,6 +76,12 @@ start() {
         echo "   ⚠️  TREND LIVE - 실제 추세매매가 실행됩니다!"
     fi
 
+    # Use dedicated runtime structured-trade log by default.
+    # This avoids mixing test-generated events with live/paper readiness data.
+    export TRADE_LOG_PATH="${TRADE_LOG_PATH:-$LOG_DIR/trades.runtime.jsonl}"
+    export PAPER_TRADES_LOG_PATH="${PAPER_TRADES_LOG_PATH:-$TRADE_LOG_PATH}"
+    echo "   Trade log: $TRADE_LOG_PATH"
+
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
     # Python handles log file rotation (logs/bot.log, daily, 30-day retention)
     nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" > /dev/null 2>&1 &

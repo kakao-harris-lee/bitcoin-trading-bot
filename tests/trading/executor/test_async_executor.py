@@ -310,6 +310,49 @@ async def test_executor_places_stop_loss_after_entry(mock_redis, mock_client):
 
 
 @pytest.mark.asyncio
+async def test_executor_normalizes_percent_point_stop_loss(mock_redis, mock_client):
+    """stop_loss_pct=10.0 should be treated as 10%, not 1000%."""
+    mock_client.stop_loss_limit_order = AsyncMock(return_value={
+        "orderId": 88888,
+        "symbol": "BTC",
+        "side": "sell",
+        "market": "spot",
+        "stop_price": 38700.0,
+        "status": "NEW",
+    })
+    mock_client.market_order = AsyncMock(return_value={
+        "order_id": 12345,
+        "symbol": "BTC",
+        "side": "buy",
+        "market": "spot",
+        "filled_qty": 0.01,
+        "filled_price": 43000.0,
+        "status": "FILLED",
+    })
+
+    executor = AsyncExecutor(redis=mock_redis, client=mock_client, config={})
+    executor._balance_cache = {"spot": 10000.0, "last_update": 0}
+
+    order = {
+        "id": "test-124",
+        "symbol": "BTC",
+        "side": "buy",
+        "market": "spot",
+        "quantity": "0.01",
+        "strategy": "mlp_direction",
+        "stop_loss_pct": 10.0,  # percent-point style from strategy config
+    }
+
+    result = await executor._process_order(order)
+    assert result is not None
+
+    stop_call = mock_client.stop_loss_limit_order.call_args
+    # 43000 * (1 - 0.10) = 38700
+    assert stop_call[1]["stop_price"] == 38700.0
+    assert stop_call[1]["limit_price"] == 38313.0
+
+
+@pytest.mark.asyncio
 async def test_executor_cancels_stop_loss_on_exit(mock_redis, mock_client):
     """Test server-side stop-loss is cancelled before exit."""
     # Mock existing position with stop order

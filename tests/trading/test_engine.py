@@ -51,3 +51,47 @@ def test_engine_creates_feed_tasks(mock_config):
         # Verify symbols are configured
         assert "BTC" in engine.config["symbols"]
         assert "ETH" in engine.config["symbols"]
+
+
+@pytest.mark.asyncio
+async def test_initialize_risk_state_resets_daily_pnl_on_mode_change(mock_config):
+    """Mode transition should reset daily_pnl to avoid cross-mode carry-over."""
+    with patch('trading.engine.load_config', return_value=mock_config):
+        engine = TradingEngine(config_path="test.json")
+
+    mock_redis = AsyncMock()
+    mock_redis.get_risk = AsyncMock(
+        return_value={"mode": "paper", "daily_pnl": "-123.4", "kill_switch": "false"}
+    )
+    mock_redis._client = AsyncMock()
+    mock_redis._client.hset = AsyncMock()
+    engine.redis = mock_redis
+
+    await engine._initialize_risk_state("live")
+
+    mock_redis._client.hset.assert_called_once_with(
+        "risk",
+        mapping={"mode": "live", "daily_pnl": "0"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_initialize_risk_state_preserves_daily_pnl_in_same_mode(mock_config):
+    """Restarting in same mode should not force-reset daily_pnl."""
+    with patch('trading.engine.load_config', return_value=mock_config):
+        engine = TradingEngine(config_path="test.json")
+
+    mock_redis = AsyncMock()
+    mock_redis.get_risk = AsyncMock(
+        return_value={"mode": "live", "daily_pnl": "-50.0", "kill_switch": "false"}
+    )
+    mock_redis._client = AsyncMock()
+    mock_redis._client.hset = AsyncMock()
+    engine.redis = mock_redis
+
+    await engine._initialize_risk_state("live")
+
+    mock_redis._client.hset.assert_called_once_with(
+        "risk",
+        mapping={"mode": "live"},
+    )

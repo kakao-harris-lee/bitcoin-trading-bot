@@ -315,6 +315,7 @@ class TradingEngine:
         strategy_names = list(strategy_config.keys())
         started = 0
         regime_defaults = self.config.get("defaults", {}).get("regime_v2", {})
+        regime_runtime_overlay_defaults = self.config.get("defaults", {}).get("regime_runtime_overlay", {})
         mtf_enabled_by_symbol = regime_defaults.get("mtf_enabled_by_symbol", {})
 
         for name in strategy_names:
@@ -356,6 +357,10 @@ class TradingEngine:
                         symbol_key = strategy_symbols[0]
                         if symbol_key in mtf_enabled_by_symbol:
                             effective_config["mtf_enabled"] = bool(mtf_enabled_by_symbol[symbol_key])
+
+                # Optional runtime regime overlay defaults (safe-off unless enabled).
+                if "regime_runtime_overlay" not in effective_config and regime_runtime_overlay_defaults:
+                    effective_config["regime_runtime_overlay"] = regime_runtime_overlay_defaults
 
                 # Create entry and exit components
                 entry, exit_strat = factory.create_components(

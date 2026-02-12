@@ -50,6 +50,7 @@ from trading.observability.structured_logger import trade_logger
 from trading.risk.position_sizer import PositionSizer, RiskSizingConfig
 from trading.risk.portfolio_risk_manager import PortfolioRiskManager, RiskCapConfig
 from trading.risk.correlation_filter import CorrelationFilter, CorrelationConfig
+from trading.regime.runtime import RuntimeRegimeOverlay, RuntimeRegimePrediction
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -120,6 +121,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._init_shared_services(indicator_service, context_builder)
         self._init_evaluation_config()
         self._init_regime_detectors(symbols, regime_version)
+        self._init_runtime_regime_overlay()
         self._init_mlp_settings()
         self._init_entry_and_leverage_controls()
         self._init_drawdown_and_breakout_controls()
@@ -158,6 +160,11 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._enhanced_routers: dict[str, EnhancedRegimeRouter] = {}
         self._init_enhanced_routers(symbols)
         logger.info(f"{self.name} using enhanced regime detection v2")
+
+    def _init_runtime_regime_overlay(self) -> None:
+        overlay_cfg = self.config.get("regime_runtime_overlay", {})
+        self._runtime_regime_overlay = RuntimeRegimeOverlay(overlay_cfg)
+        self._runtime_regime_cache: dict[str, dict[str, Any]] = {}
 
     def _init_enhanced_routers(self, symbols: list[str]) -> None:
         bbw_block = self.config.get("bbw_block_threshold", 25)
@@ -1412,7 +1419,7 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         Uses MFI-based trend classification and ATR-based volatility scoring.
         Includes drawdown-based BEAR detection (15% from recent high = BEAR).
-        Applies enhanced regime detection v2 (MTF + BBW + Volume filters).
+        Applies optional runtime model overlay, then enhanced regime detection v2.
 
         Args:
             market_data: Current market state with indicators.
@@ -1421,9 +1428,56 @@ class CompositeStrategyTask(BaseStrategyTask):
             MarketContext with trend and volatility analysis.
         """
         context = self._build_base_market_context(market_data)
+
+        runtime_pred = self._predict_runtime_regime(market_data)
+        if runtime_pred is not None:
+            context = self._context_with_regime(
+                context,
+                runtime_pred.regime_7,
+                trend=self._trend_from_regime(runtime_pred.regime_7),
+                rf_confidence=runtime_pred.rf_confidence,
+                rf_direction=runtime_pred.regime_3,
+                rf_signal=runtime_pred.rf_signal,
+            )
+            if not self._runtime_regime_overlay.apply_v2_filters:
+                return context
+
         if market_data.symbol in self._enhanced_routers:
             return self._apply_v2_regime_context(context, market_data)
         return context
+
+    def _predict_runtime_regime(self, market_data: MarketData) -> RuntimeRegimePrediction | None:
+        symbol = market_data.symbol
+        overlay = self._runtime_regime_overlay
+        if not overlay.is_enabled_for(symbol):
+            return None
+
+        candle_ts = self._get_latest_candle_timestamp(symbol, market_data)
+        cached = self._runtime_regime_cache.get(symbol)
+        if cached and int(cached.get("candle_timestamp", -1)) == candle_ts:
+            pred = cached.get("prediction")
+            if isinstance(pred, RuntimeRegimePrediction):
+                return pred
+
+        history_df = self._get_mlp_history_df(symbol)
+        prediction = overlay.predict(
+            symbol=symbol,
+            market_data=market_data,
+            history_df=history_df,
+        )
+        if prediction is not None:
+            self._runtime_regime_cache[symbol] = {
+                "candle_timestamp": candle_ts,
+                "prediction": prediction,
+            }
+            logger.info(
+                "%s: runtime regime overlay -> model=%s regime=%s conf=%.3f",
+                symbol,
+                prediction.model,
+                prediction.regime_7,
+                prediction.confidence,
+            )
+        return prediction
 
     def _build_base_market_context(self, market_data: MarketData) -> MarketContext:
         recent_high = market_data.high_30d if market_data.high_30d > 0 else market_data.prev_high_20
@@ -1478,7 +1532,13 @@ class CompositeStrategyTask(BaseStrategyTask):
         return "SIDEWAYS"
 
     def _context_with_regime(
-        self, context: MarketContext, regime: str, trend: str
+        self,
+        context: MarketContext,
+        regime: str,
+        trend: str,
+        rf_confidence: float | None = None,
+        rf_direction: str | None = None,
+        rf_signal: str | None = None,
     ) -> MarketContext:
         return MarketContext(
             trend=trend,
@@ -1490,6 +1550,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             is_high_volume=context.is_high_volume,
             drawdown=context.drawdown,
             is_drawdown_bear=context.is_drawdown_bear,
+            rf_confidence=context.rf_confidence if rf_confidence is None else rf_confidence,
+            rf_direction=context.rf_direction if rf_direction is None else rf_direction,
+            rf_signal=context.rf_signal if rf_signal is None else rf_signal,
         )
 
     def _dict_to_position(self, position_dict: dict) -> Position:

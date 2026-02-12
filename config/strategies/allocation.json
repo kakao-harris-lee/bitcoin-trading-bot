@@ -46,6 +46,30 @@
         "SOL": true,
         "BNB": true
       }
+    },
+    "regime_runtime_overlay": {
+      "_comment": "Runtime RF/HMM regime overlay (default OFF; enable only after paper validation)",
+      "enabled": true,
+      "apply_v2_filters": false,
+      "default_model": "rf_calibrated",
+      "symbol_models": {
+        "BTC": {
+          "model": "rf",
+          "artifact_dir": "logs/regime_models/ensemble_btc_full_available_calibrated_hybrid"
+        },
+        "ETH": {
+          "model": "rf_calibrated",
+          "artifact_dir": "logs/regime_models/ensemble_eth_full_available_calibrated_hybrid"
+        },
+        "SOL": {
+          "model": "ensemble_calibrated",
+          "artifact_dir": "logs/regime_models/ensemble_sol_full_available_calibrated_hybrid"
+        },
+        "BNB": {
+          "model": "rf_calibrated",
+          "artifact_dir": "logs/regime_models/ensemble_bnb_full_available_calibrated_hybrid"
+        }
+      }
     }
   },
   "binance": {

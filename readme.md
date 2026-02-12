@@ -29,6 +29,9 @@ python scripts/backtest/period_vs_bnh.py --start-date 2025-01-01 --end-date 2026
 
 # readiness 진행률 추적 (전략별 EXIT 부족분 확인)
 python scripts/paper_readiness_progress.py --trades-log logs/trades.runtime.jsonl --watch-seconds 60
+
+# 과거 테스트/DB/Redis 상태 클린업 (paper 검증 리셋)
+python scripts/clean_paper_environment.py
 ```
 
 ## 프로젝트 구조

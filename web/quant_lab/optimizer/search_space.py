@@ -149,6 +149,13 @@ def sample_trial_config(
             }
         }
 
+    # Sample regime classification thresholds
+    result["regime_thresholds"] = {}
+    for name, spec in REGIME_THRESHOLD_PARAMS.items():
+        result["regime_thresholds"][name] = trial.suggest_float(
+            f"regime_{name}", spec["low"], spec["high"]
+        )
+
     return result
 
 
@@ -188,6 +195,17 @@ MLP_ADAPTER_PARAMS = {
     "cash_below_ema200": {"type": "categorical", "choices": [True, False]},
     "stop_loss_cooldown": {"type": "int", "low": 0, "high": 24},
     "drawdown_bear_threshold": {"type": "float", "low": 0.05, "high": 1.0},
+}
+
+# Regime classification thresholds (MFI/ADX boundaries for 7-level regime)
+REGIME_THRESHOLD_PARAMS = {
+    "mfi_bull_strong": {"type": "float", "low": 50.0, "high": 60.0},
+    "mfi_bull_moderate": {"type": "float", "low": 50.0, "high": 60.0},
+    "mfi_sideways_up": {"type": "float", "low": 45.0, "high": 55.0},
+    "mfi_bear_moderate": {"type": "float", "low": 35.0, "high": 48.0},
+    "mfi_bear_strong": {"type": "float", "low": 28.0, "high": 42.0},
+    "adx_strong_trend": {"type": "float", "low": 18.0, "high": 32.0},
+    "adx_moderate_trend": {"type": "float", "low": 12.0, "high": 25.0},
 }
 
 
@@ -232,5 +250,12 @@ def sample_mlp_trial_config(trial: optuna.Trial) -> Dict[str, Any]:
             config["adapter"][name] = trial.suggest_categorical(f"adapter_{name}", spec["choices"])
         elif spec["type"] == "int":
             config["adapter"][name] = trial.suggest_int(f"adapter_{name}", spec["low"], spec["high"])
+
+    # Regime classification thresholds
+    config["regime_thresholds"] = {}
+    for name, spec in REGIME_THRESHOLD_PARAMS.items():
+        config["regime_thresholds"][name] = trial.suggest_float(
+            f"regime_{name}", spec["low"], spec["high"]
+        )
 
     return config

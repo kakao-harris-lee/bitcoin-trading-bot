@@ -183,6 +183,9 @@ class ComponentStrategyAdapter:
         self._vol_min_scale: float = vol_cfg.get("min_scale", 0.25)
         self._vol_max_scale: float = vol_cfg.get("max_scale", 1.0)
 
+        # Regime classification thresholds (externalised for optimisation)
+        self._regime_thresholds: Dict[str, float] = dict(config.get("regime_thresholds", {}))
+
     def update_equity(self, equity: float) -> None:
         """Update portfolio equity tracking for drawdown protection.
 
@@ -387,6 +390,7 @@ class ComponentStrategyAdapter:
             avg_volume=values["avg_volume"],
             recent_high=row.get("high_30d", 0.0) or row.get("prev_high_20", 0.0),
             drawdown_bear_threshold=self._drawdown_bear_threshold,
+            **self._regime_thresholds,
         )
 
         self._v2_entry_allowed = True

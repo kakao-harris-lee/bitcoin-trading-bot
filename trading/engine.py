@@ -286,9 +286,11 @@ class TradingEngine:
 
         # Create shared TradingContextBuilder for centralized context
         position_manager = PositionManager(self.redis._client)
+        regime_thresholds = self.config.get("defaults", {}).get("regime_thresholds", {})
         context_builder = TradingContextBuilder(
             indicator_service=indicator_service,
             position_manager=position_manager,
+            regime_thresholds=regime_thresholds,
         )
         logger.info("Created shared TradingContextBuilder")
 

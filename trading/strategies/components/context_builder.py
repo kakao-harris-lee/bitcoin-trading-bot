@@ -184,15 +184,18 @@ class TradingContextBuilder:
         self,
         indicator_service: IndicatorService,
         position_manager: PositionManager | None = None,
+        regime_thresholds: dict[str, float] | None = None,
     ):
         """Initialize context builder.
 
         Args:
             indicator_service: Shared indicator calculation service.
             position_manager: Optional position manager for cross-strategy awareness.
+            regime_thresholds: Optional dict of MFI/ADX thresholds for regime classification.
         """
         self._indicators = indicator_service
         self._positions = position_manager
+        self._regime_thresholds = regime_thresholds or {}
 
         # Cache: symbol -> TradingContext
         self._cache: dict[str, TradingContext] = {}
@@ -274,6 +277,7 @@ class TradingContextBuilder:
             volume=market_data.volume,
             avg_volume=market_data.avg_volume_20,
             recent_high=recent_high,  # For drawdown-based BEAR detection
+            **self._regime_thresholds,
         )
 
         # 3. Get positions for cross-strategy awareness

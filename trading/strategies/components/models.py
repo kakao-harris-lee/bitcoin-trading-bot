@@ -165,6 +165,14 @@ def build_market_context(
     rf_confidence: float = 0.0,  # RF confidence score (0-1)
     rf_direction: str = "SIDEWAYS",  # RF predicted direction
     rf_signal: str = "HOLD",  # RF trading signal
+    # Regime classification thresholds (externalised for optimisation)
+    mfi_bull_strong: float = 54.0,
+    mfi_bull_moderate: float = 54.0,
+    mfi_sideways_up: float = 49.0,
+    mfi_bear_moderate: float = 41.0,
+    mfi_bear_strong: float = 34.0,
+    adx_strong_trend: float = 25.0,
+    adx_moderate_trend: float = 18.0,
 ) -> MarketContext:
     """Build MarketContext from indicators.
 
@@ -204,10 +212,19 @@ def build_market_context(
     Returns:
         MarketContext with trend, regime, volatility, and volume analysis.
     """
+    regime_kwargs = dict(
+        mfi_bull_strong=mfi_bull_strong,
+        mfi_bull_moderate=mfi_bull_moderate,
+        mfi_sideways_up=mfi_sideways_up,
+        mfi_bear_moderate=mfi_bear_moderate,
+        mfi_bear_strong=mfi_bear_strong,
+        adx_strong_trend=adx_strong_trend,
+        adx_moderate_trend=adx_moderate_trend,
+    )
     drawdown = _compute_drawdown(recent_high, close)
     is_drawdown_bear = drawdown >= drawdown_bear_threshold
     trend = _classify_trend(mfi, is_drawdown_bear)
-    regime = _resolve_regime(mfi, adx, is_drawdown_bear)
+    regime = _resolve_regime(mfi, adx, is_drawdown_bear, **regime_kwargs)
     volatility_score, is_extreme_volatility = _compute_volatility(atr, close, volatility_threshold)
     volume_ratio, is_high_volume = _compute_volume(volume, avg_volume, high_volume_threshold)
 
@@ -243,11 +260,12 @@ def _classify_trend(mfi: float, is_drawdown_bear: bool) -> Literal["BULL", "BEAR
     return "NEUTRAL"
 
 
-def _resolve_regime(mfi: float, adx: float, is_drawdown_bear: bool) -> Regime:
-    regime = _classify_regime(mfi, adx)
+def _resolve_regime(mfi: float, adx: float, is_drawdown_bear: bool, **regime_kwargs) -> Regime:
+    regime = _classify_regime(mfi, adx, **regime_kwargs)
     if not is_drawdown_bear or regime in BEAR_REGIMES:
         return regime
-    return "BEAR_STRONG" if adx >= 25 else "BEAR_MODERATE"
+    adx_strong = regime_kwargs.get("adx_strong_trend", 25.0)
+    return "BEAR_STRONG" if adx >= adx_strong else "BEAR_MODERATE"
 
 
 def _compute_volatility(

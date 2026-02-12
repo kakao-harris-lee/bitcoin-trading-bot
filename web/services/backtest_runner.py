@@ -61,7 +61,7 @@ _visualizer = BacktestVisualizer()
 _mlflow_tracker = MLflowTracker()
 
 _ADAPTER_DEFAULTS = {
-    'regime_version': 'v1',
+    'regime_version': 'v2',
     'position_size': 0.01,
     'position_pct': 0.3,
     'dynamic_sizing': False,

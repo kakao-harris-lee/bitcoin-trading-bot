@@ -230,6 +230,45 @@ def test_invalidate_all_symbols(mock_indicator_service, mock_position_manager):
     assert mock_indicator_service.get_market_data.call_count == 4
 
 
+def test_builder_passes_regime_thresholds(mock_indicator_service):
+    """TradingContextBuilder passes regime_thresholds to build_market_context."""
+    # Default thresholds: MFI=55, ADX=25 → BULL_STRONG
+    builder_default = TradingContextBuilder(
+        indicator_service=mock_indicator_service,
+        position_manager=None,
+    )
+    ctx_default = builder_default.get_context("BTC", timestamp=1000)
+    assert ctx_default.regime.regime == "BULL_STRONG"
+
+    # Custom thresholds: raise mfi_bull_strong to 60 → SIDEWAYS_UP
+    builder_custom = TradingContextBuilder(
+        indicator_service=mock_indicator_service,
+        position_manager=None,
+        regime_thresholds={"mfi_bull_strong": 60.0, "mfi_bull_moderate": 60.0},
+    )
+    ctx_custom = builder_custom.get_context("BTC", timestamp=2000)
+    assert ctx_custom.regime.regime == "SIDEWAYS_UP"
+
+
+def test_builder_empty_regime_thresholds(mock_indicator_service):
+    """Empty regime_thresholds dict uses defaults (backward compatible)."""
+    builder_none = TradingContextBuilder(
+        indicator_service=mock_indicator_service,
+        position_manager=None,
+        regime_thresholds=None,
+    )
+    builder_empty = TradingContextBuilder(
+        indicator_service=mock_indicator_service,
+        position_manager=None,
+        regime_thresholds={},
+    )
+
+    ctx_none = builder_none.get_context("BTC", timestamp=1000)
+    ctx_empty = builder_empty.get_context("BTC", timestamp=2000)
+
+    assert ctx_none.regime.regime == ctx_empty.regime.regime
+
+
 def test_multi_symbol_cache_isolation(mock_indicator_service, mock_position_manager):
     """Different symbols have isolated cache entries."""
     # Setup mock to return different data per symbol

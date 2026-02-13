@@ -32,3 +32,11 @@
 - Conventional commits are preferred (`feat(strategy): ...`, `fix(backtest): ...`, `docs: ...`).
 - PRs should summarize behavior changes, list test/backtest commands, and call out config modifications (especially `allocation.json` or tuned params).
 - Include screenshots/GIFs for dashboard/UI updates when relevant.
+
+## Recent Updates (2026-02-12)
+- Hybrid mode remains standard: MLP Direction strategies run on Spot; Short/Sideways run on Futures.
+- Component engine is the default (`use_component_strategies=true`), and every strategy in `allocation.json` must resolve to valid `entry`/`exit` components (or registry aliases).
+- Legacy premium/arbitrage (Kimchi premium) subsystem is retired and should stay removed/disabled in configs.
+- Latest planning docs:
+  - `docs/plans/2026-02-08-mlp-model-improvement-plan.md`
+  - `docs/plans/2026-02-12-regime-improvement-design.md`

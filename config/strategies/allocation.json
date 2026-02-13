@@ -176,7 +176,15 @@
           "use_ema200_filter": false,
           "position_size": 0.2,
           "market": "spot",
-          "mlp_feature_set": "paper_36"
+          "mlp_feature_set": "paper_36",
+          "runtime_switch_enabled": true,
+          "switch_mfi_threshold": 52.0,
+          "switch_adx_threshold": 18.0,
+          "switch_require_above_ema200": true,
+          "risk_on_buy_confidence_threshold": 0.45,
+          "risk_off_buy_confidence_threshold": 0.55,
+          "risk_on_position_size": 0.21,
+          "risk_off_position_size": 0.16
         }
       },
       "exit": {
@@ -192,7 +200,15 @@
           "sell_confidence_threshold": 0.6,
           "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "market": "spot",
-          "mlp_feature_set": "paper_36"
+          "mlp_feature_set": "paper_36",
+          "runtime_switch_enabled": true,
+          "switch_mfi_threshold": 52.0,
+          "switch_adx_threshold": 18.0,
+          "switch_require_above_ema200": true,
+          "risk_on_sell_confidence_threshold": 0.8,
+          "risk_off_sell_confidence_threshold": 0.65,
+          "min_hold_bars_for_sell_exit": 2,
+          "bull_regime_sell_guard": true
         }
       }
     },
@@ -287,7 +303,15 @@
           "use_ema200_filter": false,
           "position_size": 0.2,
           "market": "spot",
-          "mlp_feature_set": "paper_36"
+          "mlp_feature_set": "paper_36",
+          "runtime_switch_enabled": true,
+          "switch_mfi_threshold": 52.0,
+          "switch_adx_threshold": 18.0,
+          "switch_require_above_ema200": true,
+          "risk_on_buy_confidence_threshold": 0.45,
+          "risk_off_buy_confidence_threshold": 0.55,
+          "risk_on_position_size": 0.21,
+          "risk_off_position_size": 0.16
         }
       },
       "exit": {
@@ -303,7 +327,15 @@
           "sell_confidence_threshold": 0.3,
           "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "market": "spot",
-          "mlp_feature_set": "paper_36"
+          "mlp_feature_set": "paper_36",
+          "runtime_switch_enabled": true,
+          "switch_mfi_threshold": 52.0,
+          "switch_adx_threshold": 18.0,
+          "switch_require_above_ema200": true,
+          "risk_on_sell_confidence_threshold": 0.5,
+          "risk_off_sell_confidence_threshold": 0.35,
+          "min_hold_bars_for_sell_exit": 2,
+          "bull_regime_sell_guard": true
         }
       }
     },
@@ -398,7 +430,15 @@
           "use_ema200_filter": false,
           "position_size": 0.2,
           "market": "spot",
-          "mlp_feature_set": "paper_36"
+          "mlp_feature_set": "paper_36",
+          "runtime_switch_enabled": true,
+          "switch_mfi_threshold": 52.0,
+          "switch_adx_threshold": 18.0,
+          "switch_require_above_ema200": true,
+          "risk_on_buy_confidence_threshold": 0.25,
+          "risk_off_buy_confidence_threshold": 0.35,
+          "risk_on_position_size": 0.21,
+          "risk_off_position_size": 0.16
         }
       },
       "exit": {
@@ -414,7 +454,15 @@
           "sell_confidence_threshold": 0.6,
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "market": "spot",
-          "mlp_feature_set": "paper_36"
+          "mlp_feature_set": "paper_36",
+          "runtime_switch_enabled": true,
+          "switch_mfi_threshold": 52.0,
+          "switch_adx_threshold": 18.0,
+          "switch_require_above_ema200": true,
+          "risk_on_sell_confidence_threshold": 0.8,
+          "risk_off_sell_confidence_threshold": 0.65,
+          "min_hold_bars_for_sell_exit": 2,
+          "bull_regime_sell_guard": true
         }
       }
     },
@@ -509,7 +557,15 @@
           "use_ema200_filter": false,
           "position_size": 0.2,
           "market": "spot",
-          "mlp_feature_set": "paper_36"
+          "mlp_feature_set": "paper_36",
+          "runtime_switch_enabled": true,
+          "switch_mfi_threshold": 52.0,
+          "switch_adx_threshold": 18.0,
+          "switch_require_above_ema200": true,
+          "risk_on_buy_confidence_threshold": 0.55,
+          "risk_off_buy_confidence_threshold": 0.65,
+          "risk_on_position_size": 0.21,
+          "risk_off_position_size": 0.16
         }
       },
       "exit": {
@@ -525,7 +581,15 @@
           "sell_confidence_threshold": 0.5,
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "market": "spot",
-          "mlp_feature_set": "paper_36"
+          "mlp_feature_set": "paper_36",
+          "runtime_switch_enabled": true,
+          "switch_mfi_threshold": 52.0,
+          "switch_adx_threshold": 18.0,
+          "switch_require_above_ema200": true,
+          "risk_on_sell_confidence_threshold": 0.7,
+          "risk_off_sell_confidence_threshold": 0.55,
+          "min_hold_bars_for_sell_exit": 2,
+          "bull_regime_sell_guard": true
         }
       }
     },
@@ -620,7 +684,15 @@
           "use_ema200_filter": false,
           "position_size": 0.2,
           "market": "spot",
-          "mlp_feature_set": "paper_36"
+          "mlp_feature_set": "paper_36",
+          "runtime_switch_enabled": true,
+          "switch_mfi_threshold": 52.0,
+          "switch_adx_threshold": 18.0,
+          "switch_require_above_ema200": true,
+          "risk_on_buy_confidence_threshold": 0.45,
+          "risk_off_buy_confidence_threshold": 0.55,
+          "risk_on_position_size": 0.21,
+          "risk_off_position_size": 0.16
         }
       },
       "exit": {
@@ -636,7 +708,15 @@
           "sell_confidence_threshold": 0.0,
           "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "market": "spot",
-          "mlp_feature_set": "paper_36"
+          "mlp_feature_set": "paper_36",
+          "runtime_switch_enabled": true,
+          "switch_mfi_threshold": 52.0,
+          "switch_adx_threshold": 18.0,
+          "switch_require_above_ema200": true,
+          "risk_on_sell_confidence_threshold": 0.2,
+          "risk_off_sell_confidence_threshold": 0.05,
+          "min_hold_bars_for_sell_exit": 2,
+          "bull_regime_sell_guard": true
         }
       }
     }

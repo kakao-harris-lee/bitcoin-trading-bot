@@ -4,16 +4,18 @@ Tests the MLP Direction exit strategy component based on
 Parente & Rizzuti (2025) methodology.
 """
 
-import pytest
 from unittest.mock import MagicMock
-import numpy as np
 
 from trading.strategies.components.mlp_direction_exit import (
     MLPDirectionExitStrategy,
     MLPDirectionExitParams,
 )
 from trading.strategies.components.models import (
-    TradingContext, MarketData, MarketContext, Position, build_market_context
+    MLP_LABEL_SELL,
+    MarketData,
+    Position,
+    TradingContext,
+    build_market_context,
 )
 
 
@@ -23,6 +25,9 @@ def _make_context(
     close: float = 100000.0,
     high: float = 101000.0,
     atr: float = 1000.0,
+    timestamp: int = 1000,
+    mlp_prediction: int | None = None,
+    mlp_confidence: float | None = None,
 ) -> TradingContext:
     """Helper to create TradingContext for tests."""
     market = MarketData(
@@ -32,13 +37,21 @@ def _make_context(
         mfi=mfi,
         adx=adx,
         rsi=50.0,
-        timestamp=1000,
+        timestamp=timestamp,
         atr=atr,
         volume=100.0,
         avg_volume_20=80.0,
     )
     regime = build_market_context(mfi=mfi, adx=adx, atr=atr, close=close)
-    return TradingContext(symbol="BTC", timestamp=1000, market=market, regime=regime, positions={})
+    return TradingContext(
+        symbol="BTC",
+        timestamp=timestamp,
+        market=market,
+        regime=regime,
+        positions={},
+        mlp_prediction=mlp_prediction,
+        mlp_confidence=mlp_confidence,
+    )
 
 
 def _make_position(
@@ -72,6 +85,8 @@ class TestMLPDirectionExitParams:
         assert params.atr_stop_enabled is False
         assert params.trailing_enabled is False
         assert params.use_mlp_sell_exit is False
+        assert params.min_hold_bars_for_sell_exit == 0
+        assert params.bull_regime_sell_guard is False
         assert params.take_profit_enabled is False
         assert params.market == "spot"
 
@@ -536,3 +551,68 @@ class TestMLPDirectionExitIntegration:
         spec = STRATEGY_REGISTRY["mlp_direction"]
         assert spec.exit_class == MLPDirectionExitStrategy
         assert spec.exit_params_class == MLPDirectionExitParams
+
+
+class TestMLPDirectionExitSellGuards:
+    """Test MLP SELL exit guardrails for uptrend retention."""
+
+    def test_min_hold_bars_blocks_early_sell_exit(self):
+        params = MLPDirectionExitParams(
+            fwin_exit_enabled=False,
+            use_mlp_sell_exit=True,
+            sell_confidence_threshold=0.6,
+            min_hold_bars_for_sell_exit=3,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        strategy._ensure_model = MagicMock(return_value=True)
+        position = _make_position(entry_price=100000.0)
+        strategy.on_position_opened(position)
+
+        ctx = _make_context(
+            close=101000.0,
+            mlp_prediction=MLP_LABEL_SELL,
+            mlp_confidence=0.9,
+        )
+
+        # 1st/2nd bar: blocked by hold guard
+        assert strategy.check_exit(ctx, position) is None
+        assert strategy.check_exit(ctx, position) is None
+
+        # 3rd bar: guard satisfied, SELL exit allowed
+        signal = strategy.check_exit(ctx, position)
+        assert signal is not None
+        assert "SELL prediction" in signal.reason
+
+    def test_bull_regime_guard_requires_higher_sell_confidence(self):
+        params = MLPDirectionExitParams(
+            fwin_exit_enabled=False,
+            use_mlp_sell_exit=True,
+            sell_confidence_threshold=0.6,
+            bull_regime_sell_guard=True,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        strategy._ensure_model = MagicMock(return_value=True)
+        position = _make_position(entry_price=100000.0)
+        strategy.on_position_opened(position)
+
+        # Bull regime + low SELL confidence: blocked by guard floor (0.75 by default)
+        bull_ctx_low_conf = _make_context(
+            mfi=56.0,
+            adx=25.0,
+            close=101000.0,
+            mlp_prediction=MLP_LABEL_SELL,
+            mlp_confidence=0.65,
+        )
+        assert strategy.check_exit(bull_ctx_low_conf, position) is None
+
+        # Bull regime + high SELL confidence: exit allowed
+        bull_ctx_high_conf = _make_context(
+            mfi=56.0,
+            adx=25.0,
+            close=101000.0,
+            mlp_prediction=MLP_LABEL_SELL,
+            mlp_confidence=0.8,
+        )
+        signal = strategy.check_exit(bull_ctx_high_conf, position)
+        assert signal is not None
+        assert "SELL prediction" in signal.reason

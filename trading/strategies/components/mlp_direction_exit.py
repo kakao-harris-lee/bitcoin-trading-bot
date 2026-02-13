@@ -23,6 +23,7 @@ from .models import (
     Position,
     Signal,
     TradingContext,
+    BULL_REGIMES,
     MLP_LABEL_HOLD,
     MLP_LABEL_BUY,
     MLP_LABEL_SELL,
@@ -66,6 +67,8 @@ class MLPDirectionExitParams:
     use_mlp_sell_exit: bool = False  # Paper does NOT use MLP SELL exit
     sell_confidence_threshold: float = 0.50  # Confidence threshold for SELL exit
     min_profit_for_sell_exit: float = 0.0  # Min profit for SELL exit
+    min_hold_bars_for_sell_exit: int = 0  # Hold at least N bars before MLP SELL exit
+    bull_regime_sell_guard: bool = False  # Require stricter SELL confidence in BULL regimes
 
     # Take profit levels (NOT in paper - disabled by default)
     take_profit_enabled: bool = False  # Paper does NOT use take profit
@@ -244,6 +247,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             return None
 
         key = self._get_position_key(position)
+        candles_held = self._increment_candles_held(key)
         pnl_pct, hwm, hwm_pnl = self._compute_position_metrics(position, market_data, key)
 
         stop_signal = self._check_stop_loss_exit(ctx, position, pnl_pct, key)
@@ -258,7 +262,13 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         if take_profit_signal:
             return take_profit_signal
 
-        sell_signal = self._check_mlp_sell_exit_if_enabled(ctx, position, pnl_pct, key)
+        sell_signal = self._check_mlp_sell_exit_if_enabled(
+            ctx=ctx,
+            position=position,
+            pnl_pct=pnl_pct,
+            key=key,
+            candles_held=candles_held,
+        )
         if sell_signal:
             return sell_signal
 
@@ -337,11 +347,31 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         position: Position,
         pnl_pct: float,
         key: str,
+        candles_held: int,
     ) -> Signal | None:
         p = self.params
         if not p.use_mlp_sell_exit or pnl_pct < p.min_profit_for_sell_exit:
             return None
+        if p.min_hold_bars_for_sell_exit > 0 and candles_held < p.min_hold_bars_for_sell_exit:
+            logger.debug(
+                f"{position.symbol}: MLP SELL exit skipped - hold guard "
+                f"({candles_held}/{p.min_hold_bars_for_sell_exit} bars)"
+            )
+            return None
         return self._check_mlp_sell_exit(ctx, position, pnl_pct, key)
+
+    def _resolve_sell_threshold(self, ctx: TradingContext) -> float:
+        """Resolve effective SELL confidence threshold including bull-regime guard."""
+        threshold = self._active_sell_threshold(ctx)
+        if not self.params.bull_regime_sell_guard:
+            return threshold
+        if ctx.regime.regime not in BULL_REGIMES:
+            return threshold
+
+        # In strong bullish regimes, demand stricter SELL confidence to reduce early exits.
+        risk_on_floor = self.params.risk_on_sell_confidence_threshold
+        bull_floor = risk_on_floor if risk_on_floor > 0 else min(0.95, threshold + 0.15)
+        return max(threshold, bull_floor)
 
     def _check_trailing_stop_exit(
         self,
@@ -497,7 +527,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
                 logger.debug(f"{symbol}: MLP SELL exit: Feature set {p.mlp_feature_set} not supported for live computation")
                 return None
 
-        active_sell_threshold = self._active_sell_threshold(ctx)
+        active_sell_threshold = self._resolve_sell_threshold(ctx)
 
         # Check for SELL prediction with sufficient confidence
         if mlp_prediction == MLP_LABEL_SELL and mlp_confidence >= active_sell_threshold:

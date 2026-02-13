@@ -6,6 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 from typing import Any
+import re
 
 import pandas as pd
 
@@ -124,6 +125,86 @@ def _print_worst(title: str, df: pd.DataFrame, top_n: int) -> None:
         )
 
 
+def _timeframe_to_minutes(timeframe: str) -> float:
+    """Convert timeframe string into bar length minutes."""
+    raw = (timeframe or "").strip().lower()
+    if raw.startswith("minute"):
+        suffix = raw[len("minute") :]
+        if suffix.isdigit():
+            return float(suffix)
+    if raw.endswith("m") and raw[:-1].isdigit():
+        return float(raw[:-1])
+    if raw.endswith("h") and raw[:-1].isdigit():
+        return float(raw[:-1]) * 60.0
+    if raw in {"d", "1d", "day", "daily"}:
+        return 1440.0
+    match = re.search(r"(\d+)", raw)
+    if match:
+        return float(match.group(1))
+    return 240.0
+
+
+def _trade_timing_stats(trades: list[Any], bar_minutes: float) -> tuple[float, float]:
+    """Compute avg hold bars and early-exit rate (<=2 bars)."""
+    if not trades or bar_minutes <= 0:
+        return 0.0, 0.0
+
+    hold_bars: list[float] = []
+    for trade in trades:
+        entry_time = getattr(trade, "entry_time", None)
+        exit_time = getattr(trade, "exit_time", None)
+        if entry_time is None or exit_time is None:
+            continue
+        elapsed_seconds = (exit_time - entry_time).total_seconds()
+        if elapsed_seconds < 0:
+            continue
+        hold_bars.append(elapsed_seconds / (bar_minutes * 60.0))
+
+    if not hold_bars:
+        return 0.0, 0.0
+
+    avg_hold_bars = float(sum(hold_bars) / len(hold_bars))
+    early_exit_count = sum(1 for bars in hold_bars if bars <= 2.0)
+    early_exit_rate_pct = (early_exit_count / len(hold_bars)) * 100.0
+    return avg_hold_bars, early_exit_rate_pct
+
+
+def _compute_up_market_metrics(per_symbol_periods: pd.DataFrame) -> pd.DataFrame:
+    """Compute up-market alpha and capture ratio per symbol."""
+    if per_symbol_periods.empty:
+        return pd.DataFrame(columns=["symbol", "up_market_alpha_pct", "up_market_capture_ratio"])
+
+    monthly = per_symbol_periods[per_symbol_periods["freq"] == "M"].copy()
+    if monthly.empty:
+        monthly = per_symbol_periods.copy()
+
+    rows: list[dict[str, Any]] = []
+    for symbol, group in monthly.groupby("symbol"):
+        up = group[group["bnh_return"] > 0]
+        if up.empty:
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "up_market_alpha_pct": 0.0,
+                    "up_market_capture_ratio": 0.0,
+                }
+            )
+            continue
+
+        up_market_alpha_pct = float(up["alpha"].mean() * 100.0)
+        denom = float(up["bnh_return"].sum())
+        capture_ratio = float(up["strategy_return"].sum() / denom) if abs(denom) > 1e-12 else 0.0
+        rows.append(
+            {
+                "symbol": symbol,
+                "up_market_alpha_pct": up_market_alpha_pct,
+                "up_market_capture_ratio": capture_ratio,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
 def main() -> int:
     args = parse_args()
     periods = [normalize_period_freq(x) for x in args.periods.split(",") if x.strip()]
@@ -141,6 +222,7 @@ def main() -> int:
 
     period_rows: list[pd.DataFrame] = []
     symbol_summary_rows: list[dict[str, Any]] = []
+    bar_minutes = _timeframe_to_minutes(args.timeframe)
 
     for strategy_name, symbol, strategy_cfg in selected:
         db_path = DEFAULT_DB_BY_SYMBOL.get(symbol)
@@ -170,6 +252,7 @@ def main() -> int:
         prepared_df = backtester.prepare_data(raw_df.copy())
         results = backtester.run(prepared_df, initial_capital=args.capital)
         equity_curve = results.get("equity_curve")
+        avg_hold_bars, early_exit_rate_pct = _trade_timing_stats(results.get("trades", []), bar_minutes)
 
         bnh_total = (float(raw_df["close"].iloc[-1]) / float(raw_df["close"].iloc[0])) - 1.0
         strategy_total = float(results.get("total_return", 0.0)) / 100.0
@@ -183,6 +266,8 @@ def main() -> int:
                 "alpha_pct": (strategy_total - bnh_total) * 100.0,
                 "trades": int(results.get("total_trades", 0)),
                 "win_rate_pct": float(results.get("win_rate", 0.0)) * 100.0,
+                "avg_hold_bars": avg_hold_bars,
+                "early_exit_rate_pct": early_exit_rate_pct,
             }
         )
 
@@ -206,7 +291,16 @@ def main() -> int:
 
     per_symbol_periods = pd.concat(period_rows, ignore_index=True)
     portfolio_periods = build_portfolio_comparison(per_symbol_periods)
-    summary_df = pd.DataFrame(symbol_summary_rows).sort_values("alpha_pct")
+    summary_df = pd.DataFrame(symbol_summary_rows)
+    up_metrics = _compute_up_market_metrics(per_symbol_periods)
+    if not up_metrics.empty:
+        summary_df = summary_df.merge(up_metrics, on="symbol", how="left")
+    else:
+        summary_df["up_market_alpha_pct"] = 0.0
+        summary_df["up_market_capture_ratio"] = 0.0
+    summary_df["up_market_alpha_pct"] = summary_df["up_market_alpha_pct"].fillna(0.0)
+    summary_df["up_market_capture_ratio"] = summary_df["up_market_capture_ratio"].fillna(0.0)
+    summary_df = summary_df.sort_values("alpha_pct")
 
     per_symbol_periods_out = _to_percent(per_symbol_periods)
     portfolio_periods_out = _to_percent(portfolio_periods)
@@ -224,7 +318,11 @@ def main() -> int:
         print(
             f"  {row['symbol']:<4} STR={row['strategy_return_pct']:+7.2f}% "
             f"BnH={row['bnh_return_pct']:+7.2f}% Alpha={row['alpha_pct']:+7.2f}%p "
-            f"Trades={int(row['trades'])}"
+            f"UpAlpha={row['up_market_alpha_pct']:+7.2f}%p "
+            f"Capture={row['up_market_capture_ratio']:+5.2f} "
+            f"Trades={int(row['trades'])} "
+            f"AvgHold={row['avg_hold_bars']:.2f}b "
+            f"EarlyExit={row['early_exit_rate_pct']:.1f}%"
         )
 
     print("\nPortfolio compounded return by period")

@@ -33,6 +33,8 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - Strategies are not hardcoded.
 - `allocation.json` defines which Entry/Exit components to pair.
 - Supports "Mix & Match" (e.g., Short Entry + Short Exit, or Sideways Entry + Sideways Exit).
+- Component engine is the default (`use_component_strategies=true`), so each configured strategy must map to valid Entry/Exit classes (or a registry alias).
+- Legacy premium/arbitrage (Kimchi premium) configs are retired and should remain removed/disabled.
 
 ### C. Unified Backtesting
 
@@ -79,7 +81,6 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - MLP Direction Strategy Implementation → `docs/plans/2026-02-01-mlp-direction-strategy-implementation.md`
 - Bear Short Strategy Design → `docs/plans/2026-02-06-bear-short-strategy-design.md`
 - MLP Model Improvement Plan → `docs/plans/2026-02-08-mlp-model-improvement-plan.md`
-
 - Regime Improvement Design → `docs/plans/2026-02-12-regime-improvement-design.md`
 
 This prevents context loss! Update this file immediately when you create important documentation.
@@ -110,6 +111,8 @@ python run.py --trend live
 
 # Run tests
 pytest
+pytest -m "not integration"
+docker-compose -f docker-compose.test.yml up --build
 ```
 
 ## Architecture Overview
@@ -457,6 +460,7 @@ python scripts/analyze_trades.py --event EXIT       # Filter by event
 
 ## Recent Changes
 
+- 2026-02-12: Synced AGENTS/CLAUDE guidance (component-default config requirements and Kimchi premium retirement note)
 - 2026-02-06: Removed V35 strategy code from codebase (entry, exit, quant lab tuning)
 - 2026-02-03: Fixed position_size bug - Entry strategy's regime-based sizing now takes priority over config fallback
 - 2026-02-03: Added backtest CSV logging for strategy analysis (--csv-log CLI option, dashboard download API)

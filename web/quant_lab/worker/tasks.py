@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 from enum import Enum
 import json
 import redis
+import os
 from datetime import datetime
 
 from ..optimizer.study_manager import StudyManager
@@ -157,7 +158,7 @@ def _update_job_status(
 ) -> None:
     """Update job status in Redis."""
     try:
-        r = redis.from_url("redis://localhost:6379")
+        r = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379"))
         data = {
             "status": status.value,
             "updated_at": datetime.utcnow().isoformat(),
@@ -172,12 +173,11 @@ def _update_job_status(
 def _on_trial_complete(job_id: str, study, trial) -> None:
     """Callback after each trial completes."""
     try:
-        r = redis.from_url("redis://localhost:6379")
+        r = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379"))
         # trial.number is 0-indexed, so add 1 for display (trial 0 = "1 of N")
         r.hset(f"quant_lab:job:{job_id}", mapping={
-            "current_trial": str(trial.number + 1),
+            "current_trial": json.dumps(trial.number + 1),
             "best_values": json.dumps(study.best_trials[0].values if study.best_trials else None),
         })
     except Exception:
         pass
-

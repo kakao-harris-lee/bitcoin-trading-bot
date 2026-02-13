@@ -98,19 +98,19 @@
       "ensemble_models": [
         {
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
-          "weight": 0.1
+          "weight": 0.5126885110165086
         },
         {
           "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
-          "weight": 0.15
+          "weight": 0.13949386065204183
         },
         {
           "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
-          "weight": 0.2
+          "weight": 0.29214464853521815
         },
         {
           "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
-          "weight": 0.1
+          "weight": 0.8407030280112
         },
         {
           "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
@@ -130,8 +130,8 @@
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
-      "stop_loss_cooldown": 0,
-      "drawdown_bear_threshold": 1.0,
+      "stop_loss_cooldown": 14,
+      "drawdown_bear_threshold": 0.8895965907152544,
       "regime_version": "v2",
       "bbw_block_threshold": 25,
       "bbw_confirm_threshold": 50,
@@ -147,19 +147,19 @@
           "ensemble_models": [
             {
               "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
-              "weight": 0.1
+              "weight": 0.5126885110165086
             },
             {
               "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
-              "weight": 0.15
+              "weight": 0.13949386065204183
             },
             {
               "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
-              "weight": 0.2
+              "weight": 0.29214464853521815
             },
             {
               "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
-              "weight": 0.1
+              "weight": 0.8407030280112
             },
             {
               "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
@@ -170,10 +170,10 @@
               "weight": 0.25
             }
           ],
-          "buy_confidence_threshold": 0.5,
+          "buy_confidence_threshold": 0.29963209507789,
           "skip_bear_regime": true,
-          "adx_min": 0.0,
-          "use_ema200_filter": false,
+          "adx_min": 11.52979941479045,
+          "use_ema200_filter": true,
           "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36",
@@ -190,14 +190,14 @@
       "exit": {
         "class": "MLPDirectionExitStrategy",
         "params": {
-          "stop_loss_pct": 10.0,
-          "fwin_exit_enabled": false,
-          "fwin_periods": 2,
+          "stop_loss_pct": 23.899146046904956,
+          "fwin_exit_enabled": true,
+          "fwin_periods": 5,
           "atr_stop_enabled": false,
-          "trailing_enabled": false,
-          "take_profit_enabled": false,
-          "use_mlp_sell_exit": true,
-          "sell_confidence_threshold": 0.6,
+          "trailing_enabled": true,
+          "take_profit_enabled": true,
+          "use_mlp_sell_exit": false,
+          "sell_confidence_threshold": 0.3739212089998958,
           "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36",
@@ -208,8 +208,22 @@
           "risk_on_sell_confidence_threshold": 0.8,
           "risk_off_sell_confidence_threshold": 0.65,
           "min_hold_bars_for_sell_exit": 2,
-          "bull_regime_sell_guard": true
+          "bull_regime_sell_guard": true,
+          "trailing_activation": 29.761552905698366,
+          "trailing_distance": 4.243403819368208,
+          "take_profit_pct": 32.34815576954866
         }
+      },
+      "cash_in_bear": false,
+      "cash_below_ema200": false,
+      "regime_thresholds": {
+        "mfi_bull_strong": 56.07544851901439,
+        "mfi_bull_moderate": 51.705241236872915,
+        "mfi_sideways_up": 45.650515929852794,
+        "mfi_bear_moderate": 40.151146245734566,
+        "mfi_bear_strong": 38.61533865985728,
+        "adx_strong_trend": 27.74428865275309,
+        "adx_moderate_trend": 14.000646782418116
       }
     },
     "mlp_direction_eth": {
@@ -352,19 +366,19 @@
       "ensemble_models": [
         {
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
-          "weight": 0.1
+          "weight": 0.45378954138363925
         },
         {
           "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
-          "weight": 0.15
+          "weight": 0.23605046334646396
         },
         {
           "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
-          "weight": 0.2
+          "weight": 0.07349674733001266
         },
         {
           "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
-          "weight": 0.1
+          "weight": 0.16975790508754074
         },
         {
           "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
@@ -384,8 +398,8 @@
       "position_pct": 0.2,
       "position_size": 0.2,
       "drawdown_enabled": false,
-      "stop_loss_cooldown": 0,
-      "drawdown_bear_threshold": 1.0,
+      "stop_loss_cooldown": 6,
+      "drawdown_bear_threshold": 0.6362877372738286,
       "regime_version": "v2",
       "bbw_block_threshold": 25,
       "bbw_confirm_threshold": 50,
@@ -401,19 +415,19 @@
           "ensemble_models": [
             {
               "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
-              "weight": 0.1
+              "weight": 0.45378954138363925
             },
             {
               "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
-              "weight": 0.15
+              "weight": 0.23605046334646396
             },
             {
               "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
-              "weight": 0.2
+              "weight": 0.07349674733001266
             },
             {
               "model_path": "models/mlp_direction/multi_bwin7_fwin3/model_best.pt",
-              "weight": 0.1
+              "weight": 0.16975790508754074
             },
             {
               "model_path": "models/mlp_direction/xgb_bwin3_fwin1/model.json",
@@ -424,10 +438,10 @@
               "weight": 0.25
             }
           ],
-          "buy_confidence_threshold": 0.3,
+          "buy_confidence_threshold": 0.19003465993910212,
           "skip_bear_regime": true,
-          "adx_min": 0.0,
-          "use_ema200_filter": false,
+          "adx_min": 25.631552801087373,
+          "use_ema200_filter": true,
           "position_size": 0.2,
           "market": "spot",
           "mlp_feature_set": "paper_36",
@@ -444,14 +458,14 @@
       "exit": {
         "class": "MLPDirectionExitStrategy",
         "params": {
-          "stop_loss_pct": 6.0,
+          "stop_loss_pct": 22.15649782799525,
           "fwin_exit_enabled": false,
-          "fwin_periods": 2,
+          "fwin_periods": 4,
           "atr_stop_enabled": false,
-          "trailing_enabled": false,
-          "take_profit_enabled": false,
+          "trailing_enabled": true,
+          "take_profit_enabled": true,
           "use_mlp_sell_exit": true,
-          "sell_confidence_threshold": 0.6,
+          "sell_confidence_threshold": 0.3128652293214086,
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36",
@@ -462,8 +476,22 @@
           "risk_on_sell_confidence_threshold": 0.8,
           "risk_off_sell_confidence_threshold": 0.65,
           "min_hold_bars_for_sell_exit": 2,
-          "bull_regime_sell_guard": true
+          "bull_regime_sell_guard": true,
+          "trailing_activation": 20.731889942614888,
+          "trailing_distance": 5.552660899145728,
+          "take_profit_pct": 48.64194702853451
         }
+      },
+      "cash_in_bear": true,
+      "cash_below_ema200": true,
+      "regime_thresholds": {
+        "mfi_bull_strong": 57.06777216885446,
+        "mfi_bull_moderate": 51.6704190790095,
+        "mfi_sideways_up": 46.676192162883176,
+        "mfi_bear_moderate": 35.47672855013606,
+        "mfi_bear_strong": 38.309628210918966,
+        "adx_strong_trend": 27.29326338670527,
+        "adx_moderate_trend": 18.17020138474758
       }
     },
     "mlp_direction_bnb": {

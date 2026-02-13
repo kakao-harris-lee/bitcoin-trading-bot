@@ -324,12 +324,13 @@ _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
         totp = pyotp.TOTP(totp_secret, interval=30)
         current_code = totp.now()
 
-        domain = os.getenv("DASHBOARD_DOMAIN", "lchsvr.duckdns.org")
+        domain = os.getenv("DASHBOARD_DOMAIN", "localhost")
         port = os.getenv("DASHBOARD_PORT", "5080")
+        scheme = "http" if domain in ("localhost", "127.0.0.1") else "https"
 
         message = f"""🖥️ *Dashboard Access*
 
-🔗 URL: `https://{domain}:{port}/btc-dashboard`
+🔗 URL: `{scheme}://{domain}:{port}/btc-dashboard`
 🔐 TOTP: `{current_code}`
 
 _Code valid for ~30 seconds_

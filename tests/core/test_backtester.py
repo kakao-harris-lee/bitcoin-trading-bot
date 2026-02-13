@@ -122,6 +122,31 @@ class TestBacktesterFeeDifference:
         # (assuming same price movement)
         assert futures_results['final_capital'] > spot_results['final_capital']
 
+    def test_final_capital_after_auto_liquidation_not_double_counted(self, sample_data):
+        """Final capital should not include stale position value after forced liquidation."""
+        backtester = Backtester(
+            initial_capital=10000,
+            market="spot",
+            fee_rate=0.0,
+            slippage=0.0,
+        )
+
+        def buy_once_hold(df, i, params):
+            if i == 0:
+                return {'action': 'buy', 'fraction': 1.0}
+            return {'action': 'hold'}
+
+        results = backtester.run(sample_data, buy_once_hold)
+
+        entry_price = sample_data.iloc[0]["close"]
+        exit_price = sample_data.iloc[-1]["close"]
+        expected_final = 10000 * (exit_price / entry_price)
+        expected_return = (expected_final - 10000) / 10000 * 100
+
+        assert results["total_trades"] == 1
+        assert results["final_capital"] == pytest.approx(expected_final, rel=1e-9)
+        assert results["total_return"] == pytest.approx(expected_return, rel=1e-9)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

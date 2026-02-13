@@ -118,6 +118,11 @@
                 <div>
                     <label class="block text-sm text-gray-400 mb-2">Experiment Name</label>
                     <input type="text" x-model="config.study_name"
+                           @input="onStudyNameInput"
+                           autocomplete="off"
+                           autocapitalize="off"
+                           autocorrect="off"
+                           spellcheck="false"
                            class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2"
                            placeholder="my_experiment">
                 </div>
@@ -152,6 +157,8 @@
                 templates: {},
                 selectedTemplate: null,
                 launching: false,
+                studyNameUserEdited: false,
+                lastSuggestedStudyName: '',
                 config: {
                     study_name: '',
                     start_date: '2024-01-01',
@@ -165,9 +172,67 @@
                 },
 
                 async init() {
-                    const res = await fetch('/quant-lab/api/templates');
-                    const data = await res.json();
-                    this.templates = data.templates;
+                    this.refreshStudyNameSuggestion(true);
+                    this.$nextTick(() => {
+                        // Guard against late browser autofill restoring stale values.
+                        window.setTimeout(() => this.refreshStudyNameSuggestion(false), 80);
+                        window.setTimeout(() => this.refreshStudyNameSuggestion(false), 600);
+                    });
+                    this.$watch('config.asset', () => this.refreshStudyNameSuggestion(false));
+                    this.$watch('config.strategy_type', () => this.refreshStudyNameSuggestion(false));
+                    window.addEventListener('pageshow', (event) => {
+                        // BFCache restore can keep old form state; regenerate suggestion.
+                        if (event.persisted) {
+                            this.studyNameUserEdited = false;
+                            this.refreshStudyNameSuggestion(true);
+                        }
+                    });
+                    try {
+                        const res = await fetch('/quant-lab/api/templates');
+                        let data = {};
+                        try {
+                            data = await res.json();
+                        } catch (_) {
+                            data = {};
+                        }
+                        if (!res.ok) {
+                            throw new Error(data.error || `HTTP ${res.status}`);
+                        }
+                        this.templates = data.templates || {};
+                    } catch (e) {
+                        this.templates = {};
+                        alert('Failed to load templates: ' + e.message);
+                    }
+                },
+
+                formatTimestamp(now = new Date()) {
+                    const pad = (v) => String(v).padStart(2, '0');
+                    return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+                },
+
+                buildSuggestedStudyName() {
+                    const ts = this.formatTimestamp();
+                    if (this.config.strategy_type === 'mlp_direction') {
+                        const asset = (this.config.asset || 'BTC').toLowerCase();
+                        return `mlp_${asset}_${ts}`;
+                    }
+                    return `regime_${ts}`;
+                },
+
+                refreshStudyNameSuggestion(force = false) {
+                    const current = (this.config.study_name || '').trim();
+                    const canReplace = force || !current || !this.studyNameUserEdited || current === this.lastSuggestedStudyName;
+                    if (!canReplace) return;
+
+                    const suggestion = this.buildSuggestedStudyName();
+                    this.config.study_name = suggestion;
+                    this.lastSuggestedStudyName = suggestion;
+                    this.studyNameUserEdited = false;
+                },
+
+                onStudyNameInput() {
+                    const current = (this.config.study_name || '').trim();
+                    this.studyNameUserEdited = current !== this.lastSuggestedStudyName;
                 },
 
                 selectTemplate(key) {
@@ -186,6 +251,9 @@
                 async launch() {
                     this.launching = true;
                     try {
+                        if (!(this.config.study_name || '').trim()) {
+                            this.refreshStudyNameSuggestion(true);
+                        }
                         const payload = {
                             ...this.config,
                             symbols: [this.config.asset],
@@ -195,7 +263,15 @@
                             headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify(payload),
                         });
-                        const data = await res.json();
+                        let data = {};
+                        try {
+                            data = await res.json();
+                        } catch (_) {
+                            data = {};
+                        }
+                        if (!res.ok) {
+                            throw new Error(data.error || `HTTP ${res.status}`);
+                        }
                         if (data.job_id) {
                             window.location.href = '/quant-lab/monitor';
                         } else {

@@ -104,7 +104,8 @@ def get_redis() -> redis.Redis:
 
 
 # 대시보드 고정 경로
-DEFAULT_DOMAIN = "lchsvr.duckdns.org"
+# Localhost must stay local by default (no domain redirection guidance).
+DEFAULT_DOMAIN = "localhost"
 DEFAULT_PORT = "5080"
 DASHBOARD_PATH = "btc-dashboard"
 
@@ -510,11 +511,12 @@ def _notify_dashboard_url(port: int = 5080):
     """대시보드 URL을 텔레그램으로 알림"""
     domain = os.getenv("DASHBOARD_DOMAIN", DEFAULT_DOMAIN)
     port = os.getenv("DASHBOARD_PORT", DEFAULT_PORT)
+    scheme = "http" if domain in ("localhost", "127.0.0.1") else "https"
 
     message = f"""
 🖥️ *대시보드 시작*
 
-🔗 접속: `https://{domain}:{port}/{DASHBOARD_PATH}`
+🔗 접속: `{scheme}://{domain}:{port}/{DASHBOARD_PATH}`
 🕐 시작 시간: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`
 """
     _send_telegram_notification(message)

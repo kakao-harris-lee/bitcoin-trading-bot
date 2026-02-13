@@ -806,6 +806,10 @@ class Backtester:
         # 매도 실행
         self.cash += proceeds
         self.position -= quantity
+        if abs(self.position) < 1e-12:
+            self.position = 0.0
+            # Keep position_value in sync when closing at end-of-run liquidation.
+            self.position_value = 0.0
 
         # 매칭되는 매수 거래 찾기 (FIFO)
         for trade in self.trades:
@@ -876,6 +880,9 @@ class Backtester:
 
         self.cash -= cover_cost
         self.position += quantity  # Moves toward 0
+        if abs(self.position) < 1e-12:
+            self.position = 0.0
+            self.position_value = 0.0
 
         # Match the open short trade (FIFO)
         for trade in self.trades:
@@ -893,6 +900,9 @@ class Backtester:
 
         Returns dictionary with all metrics including sharpe_ratio and max_drawdown_pct.
         """
+        # Guard against stale position_value after final forced liquidation.
+        if self.position == 0:
+            self.position_value = 0.0
         final_equity = self.cash + self.position_value
         total_return = ((final_equity - self.initial_capital) / self.initial_capital) * 100
         equity_df = pd.DataFrame(self.equity_curve)

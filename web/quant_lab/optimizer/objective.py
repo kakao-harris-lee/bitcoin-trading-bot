@@ -376,7 +376,7 @@ class MLPDirectionObjective:
             "ETH": "data/binance_ethereum.db",
             "SOL": "data/binance_solana.db",
         }
-        db_path = str(Path(self.config_path).parent.parent / symbol_db_map.get(
+        db_path = str(project_root / symbol_db_map.get(
             self.asset.upper(), "data/binance_bitcoin.db"
         ))
 

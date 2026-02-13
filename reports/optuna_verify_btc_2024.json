@@ -1,0 +1,81 @@
+{
+  "asset": "BTC",
+  "n_trials": 120,
+  "date_range": [
+    "2024-01-01",
+    "2024-12-31"
+  ],
+  "strategy_id": "mlp_direction_btc",
+  "baseline": {
+    "win_rate": 0.5625,
+    "total_return": 0.04440066268922056,
+    "max_drawdown": 0.10960403867279768,
+    "total_trades": 16
+  },
+  "complete_trials": 120,
+  "dominating_count": 55,
+  "baseline_is_pareto_optimal": false,
+  "best_return_trial": {
+    "number": 64,
+    "values": [
+      0.5,
+      0.26374841622175027,
+      0.09814147224937822
+    ]
+  },
+  "best_win_rate_trial": {
+    "number": 2,
+    "values": [
+      1.0,
+      0.19421253479343792,
+      0.07508159188550674
+    ]
+  },
+  "best_drawdown_trial": {
+    "number": 72,
+    "values": [
+      0.7333333333333333,
+      0.16718651849223642,
+      0.024018943832370625
+    ]
+  },
+  "best_dominating_trial": {
+    "number": 73,
+    "values": [
+      1.0,
+      0.23831933160133922,
+      0.0929973078447631
+    ],
+    "params": {
+      "entry_buy_confidence_threshold": 0.5654858750780937,
+      "entry_skip_bear_regime": false,
+      "entry_adx_min": 1.8080217086868255,
+      "entry_use_ema200_filter": true,
+      "exit_stop_loss_pct": 5.231258225882764,
+      "exit_fwin_exit_enabled": true,
+      "exit_fwin_periods": 3,
+      "exit_use_mlp_sell_exit": false,
+      "exit_sell_confidence_threshold": 0.5836849426704512,
+      "exit_trailing_enabled": false,
+      "exit_trailing_activation": 15.749802979372632,
+      "exit_trailing_distance": 4.816736010269473,
+      "exit_take_profit_enabled": false,
+      "exit_take_profit_pct": 13.151720729060614,
+      "ensemble_weight_bwin3": 0.770967179954561,
+      "ensemble_weight_bwin4": 0.18143834769562694,
+      "ensemble_weight_bwin5": 0.5251633836670602,
+      "ensemble_weight_bwin7": 0.42754101835854963,
+      "adapter_cash_in_bear": false,
+      "adapter_cash_below_ema200": false,
+      "adapter_stop_loss_cooldown": 12,
+      "adapter_drawdown_bear_threshold": 0.5331421566064676,
+      "regime_mfi_bull_strong": 55.50226542156262,
+      "regime_mfi_bull_moderate": 52.49292229148875,
+      "regime_mfi_sideways_up": 51.33151375594022,
+      "regime_mfi_bear_moderate": 44.82216480105963,
+      "regime_mfi_bear_strong": 36.42256548204864,
+      "regime_adx_strong_trend": 29.468644031975064,
+      "regime_adx_moderate_trend": 15.766768887878985
+    }
+  }
+}

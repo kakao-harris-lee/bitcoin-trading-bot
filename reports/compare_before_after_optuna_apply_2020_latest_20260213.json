@@ -1,0 +1,86 @@
+{
+  "start_date": "2020-01-01",
+  "assets": [
+    {
+      "asset": "BTC",
+      "date_range": [
+        "2020-01-01",
+        "2026-01-11"
+      ],
+      "before": {
+        "strategy_id": "mlp_direction_btc",
+        "trades": 88,
+        "win_rate": 0.5909090909090909,
+        "total_return_pct": 28.44197628490594,
+        "max_drawdown_pct": 20.610823738096403
+      },
+      "after": {
+        "strategy_id": "mlp_direction_btc",
+        "trades": 25,
+        "win_rate": 0.68,
+        "total_return_pct": 89.12303605256093,
+        "max_drawdown_pct": 17.4238077235163
+      },
+      "delta": {
+        "trades": -63,
+        "win_rate_pp": 8.90909090909091,
+        "total_return_pctp": 60.68105976765499,
+        "max_drawdown_pctp": -3.1870160145801023
+      }
+    },
+    {
+      "asset": "ETH",
+      "date_range": [
+        "2020-01-01",
+        "2026-02-01"
+      ],
+      "before": {
+        "strategy_id": "mlp_direction_eth",
+        "trades": 275,
+        "win_rate": 0.84,
+        "total_return_pct": 153.97850719772165,
+        "max_drawdown_pct": 7.838933445226724
+      },
+      "after": {
+        "strategy_id": "mlp_direction_eth",
+        "trades": 275,
+        "win_rate": 0.84,
+        "total_return_pct": 153.97850719772165,
+        "max_drawdown_pct": 7.838933445226724
+      },
+      "delta": {
+        "trades": 0,
+        "win_rate_pp": 0.0,
+        "total_return_pctp": 0.0,
+        "max_drawdown_pctp": 0.0
+      }
+    },
+    {
+      "asset": "SOL",
+      "date_range": [
+        "2020-01-01",
+        "2026-02-04"
+      ],
+      "before": {
+        "strategy_id": "mlp_direction_sol",
+        "trades": 263,
+        "win_rate": 0.4790874524714829,
+        "total_return_pct": 143.48654453647762,
+        "max_drawdown_pct": 14.72681653667561
+      },
+      "after": {
+        "strategy_id": "mlp_direction_sol",
+        "trades": 120,
+        "win_rate": 0.5,
+        "total_return_pct": 171.95386503219004,
+        "max_drawdown_pct": 10.572187425337855
+      },
+      "delta": {
+        "trades": -143,
+        "win_rate_pp": 2.0912547528517123,
+        "total_return_pctp": 28.467320495712414,
+        "max_drawdown_pctp": -4.154629111337755
+      }
+    }
+  ]
+}

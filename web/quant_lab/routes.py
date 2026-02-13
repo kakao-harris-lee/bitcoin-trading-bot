@@ -7,6 +7,8 @@ import os
 import re
 from pathlib import Path
 from typing import Dict, Any, Optional
+from datetime import datetime
+import time
 
 from .worker.tasks import OptimizationJob, JobStatus
 from .optimizer.study_manager import StudyManager
@@ -71,6 +73,9 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 ALLOWED_DATA_DIRS = [
     PROJECT_ROOT / "data",
 ]
+
+_EXPERIMENTS_CACHE: Dict[str, Any] = {"ts": 0.0, "data": None}
+_EXPERIMENTS_CACHE_TTL_SECONDS = 30.0
 
 
 def sanitize_strategy_name(name: str) -> str:
@@ -152,6 +157,30 @@ def normalize_asset(asset: Optional[str]) -> Optional[str]:
     return None
 
 
+def build_suggested_study_name(
+    strategy_type: str,
+    asset: Optional[str] = None,
+) -> str:
+    """Build a timestamp-suffixed study name suggestion."""
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if strategy_type == "mlp_direction":
+        return f"mlp_{(asset or 'BTC').lower()}_{ts}"
+    return f"regime_{ts}"
+
+
+def _decode_redis_hash(data: Dict[Any, Any]) -> Dict[str, Any]:
+    """Decode Redis hash bytes and parse JSON values when possible."""
+    decoded: Dict[str, Any] = {}
+    for k, v in data.items():
+        key = k.decode() if isinstance(k, bytes) else k
+        raw = v.decode() if isinstance(v, bytes) else v
+        try:
+            decoded[key] = json.loads(raw)
+        except Exception:
+            decoded[key] = raw
+    return decoded
+
+
 # Experiment templates
 TEMPLATES = {
     "full_regime_search": {
@@ -185,6 +214,7 @@ TEMPLATES = {
 
 
 @quant_lab_bp.route('/')
+@requires_auth
 def index():
     """Render main Quant Lab page."""
     return render_template('designer.html', regimes=REGIMES)
@@ -224,10 +254,24 @@ def create_experiment():
     # Generate job ID (full UUID for security)
     job_id = str(uuid.uuid4())
 
+    # Determine strategy type first (needed for study name suggestion)
+    strategy_type = data.get('strategy_type', 'mlp_direction')
+    if strategy_type not in ('regime', 'mlp_direction'):
+        return jsonify({"error": f"Invalid strategy_type: '{strategy_type}'"}), 400
+
+    symbols = data.get('symbols', [])
+    asset = normalize_asset(data.get('asset'))
+    if strategy_type == 'mlp_direction' and not asset and symbols:
+        asset = normalize_asset(symbols[0])
+    if strategy_type == 'mlp_direction' and not asset:
+        return jsonify({"error": "MLP optimization requires 'asset' or symbol (BTC, ETH, SOL)"}), 400
+    if data.get('asset') and not asset:
+        return jsonify({"error": f"Invalid asset: '{data.get('asset')}'. Must be BTC, ETH, or SOL"}), 400
+
     # Validate and sanitize study name
     study_name = data.get('study_name', '').strip()
     if not study_name:
-        study_name = f'experiment_{job_id[:8]}'
+        study_name = build_suggested_study_name(strategy_type=strategy_type, asset=asset)
     else:
         try:
             study_name = sanitize_strategy_name(study_name)
@@ -250,20 +294,6 @@ def create_experiment():
     if max_hours is not None:
         max_hours = min(float(max_hours), MAX_HOURS)
         max_hours = max(max_hours, 0.1)
-
-    # Determine strategy type
-    strategy_type = data.get('strategy_type', 'mlp_direction')
-    if strategy_type not in ('regime', 'mlp_direction'):
-        return jsonify({"error": f"Invalid strategy_type: '{strategy_type}'"}), 400
-
-    symbols = data.get('symbols', [])
-    asset = normalize_asset(data.get('asset'))
-    if strategy_type == 'mlp_direction' and not asset and symbols:
-        asset = normalize_asset(symbols[0])
-    if strategy_type == 'mlp_direction' and not asset:
-        return jsonify({"error": "MLP optimization requires 'asset' or symbol (BTC, ETH, SOL)"}), 400
-    if data.get('asset') and not asset:
-        return jsonify({"error": f"Invalid asset: '{data.get('asset')}'. Must be BTC, ETH, or SOL"}), 400
 
     # Create job
     job = OptimizationJob(
@@ -294,6 +324,24 @@ def create_experiment():
         from .worker.tasks import run_optimization
         rq_job = q.enqueue(run_optimization, job, job_timeout='12h')
 
+        # Persist queued status immediately so Active Jobs can show pending work
+        redis_conn.hset(
+            f"quant_lab:job:{job_id}",
+            mapping={
+                "status": json.dumps("queued"),
+                "updated_at": json.dumps(datetime.utcnow().isoformat()),
+                "study_name": json.dumps(study_name),
+                "max_trials": json.dumps(max_trials),
+                "current_trial": json.dumps(0),
+                "start_date": json.dumps(data['start_date']),
+                "end_date": json.dumps(data['end_date']),
+                "symbols": json.dumps(job.symbols),
+                "rq_job_id": json.dumps(rq_job.id),
+            },
+        )
+        _EXPERIMENTS_CACHE["ts"] = 0.0
+        _EXPERIMENTS_CACHE["data"] = None
+
         return jsonify({
             "job_id": job_id,
             "rq_job_id": rq_job.id,
@@ -317,7 +365,7 @@ def get_experiment_status(job_id: str):
         if not data:
             return jsonify({"error": "Job not found"}), 404
 
-        return jsonify({k.decode(): json.loads(v.decode()) for k, v in data.items()})
+        return jsonify(_decode_redis_hash(data))
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -328,10 +376,15 @@ def get_experiment_status(job_id: str):
 def list_experiments():
     """List all experiments."""
     try:
+        now = time.time()
+        cached = _EXPERIMENTS_CACHE.get("data")
+        if cached is not None and (now - float(_EXPERIMENTS_CACHE.get("ts", 0.0))) < _EXPERIMENTS_CACHE_TTL_SECONDS:
+            return jsonify(cached)
+
         manager = StudyManager()
         studies = manager.list_studies()
 
-        return jsonify({
+        payload = {
             "experiments": [
                 {
                     "study_name": s.study_name,
@@ -340,7 +393,10 @@ def list_experiments():
                 }
                 for s in studies
             ]
-        })
+        }
+        _EXPERIMENTS_CACHE["ts"] = now
+        _EXPERIMENTS_CACHE["data"] = payload
+        return jsonify(payload)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -349,29 +405,64 @@ def list_experiments():
 @quant_lab_bp.route('/api/active-jobs')
 @requires_auth
 def list_active_jobs():
-    """List all active jobs from Redis."""
+    """List active jobs and recently completed/failed jobs from Redis + queued RQ jobs."""
     try:
         from redis import Redis
+        from rq import Queue
 
         redis_conn = Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379'))
+        queue = Queue('quant_lab', connection=redis_conn)
 
         # Find all quant_lab:job:* keys
         job_keys = redis_conn.keys('quant_lab:job:*')
         active_jobs = []
+        completed_jobs = []
+        known_job_ids = set()
 
         for key in job_keys:
             data = redis_conn.hgetall(key)
             if data:
-                job_data = {k.decode(): json.loads(v.decode()) for k, v in data.items()}
+                job_data = _decode_redis_hash(data)
                 # Extract job_id from key
-                job_id = key.decode().split(':')[-1]
+                key_str = key.decode() if isinstance(key, bytes) else key
+                job_id = key_str.split(':')[-1]
                 job_data['job_id'] = job_id
+                known_job_ids.add(job_id)
 
-                # Only include running/pending jobs
-                if job_data.get('status') in ['running', 'pending', 'queued']:
+                status = job_data.get('status')
+                if status in ['running', 'pending', 'queued']:
                     active_jobs.append(job_data)
+                elif status in ['failed', 'completed', 'cancelled']:
+                    completed_jobs.append(job_data)
 
-        return jsonify({"active_jobs": active_jobs})
+        # Backfill queued jobs that haven't written quant_lab:job:* yet
+        for rq_job_id in queue.job_ids:
+            rq_job = queue.fetch_job(rq_job_id)
+            if rq_job is None or not rq_job.args:
+                continue
+            job_arg = rq_job.args[0]
+            job_id = getattr(job_arg, 'job_id', None)
+            if not job_id or job_id in known_job_ids:
+                continue
+            active_jobs.append({
+                "job_id": job_id,
+                "rq_job_id": rq_job_id,
+                "study_name": getattr(job_arg, 'study_name', f"job_{job_id[:8]}"),
+                "status": "queued",
+                "current_trial": 0,
+                "max_trials": getattr(job_arg, 'max_trials', None),
+                "start_date": getattr(job_arg, 'start_date', None),
+                "end_date": getattr(job_arg, 'end_date', None),
+                "symbols": getattr(job_arg, 'symbols', []),
+            })
+
+        active_jobs.sort(key=lambda x: x.get('updated_at', ''), reverse=True)
+        completed_jobs.sort(key=lambda x: x.get('updated_at', ''), reverse=True)
+
+        return jsonify({
+            "active_jobs": active_jobs,
+            "completed_jobs": completed_jobs,
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -407,12 +498,14 @@ def get_experiment_results(study_name: str):
 
 
 @quant_lab_bp.route('/monitor')
+@requires_auth
 def monitor():
     """Render job monitor page."""
     return render_template('monitor.html')
 
 
 @quant_lab_bp.route('/results/<study_name>')
+@requires_auth
 def results(study_name: str):
     """Render results page for a study."""
     return render_template('results.html', study_name=study_name)

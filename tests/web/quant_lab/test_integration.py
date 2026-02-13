@@ -97,8 +97,8 @@ class TestFullWorkflow:
         client = app.test_client()
         auth_headers = get_auth_headers()
 
-        # Index (no auth required for HTML pages)
-        response = client.get('/quant-lab/')
+        # Index (auth required)
+        response = client.get('/quant-lab/', headers=auth_headers)
         assert response.status_code == 200
 
         # Templates API (auth required)

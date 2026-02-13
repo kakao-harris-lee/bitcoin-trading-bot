@@ -5,8 +5,9 @@ Includes mplfinance-based regime charts for indicator analysis.
 
 import logging
 import re
+from datetime import date
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import matplotlib
 matplotlib.use('Agg')  # Use thread-safe backend before importing pyplot

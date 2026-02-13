@@ -1,0 +1,81 @@
+{
+  "asset": "SOL",
+  "n_trials": 120,
+  "date_range": [
+    "2024-01-01",
+    "2024-12-31"
+  ],
+  "strategy_id": "mlp_direction_sol",
+  "baseline": {
+    "win_rate": 0.5428571428571428,
+    "total_return": 0.1629635779211794,
+    "max_drawdown": 0.09979750450925845,
+    "total_trades": 35
+  },
+  "complete_trials": 120,
+  "dominating_count": 6,
+  "baseline_is_pareto_optimal": false,
+  "best_return_trial": {
+    "number": 54,
+    "values": [
+      0.7096774193548387,
+      0.227071438619314,
+      0.06142224986138105
+    ]
+  },
+  "best_win_rate_trial": {
+    "number": 2,
+    "values": [
+      1.0,
+      0.1630570403778831,
+      0.13094327309751091
+    ]
+  },
+  "best_drawdown_trial": {
+    "number": 108,
+    "values": [
+      0.6444444444444445,
+      0.1066693312477737,
+      0.03858181813784207
+    ]
+  },
+  "best_dominating_trial": {
+    "number": 54,
+    "values": [
+      0.7096774193548387,
+      0.227071438619314,
+      0.06142224986138105
+    ],
+    "params": {
+      "entry_buy_confidence_threshold": 0.12084631342472019,
+      "entry_skip_bear_regime": false,
+      "entry_adx_min": 2.2213395520227106,
+      "entry_use_ema200_filter": true,
+      "exit_stop_loss_pct": 9.032734451670741,
+      "exit_fwin_exit_enabled": true,
+      "exit_fwin_periods": 9,
+      "exit_use_mlp_sell_exit": true,
+      "exit_sell_confidence_threshold": 0.5836849426704512,
+      "exit_trailing_enabled": false,
+      "exit_trailing_activation": 15.749802979372632,
+      "exit_trailing_distance": 7.6249386936818,
+      "exit_take_profit_enabled": true,
+      "exit_take_profit_pct": 30.25747389062733,
+      "ensemble_weight_bwin3": 0.7765968527917417,
+      "ensemble_weight_bwin4": 0.770921844644052,
+      "ensemble_weight_bwin5": 0.8447832281168877,
+      "ensemble_weight_bwin7": 0.42754101835854963,
+      "adapter_cash_in_bear": true,
+      "adapter_cash_below_ema200": false,
+      "adapter_stop_loss_cooldown": 7,
+      "adapter_drawdown_bear_threshold": 0.5331421566064676,
+      "regime_mfi_bull_strong": 54.8152235151255,
+      "regime_mfi_bull_moderate": 51.173081889623944,
+      "regime_mfi_sideways_up": 49.1038292303563,
+      "regime_mfi_bear_moderate": 45.9459811875708,
+      "regime_mfi_bear_strong": 34.02428252859248,
+      "regime_adx_strong_trend": 20.807346173804714,
+      "regime_adx_moderate_trend": 18.39072910763868
+    }
+  }
+}

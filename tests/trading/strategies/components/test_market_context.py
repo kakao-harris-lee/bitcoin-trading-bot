@@ -11,7 +11,6 @@ from trading.strategies.components.models import (
     TradingContext,
     build_market_context,
 )
-from trading.strategies.components.short_entry import ShortEntryStrategy
 from trading.strategies.components.sideways_entry import SidewaysEntryStrategy
 
 
@@ -168,78 +167,6 @@ class TestRegimeClassification:
         ctx = build_market_context(mfi=50.0, adx=15.0, atr=100, close=10000)
         assert ctx.trend == "NEUTRAL"
         assert ctx.regime == "SIDEWAYS_UP"  # MFI=50 is >= 49
-
-
-class TestShortContextFiltering:
-    """Test Short entry context-based filtering."""
-
-    @pytest.fixture
-    def entry(self):
-        """Create Short entry strategy."""
-        return ShortEntryStrategy()
-
-    @pytest.fixture
-    def bearish_market_data(self):
-        """Market data with bearish indicators for short entry."""
-        return MarketData(
-            symbol="BTC",
-            close=95000.0,
-            mfi=45.0,  # Below mfi_bear (48)
-            adx=25.0,  # Strong trend
-            rsi=75.0,  # Overbought - good for short
-            timestamp=1000000,
-        )
-
-    def test_allows_bear_trend(self, entry, bearish_market_data):
-        """Short should allow entry when trend is BEAR."""
-        context = MarketContext(
-            trend="BEAR",
-            regime="BEAR_STRONG",  # MFI=45, ADX=25 -> BEAR_STRONG
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
-        assert signal is not None
-        assert signal.side == "sell"
-
-    def test_skips_bull_trend(self, entry, bearish_market_data):
-        """Short should skip entry when trend is BULL."""
-        context = MarketContext(
-            trend="BULL",
-            regime="BULL_STRONG",
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
-        assert signal is None
-
-    def test_allows_neutral_trend(self, entry, bearish_market_data):
-        """Short should allow entry when trend is NEUTRAL."""
-        context = MarketContext(
-            trend="NEUTRAL",
-            regime="BEAR_STRONG",  # MFI=45, ADX=25
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
-        # Short strategy requires BEAR_STRONG regime from context
-        assert signal is not None
-
-    def test_does_not_filter_extreme_volatility(self, entry, bearish_market_data):
-        """Short strategy does not filter on volatility (per design)."""
-        context = MarketContext(
-            trend="BEAR",
-            regime="BEAR_STRONG",
-            volatility_score=0.05,
-            is_extreme_volatility=True,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
-        # Short strategy doesn't check is_extreme_volatility
-        assert signal is not None
 
 
 class TestSidewaysContextFiltering:
@@ -437,63 +364,6 @@ class TestSidewaysHighVolumeFilter:
             is_high_volume=False,
         )
         signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
-        assert signal is not None
-
-
-class TestShortSidewaysVolatilityFilter:
-    """Test Short entry SIDEWAYS + extreme volatility behavior."""
-
-    @pytest.fixture
-    def entry(self):
-        """Create Short entry strategy."""
-        return ShortEntryStrategy()
-
-    @pytest.fixture
-    def bearish_market_data(self):
-        """Market data for short entry."""
-        return MarketData(
-            symbol="BTC",
-            close=95000.0,
-            mfi=45.0,
-            adx=15.0,  # Weak trend for SIDEWAYS
-            rsi=75.0,  # Overbought
-            timestamp=1000000,
-        )
-
-    def test_allows_sideways_with_extreme_volatility(self, entry, bearish_market_data):
-        """Short should allow entry in SIDEWAYS with extreme volatility."""
-        context = MarketContext(
-            trend="NEUTRAL",
-            regime="SIDEWAYS_FLAT",
-            volatility_score=0.05,
-            is_extreme_volatility=True,
-            adx=15.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
-        assert signal is not None
-
-    def test_skips_sideways_without_extreme_volatility(self, entry, bearish_market_data):
-        """Short should skip entry in SIDEWAYS without extreme volatility."""
-        context = MarketContext(
-            trend="NEUTRAL",
-            regime="SIDEWAYS_FLAT",
-            volatility_score=0.02,
-            is_extreme_volatility=False,
-            adx=15.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
-        assert signal is None
-
-    def test_allows_bear_without_extreme_volatility(self, entry, bearish_market_data):
-        """Short should allow BEAR regime without requiring extreme volatility."""
-        context = MarketContext(
-            trend="BEAR",
-            regime="BEAR_STRONG",
-            volatility_score=0.02,
-            is_extreme_volatility=False,
-            adx=25.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=bearish_market_data, regime=context, positions={}))
         assert signal is not None
 
 

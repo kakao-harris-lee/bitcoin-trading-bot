@@ -5,13 +5,11 @@ from typing import Dict, Any, Optional
 # Component class mappings (name -> module path)
 ENTRY_CLASS_MAP = {
     "SidewaysEntry": "trading.strategies.components.sideways_entry.SidewaysEntryStrategy",
-    "ShortEntry": "trading.strategies.components.short_entry.ShortEntryStrategy",
     "None": None,
 }
 
 EXIT_CLASS_MAP = {
     "SidewaysExit": "trading.strategies.components.sideways_exit.SidewaysExitStrategy",
-    "ShortExit": "trading.strategies.components.short_exit.ShortExitStrategy",
 }
 
 

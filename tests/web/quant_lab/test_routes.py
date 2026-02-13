@@ -117,7 +117,6 @@ class TestQuantLabRoutes:
             "data_path": "data/binance_bitcoin.db",
             "start_date": "2024-01-01",
             "end_date": "2024-12-31",
-            "symbols": ["BTC"],
             "max_trials": 10,
         }, headers=auth_headers)
         assert response.status_code == 400

@@ -4,9 +4,9 @@ Implements the Factory Pattern for dynamic strategy assembly based on
 allocation.json configuration. Supports both legacy and new config formats.
 
 Legacy format (backward compatible):
-    "short_v1": {
-        "position_size": 0.01,
-        "market": "futures"
+    "mlp_direction": {
+        "position_size": 0.2,
+        "market": "spot"
     }
 
 New format (explicit class names, fully configurable):
@@ -31,14 +31,14 @@ Usage:
     factory = StrategyFactory(redis_client)
 
     # Create individual components
-    entry = factory.create_entry("short_v1", params)
-    exit_strat = factory.create_exit("short_v1", params)
+    entry = factory.create_entry("mlp_direction", params)
+    exit_strat = factory.create_exit("mlp_direction", params)
 
     # Create full strategy task
     task = await factory.create_strategy_task(
-        name="short_v1",
+        name="mlp_direction",
         symbols=["BTC", "ETH"],
-        config={"position_size": 0.01},
+        config={"position_size": 0.2},
     )
 """
 
@@ -53,15 +53,11 @@ from .models import MarketData, Position, Signal
 
 # Entry strategies (imports trigger registration via decorators)
 from .sideways_entry import SidewaysEntryStrategy, SidewaysEntryParams
-from .short_entry import ShortEntryStrategy, ShortEntryParams
 from .mlp_direction_entry import MLPDirectionEntryStrategy, MLPDirectionEntryParams
-from .bear_short_entry import BearShortEntryStrategy, BearShortEntryParams
 
 # Exit strategies (imports trigger registration via decorators)
 from .sideways_exit import SidewaysExitStrategy, SidewaysExitParams
-from .short_exit import ShortExitStrategy, ShortExitParams
 from .mlp_direction_exit import MLPDirectionExitStrategy, MLPDirectionExitParams
-from .bear_short_exit import BearShortExitStrategy, BearShortExitParams
 
 # Registry and config validation
 from .registry import (
@@ -113,16 +109,6 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         persistent_exit_class=None,  # Stateless, no persistence needed
         market="futures",
         timeframe="minute60",  # Hourly - volatility filter calibrated for this
-    ),
-    "short_v1": StrategySpec(
-        name="short_v1",
-        entry_class=ShortEntryStrategy,
-        entry_params_class=ShortEntryParams,
-        exit_class=ShortExitStrategy,
-        exit_params_class=ShortExitParams,
-        persistent_exit_class=None,  # Stateless, no persistence needed
-        market="futures",
-        timeframe="minute240",
     ),
     # MLP Direction Classifier strategy (Parente & Rizzuti 2025)
     # 3-class prediction (Hold/Buy/Sell) with 10% stop loss
@@ -185,7 +171,7 @@ class StrategyFactory:
         - New: Uses explicit "entry.class" from config
 
         Args:
-            strategy_name: Name of the strategy (e.g., "short_v1").
+            strategy_name: Name of the strategy (e.g., "mlp_direction_btc").
             config: Configuration parameters.
             param_overrides: Parameter overrides for MLflow optimization.
                 These override values from config and dataclass defaults.
@@ -224,7 +210,7 @@ class StrategyFactory:
         - New: Uses explicit "exit.class" from config
 
         Args:
-            strategy_name: Name of the strategy (e.g., "short_v1").
+            strategy_name: Name of the strategy (e.g., "mlp_direction_btc").
             config: Configuration parameters.
             persistent: Use Redis-backed persistence if available.
             param_overrides: Parameter overrides for MLflow optimization.
@@ -271,7 +257,7 @@ class StrategyFactory:
             Tuple of (entry_strategy, exit_strategy).
 
         Example:
-            entry, exit_strat = factory.create_components("short_v1")
+            entry, exit_strat = factory.create_components("mlp_direction_btc")
         """
         entry = self.create_entry(strategy_name, config, param_overrides=entry_overrides)
         exit_strat = self.create_exit(strategy_name, config, persistent, param_overrides=exit_overrides)

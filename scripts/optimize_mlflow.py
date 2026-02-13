@@ -7,7 +7,7 @@ different strategy parameter combinations.
 
 Usage:
     python scripts/optimize_mlflow.py
-    python scripts/optimize_mlflow.py --strategy short_v1 --experiment my-experiment
+    python scripts/optimize_mlflow.py --strategy sideways_v2 --experiment my-experiment
     python scripts/optimize_mlflow.py --dry-run  # Show param combinations without running
 
 View results:
@@ -159,16 +159,6 @@ class OptimizationResult:
 
 # Parameter grids for different strategies
 PARAM_GRIDS = {
-    "short_v1": {
-        # Entry params
-        "mfi_bear": [46.0, 48.0, 50.0],
-        "adx_trend": [18.0, 20.0, 22.0],
-        "rsi_overbought": [68.0, 70.0, 72.0],
-        "position_size": [0.3, 0.5],
-        # Exit params
-        "stop_loss_pct": [1.5, 2.0, 2.5],
-        "take_profit_pct": [3.0, 4.0, 5.0],
-    },
     "sideways_v2": {
         # Entry params
         "rsi_oversold": [30.0, 35.0, 40.0],
@@ -233,7 +223,7 @@ def run_backtest(
     """Run a single backtest with given parameters.
 
     Args:
-        strategy_name: Name of the strategy (e.g., "short_v1").
+        strategy_name: Name of the strategy (e.g., "sideways_v2").
         entry_params: Entry strategy parameter overrides.
         exit_params: Exit strategy parameter overrides.
         df: Price data DataFrame.
@@ -380,11 +370,6 @@ def split_params(
 
 # Quick parameter grids for faster testing
 PARAM_GRIDS_QUICK = {
-    "short_v1": {
-        "adx_trend": [18.0, 20.0],
-        "stop_loss_pct": [2.0, 2.5],
-        "position_size": [0.5],
-    },
     "sideways_v2": {
         "rsi_oversold": [30.0, 35.0],
         "stop_loss_pct": [1.5, 2.0],
@@ -582,7 +567,7 @@ def main():
     )
     parser.add_argument(
         "--strategy",
-        default="short_v1",
+        default="sideways_v2",
         choices=list(PARAM_GRIDS.keys()),
         help="Strategy to optimize",
     )

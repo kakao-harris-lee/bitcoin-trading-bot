@@ -11,13 +11,13 @@ class TestRegimeAwareAdapter:
         """Adapter should use regime-specific entry component."""
         config = {
             "BULL_STRONG": {
-                "entry": "ShortEntry",
-                "exit": "ShortExit",
+                "entry": "SidewaysEntry",
+                "exit": "SidewaysExit",
                 "params": {"entry": {"mfi_threshold": 55}, "exit": {}},
             },
             "BEAR_STRONG": {
-                "entry": "ShortEntry",
-                "exit": "ShortExit",
+                "entry": "SidewaysEntry",
+                "exit": "SidewaysExit",
                 "params": {"entry": {"rsi_overbought": 75}, "exit": {}},
             },
         }
@@ -29,17 +29,17 @@ class TestRegimeAwareAdapter:
 
         # Test that _get_entry_for_regime returns correct entry name
         entry_name = adapter._get_entry_for_regime("BULL_STRONG")
-        assert entry_name == "ShortEntry"
+        assert entry_name == "SidewaysEntry"
 
         entry_name = adapter._get_entry_for_regime("BEAR_STRONG")
-        assert entry_name == "ShortEntry"
+        assert entry_name == "SidewaysEntry"
 
     def test_adapter_returns_none_for_none_entry(self):
         """Adapter should return None when entry is None."""
         config = {
             "SIDEWAYS_FLAT": {
                 "entry": "None",
-                "exit": "ShortExit",
+                "exit": "SidewaysExit",
                 "params": {"entry": {}, "exit": {}},
             },
         }

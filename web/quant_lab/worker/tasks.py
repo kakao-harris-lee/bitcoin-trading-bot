@@ -43,7 +43,7 @@ class OptimizationJob:
     # MLflow tracking
     mlflow_experiment: Optional[str] = None
 
-    # Strategy type: "regime" (default) or "mlp_direction"
+    # Strategy type: "regime" or "mlp_direction"
     strategy_type: str = "regime"
 
     # Asset for MLP optimization (BTC, ETH, SOL)
@@ -180,5 +180,4 @@ def _on_trial_complete(job_id: str, study, trial) -> None:
         })
     except Exception:
         pass
-
 

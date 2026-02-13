@@ -17,14 +17,12 @@ REGIMES = [
 # Available entry strategy components
 ENTRY_COMPONENTS = [
     "SidewaysEntry",
-    "ShortEntry",
     "None",  # Skip trading in this regime
 ]
 
 # Available exit strategy components
 EXIT_COMPONENTS = [
     "SidewaysExit",
-    "ShortExit",
 ]
 
 # Parameter bounds for each component
@@ -32,16 +30,8 @@ COMPONENT_PARAMS = {
     "SidewaysEntry": {
         "range_threshold": {"type": "float", "low": 0.5, "high": 3.0},
     },
-    "ShortEntry": {
-        "rsi_overbought": {"type": "float", "low": 65.0, "high": 85.0},
-    },
     "SidewaysExit": {
         "profit_target_pct": {"type": "float", "low": 0.5, "high": 3.0},
-    },
-    "ShortExit": {
-        "stop_loss_pct": {"type": "float", "low": 0.5, "high": 5.0},
-        "take_profit_pct": {"type": "float", "low": 0.5, "high": 8.0},
-        "rsi_oversold": {"type": "float", "low": 20.0, "high": 40.0},
     },
     "None": {},  # No parameters for None
 }

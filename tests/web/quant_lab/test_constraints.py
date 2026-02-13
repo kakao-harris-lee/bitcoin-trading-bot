@@ -47,19 +47,19 @@ class TestStrategyLockConstraint:
         """Lock should restrict entry choices for a regime."""
         lock = StrategyLockConstraint(
             regime="BULL_STRONG",
-            entry="ShortEntry",
+            entry="SidewaysEntry",
         )
 
-        choices = ["ShortEntry", "SidewaysEntry", "ShortEntry", "None"]
+        choices = ["SidewaysEntry", "None"]
         filtered = lock.filter_choices(choices, "entry")
 
-        assert filtered == ["ShortEntry"]
+        assert filtered == ["SidewaysEntry"]
 
     def test_lock_does_not_affect_other_regimes(self):
         """Lock should not affect other regimes."""
         lock = StrategyLockConstraint(
             regime="BULL_STRONG",
-            entry="ShortEntry",
+            entry="SidewaysEntry",
         )
 
         # filter_choices only applies if called for matching regime

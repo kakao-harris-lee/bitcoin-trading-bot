@@ -6,7 +6,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from .worker.tasks import OptimizationJob, JobStatus
 from .optimizer.study_manager import StudyManager
@@ -64,6 +64,7 @@ def requires_auth(f):
 MAX_TRIALS = 5000
 MAX_HOURS = 48
 MIN_TRIALS = 1
+VALID_ASSETS = ("BTC", "ETH", "SOL")
 
 # Allowed data directory (relative to project root)
 PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
@@ -133,16 +134,34 @@ def validate_data_path(data_path: str) -> str:
     return str(resolved)
 
 
+def normalize_asset(asset: Optional[str]) -> Optional[str]:
+    """Normalize user-supplied asset/symbol to BTC/ETH/SOL."""
+    if not asset:
+        return None
+
+    value = asset.strip().upper()
+    if value in VALID_ASSETS:
+        return value
+
+    for quote in ("USDT", "KRW", "USD"):
+        if value.endswith(quote):
+            base = value[:-len(quote)]
+            if base in VALID_ASSETS:
+                return base
+
+    return None
+
+
 # Experiment templates
 TEMPLATES = {
     "full_regime_search": {
         "name": "Full Regime Search",
-        "description": "All Entry/Exit combinations across all 7 regimes",
+        "description": "Long-only Entry/Exit combinations across all 7 regimes",
         "config": {regime: {"entries": ENTRY_COMPONENTS, "exits": EXIT_COMPONENTS} for regime in REGIMES},
     },
     "conservative_search": {
         "name": "Conservative Search",
-        "description": "Excludes 'None' option, ensures always-in-market",
+        "description": "Long-only and always in market (no 'None')",
         "config": {
             regime: {
                 "entries": [e for e in ENTRY_COMPONENTS if e != "None"],
@@ -152,12 +171,12 @@ TEMPLATES = {
         },
     },
     "bear_market_focus": {
-        "name": "Bear Market Focus",
-        "description": "Only optimizes BEAR_MODERATE and BEAR_STRONG regimes",
+        "name": "Bear Defensive",
+        "description": "Skip BEAR entries and optimize long entries elsewhere",
         "config": {
             regime: {
-                "entries": ENTRY_COMPONENTS if "BEAR" in regime else ["SidewaysEntry"],
-                "exits": EXIT_COMPONENTS if "BEAR" in regime else ["SidewaysExit"],
+                "entries": ["None"] if "BEAR" in regime else ["SidewaysEntry"],
+                "exits": ["SidewaysExit"],
             }
             for regime in REGIMES
         },
@@ -233,15 +252,18 @@ def create_experiment():
         max_hours = max(max_hours, 0.1)
 
     # Determine strategy type
-    strategy_type = data.get('strategy_type', 'regime')
+    strategy_type = data.get('strategy_type', 'mlp_direction')
     if strategy_type not in ('regime', 'mlp_direction'):
         return jsonify({"error": f"Invalid strategy_type: '{strategy_type}'"}), 400
 
-    asset = data.get('asset')
+    symbols = data.get('symbols', [])
+    asset = normalize_asset(data.get('asset'))
+    if strategy_type == 'mlp_direction' and not asset and symbols:
+        asset = normalize_asset(symbols[0])
     if strategy_type == 'mlp_direction' and not asset:
-        return jsonify({"error": "MLP optimization requires 'asset' field (BTC, ETH, SOL)"}), 400
-    if asset and asset.upper() not in ('BTC', 'ETH', 'SOL'):
-        return jsonify({"error": f"Invalid asset: '{asset}'. Must be BTC, ETH, or SOL"}), 400
+        return jsonify({"error": "MLP optimization requires 'asset' or symbol (BTC, ETH, SOL)"}), 400
+    if data.get('asset') and not asset:
+        return jsonify({"error": f"Invalid asset: '{data.get('asset')}'. Must be BTC, ETH, or SOL"}), 400
 
     # Create job
     job = OptimizationJob(
@@ -250,14 +272,14 @@ def create_experiment():
         data_path=validated_data_path,
         start_date=data['start_date'],
         end_date=data['end_date'],
-        symbols=data.get('symbols', [asset.upper()] if asset else ['BTC']),
+        symbols=[asset] if strategy_type == 'mlp_direction' and asset else (symbols or ['BTC']),
         max_trials=max_trials,
         max_hours=max_hours,
         search_config=data.get('search_config'),
         constraints=data.get('constraints'),
         mlflow_experiment=data.get('mlflow_experiment', 'quant_lab'),
         strategy_type=strategy_type,
-        asset=asset.upper() if asset else None,
+        asset=asset,
         config_path=data.get('config_path', 'config/strategies/allocation.json'),
     )
 
@@ -494,9 +516,7 @@ def apply_trial_config(study_name: str, trial_number: int):
         else:
             # Regime: add as new strategy
             allocation['strategies'][strategy_name] = {
-                'market': 'futures',
-                'leverage': 3,
-                'dynamic_sizing': True,
+                'market': 'spot',
                 'position_pct': 0.10,
                 'position_size': 0.01,
                 'use_smart_exit': True,
@@ -524,16 +544,16 @@ def _transform_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[st
     """Transform Optuna trial params to structured config format.
 
     Converts flat params like:
-        BULL_STRONG_entry: "ShortEntry"
-        BULL_STRONG_exit: "ShortExit"
-        BULL_STRONG_ShortEntry_rsi_overbought: 75.0
+        BULL_STRONG_entry: "SidewaysEntry"
+        BULL_STRONG_exit: "SidewaysExit"
+        BULL_STRONG_SidewaysEntry_range_threshold: 1.5
 
     To structured format:
         regime_routing:
             BULL_STRONG:
-                entry: ShortEntry
-                exit: ShortExit
-                entry_params: {rsi_overbought: 75.0}
+                entry: SidewaysEntry
+                exit: SidewaysExit
+                entry_params: {range_threshold: 1.5}
     """
     config = {
         'metrics': {
@@ -551,7 +571,7 @@ def _transform_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[st
 
         if entry_key in params:
             entry_component = params[entry_key]
-            exit_component = params.get(exit_key, 'ShortExit')
+            exit_component = params.get(exit_key, 'SidewaysExit')
 
             regime_config = {
                 'entry': entry_component,

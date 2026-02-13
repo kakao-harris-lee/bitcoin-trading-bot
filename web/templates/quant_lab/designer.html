@@ -38,7 +38,7 @@
         <div class="bg-gray-800 rounded-lg p-6 mb-8">
             <!-- Step 1: Templates -->
             <div x-show="currentStep === 0">
-                <h2 class="text-xl font-semibold mb-4">Choose a Template</h2>
+                <h2 class="text-xl font-semibold mb-4">Choose a Long-Only Template</h2>
                 <div class="grid grid-cols-2 gap-4">
                     <template x-for="(template, key) in templates" :key="key">
                         <div @click="selectTemplate(key)"
@@ -67,13 +67,13 @@
                     </div>
                 </div>
                 <div class="mt-6">
-                    <label class="block text-sm text-gray-400 mb-2">Assets</label>
+                    <label class="block text-sm text-gray-400 mb-2">Asset</label>
                     <div class="flex space-x-4">
-                        <template x-for="symbol in ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']" :key="symbol">
+                        <template x-for="asset in ['BTC', 'ETH', 'SOL']" :key="asset">
                             <label class="flex items-center space-x-2 cursor-pointer">
-                                <input type="checkbox" :value="symbol" x-model="config.symbols"
-                                       class="form-checkbox bg-gray-700 border-gray-600 rounded">
-                                <span x-text="symbol.replace('USDT', '')"></span>
+                                <input type="radio" :value="asset" x-model="config.asset"
+                                       class="form-radio bg-gray-700 border-gray-600">
+                                <span x-text="asset"></span>
                             </label>
                         </template>
                     </div>
@@ -156,7 +156,8 @@
                     study_name: '',
                     start_date: '2024-01-01',
                     end_date: '2024-12-31',
-                    symbols: ['BTCUSDT'],
+                    strategy_type: 'mlp_direction',
+                    asset: 'BTC',
                     max_trials: 500,
                     max_hours: null,
                     max_drawdown: 30,
@@ -185,10 +186,14 @@
                 async launch() {
                     this.launching = true;
                     try {
+                        const payload = {
+                            ...this.config,
+                            symbols: [this.config.asset],
+                        };
                         const res = await fetch('/quant-lab/api/experiments', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify(this.config),
+                            body: JSON.stringify(payload),
                         });
                         const data = await res.json();
                         if (data.job_id) {

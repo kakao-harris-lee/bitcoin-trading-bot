@@ -34,7 +34,7 @@ class TestSearchSpaceConstants:
 
     def test_exit_components_defined(self):
         """Exit components should be defined."""
-        assert len(EXIT_COMPONENTS) >= 2
+        assert EXIT_COMPONENTS == ["SidewaysExit"]
 
 
 class TestSearchSpaceConfig:
@@ -50,8 +50,8 @@ class TestSearchSpaceConfig:
         config = SearchSpaceConfig(
             regime_configs={
                 "BULL_STRONG": {
-                    "entries": ["ShortEntry", "None"],
-                    "exits": ["ShortExit"],
+                    "entries": ["SidewaysEntry", "None"],
+                    "exits": ["SidewaysExit"],
                 }
             }
         )

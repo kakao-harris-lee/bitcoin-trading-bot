@@ -42,14 +42,6 @@ Usage:
         SidewaysExitParams,
     )
 
-    # Short (futures, bearish)
-    from trading.strategies.components import (
-        ShortEntryStrategy,
-        ShortEntryParams,
-        ShortExitStrategy,
-        ShortExitParams,
-    )
-
 """
 
 from .interfaces import IEntryStrategy, IExitStrategy
@@ -87,10 +79,6 @@ from .config_schema import (
 # Sideways strategy components
 from .sideways_entry import SidewaysEntryParams, SidewaysEntryStrategy
 from .sideways_exit import SidewaysExitParams, SidewaysExitStrategy
-
-# Short strategy components
-from .short_entry import ShortEntryParams, ShortEntryStrategy
-from .short_exit import ShortExitParams, ShortExitStrategy
 
 # MLP Direction strategy components (Parente & Rizzuti 2025)
 from .mlp_direction_entry import MLPDirectionEntryParams, MLPDirectionEntryStrategy
@@ -133,11 +121,6 @@ __all__ = [
     "SidewaysEntryParams",
     "SidewaysExitStrategy",
     "SidewaysExitParams",
-    # Short implementations
-    "ShortEntryStrategy",
-    "ShortEntryParams",
-    "ShortExitStrategy",
-    "ShortExitParams",
     # MLP Direction implementations (Parente & Rizzuti 2025)
     "MLPDirectionEntryStrategy",
     "MLPDirectionEntryParams",

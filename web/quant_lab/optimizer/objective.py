@@ -228,7 +228,7 @@ class RegimeBacktestObjective:
                     entry_price=current_position["position"]["entry_price"],
                     quantity=current_position["position"]["quantity"],
                     strategy="optimization",
-                    market="futures",
+                    market="spot",
                     timestamp=current_position["position"]["timestamp"],
                 )
 

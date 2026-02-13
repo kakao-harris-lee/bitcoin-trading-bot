@@ -1,0 +1,2223 @@
+{
+  "generated_at": "2026-02-13T23:03:19.499350",
+  "period": {
+    "start_date": "2020-01-01",
+    "end_date": "2026-02-13",
+    "timeframe": "minute240",
+    "mdd_cap_pct": 50.0
+  },
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "BNB"
+  ],
+  "trial_count": 24,
+  "aggregate": [
+    {
+      "trial_id": "ps1.10_sl10.0_trdefault_proff",
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      },
+      "symbols": 4,
+      "mean_return_pct": 363.97153157071745,
+      "mean_alpha_pct": -2416.771150950877,
+      "mean_mdd_pct": 52.36652081725964,
+      "max_symbol_mdd_pct": 56.013943232028026,
+      "total_trades": 378,
+      "mean_win_rate_pct": 44.728746952633074
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trdefault_proff",
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      },
+      "symbols": 4,
+      "mean_return_pct": 358.24232950374454,
+      "mean_alpha_pct": -2422.50035301785,
+      "mean_mdd_pct": 51.003498792849456,
+      "max_symbol_mdd_pct": 55.20002124201765,
+      "total_trades": 385,
+      "mean_win_rate_pct": 43.3619567365252
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trdefault_proff",
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      },
+      "symbols": 4,
+      "mean_return_pct": 332.83341705414017,
+      "mean_alpha_pct": -2447.909265467454,
+      "mean_mdd_pct": 50.6240986247953,
+      "max_symbol_mdd_pct": 54.32937406305766,
+      "total_trades": 378,
+      "mean_win_rate_pct": 44.728746952633074
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trdefault_proff",
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      },
+      "symbols": 4,
+      "mean_return_pct": 330.8276876412586,
+      "mean_alpha_pct": -2449.914994880336,
+      "mean_mdd_pct": 49.26860749358548,
+      "max_symbol_mdd_pct": 53.530653189676805,
+      "total_trades": 385,
+      "mean_win_rate_pct": 43.3619567365252
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trdefault_proff",
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      },
+      "symbols": 4,
+      "mean_return_pct": 290.21742341513556,
+      "mean_alpha_pct": -2490.525259106459,
+      "mean_mdd_pct": 46.95376454088277,
+      "max_symbol_mdd_pct": 50.55306882963955,
+      "total_trades": 378,
+      "mean_win_rate_pct": 44.728746952633074
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trdefault_proff",
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      },
+      "symbols": 4,
+      "mean_return_pct": 290.2032626379157,
+      "mean_alpha_pct": -2490.539419883679,
+      "mean_mdd_pct": 45.593665309214174,
+      "max_symbol_mdd_pct": 49.782289952302186,
+      "total_trades": 385,
+      "mean_win_rate_pct": 43.3619567365252
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trtrend_proff",
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      },
+      "symbols": 4,
+      "mean_return_pct": 287.8403907854527,
+      "mean_alpha_pct": -2492.9022917361417,
+      "mean_mdd_pct": 46.77966617030045,
+      "max_symbol_mdd_pct": 50.933226809710284,
+      "total_trades": 426,
+      "mean_win_rate_pct": 47.575295998617236
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trtrend_proff",
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      },
+      "symbols": 4,
+      "mean_return_pct": 269.70602394281946,
+      "mean_alpha_pct": -2511.036658578775,
+      "mean_mdd_pct": 47.499088154126255,
+      "max_symbol_mdd_pct": 51.24656874217431,
+      "total_trades": 421,
+      "mean_win_rate_pct": 49.32717872465208
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trtrend_proff",
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      },
+      "symbols": 4,
+      "mean_return_pct": 267.8811537661975,
+      "mean_alpha_pct": -2512.861528755397,
+      "mean_mdd_pct": 44.901815530989374,
+      "max_symbol_mdd_pct": 48.9312717166705,
+      "total_trades": 426,
+      "mean_win_rate_pct": 47.575295998617236
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trtrend_proff",
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      },
+      "symbols": 4,
+      "mean_return_pct": 250.95063562736138,
+      "mean_alpha_pct": -2529.792046894233,
+      "mean_mdd_pct": 45.612674047931534,
+      "max_symbol_mdd_pct": 49.34359417701911,
+      "total_trades": 421,
+      "mean_win_rate_pct": 49.32717872465208
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trtrend_proff",
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      },
+      "symbols": 4,
+      "mean_return_pct": 236.42332868862505,
+      "mean_alpha_pct": -2544.319353832969,
+      "mean_mdd_pct": 41.22306481391402,
+      "max_symbol_mdd_pct": 44.80849793347173,
+      "total_trades": 426,
+      "mean_win_rate_pct": 47.575295998617236
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trdefault_pron",
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      },
+      "symbols": 4,
+      "mean_return_pct": 230.1524286305761,
+      "mean_alpha_pct": -2550.590253891018,
+      "mean_mdd_pct": 48.961127772687426,
+      "max_symbol_mdd_pct": 60.8908798441542,
+      "total_trades": 317,
+      "mean_win_rate_pct": 44.894069894069894
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trtrend_proff",
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      },
+      "symbols": 4,
+      "mean_return_pct": 222.63356144051065,
+      "mean_alpha_pct": -2558.1091210810837,
+      "mean_mdd_pct": 42.07135422286194,
+      "max_symbol_mdd_pct": 45.44988144336731,
+      "total_trades": 421,
+      "mean_win_rate_pct": 49.32717872465208
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trdefault_pron",
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      },
+      "symbols": 4,
+      "mean_return_pct": 210.66562985954232,
+      "mean_alpha_pct": -2570.077052662052,
+      "mean_mdd_pct": 50.12408543951176,
+      "max_symbol_mdd_pct": 57.003849152110384,
+      "total_trades": 329,
+      "mean_win_rate_pct": 43.63321115159351
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trdefault_pron",
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      },
+      "symbols": 4,
+      "mean_return_pct": 209.12049179980036,
+      "mean_alpha_pct": -2571.622190721794,
+      "mean_mdd_pct": 47.089533763526134,
+      "max_symbol_mdd_pct": 58.944746037081195,
+      "total_trades": 319,
+      "mean_win_rate_pct": 44.99173392978703
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trdefault_pron",
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      },
+      "symbols": 4,
+      "mean_return_pct": 200.14995655249646,
+      "mean_alpha_pct": -2580.592725969098,
+      "mean_mdd_pct": 44.193627109703186,
+      "max_symbol_mdd_pct": 55.00269189302064,
+      "total_trades": 327,
+      "mean_win_rate_pct": 45.54837817549682
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trdefault_pron",
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      },
+      "symbols": 4,
+      "mean_return_pct": 196.02133335159266,
+      "mean_alpha_pct": -2584.7213491700018,
+      "mean_mdd_pct": 48.4559533944753,
+      "max_symbol_mdd_pct": 55.16780853751554,
+      "total_trades": 332,
+      "mean_win_rate_pct": 43.87779840297003
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trtrend_pron",
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      },
+      "symbols": 4,
+      "mean_return_pct": 180.5046389248221,
+      "mean_alpha_pct": -2600.2380435967725,
+      "mean_mdd_pct": 45.44572123175505,
+      "max_symbol_mdd_pct": 54.780648569534115,
+      "total_trades": 357,
+      "mean_win_rate_pct": 49.72928720668595
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trdefault_pron",
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      },
+      "symbols": 4,
+      "mean_return_pct": 172.15363725024093,
+      "mean_alpha_pct": -2608.589045271354,
+      "mean_mdd_pct": 46.026183691974495,
+      "max_symbol_mdd_pct": 53.959404678055,
+      "total_trades": 337,
+      "mean_win_rate_pct": 43.774599228563424
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trtrend_pron",
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      },
+      "symbols": 4,
+      "mean_return_pct": 169.60431280593812,
+      "mean_alpha_pct": -2611.138369715656,
+      "mean_mdd_pct": 43.30368623774016,
+      "max_symbol_mdd_pct": 51.65894201162323,
+      "total_trades": 362,
+      "mean_win_rate_pct": 49.8089218564138
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trtrend_pron",
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      },
+      "symbols": 4,
+      "mean_return_pct": 142.15747806884104,
+      "mean_alpha_pct": -2638.5852044527537,
+      "mean_mdd_pct": 40.75596882978744,
+      "max_symbol_mdd_pct": 50.54696472123968,
+      "total_trades": 367,
+      "mean_win_rate_pct": 49.89525409923459
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trtrend_pron",
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      },
+      "symbols": 4,
+      "mean_return_pct": 139.32002634251,
+      "mean_alpha_pct": -2641.4226561790847,
+      "mean_mdd_pct": 46.270990556813615,
+      "max_symbol_mdd_pct": 54.53181057008417,
+      "total_trades": 367,
+      "mean_win_rate_pct": 47.350215334469
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trtrend_pron",
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      },
+      "symbols": 4,
+      "mean_return_pct": 130.2275216136375,
+      "mean_alpha_pct": -2650.515160907957,
+      "mean_mdd_pct": 44.92911470919081,
+      "max_symbol_mdd_pct": 53.79011451790635,
+      "total_trades": 371,
+      "mean_win_rate_pct": 47.4993894993895
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trtrend_pron",
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      },
+      "symbols": 4,
+      "mean_return_pct": 105.77992983450137,
+      "mean_alpha_pct": -2674.962752687093,
+      "mean_mdd_pct": 42.63802301677747,
+      "max_symbol_mdd_pct": 52.53603479502614,
+      "total_trades": 371,
+      "mean_win_rate_pct": 47.324862637362635
+    }
+  ],
+  "best_feasible": {
+    "trial_id": "ps1.00_sl9.0_trdefault_proff",
+    "params": {
+      "pos_scale": 1.0,
+      "stop_loss_pct": 9.0,
+      "trailing_profile": "default",
+      "period_mode": "off",
+      "position_size": 0.55,
+      "risk_on_position_size": 0.95,
+      "risk_off_position_size": 0.3
+    },
+    "symbols": 4,
+    "mean_return_pct": 330.8276876412586,
+    "mean_alpha_pct": -2449.914994880336,
+    "mean_mdd_pct": 49.26860749358548,
+    "max_symbol_mdd_pct": 53.530653189676805,
+    "total_trades": 385,
+    "mean_win_rate_pct": 43.3619567365252
+  },
+  "results": [
+    {
+      "trial_id": "ps0.90_sl9.0_trdefault_pron",
+      "symbol": "BTC",
+      "return_pct": 149.6212378687819,
+      "alpha_pct": -1003.03723596032,
+      "mdd_pct": 51.264479218089434,
+      "trades": 39,
+      "win_rate_pct": 35.8974358974359,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trdefault_pron",
+      "symbol": "ETH",
+      "return_pct": 255.33233185814197,
+      "alpha_pct": -1499.7987312520127,
+      "mdd_pct": 42.61051791602685,
+      "trades": 110,
+      "win_rate_pct": 51.81818181818182,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trdefault_pron",
+      "symbol": "SOL",
+      "return_pct": 104.0496110733441,
+      "alpha_pct": -2698.2850886236793,
+      "mdd_pct": 53.959404678055,
+      "trades": 119,
+      "win_rate_pct": 29.411764705882355,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trdefault_pron",
+      "symbol": "BNB",
+      "return_pct": 179.61136820069578,
+      "alpha_pct": -5233.235125249403,
+      "mdd_pct": 36.27033295572669,
+      "trades": 69,
+      "win_rate_pct": 57.971014492753625,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trdefault_proff",
+      "symbol": "BTC",
+      "return_pct": 182.53021461591092,
+      "alpha_pct": -970.128259213191,
+      "mdd_pct": 45.85288153623804,
+      "trades": 45,
+      "win_rate_pct": 37.77777777777778,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trdefault_proff",
+      "symbol": "ETH",
+      "return_pct": 488.72267551482827,
+      "alpha_pct": -1266.4083875953263,
+      "mdd_pct": 45.12074390406323,
+      "trades": 121,
+      "win_rate_pct": 51.2396694214876,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trdefault_proff",
+      "symbol": "SOL",
+      "return_pct": 224.21478904616268,
+      "alpha_pct": -2578.1199106508607,
+      "mdd_pct": 49.782289952302186,
+      "trades": 140,
+      "win_rate_pct": 30.0,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trdefault_proff",
+      "symbol": "BNB",
+      "return_pct": 265.3453713747611,
+      "alpha_pct": -5147.501122075337,
+      "mdd_pct": 41.618745844253226,
+      "trades": 79,
+      "win_rate_pct": 54.43037974683544,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trtrend_pron",
+      "symbol": "BTC",
+      "return_pct": 98.59734770623317,
+      "alpha_pct": -1054.0611261228687,
+      "mdd_pct": 41.03923525462751,
+      "trades": 52,
+      "win_rate_pct": 46.15384615384615,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trtrend_pron",
+      "symbol": "ETH",
+      "return_pct": 173.06202536063907,
+      "alpha_pct": -1582.0690377495155,
+      "mdd_pct": 41.50390899867184,
+      "trades": 112,
+      "win_rate_pct": 54.46428571428571,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trtrend_pron",
+      "symbol": "SOL",
+      "return_pct": 22.171611655424094,
+      "alpha_pct": -2780.1630880415996,
+      "mdd_pct": 52.53603479502614,
+      "trades": 130,
+      "win_rate_pct": 31.538461538461537,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trtrend_pron",
+      "symbol": "BNB",
+      "return_pct": 129.28873461570916,
+      "alpha_pct": -5283.557758834389,
+      "mdd_pct": 35.47291301878436,
+      "trades": 77,
+      "win_rate_pct": 57.14285714285714,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trtrend_proff",
+      "symbol": "BTC",
+      "return_pct": 189.09029974283192,
+      "alpha_pct": -963.56817408627,
+      "mdd_pct": 40.68622551930471,
+      "trades": 54,
+      "win_rate_pct": 50.0,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trtrend_proff",
+      "symbol": "ETH",
+      "return_pct": 413.5016509092097,
+      "alpha_pct": -1341.629412200945,
+      "mdd_pct": 38.84507034063996,
+      "trades": 133,
+      "win_rate_pct": 53.383458646616546,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trtrend_proff",
+      "symbol": "SOL",
+      "return_pct": 157.0620032486101,
+      "alpha_pct": -2645.2726964484136,
+      "mdd_pct": 44.80849793347173,
+      "trades": 152,
+      "win_rate_pct": 32.89473684210527,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl9.0_trtrend_proff",
+      "symbol": "BNB",
+      "return_pct": 186.03936085384848,
+      "alpha_pct": -5226.807132596249,
+      "mdd_pct": 40.5524654622397,
+      "trades": 87,
+      "win_rate_pct": 54.02298850574713,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trdefault_pron",
+      "symbol": "BTC",
+      "return_pct": 106.33753855107622,
+      "alpha_pct": -1046.3209352780257,
+      "mdd_pct": 55.00269189302064,
+      "trades": 39,
+      "win_rate_pct": 35.8974358974359,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trdefault_pron",
+      "symbol": "ETH",
+      "return_pct": 196.4007623402151,
+      "alpha_pct": -1558.7303007699395,
+      "mdd_pct": 40.67908936139818,
+      "trades": 104,
+      "win_rate_pct": 53.84615384615385,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trdefault_pron",
+      "symbol": "SOL",
+      "return_pct": 85.29934907870498,
+      "alpha_pct": -2717.0353506183187,
+      "mdd_pct": 54.83997675766232,
+      "trades": 118,
+      "win_rate_pct": 28.8135593220339,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trdefault_pron",
+      "symbol": "BNB",
+      "return_pct": 412.5621762399896,
+      "alpha_pct": -5000.284317210108,
+      "mdd_pct": 26.252750426731623,
+      "trades": 66,
+      "win_rate_pct": 63.63636363636363,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trdefault_proff",
+      "symbol": "BTC",
+      "return_pct": 121.87412599677762,
+      "alpha_pct": -1030.7843478323243,
+      "mdd_pct": 49.7361822782231,
+      "trades": 45,
+      "win_rate_pct": 37.77777777777778,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trdefault_proff",
+      "symbol": "ETH",
+      "return_pct": 411.1521632000934,
+      "alpha_pct": -1343.9788999100613,
+      "mdd_pct": 48.95283407017884,
+      "trades": 119,
+      "win_rate_pct": 52.94117647058824,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trdefault_proff",
+      "symbol": "SOL",
+      "return_pct": 172.37916709465614,
+      "alpha_pct": -2629.9555326023674,
+      "mdd_pct": 50.55306882963955,
+      "trades": 138,
+      "win_rate_pct": 28.985507246376812,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trdefault_proff",
+      "symbol": "BNB",
+      "return_pct": 455.464237369015,
+      "alpha_pct": -4957.382256081083,
+      "mdd_pct": 38.57297298548959,
+      "trades": 76,
+      "win_rate_pct": 59.210526315789465,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trtrend_pron",
+      "symbol": "BTC",
+      "return_pct": 91.33175674869868,
+      "alpha_pct": -1061.3267170804033,
+      "mdd_pct": 44.02114843358909,
+      "trades": 51,
+      "win_rate_pct": 49.01960784313725,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trtrend_pron",
+      "symbol": "ETH",
+      "return_pct": 118.92154777978435,
+      "alpha_pct": -1636.2095153303703,
+      "mdd_pct": 42.434386854096026,
+      "trades": 112,
+      "win_rate_pct": 56.25,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trtrend_pron",
+      "symbol": "SOL",
+      "return_pct": 18.634665711850193,
+      "alpha_pct": -2783.7000339851734,
+      "mdd_pct": 50.54696472123968,
+      "trades": 131,
+      "win_rate_pct": 31.297709923664126,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trtrend_pron",
+      "symbol": "BNB",
+      "return_pct": 339.74194203503095,
+      "alpha_pct": -5073.104551415067,
+      "mdd_pct": 26.021375310224975,
+      "trades": 73,
+      "win_rate_pct": 63.013698630136986,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trtrend_proff",
+      "symbol": "BTC",
+      "return_pct": 152.0461553734567,
+      "alpha_pct": -1000.6123184556452,
+      "mdd_pct": 45.44988144336731,
+      "trades": 53,
+      "win_rate_pct": 50.943396226415096,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trtrend_proff",
+      "symbol": "ETH",
+      "return_pct": 314.76745333062894,
+      "alpha_pct": -1440.3636097795256,
+      "mdd_pct": 42.58374320335527,
+      "trades": 132,
+      "win_rate_pct": 55.3030303030303,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trtrend_proff",
+      "symbol": "SOL",
+      "return_pct": 126.53531130603002,
+      "alpha_pct": -2675.7993883909935,
+      "mdd_pct": 42.800727905737915,
+      "trades": 153,
+      "win_rate_pct": 32.02614379084967,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps0.90_sl10.0_trtrend_proff",
+      "symbol": "BNB",
+      "return_pct": 297.1853257519269,
+      "alpha_pct": -5115.661167698171,
+      "mdd_pct": 37.451064338987266,
+      "trades": 83,
+      "win_rate_pct": 59.036144578313255,
+      "params": {
+        "pos_scale": 0.9,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.49500000000000005,
+        "risk_on_position_size": 0.855,
+        "risk_off_position_size": 0.27
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trdefault_pron",
+      "symbol": "BTC",
+      "return_pct": 164.2324782676387,
+      "alpha_pct": -988.4259955614632,
+      "mdd_pct": 55.098655142303876,
+      "trades": 39,
+      "win_rate_pct": 35.8974358974359,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trdefault_pron",
+      "symbol": "ETH",
+      "return_pct": 277.48544527380193,
+      "alpha_pct": -1477.6456178363528,
+      "mdd_pct": 44.055788788186575,
+      "trades": 110,
+      "win_rate_pct": 51.81818181818182,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trdefault_pron",
+      "symbol": "SOL",
+      "return_pct": 141.7116416948631,
+      "alpha_pct": -2660.6230580021606,
+      "mdd_pct": 55.16780853751554,
+      "trades": 114,
+      "win_rate_pct": 29.82456140350877,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trdefault_pron",
+      "symbol": "BNB",
+      "return_pct": 200.65576817006692,
+      "alpha_pct": -5212.190725280031,
+      "mdd_pct": 39.5015611098952,
+      "trades": 69,
+      "win_rate_pct": 57.971014492753625,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trdefault_proff",
+      "symbol": "BTC",
+      "return_pct": 199.21734659100093,
+      "alpha_pct": -953.441127238101,
+      "mdd_pct": 49.52851539044685,
+      "trades": 45,
+      "win_rate_pct": 37.77777777777778,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trdefault_proff",
+      "symbol": "ETH",
+      "return_pct": 575.0517745468981,
+      "alpha_pct": -1180.0792885632566,
+      "mdd_pct": 48.66079576469807,
+      "trades": 121,
+      "win_rate_pct": 51.2396694214876,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trdefault_proff",
+      "symbol": "SOL",
+      "return_pct": 244.7282497686945,
+      "alpha_pct": -2557.606449928329,
+      "mdd_pct": 53.530653189676805,
+      "trades": 140,
+      "win_rate_pct": 30.0,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trdefault_proff",
+      "symbol": "BNB",
+      "return_pct": 304.3133796584409,
+      "alpha_pct": -5108.533113791657,
+      "mdd_pct": 45.35446562952017,
+      "trades": 79,
+      "win_rate_pct": 54.43037974683544,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trtrend_pron",
+      "symbol": "BTC",
+      "return_pct": 115.29708175139015,
+      "alpha_pct": -1037.3613920777118,
+      "mdd_pct": 44.42622206618152,
+      "trades": 52,
+      "win_rate_pct": 46.15384615384615,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trtrend_pron",
+      "symbol": "ETH",
+      "return_pct": 228.70781189289454,
+      "alpha_pct": -1526.42325121726,
+      "mdd_pct": 42.86596975797566,
+      "trades": 117,
+      "win_rate_pct": 54.700854700854705,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trtrend_pron",
+      "symbol": "SOL",
+      "return_pct": 35.10556815191783,
+      "alpha_pct": -2767.2291315451057,
+      "mdd_pct": 53.79011451790635,
+      "trades": 125,
+      "win_rate_pct": 32.0,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trtrend_pron",
+      "symbol": "BNB",
+      "return_pct": 141.7996246583474,
+      "alpha_pct": -5271.046868791751,
+      "mdd_pct": 38.634152494699705,
+      "trades": 77,
+      "win_rate_pct": 57.14285714285714,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trtrend_proff",
+      "symbol": "BTC",
+      "return_pct": 211.94519213776454,
+      "alpha_pct": -940.7132816913374,
+      "mdd_pct": 44.3525640555543,
+      "trades": 54,
+      "win_rate_pct": 50.0,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trtrend_proff",
+      "symbol": "ETH",
+      "return_pct": 480.15896834791414,
+      "alpha_pct": -1274.9720947622404,
+      "mdd_pct": 42.07676925029225,
+      "trades": 133,
+      "win_rate_pct": 53.383458646616546,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trtrend_proff",
+      "symbol": "SOL",
+      "return_pct": 170.18987897538426,
+      "alpha_pct": -2632.1448207216395,
+      "mdd_pct": 48.9312717166705,
+      "trades": 152,
+      "win_rate_pct": 32.89473684210527,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl9.0_trtrend_proff",
+      "symbol": "BNB",
+      "return_pct": 209.23057560372703,
+      "alpha_pct": -5203.615917846371,
+      "mdd_pct": 44.24665710144044,
+      "trades": 87,
+      "win_rate_pct": 54.02298850574713,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trdefault_pron",
+      "symbol": "BTC",
+      "return_pct": 113.41875249622528,
+      "alpha_pct": -1039.2397213328766,
+      "mdd_pct": 58.944746037081195,
+      "trades": 39,
+      "win_rate_pct": 35.8974358974359,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trdefault_pron",
+      "symbol": "ETH",
+      "return_pct": 198.6338939812072,
+      "alpha_pct": -1556.4971691289475,
+      "mdd_pct": 44.50741762768473,
+      "trades": 104,
+      "win_rate_pct": 53.84615384615385,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trdefault_pron",
+      "symbol": "SOL",
+      "return_pct": 108.01986350760014,
+      "alpha_pct": -2694.314836189423,
+      "mdd_pct": 56.125634759441276,
+      "trades": 113,
+      "win_rate_pct": 28.31858407079646,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trdefault_pron",
+      "symbol": "BNB",
+      "return_pct": 416.4094572141688,
+      "alpha_pct": -4996.43703623593,
+      "mdd_pct": 28.780336629897324,
+      "trades": 63,
+      "win_rate_pct": 61.904761904761905,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trdefault_proff",
+      "symbol": "BTC",
+      "return_pct": 128.13913918016326,
+      "alpha_pct": -1024.5193346489386,
+      "mdd_pct": 53.573085086479736,
+      "trades": 45,
+      "win_rate_pct": 37.77777777777778,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trdefault_proff",
+      "symbol": "ETH",
+      "return_pct": 476.2187622169962,
+      "alpha_pct": -1278.9123008931583,
+      "mdd_pct": 52.660718025975925,
+      "trades": 119,
+      "win_rate_pct": 52.94117647058824,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trdefault_proff",
+      "symbol": "SOL",
+      "return_pct": 183.6662599189857,
+      "alpha_pct": -2618.6684397780377,
+      "mdd_pct": 54.32937406305766,
+      "trades": 138,
+      "win_rate_pct": 28.985507246376812,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trdefault_proff",
+      "symbol": "BNB",
+      "return_pct": 543.3095069004155,
+      "alpha_pct": -4869.536986549682,
+      "mdd_pct": 41.93321732366789,
+      "trades": 76,
+      "win_rate_pct": 59.210526315789465,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trtrend_pron",
+      "symbol": "BTC",
+      "return_pct": 118.78278256224498,
+      "alpha_pct": -1033.8756912668568,
+      "mdd_pct": 47.56963143364041,
+      "trades": 51,
+      "win_rate_pct": 49.01960784313725,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trtrend_pron",
+      "symbol": "ETH",
+      "return_pct": 123.3236752154566,
+      "alpha_pct": -1631.807387894698,
+      "mdd_pct": 45.47660872776903,
+      "trades": 112,
+      "win_rate_pct": 56.25,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trtrend_pron",
+      "symbol": "SOL",
+      "return_pct": 24.899266350745748,
+      "alpha_pct": -2777.435433346278,
+      "mdd_pct": 51.65894201162323,
+      "trades": 126,
+      "win_rate_pct": 30.952380952380953,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trtrend_pron",
+      "symbol": "BNB",
+      "return_pct": 411.41152709530513,
+      "alpha_pct": -5001.434966354793,
+      "mdd_pct": 28.50956277792797,
+      "trades": 73,
+      "win_rate_pct": 63.013698630136986,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trtrend_proff",
+      "symbol": "BTC",
+      "return_pct": 167.3075744547899,
+      "alpha_pct": -985.350899374312,
+      "mdd_pct": 49.34359417701911,
+      "trades": 53,
+      "win_rate_pct": 50.943396226415096,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trtrend_proff",
+      "symbol": "ETH",
+      "return_pct": 356.89511558736314,
+      "alpha_pct": -1398.2359475227915,
+      "mdd_pct": 46.029077334666404,
+      "trades": 132,
+      "win_rate_pct": 55.3030303030303,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trtrend_proff",
+      "symbol": "SOL",
+      "return_pct": 134.3517838787298,
+      "alpha_pct": -2667.982915818294,
+      "mdd_pct": 46.321973574766304,
+      "trades": 153,
+      "win_rate_pct": 32.02614379084967,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.00_sl10.0_trtrend_proff",
+      "symbol": "BNB",
+      "return_pct": 345.2480685885627,
+      "alpha_pct": -5067.598424861535,
+      "mdd_pct": 40.756051105274324,
+      "trades": 83,
+      "win_rate_pct": 59.036144578313255,
+      "params": {
+        "pos_scale": 1.0,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.55,
+        "risk_on_position_size": 0.95,
+        "risk_off_position_size": 0.3
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trdefault_pron",
+      "symbol": "BTC",
+      "return_pct": 174.04564987306082,
+      "alpha_pct": -978.6128239560411,
+      "mdd_pct": 57.003849152110384,
+      "trades": 39,
+      "win_rate_pct": 35.8974358974359,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trdefault_pron",
+      "symbol": "ETH",
+      "return_pct": 295.3676890758432,
+      "alpha_pct": -1459.7633740343115,
+      "mdd_pct": 45.387554018015216,
+      "trades": 110,
+      "win_rate_pct": 51.81818181818182,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trdefault_pron",
+      "symbol": "SOL",
+      "return_pct": 152.4517406175671,
+      "alpha_pct": -2649.8829590794567,
+      "mdd_pct": 56.95885121760649,
+      "trades": 112,
+      "win_rate_pct": 29.464285714285715,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trdefault_pron",
+      "symbol": "BNB",
+      "return_pct": 220.7974398716981,
+      "alpha_pct": -5192.0490535784,
+      "mdd_pct": 41.14608737031496,
+      "trades": 68,
+      "win_rate_pct": 57.35294117647059,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trdefault_proff",
+      "symbol": "BTC",
+      "return_pct": 210.37702493880036,
+      "alpha_pct": -942.2814488903016,
+      "mdd_pct": 51.01251494644543,
+      "trades": 45,
+      "win_rate_pct": 37.77777777777778,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trdefault_proff",
+      "symbol": "ETH",
+      "return_pct": 626.8152846996605,
+      "alpha_pct": -1128.3157784104942,
+      "mdd_pct": 50.55179744855434,
+      "trades": 121,
+      "win_rate_pct": 51.2396694214876,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trdefault_proff",
+      "symbol": "SOL",
+      "return_pct": 253.62776187193424,
+      "alpha_pct": -2548.7069378250894,
+      "mdd_pct": 55.20002124201765,
+      "trades": 140,
+      "win_rate_pct": 30.0,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trdefault_proff",
+      "symbol": "BNB",
+      "return_pct": 342.1492465045831,
+      "alpha_pct": -5070.697246945515,
+      "mdd_pct": 47.24966153438041,
+      "trades": 79,
+      "win_rate_pct": 54.43037974683544,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trtrend_pron",
+      "symbol": "BTC",
+      "return_pct": 121.45135570010393,
+      "alpha_pct": -1031.207118128998,
+      "mdd_pct": 46.13471172607903,
+      "trades": 52,
+      "win_rate_pct": 46.15384615384615,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trtrend_pron",
+      "symbol": "ETH",
+      "return_pct": 243.78116664745707,
+      "alpha_pct": -1511.3498964626976,
+      "mdd_pct": 44.173392037595086,
+      "trades": 117,
+      "win_rate_pct": 54.700854700854705,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trtrend_pron",
+      "symbol": "SOL",
+      "return_pct": 44.77788246039128,
+      "alpha_pct": -2757.5568172366325,
+      "mdd_pct": 54.53181057008417,
+      "trades": 122,
+      "win_rate_pct": 31.967213114754102,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trtrend_pron",
+      "symbol": "BNB",
+      "return_pct": 147.26970056208768,
+      "alpha_pct": -5265.5767928880105,
+      "mdd_pct": 40.24404789349617,
+      "trades": 76,
+      "win_rate_pct": 56.57894736842105,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trtrend_proff",
+      "symbol": "BTC",
+      "return_pct": 226.31498872613153,
+      "alpha_pct": -926.3434851029704,
+      "mdd_pct": 46.14883134432593,
+      "trades": 54,
+      "win_rate_pct": 50.0,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trtrend_proff",
+      "symbol": "ETH",
+      "return_pct": 520.1725306293321,
+      "alpha_pct": -1234.9585324808227,
+      "mdd_pct": 43.913994163514744,
+      "trades": 133,
+      "win_rate_pct": 53.383458646616546,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trtrend_proff",
+      "symbol": "SOL",
+      "return_pct": 174.32511869916843,
+      "alpha_pct": -2628.009580997855,
+      "mdd_pct": 50.933226809710284,
+      "trades": 152,
+      "win_rate_pct": 32.89473684210527,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl9.0_trtrend_proff",
+      "symbol": "BNB",
+      "return_pct": 230.5489250871788,
+      "alpha_pct": -5182.297568362919,
+      "mdd_pct": 46.12261236365086,
+      "trades": 87,
+      "win_rate_pct": 54.02298850574713,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 9.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trdefault_pron",
+      "symbol": "BTC",
+      "return_pct": 118.60745669671222,
+      "alpha_pct": -1034.0510171323897,
+      "mdd_pct": 60.8908798441542,
+      "trades": 39,
+      "win_rate_pct": 35.8974358974359,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trdefault_pron",
+      "symbol": "ETH",
+      "return_pct": 213.134821518558,
+      "alpha_pct": -1541.9962415915966,
+      "mdd_pct": 46.93927094142998,
+      "trades": 104,
+      "win_rate_pct": 53.84615384615385,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trdefault_pron",
+      "symbol": "SOL",
+      "return_pct": 124.03266558039323,
+      "alpha_pct": -2678.3020341166302,
+      "mdd_pct": 57.93201918421674,
+      "trades": 111,
+      "win_rate_pct": 27.927927927927925,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trdefault_pron",
+      "symbol": "BNB",
+      "return_pct": 464.834770726641,
+      "alpha_pct": -4948.011722723457,
+      "mdd_pct": 30.082341120948787,
+      "trades": 63,
+      "win_rate_pct": 61.904761904761905,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trdefault_proff",
+      "symbol": "BTC",
+      "return_pct": 132.90631965406345,
+      "alpha_pct": -1019.7521541750384,
+      "mdd_pct": 55.157059712440216,
+      "trades": 45,
+      "win_rate_pct": 37.77777777777778,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trdefault_proff",
+      "symbol": "ETH",
+      "return_pct": 515.8844225711304,
+      "alpha_pct": -1239.2466405390242,
+      "mdd_pct": 54.657195456174264,
+      "trades": 119,
+      "win_rate_pct": 52.94117647058824,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trdefault_proff",
+      "symbol": "SOL",
+      "return_pct": 187.72011366184168,
+      "alpha_pct": -2614.6145860351817,
+      "mdd_pct": 56.013943232028026,
+      "trades": 138,
+      "win_rate_pct": 28.985507246376812,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trdefault_proff",
+      "symbol": "BNB",
+      "return_pct": 619.3752703958343,
+      "alpha_pct": -4793.471223054264,
+      "mdd_pct": 43.63788486839606,
+      "trades": 76,
+      "win_rate_pct": 59.210526315789465,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "default",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trtrend_pron",
+      "symbol": "BTC",
+      "return_pct": 125.06058822687203,
+      "alpha_pct": -1027.5978856022298,
+      "mdd_pct": 49.35295578085419,
+      "trades": 51,
+      "win_rate_pct": 49.01960784313725,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trtrend_pron",
+      "symbol": "ETH",
+      "return_pct": 131.11779358611395,
+      "alpha_pct": -1624.0132695240407,
+      "mdd_pct": 47.85844839174068,
+      "trades": 112,
+      "win_rate_pct": 56.25,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trtrend_pron",
+      "symbol": "SOL",
+      "return_pct": 30.377556082492486,
+      "alpha_pct": -2771.957143614531,
+      "mdd_pct": 54.780648569534115,
+      "trades": 122,
+      "win_rate_pct": 31.147540983606557,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trtrend_pron",
+      "symbol": "BNB",
+      "return_pct": 435.46261780380996,
+      "alpha_pct": -4977.383875646288,
+      "mdd_pct": 29.790832184891226,
+      "trades": 72,
+      "win_rate_pct": 62.5,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "on",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trtrend_proff",
+      "symbol": "BTC",
+      "return_pct": 176.99353874213543,
+      "alpha_pct": -975.6649350869665,
+      "mdd_pct": 51.24656874217431,
+      "trades": 53,
+      "win_rate_pct": 50.943396226415096,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trtrend_proff",
+      "symbol": "ETH",
+      "return_pct": 381.60768685880157,
+      "alpha_pct": -1373.523376251353,
+      "mdd_pct": 47.999051558513095,
+      "trades": 132,
+      "win_rate_pct": 55.3030303030303,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trtrend_proff",
+      "symbol": "SOL",
+      "return_pct": 135.3089106109379,
+      "alpha_pct": -2667.0257890860858,
+      "mdd_pct": 48.317064841420695,
+      "trades": 153,
+      "win_rate_pct": 32.02614379084967,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    },
+    {
+      "trial_id": "ps1.10_sl10.0_trtrend_proff",
+      "symbol": "BNB",
+      "return_pct": 384.91395955940305,
+      "alpha_pct": -5027.932533890695,
+      "mdd_pct": 42.43366747439693,
+      "trades": 83,
+      "win_rate_pct": 59.036144578313255,
+      "params": {
+        "pos_scale": 1.1,
+        "stop_loss_pct": 10.0,
+        "trailing_profile": "trend",
+        "period_mode": "off",
+        "position_size": 0.6050000000000001,
+        "risk_on_position_size": 1.0,
+        "risk_off_position_size": 0.33
+      }
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "generated_at": "2026-02-13T23:03:19",
+    "source_report": "reports/fine_tune_mdd50_stage3_20260213_230319.json",
+    "objective": "maximize mean return under MDD<=50 constraint"
+  },
+  "candidates": {
+    "mean_mdd_cap_50_best": {
+      "trial_id": "ps1.00_sl9.0_trdefault_proff",
+      "summary": {
+        "mean_return_pct": 330.8276876412586,
+        "mean_alpha_pct": -2449.914994880336,
+        "mean_mdd_pct": 49.26860749358548,
+        "max_symbol_mdd_pct": 53.530653189676805
+      },
+      "overrides": {
+        "entry_params": {
+          "position_size": 0.55,
+          "risk_on_position_size": 0.95,
+          "risk_off_position_size": 0.3,
+          "period_risk_enabled": false
+        },
+        "exit_params": {
+          "stop_loss_pct": 9.0,
+          "trailing_enabled": true,
+          "trailing_activation": 18.0,
+          "trailing_distance": 10.0
+        },
+        "top_level": {
+          "period_risk_enabled": false
+        }
+      }
+    },
+    "strict_per_symbol_mdd_cap_50_best": {
+      "trial_id": "ps0.90_sl9.0_trdefault_proff",
+      "summary": {
+        "mean_return_pct": 290.2032626379157,
+        "mean_alpha_pct": -2490.539419883679,
+        "mean_mdd_pct": 45.593665309214174,
+        "max_symbol_mdd_pct": 49.782289952302186
+      },
+      "overrides": {
+        "entry_params": {
+          "position_size": 0.495,
+          "risk_on_position_size": 0.855,
+          "risk_off_position_size": 0.27,
+          "period_risk_enabled": false
+        },
+        "exit_params": {
+          "stop_loss_pct": 9.0,
+          "trailing_enabled": true,
+          "trailing_activation": 18.0,
+          "trailing_distance": 10.0
+        },
+        "top_level": {
+          "period_risk_enabled": false
+        }
+      }
+    }
+  }
+}
+

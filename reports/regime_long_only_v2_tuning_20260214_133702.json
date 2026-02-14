@@ -1,0 +1,1045 @@
+{
+  "generated_at": "2026-02-14T13:37:02.569816",
+  "start_date": "2021-01-01",
+  "end_date": "2026-02-13",
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "BNB"
+  ],
+  "objective": "maximize mean_alpha_vs_bnh_pctp",
+  "search_space_size": 243,
+  "top_k": 20,
+  "top_trials": [
+    {
+      "trial": 153,
+      "entry_quorum": 3,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.1,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 5,
+      "mean_return_pct": 1002.9113871543872,
+      "mean_alpha_vs_bnh_pctp": -889.8776621805875,
+      "mean_mdd_pct": 52.96911394801533,
+      "max_symbol_mdd_pct": 65.89297951742597,
+      "total_trades": 209,
+      "mean_win_rate_pct": 37.13852813852814,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 74.2373814074276,
+          "alpha_vs_bnh_pctp": -134.31865474323405,
+          "mdd_pct": 43.5941093212257,
+          "trades": 44,
+          "win_rate_pct": 31.818181818181817
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 38.54342074609667,
+          "alpha_vs_bnh_pctp": -192.15529254713272,
+          "mdd_pct": 55.26664380662799,
+          "trades": 50,
+          "win_rate_pct": 36.0
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 832.5483953192837,
+          "alpha_vs_bnh_pctp": -4382.977662781032,
+          "mdd_pct": 65.89297951742597,
+          "trades": 66,
+          "win_rate_pct": 37.878787878787875
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 3066.3163511447406,
+          "alpha_vs_bnh_pctp": 1149.940961349049,
+          "mdd_pct": 47.12272314678166,
+          "trades": 49,
+          "win_rate_pct": 42.857142857142854
+        }
+      ]
+    },
+    {
+      "trial": 72,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.1,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 5,
+      "mean_return_pct": 957.5887903745324,
+      "mean_alpha_vs_bnh_pctp": -935.2002589604422,
+      "mean_mdd_pct": 54.72747295074795,
+      "max_symbol_mdd_pct": 68.0892628939353,
+      "total_trades": 236,
+      "mean_win_rate_pct": 37.72904483430799,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 168.09134020787639,
+          "alpha_vs_bnh_pctp": -40.464695942785255,
+          "mdd_pct": 33.462314508789184,
+          "trades": 50,
+          "win_rate_pct": 40.0
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 55.81343039190991,
+          "alpha_vs_bnh_pctp": -174.88528290131947,
+          "mdd_pct": 60.954857010029386,
+          "trades": 57,
+          "win_rate_pct": 36.84210526315789
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 1022.0209004976987,
+          "alpha_vs_bnh_pctp": -4193.505157602617,
+          "mdd_pct": 68.0892628939353,
+          "trades": 75,
+          "win_rate_pct": 33.33333333333333
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2584.4294904006447,
+          "alpha_vs_bnh_pctp": 668.0541006049532,
+          "mdd_pct": 56.40345739023791,
+          "trades": 54,
+          "win_rate_pct": 40.74074074074074
+        }
+      ]
+    },
+    {
+      "trial": 150,
+      "entry_quorum": 3,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.1,
+      "peak_dd_exit_pct": 0.12,
+      "cooldown_days": 5,
+      "mean_return_pct": 880.7733361964313,
+      "mean_alpha_vs_bnh_pctp": -1012.0157131385431,
+      "mean_mdd_pct": 51.05463622569526,
+      "max_symbol_mdd_pct": 63.34331712133483,
+      "total_trades": 214,
+      "mean_win_rate_pct": 37.391304347826086,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 79.76370613219642,
+          "alpha_vs_bnh_pctp": -128.79233001846524,
+          "mdd_pct": 41.31440007753067,
+          "trades": 45,
+          "win_rate_pct": 33.33333333333333
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 51.33345292619329,
+          "alpha_vs_bnh_pctp": -179.36526036703611,
+          "mdd_pct": 52.58417438269527,
+          "trades": 50,
+          "win_rate_pct": 36.0
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 551.2199630768305,
+          "alpha_vs_bnh_pctp": -4664.306095023485,
+          "mdd_pct": 63.34331712133483,
+          "trades": 69,
+          "win_rate_pct": 36.231884057971016
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2840.776222650505,
+          "alpha_vs_bnh_pctp": 924.4008328548136,
+          "mdd_pct": 46.97665332122029,
+          "trades": 50,
+          "win_rate_pct": 44.0
+        }
+      ]
+    },
+    {
+      "trial": 162,
+      "entry_quorum": 3,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.12,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 5,
+      "mean_return_pct": 865.0107467030072,
+      "mean_alpha_vs_bnh_pctp": -1027.7783026319673,
+      "mean_mdd_pct": 54.65575016526918,
+      "max_symbol_mdd_pct": 67.32254808334268,
+      "total_trades": 205,
+      "mean_win_rate_pct": 35.601656095842145,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 65.59024598693449,
+          "alpha_vs_bnh_pctp": -142.96579016372715,
+          "mdd_pct": 43.48258657278599,
+          "trades": 43,
+          "win_rate_pct": 32.55813953488372
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 60.05799584193839,
+          "alpha_vs_bnh_pctp": -170.64071745129098,
+          "mdd_pct": 57.206645568459656,
+          "trades": 48,
+          "win_rate_pct": 33.33333333333333
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 469.91549501794526,
+          "alpha_vs_bnh_pctp": -4745.61056308237,
+          "mdd_pct": 67.32254808334268,
+          "trades": 66,
+          "win_rate_pct": 34.84848484848485
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2864.4792499652103,
+          "alpha_vs_bnh_pctp": 948.1038601695188,
+          "mdd_pct": 50.6112204364884,
+          "trades": 48,
+          "win_rate_pct": 41.66666666666667
+        }
+      ]
+    },
+    {
+      "trial": 63,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.08,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 5,
+      "mean_return_pct": 841.8989547154076,
+      "mean_alpha_vs_bnh_pctp": -1050.890094619567,
+      "mean_mdd_pct": 52.817966025745264,
+      "max_symbol_mdd_pct": 60.59825101176492,
+      "total_trades": 249,
+      "mean_win_rate_pct": 38.2747300322788,
+      "beating_symbols": 0,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 166.8955603628937,
+          "alpha_vs_bnh_pctp": -41.66047578776795,
+          "mdd_pct": 37.78199906407951,
+          "trades": 53,
+          "win_rate_pct": 37.735849056603776
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 65.78139807474709,
+          "alpha_vs_bnh_pctp": -164.91731521848232,
+          "mdd_pct": 56.359640745370086,
+          "trades": 61,
+          "win_rate_pct": 39.34426229508197
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 1380.106506327352,
+          "alpha_vs_bnh_pctp": -3835.419551772964,
+          "mdd_pct": 60.59825101176492,
+          "trades": 77,
+          "win_rate_pct": 36.36363636363637
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 1754.8123540966376,
+          "alpha_vs_bnh_pctp": -161.5630356990539,
+          "mdd_pct": 56.53197328176653,
+          "trades": 58,
+          "win_rate_pct": 39.6551724137931
+        }
+      ]
+    },
+    {
+      "trial": 144,
+      "entry_quorum": 3,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.08,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 5,
+      "mean_return_pct": 829.9119345495671,
+      "mean_alpha_vs_bnh_pctp": -1062.8771147854075,
+      "mean_mdd_pct": 51.38765120713397,
+      "max_symbol_mdd_pct": 57.473463107433496,
+      "total_trades": 221,
+      "mean_win_rate_pct": 38.1151802166496,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 71.23044759255052,
+          "alpha_vs_bnh_pctp": -137.32558855811112,
+          "mdd_pct": 43.29755706165413,
+          "trades": 46,
+          "win_rate_pct": 30.434782608695656
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 42.61053174713997,
+          "alpha_vs_bnh_pctp": -188.0881815460894,
+          "mdd_pct": 56.754306023057644,
+          "trades": 54,
+          "win_rate_pct": 37.03703703703704
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 1142.2270212219694,
+          "alpha_vs_bnh_pctp": -4073.2990368783467,
+          "mdd_pct": 57.473463107433496,
+          "trades": 68,
+          "win_rate_pct": 39.705882352941174
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2063.579737636609,
+          "alpha_vs_bnh_pctp": 147.20434784091753,
+          "mdd_pct": 48.0252786363906,
+          "trades": 53,
+          "win_rate_pct": 45.28301886792453
+        }
+      ]
+    },
+    {
+      "trial": 69,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.1,
+      "peak_dd_exit_pct": 0.12,
+      "cooldown_days": 5,
+      "mean_return_pct": 819.5070387701845,
+      "mean_alpha_vs_bnh_pctp": -1073.28201056479,
+      "mean_mdd_pct": 55.62492389649752,
+      "max_symbol_mdd_pct": 66.03679671412502,
+      "total_trades": 242,
+      "mean_win_rate_pct": 37.613789719052875,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 138.8034584877468,
+          "alpha_vs_bnh_pctp": -69.75257766291483,
+          "mdd_pct": 41.06095412017455,
+          "trades": 52,
+          "win_rate_pct": 38.46153846153847
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 70.08509201033081,
+          "alpha_vs_bnh_pctp": -160.61362128289858,
+          "mdd_pct": 58.99848736145261,
+          "trades": 57,
+          "win_rate_pct": 36.84210526315789
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 675.9249218811202,
+          "alpha_vs_bnh_pctp": -4539.601136219196,
+          "mdd_pct": 66.03679671412502,
+          "trades": 78,
+          "win_rate_pct": 33.33333333333333
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2393.2146827015404,
+          "alpha_vs_bnh_pctp": 476.8392929058489,
+          "mdd_pct": 56.40345739023791,
+          "trades": 55,
+          "win_rate_pct": 41.81818181818181
+        }
+      ]
+    },
+    {
+      "trial": 81,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.12,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 5,
+      "mean_return_pct": 792.0996316509177,
+      "mean_alpha_vs_bnh_pctp": -1100.689417684057,
+      "mean_mdd_pct": 57.4293350565889,
+      "max_symbol_mdd_pct": 70.18217768929246,
+      "total_trades": 232,
+      "mean_win_rate_pct": 36.746105646375185,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 146.3979111619071,
+          "alpha_vs_bnh_pctp": -62.15812498875454,
+          "mdd_pct": 39.30063306322247,
+          "trades": 49,
+          "win_rate_pct": 40.816326530612244
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 80.00988613881266,
+          "alpha_vs_bnh_pctp": -150.68882715441674,
+          "mdd_pct": 60.954857010029386,
+          "trades": 55,
+          "win_rate_pct": 34.54545454545455
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 528.6804217557279,
+          "alpha_vs_bnh_pctp": -4686.845636344588,
+          "mdd_pct": 70.18217768929246,
+          "trades": 75,
+          "win_rate_pct": 32.0
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2413.3103075472227,
+          "alpha_vs_bnh_pctp": 496.9349177515312,
+          "mdd_pct": 59.27967246381127,
+          "trades": 53,
+          "win_rate_pct": 39.62264150943396
+        }
+      ]
+    },
+    {
+      "trial": 159,
+      "entry_quorum": 3,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.12,
+      "peak_dd_exit_pct": 0.12,
+      "cooldown_days": 5,
+      "mean_return_pct": 786.8938146670556,
+      "mean_alpha_vs_bnh_pctp": -1105.895234667919,
+      "mean_mdd_pct": 52.88090259006361,
+      "max_symbol_mdd_pct": 63.62639470278616,
+      "total_trades": 213,
+      "mean_win_rate_pct": 36.6055900621118,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 80.99513971079432,
+          "alpha_vs_bnh_pctp": -127.56089643986732,
+          "mdd_pct": 41.89207822465484,
+          "trades": 45,
+          "win_rate_pct": 33.33333333333333
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 37.322579144694714,
+          "alpha_vs_bnh_pctp": -193.37613414853467,
+          "mdd_pct": 55.53035008904194,
+          "trades": 50,
+          "win_rate_pct": 34.0
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 375.941343947887,
+          "alpha_vs_bnh_pctp": -4839.584714152429,
+          "mdd_pct": 63.62639470278616,
+          "trades": 69,
+          "win_rate_pct": 36.231884057971016
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2653.3161958648466,
+          "alpha_vs_bnh_pctp": 736.9408060691551,
+          "mdd_pct": 50.474787343771524,
+          "trades": 49,
+          "win_rate_pct": 42.857142857142854
+        }
+      ]
+    },
+    {
+      "trial": 70,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.1,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 1,
+      "mean_return_pct": 767.5373686612966,
+      "mean_alpha_vs_bnh_pctp": -1125.251680673678,
+      "mean_mdd_pct": 53.91876058505617,
+      "max_symbol_mdd_pct": 69.91071917413785,
+      "total_trades": 308,
+      "mean_win_rate_pct": 37.53329253329253,
+      "beating_symbols": 0,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 127.26847507574696,
+          "alpha_vs_bnh_pctp": -81.28756107491468,
+          "mdd_pct": 43.75460967261579,
+          "trades": 65,
+          "win_rate_pct": 36.92307692307693
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 114.56769166104215,
+          "alpha_vs_bnh_pctp": -116.13102163218724,
+          "mdd_pct": 56.8827915276919,
+          "trades": 74,
+          "win_rate_pct": 40.54054054054054
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 1437.9470169988815,
+          "alpha_vs_bnh_pctp": -3777.579041101434,
+          "mdd_pct": 69.91071917413785,
+          "trades": 99,
+          "win_rate_pct": 38.38383838383838
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 1390.3662909095158,
+          "alpha_vs_bnh_pctp": -526.0090988861757,
+          "mdd_pct": 45.126921965779125,
+          "trades": 70,
+          "win_rate_pct": 34.285714285714285
+        }
+      ]
+    },
+    {
+      "trial": 79,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.12,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 1,
+      "mean_return_pct": 727.3296340217328,
+      "mean_alpha_vs_bnh_pctp": -1165.4594153132418,
+      "mean_mdd_pct": 54.09637716309979,
+      "max_symbol_mdd_pct": 69.91071917413784,
+      "total_trades": 298,
+      "mean_win_rate_pct": 37.497100214656314,
+      "beating_symbols": 0,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 137.5414954209105,
+          "alpha_vs_bnh_pctp": -71.01454072975113,
+          "mdd_pct": 40.844908771345736,
+          "trades": 63,
+          "win_rate_pct": 36.507936507936506
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 169.69406058683697,
+          "alpha_vs_bnh_pctp": -61.00465270639242,
+          "mdd_pct": 56.8827915276919,
+          "trades": 70,
+          "win_rate_pct": 38.57142857142858
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 927.8854899856485,
+          "alpha_vs_bnh_pctp": -4287.640568114667,
+          "mdd_pct": 69.91071917413784,
+          "trades": 97,
+          "win_rate_pct": 38.144329896907216
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 1674.197490093535,
+          "alpha_vs_bnh_pctp": -242.17789970215654,
+          "mdd_pct": 48.747089179223664,
+          "trades": 68,
+          "win_rate_pct": 36.76470588235294
+        }
+      ]
+    },
+    {
+      "trial": 234,
+      "entry_quorum": 4,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.1,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 5,
+      "mean_return_pct": 721.3521021571512,
+      "mean_alpha_vs_bnh_pctp": -1171.4369471778234,
+      "mean_mdd_pct": 60.28030163005843,
+      "max_symbol_mdd_pct": 71.51926202635495,
+      "total_trades": 184,
+      "mean_win_rate_pct": 34.843379355207745,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 46.40089343947573,
+          "alpha_vs_bnh_pctp": -162.1551427111859,
+          "mdd_pct": 54.63057866964288,
+          "trades": 39,
+          "win_rate_pct": 30.76923076923077
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 101.48698582317033,
+          "alpha_vs_bnh_pctp": -129.21172747005906,
+          "mdd_pct": 59.725732468252126,
+          "trades": 44,
+          "win_rate_pct": 38.63636363636363
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 556.5638381105731,
+          "alpha_vs_bnh_pctp": -4658.962219989743,
+          "mdd_pct": 71.51926202635495,
+          "trades": 58,
+          "win_rate_pct": 32.758620689655174
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2180.9566912553855,
+          "alpha_vs_bnh_pctp": 264.58130145969403,
+          "mdd_pct": 55.24563335598379,
+          "trades": 43,
+          "win_rate_pct": 37.2093023255814
+        }
+      ]
+    },
+    {
+      "trial": 71,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.1,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 3,
+      "mean_return_pct": 713.9645348857314,
+      "mean_alpha_vs_bnh_pctp": -1178.8245144492432,
+      "mean_mdd_pct": 55.648747041446576,
+      "max_symbol_mdd_pct": 74.21296790872479,
+      "total_trades": 260,
+      "mean_win_rate_pct": 35.84271232439336,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 120.17175115332859,
+          "alpha_vs_bnh_pctp": -88.38428499733305,
+          "mdd_pct": 42.07922545585035,
+          "trades": 54,
+          "win_rate_pct": 31.48148148148148
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 96.18275592663147,
+          "alpha_vs_bnh_pctp": -134.51595736659792,
+          "mdd_pct": 52.62579847174723,
+          "trades": 64,
+          "win_rate_pct": 40.625
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 564.5089531772837,
+          "alpha_vs_bnh_pctp": -4651.017104923032,
+          "mdd_pct": 74.21296790872479,
+          "trades": 84,
+          "win_rate_pct": 33.33333333333333
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2074.9946792856817,
+          "alpha_vs_bnh_pctp": 158.61928948999025,
+          "mdd_pct": 53.676996329463954,
+          "trades": 58,
+          "win_rate_pct": 37.93103448275862
+        }
+      ]
+    },
+    {
+      "trial": 78,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.12,
+      "peak_dd_exit_pct": 0.12,
+      "cooldown_days": 5,
+      "mean_return_pct": 712.4952088460593,
+      "mean_alpha_vs_bnh_pctp": -1180.2938404889153,
+      "mean_mdd_pct": 57.91061208323283,
+      "max_symbol_mdd_pct": 67.13175496448703,
+      "total_trades": 241,
+      "mean_win_rate_pct": 36.905832958464536,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 132.1711223107707,
+          "alpha_vs_bnh_pctp": -76.38491383989094,
+          "mdd_pct": 46.2325335431804,
+          "trades": 52,
+          "win_rate_pct": 38.46153846153847
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 54.338139104726324,
+          "alpha_vs_bnh_pctp": -176.36057418850305,
+          "mdd_pct": 58.99848736145261,
+          "trades": 57,
+          "win_rate_pct": 35.08771929824561
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 429.187070177716,
+          "alpha_vs_bnh_pctp": -4786.3389879226,
+          "mdd_pct": 67.13175496448703,
+          "trades": 78,
+          "win_rate_pct": 33.33333333333333
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2234.2845037910242,
+          "alpha_vs_bnh_pctp": 317.90911399533275,
+          "mdd_pct": 59.27967246381127,
+          "trades": 54,
+          "win_rate_pct": 40.74074074074074
+        }
+      ]
+    },
+    {
+      "trial": 80,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.12,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 3,
+      "mean_return_pct": 709.6452487981165,
+      "mean_alpha_vs_bnh_pctp": -1183.143800536858,
+      "mean_mdd_pct": 56.2883794277361,
+      "max_symbol_mdd_pct": 77.02113211814931,
+      "total_trades": 254,
+      "mean_win_rate_pct": 35.712076355441646,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 112.3685655697522,
+          "alpha_vs_bnh_pctp": -96.18747058090943,
+          "mdd_pct": 39.51547236267,
+          "trades": 53,
+          "win_rate_pct": 32.075471698113205
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 132.97467056945692,
+          "alpha_vs_bnh_pctp": -97.72404272377247,
+          "mdd_pct": 51.88382773774302,
+          "trades": 61,
+          "win_rate_pct": 39.34426229508197
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 256.31771552677463,
+          "alpha_vs_bnh_pctp": -4959.208342573541,
+          "mdd_pct": 77.02113211814931,
+          "trades": 84,
+          "win_rate_pct": 32.142857142857146
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 2336.9200435264825,
+          "alpha_vs_bnh_pctp": 420.54465373079097,
+          "mdd_pct": 56.733085492382074,
+          "trades": 56,
+          "win_rate_pct": 39.285714285714285
+        }
+      ]
+    },
+    {
+      "trial": 60,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.08,
+      "peak_dd_exit_pct": 0.12,
+      "cooldown_days": 5,
+      "mean_return_pct": 703.6670346133728,
+      "mean_alpha_vs_bnh_pctp": -1189.1220147216018,
+      "mean_mdd_pct": 52.588479001542474,
+      "max_symbol_mdd_pct": 60.59825101176492,
+      "total_trades": 252,
+      "mean_win_rate_pct": 38.30027885701605,
+      "beating_symbols": 0,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 176.30454607669418,
+          "alpha_vs_bnh_pctp": -32.25149007396746,
+          "mdd_pct": 38.51482810480672,
+          "trades": 53,
+          "win_rate_pct": 37.735849056603776
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 70.80976130264804,
+          "alpha_vs_bnh_pctp": -159.88895199058135,
+          "mdd_pct": 54.708863607831724,
+          "trades": 61,
+          "win_rate_pct": 39.34426229508197
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 949.6074695150421,
+          "alpha_vs_bnh_pctp": -4265.918588585274,
+          "mdd_pct": 60.59825101176492,
+          "trades": 79,
+          "win_rate_pct": 35.44303797468354
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 1617.9463615591071,
+          "alpha_vs_bnh_pctp": -298.4290282365844,
+          "mdd_pct": 56.53197328176653,
+          "trades": 59,
+          "win_rate_pct": 40.67796610169492
+        }
+      ]
+    },
+    {
+      "trial": 141,
+      "entry_quorum": 3,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.08,
+      "peak_dd_exit_pct": 0.12,
+      "cooldown_days": 5,
+      "mean_return_pct": 703.525444651239,
+      "mean_alpha_vs_bnh_pctp": -1189.2636046837356,
+      "mean_mdd_pct": 50.8918619611031,
+      "max_symbol_mdd_pct": 57.473463107433496,
+      "total_trades": 224,
+      "mean_win_rate_pct": 38.62836438923396,
+      "beating_symbols": 0,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 82.22157282693392,
+          "alpha_vs_bnh_pctp": -126.33446332372772,
+          "mdd_pct": 41.31440007753067,
+          "trades": 46,
+          "win_rate_pct": 32.608695652173914
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 47.03345480147567,
+          "alpha_vs_bnh_pctp": -183.66525849175372,
+          "mdd_pct": 56.75430602305765,
+          "trades": 54,
+          "win_rate_pct": 37.03703703703704
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 780.9168493849124,
+          "alpha_vs_bnh_pctp": -4434.609208715403,
+          "mdd_pct": 57.473463107433496,
+          "trades": 70,
+          "win_rate_pct": 38.57142857142858
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 1903.9299015916338,
+          "alpha_vs_bnh_pctp": -12.44548820405771,
+          "mdd_pct": 48.0252786363906,
+          "trades": 54,
+          "win_rate_pct": 46.2962962962963
+        }
+      ]
+    },
+    {
+      "trial": 25,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.05,
+      "drop_3d_pct": -0.12,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 1,
+      "mean_return_pct": 688.1514144368521,
+      "mean_alpha_vs_bnh_pctp": -1204.6376348981225,
+      "mean_mdd_pct": 55.124477443618964,
+      "max_symbol_mdd_pct": 70.20382664753522,
+      "total_trades": 357,
+      "mean_win_rate_pct": 37.38468992248062,
+      "beating_symbols": 0,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 95.6990305430691,
+          "alpha_vs_bnh_pctp": -112.85700560759254,
+          "mdd_pct": 44.03012109463298,
+          "trades": 75,
+          "win_rate_pct": 32.0
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 117.47293386329756,
+          "alpha_vs_bnh_pctp": -113.22577942993183,
+          "mdd_pct": 59.42848739356251,
+          "trades": 84,
+          "win_rate_pct": 38.095238095238095
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 1845.5756475744774,
+          "alpha_vs_bnh_pctp": -3369.9504105258384,
+          "mdd_pct": 70.20382664753522,
+          "trades": 112,
+          "win_rate_pct": 41.07142857142857
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 693.8580457665639,
+          "alpha_vs_bnh_pctp": -1222.5173440291276,
+          "mdd_pct": 46.83547463874512,
+          "trades": 86,
+          "win_rate_pct": 38.372093023255815
+        }
+      ]
+    },
+    {
+      "trial": 61,
+      "entry_quorum": 2,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.08,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 1,
+      "mean_return_pct": 676.9592350792119,
+      "mean_alpha_vs_bnh_pctp": -1215.8298142557626,
+      "mean_mdd_pct": 53.518123807558965,
+      "max_symbol_mdd_pct": 68.23806747903744,
+      "total_trades": 327,
+      "mean_win_rate_pct": 37.35202869213167,
+      "beating_symbols": 0,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 96.89814608910474,
+          "alpha_vs_bnh_pctp": -111.6578900615569,
+          "mdd_pct": 45.773208027004024,
+          "trades": 69,
+          "win_rate_pct": 34.78260869565217
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 99.79791775130315,
+          "alpha_vs_bnh_pctp": -130.90079554192624,
+          "mdd_pct": 55.99673813627392,
+          "trades": 78,
+          "win_rate_pct": 42.30769230769231
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 1531.6349091808866,
+          "alpha_vs_bnh_pctp": -3683.8911489194293,
+          "mdd_pct": 68.23806747903744,
+          "trades": 104,
+          "win_rate_pct": 39.42307692307692
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 979.505967295553,
+          "alpha_vs_bnh_pctp": -936.8694225001385,
+          "mdd_pct": 44.06448158792044,
+          "trades": 76,
+          "win_rate_pct": 32.89473684210527
+        }
+      ]
+    },
+    {
+      "trial": 152,
+      "entry_quorum": 3,
+      "drop_1d_pct": -0.07,
+      "drop_3d_pct": -0.1,
+      "peak_dd_exit_pct": 0.15,
+      "cooldown_days": 3,
+      "mean_return_pct": 671.6972633493185,
+      "mean_alpha_vs_bnh_pctp": -1221.091785985656,
+      "mean_mdd_pct": 52.86343622214916,
+      "max_symbol_mdd_pct": 66.52895513099743,
+      "total_trades": 230,
+      "mean_win_rate_pct": 39.09211215932914,
+      "beating_symbols": 1,
+      "per_symbol": [
+        {
+          "symbol": "BTC",
+          "return_pct": 74.47725380133777,
+          "alpha_vs_bnh_pctp": -134.0787823493239,
+          "mdd_pct": 42.005239302127094,
+          "trades": 48,
+          "win_rate_pct": 35.41666666666667
+        },
+        {
+          "symbol": "ETH",
+          "return_pct": 60.62581567136971,
+          "alpha_vs_bnh_pctp": -170.07289762185968,
+          "mdd_pct": 48.52647430190462,
+          "trades": 54,
+          "win_rate_pct": 38.88888888888889
+        },
+        {
+          "symbol": "SOL",
+          "return_pct": 602.5982637756342,
+          "alpha_vs_bnh_pctp": -4612.927794324682,
+          "mdd_pct": 66.52895513099743,
+          "trades": 75,
+          "win_rate_pct": 38.666666666666664
+        },
+        {
+          "symbol": "BNB",
+          "return_pct": 1949.0877201489322,
+          "alpha_vs_bnh_pctp": 32.71233035324076,
+          "mdd_pct": 54.3930761535675,
+          "trades": 53,
+          "win_rate_pct": 43.39622641509434
+        }
+      ]
+    }
+  ],
+  "best_trial": {
+    "trial": 153,
+    "entry_quorum": 3,
+    "drop_1d_pct": -0.07,
+    "drop_3d_pct": -0.1,
+    "peak_dd_exit_pct": 0.15,
+    "cooldown_days": 5,
+    "mean_return_pct": 1002.9113871543872,
+    "mean_alpha_vs_bnh_pctp": -889.8776621805875,
+    "mean_mdd_pct": 52.96911394801533,
+    "max_symbol_mdd_pct": 65.89297951742597,
+    "total_trades": 209,
+    "mean_win_rate_pct": 37.13852813852814,
+    "beating_symbols": 1,
+    "per_symbol": [
+      {
+        "symbol": "BTC",
+        "return_pct": 74.2373814074276,
+        "alpha_vs_bnh_pctp": -134.31865474323405,
+        "mdd_pct": 43.5941093212257,
+        "trades": 44,
+        "win_rate_pct": 31.818181818181817
+      },
+      {
+        "symbol": "ETH",
+        "return_pct": 38.54342074609667,
+        "alpha_vs_bnh_pctp": -192.15529254713272,
+        "mdd_pct": 55.26664380662799,
+        "trades": 50,
+        "win_rate_pct": 36.0
+      },
+      {
+        "symbol": "SOL",
+        "return_pct": 832.5483953192837,
+        "alpha_vs_bnh_pctp": -4382.977662781032,
+        "mdd_pct": 65.89297951742597,
+        "trades": 66,
+        "win_rate_pct": 37.878787878787875
+      },
+      {
+        "symbol": "BNB",
+        "return_pct": 3066.3163511447406,
+        "alpha_vs_bnh_pctp": 1149.940961349049,
+        "mdd_pct": 47.12272314678166,
+        "trades": 49,
+        "win_rate_pct": 42.857142857142854
+      }
+    ]
+  }
+}

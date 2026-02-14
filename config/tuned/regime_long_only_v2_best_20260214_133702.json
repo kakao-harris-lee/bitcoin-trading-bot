@@ -1,0 +1,23 @@
+{
+  "meta": {
+    "generated_at": "2026-02-14T13:37:02.571847",
+    "source_report": "reports/regime_long_only_v2_tuning_20260214_133702.json",
+    "objective": "maximize mean alpha vs B&H"
+  },
+  "params": {
+    "entry_lookback_days": 4,
+    "entry_quorum": 3,
+    "drop_1d_pct": -0.07,
+    "drop_3d_pct": -0.1,
+    "peak_dd_exit_pct": 0.15,
+    "cooldown_days": 5,
+    "fee_rate": 0.001
+  },
+  "summary": {
+    "mean_return_pct": 1002.9113871543872,
+    "mean_alpha_vs_bnh_pctp": -889.8776621805875,
+    "mean_mdd_pct": 52.96911394801533,
+    "max_symbol_mdd_pct": 65.89297951742597,
+    "beating_symbols": 1
+  }
+}

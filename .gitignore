@@ -98,3 +98,37 @@ models/mlp_direction/
 
 # Generated per-symbol parquet additions (local)
 data/multi_asset_4h/train/*.parquet
+
+# One-off research reports (local, regenerate as needed)
+reports/aggressive_return_then_mdd_*.json
+reports/aggressive_return_then_mdd_*.md
+reports/core_satellite_weight_sweep_*.json
+reports/core_satellite_weight_sweep_*.md
+reports/current_vs_optimal_mdd50_chart_*.png
+reports/current_vs_optimal_mdd50_compare_*.csv
+reports/current_vs_optimal_mdd50_compare_*.json
+reports/current_vs_optimal_mdd50_compare_*.md
+reports/main_replacement_compare_*.json
+reports/main_replacement_compare_*.md
+reports/mlp_btc_alpha_objective_compare_*.json
+reports/p[0-9]_verification_*.md
+reports/p[0-9]_period_risk_tuning_*.json
+reports/p[0-9]_period_risk_tuning_*.md
+reports/period_vs_bnh_*/
+reports/strategy_diagnosis_*.md
+reports/system_vs_strategy_diagnosis_*.md
+reports/three_stage_compare_*.json
+reports/three_stage_compare_*.md
+reports/trade_decomposition_*.json
+reports/trade_decomposition_*.md
+reports/trade_decomposition_loss_breakdown_*.csv
+reports/trade_decomposition_priorities_*.md
+
+# One-off backtest research scripts (local)
+scripts/backtest/compare_current_vs_optimal_mdd50.py
+scripts/backtest/compare_main_replacements.py
+scripts/backtest/compare_three_stage_improvements.py
+scripts/backtest/optimize_aggressive_return_then_mdd.py
+scripts/backtest/sweep_core_satellite_weights.py
+scripts/backtest/trade_level_decomposition.py
+scripts/backtest/tune_period_risk_p3.py

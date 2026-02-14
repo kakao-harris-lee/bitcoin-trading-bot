@@ -62,6 +62,11 @@ class ComponentStrategyAdapter:
         self.high_water_mark: Optional[float] = None
         self.symbol = "BTC" # Default, will be updated if possible
         self.vol_tracker = VolatilityTracker(window=20)
+        entry_params_cfg = config.get("entry", {}).get("params", {}) if isinstance(config.get("entry"), dict) else {}
+        def _cfg_value(key: str, default: Any) -> Any:
+            if key in config:
+                return config.get(key)
+            return entry_params_cfg.get(key, default)
 
         # Initialize regime filter based on regime_version config
         self._regime_router: Optional[EnhancedRegimeRouter] = None
@@ -95,6 +100,7 @@ class ComponentStrategyAdapter:
         # Cash strategy: block entries in unfavorable conditions
         self._cash_in_bear: bool = config.get('cash_in_bear', False)  # No entry in BEAR
         self._cash_below_ema200: bool = config.get('cash_below_ema200', False)  # No entry below EMA200
+        self._exit_on_bear_regime: bool = bool(_cfg_value("exit_on_bear_regime", False))
         # Default leverage: 1.0 for spot (no leverage), 3.0 for futures
         self._default_leverage: float = 1.0 if self.market == "spot" else LeverageDefaults.MAX
         self._current_leverage: float = self._default_leverage
@@ -128,7 +134,18 @@ class ComponentStrategyAdapter:
         )  # Reduce leverage by 50% at warning
 
         # === NEW: V2 Filter Exit for Existing Positions ===
-        self._v2_exit_on_filter: bool = config.get('v2_exit_on_filter', False)  # Exit when v2 blocks
+        self._v2_exit_on_filter: bool = _cfg_value('v2_exit_on_filter', False)  # Exit when v2 blocks
+        # P0: protective de-risk ladder to reduce tail loss
+        self._protective_de_risk_enabled: bool = bool(_cfg_value("protective_de_risk_enabled", True))
+        self._protective_de_risk_fraction: float = float(_cfg_value("protective_de_risk_fraction", 0.5))
+        if self._protective_de_risk_fraction <= 0 or self._protective_de_risk_fraction >= 1:
+            self._protective_de_risk_fraction = 0.5
+        self._protective_de_risk_loss_pct: float = float(_cfg_value("protective_de_risk_loss_pct", 5.0))
+        self._protective_force_exit_bars: int = int(_cfg_value("protective_force_exit_bars", 1))
+        if self._protective_force_exit_bars < 1:
+            self._protective_force_exit_bars = 1
+        self._protective_force_exit_remaining: int = 0
+        self._protective_ladder_active: bool = False
 
         # === NEW: Regime Probability Filter ===
         # Use RF confidence (if available) or MFI proxy for bullish probability
@@ -182,6 +199,23 @@ class ComponentStrategyAdapter:
         self._vol_target: float = vol_cfg.get("target_vol", 0.02)
         self._vol_min_scale: float = vol_cfg.get("min_scale", 0.25)
         self._vol_max_scale: float = vol_cfg.get("max_scale", 1.0)
+
+        # P2: period-aware risk throttle (monthly)
+        self._period_risk_enabled: bool = bool(_cfg_value("period_risk_enabled", False))
+        self._period_reduce_threshold_pct: float = float(_cfg_value("period_reduce_threshold_pct", 8.0))
+        self._period_reduce_scale: float = float(_cfg_value("period_reduce_scale", 0.7))
+        if self._period_reduce_scale <= 0:
+            self._period_reduce_scale = 0.5
+        elif self._period_reduce_scale > 1:
+            self._period_reduce_scale = 1.0
+        self._period_loss_limit_pct: float = float(_cfg_value("period_loss_limit_pct", 12.0))
+        if self._period_loss_limit_pct <= 0:
+            self._period_loss_limit_pct = 12.0
+        self._period_key: str | None = None
+        self._period_start_equity: float = 0.0
+        self._period_peak_equity: float = 0.0
+        self._period_return_pct: float = 0.0
+        self._period_drawdown_pct: float = 0.0
 
         # Regime classification thresholds (externalised for optimisation)
         self._regime_thresholds: Dict[str, float] = dict(config.get("regime_thresholds", {}))
@@ -321,6 +355,7 @@ class ComponentStrategyAdapter:
         """Callable interface for Backtester.run(strategy_func)."""
         row = df.iloc[i]
         self._decrement_timers()
+        self._update_period_risk_state(row)
         values = self._extract_row_values(row)
         mlp_prediction, mlp_confidence = self._get_cached_mlp_prediction(i)
         context = self._build_context(row, values)
@@ -351,6 +386,44 @@ class ComponentStrategyAdapter:
             self._cooldown_remaining -= 1
         if self._loss_pause_remaining > 0:
             self._loss_pause_remaining -= 1
+        if self._protective_force_exit_remaining > 0:
+            self._protective_force_exit_remaining -= 1
+
+    def _update_period_risk_state(self, row: pd.Series) -> None:
+        if not self._period_risk_enabled:
+            return
+        ts = row.get("timestamp")
+        if ts is None:
+            return
+        try:
+            ts_dt = pd.to_datetime(ts)
+        except Exception:
+            return
+        period_key = ts_dt.strftime("%Y-%m")
+        equity = float(self._current_equity) if self._current_equity > 0 else 0.0
+        if equity <= 0:
+            return
+
+        if period_key != self._period_key:
+            self._period_key = period_key
+            self._period_start_equity = equity
+            self._period_peak_equity = equity
+            self._period_return_pct = 0.0
+            self._period_drawdown_pct = 0.0
+            return
+
+        if equity > self._period_peak_equity:
+            self._period_peak_equity = equity
+
+        if self._period_start_equity > 0:
+            self._period_return_pct = ((equity / self._period_start_equity) - 1.0) * 100.0
+        else:
+            self._period_return_pct = 0.0
+
+        if self._period_peak_equity > 0:
+            self._period_drawdown_pct = ((self._period_peak_equity - equity) / self._period_peak_equity) * 100.0
+        else:
+            self._period_drawdown_pct = 0.0
 
     def _extract_row_values(self, row: pd.Series) -> Dict[str, Any]:
         mfi = row.get("mfi", 50.0)
@@ -545,6 +618,8 @@ class ComponentStrategyAdapter:
     def _close_position(self) -> None:
         self.current_position = None
         self.high_water_mark = None
+        self._protective_ladder_active = False
+        self._protective_force_exit_remaining = 0
         try:
             self.exit_strategy.on_position_closed(self.symbol)
         except Exception as e:
@@ -562,6 +637,14 @@ class ComponentStrategyAdapter:
         close = values["close"]
         is_long = getattr(self.current_position, "side", "long") == "long"
         market_data = self._update_exit_hwm(market_data, close, is_long)
+
+        force_exit = self._check_protective_force_exit_action(is_long)
+        if force_exit is not None:
+            return force_exit
+
+        bear_exit = self._check_bear_regime_exit_action(context, close, is_long)
+        if bear_exit is not None:
+            return bear_exit
 
         protective_action = self._get_protective_exit_action(row, close, is_long)
         if protective_action is not None:
@@ -587,23 +670,38 @@ class ComponentStrategyAdapter:
         close: float,
         is_long: bool,
     ) -> Dict[str, Any] | None:
-        action = self._check_drawdown_exit_action(is_long)
+        action = self._check_drawdown_exit_action(close, is_long)
         if action is not None:
             return action
-        action = self._check_v2_filter_exit_action(is_long)
+        action = self._check_v2_filter_exit_action(close, is_long)
         if action is not None:
             return action
         return self._check_ma_exit_action(row, close, is_long)
 
-    def _check_v2_filter_exit_action(self, is_long: bool) -> Dict[str, Any] | None:
+    def _check_v2_filter_exit_action(self, close: float, is_long: bool) -> Dict[str, Any] | None:
         if not (self._v2_exit_on_filter and self._regime_router is not None and not self._v2_entry_allowed):
             return None
-        self._close_position()
-        return {
-            "action": "sell" if is_long else "close_short",
-            "fraction": 1.0,
-            "reason": "v2_filter_protective_exit",
-        }
+        return self._build_protective_exit_action(
+            reason="v2_filter_protective_exit",
+            close=close,
+            is_long=is_long,
+        )
+
+    def _check_bear_regime_exit_action(
+        self,
+        context: MarketContext,
+        close: float,
+        is_long: bool,
+    ) -> Dict[str, Any] | None:
+        if not self._exit_on_bear_regime or not is_long:
+            return None
+        if context.regime not in ("BEAR_STRONG", "BEAR_MODERATE"):
+            return None
+        return self._build_protective_exit_action(
+            reason=f"bear_regime_exit:{context.regime}",
+            close=close,
+            is_long=True,
+        )
 
     def _check_ma_exit_action(
         self,
@@ -613,21 +711,19 @@ class ComponentStrategyAdapter:
     ) -> Dict[str, Any] | None:
         ema_120 = row.get("ema_120", 0.0)
         if self._panic_sell_below_ma120 and is_long and ema_120 > 0 and close < ema_120:
-            self._close_position()
-            return {
-                "action": "sell",
-                "fraction": 1.0,
-                "reason": f"MA120 panic_sell: close={close:.0f} < ema120={ema_120:.0f}",
-            }
+            return self._build_protective_exit_action(
+                reason=f"MA120 panic_sell: close={close:.0f} < ema120={ema_120:.0f}",
+                close=close,
+                is_long=True,
+            )
 
         ema_200 = row.get("ema_200", 0.0)
         if self._cash_below_ema200 and is_long and ema_200 > 0 and close < ema_200:
-            self._close_position()
-            return {
-                "action": "sell",
-                "fraction": 1.0,
-                "reason": f"EMA200 protective exit: close={close:.0f} < ema200={ema_200:.0f}",
-            }
+            return self._build_protective_exit_action(
+                reason=f"EMA200 protective exit: close={close:.0f} < ema200={ema_200:.0f}",
+                close=close,
+                is_long=True,
+            )
 
         return None
 
@@ -646,29 +742,32 @@ class ComponentStrategyAdapter:
     def _finalize_exit_signal(self, signal: Signal, is_long: bool) -> Dict[str, Any]:
         action = "close_short" if not is_long else "sell"
         reason = signal.reason or ""
-        partial = self._maybe_handle_partial_exit(signal, action, reason)
+        trigger_price = getattr(signal, "trigger_price", None)
+        partial = self._maybe_handle_partial_exit(signal, action, reason, trigger_price)
         if partial is not None:
             return partial
         self._close_position()
         self._update_loss_tracking(reason)
-        return {
+        result = {
             "action": action,
             "fraction": 1.0,
             "reason": reason,
             "consecutive_losses": self._consecutive_losses,
         }
+        if trigger_price is not None:
+            result["price"] = trigger_price
+        return result
 
-    def _check_drawdown_exit_action(self, is_long: bool) -> Dict[str, Any] | None:
+    def _check_drawdown_exit_action(self, close: float, is_long: bool) -> Dict[str, Any] | None:
         if not (self._drawdown_enabled and self._current_drawdown_pct > 0):
             return None
         if self._current_drawdown_pct >= self._drawdown_exit_pct:
-            self._close_position()
             self._loss_pause_remaining = self._loss_pause_candles
-            return {
-                "action": "sell" if is_long else "close_short",
-                "fraction": 1.0,
-                "reason": f"DRAWDOWN_EXIT: {self._current_drawdown_pct:.1f}% >= {self._drawdown_exit_pct:.1f}%",
-            }
+            return self._build_protective_exit_action(
+                reason=f"DRAWDOWN_EXIT: {self._current_drawdown_pct:.1f}% >= {self._drawdown_exit_pct:.1f}%",
+                close=close,
+                is_long=is_long,
+            )
         if self._current_drawdown_pct >= self._drawdown_reduce_pct and not self._partial_exit_done:
             self._partial_exit_done = True
             return {
@@ -678,7 +777,13 @@ class ComponentStrategyAdapter:
             }
         return None
 
-    def _maybe_handle_partial_exit(self, signal: Signal, action: str, reason: str) -> Dict[str, Any] | None:
+    def _maybe_handle_partial_exit(
+        self,
+        signal: Signal,
+        action: str,
+        reason: str,
+        trigger_price: float | None = None,
+    ) -> Dict[str, Any] | None:
         exit_qty = getattr(signal, "quantity", None)
         if exit_qty is None or not self.current_position or self.current_position.quantity <= 0:
             return None
@@ -699,12 +804,63 @@ class ComponentStrategyAdapter:
             return None
 
         self.current_position = replace(self.current_position, quantity=remaining_qty)
-        return {
+        result = {
             "action": action,
             "fraction": fraction,
             "reason": reason,
             "consecutive_losses": self._consecutive_losses,
         }
+        if trigger_price is not None:
+            result["price"] = trigger_price
+        return result
+
+    def _check_protective_force_exit_action(self, is_long: bool) -> Dict[str, Any] | None:
+        if not self._protective_ladder_active or self._protective_force_exit_remaining > 0:
+            return None
+        if self.current_position is None:
+            self._protective_ladder_active = False
+            return None
+        self._close_position()
+        return {
+            "action": "sell" if is_long else "close_short",
+            "fraction": 1.0,
+            "reason": "PROTECTIVE_DE_RISK_STEP2_FORCE_EXIT",
+        }
+
+    def _build_protective_exit_action(
+        self,
+        reason: str,
+        close: float,
+        is_long: bool,
+    ) -> Dict[str, Any]:
+        action = "sell" if is_long else "close_short"
+        should_ladder = self._should_apply_protective_ladder(close, is_long)
+        if should_ladder:
+            self._protective_ladder_active = True
+            self._protective_force_exit_remaining = self._protective_force_exit_bars
+            return {
+                "action": action,
+                "fraction": self._protective_de_risk_fraction,
+                "reason": f"{reason} | PROTECTIVE_DE_RISK_STEP1",
+            }
+
+        self._close_position()
+        return {
+            "action": action,
+            "fraction": 1.0,
+            "reason": reason,
+        }
+
+    def _should_apply_protective_ladder(self, close: float, is_long: bool) -> bool:
+        if not self._protective_de_risk_enabled or self._protective_ladder_active:
+            return False
+        if not is_long or self.current_position is None:
+            return False
+        entry_price = float(getattr(self.current_position, "entry_price", 0.0) or 0.0)
+        if entry_price <= 0:
+            return False
+        loss_pct = ((close / entry_price) - 1.0) * 100.0
+        return loss_pct <= -abs(self._protective_de_risk_loss_pct)
 
     def _update_loss_tracking(self, reason: str) -> None:
         is_stop_loss = "stop loss" in reason.lower() or "stoploss" in reason.lower()
@@ -746,6 +902,11 @@ class ComponentStrategyAdapter:
             return f"loss_pause:{self._loss_pause_remaining}"
         if self._cooldown_remaining > 0:
             return f"cooldown:{self._cooldown_remaining}"
+        if self._period_risk_enabled and self._period_return_pct <= -abs(self._period_loss_limit_pct):
+            return (
+                f"period_loss_guard:{self._period_return_pct:.1f}%"
+                f"<={-abs(self._period_loss_limit_pct):.1f}%"
+            )
         if self._cash_in_bear and context.regime in ("BEAR_STRONG", "BEAR_MODERATE"):
             return "cash_bear_regime"
         ema_200 = row.get("ema_200", 0.0)
@@ -835,6 +996,7 @@ class ComponentStrategyAdapter:
             strategy=strategy_with_reason,
             market=self.market,
             timestamp=ts_ms,
+            entry_time=ts_ms,
         )
 
     def _notify_position_opened(self, ts_ms: int) -> None:
@@ -873,4 +1035,16 @@ class ComponentStrategyAdapter:
             fraction *= vol_scale
             position_reason += f" vol_scale:{vol_scale:.2f}"
 
+        period_scale = self._period_risk_scale()
+        if period_scale < 1.0:
+            fraction *= period_scale
+            position_reason += f" period_scale:{period_scale:.2f}"
+
         return fraction, position_reason
+
+    def _period_risk_scale(self) -> float:
+        if not self._period_risk_enabled:
+            return 1.0
+        if self._period_drawdown_pct >= abs(self._period_reduce_threshold_pct):
+            return self._period_reduce_scale
+        return 1.0

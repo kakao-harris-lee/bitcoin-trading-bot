@@ -271,6 +271,48 @@ class TestMLPDirectionEntryWithMockedModel:
 
         assert signal is None  # 70% < 80% threshold
 
+    def test_regime_confidence_gate_blocks_low_confidence(self):
+        """Regime-specific confidence floor should override base threshold."""
+        params = MLPDirectionEntryParams(
+            buy_confidence_threshold=0.40,
+            regime_confidence_gate_enabled=True,
+            regime_buy_confidence_thresholds={"BULL_STRONG": 0.70},
+        )
+        strategy = MLPDirectionEntryStrategy(params=params)
+        strategy.params.mlp_feature_set = "shap_13"
+
+        mock_model = MagicMock()
+        mock_model.eval = MagicMock()
+        mock_probs = MagicMock()
+        # BUY confidence=0.65 (passes base 0.40, fails regime floor 0.70)
+        mock_probs.cpu.return_value.numpy.return_value = np.array([[0.20, 0.65, 0.15]])
+        mock_model.predict_proba.return_value = mock_probs
+
+        strategy._model = mock_model
+        strategy._model_available = True
+        strategy._feature_extractor = lambda data, ind: np.zeros(13)
+
+        ctx = _make_context(mfi=60.0, adx=30.0)  # BULL_STRONG
+        signal = strategy.check_entry(ctx)
+        assert signal is None
+
+    def test_entry_reason_contains_effective_threshold(self, strategy_with_mock_model):
+        """Entry reason should expose effective confidence threshold for analysis."""
+        strategy = strategy_with_mock_model
+        params = strategy.params
+        params.regime_confidence_gate_enabled = True
+        params.regime_buy_confidence_thresholds = {"BULL_STRONG": 0.60}
+
+        # BUY confidence=0.70 should pass and include thr=0.60 in reason
+        mock_probs = MagicMock()
+        mock_probs.cpu.return_value.numpy.return_value = np.array([[0.15, 0.70, 0.15]])
+        strategy._model.predict_proba.return_value = mock_probs
+
+        ctx = _make_context(mfi=60.0, adx=30.0)  # BULL_STRONG
+        signal = strategy.check_entry(ctx)
+        assert signal is not None
+        assert "thr=0.60" in signal.reason
+
 
 class TestMLPDirectionEntryIntegration:
     """Integration tests for MLPDirectionEntryStrategy."""

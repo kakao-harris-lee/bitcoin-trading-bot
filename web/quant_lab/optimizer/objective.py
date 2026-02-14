@@ -301,7 +301,7 @@ class MLPDirectionObjective:
     Uses ComponentStrategyAdapter with precomputed MLP predictions to backtest
     different entry/exit/ensemble parameter combinations.
 
-    Returns (win_rate, total_return, max_drawdown) tuple.
+    Returns (alpha_vs_bh, total_return, max_drawdown) tuple.
     """
     asset: str  # BTC, ETH, SOL
     config_path: str  # Path to allocation.json
@@ -313,7 +313,7 @@ class MLPDirectionObjective:
         mlp_config = sample_mlp_trial_config(trial)
         metrics = self._run_backtest(mlp_config)
         return (
-            metrics["win_rate"],
+            metrics["alpha_vs_bh"],
             metrics["total_return"],
             metrics["max_drawdown"],
         )
@@ -336,6 +336,7 @@ class MLPDirectionObjective:
             MLPDirectionBacktester,
         )
         from scripts.backtest._common import load_data
+        from core.metrics import calculate_benchmark
 
         # Load base strategy config from allocation.json
         try:
@@ -395,11 +396,15 @@ class MLPDirectionObjective:
 
         df = backtester.prepare_data(df)
         results = backtester.run(df, initial_capital=10_000)
+        _, benchmark_return_pct = calculate_benchmark(df, 10_000, price_column="close")
+
+        total_return = results.get("total_return", 0.0) / 100.0
+        benchmark_return = benchmark_return_pct / 100.0
 
         return {
-            "win_rate": results.get("win_rate", 0.0),
-            "total_return": results.get("total_return", 0.0) / 100.0,
-            "max_drawdown": abs(results.get("max_drawdown_pct", 0.0)) / 100.0,
+            "alpha_vs_bh": float(total_return - benchmark_return),
+            "total_return": float(total_return),
+            "max_drawdown": float(abs(results.get("max_drawdown_pct", 0.0)) / 100.0),
         }
 
 

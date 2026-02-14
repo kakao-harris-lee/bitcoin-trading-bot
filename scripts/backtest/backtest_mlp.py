@@ -228,12 +228,16 @@ class MLPDirectionBacktester:
         self,
         df: pd.DataFrame,
         initial_capital: float = 10_000,
+        csv_log: bool = False,
+        csv_log_dir: str = "backtest_logs",
     ) -> dict:
         """Run backtest on prepared data.
 
         Args:
             df: DataFrame with OHLCV and indicators.
             initial_capital: Starting capital.
+            csv_log: Whether to emit candle-level CSV log.
+            csv_log_dir: Output directory for CSV logs.
 
         Returns:
             Backtest results dictionary.
@@ -260,7 +264,15 @@ class MLPDirectionBacktester:
             slippage=0.0002,
         )
 
-        results = bt.run(df, adapter, {})
+        results = bt.run(
+            df,
+            adapter,
+            {},
+            csv_log=csv_log,
+            csv_log_dir=csv_log_dir,
+            strategy_name=self.strategy_label,
+            symbol=self.symbol,
+        )
 
         return results
 

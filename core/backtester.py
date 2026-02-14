@@ -432,7 +432,8 @@ class Backtester:
             signal = strategy_func(df, i, strategy_params)
             action = signal.get('action', 'hold')
             fraction = signal.get('fraction', 1.0)
-            self._execute_action(action, timestamp, price, fraction)
+            execution_price = self._resolve_execution_price(signal, price)
+            self._execute_action(action, timestamp, execution_price, fraction)
             total_equity = self._record_equity_snapshot(timestamp, price)
             if logger is not None:
                 self._log_backtest_candle(
@@ -462,6 +463,21 @@ class Backtester:
             return
         current_equity = self.cash + (self.position * price if self.position != 0 else 0.0)
         strategy_func.update_equity(current_equity)
+
+    def _resolve_execution_price(self, signal: Dict[str, Any], default_price: float) -> float:
+        """Resolve execution price from signal override or candle close."""
+        if not isinstance(signal, dict):
+            return float(default_price)
+        override = signal.get("price")
+        if override is None:
+            return float(default_price)
+        try:
+            value = float(override)
+            if np.isfinite(value) and value > 0:
+                return value
+        except (TypeError, ValueError):
+            pass
+        return float(default_price)
 
     def _execute_action(self, action: str, timestamp: Any, price: float, fraction: float) -> None:
         """Execute buy/sell/short action for the current candle."""
@@ -547,11 +563,15 @@ class Backtester:
             return "none", 0.0
         if not self.trades:
             return ("long" if self.position > 0 else "short"), 0.0
-        last_trade = self.trades[-1]
-        if last_trade.exit_time is None:
-            side = "long" if self.position > 0 else "short"
-            return side, last_trade.entry_price
-        return "none", 0.0
+        open_trade = None
+        for trade in reversed(self.trades):
+            if trade.exit_time is None:
+                open_trade = trade
+                break
+        if open_trade is None:
+            return ("long" if self.position > 0 else "short"), 0.0
+        side = "long" if self.position > 0 else "short"
+        return side, float(open_trade.entry_price)
 
     def _compute_unrealized_pnl(self, price: float, entry_price: float) -> float:
         if self.position == 0 or entry_price <= 0:
@@ -770,7 +790,11 @@ class Backtester:
         cost = quantity * execution_price * (1 + self.fee_rate)
 
         if cost > self.cash:
-            return  # 잔액 부족
+            # Avoid skipping full-cash orders due to tiny floating-point drift.
+            tolerance = max(1e-9, abs(self.cash) * 1e-12)
+            if cost - self.cash > tolerance:
+                return  # 잔액 부족
+            cost = self.cash
 
         # 매수 실행
         self.cash -= cost
@@ -811,16 +835,7 @@ class Backtester:
             # Keep position_value in sync when closing at end-of-run liquidation.
             self.position_value = 0.0
 
-        # 매칭되는 매수 거래 찾기 (FIFO)
-        for trade in self.trades:
-            if trade.side == 'buy' and trade.exit_time is None:
-                # 손익 계산
-                trade.exit_time = timestamp
-                trade.exit_price = execution_price
-                trade.profit_loss = (execution_price - trade.entry_price) * trade.quantity
-                trade.profit_loss_pct = ((execution_price - trade.entry_price) / trade.entry_price) * 100
-                trade.reason += f' -> Sell {fraction*100:.1f}%'
-                break
+        self._close_long_fifo(timestamp, execution_price, quantity, fraction)
 
     def _execute_open_short(self, timestamp: datetime, price: float, fraction: float):
         """Open a short position (futures margin model).
@@ -884,16 +899,93 @@ class Backtester:
             self.position = 0.0
             self.position_value = 0.0
 
-        # Match the open short trade (FIFO)
+        self._close_short_fifo(timestamp, execution_price, quantity, fraction)
+
+    def _close_long_fifo(self, timestamp: Any, execution_price: float, target_qty: float, fraction: float) -> None:
+        """Close long trades in FIFO order, preserving partial-close accounting."""
+        remaining = target_qty
+        if remaining <= 0:
+            return
         for trade in self.trades:
-            if trade.side == 'short' and trade.exit_time is None:
+            if remaining <= 1e-12:
+                break
+            if trade.side != "buy" or trade.exit_time is not None or trade.quantity <= 0:
+                continue
+
+            close_qty = min(trade.quantity, remaining)
+            if close_qty <= 0:
+                continue
+
+            pnl = (execution_price - trade.entry_price) * close_qty
+            pnl_pct = ((execution_price - trade.entry_price) / trade.entry_price) * 100 if trade.entry_price > 0 else 0.0
+            reason = f"{trade.reason} -> Sell {fraction*100:.1f}%"
+
+            if close_qty + 1e-12 >= trade.quantity:
                 trade.exit_time = timestamp
                 trade.exit_price = execution_price
-                # Short profit: (entry - exit) * qty
-                trade.profit_loss = (trade.entry_price - execution_price) * trade.quantity
-                trade.profit_loss_pct = ((trade.entry_price - execution_price) / trade.entry_price) * 100
-                trade.reason += f' -> Cover {fraction*100:.1f}%'
+                trade.profit_loss = pnl
+                trade.profit_loss_pct = pnl_pct
+                trade.reason = reason
+            else:
+                trade.quantity -= close_qty
+                self.trades.append(
+                    Trade(
+                        entry_time=trade.entry_time,
+                        entry_price=trade.entry_price,
+                        quantity=close_qty,
+                        side=trade.side,
+                        exit_time=timestamp,
+                        exit_price=execution_price,
+                        profit_loss=pnl,
+                        profit_loss_pct=pnl_pct,
+                        reason=reason,
+                    )
+                )
+
+            remaining -= close_qty
+
+    def _close_short_fifo(self, timestamp: Any, execution_price: float, target_qty: float, fraction: float) -> None:
+        """Close short trades in FIFO order, preserving partial-close accounting."""
+        remaining = target_qty
+        if remaining <= 0:
+            return
+        for trade in self.trades:
+            if remaining <= 1e-12:
                 break
+            if trade.side != "short" or trade.exit_time is not None or trade.quantity <= 0:
+                continue
+
+            close_qty = min(trade.quantity, remaining)
+            if close_qty <= 0:
+                continue
+
+            pnl = (trade.entry_price - execution_price) * close_qty
+            pnl_pct = ((trade.entry_price - execution_price) / trade.entry_price) * 100 if trade.entry_price > 0 else 0.0
+            reason = f"{trade.reason} -> Cover {fraction*100:.1f}%"
+
+            if close_qty + 1e-12 >= trade.quantity:
+                trade.exit_time = timestamp
+                trade.exit_price = execution_price
+                trade.profit_loss = pnl
+                trade.profit_loss_pct = pnl_pct
+                trade.reason = reason
+            else:
+                trade.quantity -= close_qty
+                self.trades.append(
+                    Trade(
+                        entry_time=trade.entry_time,
+                        entry_price=trade.entry_price,
+                        quantity=close_qty,
+                        side=trade.side,
+                        exit_time=timestamp,
+                        exit_price=execution_price,
+                        profit_loss=pnl,
+                        profit_loss_pct=pnl_pct,
+                        reason=reason,
+                    )
+                )
+
+            remaining -= close_qty
 
     def _generate_results(self) -> Dict:
         """결과 생성

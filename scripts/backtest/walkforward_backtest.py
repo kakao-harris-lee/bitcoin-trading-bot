@@ -28,6 +28,8 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+import os
+import time
 
 import numpy as np
 import pandas as pd
@@ -55,7 +57,7 @@ def compute_tree60_features(df: pd.DataFrame) -> pd.DataFrame:
     return calculate_mlp_features(df, bwin=3, include_temporal=True, feature_set="tree_60")
 
 
-def train_xgb_model(X_train, y_train, X_val, y_val, sample_weights=None):
+def train_xgb_model(X_train, y_train, X_val, y_val, sample_weights=None, num_boost_round: int = 500):
     """Train XGBoost model on given data."""
     import xgboost as xgb
 
@@ -78,12 +80,13 @@ def train_xgb_model(X_train, y_train, X_val, y_val, sample_weights=None):
         "reg_lambda": 1.0,
         "eval_metric": "mlogloss",
         "tree_method": "hist",
+        "nthread": int(os.getenv("WF_XGB_THREADS", "4")),
         "seed": 42,
         "verbosity": 0,
     }
 
     model = xgb.train(
-        params, dtrain, num_boost_round=500,
+        params, dtrain, num_boost_round=num_boost_round,
         evals=[(dval, "val")],
         early_stopping_rounds=50,
         verbose_eval=False,
@@ -91,7 +94,7 @@ def train_xgb_model(X_train, y_train, X_val, y_val, sample_weights=None):
     return model
 
 
-def train_lgb_model(X_train, y_train, X_val, y_val, sample_weights=None):
+def train_lgb_model(X_train, y_train, X_val, y_val, sample_weights=None, num_boost_round: int = 500):
     """Train LightGBM model on given data."""
     import lightgbm as lgb
 
@@ -111,12 +114,13 @@ def train_lgb_model(X_train, y_train, X_val, y_val, sample_weights=None):
         "reg_alpha": 0.1,
         "reg_lambda": 1.0,
         "metric": "multi_logloss",
+        "num_threads": int(os.getenv("WF_LGB_THREADS", "4")),
         "seed": 42,
         "verbose": -1,
     }
 
     model = lgb.train(
-        params, dtrain, num_boost_round=500,
+        params, dtrain, num_boost_round=num_boost_round,
         valid_sets=[dval], valid_names=["val"],
         callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)],
     )
@@ -248,6 +252,10 @@ def run_walkforward_asset(
     n_splits: int = 5,
     max_train_folds: int = 0,
     temporal_decay: float = 0.0,
+    xgb_rounds: int = 500,
+    lgb_rounds: int = 500,
+    progress_callback=None,
+    should_cancel=None,
 ) -> dict:
     """Run walk-forward backtest for a single asset.
 
@@ -265,8 +273,10 @@ def run_walkforward_asset(
 
     df = load_data(db_path, "minute240", start_date, end_date, exchange="binance")
     if df.empty:
-        print(f"  WARNING: No data for {asset}")
+        print(f"  WARNING: No data for {asset}", flush=True)
         return {}
+    if should_cancel and should_cancel():
+        raise RuntimeError(f"Walk-forward cancelled before feature prep ({asset})")
 
     # Compute tree_60 features
     features_df = compute_tree60_features(df)
@@ -284,12 +294,17 @@ def run_walkforward_asset(
 
     window_mode = f"sliding (max {max_train_folds} folds)" if max_train_folds > 0 else "expanding"
     print(f"\n  {asset}: {n_total} samples, {n_splits} folds ({fold_size} each), "
-          f"window={window_mode}, decay={temporal_decay}")
+          f"window={window_mode}, decay={temporal_decay}", flush=True)
+    if progress_callback:
+        progress_callback(0.1)
 
     all_oos_preds = {}  # df_idx -> prediction
     all_oos_confs = {}  # df_idx -> confidence
 
     for fold in range(1, n_splits):
+        if should_cancel and should_cancel():
+            raise RuntimeError(f"Walk-forward cancelled at fold {fold}/{n_splits - 1} ({asset})")
+        fold_start = time.monotonic()
         train_end = fold * fold_size
         test_end = min((fold + 1) * fold_size, n_total)
 
@@ -327,8 +342,8 @@ def run_walkforward_asset(
         sw = compute_sample_weights(y_train, temporal_decay=temporal_decay)
 
         # Train XGB + LGB ensemble
-        xgb_model = train_xgb_model(X_train, y_train, X_val, y_val, sw)
-        lgb_model = train_lgb_model(X_train, y_train, X_val, y_val, sw)
+        xgb_model = train_xgb_model(X_train, y_train, X_val, y_val, sw, num_boost_round=xgb_rounds)
+        lgb_model = train_lgb_model(X_train, y_train, X_val, y_val, sw, num_boost_round=lgb_rounds)
 
         # Predict on test fold
         xgb_probs = predict_xgb(xgb_model, X_test)
@@ -353,15 +368,22 @@ def run_walkforward_asset(
         buy_confs = confs[buy_mask] if buy_mask.any() else np.array([])
         conf_str = f", BUY conf=[{buy_confs.min():.3f}-{buy_confs.max():.3f}]" if len(buy_confs) > 0 else ""
         print(f"    Fold {fold}: train={len(X_train)} (BUY={buy_pct:.1f}%, ratio={hold_buy_ratio:.0f}:1), "
-              f"test={len(X_test)}, acc={acc:.3f}, BUY={buy_count}{conf_str}")
+              f"test={len(X_test)}, acc={acc:.3f}, BUY={buy_count}{conf_str}, "
+              f"elapsed={time.monotonic() - fold_start:.1f}s", flush=True)
+        if progress_callback:
+            progress_callback(0.1 + (fold / max(1, n_splits - 1)) * 0.7)
 
     if not all_oos_preds:
-        print(f"  WARNING: No OOS predictions for {asset}")
+        print(f"  WARNING: No OOS predictions for {asset}", flush=True)
         return {}
 
     total_buy = sum(1 for v in all_oos_preds.values() if v == 1)
     total_sell = sum(1 for v in all_oos_preds.values() if v == 2)
-    print(f"  Total OOS: {len(all_oos_preds)} preds, BUY={total_buy}, SELL={total_sell}")
+    print(f"  Total OOS: {len(all_oos_preds)} preds, BUY={total_buy}, SELL={total_sell}", flush=True)
+    if progress_callback:
+        progress_callback(0.85)
+    if should_cancel and should_cancel():
+        raise RuntimeError(f"Walk-forward cancelled before backtest run ({asset})")
 
     # Run backtest with stitched predictions
     strategy = WalkForwardStrategy(all_oos_preds, all_oos_confs, {
@@ -376,6 +398,8 @@ def run_walkforward_asset(
     results = bt.run(df, strategy, {})
     metrics = compute_metrics(results.get("equity_curve"), timeframe="minute240")
     metrics["num_trades"] = len(bt.trades)
+    if progress_callback:
+        progress_callback(1.0)
 
     return {
         "results": results,

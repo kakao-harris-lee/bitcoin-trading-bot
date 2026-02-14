@@ -41,7 +41,7 @@
                     <thead>
                         <tr class="text-left text-gray-400 border-b border-gray-700">
                             <th class="pb-2 cursor-pointer" @click="sortBy('rank')">Rank</th>
-                            <th class="pb-2 cursor-pointer" @click="sortBy('win_rate')">Win Rate</th>
+                            <th class="pb-2 cursor-pointer" @click="sortBy(firstObjectiveSortKey())" x-text="objectiveLabels[0]"></th>
                             <th class="pb-2 cursor-pointer" @click="sortBy('total_return')">Return</th>
                             <th class="pb-2 cursor-pointer" @click="sortBy('max_drawdown')">Max DD</th>
                             <th class="pb-2">Actions</th>
@@ -52,7 +52,7 @@
                             <tr class="border-b border-gray-700 hover:bg-gray-700/50 cursor-pointer"
                                 @click="selectTrial(trial)">
                                 <td class="py-3" x-text="i + 1"></td>
-                                <td class="py-3" x-text="(trial.values.win_rate * 100).toFixed(1) + '%'"></td>
+                                <td class="py-3" x-text="formatFirstObjective(trial)"></td>
                                 <td class="py-3" :class="trial.values.total_return >= 0 ? 'text-green-400' : 'text-red-400'"
                                     x-text="(trial.values.total_return * 100).toFixed(2) + '%'"></td>
                                 <td class="py-3 text-red-400"
@@ -89,8 +89,8 @@
                     <div class="text-gray-400">Metrics:</div>
                     <div class="grid grid-cols-3 gap-2 mt-1">
                         <div>
-                            <span class="text-gray-500">Win Rate:</span>
-                            <span class="text-white" x-text="(applyTrial?.values?.win_rate * 100).toFixed(1) + '%'"></span>
+                            <span class="text-gray-500" x-text="objectiveLabels[0] + ':'"></span>
+                            <span class="text-white" x-text="formatFirstObjective(applyTrial)"></span>
                         </div>
                         <div>
                             <span class="text-gray-500">Return:</span>
@@ -152,6 +152,8 @@
                 mlflowExperiment: 'quant_lab',
                 stats: {},
                 pareto: [],
+                objectiveNames: ['win_rate', 'total_return', 'max_drawdown'],
+                objectiveLabels: ['Win Rate', 'Total Return', 'Max Drawdown'],
                 selectedTrial: null,
                 sortKey: 'total_return',
                 sortDesc: true,
@@ -182,6 +184,8 @@
                         const res = await fetch(`/quant-lab/api/experiments/${this.studyName}/results`);
                         const data = await res.json();
                         this.stats = data.stats;
+                        this.objectiveNames = data.objective_names || this.objectiveNames;
+                        this.objectiveLabels = data.objective_labels || this.objectiveLabels;
                         this.pareto = data.pareto_front;
                         this.renderParetoPlot();
                     } catch (e) {
@@ -189,10 +193,29 @@
                     }
                 },
 
+                firstObjectiveSortKey() {
+                    // Legacy studies/frontends used "win_rate"; keep compatibility.
+                    return (this.objectiveNames[0] === 'win_rate') ? 'win_rate' : this.objectiveNames[0];
+                },
+
+                firstObjectiveValue(trial) {
+                    if (!trial || !trial.values) return null;
+                    const key = this.firstObjectiveSortKey();
+                    if (trial.values[key] !== undefined) return trial.values[key];
+                    return trial.values.win_rate;
+                },
+
+                formatFirstObjective(trial) {
+                    const value = this.firstObjectiveValue(trial);
+                    if (value === null || value === undefined) return '-';
+                    return (value * 100).toFixed(2) + '%';
+                },
+
                 renderParetoPlot() {
+                    const firstLabel = this.objectiveLabels[0] || 'Objective 1';
                     const trace = {
                         x: this.pareto.map(t => t.values.total_return * 100),
-                        y: this.pareto.map(t => t.values.win_rate * 100),
+                        y: this.pareto.map(t => this.firstObjectiveValue(t) * 100),
                         mode: 'markers',
                         type: 'scatter',
                         marker: {
@@ -206,7 +229,7 @@
                         text: this.pareto.map(t => `Trial ${t.trial_number}`),
                         hovertemplate:
                             'Return: %{x:.1f}%<br>' +
-                            'Win Rate: %{y:.1f}%<br>' +
+                            `${firstLabel}: %{y:.1f}%<br>` +
                             '%{text}<extra></extra>',
                     };
 
@@ -215,7 +238,7 @@
                         plot_bgcolor: 'rgba(31,41,55,1)',
                         font: {color: '#9CA3AF'},
                         xaxis: {title: 'Total Return %', gridcolor: '#374151'},
-                        yaxis: {title: 'Win Rate %', gridcolor: '#374151'},
+                        yaxis: {title: `${firstLabel} %`, gridcolor: '#374151'},
                         margin: {l: 60, r: 20, t: 20, b: 60},
                     };
 

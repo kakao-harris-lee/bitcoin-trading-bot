@@ -5,12 +5,17 @@ from unittest.mock import MagicMock
 
 from core.component_adapter import ComponentStrategyAdapter
 from trading.strategies.components.strategy_factory import StrategyFactory
+from trading.strategies.components.models import build_market_context
 
 
 class TestComponentAdapterVolSizing:
     """Test volatility sizing integration in ComponentStrategyAdapter (backtester)."""
 
-    def _make_adapter(self, vol_sizing_config: dict | None = None) -> ComponentStrategyAdapter:
+    def _make_adapter(
+        self,
+        vol_sizing_config: dict | None = None,
+        extra_config: dict | None = None,
+    ) -> ComponentStrategyAdapter:
         """Create a minimal adapter with vol sizing config."""
         config = {
             "market": "spot",
@@ -43,6 +48,8 @@ class TestComponentAdapterVolSizing:
         }
         if vol_sizing_config is not None:
             config["volatility_sizing"] = vol_sizing_config
+        if extra_config is not None:
+            config.update(extra_config)
 
         factory = StrategyFactory(redis=None)
         adapter = ComponentStrategyAdapter(
@@ -78,6 +85,51 @@ class TestComponentAdapterVolSizing:
             "target_vol": 0.02,
         })
         assert adapter._vol_sizing_enabled is False
+
+    def test_period_risk_config_reads(self):
+        """Period risk throttle config should be loaded into adapter."""
+        adapter = self._make_adapter(
+            extra_config={
+                "period_risk_enabled": True,
+                "period_reduce_threshold_pct": 7.5,
+                "period_reduce_scale": 0.65,
+                "period_loss_limit_pct": 10.0,
+            },
+        )
+        assert adapter._period_risk_enabled is True
+        assert adapter._period_reduce_threshold_pct == 7.5
+        assert adapter._period_reduce_scale == 0.65
+        assert adapter._period_loss_limit_pct == 10.0
+
+    def test_period_loss_guard_blocks_new_entries(self):
+        """When period loss exceeds limit, entry hold reason should block new entries."""
+        adapter = self._make_adapter(extra_config={"period_risk_enabled": True, "period_loss_limit_pct": 5.0})
+        adapter._period_return_pct = -6.0
+        context = build_market_context(mfi=60.0, adx=25.0, atr=1.0, close=100.0)
+        row = MagicMock()
+        row.get = lambda k, d=None: {"ema_200": 0.0}.get(k, d)
+
+        reason = adapter._entry_hold_reason(row, context, {"close": 100.0, "mfi": 60.0})
+        assert reason is not None
+        assert reason.startswith("period_loss_guard:")
+
+    def test_period_drawdown_scales_entry_fraction(self):
+        """Period drawdown warning should downscale position size."""
+        adapter = self._make_adapter(
+            extra_config={
+                "period_risk_enabled": True,
+                "period_reduce_threshold_pct": 8.0,
+                "period_reduce_scale": 0.6,
+            },
+        )
+        adapter._period_drawdown_pct = 10.0
+
+        signal = MagicMock()
+        signal.quantity = None
+
+        fraction, reason = adapter._resolve_entry_fraction(signal, atr=0.0, close=100.0)
+        assert fraction == pytest.approx(0.90 * 0.60, rel=1e-9)
+        assert "period_scale:0.60" in reason
 
 
 class TestCompositeTaskVolSizingConfig:

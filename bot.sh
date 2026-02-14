@@ -82,6 +82,12 @@ start() {
     export PAPER_TRADES_LOG_PATH="${PAPER_TRADES_LOG_PATH:-$TRADE_LOG_PATH}"
     echo "   Trade log: $TRADE_LOG_PATH"
 
+    # Capture current log line so startup checks only inspect fresh lines.
+    local start_line=0
+    if [ -f "$LOG_FILE" ]; then
+        start_line=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
+    fi
+
     # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
     # Python handles log file rotation (logs/bot.log, daily, 30-day retention)
     nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" > /dev/null 2>&1 &
@@ -89,15 +95,50 @@ start() {
     PID=$!
     echo $PID > "$PID_FILE"
 
-    sleep 2
-    if ps -p "$PID" > /dev/null 2>&1; then
+    # Wait for successful startup marker, process exit, or startup-time fatal logs.
+    local startup_ok=0
+    local startup_failed=0
+    local timeout_sec=30
+    local elapsed=0
+
+    while [ "$elapsed" -lt "$timeout_sec" ]; do
+        if ! ps -p "$PID" > /dev/null 2>&1; then
+            startup_failed=1
+            break
+        fi
+
+        if [ -f "$LOG_FILE" ]; then
+            local new_logs
+            new_logs="$(tail -n +"$((start_line + 1))" "$LOG_FILE" 2>/dev/null || true)"
+
+            if echo "$new_logs" | grep -q "TradingEngine started successfully"; then
+                startup_ok=1
+                break
+            fi
+            if echo "$new_logs" | grep -Eq "Fatal error|Refusing to start in live mode|paper readiness check failed|Failed to connect to Redis"; then
+                startup_failed=1
+                break
+            fi
+        fi
+
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+
+    if [ "$startup_ok" -eq 1 ]; then
         echo "✅ 시작됨 (PID: $PID)"
-    else
-        echo "❌ 시작 실패. 로그를 확인하세요:"
-        tail -20 "$LOG_FILE"
+        return 0
+    fi
+
+    if [ "$startup_failed" -eq 1 ] || ! ps -p "$PID" > /dev/null 2>&1; then
+        echo "❌ 시작 실패. 최근 로그:"
+        tail -50 "$LOG_FILE"
         rm -f "$PID_FILE"
         exit 1
     fi
+
+    echo "⚠️  프로세스는 실행 중이지만 초기화 완료 로그를 확인하지 못했습니다 (PID: $PID)"
+    echo "   로그 확인: tail -f $LOG_FILE"
 }
 
 stop() {

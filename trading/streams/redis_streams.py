@@ -2,6 +2,7 @@
 """Redis Streams wrapper for async publish/consume."""
 from __future__ import annotations
 
+import os
 import redis.asyncio as redis
 from typing import Any
 
@@ -39,7 +40,19 @@ class RedisStreams:
 
     async def connect(self) -> None:
         """Connect to Redis."""
-        self._client = redis.from_url(self.url, decode_responses=True)
+        connect_timeout = float(os.getenv("REDIS_CONNECT_TIMEOUT_SEC", "3"))
+        socket_timeout = float(os.getenv("REDIS_SOCKET_TIMEOUT_SEC", "3"))
+        self._client = redis.from_url(
+            self.url,
+            decode_responses=True,
+            socket_connect_timeout=connect_timeout,
+            socket_timeout=socket_timeout,
+        )
+        try:
+            await self._client.ping()
+        except Exception as exc:
+            await self.disconnect()
+            raise RuntimeError(f"Failed to connect to Redis ({self.url}): {exc}") from exc
 
     async def disconnect(self) -> None:
         """Disconnect from Redis."""

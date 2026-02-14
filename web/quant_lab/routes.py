@@ -6,7 +6,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 import time
 
@@ -76,6 +76,10 @@ ALLOWED_DATA_DIRS = [
 
 _EXPERIMENTS_CACHE: Dict[str, Any] = {"ts": 0.0, "data": None}
 _EXPERIMENTS_CACHE_TTL_SECONDS = 30.0
+_REGIME_OBJECTIVE_NAMES = ["win_rate", "total_return", "max_drawdown"]
+_REGIME_OBJECTIVE_LABELS = ["Win Rate", "Total Return", "Max Drawdown"]
+_MLP_OBJECTIVE_NAMES = ["alpha_vs_bh", "total_return", "max_drawdown"]
+_MLP_OBJECTIVE_LABELS = ["Alpha vs B&H", "Total Return", "Max Drawdown"]
 
 
 def sanitize_strategy_name(name: str) -> str:
@@ -166,6 +170,26 @@ def build_suggested_study_name(
     if strategy_type == "mlp_direction":
         return f"mlp_{(asset or 'BTC').lower()}_{ts}"
     return f"regime_{ts}"
+
+
+def _infer_study_objectives(study) -> Tuple[List[str], List[str]]:
+    """Resolve objective names/labels for a study with backward-compatible fallback."""
+    attrs = getattr(study, "user_attrs", {}) or {}
+    names = attrs.get("objective_names")
+    labels = attrs.get("objective_labels")
+    if (
+        isinstance(names, list) and len(names) == 3
+        and isinstance(labels, list) and len(labels) == 3
+    ):
+        return names, labels
+
+    # Backward compatibility for older studies without attrs.
+    for trial in getattr(study, "trials", []):
+        params = getattr(trial, "params", {}) or {}
+        if any(k.startswith(("entry_", "exit_", "ensemble_", "adapter_")) for k in params):
+            return _MLP_OBJECTIVE_NAMES, _MLP_OBJECTIVE_LABELS
+
+    return _REGIME_OBJECTIVE_NAMES, _REGIME_OBJECTIVE_LABELS
 
 
 def _decode_redis_hash(data: Dict[Any, Any]) -> Dict[str, Any]:
@@ -475,14 +499,20 @@ def get_experiment_results(study_name: str):
     try:
         manager = StudyManager()
         stats = manager.get_study_stats(study_name)
+        study = manager.get_study(study_name)
         pareto = manager.get_pareto_front(study_name)
+        objective_names, objective_labels = _infer_study_objectives(study)
 
         return jsonify({
             "stats": stats,
+            "objective_names": objective_names,
+            "objective_labels": objective_labels,
             "pareto_front": [
                 {
                     "trial_number": t.number,
                     "values": {
+                        objective_names[0]: t.values[0],
+                        # Keep legacy key for existing frontend consumers.
                         "win_rate": t.values[0],
                         "total_return": t.values[1],
                         "max_drawdown": t.values[2],
@@ -711,7 +741,8 @@ def _transform_mlp_trial_to_config(params: Dict[str, Any], values: tuple) -> Dic
     config: Dict[str, Any] = {
         'strategy_type': 'mlp_direction',
         'metrics': {
-            'win_rate': values[0] if len(values) > 0 else None,
+            'alpha_vs_bh': values[0] if len(values) > 0 else None,
+            'objective_1': values[0] if len(values) > 0 else None,
             'total_return': values[1] if len(values) > 1 else None,
             'max_drawdown': values[2] if len(values) > 2 else None,
         },

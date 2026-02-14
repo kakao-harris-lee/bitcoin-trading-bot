@@ -196,6 +196,7 @@ class BaseExitStrategy(ABC):
         reason: str,
         quantity: float = 1.0,
         side: Literal["sell", "buy"] = "sell",
+        trigger_price: float | None = None,
     ) -> Signal:
         """Create standardized exit signal.
 
@@ -204,6 +205,7 @@ class BaseExitStrategy(ABC):
             reason: Human-readable exit reason.
             quantity: Fraction to exit (1.0 = full, 0.5 = half).
             side: Exit side ("sell" for longs, "buy" for shorts).
+            trigger_price: Optional trigger price for stop/protective exits.
 
         Returns:
             Exit Signal.
@@ -214,6 +216,7 @@ class BaseExitStrategy(ABC):
             market=position.market,
             quantity=quantity,
             reason=reason,
+            trigger_price=trigger_price,
         )
 
     # === State Management ===

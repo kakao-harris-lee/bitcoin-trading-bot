@@ -158,6 +158,7 @@ MLP_ENTRY_PARAMS = {
     "skip_bear_regime": {"type": "categorical", "choices": [True, False]},
     "adx_min": {"type": "float", "low": 0.0, "high": 30.0},
     "use_ema200_filter": {"type": "categorical", "choices": [True, False]},
+    "position_size": {"type": "float", "low": 0.1, "high": 1.0},
 }
 
 MLP_EXIT_PARAMS = {

@@ -306,12 +306,27 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         key: str,
     ) -> Signal | None:
         stop_pct = self._calculate_stop_loss(ctx, ctx.market, position.entry_price)
-        if pnl_pct > -stop_pct:
+        stop_price = position.entry_price * (1.0 - (stop_pct / 100.0))
+        low_price = ctx.market.low if ctx.market.low > 0 else ctx.market.close
+        intrabar_hit = low_price <= stop_price
+
+        if not intrabar_hit and pnl_pct > -stop_pct:
             return None
-        reason = f"MLPDirection exit: Stop loss {pnl_pct:.2f}% (limit: -{stop_pct:.1f}%)"
+
+        if intrabar_hit:
+            trigger_pnl_pct = ((stop_price - position.entry_price) / position.entry_price) * 100.0
+            reason = (
+                f"MLPDirection exit: Stop loss intrabar {trigger_pnl_pct:.2f}% "
+                f"(limit: -{stop_pct:.1f}%, trigger={stop_price:.2f})"
+            )
+            trigger_price = stop_price
+        else:
+            reason = f"MLPDirection exit: Stop loss {pnl_pct:.2f}% (limit: -{stop_pct:.1f}%)"
+            trigger_price = None
+
         logger.info(f"{position.symbol}: {reason}")
         self._clear_state(key)
-        return self._create_exit_signal(position, reason)
+        return self._create_exit_signal(position, reason, trigger_price=trigger_price)
 
     def _check_fwin_exit_if_enabled(
         self,

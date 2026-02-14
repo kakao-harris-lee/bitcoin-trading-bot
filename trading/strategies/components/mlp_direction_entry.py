@@ -72,6 +72,10 @@ class MLPDirectionEntryParams:
     risk_on_position_size: float = 0.0
     risk_off_position_size: float = 0.0
 
+    # P1: Regime-specific confidence gate (entry quality filter)
+    regime_confidence_gate_enabled: bool = False
+    regime_buy_confidence_thresholds: dict[str, float] | None = None
+
 
 @entry_strategy(params_class=MLPDirectionEntryParams)
 class MLPDirectionEntryStrategy:
@@ -282,6 +286,10 @@ class MLPDirectionEntryStrategy:
         active_buy_threshold, active_position_size, switch_mode = self._resolve_runtime_profile(
             market_data
         )
+        active_buy_threshold = self._apply_regime_confidence_gate(
+            active_buy_threshold=active_buy_threshold,
+            regime_name=context.regime,
+        )
 
         if not self._passes_entry_safety_filters(market_data, context):
             return None
@@ -314,9 +322,28 @@ class MLPDirectionEntryStrategy:
             market_data=market_data,
             context=context,
             confidence=mlp_confidence,
+            threshold=active_buy_threshold,
             position_size=active_position_size,
             switch_mode=switch_mode,
         )
+
+    def _apply_regime_confidence_gate(
+        self,
+        active_buy_threshold: float,
+        regime_name: str,
+    ) -> float:
+        p = self.params
+        if not p.regime_confidence_gate_enabled:
+            return active_buy_threshold
+        threshold_map = p.regime_buy_confidence_thresholds or {}
+        regime_floor = threshold_map.get(regime_name)
+        if regime_floor is None:
+            return active_buy_threshold
+        try:
+            regime_floor = float(regime_floor)
+        except (TypeError, ValueError):
+            return active_buy_threshold
+        return max(active_buy_threshold, regime_floor)
 
     def _resolve_runtime_profile(self, market_data: MarketData) -> tuple[float, float, str]:
         p = self.params
@@ -392,12 +419,13 @@ class MLPDirectionEntryStrategy:
         market_data: MarketData,
         context,
         confidence: float,
+        threshold: float,
         position_size: float,
         switch_mode: str,
     ) -> Signal:
         reason = (
             f"MLPDirection: pred=BUY, conf={confidence:.2f}, "
-            f"regime={context.regime}, ADX={context.adx:.1f}, mode={switch_mode}"
+            f"thr={threshold:.2f}, regime={context.regime}, ADX={context.adx:.1f}, mode={switch_mode}"
         )
         logger.info(f"{market_data.symbol}: {reason}")
         return Signal(

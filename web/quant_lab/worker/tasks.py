@@ -94,6 +94,15 @@ def run_optimization(job: OptimizationJob) -> Dict[str, Any]:
 
     # Build objective based on strategy_type
     if job.strategy_type == "mlp_direction":
+        study.set_user_attr("strategy_type", "mlp_direction")
+        study.set_user_attr(
+            "objective_names",
+            ["alpha_vs_bh", "total_return", "max_drawdown"],
+        )
+        study.set_user_attr(
+            "objective_labels",
+            ["Alpha vs B&H", "Total Return", "Max Drawdown"],
+        )
         objective = MLPDirectionObjective(
             asset=job.asset or (job.symbols[0] if job.symbols else "BTC"),
             config_path=job.config_path or "config/strategies/allocation.json",
@@ -101,6 +110,15 @@ def run_optimization(job: OptimizationJob) -> Dict[str, Any]:
             end_date=job.end_date,
         )
     else:
+        study.set_user_attr("strategy_type", "regime")
+        study.set_user_attr(
+            "objective_names",
+            ["win_rate", "total_return", "max_drawdown"],
+        )
+        study.set_user_attr(
+            "objective_labels",
+            ["Win Rate", "Total Return", "Max Drawdown"],
+        )
         # Default: regime-based optimization
         search_config = SearchSpaceConfig()
         if job.search_config:

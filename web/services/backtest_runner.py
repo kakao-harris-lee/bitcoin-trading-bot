@@ -8,6 +8,8 @@ Integrates with MLflow visualization for chart generation and experiment trackin
 import sys
 from pathlib import Path
 import logging
+import os
+import time
 
 # Add project root to path for imports (core, scripts, etc.)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -16,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import threading
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 import traceback
 import pandas as pd
@@ -51,10 +53,14 @@ _jobs_lock = threading.Lock()
 
 # Rate limiting
 MAX_CONCURRENT_JOBS = 3
+STALE_DB_JOB_MINUTES = 10
 
 # Chart output directory
 CHART_OUTPUT_DIR = PROJECT_ROOT / "web" / "static" / "charts"
 CHART_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Timestamp guard for stale job reconciliation
+_last_stale_reconcile_at: float = 0.0
 
 # Initialize visualization components
 _visualizer = BacktestVisualizer()
@@ -245,7 +251,7 @@ def _generate_equity_chart(
         'equity_curve': equity_df,
         'benchmark_curve': benchmark_curve,
         'strategy_name': strategy_id,
-        'symbol': 'BTC',
+        'symbol': results.get('symbol', 'BTC'),
         'total_return': results.get('total_return_pct', 0),
         'benchmark_return_pct': results.get('benchmark_return_pct', 0),
     }
@@ -337,7 +343,7 @@ def _log_results_to_mlflow(
     """Log run summary and optional chart artifact to MLflow."""
     mlflow_result = {
         'strategy_name': strategy_id,
-        'symbol': 'BTC',
+        'symbol': results.get('symbol', 'BTC'),
         'total_return': results.get('total_return_pct', 0),
         'sharpe_ratio': results.get('sharpe_ratio', 0),
         'max_drawdown_pct': results.get('max_drawdown_pct', 0),
@@ -541,6 +547,15 @@ def run_backtest(job: BacktestJob) -> None:
             job.status = 'running'
             job.started_at = datetime.now().isoformat()
             job.progress = 0
+            backtest_db.save_backtest(
+                job_id=job.job_id,
+                config=job.config,
+                status='running',
+                created_at=job.created_at,
+                completed_at=None,
+                result=None,
+                error=None,
+            )
 
             config = job.config
             strategy_id = config.get('strategy_id') or config.get('strategy', 'mlp_direction_btc')
@@ -1249,6 +1264,42 @@ def _execute_close_trade(action: str, signal: dict, row: pd.Series, trade_state:
         trade_state['position_size'] -= exit_size
 
 
+def _compute_trade_stats(trades: list[dict], close_actions: set[str]) -> tuple[list[dict], list[dict], list[dict], float, float]:
+    """Compute closed-trade statistics from generic backtest trade records."""
+    close_trades = [t for t in trades if t.get('type') in close_actions]
+    wins = [t for t in close_trades if float(t.get('pnl', 0.0) or 0.0) > 0]
+    losses = [t for t in close_trades if float(t.get('pnl', 0.0) or 0.0) <= 0]
+    win_rate = (len(wins) / len(close_trades) * 100.0) if close_trades else 0.0
+
+    gross_profit = sum(max(float(t.get('pnl', 0.0) or 0.0), 0.0) for t in close_trades)
+    gross_loss = abs(sum(min(float(t.get('pnl', 0.0) or 0.0), 0.0) for t in close_trades))
+    profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0.0
+    return close_trades, wins, losses, win_rate, profit_factor
+
+
+def _compute_equity_stats(equity_curve: list[dict]) -> tuple[float, float]:
+    """Compute Sharpe ratio and max drawdown (%) from equity curve records."""
+    if not equity_curve:
+        return 0.0, 0.0
+
+    equity_df = pd.DataFrame(equity_curve)
+    if 'equity' not in equity_df:
+        return 0.0, 0.0
+    equity_series = pd.to_numeric(equity_df['equity'], errors='coerce').dropna()
+    if equity_series.empty:
+        return 0.0, 0.0
+
+    returns = equity_series.pct_change().dropna()
+    sharpe_ratio = 0.0
+    if not returns.empty and returns.std() > 0:
+        sharpe_ratio = float((returns.mean() / returns.std()) * (365 ** 0.5))
+
+    roll_max = equity_series.cummax()
+    drawdown = ((equity_series - roll_max) / roll_max * 100.0) if not roll_max.empty else pd.Series(dtype=float)
+    max_drawdown = float(drawdown.min()) if not drawdown.empty else 0.0
+    return sharpe_ratio, max_drawdown
+
+
 def _sample_trades(close_trades: list[dict], max_trades: int = 150) -> list[dict]:
     if len(close_trades) <= max_trades:
         return close_trades
@@ -1256,20 +1307,20 @@ def _sample_trades(close_trades: list[dict], max_trades: int = 150) -> list[dict
     return [close_trades[int(i * step)] for i in range(max_trades)]
 
 
-def _format_generic_trades(close_trades: list[dict]) -> list[dict]:
+def _format_generic_trades(close_trades: list[dict], symbol: str) -> list[dict]:
     trades_list = []
     for trade in _sample_trades(close_trades):
         is_short = trade['type'] == 'close_short'
         trades_list.append({
             'timestamp': trade.get('entry_time') or trade.get('time'),
-            'symbol': 'BTC',
+            'symbol': symbol,
             'action': 'SHORT' if is_short else 'BUY',
             'price': trade.get('entry_price'),
             'profit': None,
         })
         trades_list.append({
             'timestamp': trade.get('time'),
-            'symbol': 'BTC',
+            'symbol': symbol,
             'action': 'COVER' if is_short else 'SELL',
             'price': trade.get('exit_price'),
             'profit': round(trade.get('pnl', 0), 0),
@@ -1291,7 +1342,7 @@ def _finalize_generic_trade_state(trade_state: dict, adapter: ComponentStrategyA
         trade_state['capital'] += core_state['cash'] + (core_state['qty'] * last_price)
 
 
-def _build_generic_result(strategy_id: str, start_date: str, end_date: str, initial_capital: float, leverage: float, trade_state: dict) -> dict:
+def _build_generic_result(strategy_id: str, strategy_symbol: str, start_date: str, end_date: str, initial_capital: float, leverage: float, trade_state: dict) -> dict:
     close_trades, wins, losses, win_rate, profit_factor = _compute_trade_stats(
         trade_state['trades'], {'sell', 'close_short', 'partial_close'}
     )
@@ -1299,6 +1350,7 @@ def _build_generic_result(strategy_id: str, start_date: str, end_date: str, init
     final_capital = trade_state['capital']
     return {
         'strategy': strategy_id,
+        'symbol': strategy_symbol,
         'preset': 'generic',
         'start_date': start_date,
         'end_date': end_date,
@@ -1316,7 +1368,7 @@ def _build_generic_result(strategy_id: str, start_date: str, end_date: str, init
         'max_drawdown_pct': round(max_drawdown, 2),
         'sharpe_ratio': round(sharpe_ratio, 2),
         'equity_curve': trade_state['equity_curve'],
-        'trades': _format_generic_trades(close_trades),
+        'trades': _format_generic_trades(close_trades, strategy_symbol),
     }
 
 
@@ -1410,7 +1462,7 @@ def _run_generic_backtest(
     job.progress = 80
     _finalize_generic_trade_state(trade_state, adapter, core_state, df)
     return _build_generic_result(
-        strategy_id, start_date, end_date, initial_capital, market_settings['leverage'], trade_state
+        strategy_id, strategy_symbol, start_date, end_date, initial_capital, market_settings['leverage'], trade_state
     ), df
 
 
@@ -1436,15 +1488,48 @@ def _run_walkforward_backtest(
 
     job.progress = 10
 
+    # Dashboard defaults are configurable through env for performance tuning.
+    wf_n_splits = int(os.getenv('WF_N_SPLITS', '7'))
+    wf_max_train_folds = int(os.getenv('WF_MAX_TRAIN_FOLDS', '3'))
+    wf_temporal_decay = float(os.getenv('WF_TEMPORAL_DECAY', '2.0'))
+    wf_xgb_rounds = int(os.getenv('WF_XGB_ROUNDS', '500'))
+    wf_lgb_rounds = int(os.getenv('WF_LGB_ROUNDS', '500'))
+
+    # Persist running heartbeat periodically so DB doesn't remain stale pending.
+    last_heartbeat = 0.0
+
+    def _progress_callback(fraction: float) -> None:
+        nonlocal last_heartbeat
+        bounded = max(0.0, min(float(fraction), 1.0))
+        mapped = max(job.progress, int(round(10 + (bounded * 65))))
+        job.progress = mapped
+
+        now = time.monotonic()
+        if now - last_heartbeat >= 10:
+            last_heartbeat = now
+            backtest_db.save_backtest(
+                job_id=job.job_id,
+                config=job.config,
+                status='running',
+                created_at=job.created_at,
+                completed_at=None,
+                result=None,
+                error=None,
+            )
+
     # Run walk-forward with recommended sliding-window config
     wf_result = run_walkforward_asset(
         asset=asset,
         start_date=start_date,
         end_date=end_date,
         capital=initial_capital,
-        n_splits=7,
-        max_train_folds=3,
-        temporal_decay=2.0,
+        n_splits=wf_n_splits,
+        max_train_folds=wf_max_train_folds,
+        temporal_decay=wf_temporal_decay,
+        xgb_rounds=wf_xgb_rounds,
+        lgb_rounds=wf_lgb_rounds,
+        progress_callback=_progress_callback,
+        should_cancel=lambda: job._cancelled,
     )
 
     if not wf_result:
@@ -1589,6 +1674,7 @@ def get_all_jobs(limit: int = 50) -> list:
     Returns:
         List of job dictionaries with summary info (excludes large data like trades/equity_curve).
     """
+    _reconcile_stale_db_jobs()
     jobs_by_id = {}
 
     # First, load history from database
@@ -1625,3 +1711,52 @@ def get_all_jobs(limit: int = 50) -> list:
     jobs = list(jobs_by_id.values())
     jobs.sort(key=lambda x: x['created_at'], reverse=True)
     return jobs
+
+
+def _reconcile_stale_db_jobs(scan_limit: int = 200) -> int:
+    """Mark stale persisted pending/running jobs as failed.
+
+    Stale = pending/running in DB, not active in-memory, older than threshold.
+    This avoids indefinitely "stuck" jobs after process restarts/crashes.
+    """
+    global _last_stale_reconcile_at
+    now_monotonic = time.monotonic()
+    if now_monotonic - _last_stale_reconcile_at < 60:
+        return 0
+    _last_stale_reconcile_at = now_monotonic
+
+    with _jobs_lock:
+        active_ids = {
+            job.job_id for job in _backtest_jobs.values()
+            if job.status in ('pending', 'running')
+        }
+
+    stale_cutoff = datetime.now() - timedelta(minutes=STALE_DB_JOB_MINUTES)
+    fixed = 0
+    for db_job in backtest_db.get_history(limit=scan_limit):
+        status = db_job.get('status')
+        job_id = db_job.get('job_id')
+        if status not in ('pending', 'running') or not job_id:
+            continue
+        if job_id in active_ids:
+            continue
+        created_at_raw = db_job.get('created_at')
+        if not created_at_raw:
+            continue
+        try:
+            created_at = datetime.fromisoformat(created_at_raw)
+        except Exception:
+            continue
+        if created_at > stale_cutoff:
+            continue
+        backtest_db.save_backtest(
+            job_id=job_id,
+            config=db_job.get('config') or {},
+            status='failed',
+            created_at=created_at_raw,
+            completed_at=datetime.now().isoformat(),
+            error='Marked stale after process restart/crash (no active worker)',
+            result=None,
+        )
+        fixed += 1
+    return fixed

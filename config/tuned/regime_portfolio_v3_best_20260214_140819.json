@@ -1,0 +1,24 @@
+{
+  "meta": {
+    "generated_at": "2026-02-14T14:08:19.202076",
+    "source_report": "reports/regime_portfolio_v3_opt_20260214_140819.json",
+    "objective": "maximize alpha_vs_ew_bnh_pctp"
+  },
+  "portfolio_params": {
+    "btc_w": 0.25,
+    "eth_w": 0.050000000000000044,
+    "sol_w": 0.0,
+    "bnb_w": 0.7,
+    "bnb_overlay_boost": 0.15
+  },
+  "performance": {
+    "strat_return_pct": 2315.910708345045,
+    "strat_cagr_pct": 88.42877178120139,
+    "strat_mdd_pct": 42.654095627996305,
+    "strat_sharpe": 1.184477832904278,
+    "matched_bnh_return_pct": 2254.2562006319554,
+    "ew_bnh_return_pct": 2085.500075777672,
+    "alpha_vs_matched_bnh_pctp": 61.654507713089515,
+    "alpha_vs_ew_bnh_pctp": 230.4106325673729
+  }
+}

@@ -1851,9 +1851,17 @@ def get_strategies():
         r = get_redis()
 
         strategies = []
+        enabled_strategy_names = set()
+        disabled_strategy_names = set()
+
         for name, cfg in strategies_config.items():
+            if not bool(cfg.get('enabled', True)):
+                disabled_strategy_names.add(name)
+                continue
+
             strategy_info = {
                 'name': name,
+                'enabled': True,
                 'market': cfg.get('market', 'futures'),
                 'leverage': 1 if cfg.get('market') == 'spot' else cfg.get('leverage', 3),
                 'position_pct': cfg.get('position_pct', 0.1),
@@ -1944,16 +1952,20 @@ def get_strategies():
             strategy_info['active_positions'] = active_positions
 
             strategies.append(strategy_info)
+            enabled_strategy_names.add(name)
 
-        # Also include available strategies from registry not in allocation
-        available_in_registry = set(STRATEGY_REGISTRY.keys()) - set(strategies_config.keys())
+        # Show as available:
+        # 1) Registry strategies not currently enabled
+        # 2) Strategies present in allocation but explicitly disabled
+        available_in_registry = set(STRATEGY_REGISTRY.keys()) - enabled_strategy_names
+        available_strategies = sorted(available_in_registry | disabled_strategy_names)
 
         return jsonify({
             'strategies': strategies,
             'symbols': symbols,
             'defaults': defaults,
             'count': len(strategies),
-            'available_strategies': list(available_in_registry),
+            'available_strategies': available_strategies,
         })
 
     except Exception as e:
@@ -1979,9 +1991,24 @@ def enable_strategy(strategy_name: str):
 
         strategies_config = config.get('strategies', {})
 
-        # Check if already enabled
-        if strategy_name in strategies_config:
-            return jsonify({'message': f'{strategy_name} is already enabled'}), 200
+        # If already configured, support re-enable via enabled flag
+        existing_cfg = strategies_config.get(strategy_name)
+        if existing_cfg is not None:
+            if bool(existing_cfg.get('enabled', True)):
+                return jsonify({'message': f'{strategy_name} is already enabled'}), 200
+            existing_cfg['enabled'] = True
+            strategies_config[strategy_name] = existing_cfg
+            config['strategies'] = strategies_config
+
+            config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+
+            return jsonify({
+                'success': True,
+                'message': f'Strategy {strategy_name} enabled',
+                'config': existing_cfg
+            })
 
         # Get spec from registry
         spec = STRATEGY_REGISTRY[strategy_name]
@@ -2044,6 +2071,9 @@ def disable_strategy(strategy_name: str):
         if strategy_name not in strategies_config:
             return jsonify({'message': f'{strategy_name} is already disabled'}), 200
 
+        if not bool(strategies_config[strategy_name].get('enabled', True)):
+            return jsonify({'message': f'{strategy_name} is already disabled'}), 200
+
         # Check for active positions before disabling
         r = get_redis()
         symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
@@ -2056,8 +2086,10 @@ def disable_strategy(strategy_name: str):
                     'error': f'Cannot disable {strategy_name}: has active position in {symbol}'
                 }), 400
 
-        # Remove from config
-        removed_config = strategies_config.pop(strategy_name)
+        # Keep strategy config but mark disabled for consistency with allocation schema.
+        disabled_config = dict(strategies_config[strategy_name])
+        disabled_config['enabled'] = False
+        strategies_config[strategy_name] = disabled_config
         config['strategies'] = strategies_config
 
         # Save config
@@ -2068,7 +2100,7 @@ def disable_strategy(strategy_name: str):
         return jsonify({
             'success': True,
             'message': f'Strategy {strategy_name} disabled',
-            'removed_config': removed_config
+            'disabled_config': disabled_config
         })
 
     except Exception as e:

@@ -115,10 +115,13 @@ class LeverageManager:
             self._update_tier()
 
             logger.info(
-                f"LeverageManager loaded: equity=${self.current_equity:,.2f}, "
-                f"peak=${self.peak_equity:,.2f}, "
-                f"drawdown={self.get_drawdown_pct():.1f}%, "
-                f"tier={self.current_tier.name} ({self.current_tier.leverage}x)"
+                "LeverageManager loaded: equity=$%s, peak=$%s, drawdown=%.1f%%, "
+                "tier=%s (%dx)",
+                format(self.current_equity, ",.2f"),
+                format(self.peak_equity, ",.2f"),
+                self.get_drawdown_pct(),
+                self.current_tier.name,
+                self.current_tier.leverage,
             )
         elif initial_equity:
             # Initialize fresh state
@@ -130,7 +133,10 @@ class LeverageManager:
             self.current_tier = self.tiers[0]
 
             await self._save_state()
-            logger.info(f"LeverageManager initialized with equity=${initial_equity:,.2f}")
+            logger.info(
+                "LeverageManager initialized with equity=$%s",
+                format(initial_equity, ",.2f"),
+            )
         else:
             logger.warning("LeverageManager: No state found and no initial equity provided")
 
@@ -139,7 +145,8 @@ class LeverageManager:
         today = date.today()
         if self.last_daily_reset < today:
             logger.info(
-                f"LeverageManager: Daily reset (previous day P&L: ${self.daily_pnl:,.2f})"
+                "LeverageManager: Daily reset (previous day P&L: $%s)",
+                format(self.daily_pnl, ",.2f"),
             )
             self.daily_starting_equity = self.current_equity
             self.daily_pnl = 0.0
@@ -162,8 +169,11 @@ class LeverageManager:
 
         if old_tier != self.current_tier:
             logger.warning(
-                f"LeverageManager: Tier changed {old_tier.name}→{self.current_tier.name} "
-                f"(drawdown={drawdown*100:.1f}%, leverage={self.current_tier.leverage}x)"
+                "LeverageManager: Tier changed %s->%s (drawdown=%.1f%%, leverage=%dx)",
+                old_tier.name,
+                self.current_tier.name,
+                drawdown * 100,
+                self.current_tier.leverage,
             )
 
     def get_drawdown(self) -> float:
@@ -196,8 +206,9 @@ class LeverageManager:
 
         if daily_loss_pct >= self.daily_loss_limit:
             logger.warning(
-                f"LeverageManager: Trading halted - daily loss {daily_loss_pct*100:.1f}% "
-                f">= limit {self.daily_loss_limit*100:.1f}%"
+                "LeverageManager: Trading halted - daily loss %.1f%% >= limit %.1f%%",
+                daily_loss_pct * 100,
+                self.daily_loss_limit * 100,
             )
             return 0
 
@@ -221,8 +232,9 @@ class LeverageManager:
             old_peak = self.peak_equity
             self.peak_equity = self.current_equity
             logger.info(
-                f"LeverageManager: New peak equity ${self.peak_equity:,.2f} "
-                f"(+${self.peak_equity - old_peak:,.2f})"
+                "LeverageManager: New peak equity $%s (+$%s)",
+                format(self.peak_equity, ",.2f"),
+                format(self.peak_equity - old_peak, ",.2f"),
             )
 
         # Update tier
@@ -230,10 +242,14 @@ class LeverageManager:
 
         # Log update
         logger.info(
-            f"LeverageManager: Equity ${old_equity:,.2f} → ${self.current_equity:,.2f} "
-            f"(P&L: {'+' if pnl >= 0 else ''}{pnl:,.2f}), "
-            f"drawdown={self.get_drawdown_pct():.1f}%, "
-            f"tier={self.current_tier.name} ({self.current_tier.leverage}x)"
+            "LeverageManager: Equity $%s -> $%s (P&L: %s%s), drawdown=%.1f%%, tier=%s (%dx)",
+            format(old_equity, ",.2f"),
+            format(self.current_equity, ",.2f"),
+            "+" if pnl >= 0 else "",
+            format(pnl, ",.2f"),
+            self.get_drawdown_pct(),
+            self.current_tier.name,
+            self.current_tier.leverage,
         )
 
         await self._save_state()
@@ -253,9 +269,10 @@ class LeverageManager:
         await self._save_state()
 
         logger.info(
-            f"LeverageManager: Equity set to ${equity:,.2f}, "
-            f"drawdown={self.get_drawdown_pct():.1f}%, "
-            f"tier={self.current_tier.name}"
+            "LeverageManager: Equity set to $%s, drawdown=%.1f%%, tier=%s",
+            format(equity, ",.2f"),
+            self.get_drawdown_pct(),
+            self.current_tier.name,
         )
 
     async def _save_state(self) -> None:
@@ -296,15 +313,16 @@ class LeverageManager:
         }
 
 
-# Singleton instance
-_leverage_manager: Optional[LeverageManager] = None
+# Singleton state
+_LEVERAGE_MANAGER_STATE: dict[str, Optional[LeverageManager]] = {"instance": None}
 
 
 def get_leverage_manager(redis_url: str = None) -> LeverageManager:
     """Get or create singleton LeverageManager instance."""
-    global _leverage_manager
-    if _leverage_manager is None:
-        _leverage_manager = LeverageManager(
+    manager = _LEVERAGE_MANAGER_STATE["instance"]
+    if manager is None:
+        manager = LeverageManager(
             redis_url=redis_url or "redis://localhost:6379"
         )
-    return _leverage_manager
+        _LEVERAGE_MANAGER_STATE["instance"] = manager
+    return manager

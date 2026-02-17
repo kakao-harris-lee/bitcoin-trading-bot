@@ -12,6 +12,8 @@ Usage:
     python scripts/daily_comparison.py --history 7         # Last 7 days of reports
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import argparse
 import logging
 import sys
@@ -168,7 +170,7 @@ def main(
 
     # Default to all active strategies
     if strategies is None:
-        strategies = generator.ACTIVE_STRATEGIES.copy()
+        strategies = list(generator.active_strategies)
 
     logger.info(f"Report date: {report_date}")
     logger.info(f"Strategies: {strategies}")
@@ -182,11 +184,13 @@ def main(
     for strategy_name in strategies:
         try:
             logger.info(f"Generating report for {strategy_name}...")
-
-            def generate():
-                return generator.generate_report(report_date, strategy_name)
-
-            report = run_with_retry(generate, max_attempts=3, delay_seconds=300)
+            report = run_with_retry(
+                lambda strategy_name=strategy_name: generator.generate_report(
+                    report_date, strategy_name
+                ),
+                max_attempts=3,
+                delay_seconds=300,
+            )
             reports.append(report)
 
             # Print summary
@@ -309,24 +313,24 @@ if __name__ == "__main__":
     args = parse_args()
 
     # Parse date
-    report_date = None
+    cli_report_date = None
     if args.date:
         try:
-            report_date = date.fromisoformat(args.date)
+            cli_report_date = date.fromisoformat(args.date)
         except ValueError:
             print(f"Error: Invalid date format: {args.date}")
             print("Expected format: YYYY-MM-DD")
             sys.exit(2)
 
     # Parse strategies
-    strategies = None
+    cli_strategies = None
     if args.strategies:
-        strategies = [s.strip() for s in args.strategies.split(",")]
+        cli_strategies = [s.strip() for s in args.strategies.split(",")]
 
     # Run
     exit_code = main(
-        report_date=report_date,
-        strategies=strategies,
+        report_date=cli_report_date,
+        strategies=cli_strategies,
         dry_run=args.dry_run,
         history_days=args.history,
         no_notify=args.no_notify,

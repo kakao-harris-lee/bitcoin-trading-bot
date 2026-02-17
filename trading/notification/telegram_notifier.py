@@ -6,7 +6,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 import requests
 from dotenv import load_dotenv
 import pytz
@@ -63,7 +63,7 @@ class TelegramNotifier:
                 body = body[:500] + "..."
             print(f"❌ 텔레그램 전송 실패: status={resp.status_code} body={body}")
             return False
-        except Exception as e:
+        except requests.RequestException as e:
             # Keep logs token-safe by not including the request URL.
             print(f"❌ 텔레그램 전송 실패: {type(e).__name__}: {e}")
             return False

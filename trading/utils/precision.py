@@ -28,11 +28,13 @@ Usage:
     # Returns Decimal('0.12345')
 """
 
+# pylint: disable=logging-fstring-interpolation,global-statement,global-variable-not-assigned
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP, InvalidOperation
+from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 from typing import Union
 
 logger = logging.getLogger(__name__)
@@ -208,7 +210,7 @@ class PriceUtils:
     @staticmethod
     def calculate_pnl(
         entry: DecimalInput,
-        exit: DecimalInput,
+        exit_price: DecimalInput,
         quantity: DecimalInput,
         is_short: bool = False,
     ) -> Decimal:
@@ -216,7 +218,7 @@ class PriceUtils:
 
         Args:
             entry: Entry price.
-            exit: Exit price.
+            exit_price: Exit price.
             quantity: Position quantity.
             is_short: True for short positions (profit when price drops).
 
@@ -228,7 +230,7 @@ class PriceUtils:
             Decimal('15.00')
         """
         entry_dec = PriceUtils.to_decimal(entry)
-        exit_dec = PriceUtils.to_decimal(exit)
+        exit_dec = PriceUtils.to_decimal(exit_price)
         qty_dec = PriceUtils.to_decimal(quantity)
 
         if is_short:
@@ -241,14 +243,14 @@ class PriceUtils:
     @staticmethod
     def calculate_pnl_percent(
         entry: DecimalInput,
-        exit: DecimalInput,
+        exit_price: DecimalInput,
         is_short: bool = False,
     ) -> Decimal:
         """Calculate PnL as percentage with Decimal precision.
 
         Args:
             entry: Entry price.
-            exit: Exit/current price.
+            exit_price: Exit/current price.
             is_short: True for short positions.
 
         Returns:
@@ -259,7 +261,7 @@ class PriceUtils:
             Decimal('3.00')
         """
         entry_dec = PriceUtils.to_decimal(entry)
-        exit_dec = PriceUtils.to_decimal(exit)
+        exit_dec = PriceUtils.to_decimal(exit_price)
 
         if entry_dec == 0:
             return Decimal("0")
@@ -388,7 +390,6 @@ def _find_config_path() -> str | None:
     Returns:
         Absolute path to config file, or None if not found.
     """
-    import os
     from pathlib import Path
 
     # Try relative to this file (trading/utils/precision.py -> config/)
@@ -425,7 +426,7 @@ def _load_symbol_defaults() -> dict[str, SymbolInfo]:
         return _get_hardcoded_defaults()
 
     try:
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             config = json.load(f)
 
         symbols = config.get("symbols", {})
@@ -443,11 +444,11 @@ def _load_symbol_defaults() -> dict[str, SymbolInfo]:
                 min_notional=info.get("min_notional", "10.0"),
             )
 
-        logger.debug(f"Loaded {len(result)} symbol defaults from {config_path}")
+        logger.debug("Loaded %d symbol defaults from %s", len(result), config_path)
         return result
 
     except (json.JSONDecodeError, OSError) as e:
-        logger.error(f"Failed to load symbol defaults: {e}")
+        logger.error("Failed to load symbol defaults: %s", e)
         return _get_hardcoded_defaults()
 
 
@@ -578,4 +579,4 @@ def add_symbol_default(symbol: str, info: SymbolInfo) -> None:
     """
     defaults = get_default_symbol_info()
     defaults[symbol] = info
-    logger.info(f"Added symbol default: {symbol}")
+    logger.info("Added symbol default: %s", symbol)

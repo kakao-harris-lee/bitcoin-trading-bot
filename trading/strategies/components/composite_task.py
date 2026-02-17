@@ -19,6 +19,8 @@ Usage:
     await task.run()
 """
 
+# pylint: disable=logging-fstring-interpolation,protected-access,broad-exception-caught,attribute-defined-outside-init
+
 from __future__ import annotations
 
 import asyncio
@@ -33,7 +35,6 @@ from typing import Any, TYPE_CHECKING
 import pandas as pd
 from trading.streams.base_strategy import BaseStrategyTask
 from trading.indicators import add_all_indicators
-from trading.config.constants import TimePeriods
 
 from .interfaces import IEntryStrategy, IExitStrategy
 from .models import (
@@ -461,7 +462,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             leverage=leverage,
         )
 
-    async def evaluate_exit(self, symbol: str, position_dict: dict) -> dict[str, Any] | None:
+    async def evaluate_exit(self, symbol: str, position: dict) -> dict[str, Any] | None:
         """Evaluate exit conditions by delegating to exit component.
 
         Uses TradingContextBuilder for centralized context (if available),
@@ -469,7 +470,7 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         Args:
             symbol: Trading symbol.
-            position_dict: Position dict from Redis.
+            position: Position dict from Redis.
 
         Returns:
             Order intent dict or None.
@@ -490,7 +491,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         await self._check_and_record_decision(symbol, market_data)
 
         # Build Position model from dict
-        position = self._dict_to_position(position_dict)
+        position = self._dict_to_position(position)
 
         context, ctx = self._build_exit_context(symbol, position, market_data)
 
@@ -927,16 +928,16 @@ class CompositeStrategyTask(BaseStrategyTask):
             losses = 0
         self._consecutive_losses[symbol] = losses
 
-    async def on_position_opened(self, symbol: str, position_dict: dict) -> None:
+    async def on_position_opened(self, symbol: str, position: dict) -> None:
         """Notify exit strategy when position is opened.
 
         Called by _handle_message after entry order is filled.
 
         Args:
             symbol: Trading symbol.
-            position_dict: Position dict from Redis.
+            position: Position dict from Redis.
         """
-        position = self._dict_to_position(position_dict)
+        position = self._dict_to_position(position)
 
         # Reset drawdown partial-exit tracking for this symbol
         self._drawdown_partial_exit_done[symbol] = False
@@ -1023,7 +1024,6 @@ class CompositeStrategyTask(BaseStrategyTask):
             yesterday = dates[-2]
 
             # Check cache
-            cache_key = f"{symbol}_{yesterday}"
             cached = self._prev_day_cache.get(symbol)
             if cached and cached[2] == str(yesterday):
                 prev_high, prev_low = cached[0], cached[1]
@@ -1716,6 +1716,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         Returns:
             Tuple of (quantity, stop_price). stop_price is None for legacy sizing.
         """
+        _ = context
         risk_sized = await self._get_risk_sized_quantity(symbol, price, market_data)
         if risk_sized is not None:
             return risk_sized

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 import os
 from datetime import datetime
 from typing import Any, Optional
@@ -49,22 +48,22 @@ def _is_structured_logging_enabled() -> bool:
 
 def _init_file_handler(log_path: str | None = None) -> None:
     """Initialize file handler for trade logs."""
-    global _file_handler, _logging_disabled
     if _file_handler is not None:
         return
     if not _is_structured_logging_enabled():
-        _logging_disabled = True
+        globals()["_logging_disabled"] = True
         return
 
     resolved_path = log_path or os.getenv("TRADE_LOG_PATH", "logs/trades.jsonl")
 
     os.makedirs(os.path.dirname(resolved_path), exist_ok=True)
 
-    _file_handler = logging.FileHandler(resolved_path)
-    _file_handler.setLevel(logging.INFO)
+    file_handler = logging.FileHandler(resolved_path)
+    file_handler.setLevel(logging.INFO)
     # No formatting - we output raw JSON
-    _file_handler.setFormatter(logging.Formatter("%(message)s"))
-    _structured_logger.addHandler(_file_handler)
+    file_handler.setFormatter(logging.Formatter("%(message)s"))
+    _structured_logger.addHandler(file_handler)
+    globals()["_file_handler"] = file_handler
 
 
 def _log_event(event_type: str, **kwargs: Any) -> None:

@@ -9,10 +9,12 @@ Responsibilities:
 - Send notifications
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import asyncio
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict
 
 from .risk_controls import RiskControls
 

@@ -40,8 +40,8 @@ COMPONENT_PARAMS = {
 @dataclass
 class RegimeConfig:
     """Configuration for a single regime's search space."""
-    entries: List[str] = field(default_factory=lambda: ENTRY_COMPONENTS.copy())
-    exits: List[str] = field(default_factory=lambda: EXIT_COMPONENTS.copy())
+    entries: List[str] = field(default_factory=ENTRY_COMPONENTS.copy)
+    exits: List[str] = field(default_factory=EXIT_COMPONENTS.copy)
 
 
 @dataclass

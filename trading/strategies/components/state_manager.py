@@ -20,6 +20,7 @@ Usage:
     # Delete on position close
     await state.delete("BTC", "high_water_mark")
 """
+# pylint: disable=broad-exception-caught
 
 from __future__ import annotations
 
@@ -107,17 +108,19 @@ class StateManager:
                 parsed = json.loads(value)
                 self._cache[cache_key] = parsed
                 logger.debug(
-                    f"StateManager: Loaded {key} = {parsed}"
+                    "StateManager: Loaded %s = %s", key, parsed
                 )
                 return parsed
             else:
                 self._cache[cache_key] = default
                 logger.debug(
-                    f"StateManager: No existing state for {key}, using default={default}"
+                    "StateManager: No existing state for %s, using default=%s",
+                    key,
+                    default,
                 )
                 return default
         except Exception as e:
-            logger.warning(f"StateManager: Failed to load {key}: {e}")
+            logger.warning("StateManager: Failed to load %s: %s", key, e)
             self._cache[cache_key] = default
             return default
 
@@ -173,10 +176,13 @@ class StateManager:
 
             if old_value != value:
                 logger.info(
-                    f"StateManager: Updated {key}: {old_value} -> {value}"
+                    "StateManager: Updated %s: %s -> %s",
+                    key,
+                    old_value,
+                    value,
                 )
         except Exception as e:
-            logger.error(f"StateManager: Failed to persist {key}: {e}")
+            logger.error("StateManager: Failed to persist %s: %s", key, e)
             # Do NOT update cache if Redis fails - maintains consistency
             # On restart, we'll load the last known good value from Redis
 
@@ -200,9 +206,9 @@ class StateManager:
 
         try:
             await self._redis.delete(key)
-            logger.debug(f"StateManager: Deleted {key}")
+            logger.debug("StateManager: Deleted %s", key)
         except Exception as e:
-            logger.warning(f"StateManager: Failed to delete {key}: {e}")
+            logger.warning("StateManager: Failed to delete %s: %s", key, e)
 
     async def load_all_for_symbol(
         self,

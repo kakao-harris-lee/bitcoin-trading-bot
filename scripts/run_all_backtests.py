@@ -32,9 +32,10 @@ def run_command(cmd: list, description: str) -> bool:
             cwd=PROJECT_ROOT,
             env={"PYTHONPATH": str(PROJECT_ROOT), **dict(__import__('os').environ)},
             capture_output=False,
+            check=False,
         )
         return result.returncode == 0
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         print(f"ERROR: {e}")
         return False
 

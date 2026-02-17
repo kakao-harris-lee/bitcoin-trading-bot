@@ -13,6 +13,7 @@ Usage:
     info = cache.get("BTC")
     qty = PriceUtils.round_quantity("0.123456", info)
 """
+# pylint: disable=broad-exception-caught
 
 from __future__ import annotations
 
@@ -71,11 +72,9 @@ class ExchangeInfoCache:
                 if info:
                     self._parse_exchange_info(info, symbols)
                     self._last_refresh = time.time()
-                    logger.info(
-                        f"ExchangeInfoCache: Refreshed {len(self._cache)} symbols"
-                    )
+                    logger.info("ExchangeInfoCache: Refreshed %d symbols", len(self._cache))
             except Exception as e:
-                logger.error(f"ExchangeInfoCache: Refresh failed: {e}")
+                logger.error("ExchangeInfoCache: Refresh failed: %s", e)
 
     async def _fetch_exchange_info(self) -> dict[str, Any] | None:
         """Fetch exchangeInfo from Binance API."""
@@ -91,11 +90,11 @@ class ExchangeInfoCache:
                 async with session.get(url) as response:
                     if response.status != 200:
                         error = await response.text()
-                        logger.error(f"Binance API error: {response.status} - {error}")
+                        logger.error("Binance API error: %s - %s", response.status, error)
                         return None
                     return await response.json()
         except aiohttp.ClientError as e:
-            logger.error(f"Failed to fetch exchangeInfo: {e}")
+            logger.error("Failed to fetch exchangeInfo: %s", e)
             return None
 
     def _parse_exchange_info(
@@ -128,7 +127,7 @@ class ExchangeInfoCache:
             try:
                 self._cache[symbol] = SymbolInfo.from_exchange_info(symbol, sym_info)
             except Exception as e:
-                logger.warning(f"Failed to parse symbol {symbol}: {e}")
+                logger.warning("Failed to parse symbol %s: %s", symbol, e)
 
     def get(self, symbol: str) -> SymbolInfo:
         """Get SymbolInfo for a symbol.
@@ -157,7 +156,7 @@ class ExchangeInfoCache:
             return defaults[symbol]
 
         # Generic fallback
-        logger.warning(f"No symbol info for {symbol}, using generic defaults")
+        logger.warning("No symbol info for %s, using generic defaults", symbol)
         return SymbolInfo(
             symbol=symbol,
             price_precision=8,
@@ -190,9 +189,11 @@ class ExchangeInfoCache:
             await self.refresh(symbols)
 
 
-# Global cache instance
-_spot_cache: ExchangeInfoCache | None = None
-_futures_cache: ExchangeInfoCache | None = None
+# Global cache instances
+_CACHE_BY_MARKET: dict[str, ExchangeInfoCache | None] = {
+    "spot": None,
+    "futures": None,
+}
 
 
 def get_exchange_cache(market: str = "futures") -> ExchangeInfoCache:
@@ -204,16 +205,12 @@ def get_exchange_cache(market: str = "futures") -> ExchangeInfoCache:
     Returns:
         ExchangeInfoCache instance.
     """
-    global _spot_cache, _futures_cache
-
-    if market == "futures":
-        if _futures_cache is None:
-            _futures_cache = ExchangeInfoCache(market="futures")
-        return _futures_cache
-    else:
-        if _spot_cache is None:
-            _spot_cache = ExchangeInfoCache(market="spot")
-        return _spot_cache
+    resolved_market = "futures" if market == "futures" else "spot"
+    cache = _CACHE_BY_MARKET[resolved_market]
+    if cache is None:
+        cache = ExchangeInfoCache(market=resolved_market)
+        _CACHE_BY_MARKET[resolved_market] = cache
+    return cache
 
 
 async def get_symbol_info_live(

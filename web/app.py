@@ -4,6 +4,8 @@ app.py
 Flask 웹 대시보드 - Dual Exchange Paper Trading 모니터링
 """
 
+# pylint: disable=broad-exception-caught
+
 from flask import Flask, render_template, jsonify, request, Response
 from flask_cors import CORS
 from functools import wraps
@@ -39,7 +41,6 @@ except ImportError:
 # Import analytics service (relative import from web/services/)
 try:
     import sys
-    from pathlib import Path
     web_dir = Path(__file__).parent
     if str(web_dir) not in sys.path:
         sys.path.insert(0, str(web_dir))
@@ -145,7 +146,7 @@ def load_allocation_config() -> dict:
     config_path = BASE_DIR.parent / 'config' / 'strategies' / 'allocation.json'
     if config_path.exists():
         try:
-            with open(config_path) as f:
+            with open(config_path, encoding='utf-8') as f:
                 return json.load(f)
         except Exception:
             pass
@@ -193,7 +194,7 @@ def load_trading_log(exchange: str):
     for log_file in candidates:
         if log_file.exists():
             try:
-                with open(log_file, 'r') as f:
+                with open(log_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except Exception as e:
                 print(f"로그 로드 실패 ({exchange}): {e}")
@@ -326,7 +327,7 @@ def get_latest_prices() -> dict:
 
         prices = {}
         seen_symbols = set()
-        for msg_id, data in messages:
+        for _, data in messages:
             symbol = data.get('symbol', '')
             if symbol and symbol not in seen_symbols:
                 price = float(data.get('price', 0))
@@ -437,7 +438,7 @@ def load_multi_asset_status() -> dict:
     status_file = LOG_DIR / "multi_asset_engine_status.json"
     if status_file.exists():
         try:
-            with open(status_file, 'r') as f:
+            with open(status_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
             print(f"Multi-asset status load failed: {e}")
@@ -449,7 +450,6 @@ def _require_admin_token() -> bool:
     token = os.getenv("WEB_ADMIN_TOKEN")
     if not token:
         return False
-    from flask import request
     return request.headers.get("X-Admin-Token") == token
 
 
@@ -741,7 +741,7 @@ def health_check():
     try:
         r = redis.Redis(
             host=os.getenv("REDIS_HOST", "localhost"),
-            port=int(os.getenv("REDIS_PORT", 6379)),
+            port=int(os.getenv("REDIS_PORT", "6379")),
             socket_timeout=2.0,
         )
         r.ping()
@@ -2093,7 +2093,7 @@ def enable_strategy(strategy_name: str):
             config['strategies'] = strategies_config
 
             config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
-            with open(config_path, 'w') as f:
+            with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2)
 
             return jsonify({
@@ -2131,7 +2131,7 @@ def enable_strategy(strategy_name: str):
 
         # Save config
         config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
-        with open(config_path, 'w') as f:
+        with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
 
         return jsonify({
@@ -2186,7 +2186,7 @@ def disable_strategy(strategy_name: str):
 
         # Save config
         config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
-        with open(config_path, 'w') as f:
+        with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
 
         return jsonify({
@@ -2246,7 +2246,7 @@ def update_strategy_config(strategy_name: str):
         # Save config
         config['strategies'][strategy_name] = strategy_cfg
         config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
-        with open(config_path, 'w') as f:
+        with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
 
         return jsonify({
@@ -3022,7 +3022,7 @@ def _update_trade_log_summary(summary: dict, entry: dict) -> None:
 def _load_trade_log_entries(log_path: Path, filters: dict) -> tuple[list[dict], dict]:
     entries: list[dict] = []
     summary = _trade_log_summary_template()
-    with open(log_path) as f:
+    with open(log_path, encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -3103,7 +3103,6 @@ def download_trade_log():
     Query parameters:
     - days: Number of days (default 30)
     """
-    from pathlib import Path
     from flask import send_file
     import io
 
@@ -3117,18 +3116,17 @@ def download_trade_log():
 
         # Filter and prepare download
         output = io.StringIO()
-        with open(log_path) as f:
+        with open(log_path, encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
                 try:
-                    import json
                     entry = json.loads(line)
                     ts = entry.get('ts', '')[:10]
                     if ts >= cutoff:
                         output.write(line + '\n')
-                except:
+                except Exception:
                     continue
 
         output.seek(0)
@@ -3148,7 +3146,7 @@ def download_trade_log():
 if __name__ == "__main__":
     print(f"\n{'='*50}")
     print(f"Dashboard available at: http://localhost:5080/{DASHBOARD_PATH}")
-    print(f"Basic Auth required (credentials from environment)")
+    print("Basic Auth required (credentials from environment)")
     print(f"{'='*50}\n")
 
     # 텔레그램으로 대시보드 URL 알림

@@ -3,7 +3,8 @@ Trading Engine V2 - Base Strategy
 전략 엔진의 기본 클래스
 """
 
-import asyncio
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import logging
 from abc import abstractmethod
 from typing import Optional, Dict, Any, List
@@ -13,8 +14,7 @@ import pandas as pd
 from ..core.base_module import BaseModule
 from ..core.config import Config
 from core.types import (
-    PriceMessage, SignalMessage, Exchange, Direction, Action,
-    MarketState, create_message_id, current_timestamp
+    SignalMessage, Exchange, Direction, Action, create_message_id, current_timestamp
 )
 
 logger = logging.getLogger(__name__)
@@ -208,12 +208,12 @@ class BaseStrategy(BaseModule):
     @abstractmethod
     def _min_buffer_size(self) -> int:
         """최소 필요 버퍼 크기"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """지표 추가"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def generate_signal(self, df: pd.DataFrame, i: int) -> Optional[Dict]:
@@ -227,7 +227,7 @@ class BaseStrategy(BaseModule):
         Returns:
             {'action': 'buy'/'sell'/'hold', 'fraction': float, 'reason': str, ...}
         """
-        pass
+        raise NotImplementedError
 
     # ========== 헬퍼 메서드 ==========
 

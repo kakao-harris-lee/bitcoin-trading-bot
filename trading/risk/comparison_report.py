@@ -6,6 +6,8 @@ to identify strategy drift and execution issues.
 Uses StrategyFactory to ensure backtest logic matches live execution logic.
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import json
 import logging
 import sqlite3
@@ -15,7 +17,6 @@ from typing import List, Optional, Dict, Any
 
 import pandas as pd
 
-from core.backtester import Backtester, Trade
 from core.data_loader import DataLoader
 # NOTE: ComponentStrategyAdapter import is deferred to avoid circular import
 # (component_adapter -> trading.strategies.components -> trading -> trading.risk -> here)
@@ -26,7 +27,6 @@ from .comparison_models import (
     DailyComparisonReport,
     TradeComparison,
     DiscrepancyRecord,
-    ComparisonResult,
     Severity,
 )
 from .comparison_exceptions import (
@@ -78,7 +78,7 @@ class ComparisonReportGenerator:
         """Dynamic list of active strategies from Registry."""
         return list(STRATEGY_REGISTRY.keys())
 
-    def _get_strategy_exchange(self, strategy_name: str) -> str:
+    def _get_strategy_exchange(self, _strategy_name: str) -> str:
         """Get exchange for strategy. System is Binance-only since PR #21."""
         return "binance"
 
@@ -242,7 +242,7 @@ class ComparisonReportGenerator:
         if not config_path.exists():
             return {}
         try:
-            with open(config_path) as f:
+            with open(config_path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             return {}
@@ -270,8 +270,8 @@ class ComparisonReportGenerator:
                     f"No market data for {report_date} on {exchange}"
                 )
             return df
-        except FileNotFoundError:
-            raise DataNotFoundError(f"Market database not found for {exchange}")
+        except FileNotFoundError as exc:
+            raise DataNotFoundError(f"Market database not found for {exchange}") from exc
 
     def _replay_backtest_day(self, df: pd.DataFrame, report_date: date, adapter) -> List[BacktestTrade]:
         adapter.symbol = "BTC"
@@ -321,9 +321,9 @@ class ComparisonReportGenerator:
                     timestamp=datetime.fromisoformat(ts_str),
                     action="buy",
                     price=close_price,
-                    volume=1.0,
-                    profit=None,
-                    profit_pct=None,
+                    quantity=1.0,
+                    profit_loss=None,
+                    profit_loss_pct=None,
                 )
             )
             return 1.0
@@ -334,9 +334,9 @@ class ComparisonReportGenerator:
                     timestamp=datetime.fromisoformat(ts_str),
                     action="sell",
                     price=close_price,
-                    volume=1.0,
-                    profit=None,
-                    profit_pct=None,
+                    quantity=1.0,
+                    profit_loss=None,
+                    profit_loss_pct=None,
                 )
             )
             return -1.0
@@ -347,9 +347,9 @@ class ComparisonReportGenerator:
                     timestamp=datetime.fromisoformat(ts_str),
                     action="sell",
                     price=close_price,
-                    volume=1.0,
-                    profit=0,
-                    profit_pct=0,
+                    quantity=1.0,
+                    profit_loss=0,
+                    profit_loss_pct=0,
                 )
             )
             return 0.0
@@ -360,9 +360,9 @@ class ComparisonReportGenerator:
                     timestamp=datetime.fromisoformat(ts_str),
                     action="buy",
                     price=close_price,
-                    volume=1.0,
-                    profit=0,
-                    profit_pct=0,
+                    quantity=1.0,
+                    profit_loss=0,
+                    profit_loss_pct=0,
                 )
             )
             return 0.0
@@ -490,7 +490,7 @@ class ComparisonReportGenerator:
             return report_id
 
         except sqlite3.Error as e:
-            raise DatabaseError(f"Failed to save report: {e}")
+            raise DatabaseError(f"Failed to save report: {e}") from e
 
     def _serialize_report(self, report: DailyComparisonReport) -> str:
         """Serialize report to JSON string."""

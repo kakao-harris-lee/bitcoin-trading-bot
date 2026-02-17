@@ -5,6 +5,8 @@ Runs backtests using the shared component adapter and registry.
 Integrates with MLflow visualization for chart generation and experiment tracking.
 """
 
+# pylint: disable=broad-exception-caught
+
 import sys
 from pathlib import Path
 import logging
@@ -79,7 +81,7 @@ CHART_OUTPUT_DIR = PROJECT_ROOT / "web" / "static" / "charts"
 CHART_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Timestamp guard for stale job reconciliation
-_last_stale_reconcile_at: float = 0.0
+_stale_reconcile_state = {"last_at": 0.0}
 
 # Initialize visualization components
 _visualizer = BacktestVisualizer()
@@ -146,7 +148,7 @@ def _is_tuned_strategy(strategy_id: str) -> bool:
     if not allocation_path.exists():
         return False
     try:
-        with open(allocation_path, 'r') as f:
+        with open(allocation_path, 'r', encoding='utf-8') as f:
             allocation = json.load(f)
         strategy_config = allocation.get('strategies', {}).get(strategy_id, {})
         return 'regime_routing' in strategy_config
@@ -161,7 +163,7 @@ def _is_new_config_strategy(strategy_id: str) -> bool:
     if not allocation_path.exists():
         return False
     try:
-        with open(allocation_path, 'r') as f:
+        with open(allocation_path, 'r', encoding='utf-8') as f:
             allocation = json.load(f)
         strategy_config = allocation.get('strategies', {}).get(strategy_id, {})
         return has_new_config_format(strategy_config)
@@ -176,7 +178,7 @@ def _has_base_strategy(strategy_id: str) -> bool:
     if not allocation_path.exists():
         return False
     try:
-        with open(allocation_path, 'r') as f:
+        with open(allocation_path, 'r', encoding='utf-8') as f:
             allocation = json.load(f)
         if strategy_id not in allocation.get('strategies', {}):
             return False
@@ -219,7 +221,7 @@ def _generate_visualization(
         _log_results_to_mlflow(results, strategy_id, initial_capital, chart_path)
 
     except Exception as e:
-        logger.warning(f"Visualization/MLflow logging failed: {e}")
+        logger.warning("Visualization/MLflow logging failed: %s", e)
         traceback.print_exc()
 
     return results
@@ -282,7 +284,7 @@ def _generate_equity_chart(
     )
     if saved_path:
         results['chart_path'] = f"/static/charts/{chart_filename}"
-        logger.info(f"Generated chart: {saved_path}")
+        logger.info("Generated chart: %s", saved_path)
         return chart_path
     return None
 
@@ -310,7 +312,7 @@ def _generate_regime_charts(
         )
         if saved_regime_path:
             results['regime_chart_path'] = f"/static/charts/{regime_filename}"
-            logger.info(f"Generated regime chart: {saved_regime_path}")
+            logger.info("Generated regime chart: %s", saved_regime_path)
 
         years = _count_years(price_data)
         if years >= 2:
@@ -327,9 +329,9 @@ def _generate_regime_charts(
                     f"/static/charts/yearly_{strategy_id}_{job_id}/{Path(p).name}"
                     for p in yearly_paths
                 ]
-                logger.info(f"Generated {len(yearly_paths)} yearly charts")
+                logger.info("Generated %d yearly charts", len(yearly_paths))
     except Exception as e:
-        logger.warning(f"Regime chart generation failed: {e}")
+        logger.warning("Regime chart generation failed: %s", e)
 
 
 def _convert_trades_for_regime_chart(raw_trades: list[dict]) -> list[dict]:
@@ -382,7 +384,7 @@ def _log_results_to_mlflow(
     if run_id:
         results['mlflow_run_id'] = run_id
         results['mlflow_url'] = _mlflow_tracker.get_run_url(run_id)
-        logger.info(f"Logged to MLflow: run_id={run_id}")
+        logger.info("Logged to MLflow: run_id=%s", run_id)
 
 
 class BacktestJob:
@@ -400,6 +402,22 @@ class BacktestJob:
         self.completed_at = None
         self._thread: Optional[threading.Thread] = None
         self._cancelled = False
+
+    @property
+    def cancelled(self) -> bool:
+        return self._cancelled
+
+    @cancelled.setter
+    def cancelled(self, value: bool) -> None:
+        self._cancelled = bool(value)
+
+    @property
+    def thread(self) -> Optional[threading.Thread]:
+        return self._thread
+
+    @thread.setter
+    def thread(self, value: Optional[threading.Thread]) -> None:
+        self._thread = value
 
     def to_dict(self) -> dict:
         return {
@@ -433,7 +451,7 @@ def _load_allocation_strategies() -> dict:
     if not allocation_path.exists():
         return {}
     try:
-        with open(allocation_path, 'r') as f:
+        with open(allocation_path, 'r', encoding='utf-8') as f:
             allocation = json.load(f)
         return allocation.get('strategies', {})
     except Exception as e:
@@ -528,7 +546,7 @@ def cancel_job(job_id: str) -> bool:
     with _jobs_lock:
         job = _backtest_jobs.get(job_id)
         if job and job.status in ('pending', 'running'):
-            job._cancelled = True
+            job.cancelled = True
             job.status = 'cancelled'
             job.completed_at = datetime.now().isoformat()
 
@@ -608,7 +626,7 @@ def run_backtest(job: BacktestJob) -> None:
             if strategy_id not in valid_ids:
                 raise ValueError(f"Invalid strategy: {strategy_id}")
 
-            if job._cancelled:
+            if job.cancelled:
                 mark_cancelled()
                 return
 
@@ -617,7 +635,7 @@ def run_backtest(job: BacktestJob) -> None:
                 strategy_id, start_date, end_date, initial_capital
             )
 
-            if job._cancelled:
+            if job.cancelled:
                 mark_cancelled()
                 return
 
@@ -659,8 +677,8 @@ def run_backtest(job: BacktestJob) -> None:
                 error=str(e)
             )
 
-    job._thread = threading.Thread(target=_run, daemon=True)
-    job._thread.start()
+    job.thread = threading.Thread(target=_run, daemon=True)
+    job.thread.start()
 
 
 def _run_tuned_strategy_backtest(
@@ -730,7 +748,7 @@ def _build_tuned_regime_strategies(tuned_config: dict) -> dict:
                 'exit': exit_cls(exit_params_obj),
             }
         except Exception as exc:
-            logger.warning(f"Failed to create components for {regime}: {exc}")
+            logger.warning("Failed to create components for %s: %s", regime, exc)
             regime_strategies[regime] = None
     return regime_strategies
 
@@ -888,7 +906,7 @@ def _run_tuned_backtest_loop(strategy_id: str, df: pd.DataFrame, regime_strategi
         'equity_curve': [],
     }
     for i in range(len(df)):
-        if job._cancelled:
+        if job.cancelled:
             return {}
         row = df.iloc[i]
         timestamp = str(row.get('timestamp', row.name))
@@ -917,7 +935,7 @@ def _run_tuned_backtest_loop(strategy_id: str, df: pd.DataFrame, regime_strategi
     return state
 
 
-def _compute_tuned_performance(state: dict, initial_capital: float, leverage: float) -> dict:
+def _compute_tuned_performance(state: dict, initial_capital: float) -> dict:
     final_capital = state['capital']
     total_return_pct = (final_capital - initial_capital) / initial_capital * 100
     close_trades, wins, losses, win_rate, profit_factor = _compute_trade_stats(
@@ -964,7 +982,7 @@ def _finalize_tuned_results(state: dict, strategy_id: str, df: pd.DataFrame, ini
         pnl = state['position_size'] * pnl_ratio
         state['capital'] += (state['position_size'] / leverage) + pnl
 
-    perf = _compute_tuned_performance(state, initial_capital, leverage)
+    perf = _compute_tuned_performance(state, initial_capital)
     trades_list = _format_tuned_trades(perf['close_trades'])
 
     return {
@@ -996,7 +1014,7 @@ def _load_allocation_config() -> dict:
     allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
     if not allocation_path.exists():
         return {}
-    with open(allocation_path, 'r') as file:
+    with open(allocation_path, 'r', encoding='utf-8') as file:
         return json.load(file)
 
 
@@ -1024,7 +1042,7 @@ def _resolve_generic_strategy_context(strategy_id: str, allocation: dict) -> dic
         tuned_config = strategy_config
     elif has_new_config_format(strategy_config):
         is_new_config = True
-        logger.info(f"Using new config format for strategy '{strategy_id}'")
+        logger.info("Using new config format for strategy '%s'", strategy_id)
     else:
         base_strategy = strategy_config.get('base_strategy')
         if not base_strategy:
@@ -1035,7 +1053,7 @@ def _resolve_generic_strategy_context(strategy_id: str, allocation: dict) -> dic
         if not base_strategy or base_strategy not in STRATEGY_REGISTRY:
             raise ValueError(f"Strategy {strategy_id} has no regime_routing and no valid base_strategy")
         base_strategy_id = base_strategy
-        logger.info(f"Using base strategy '{base_strategy}' for '{strategy_id}'")
+        logger.info("Using base strategy '%s' for '%s'", base_strategy, strategy_id)
 
     return {
         'strategy_config': strategy_config,
@@ -1090,7 +1108,7 @@ def _load_backtest_df(strategy_symbol: str, db_timeframe: str, start_date: str, 
     from core.data_loader import DataLoader
 
     db_path = SYMBOL_DB_MAPPING.get(strategy_symbol, SYMBOL_DB_MAPPING["BTC"])
-    logger.info(f"Backtest using symbol={strategy_symbol}, db={db_path.name}")
+    logger.info("Backtest using symbol=%s, db=%s", strategy_symbol, db_path.name)
     with DataLoader(db_path=str(db_path)) as loader:
         return loader.load_timeframe(db_timeframe, start_date, end_date)
 
@@ -1458,7 +1476,7 @@ def _run_generic_backtest(
     adapter = ComponentStrategyAdapter(StrategyFactory(redis=None), context['base_strategy_id'], config)
     adapter.symbol = strategy_symbol
 
-    if adapter._uses_mlp_direction:
+    if getattr(adapter, "_uses_mlp_direction", False):
         adapter.precompute_mlp_predictions(df)
         job.progress = 45
 
@@ -1476,7 +1494,7 @@ def _run_generic_backtest(
         'equity_curve': [],
     }
     for i in range(len(df)):
-        if job._cancelled:
+        if job.cancelled:
             return {}, df
         row = df.iloc[i]
         timestamp = str(row.get('timestamp', row.name))
@@ -1770,7 +1788,7 @@ def _run_walkforward_backtest(
         stage2_confirm_bars=wf_params["stage2_confirm_bars"],
         stage2_trigger_pct=wf_params["stage2_trigger_pct"],
         progress_callback=_make_walkforward_progress_callback(job),
-        should_cancel=lambda: job._cancelled,
+        should_cancel=lambda: job.cancelled,
     )
 
     if not wf_result:
@@ -1827,8 +1845,6 @@ def start_backtest(config: dict) -> BacktestJob:
 
 def cleanup_old_jobs(max_age_hours: int = 24) -> int:
     """Remove jobs older than max_age_hours."""
-    from datetime import timedelta
-
     cutoff = datetime.now() - timedelta(hours=max_age_hours)
     removed = 0
 
@@ -1900,11 +1916,10 @@ def _reconcile_stale_db_jobs(scan_limit: int = 200) -> int:
     Stale = pending/running in DB, not active in-memory, older than threshold.
     This avoids indefinitely "stuck" jobs after process restarts/crashes.
     """
-    global _last_stale_reconcile_at
     now_monotonic = time.monotonic()
-    if now_monotonic - _last_stale_reconcile_at < 60:
+    if now_monotonic - _stale_reconcile_state["last_at"] < 60:
         return 0
-    _last_stale_reconcile_at = now_monotonic
+    _stale_reconcile_state["last_at"] = now_monotonic
 
     with _jobs_lock:
         active_ids = {

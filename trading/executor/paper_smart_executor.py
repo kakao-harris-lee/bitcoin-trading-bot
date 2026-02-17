@@ -1,5 +1,6 @@
 # trading/executor/paper_smart_executor.py
 """Paper smart executor - forwards exit signals to orders stream for paper trading."""
+# pylint: disable=broad-exception-caught
 from __future__ import annotations
 import asyncio
 import logging
@@ -34,7 +35,7 @@ class PaperSmartExecutor:
         try:
             await self.redis.create_consumer_group("exit_signals", group)
         except Exception as e:
-            logger.debug(f"Consumer group creation: {e}")
+            logger.debug("Consumer group creation: %s", e)
 
         logger.info("PaperSmartExecutor started - forwarding exit_signals to orders")
 
@@ -49,7 +50,7 @@ class PaperSmartExecutor:
                     await self.redis.ack("exit_signals", group, msg["_id"])
 
             except Exception as e:
-                logger.error(f"PaperSmartExecutor error: {e}")
+                logger.error("PaperSmartExecutor error: %s", e)
                 await asyncio.sleep(1)
 
     def stop(self) -> None:
@@ -68,7 +69,7 @@ class PaperSmartExecutor:
         leverage = signal.get("leverage", 1)
 
         if not all([symbol, side, market, quantity, strategy]):
-            logger.warning(f"Invalid exit signal, missing fields: {signal}")
+            logger.warning("Invalid exit signal, missing fields: %s", signal)
             return
 
         # Create order from exit signal
@@ -85,4 +86,10 @@ class PaperSmartExecutor:
 
         # Publish to orders stream for PaperExecutor to handle
         await self.redis.publish("orders", order)
-        logger.info(f"PaperSmartExecutor forwarded exit: {symbol} {side} {quantity} ({reason})")
+        logger.info(
+            "PaperSmartExecutor forwarded exit: %s %s %s (%s)",
+            symbol,
+            side,
+            quantity,
+            reason,
+        )

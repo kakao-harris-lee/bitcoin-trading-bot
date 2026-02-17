@@ -12,11 +12,11 @@ Usage:
     # Convert to price messages for Redis
     messages = warmup.candles_to_price_messages(candles, symbol="BTC", market="futures")
 """
+# pylint: disable=broad-exception-caught
 
 from __future__ import annotations
 
 import logging
-import time
 from typing import Any
 
 import aiohttp
@@ -97,7 +97,7 @@ class DataWarmup:
                 async with session.get(url, params=params) as response:
                     if response.status != 200:
                         error = await response.text()
-                        logger.error(f"Binance API error: {response.status} - {error}")
+                        logger.error("Binance API error: %s - %s", response.status, error)
                         return []
 
                     data = await response.json()
@@ -116,15 +116,19 @@ class DataWarmup:
                 })
 
             logger.info(
-                f"Fetched {len(candles)} {interval} candles for {symbol} ({market})"
+                "Fetched %d %s candles for %s (%s)",
+                len(candles),
+                interval,
+                symbol,
+                market,
             )
             return candles
 
         except aiohttp.ClientError as e:
-            logger.error(f"Failed to fetch candles for {symbol}: {e}")
+            logger.error("Failed to fetch candles for %s: %s", symbol, e)
             return []
         except Exception as e:
-            logger.error(f"Unexpected error fetching candles for {symbol}: {e}")
+            logger.error("Unexpected error fetching candles for %s: %s", symbol, e)
             return []
 
     def candles_to_price_messages(

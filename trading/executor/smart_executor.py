@@ -1,17 +1,19 @@
 # trading/executor/smart_executor.py
 """Smart executor for optimized exit execution."""
+
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught,protected-access
+
 from __future__ import annotations
 import asyncio
 import logging
 import time
 import json
 import uuid
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
 
 from trading.strategies.volatility_tracker import VolatilityTracker
-from trading.utils.precision import PriceUtils, get_symbol_info
+from trading.utils.precision import PriceUtils
 from trading.utils.exchange_info import get_exchange_cache
 
 if TYPE_CHECKING:

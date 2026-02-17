@@ -1,5 +1,5 @@
 """RQ background tasks for optimization."""
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from enum import Enum
 import json
@@ -184,7 +184,7 @@ def _update_job_status(
         if extra:
             data.update(extra)
         r.hset(f"quant_lab:job:{job_id}", mapping={k: json.dumps(v) for k, v in data.items()})
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         pass  # Don't fail optimization if Redis update fails
 
 
@@ -197,5 +197,5 @@ def _on_trial_complete(job_id: str, study, trial) -> None:
             "current_trial": json.dumps(trial.number + 1),
             "best_values": json.dumps(study.best_trials[0].values if study.best_trials else None),
         })
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         pass

@@ -6,6 +6,8 @@ Based on Parente & Rizzuti (2025) methodology.
 Reference: docs/plans/2026-02-01-mlp-direction-strategy-design.md
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 from __future__ import annotations
 
 import logging
@@ -22,7 +24,6 @@ from .models import (
     BEAR_REGIMES,
     MLP_LABEL_HOLD,
     MLP_LABEL_BUY,
-    MLP_LABEL_SELL,
 )
 from .registry import entry_strategy
 
@@ -282,7 +283,6 @@ class MLPDirectionEntryStrategy:
         """
         market_data = ctx.market
         context = ctx.regime
-        p = self.params
         active_buy_threshold, active_position_size, switch_mode = self._resolve_runtime_profile(
             market_data
         )

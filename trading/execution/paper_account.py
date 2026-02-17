@@ -223,7 +223,7 @@ class PaperTradingAccount:
             'statistics': self.get_statistics()
         }
 
-        with open(filepath, 'w') as f:
+        with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(log, f, indent=2)
 
         print(f"✅ Paper Trading 로그 저장: {filepath}")

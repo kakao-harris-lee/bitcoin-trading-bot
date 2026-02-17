@@ -522,7 +522,7 @@ def run_walkforward_asset(
             0 = expanding (use all prior folds). >0 = sliding window.
         temporal_decay: Exponential decay rate for older samples. 0 = disabled.
     """
-    db_file, symbol = ASSET_DB[asset]
+    db_file, _symbol = ASSET_DB[asset]
     db_path = str(PROJECT_ROOT / db_file)
 
     df = load_data(db_path, "minute240", start_date, end_date, exchange="binance")

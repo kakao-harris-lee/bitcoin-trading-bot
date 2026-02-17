@@ -3,10 +3,12 @@ Trading Engine V2 - Redis Client
 Redis Streams 연결 및 관리
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import asyncio
 import json
 import logging
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 import redis.asyncio as redis
@@ -293,7 +295,7 @@ async def setup_streams_and_groups(config: Optional[Config] = None) -> bool:
 
         # 1. Streams 생성
         print("📊 Streams 생성:")
-        for name, stream_key in config.redis.streams.items():
+        for _name, stream_key in config.redis.streams.items():
             await client.create_stream(stream_key)
             print(f"   ✅ {stream_key}")
 

@@ -11,13 +11,14 @@ Usage:
     python scripts/auto_collect_data.py --altcoins # ETH/SOL only
 """
 
+# pylint: disable=broad-exception-caught
+
 import argparse
 import sqlite3
 import sys
 import time
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -55,21 +56,21 @@ def collect_btc():
     collector = BinanceSQLiteCollector(db_path)
 
     try:
-        print(f"[BTC] Collecting data...")
+        print("[BTC] Collecting data...")
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d')
 
         # Collect daily data first (needed for volatility breakout calculation)
         try:
             collector.collect_timeframe("day", start_date, end_date, update_mode=True)
-            print(f"  day: updated")
+            print("  day: updated")
         except Exception as e:
             print(f"  day: ERROR - {e}")
 
         # Collect hourly data (most important for indicators)
         try:
             collector.collect_timeframe("minute60", start_date, end_date, update_mode=True)
-            print(f"  minute60: updated")
+            print("  minute60: updated")
         except Exception as e:
             print(f"  minute60: ERROR - {e}")
 
@@ -140,7 +141,7 @@ def collect_altcoins():
             candles = exchange.fetch_ohlcv(config["symbol"], "1h", since=since, limit=500)
 
             if not candles:
-                print(f"  No new data")
+                print("  No new data")
                 conn.close()
                 continue
 

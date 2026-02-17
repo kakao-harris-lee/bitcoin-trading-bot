@@ -44,12 +44,13 @@ Usage:
 
 from __future__ import annotations
 
+# pylint: disable=logging-fstring-interpolation
+
 import logging
 from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING
 
 from .interfaces import IEntryStrategy, IExitStrategy
-from .models import MarketData, Position, Signal
 
 # Entry strategies (imports trigger registration via decorators)
 from .sideways_entry import SidewaysEntryStrategy, SidewaysEntryParams
@@ -70,13 +71,8 @@ from .registry import (
     is_exit_registered,
 )
 from .config_schema import (
-    validate_strategy_config,
     has_new_config_format,
-    ConfigValidationError,
 )
-
-# State management
-from .state_manager import StateManager
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
@@ -305,6 +301,7 @@ class StrategyFactory:
         Raises:
             ValueError: If class not found in registry.
         """
+        _ = strategy_name
         entry_config = config["entry"]
         class_name = entry_config["class"]
 

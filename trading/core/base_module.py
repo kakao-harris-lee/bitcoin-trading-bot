@@ -67,7 +67,7 @@ class BaseModule(ABC):
         Returns:
             self (체이닝용)
         """
-        self.logger.info(f"🚀 {self.module_name} 시작 중...")
+        self.logger.info("🚀 %s 시작 중...", self.module_name)
 
         # Redis 연결 (자체 생성인 경우)
         if self._own_redis:
@@ -83,12 +83,12 @@ class BaseModule(ABC):
         # 시작 이벤트 발행
         await self._publish_event(EventType.STARTUP, f"{self.module_name} 시작됨")
 
-        self.logger.info(f"✅ {self.module_name} 시작 완료")
+        self.logger.info("✅ %s 시작 완료", self.module_name)
         return self
 
     async def stop(self):
         """모듈 정지"""
-        self.logger.info(f"🛑 {self.module_name} 정지 중...")
+        self.logger.info("🛑 %s 정지 중...", self.module_name)
 
         self._running = False
 
@@ -102,7 +102,7 @@ class BaseModule(ABC):
         if self._own_redis and self._redis:
             await self._redis.disconnect()
 
-        self.logger.info(f"⬛ {self.module_name} 정지 완료")
+        self.logger.info("⬛ %s 정지 완료", self.module_name)
 
     async def run_forever(self):
         """
@@ -113,9 +113,9 @@ class BaseModule(ABC):
             while self._running:
                 await self.run_cycle()
         except asyncio.CancelledError:
-            self.logger.info(f"{self.module_name} 취소됨")
+            self.logger.info("%s 취소됨", self.module_name)
         except Exception as e:
-            self.logger.error(f"{self.module_name} 오류: {e}")
+            self.logger.error("%s 오류: %s", self.module_name, e)
             await self._publish_event(EventType.ERROR, str(e))
             raise
 
@@ -124,12 +124,12 @@ class BaseModule(ABC):
     @abstractmethod
     async def on_start(self):
         """모듈 시작 시 초기화 (서브클래스 구현)"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     async def on_stop(self):
         """모듈 정지 시 정리 (서브클래스 구현)"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     async def run_cycle(self):
@@ -141,7 +141,7 @@ class BaseModule(ABC):
         - Strategy: 신호 생성
         - Risk Manager: 신호 검증
         """
-        pass
+        raise NotImplementedError
 
     # ========== 헬퍼 메서드 ==========
 

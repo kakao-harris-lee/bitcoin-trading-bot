@@ -25,14 +25,17 @@ class BinanceLiveAccount:
         return (available, 0.0)
 
     def get_total_value(self, current_price: float) -> float:
+        _ = current_price
         info = self.trader.get_account_info() or {}
         return float(info.get("total_balance", 0.0))
 
     def open_short(self, usdt_amount: float, price: float, leverage: int = 1) -> Dict[str, Any]:  # price ignored
+        _ = price
         result = self.trader.open_short(float(usdt_amount), leverage=int(leverage))
         return result or {"success": False, "error": "OPEN_SHORT_FAILED"}
 
     def close_short(self, price: float) -> Dict[str, Any]:  # price ignored
+        _ = price
         result = self.trader.close_short()
         return result or {"success": False, "error": "CLOSE_SHORT_FAILED"}
 

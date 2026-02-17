@@ -4,8 +4,9 @@ Server Health Check Script for Bitcoin Trading Bot
 Verifies deployment integrity, Redis connectivity, and configuration.
 Usage: python scripts/server_health_check.py
 """
+# pylint: disable=broad-exception-caught,protected-access
+
 import sys
-import os
 import json
 import asyncio
 import importlib
@@ -49,13 +50,13 @@ async def check_redis():
         # Try to load config to get redis_url
         redis_url = "redis://localhost:6379"
         try:
-             config_path = PROJECT_ROOT / "config/strategies/allocation.json"
-             with open(config_path) as f:
-                 cfg = json.load(f)
-             if "redis_url" in cfg:
-                 redis_url = cfg["redis_url"]
-        except:
-             pass
+            config_path = PROJECT_ROOT / "config/strategies/allocation.json"
+            with open(config_path, encoding="utf-8") as f:
+                cfg = json.load(f)
+            if "redis_url" in cfg:
+                redis_url = cfg["redis_url"]
+        except Exception:
+            pass
 
         print(f"Checking Redis connection to {redis_url}...")
         r = RedisStreams(url=redis_url)
@@ -63,7 +64,7 @@ async def check_redis():
         if r._client:
             await r._client.ping()
             await r.disconnect()
-            print_pass(f"Redis connection OK")
+            print_pass("Redis connection OK")
             return True
         else:
             return print_fail("Redis client failed to initialize")
@@ -96,7 +97,7 @@ def check_config():
         return print_fail(f"Config not found at {path}")
 
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         print_pass(f"Config file loaded ({len(data.get('strategies', {}))} strategies configured)")

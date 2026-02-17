@@ -109,7 +109,7 @@ class MLflowConfig:
         if resolved.stat().st_size > max_size:
             raise ValueError(f"Config file too large (max {max_size} bytes)")
 
-        with open(resolved) as f:
+        with open(resolved, encoding="utf-8") as f:
             config = json.load(f)
 
         return cls.from_dict(config)

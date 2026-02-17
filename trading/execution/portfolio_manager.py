@@ -50,8 +50,11 @@ class PortfolioManager:
         self._load_assets()
         self._init_positions()
 
-        logger.info(f"PortfolioManager initialized with {len(self._assets)} assets, "
-                   f"total capital: {total_capital_krw:,.0f} KRW")
+        logger.info(
+            "PortfolioManager initialized with %d assets, total capital: %,.0f KRW",
+            len(self._assets),
+            total_capital_krw,
+        )
 
     @classmethod
     def from_config(
@@ -90,7 +93,7 @@ class PortfolioManager:
         # Validate ratios sum to ~1.0
         total_ratio = sum(a.alpha_ratio for a in self._assets.values())
         if abs(total_ratio - 1.0) > 0.01:
-            logger.warning(f"Asset ratios sum to {total_ratio:.2f}, not 1.0")
+            logger.warning("Asset ratios sum to %.2f, not 1.0", total_ratio)
 
     def _init_positions(self) -> None:
         """Initialize empty positions for all assets."""
@@ -250,13 +253,15 @@ class PortfolioManager:
     def is_overweight(self, symbol: str, threshold_pct: float = 10.0) -> bool:
         """Check if an asset is overweight vs target allocation."""
         state = self.get_portfolio_state()
-        drift = state.allocation_drift.get(symbol, 0)
+        drift_map: Dict[str, float] = dict(state.allocation_drift)
+        drift = drift_map.get(symbol, 0)
         return drift > threshold_pct
 
     def is_underweight(self, symbol: str, threshold_pct: float = 10.0) -> bool:
         """Check if an asset is underweight vs target allocation."""
         state = self.get_portfolio_state()
-        drift = state.allocation_drift.get(symbol, 0)
+        drift_map: Dict[str, float] = dict(state.allocation_drift)
+        drift = drift_map.get(symbol, 0)
         return drift < -threshold_pct
 
     def get_stats(self) -> Dict[str, Any]:
@@ -275,7 +280,7 @@ class PortfolioManager:
                     "target_ratio": self._assets[symbol].alpha_ratio,
                     "allocated_krw": self.get_capital_for_asset(symbol),
                     "position_value_krw": self._positions.get(symbol, AssetPosition(symbol=symbol)).value_krw,
-                    "drift_pct": state.allocation_drift.get(symbol, 0),
+                    "drift_pct": dict(state.allocation_drift).get(symbol, 0),
                 }
                 for symbol in self._assets
             },

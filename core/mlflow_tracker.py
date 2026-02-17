@@ -3,6 +3,8 @@
 Provides graceful degradation when MLflow is unavailable.
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import logging
 from datetime import datetime
 from pathlib import Path

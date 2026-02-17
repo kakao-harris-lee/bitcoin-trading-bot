@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketContext, MarketData, Signal, TradingContext, SIDEWAYS_REGIMES
+from .models import Signal, TradingContext, SIDEWAYS_REGIMES
 from .registry import entry_strategy
 
 logger = logging.getLogger(__name__)
@@ -83,8 +83,9 @@ class SidewaysEntryStrategy:
         # High volume often precedes breakout/trend start, killing mean reversion
         if context.is_high_volume:
             logger.debug(
-                f"{market_data.symbol}: Skipping sideways entry - high volume "
-                f"(ratio={context.volume_ratio:.2f}x) - potential breakout"
+                "%s: Skipping sideways entry - high volume (ratio=%.2fx) - potential breakout",
+                market_data.symbol,
+                context.volume_ratio,
             )
             return None
 
@@ -93,16 +94,18 @@ class SidewaysEntryStrategy:
         regime = context.regime
         if not self.params.regime_bypass and not self._should_enter(regime):
             logger.debug(
-                f"{market_data.symbol}: Skipping sideways entry - not SIDEWAYS regime "
-                f"({regime})"
+                "%s: Skipping sideways entry - not SIDEWAYS regime (%s)",
+                market_data.symbol,
+                regime,
             )
             return None
 
         # === SAFETY FILTER 3: Extreme volatility ===
         if context.is_extreme_volatility:
             logger.debug(
-                f"{market_data.symbol}: Skipping sideways entry - extreme volatility "
-                f"({context.volatility_score*100:.2f}%)"
+                "%s: Skipping sideways entry - extreme volatility (%.2f%%)",
+                market_data.symbol,
+                context.volatility_score * 100,
             )
             return None
 
@@ -112,7 +115,7 @@ class SidewaysEntryStrategy:
                 f"SidewaysV2 entry: {regime}, "
                 f"RSI={market_data.rsi:.1f} (oversold)"
             )
-            logger.info(f"{market_data.symbol}: {reason}")
+            logger.info("%s: %s", market_data.symbol, reason)
 
             return Signal(
                 symbol=market_data.symbol,

@@ -55,7 +55,7 @@ class BaseExitStrategy(ABC):
         Returns:
             Exit Signal if conditions met, None otherwise.
         """
-        pass
+        raise NotImplementedError
 
     # === Position Key Management ===
 
@@ -247,7 +247,11 @@ class BaseExitStrategy(ABC):
         self._high_water_marks[key] = position.entry_price
         self._exit_stages[key] = 0
         self._candles_held[key] = 0
-        logger.debug(f"{position.symbol}: Position opened, HWM={position.entry_price:.2f}")
+        logger.debug(
+            "%s: Position opened, HWM=%.2f",
+            position.symbol,
+            position.entry_price,
+        )
 
     def on_position_closed(self, symbol: str) -> None:
         """Called when a position is fully closed.
@@ -261,4 +265,4 @@ class BaseExitStrategy(ABC):
         for k in keys:
             self._clear_state(k)
         if keys:
-            logger.debug(f"{symbol}: Position closed, state cleared")
+            logger.debug("%s: Position closed, state cleared", symbol)

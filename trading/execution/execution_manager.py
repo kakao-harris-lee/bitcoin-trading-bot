@@ -9,19 +9,19 @@ Trading Engine V2 - Execution Manager
 - 체결 결과 발행
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught,unnecessary-ellipsis
+
 import asyncio
 import logging
 from typing import Optional, Dict, Any, List, Protocol
 from datetime import datetime
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 
 from ..core.base_module import BaseModule
 from ..core.config import Config
 from core.types import (
-    OrderMessage, Exchange, Direction, Action, OrderStatus,
-    EventType, create_message_id, current_timestamp
+    OrderMessage, Exchange, Direction, Action, create_message_id
 )
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ class BinanceAdapter:
         price: Optional[float] = None,
         order_type: str = "MARKET",
         leverage: int = 1,
-        position_side: str = "BOTH"
+        _position_side: str = "BOTH"
     ) -> Dict[str, Any]:
         """
         Binance Futures 주문 실행
@@ -160,7 +160,7 @@ class BinanceAdapter:
             self.logger.error(f"Binance 주문 실패: {e}")
             return {"error": str(e), "status": "FAILED"}
 
-    async def cancel_order(self, order_id: str, symbol: str) -> bool:
+    async def cancel_order(self, order_id: str, _symbol: str) -> bool:
         """주문 취소"""
         try:
             self.logger.info(f"Binance 주문 취소: {order_id}")
@@ -431,7 +431,7 @@ class ExecutionManager(BaseModule):
 
     async def _check_active_orders(self):
         """활성 주문 상태 확인"""
-        for order_id, tracker in list(self.active_orders.items()):
+        for _order_id, tracker in list(self.active_orders.items()):
             if tracker.state in [OrderState.SUBMITTED, OrderState.PARTIAL]:
                 try:
                     result = await self.binance.get_order_status(

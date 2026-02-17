@@ -11,7 +11,6 @@ import sqlite3
 import pandas as pd
 from pathlib import Path
 from typing import Optional, List, Tuple, Literal
-from datetime import datetime
 
 # 프로젝트 루트 기준 기본 DB 경로
 _PROJECT_ROOT = Path(__file__).parent.parent
@@ -136,6 +135,7 @@ class DataLoader:
         Returns:
             DataFrame with columns: timestamp, open, high, low, close, volume
         """
+        _ = exchange
         return self._load_binance_timeframe(timeframe, start_date, end_date, columns=columns)
 
     def _load_binance_timeframe(
@@ -304,13 +304,13 @@ class DataLoader:
 if __name__ == "__main__":
     with DataLoader() as loader:
         # 5분봉 데이터 로드
-        df = loader.load_timeframe("minute5", start_date="2024-01-01")
-        print(f"✅ 5분봉 데이터: {len(df)} 레코드")
-        print(df.head())
+        sample_df = loader.load_timeframe("minute5", start_date="2024-01-01")
+        print(f"✅ 5분봉 데이터: {len(sample_df)} 레코드")
+        print(sample_df.head())
 
         # 데이터 분할
         train, val, test = loader.split_by_date(
-            df,
+            sample_df,
             train_end="2023-12-31",
             val_end="2024-06-30"
         )

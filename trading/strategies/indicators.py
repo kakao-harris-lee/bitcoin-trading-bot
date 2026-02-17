@@ -1,13 +1,13 @@
 # trading/strategies/indicators.py
 """Technical indicators using OHLCV data from database."""
+# pylint: disable=no-member,broad-exception-caught
+
 from __future__ import annotations
 import logging
 import sqlite3
 from pathlib import Path
-from functools import lru_cache
 import numpy as np
 import talib
-from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +35,11 @@ def load_ohlcv(symbol: str, periods: int = 100) -> dict | None:
     try:
         rows = _fetch_ohlcv_rows(db_path, table_name, periods)
         if len(rows) < 20:
-            logger.warning(f"Insufficient data for {symbol}: {len(rows)} rows")
+            logger.warning("Insufficient data for %s: %d rows", symbol, len(rows))
             return None
         return _rows_to_ohlcv(rows)
     except Exception as e:
-        logger.error(f"Failed to load OHLCV for {symbol}: {e}")
+        logger.error("Failed to load OHLCV for %s: %s", symbol, e)
         return None
 
 
@@ -47,10 +47,10 @@ def _resolve_ohlcv_source(symbol: str) -> tuple[Path, str] | None:
     db_path = DB_MAPPING.get(symbol)
     table_name = TABLE_MAPPING.get(symbol)
     if not db_path or not table_name:
-        logger.warning(f"No database mapping for {symbol}")
+        logger.warning("No database mapping for %s", symbol)
         return None
     if not db_path.exists():
-        logger.warning(f"Database not found: {db_path}")
+        logger.warning("Database not found: %s", db_path)
         return None
     return db_path, table_name
 
@@ -231,5 +231,5 @@ def get_indicators(symbol: str, periods: int = 100) -> dict | None:
             "timestamp": ohlcv["timestamp"][-1],
         }
     except Exception as e:
-        logger.error(f"Indicator calculation failed for {symbol}: {e}")
+        logger.error("Indicator calculation failed for %s: %s", symbol, e)
         return None

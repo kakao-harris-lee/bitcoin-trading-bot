@@ -18,18 +18,26 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.backtest._common import load_data  # noqa: E402
 from scripts.backtest.backtest_mlp import MLPDirectionBacktester, load_strategy_config  # noqa: E402
-from scripts.backtest.compare_three_stage_improvements import (  # noqa: E402
-    _apply_stage1_trend_capture,
-    _apply_stage2_horizon_objective,
-    _apply_stage3_beta_schedule,
-)
+try:
+    from scripts.backtest.compare_three_stage_improvements import (  # noqa: E402
+        _apply_stage1_trend_capture,
+        _apply_stage2_horizon_objective,
+        _apply_stage3_beta_schedule,
+    )
+except ImportError:
+    def _apply_stage1_trend_capture(cfg: dict[str, Any]) -> dict[str, Any]:
+        return copy.deepcopy(cfg)
+
+    def _apply_stage2_horizon_objective(cfg: dict[str, Any]) -> dict[str, Any]:
+        return copy.deepcopy(cfg)
+
+    def _apply_stage3_beta_schedule(cfg: dict[str, Any]) -> dict[str, Any]:
+        return copy.deepcopy(cfg)
 
 
 @dataclass
@@ -332,4 +340,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

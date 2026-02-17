@@ -2,12 +2,13 @@
 텔레그램 명령어 핸들러
 봇 명령어를 처리하고 응답
 """
+# pylint: disable=broad-exception-caught
 
 import os
 import time
 import threading
 import requests
-from typing import Optional, Callable, Dict, Any
+from typing import Callable, Dict, Any
 from dotenv import load_dotenv
 
 

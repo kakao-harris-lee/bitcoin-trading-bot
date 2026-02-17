@@ -7,10 +7,8 @@ import atexit
 import json
 import sqlite3
 import threading
-from contextlib import contextmanager
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, List, Optional
 
 # Database path
 DB_PATH = Path(__file__).parent.parent.parent / "data" / "backtest_history.db"
@@ -45,7 +43,7 @@ def close_all_connections() -> None:
         for conn in _all_connections:
             try:
                 conn.close()
-            except Exception:
+            except sqlite3.Error:
                 pass
         _all_connections.clear()
 

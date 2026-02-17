@@ -4,13 +4,15 @@
 BTCUSDT 무기한 선물 거래 (숏 포지션)
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import logging
 import os
 import time
 from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 from binance.client import Client
-from binance.enums import *
+from binance.enums import ORDER_TYPE_MARKET, SIDE_BUY, SIDE_SELL
 from binance.exceptions import BinanceAPIException
 from dotenv import load_dotenv
 
@@ -70,7 +72,7 @@ class BinanceFuturesTrader:
             total_balance = float(account['totalWalletBalance'])
             print(f"✅ 바이낸스 선물 연결 성공 (총 잔고: {total_balance:.2f} USDT)")
         except Exception as e:
-            raise ConnectionError(f"바이낸스 선물 연결 실패: {e}")
+            raise ConnectionError(f"바이낸스 선물 연결 실패: {e}") from e
 
     def _initialize_futures(self):
         """선물 계정 초기화"""
@@ -96,7 +98,7 @@ class BinanceFuturesTrader:
                     raise
 
         except Exception as e:
-            raise RuntimeError(f"선물 계정 초기화 실패: {e}")
+            raise RuntimeError(f"선물 계정 초기화 실패: {e}") from e
 
     def get_current_price(self) -> float:
         """현재 BTC 가격 조회"""
@@ -432,8 +434,6 @@ class BinanceFuturesTrader:
 
 
 if __name__ == '__main__':
-    """테스트"""
-
     print("=" * 70)
     print("  바이낸스 선물 트레이더 - 테스트")
     print("=" * 70)
@@ -442,34 +442,34 @@ if __name__ == '__main__':
         trader = BinanceFuturesTrader()
 
         # 계정 정보
-        account = trader.get_account_info()
-        print(f"\n[계정 정보]")
-        print(f"  총 잔고: {account['total_balance']:.2f} USDT")
-        print(f"  사용 가능: {account['available_balance']:.2f} USDT")
-        print(f"  미실현 손익: {account['unrealized_pnl']:+.2f} USDT")
+        account_info = trader.get_account_info()
+        print("\n[계정 정보]")
+        print(f"  총 잔고: {account_info['total_balance']:.2f} USDT")
+        print(f"  사용 가능: {account_info['available_balance']:.2f} USDT")
+        print(f"  미실현 손익: {account_info['unrealized_pnl']:+.2f} USDT")
 
         # 현재 포지션
-        position = trader.get_position()
-        if position:
-            print(f"\n[현재 포지션]")
-            print(f"  {position['side']}: {abs(position['position_amt']):.3f} BTC")
-            print(f"  진입가: {position['entry_price']:,.2f} USDT")
-            print(f"  미실현 손익: {position['unrealized_pnl']:+.2f} USDT")
-            print(f"  레버리지: {position['leverage']}배")
+        current_position = trader.get_position()
+        if current_position:
+            print("\n[현재 포지션]")
+            print(f"  {current_position['side']}: {abs(current_position['position_amt']):.3f} BTC")
+            print(f"  진입가: {current_position['entry_price']:,.2f} USDT")
+            print(f"  미실현 손익: {current_position['unrealized_pnl']:+.2f} USDT")
+            print(f"  레버리지: {current_position['leverage']}배")
         else:
-            print(f"\n[현재 포지션]")
-            print(f"  없음")
+            print("\n[현재 포지션]")
+            print("  없음")
 
         # 현재 가격
-        current_price = trader.get_current_price()
-        print(f"\n[현재 가격]")
-        print(f"  BTC/USDT: {current_price:,.2f} USDT")
+        latest_price = trader.get_current_price()
+        print("\n[현재 가격]")
+        print(f"  BTC/USDT: {latest_price:,.2f} USDT")
 
-        print(f"\n✅ 테스트 완료!")
-        print(f"\n⚠️  실제 거래를 위해서는 .env 파일에 다음을 추가하세요:")
-        print(f"   BINANCE_API_KEY=your_api_key")
-        print(f"   BINANCE_API_SECRET=your_api_secret")
+        print("\n✅ 테스트 완료!")
+        print("\n⚠️  실제 거래를 위해서는 .env 파일에 다음을 추가하세요:")
+        print("   BINANCE_API_KEY=your_api_key")
+        print("   BINANCE_API_SECRET=your_api_secret")
 
     except Exception as e:
         print(f"\n❌ 테스트 실패: {e}")
-        print(f"\n💡 .env 파일에 바이낸스 API 키를 추가하세요.")
+        print("\n💡 .env 파일에 바이낸스 API 키를 추가하세요.")

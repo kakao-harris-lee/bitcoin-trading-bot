@@ -1,10 +1,11 @@
 """Multi-objective optimization function for regime-based and MLP strategies."""
+# pylint: disable=broad-exception-caught
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Any, Optional
 import optuna
 from optuna.study import StudyDirection
 
-from .search_space import SearchSpaceConfig, sample_trial_config, sample_mlp_trial_config, REGIMES
+from .search_space import SearchSpaceConfig, sample_trial_config, sample_mlp_trial_config
 
 
 @dataclass
@@ -56,7 +57,6 @@ class RegimeBacktestObjective:
         Returns:
             Dict with win_rate, total_return, max_drawdown
         """
-        import os
         import sys
         from pathlib import Path
 
@@ -69,7 +69,6 @@ class RegimeBacktestObjective:
 
         from core.data_loader import DataLoader
         from core.backtester import Backtester
-        from trading.strategies.components import StrategyFactory
         from trading.strategies.components.registry import get_entry_class, get_exit_class
         from trading.indicators import add_all_indicators
         from trading.strategies.components.models import build_market_context
@@ -101,7 +100,6 @@ class RegimeBacktestObjective:
         df = add_all_indicators(df)
         
         # Create strategy factory and instantiate components per regime
-        factory = StrategyFactory()
         regime_strategies = {}
         
         for regime, regime_config in config.items():
@@ -147,16 +145,16 @@ class RegimeBacktestObjective:
                 }
             except Exception as e:
                 # Skip this regime if component instantiation fails
-                logger.warning(f"Failed to create components for {regime}: {e}")
+                logger.warning("Failed to create components for %s: %s", regime, e)
                 regime_strategies[regime] = None
         
         # Extract regime classification thresholds (if sampled by Optuna)
         regime_thresholds = config.pop("regime_thresholds", {})
 
         # Create regime-aware strategy function for backtester
-        current_position = {"position": None, "regime": None}
+        current_position: Dict[str, Any] = {"position": None, "regime": None}
         
-        def regime_strategy_func(df_data: pd.DataFrame, i: int, params: dict) -> dict:
+        def regime_strategy_func(df_data: pd.DataFrame, i: int, _params: dict) -> dict:
             """Strategy function that switches based on current regime."""
             if i < 200:  # Need enough data for indicators
                 return {"action": "hold"}
@@ -219,17 +217,18 @@ class RegimeBacktestObjective:
             )
             
             # Check exit first if we have a position
-            if current_position["position"] is not None:
+            position_data = current_position.get("position")
+            if isinstance(position_data, dict):
                 from trading.strategies.components.models import Position, TradingContext
                 from types import MappingProxyType
 
                 pos = Position(
-                    symbol=current_position["position"]["symbol"],
-                    entry_price=current_position["position"]["entry_price"],
-                    quantity=current_position["position"]["quantity"],
+                    symbol=position_data["symbol"],
+                    entry_price=position_data["entry_price"],
+                    quantity=position_data["quantity"],
                     strategy="optimization",
                     market="spot",
-                    timestamp=current_position["position"]["timestamp"],
+                    timestamp=position_data["timestamp"],
                 )
 
                 # Create TradingContext for exit strategy
@@ -290,7 +289,7 @@ class RegimeBacktestObjective:
             }
         except Exception as e:
             # Log error and re-raise to fail the trial
-            logger.error(f"Backtest error: {e}", exc_info=True)
+            logger.error("Backtest error: %s", e, exc_info=True)
             raise
 
 
@@ -340,13 +339,13 @@ class MLPDirectionObjective:
 
         # Load base strategy config from allocation.json
         try:
-            allocation, strategy_id, strategy_config = load_strategy_config(
+            _allocation, _strategy_id, strategy_config = load_strategy_config(
                 config_path=self.config_path,
                 symbol=self.asset,
                 mode="paper",
             )
         except ValueError as e:
-            logger.error(f"Failed to load strategy config: {e}")
+            logger.error("Failed to load strategy config: %s", e)
             raise
 
         # Inject sampled ensemble weights into config

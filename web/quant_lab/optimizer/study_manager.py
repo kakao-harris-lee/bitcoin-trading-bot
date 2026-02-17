@@ -137,7 +137,7 @@ class StudyManager:
                 if trial.number == trial_number:
                     return trial
             return None
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             return None
 
     def get_trial_config(self, study_name: str, trial_number: int) -> Dict[str, Any]:

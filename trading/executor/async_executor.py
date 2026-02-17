@@ -1,5 +1,8 @@
 # trading/executor/async_executor.py
 """Async executor for processing order stream."""
+
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 from __future__ import annotations
 import asyncio
 import logging
@@ -235,6 +238,8 @@ class AsyncExecutor:
 
         # Update position
         profit_data = None
+        entry_price = 0.0
+        entry_time = 0
         if is_exit:
             # Capture position data BEFORE clearing
             position = await self.redis.get_position(order["symbol"], "spot")
@@ -331,6 +336,8 @@ class AsyncExecutor:
 
         # Update position
         profit_data = None
+        entry_price = 0.0
+        entry_time = 0
         if is_exit:
             # Capture position data BEFORE clearing
             position = await self.redis.get_position(order["symbol"], order["market"])

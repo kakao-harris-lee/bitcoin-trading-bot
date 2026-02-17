@@ -158,6 +158,8 @@ class MetricsCollector:
 
     _instance: Optional["MetricsCollector"] = None
     _lock = threading.Lock()
+    _metrics: TradingMetrics
+    _metrics_lock: threading.RLock
 
     def __new__(cls) -> "MetricsCollector":
         """Singleton pattern."""
@@ -181,6 +183,7 @@ class MetricsCollector:
 
     def record_trade(self, symbol: str, action: str, amount: float = 0) -> None:
         """Record a trade execution."""
+        _ = amount
         with self._metrics_lock:
             self._metrics.trades_executed[f"{symbol}:{action}"] += 1
 

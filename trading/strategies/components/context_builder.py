@@ -262,7 +262,7 @@ class TradingContextBuilder:
         # 1. Get market data from IndicatorService (already cached)
         market_data = self._indicators.get_market_data(symbol)
         if market_data is None:
-            logger.debug(f"TradingContextBuilder: No market data for {symbol}")
+            logger.debug("TradingContextBuilder: No market data for %s", symbol)
             return None
 
         # 2. Build regime context (computed once here)

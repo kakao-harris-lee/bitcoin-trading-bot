@@ -4,7 +4,7 @@ Pydantic 모델로 정의된 메시지 타입
 """
 
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Literal
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
@@ -263,6 +263,5 @@ class PortfolioState(BaseModel):
 
     def get_position(self, symbol: str) -> Optional[AssetPosition]:
         """Get position for a specific asset."""
-        return self.positions.get(symbol)
-
-
+        positions_map: Dict[str, AssetPosition] = dict(self.positions)
+        return positions_map.get(symbol)

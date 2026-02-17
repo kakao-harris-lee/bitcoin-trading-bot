@@ -123,6 +123,7 @@ def train_xgboost(
     use_sample_weights: bool = False,
 ) -> "xgb.Booster":
     """Train XGBoost multi-class classifier."""
+    _ = feature_names
     import xgboost as xgb
 
     n_classes = len(np.unique(y_train))
@@ -133,7 +134,7 @@ def train_xgboost(
     if use_sample_weights:
         sw = compute_sample_weights(y_train)
         dtrain.set_weight(sw)
-        print(f"  Sample weights applied (class balance correction)")
+        print("  Sample weights applied (class balance correction)")
 
     params = {
         "objective": "multi:softprob",
@@ -176,6 +177,7 @@ def train_lightgbm(
     use_sample_weights: bool = False,
 ) -> "lgb.Booster":
     """Train LightGBM multi-class classifier."""
+    _ = feature_names
     import lightgbm as lgb
 
     n_classes = len(np.unique(y_train))
@@ -185,7 +187,7 @@ def train_lightgbm(
     dval = lgb.Dataset(X_val, label=y_val, reference=dtrain)
 
     if use_sample_weights:
-        print(f"  Sample weights applied (class balance correction)")
+        print("  Sample weights applied (class balance correction)")
 
     params = {
         "objective": "multiclass",
@@ -222,6 +224,7 @@ def train_lightgbm(
 
 def evaluate_model(model, X_test, y_test, model_type: str, feature_names: list[str] | None = None) -> dict:
     """Evaluate model accuracy on test set."""
+    _ = feature_names
     from sklearn.metrics import accuracy_score, classification_report
 
     if model_type == "xgboost":
@@ -239,7 +242,7 @@ def evaluate_model(model, X_test, y_test, model_type: str, feature_names: list[s
     acc = accuracy_score(y_test, preds)
 
     print(f"\n  Test Accuracy: {acc:.4f} ({acc*100:.1f}%)")
-    print(f"\n  Classification Report:")
+    print("\n  Classification Report:")
     labels = ["HOLD", "BUY", "SELL"]
     print(classification_report(y_test, preds, target_names=labels, digits=3))
 

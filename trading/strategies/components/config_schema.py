@@ -33,8 +33,6 @@ logger = logging.getLogger(__name__)
 class ConfigValidationError(Exception):
     """Raised when strategy configuration is invalid."""
 
-    pass
-
 
 def validate_strategy_config(
     strategy_name: str,

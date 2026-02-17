@@ -2,13 +2,14 @@
 """Async Telegram task for stream-based notifications and commands."""
 from __future__ import annotations
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught,protected-access
+
 import asyncio
 import logging
 import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import aiohttp
 import pyotp

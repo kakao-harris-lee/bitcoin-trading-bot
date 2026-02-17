@@ -7,7 +7,6 @@ business logic.
 
 from dataclasses import dataclass
 from functools import lru_cache
-from types import MappingProxyType
 from typing import Literal, Mapping
 
 # Type-safe regime classification (7-level)

@@ -113,7 +113,7 @@ def generate_forward_test_report(
 
     # Write report
     report_path = output_dir / f"forward_test_{symbol.lower()}_{start_date.replace('-', '')}_{end_date.replace('-', '')}.md"
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write("\n".join(report))
 
     return str(report_path)

@@ -46,7 +46,7 @@ def resolve_kill_switch_path(path: str) -> Path:
 def kill_switch_active(path: str) -> bool:
     try:
         return resolve_kill_switch_path(path).exists()
-    except Exception:
+    except (OSError, ValueError):
         return False
 
 

@@ -9,6 +9,7 @@ Model type is auto-detected from file extension:
     - .json → XGBoost (via TreeModelWrapper)
     - .txt → LightGBM (via TreeModelWrapper)
 """
+# pylint: disable=broad-exception-caught
 
 from __future__ import annotations
 
@@ -77,7 +78,7 @@ class MLPEnsemblePredictor:
             weight = cfg.get("weight", 1.0)
 
             if not model_path.exists():
-                logger.warning(f"MLPEnsemble: Model not found: {model_path}")
+                logger.warning("MLPEnsemble: Model not found: %s", model_path)
                 continue
 
             try:
@@ -105,19 +106,17 @@ class MLPEnsemblePredictor:
                 model.eval()
                 self._models.append(model)
                 self._weights.append(weight)
-                logger.info(
-                    f"MLPEnsemble: Loaded {model_label} "
-                    f"(weight={weight:.2f})"
-                )
+                logger.info("MLPEnsemble: Loaded %s (weight=%.2f)", model_label, weight)
             except Exception as e:
-                logger.warning(f"MLPEnsemble: Failed to load {model_path}: {e}")
+                logger.warning("MLPEnsemble: Failed to load %s: %s", model_path, e)
 
         self._available = len(self._models) > 0
 
         if self._available:
             logger.info(
-                f"MLPEnsemble: {len(self._models)}/{len(self._configs)} "
-                f"models loaded"
+                "MLPEnsemble: %d/%d models loaded",
+                len(self._models),
+                len(self._configs),
             )
         else:
             logger.error("MLPEnsemble: No models loaded")
@@ -173,7 +172,7 @@ class MLPEnsemblePredictor:
                 weighted_probs += weight * probs
                 total_weight += weight
             except Exception as e:
-                logger.warning(f"MLPEnsemble: Model inference failed: {e}")
+                logger.warning("MLPEnsemble: Model inference failed: %s", e)
 
         if total_weight <= 0:
             return 0, 0.0, np.array([1.0, 0.0, 0.0])
@@ -207,7 +206,7 @@ class MLPEnsemblePredictor:
                 weighted_probs += weight * probs
                 total_weight += weight
             except Exception as e:
-                logger.warning(f"MLPEnsemble: Batch inference failed: {e}")
+                logger.warning("MLPEnsemble: Batch inference failed: %s", e)
 
         if total_weight <= 0:
             return (

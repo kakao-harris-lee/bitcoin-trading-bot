@@ -1,5 +1,8 @@
 # trading/engine.py
 """Lightweight trading engine orchestrator."""
+
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 from __future__ import annotations
 import asyncio
 import json
@@ -38,7 +41,7 @@ def _expand_env_vars(obj: Any) -> Any:
 
 def load_config(path: str) -> dict[str, Any]:
     """Load configuration from JSON file with environment variable expansion."""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         config = json.load(f)
     return _expand_env_vars(config)
 
@@ -51,6 +54,11 @@ class TradingEngine:
         self.redis: RedisStreams | None = None
         self.tasks: list[asyncio.Task] = []
         self._shutdown_event = asyncio.Event()
+
+    def _get_redis_client(self):
+        if not self.redis:
+            return None
+        return getattr(self.redis, "_client", None)
 
     async def start(self, mode: str = "paper") -> None:
         """Start all trading components."""
@@ -242,7 +250,9 @@ class TradingEngine:
                 f"Mode changed ({previous_mode} -> {mode}); resetting daily_pnl to 0."
             )
 
-        await self.redis._client.hset("risk", mapping=updates)
+        redis_client = self._get_redis_client()
+        if redis_client is not None:
+            await redis_client.hset("risk", mapping=updates)
         logger.info(f"Loaded existing risk state: daily_pnl={current_risk.get('daily_pnl')}")
 
     def _signal_handler(self) -> None:
@@ -289,7 +299,8 @@ class TradingEngine:
             mode: Trading mode ("paper" or "live").
         """
         # Create factory with Redis client for persistent strategies
-        factory = StrategyFactory(redis=self.redis._client)
+        redis_client = self._get_redis_client()
+        factory = StrategyFactory(redis=redis_client)
 
         # Determine if we should use persistence (live mode)
         use_persistence = mode == "live"
@@ -301,7 +312,7 @@ class TradingEngine:
         logger.info(f"Created shared IndicatorService (cache_ttl={indicator_cache_ttl}s)")
 
         # Create shared TradingContextBuilder for centralized context
-        position_manager = PositionManager(self.redis._client)
+        position_manager = PositionManager(redis_client)
         regime_thresholds = self.config.get("defaults", {}).get("regime_thresholds", {})
         context_builder = TradingContextBuilder(
             indicator_service=indicator_service,

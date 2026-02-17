@@ -5,6 +5,8 @@ Validates configuration at startup to catch errors early,
 before they cause runtime failures.
 """
 
+# pylint: disable=broad-exception-caught,logging-fstring-interpolation,redefined-outer-name,unnecessary-pass
+
 import logging
 import os
 from dataclasses import dataclass, field
@@ -194,7 +196,7 @@ class ConfigValidator:
 
         # Collect strategies referenced by enabled assets
         referenced_strategies = set()
-        for symbol, asset_config in config.get("assets", {}).items():
+        for _symbol, asset_config in config.get("assets", {}).items():
             is_enabled = asset_config.get("binance_enabled")
             if is_enabled and asset_config.get("strategy"):
                 referenced_strategies.add(asset_config["strategy"])
@@ -218,7 +220,7 @@ class ConfigValidator:
             return result
 
         try:
-            with open(config_path) as f:
+            with open(config_path, encoding="utf-8") as f:
                 strategy_config = json.load(f)
         except json.JSONDecodeError as e:
             result.add_error(f"Strategy '{strategy}': invalid JSON - {e}")
@@ -432,7 +434,7 @@ class ConfigValidator:
         """Default Redis connection test."""
         import redis
         host = os.getenv("REDIS_HOST", "localhost")
-        port = int(os.getenv("REDIS_PORT", 6379))
+        port = int(os.getenv("REDIS_PORT", "6379"))
         r = redis.Redis(host=host, port=port, socket_timeout=5.0)
         r.ping()
 

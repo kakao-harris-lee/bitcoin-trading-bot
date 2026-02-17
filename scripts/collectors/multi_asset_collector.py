@@ -14,12 +14,13 @@ Usage:
     python scripts/collectors/multi_asset_collector.py --validation-only --output data/validation_4h
 """
 
+# pylint: disable=logging-fstring-interpolation
+
 import argparse
 import asyncio
 import aiohttp
 import logging
 import time
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -116,7 +117,7 @@ class MultiAssetCollector:
             logger.info(f"Found {len(pairs)} USDT trading pairs")
             return sorted(pairs)
 
-        except Exception as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as e:
             logger.error(f"Error fetching exchange info: {e}")
             return []
 
@@ -159,7 +160,7 @@ class MultiAssetCollector:
 
                     return await resp.json()
 
-            except Exception as e:
+            except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as e:
                 logger.warning(f"Error fetching {symbol}: {e}")
                 return []
 

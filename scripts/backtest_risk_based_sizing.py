@@ -11,13 +11,16 @@ Usage:
     python scripts/backtest_risk_based_sizing.py
     python scripts/backtest_risk_based_sizing.py --start 2023-01-01 --end 2026-01-01
 """
+
+# pylint: disable=logging-fstring-interpolation
+
 import sys
 import json
 import argparse
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 import pandas as pd
 import numpy as np
@@ -37,9 +40,6 @@ from core.metrics import (
     calculate_benchmark,
     calculate_sharpe_ratio,
     calculate_max_drawdown,
-    calculate_cagr,
-    calculate_sortino_ratio,
-    calculate_calmar_ratio,
 )
 from trading.strategies.components import StrategyFactory
 from trading.indicators import add_all_indicators
@@ -106,6 +106,10 @@ class RiskBasedBacktester:
         self.position_stop_price = 0.0
         self.trades = []
         self.equity_curve = []
+        self.core_position = 0.0
+        self.core_entry_price = 0.0
+        self.core_cash = 0.0
+        self.overlay_cash = 0.0
 
     def reset(self):
         """Reset state for new run."""
@@ -857,7 +861,7 @@ def main():
 
     print(f"\nLoading {strategy_name} config...")
     config_path = Path(__file__).parent.parent / "config" / "strategies" / "allocation.json"
-    with open(config_path) as f:
+    with open(config_path, encoding='utf-8') as f:
         allocation = json.load(f)
 
     config = allocation['strategies'].get(strategy_name, {})
@@ -904,7 +908,7 @@ def main():
     print_results(results, f'{strategy_name} (Risk-Based Sizing)')
 
     # Calculate and print benchmark
-    benchmark_curve, benchmark_return = calculate_benchmark(df, args.capital, 'close')
+    _, benchmark_return = calculate_benchmark(df, args.capital, 'close')
 
     # Print judgment summary
     print_judgment_summary(results, benchmark_return)

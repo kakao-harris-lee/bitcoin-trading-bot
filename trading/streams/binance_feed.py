@@ -1,7 +1,7 @@
 # trading/streams/binance_feed.py
 """Binance-specific price feed implementation."""
+# pylint: disable=broad-exception-caught
 from __future__ import annotations
-import asyncio
 import json
 import logging
 from typing import Any, AsyncIterator, TYPE_CHECKING
@@ -67,8 +67,11 @@ class BinanceFeedTask(SymbolFeedTask):
         This eliminates the need to wait for 180+ candles after restart.
         """
         logger.info(
-            f"Feed {self.symbol} ({self.market}): Starting warm-up "
-            f"({self._warmup_limit} {self._warmup_interval} candles)"
+            "Feed %s (%s): Starting warm-up (%d %s candles)",
+            self.symbol,
+            self.market,
+            self._warmup_limit,
+            self._warmup_interval,
         )
 
         try:
@@ -81,7 +84,7 @@ class BinanceFeedTask(SymbolFeedTask):
             )
 
             if not messages:
-                logger.warning(f"Feed {self.symbol}: No warm-up data received")
+                logger.warning("Feed %s: No warm-up data received", self.symbol)
                 return
 
             # Publish historical data to Redis stream
@@ -90,12 +93,14 @@ class BinanceFeedTask(SymbolFeedTask):
 
             self._warmed_up = True
             logger.info(
-                f"Feed {self.symbol} ({self.market}): Warm-up complete, "
-                f"published {len(messages)} historical prices"
+                "Feed %s (%s): Warm-up complete, published %d historical prices",
+                self.symbol,
+                self.market,
+                len(messages),
             )
 
         except Exception as e:
-            logger.error(f"Feed {self.symbol}: Warm-up failed: {e}")
+            logger.error("Feed %s: Warm-up failed: %s", self.symbol, e)
             # Continue anyway - WebSocket will provide live data
 
     def _build_ws_url(self) -> str:
@@ -133,7 +138,7 @@ class BinanceFeedTask(SymbolFeedTask):
     async def _connect_websocket(self) -> AsyncIterator[AsyncIterator[dict]]:
         """Connect to Binance WebSocket."""
         url = self._build_ws_url()
-        logger.info(f"Connecting to {url}")
+        logger.info("Connecting to %s", url)
 
         async with aiohttp.ClientSession() as session:
             async with session.ws_connect(url) as ws:

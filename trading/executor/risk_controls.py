@@ -8,13 +8,12 @@ Centralized risk management:
 """
 
 import logging
-from datetime import datetime, date
-from typing import Dict, Any, Optional
+from datetime import date
+from typing import Dict, Any
 
 from trading.risk.risk_controls import (
     kill_switch_active,
     set_kill_switch as file_set_kill_switch,
-    RiskConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,7 +50,11 @@ class RiskControls:
     def set_kill_switch(self, on: bool):
         """Set kill switch state (file-based for Telegram integration)."""
         file_set_kill_switch(self.kill_switch_file, on)
-        self.logger.warning(f"Kill switch {'ON' if on else 'OFF'} ({self.kill_switch_file})")
+        self.logger.warning(
+            "Kill switch %s (%s)",
+            "ON" if on else "OFF",
+            self.kill_switch_file,
+        )
 
     def allow_trade(self, strategy: str, signal: Dict[str, Any]) -> bool:
         """Check if trade is allowed based on risk controls.
@@ -70,14 +73,16 @@ class RiskControls:
 
         # Kill switch check (file-based)
         if self.kill_switch_on:
-            self.logger.warning(f"Trade blocked: kill switch ON ({strategy})")
+            self.logger.warning("Trade blocked: kill switch ON (%s)", strategy)
             return False
 
         # Daily loss check
         total_daily_loss = sum(self._daily_pnl.values())
         if total_daily_loss <= -self.daily_loss_limit:
             self.logger.warning(
-                f"Trade blocked: daily loss limit ({total_daily_loss:.2f}% <= -{self.daily_loss_limit}%)"
+                "Trade blocked: daily loss limit (%.2f%% <= -%.2f%%)",
+                total_daily_loss,
+                self.daily_loss_limit,
             )
             return False
 
@@ -85,7 +90,9 @@ class RiskControls:
         size = signal.get("size", 0)
         if size > self.max_position_size:
             self.logger.warning(
-                f"Trade blocked: position size {size} > max {self.max_position_size}"
+                "Trade blocked: position size %s > max %s",
+                size,
+                self.max_position_size,
             )
             return False
 
@@ -95,7 +102,12 @@ class RiskControls:
         """Record P&L for a closed trade."""
         current = self._daily_pnl.get(strategy, 0.0)
         self._daily_pnl[strategy] = current + pnl_pct
-        self.logger.info(f"Recorded P&L for {strategy}: {pnl_pct:+.2f}% (daily: {self._daily_pnl[strategy]:+.2f}%)")
+        self.logger.info(
+            "Recorded P&L for %s: %+.2f%% (daily: %+.2f%%)",
+            strategy,
+            pnl_pct,
+            self._daily_pnl[strategy],
+        )
 
     def get_daily_pnl(self) -> Dict[str, float]:
         """Get current daily P&L by strategy."""

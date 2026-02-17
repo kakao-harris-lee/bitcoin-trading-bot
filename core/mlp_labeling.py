@@ -15,10 +15,11 @@ The algorithm assigns Buy/Hold/Sell labels based on future returns:
 Reference: https://doi.org/10.1007/s00500-025-10980-7
 """
 
+# pylint: disable=no-member
+
 import numpy as np
 import pandas as pd
 from dataclasses import dataclass
-from typing import Optional
 
 
 # Label encoding
@@ -83,7 +84,7 @@ def compute_labels(
     try:
         import talib
         ema_ref = talib.EMA(close_prices, timeperiod=bwin)
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         ema_ref = pd.Series(close_prices).ewm(span=bwin, adjust=False).mean().values
 
     # Adjust beta based on forward window
@@ -143,7 +144,7 @@ def compute_returns(
     try:
         import talib
         ema_ref = talib.EMA(close_prices, timeperiod=bwin)
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         ema_ref = pd.Series(close_prices).ewm(span=bwin, adjust=False).mean().values
 
     for t in range(n - fwin):

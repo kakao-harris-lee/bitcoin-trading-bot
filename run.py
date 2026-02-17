@@ -110,12 +110,12 @@ def main():
             )
             if not report.ready:
                 logger.error("Refusing to start in live mode: paper readiness check failed.")
-                logger.error("\n" + format_paper_readiness_report(report))
+                logger.error("\n%s", format_paper_readiness_report(report))
                 logger.error("Override only if intentional: set SKIP_PAPER_READINESS_CHECK=1")
                 sys.exit(1)
             logger.info("Paper readiness check passed.")
 
-    logger.info(f"Starting trading bot in {args.trend} mode")
+    logger.info("Starting trading bot in %s mode", args.trend)
 
     engine = TradingEngine(config_path=args.config)
 
@@ -123,8 +123,8 @@ def main():
         asyncio.run(engine.start(mode=args.trend))
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
-    except Exception as e:
-        logger.error(f"Fatal error: {e}")
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        logger.error("Fatal error: %s", exc)
         sys.exit(1)
 
 

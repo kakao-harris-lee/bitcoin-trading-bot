@@ -14,6 +14,7 @@ View results:
     mlflow ui --host 0.0.0.0 --port 5000
     # Open http://localhost:5000
 """
+# pylint: disable=broad-exception-caught
 
 import sys
 from pathlib import Path
@@ -62,11 +63,11 @@ def validate_date(date_str: str, param_name: str) -> datetime:
     """
     try:
         return datetime.strptime(date_str, "%Y-%m-%d")
-    except ValueError:
+    except ValueError as exc:
         raise ValueError(
             f"Invalid {param_name} format: '{date_str}'. "
             f"Expected YYYY-MM-DD format (e.g., '2024-01-01')."
-        )
+        ) from exc
 
 
 def validate_date_range(start_date: str, end_date: str) -> None:
@@ -327,7 +328,7 @@ def _calculate_profit_factor(trades: List) -> float:
 
 def split_params(
     params: Dict[str, Any],
-    strategy_name: str,
+    _strategy_name: str,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Split combined params into entry and exit params.
 
@@ -450,7 +451,7 @@ def run_optimization(
     mlflow.set_experiment(experiment_name)
 
     print(f"\nMLflow experiment: {experiment_name}")
-    print(f"Tracking URI: ./mlruns")
+    print("Tracking URI: ./mlruns")
 
     results: List[OptimizationResult] = []
 
@@ -551,12 +552,12 @@ def run_optimization(
                 "profit_factor": best.profit_factor,
             }
         }
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(output_data, f, indent=2)
         print(f"\nSaved best params to: {output_file}")
 
-    print(f"\nMLflow UI: mlflow ui --host 0.0.0.0 --port 5000")
-    print(f"View at: http://localhost:5000")
+    print("\nMLflow UI: mlflow ui --host 0.0.0.0 --port 5000")
+    print("View at: http://localhost:5000")
 
     return results
 

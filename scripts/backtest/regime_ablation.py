@@ -18,6 +18,7 @@ Usage:
     python scripts/backtest/regime_ablation.py --start-date 2025-01-01 --end-date 2026-01-01
     python scripts/backtest/regime_ablation.py --csv ablation_results.csv
 """
+# pylint: disable=broad-exception-caught
 
 from __future__ import annotations
 
@@ -29,7 +30,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -98,7 +98,7 @@ ABLATION_CONFIGS: dict[str, dict[str, Any]] = {
 def _load_allocation() -> dict:
     """Load production allocation.json."""
     path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -237,20 +237,21 @@ def run_mlp_backtest(
     adapter.symbol = asset
     adapter.precompute_mlp_predictions(df)
 
-    # Trim warmup
-    if "timestamp" in df.columns:
-        start_ts = pd.Timestamp(start_date)
-        mask = pd.to_datetime(df["timestamp"]) >= start_ts
-        eval_start = mask.idxmax() if mask.any() else 0
-        if eval_start > 0:
-            if adapter._mlp_cache:
-                remapped = {}
-                for old_idx, val in adapter._mlp_cache.items():
-                    new_idx = old_idx - eval_start
-                    if new_idx >= 0:
-                        remapped[new_idx] = val
-                adapter._mlp_cache = remapped
-            df = df.iloc[eval_start:].reset_index(drop=True)
+        # Trim warmup
+        if "timestamp" in df.columns:
+            start_ts = pd.Timestamp(start_date)
+            mask = pd.to_datetime(df["timestamp"]) >= start_ts
+            eval_start = mask.idxmax() if mask.any() else 0
+            if eval_start > 0:
+                mlp_cache = getattr(adapter, "_mlp_cache", None)
+                if mlp_cache:
+                    remapped = {}
+                    for old_idx, val in mlp_cache.items():
+                        new_idx = old_idx - eval_start
+                        if new_idx >= 0:
+                            remapped[new_idx] = val
+                    setattr(adapter, "_mlp_cache", remapped)
+                df = df.iloc[eval_start:].reset_index(drop=True)
 
     bt = Backtester(initial_capital=capital, fee_rate=0.001, slippage=0.0002)
     results = bt.run(df, adapter, {})
@@ -295,7 +296,6 @@ def run_component_backtest(
 
     # Short uses margin backtester, but ComponentStrategyAdapter works with Backtester
     fee_rate = 0.0005 if strategy_name == "short_v1" else 0.001
-    leverage = 3 if strategy_name == "short_v1" else 1
 
     bt = Backtester(
         initial_capital=capital,
@@ -484,7 +484,7 @@ def print_comparison_table(df: pd.DataFrame) -> None:
 
         # Summary: average across assets
         print("-" * (14 + len(assets) * 43))
-        print(f"\n  Average across assets:")
+        print("\n  Average across assets:")
         print(f"  {'Config':<14} {'Ret%':>8} {'MDD%':>8} {'Sharpe':>8} {'Trades':>8}")
         print(f"  {'-'*50}")
         for config in configs:

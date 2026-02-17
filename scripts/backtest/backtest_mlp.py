@@ -29,7 +29,6 @@ import pandas as pd
 
 from scripts.backtest._common import (
     create_parser,
-    get_db_path,
     load_data,
     compute_metrics,
     print_summary,
@@ -53,7 +52,7 @@ def _expand_env_vars(obj: Any) -> Any:
 
 
 def load_allocation_config(path: str) -> dict[str, Any]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         config = json.load(f)
     return _expand_env_vars(config)
 
@@ -369,6 +368,10 @@ def compare_with_baseline(
     Returns:
         Comparison DataFrame.
     """
+    _ = symbol
+    _ = start_date
+    _ = end_date
+    _ = initial_capital
     # Compute MLP metrics
     mlp_metrics = compute_metrics(mlp_results.get("equity_curve"), "minute240")
 

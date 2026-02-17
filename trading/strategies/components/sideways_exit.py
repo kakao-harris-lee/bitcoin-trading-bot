@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import MarketData, Position, Signal, TradingContext
+from .models import Position, Signal, TradingContext
 from .registry import exit_strategy
 
 logger = logging.getLogger(__name__)
@@ -85,19 +85,19 @@ class SidewaysExitStrategy:
         # Exit condition 1: Take profit
         if pnl_pct >= p.take_profit_pct:
             reason = f"SidewaysV2 exit: Take profit {pnl_pct:.2f}%"
-            logger.info(f"{symbol}: {reason}")
+            logger.info("%s: %s", symbol, reason)
             return self._create_exit_signal(position, reason)
 
         # Exit condition 2: Stop loss
         if pnl_pct <= -p.stop_loss_pct:
             reason = f"SidewaysV2 exit: Stop loss {pnl_pct:.2f}%"
-            logger.info(f"{symbol}: {reason}")
+            logger.info("%s: %s", symbol, reason)
             return self._create_exit_signal(position, reason)
 
         # Exit condition 3: RSI mean reversion complete
         if market_data.rsi >= p.rsi_mean:
             reason = f"SidewaysV2 exit: RSI={market_data.rsi:.1f} (mean reversion)"
-            logger.info(f"{symbol}: {reason}")
+            logger.info("%s: %s", symbol, reason)
             return self._create_exit_signal(position, reason)
 
         return None
@@ -110,7 +110,7 @@ class SidewaysExitStrategy:
         Args:
             position: The newly opened position.
         """
-        logger.debug(f"{position.symbol}: SidewaysV2 position opened")
+        logger.debug("%s: SidewaysV2 position opened", position.symbol)
 
     def on_position_closed(self, symbol: str) -> None:
         """Called when position is closed.
@@ -120,7 +120,7 @@ class SidewaysExitStrategy:
         Args:
             symbol: The symbol whose position was closed.
         """
-        logger.debug(f"{symbol}: SidewaysV2 position closed")
+        logger.debug("%s: SidewaysV2 position closed", symbol)
 
     def _create_exit_signal(self, position: Position, reason: str) -> Signal:
         """Create exit signal for position.

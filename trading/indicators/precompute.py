@@ -1,7 +1,6 @@
 """Pre-compute all standard indicators for strategy consumption."""
 
 import logging
-import numpy as np
 import pandas as pd
 
 from . import technical as ta
@@ -138,8 +137,9 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # Skip if insufficient data (need at least 200 for EMA-200)
     if len(df) < 200:
         logger.warning(
-            f"Insufficient data for indicator calculation: {len(df)} rows < 200 required. "
-            "Returning DataFrame without indicator columns."
+            "Insufficient data for indicator calculation: %d rows < 200 required. "
+            "Returning DataFrame without indicator columns.",
+            len(df),
         )
         return df
 

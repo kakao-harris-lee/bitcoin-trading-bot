@@ -77,7 +77,7 @@ def fetch_from_frankfurter(start_date: datetime, end_date: datetime) -> Optional
             data = response.json()
             if "rates" in data:
                 return {date: rates.get("KRW") for date, rates in data["rates"].items() if rates.get("KRW")}
-    except Exception as e:
+    except (requests.RequestException, ValueError) as e:
         print(f"  Frankfurter API error: {e}")
 
     return None
@@ -105,7 +105,7 @@ def fetch_from_exchangerate_host(start_date: datetime, end_date: datetime) -> Op
             data = response.json()
             if data.get("success") and "rates" in data:
                 return {date: rates.get("KRW") for date, rates in data["rates"].items() if rates.get("KRW")}
-    except Exception as e:
+    except (requests.RequestException, ValueError) as e:
         print(f"  exchangerate.host API error: {e}")
 
     return None
@@ -121,7 +121,7 @@ def fetch_from_fxratesapi(start_date: datetime, end_date: datetime) -> Optional[
         current = start_date
 
         while current <= end_date:
-            url = f"https://api.fxratesapi.com/historical"
+            url = "https://api.fxratesapi.com/historical"
             params = {
                 "date": current.strftime('%Y-%m-%d'),
                 "base": "USD",
@@ -146,7 +146,7 @@ def fetch_from_fxratesapi(start_date: datetime, end_date: datetime) -> Optional[
         if rates:
             return rates
 
-    except Exception as e:
+    except (requests.RequestException, ValueError) as e:
         print(f"  fxratesapi.com API error: {e}")
 
     return None

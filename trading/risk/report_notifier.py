@@ -3,6 +3,7 @@ Report Notifier - Sends comparison reports via Telegram.
 
 Handles formatting and delivery of daily backtest comparison reports.
 """
+# pylint: disable=broad-exception-caught
 
 import logging
 from datetime import date
@@ -38,7 +39,7 @@ class ReportNotifier:
             try:
                 self._notifier = TelegramNotifier()
             except ValueError as e:
-                logger.warning(f"Could not initialize TelegramNotifier: {e}")
+                logger.warning("Could not initialize TelegramNotifier: %s", e)
                 self._notifier = None
         else:
             self._notifier = telegram_notifier
@@ -62,14 +63,14 @@ class ReportNotifier:
             result = self._notifier.send_message(message)
 
             if result:
-                logger.info(f"Report notification sent for {report.report_date}")
+                logger.info("Report notification sent for %s", report.report_date)
             else:
-                logger.warning(f"Failed to send report notification for {report.report_date}")
+                logger.warning("Failed to send report notification for %s", report.report_date)
 
             return result
 
         except Exception as e:
-            logger.error(f"Error sending report notification: {e}")
+            logger.error("Error sending report notification: %s", e)
             return False
 
     def send_failure_notification(self, report_date: date, error: Exception) -> bool:
@@ -92,14 +93,14 @@ class ReportNotifier:
             result = self._notifier.send_message(message)
 
             if result:
-                logger.info(f"Failure notification sent for {report_date}")
+                logger.info("Failure notification sent for %s", report_date)
             else:
-                logger.warning(f"Failed to send failure notification for {report_date}")
+                logger.warning("Failed to send failure notification for %s", report_date)
 
             return result
 
         except Exception as e:
-            logger.error(f"Error sending failure notification: {e}")
+            logger.error("Error sending failure notification: %s", e)
             return False
 
     def format_report_message(self, report: DailyComparisonReport) -> str:

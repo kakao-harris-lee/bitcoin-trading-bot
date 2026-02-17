@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from .models import MarketData, TradingContext
+from .models import MarketData
 
 
 @dataclass

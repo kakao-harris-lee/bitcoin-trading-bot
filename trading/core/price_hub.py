@@ -7,7 +7,7 @@ on significant price changes (>0.1%).
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
@@ -132,9 +132,16 @@ class PriceHub:
                 self._subscriber_failures[queue_id] = failures
                 if failures >= self._max_failures:
                     dead_subscribers.append(queue)
-                    logger.warning(f"Removing dead subscriber (queue full {failures} times)")
+                    logger.warning(
+                        "Removing dead subscriber (queue full %d times)",
+                        failures,
+                    )
                 else:
-                    logger.debug(f"Subscriber queue full ({failures}/{self._max_failures})")
+                    logger.debug(
+                        "Subscriber queue full (%d/%d)",
+                        failures,
+                        self._max_failures,
+                    )
 
         # Remove dead subscribers
         for queue in dead_subscribers:
@@ -153,7 +160,7 @@ class PriceHub:
         """
         queue: asyncio.Queue = asyncio.Queue(maxsize=maxsize)
         self._subscribers.append(queue)
-        logger.info(f"New subscriber added (total: {len(self._subscribers)})")
+        logger.info("New subscriber added (total: %d)", len(self._subscribers))
         return queue
 
     def unsubscribe(self, queue: asyncio.Queue) -> bool:

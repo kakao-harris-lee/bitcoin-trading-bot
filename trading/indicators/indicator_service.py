@@ -12,6 +12,8 @@ Architecture:
     CPU reduction: ~75% for indicator computation
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 from __future__ import annotations
 
 import logging

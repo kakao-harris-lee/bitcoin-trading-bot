@@ -6,10 +6,12 @@ Supports regime filtering:
 - v1: Basic regime classification (default)
 - v2: EnhancedRegimeRouter with BBW + Volume + MTF filters
 """
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught,protected-access
+
 from dataclasses import replace
 import logging
 from types import MappingProxyType
-from typing import Dict, Any, Callable, Optional
+from typing import Dict, Any, Optional
 import numpy as np
 import pandas as pd
 from trading.strategies.components.models import MarketData, Position, Signal, MarketContext, TradingContext, build_market_context
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 from trading.strategies.components.strategy_factory import StrategyFactory
 from trading.strategies.volatility_tracker import VolatilityTracker
 from trading.strategies.components.regime_filter import EnhancedRegimeRouter, MTFCandle
-from trading.config.constants import TimePeriods, LeverageDefaults
+from trading.config.constants import LeverageDefaults
 
 class ComponentStrategyAdapter:
     """Adapts a StrategyFactory strategy into a Backtester-compatible function.
@@ -264,8 +266,7 @@ class ComponentStrategyAdapter:
             predictions, confidences, probs = self._predict_mlp_batch(features, use_ensemble)
             self._store_mlp_cache(df, valid_indices, predictions, confidences, probs)
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"MLP precompute failed: {e}")
+            logger.warning("MLP precompute failed: %s", e)
             self._mlp_available = False
 
     def _ensure_mlp_predictor(self) -> bool:
@@ -309,8 +310,6 @@ class ComponentStrategyAdapter:
         return valid_indices, features, use_ensemble
 
     def _predict_mlp_batch(self, features: Any, use_ensemble: bool):
-        import torch
-
         if use_ensemble and self._mlp_ensemble is not None:
             return self._mlp_ensemble.predict_batch(features)
         probs = self._predict_single_model_probs(features)

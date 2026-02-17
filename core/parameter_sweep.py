@@ -1,4 +1,5 @@
 """Parameter sweep functionality for grid search with MLflow logging."""
+# pylint: disable=broad-exception-caught
 
 import logging
 import re
@@ -7,13 +8,11 @@ from dataclasses import dataclass, field
 from functools import reduce
 from itertools import product
 from operator import mul
-from typing import Any, Callable, Dict, Iterator, List, Optional, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional
 
 import pandas as pd
 
 from core.backtest_result import BacktestResult
-from core.mlflow_config import MLflowConfig
-
 logger = logging.getLogger(__name__)
 
 
@@ -178,7 +177,11 @@ class ParameterSweepRunner:
         total = sweep.total_combinations
         safe_sweep_id = self._build_safe_sweep_id()
 
-        logger.info(f"Starting parameter sweep: {total} combinations (sweep_id={safe_sweep_id})")
+        logger.info(
+            "Starting parameter sweep: %d combinations (sweep_id=%s)",
+            total,
+            safe_sweep_id,
+        )
 
         for i, config in enumerate(sweep.generate_combinations()):
             if progress_callback:
@@ -228,7 +231,7 @@ class ParameterSweepRunner:
             safe_filename = f"{safe_sweep_id}_run_{run_index}.png"
             return self.visualizer.create_chart(result, output_path=safe_filename)
         except Exception as e:
-            logger.warning(f"Chart generation failed for run {run_index}: {e}")
+            logger.warning("Chart generation failed for run %d: %s", run_index, e)
             return None
 
     def _maybe_log_sweep_to_mlflow(
@@ -247,9 +250,13 @@ class ParameterSweepRunner:
                 sweep_id=sweep_id,
                 chart_paths=chart_paths if generate_charts else None,
             )
-            logger.info(f"Logged {len(results)} runs to MLflow (sweep_id={sweep_id})")
+            logger.info(
+                "Logged %d runs to MLflow (sweep_id=%s)",
+                len(results),
+                sweep_id,
+            )
         except Exception as e:
-            logger.warning(f"MLflow logging failed for sweep: {e}")
+            logger.warning("MLflow logging failed for sweep: %s", e)
 
     def get_best_result(
         self,

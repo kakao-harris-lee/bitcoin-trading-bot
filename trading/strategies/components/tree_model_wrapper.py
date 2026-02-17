@@ -42,6 +42,8 @@ class TreeModelWrapper:
         Returns:
             TreeModelWrapper instance.
         """
+        _ = device
+        _ = kwargs
         p = Path(path)
         if not p.exists():
             raise FileNotFoundError(f"Model file not found: {path}")
@@ -53,12 +55,12 @@ class TreeModelWrapper:
             model = xgb.Booster()
             model.load_model(str(p))
             model_type = "xgboost"
-            logger.info(f"TreeModelWrapper: Loaded XGBoost model from {p}")
+            logger.info("TreeModelWrapper: Loaded XGBoost model from %s", p)
         elif suffix == ".txt":
             import lightgbm as lgb
             model = lgb.Booster(model_file=str(p))
             model_type = "lightgbm"
-            logger.info(f"TreeModelWrapper: Loaded LightGBM model from {p}")
+            logger.info("TreeModelWrapper: Loaded LightGBM model from %s", p)
         else:
             raise ValueError(
                 f"Unsupported model file extension: {suffix}. "

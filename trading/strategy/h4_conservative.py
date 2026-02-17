@@ -22,8 +22,7 @@ H4 Conservative Strategy - Sideways 시장 대응 4시간봉 전략
 from __future__ import annotations
 
 import pandas as pd
-import numpy as np
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, Any, Optional
 from datetime import datetime
 
@@ -255,12 +254,12 @@ if __name__ == '__main__':
     from core.backtester import Backtester
 
     loader = DataLoader()
-    df = loader.load_timeframe('minute240', '2024-01-01', '2024-12-31')
+    sample_df = loader.load_timeframe('minute240', '2024-01-01', '2024-12-31')
     loader.conn.close()
 
     bt = Backtester(initial_capital=10_000_000, fee_rate=0.0005, slippage=0.0002)
     adapter = H4ConservativeAdapter()
-    result = bt.run(df, adapter, {})
+    result = bt.run(sample_df, adapter, {})
 
     print("H4 Conservative Strategy Test")
     print(f"  Return: {result['total_return']:.2f}%")

@@ -8,6 +8,8 @@ Implements exit strategy based on Parente & Rizzuti (2025) methodology:
 Reference: docs/plans/2026-02-01-mlp-direction-strategy-design.md
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 from __future__ import annotations
 
 import logging
@@ -25,7 +27,6 @@ from .models import (
     TradingContext,
     BULL_REGIMES,
     MLP_LABEL_HOLD,
-    MLP_LABEL_BUY,
     MLP_LABEL_SELL,
 )
 from .registry import exit_strategy
@@ -566,6 +567,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             position: The newly opened position.
             entry_timestamp: Entry bar timestamp (deprecated - using position.entry_time).
         """
+        _ = entry_timestamp
         super().on_position_opened(position)
 
         logger.debug(
@@ -580,14 +582,6 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         """
         super().on_position_closed(symbol)
         logger.debug(f"{symbol}: MLPDirection position closed")
-
-    def _clear_state(self, key: str) -> None:
-        """Clear all state for a position.
-
-        Args:
-            key: Position key (symbol:direction).
-        """
-        super()._clear_state(key)
 
     def _update_history(self, market_data: MarketData) -> None:
         """Update history buffer with current bar data.

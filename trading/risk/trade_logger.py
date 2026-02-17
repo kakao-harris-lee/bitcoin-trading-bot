@@ -3,6 +3,8 @@
 거래 로거 - DB에 거래 내역 기록
 """
 
+# pylint: disable=broad-exception-caught,redefined-outer-name
+
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -496,10 +498,7 @@ def add_exchange_column_if_not_exists(db_path: str):
 
 
 if __name__ == "__main__":
-    """테스트"""
-
     # DB 경로
-    import os
     project_root = Path(__file__).parent.parent
     db_path = project_root / "trading_results.db"
 

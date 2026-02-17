@@ -17,13 +17,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from typing import Any
-
-import numpy as np
-import pandas as pd
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -40,7 +36,6 @@ from scripts.backtest.backtest_mlp import (
 from core.backtester import Backtester
 from core.component_adapter import ComponentStrategyAdapter
 from trading.strategies.components.strategy_factory import StrategyFactory
-from trading.indicators import add_all_indicators
 
 # Asset database paths
 ASSET_DB = {
@@ -73,7 +68,7 @@ def run_single_asset(
     model_path_override: str | None = None,
 ) -> dict[str, Any]:
     """Run MLP Direction backtest for a single asset with given feature set."""
-    db_file, symbol = ASSET_DB[asset]
+    db_file, _symbol = ASSET_DB[asset]
     db_path = str(PROJECT_ROOT / db_file)
 
     try:

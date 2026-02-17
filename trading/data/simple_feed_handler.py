@@ -7,6 +7,8 @@ Simplified version of FeedHandler that:
 - Supports direct callbacks (no Redis)
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import asyncio
 import json
 import logging
@@ -131,11 +133,11 @@ class WebSocketClient:
 
     async def _subscribe(self) -> None:
         """Subscribe to streams (override in subclass)."""
-        pass
+        raise NotImplementedError
 
     async def receive(self) -> Optional[PriceMessage]:
         """Receive and parse message (override in subclass)."""
-        pass
+        raise NotImplementedError
 
 
 class BinanceWebSocketClient(WebSocketClient):

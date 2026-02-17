@@ -3,6 +3,8 @@ Trading Engine V2 - Feed Handler
 실시간 가격 데이터 수집 및 Redis 발행
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import asyncio
 import json
 import logging
@@ -45,17 +47,17 @@ class WebSocketHandler(ABC):
     @abstractmethod
     def ws_url(self) -> str:
         """WebSocket URL"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     async def _subscribe(self):
         """심볼 구독"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _parse_message(self, data: Any) -> Optional[PriceMessage]:
         """메시지 파싱"""
-        pass
+        raise NotImplementedError
 
     def set_callback(self, callback: Callable[[PriceMessage], None]):
         """가격 메시지 콜백 설정"""
@@ -101,7 +103,7 @@ class WebSocketHandler(ABC):
         """재연결"""
         self._reconnect_attempts += 1
         if self._reconnect_attempts > self._max_reconnect_attempts:
-            self.logger.error(f"❌ 최대 재연결 시도 횟수 초과")
+            self.logger.error("❌ 최대 재연결 시도 횟수 초과")
             return False
 
         delay = self._reconnect_delay * self._reconnect_attempts

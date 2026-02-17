@@ -11,13 +11,15 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from datetime import datetime
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.unified_backtester import UnifiedBacktester, BacktestConfig
-import pandas as pd
+try:
+    from core.unified_backtester import UnifiedBacktester, BacktestConfig
+except ImportError:
+    UnifiedBacktester = None
+    BacktestConfig = None
 
 
 def run_training_test(assets: list):
@@ -92,7 +94,7 @@ def run_yearly_breakdown(assets: list):
                 'sharpe': result['sharpe_ratio'],
                 'max_dd': result['max_drawdown_pct'],
             })
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             print(f"  {year}: Error - {e}")
 
     # Print table
@@ -142,7 +144,7 @@ def run_component_comparison():
                 'trades': result['total_trades'],
                 'sharpe': result['sharpe_ratio'],
             })
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             print(f"  {name}: Error - {e}")
 
     print("\n{:<20} {:>12} {:>8} {:>8}".format(
@@ -180,6 +182,11 @@ def print_results(result: dict, period_name: str):
 
 
 def main():
+    if UnifiedBacktester is None or BacktestConfig is None:
+        print("Unified backtester module not found: core.unified_backtester")
+        print("This script is deprecated in current repository state.")
+        return 2
+
     parser = argparse.ArgumentParser(description="Run unified backtests")
     parser.add_argument("--mode", choices=["quick", "full", "yearly", "compare"],
                         default="quick", help="Backtest mode")

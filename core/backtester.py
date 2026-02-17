@@ -8,12 +8,13 @@ Supports:
 - Component-based strategies (IEntryStrategy + IExitStrategy)
 - StrategyFactory for creating strategies from configuration
 """
+# pylint: disable=global-statement,redefined-outer-name,broad-exception-caught
 
 from __future__ import annotations
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING, Protocol, Union
+from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING, Union
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -1166,7 +1167,7 @@ class Backtester:
 
 # Usage examples
 if __name__ == "__main__":
-    from data_loader import DataLoader
+    from core.data_loader import DataLoader
 
     def print_results(results: Dict, title: str = "백테스팅 결과") -> None:
         """Print backtest results."""
@@ -1182,7 +1183,7 @@ if __name__ == "__main__":
         print(f"{'='*50}\n")
 
     # Example 1: Legacy callback-based strategy (RSI)
-    def simple_rsi_strategy(df, i, params):
+    def simple_rsi_strategy(df, i, _params):
         """RSI 30 이하 매수, 70 이상 매도"""
         if i < 14:
             return {'action': 'hold'}

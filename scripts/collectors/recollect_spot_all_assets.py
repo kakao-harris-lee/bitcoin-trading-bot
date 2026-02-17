@@ -98,7 +98,7 @@ def fetch_spot_klines(symbol: str, interval: str, start_ms: int, end_ms: int) ->
                 continue
             response.raise_for_status()
             chunk = response.json()
-        except Exception:
+        except (requests.RequestException, ValueError):
             retries += 1
             if retries > 5:
                 raise

@@ -215,7 +215,7 @@ class RuntimeRegimeOverlay:
             )
             self._bundle_cache[artifact_dir] = bundle
             return bundle
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.warning("Failed loading runtime artifact %s: %s", base, exc)
             self._bundle_cache[artifact_dir] = None
             return None

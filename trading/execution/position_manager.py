@@ -9,18 +9,18 @@ Trading Engine V2 - Position Manager
 - 포지션 상태 발행
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import asyncio
 import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
-from enum import Enum
 
 from ..core.base_module import BaseModule
 from ..core.config import Config
 from core.types import (
-    Exchange, Direction, Action, Position, PositionMessage,
-    EventType, create_message_id, current_timestamp
+    Exchange, Direction, Action, create_message_id, current_timestamp
 )
 
 logger = logging.getLogger(__name__)
@@ -195,6 +195,7 @@ class PositionManager(BaseModule):
         self._total_pnl = 0.0
         self._max_drawdown = 0.0
         self._peak_equity = initial_capital
+        self._last_publish = datetime.now()
 
     async def on_start(self):
         """시작 시 초기화"""
@@ -222,11 +223,8 @@ class PositionManager(BaseModule):
             await self._monitor_positions()
 
             # 상태 발행 (10초마다)
-            if hasattr(self, '_last_publish'):
-                if (datetime.now() - self._last_publish).seconds >= 10:
-                    await self._publish_position_update()
-                    self._last_publish = datetime.now()
-            else:
+            if (datetime.now() - self._last_publish).seconds >= 10:
+                await self._publish_position_update()
                 self._last_publish = datetime.now()
 
             await asyncio.sleep(0.1)
@@ -426,13 +424,13 @@ class PositionManager(BaseModule):
         self.price_cache[cache_key] = price
 
         # 관련 포지션 업데이트
-        for pos_key, pos in self.positions.items():
+        for _pos_key, pos in self.positions.items():
             if pos.exchange.value == exchange and pos.symbol == symbol:
                 pos.update_price(price)
 
     async def _monitor_positions(self):
         """SL/TP 모니터링"""
-        for pos_key, pos in list(self.positions.items()):
+        for _pos_key, pos in list(self.positions.items()):
             exit_reason = None
 
             if pos.check_stop_loss():

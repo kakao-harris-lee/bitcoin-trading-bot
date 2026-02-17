@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -293,9 +293,9 @@ class EventEmitter:
         async def _do_emit() -> None:
             try:
                 await self.redis.publish_event(stream, data, maxlen=self.maxlen)
-            except Exception as e:
+            except Exception as exc:  # pylint: disable=broad-exception-caught
                 # Fire-and-forget: log error but don't block trading
-                logger.warning(f"Failed to emit event to {stream}: {e}")
+                logger.warning("Failed to emit event to %s: %s", stream, exc)
 
         # Schedule emission as background task - doesn't block caller
         asyncio.create_task(_do_emit())

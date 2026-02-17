@@ -4,10 +4,11 @@ These protocols define the contracts for entry and exit strategy components.
 Implementations don't need to inherit - they just need to implement the methods
 (duck typing via typing.Protocol).
 """
+# pylint: disable=unnecessary-ellipsis
 
 from typing import Protocol
 
-from .models import MarketContext, MarketData, Position, Signal, TradingContext
+from .models import Position, Signal, TradingContext
 
 
 class IEntryStrategy(Protocol):

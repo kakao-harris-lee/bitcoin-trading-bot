@@ -6,6 +6,8 @@ avoiding beta exposure doubling (e.g., BTC + ETH move together).
 Correlation is calculated using recent returns (default: 240 bars = 4 hours of 1-min data).
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 from __future__ import annotations
 
 import logging
@@ -191,10 +193,6 @@ class CorrelationFilter:
             if now - ts < self._returns_ttl:
                 return returns
 
-        # Fetch from Redis
-        # Assuming prices are stored as a list in Redis
-        key = f"prices:{symbol}:minute"
-
         try:
             # Try to get price history from Redis stream
             prices = await self._fetch_prices_from_stream(symbol)
@@ -243,7 +241,7 @@ class CorrelationFilter:
             )
 
             prices = []
-            for msg_id, data in stream_data:
+            for _msg_id, data in stream_data:
                 msg_symbol = data.get("symbol", "")
                 if msg_symbol == symbol:
                     price = float(data.get("price", 0))

@@ -7,12 +7,13 @@ Manages:
 
 The key insight: sum of individual position risks should not exceed X% of equity.
 """
+# pylint: disable=broad-exception-caught
 
 from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 if TYPE_CHECKING:
@@ -150,6 +151,7 @@ class PortfolioRiskManager:
         Returns:
             RiskCheckResult indicating whether trade is allowed.
         """
+        _ = proposed_stop_pct
         await self._refresh_risk_cache()
         open_positions = self._risk_cache
         current_total_risk, max_total_risk = self._calculate_risk_totals(open_positions, equity)
@@ -184,10 +186,12 @@ class PortfolioRiskManager:
 
         reason = self._approval_reason(adjusted_risk_pct)
         logger.info(
-            f"{symbol}: risk check PASSED - "
-            f"proposed=${proposed_risk:.0f}, "
-            f"total=${new_total_risk:.0f}/${max_total_risk:.0f} "
-            f"({new_total_risk/equity*100:.1f}%)"
+            "%s: risk check PASSED - proposed=$%.0f, total=$%.0f/$%.0f (%.1f%%)",
+            symbol,
+            proposed_risk,
+            new_total_risk,
+            max_total_risk,
+            (new_total_risk / equity * 100) if equity > 0 else 0.0,
         )
         return self._approved_result(
             reason=reason,
@@ -301,7 +305,12 @@ class PortfolioRiskManager:
                     )
 
                 except Exception as e:
-                    logger.warning(f"Failed to get position risk for {symbol} {market}: {e}")
+                    logger.warning(
+                        "Failed to get position risk for %s %s: %s",
+                        symbol,
+                        market,
+                        e,
+                    )
 
         self._cache_ts = now
 
@@ -328,8 +337,11 @@ class PortfolioRiskManager:
             return RiskCheckResult(allowed=True, reason="CORR_OK")
 
         logger.warning(
-            f"{new_symbol}: high correlation with {correlated_with} "
-            f"(corr={max_corr:.2f} > {self.config.corr_threshold})"
+            "%s: high correlation with %s (corr=%.2f > %.2f)",
+            new_symbol,
+            correlated_with,
+            max_corr,
+            self.config.corr_threshold,
         )
 
         if self.config.corr_action == "block":
@@ -382,6 +394,7 @@ class PortfolioRiskManager:
         proposed_risk: float,
         equity: float,
     ) -> RiskCheckResult:
+        _ = new_symbol
         corr_risk = self._correlated_symbol_risk(correlated_with)
         group_risk = corr_risk + proposed_risk
         group_cap = equity * self.config.risk_per_trade_pct * 2

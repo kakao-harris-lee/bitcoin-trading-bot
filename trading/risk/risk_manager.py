@@ -3,18 +3,17 @@ Trading Engine V2 - Risk Manager
 신호 검증 및 위험 관리
 """
 
-import asyncio
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import logging
-import json
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+from datetime import datetime
 from dataclasses import dataclass, field
 
 from ..core.base_module import BaseModule
 from ..core.config import Config
 from core.types import (
-    SignalMessage, OrderMessage, Exchange, Direction, Action,
-    OrderStatus, EventType, create_message_id, current_timestamp
+    Exchange, Direction, create_message_id, current_timestamp
 )
 from trading.streams.redis_streams import RedisStreams
 
@@ -238,8 +237,6 @@ class RiskManager(BaseModule):
             {'approved': bool, 'reason': str, 'adjusted_fraction': float}
         """
         strategy = signal.get('strategy', '')
-        exchange = signal.get('exchange', '')
-        action = signal.get('action', '')
         fraction = float(signal.get('fraction', 0.5))
 
         # 1. 일일 손실 한도 체크

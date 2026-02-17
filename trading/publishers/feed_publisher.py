@@ -4,6 +4,7 @@ Feed Publisher - Publishes price data to Redis streams
 Wraps exchange WebSocket handlers and publishes to:
 - market:binance:prices
 """
+# pylint: disable=broad-exception-caught
 
 import asyncio
 import logging
@@ -80,7 +81,7 @@ class FeedPublisher:
         Args:
             ws_handler: WebSocketHandler instance (Binance)
         """
-        self.logger.info(f"Starting {self.exchange.value} feed publisher...")
+        self.logger.info("Starting %s feed publisher...", self.exchange.value)
 
         # Set callback to publish prices
         ws_handler.set_callback(self._on_price_message)
@@ -88,7 +89,7 @@ class FeedPublisher:
         # Connect and run WebSocket
         while self.running:
             try:
-                if not ws_handler._connected:
+                if not getattr(ws_handler, "_connected", False):
                     await ws_handler.connect()
 
                 await ws_handler.receive_loop()
@@ -96,12 +97,12 @@ class FeedPublisher:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                self.logger.error(f"Feed error: {e}")
+                self.logger.error("Feed error: %s", e)
                 await asyncio.sleep(5)
                 await ws_handler.reconnect()
 
         await ws_handler.disconnect()
-        self.logger.info(f"{self.exchange.value} feed publisher stopped")
+        self.logger.info("%s feed publisher stopped", self.exchange.value)
 
     def _on_price_message(self, price_msg):
         """Callback for WebSocket price messages."""
@@ -114,7 +115,7 @@ class FeedPublisher:
         try:
             exc = task.exception()
             if exc:
-                self.logger.error(f"Price publish failed: {exc}")
+                self.logger.error("Price publish failed: %s", exc)
         except asyncio.CancelledError:
             pass
 
@@ -127,7 +128,7 @@ class FeedPublisher:
                 timestamp=price_msg.timestamp.isoformat() if price_msg.timestamp else None,
             )
         except Exception as e:
-            self.logger.error(f"Failed to publish price: {e}")
+            self.logger.error("Failed to publish price: %s", e)
             raise  # Re-raise for the done callback to catch
 
     def stop(self):

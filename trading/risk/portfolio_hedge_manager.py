@@ -10,7 +10,7 @@ State Machine:
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 logger = logging.getLogger(__name__)
@@ -95,24 +95,25 @@ class PortfolioHedgeManager:
         else:
             self._drawdown_pct = 0.0
 
-        # State transitions with hysteresis
-        old_mode = self._mode
-
         if self._mode == "normal" and self._drawdown_pct >= self._activate_pct:
             self._mode = "hedge"
             self._hedge_activated_at = self._drawdown_pct
             self._activation_count += 1
             logger.info(
-                f"PortfolioHedgeManager: NORMAL→HEDGE "
-                f"(drawdown={self._drawdown_pct:.1f}% >= {self._activate_pct:.1f}%, "
-                f"activation #{self._activation_count})"
+                "PortfolioHedgeManager: NORMAL→HEDGE "
+                "(drawdown=%.1f%% >= %.1f%%, activation #%d)",
+                self._drawdown_pct,
+                self._activate_pct,
+                self._activation_count,
             )
 
         elif self._mode == "hedge" and self._drawdown_pct < self._deactivate_pct:
             self._mode = "normal"
             logger.info(
-                f"PortfolioHedgeManager: HEDGE→NORMAL "
-                f"(drawdown={self._drawdown_pct:.1f}% < {self._deactivate_pct:.1f}%)"
+                "PortfolioHedgeManager: HEDGE→NORMAL "
+                "(drawdown=%.1f%% < %.1f%%)",
+                self._drawdown_pct,
+                self._deactivate_pct,
             )
 
         return HedgeState(

@@ -9,7 +9,9 @@ Reads from Redis to provide:
 - Connection status
 """
 
-from datetime import datetime, timedelta
+# pylint: disable=broad-exception-caught
+
+from datetime import datetime
 from typing import Optional
 import json
 import os
@@ -283,6 +285,7 @@ class MetricsService:
         Returns:
             List of StrategyDecision dicts
         """
+        _ = hours
         if exchange and exchange != "binance":
             return []
 
@@ -448,6 +451,7 @@ class MetricsService:
         Returns:
             List of entry evaluation event dicts
         """
+        _ = hours
         try:
             r = self._get_redis()
 
@@ -455,7 +459,7 @@ class MetricsService:
             entries = r.xrevrange("strategy:entry:events", count=limit * 2)
 
             events = []
-            for msg_id, data in entries:
+            for _msg_id, data in entries:
                 # Apply filters
                 if symbol and data.get("symbol") != symbol:
                     continue
@@ -492,6 +496,7 @@ class MetricsService:
         Returns:
             List of exit evaluation event dicts
         """
+        _ = hours
         try:
             r = self._get_redis()
 
@@ -499,7 +504,7 @@ class MetricsService:
             entries = r.xrevrange("strategy:exit:events", count=limit * 2)
 
             events = []
-            for msg_id, data in entries:
+            for _msg_id, data in entries:
                 # Apply filters
                 if symbol and data.get("symbol") != symbol:
                     continue
@@ -536,6 +541,7 @@ class MetricsService:
         Returns:
             List of HWM update event dicts in chronological order
         """
+        _ = hours
         try:
             r = self._get_redis()
 
@@ -543,7 +549,7 @@ class MetricsService:
             entries = r.xrange("strategy:hwm:updates", count=1000)
 
             timeline = []
-            for msg_id, data in entries:
+            for _msg_id, data in entries:
                 # Filter by symbol and strategy
                 if data.get("symbol") != symbol:
                     continue
@@ -575,6 +581,7 @@ class MetricsService:
         Returns:
             List of safety rejection event dicts
         """
+        _ = hours
         try:
             r = self._get_redis()
 
@@ -582,7 +589,7 @@ class MetricsService:
             entries = r.xrevrange("strategy:safety:events", count=limit * 2)
 
             rejections = []
-            for msg_id, data in entries:
+            for _msg_id, data in entries:
                 # Apply filter
                 if rejection_type and data.get("rejection_type") != rejection_type:
                     continue

@@ -109,14 +109,16 @@ class FundingTracker:
             self._rate_cache[base_symbol] = funding_rate
 
             logger.info(
-                f"Funding rate for {base_symbol}: {rate*100:.4f}%, "
-                f"next: {funding_rate.next_funding_time}"
+                "Funding rate for %s: %.4f%%, next: %s",
+                base_symbol,
+                rate * 100,
+                funding_rate.next_funding_time,
             )
 
             return funding_rate
 
-        except Exception as e:
-            logger.error(f"Failed to fetch funding rate for {symbol}: {e}")
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to fetch funding rate for %s: %s", symbol, exc)
             # Return cached rate if available
             return self._rate_cache.get(base_symbol)
 

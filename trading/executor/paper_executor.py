@@ -1,5 +1,8 @@
 # trading/executor/paper_executor.py
 """Paper trading executor for simulation."""
+
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 from __future__ import annotations
 import asyncio
 import logging

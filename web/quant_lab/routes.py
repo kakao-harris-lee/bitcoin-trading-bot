@@ -1,4 +1,6 @@
 """Flask blueprint for Quant Lab."""
+# pylint: disable=broad-exception-caught
+
 from flask import Blueprint, render_template, request, jsonify, Response
 from functools import wraps
 import uuid
@@ -10,7 +12,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 import time
 
-from .worker.tasks import OptimizationJob, JobStatus
+from .worker.tasks import OptimizationJob
 from .optimizer.study_manager import StudyManager
 from .optimizer.search_space import (
     REGIMES, ENTRY_COMPONENTS, EXIT_COMPONENTS, COMPONENT_PARAMS,
@@ -550,7 +552,6 @@ def apply_trial_config(study_name: str, trial_number: int):
     optimized parameters and adds it to allocation.json.
     """
     try:
-        from datetime import datetime
         import shutil
 
         data = request.get_json() or {}
@@ -587,13 +588,13 @@ def apply_trial_config(study_name: str, trial_number: int):
         os.makedirs(config_dir, exist_ok=True)
 
         tuned_file = os.path.join(config_dir, f'{strategy_name}.json')
-        with open(tuned_file, 'w') as f:
+        with open(tuned_file, 'w', encoding='utf-8') as f:
             json.dump(tuned_config, f, indent=2)
 
         # Load current allocation.json
         allocation_path = os.path.join(os.path.dirname(__file__), '../../config/strategies/allocation.json')
 
-        with open(allocation_path, 'r') as f:
+        with open(allocation_path, 'r', encoding='utf-8') as f:
             allocation = json.load(f)
 
         # Backup allocation.json before modifying
@@ -648,7 +649,7 @@ def apply_trial_config(study_name: str, trial_number: int):
             }
 
         # Save updated allocation.json
-        with open(allocation_path, 'w') as f:
+        with open(allocation_path, 'w', encoding='utf-8') as f:
             json.dump(allocation, f, indent=2)
 
         return jsonify({
@@ -872,8 +873,6 @@ def get_backtest_log_info(filename: str):
     Returns:
         JSON with file metadata.
     """
-    from datetime import datetime
-
     # Validate filename
     if not _validate_log_filename(filename):
         return jsonify({"error": "Invalid filename"}), 400
@@ -893,7 +892,7 @@ def get_backtest_log_info(filename: str):
     stat = resolved.stat()
 
     # Count lines (rows)
-    with open(resolved, 'r') as f:
+    with open(resolved, 'r', encoding='utf-8') as f:
         row_count = sum(1 for _ in f) - 1  # Subtract header
 
     return jsonify({

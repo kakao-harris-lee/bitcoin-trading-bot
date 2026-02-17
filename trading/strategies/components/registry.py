@@ -22,7 +22,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-from dataclasses import fields, MISSING
+from dataclasses import fields
 from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ def entry_strategy(params_class: type | None = None):
             "class": cls,
             "params_class": params_class,
         }
-        logger.debug(f"Registered entry strategy: {class_name}")
+        logger.debug("Registered entry strategy: %s", class_name)
         return cls
 
     return decorator
@@ -90,7 +90,7 @@ def exit_strategy(
             "params_class": params_class,
             "persistent_class": persistent_class,
         }
-        logger.debug(f"Registered exit strategy: {class_name}")
+        logger.debug("Registered exit strategy: %s", class_name)
         return cls
 
     return decorator

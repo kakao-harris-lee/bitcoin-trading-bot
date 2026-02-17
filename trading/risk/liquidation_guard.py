@@ -172,8 +172,11 @@ class LiquidationGuard:
 
         if should_exit:
             logger.warning(
-                f"LIQUIDATION WARNING: {symbol} {side.upper()} is {distance_pct:.1f}% "
-                f"from liquidation (threshold: {self.exit_threshold_pct}%)"
+                "LIQUIDATION WARNING: %s %s is %.1f%% from liquidation (threshold: %.1f%%)",
+                symbol,
+                side.upper(),
+                distance_pct,
+                self.exit_threshold_pct,
             )
 
         return LiquidationInfo(

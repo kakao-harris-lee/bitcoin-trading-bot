@@ -11,8 +11,8 @@ Upbit DB와 동일한 SQLite 형식으로 Binance 데이터를 저장
 - LSTM 학습용 MinMax 스케일링 (전체 + Rolling)
 """
 
-import os
-import sys
+# pylint: disable=broad-exception-caught
+
 import sqlite3
 import time
 import requests
@@ -161,7 +161,7 @@ class BinanceSQLiteCollector:
             time.sleep(0.1)
 
         if not all_data:
-            print(f"  새 데이터 없음")
+            print("  새 데이터 없음")
             return 0
 
         # DB 저장
@@ -197,7 +197,7 @@ class BinanceSQLiteCollector:
             end_date = datetime.now().strftime('%Y-%m-%d')
 
         print(f"\n{'='*60}")
-        print(f"🚀 Binance BTCUSDT 전체 데이터 수집")
+        print("🚀 Binance BTCUSDT 전체 데이터 수집")
         print(f"   기간: {start_date} ~ {end_date}")
         print(f"   DB: {self.db_path}")
         print(f"{'='*60}")
@@ -208,12 +208,12 @@ class BinanceSQLiteCollector:
         for tf in priority_timeframes:
             self.collect_timeframe(tf, start_date, end_date)
 
-        print(f"\n✅ 전체 수집 완료!")
+        print("\n✅ 전체 수집 완료!")
         self.show_stats()
 
     def show_stats(self):
         """DB 통계 출력"""
-        print(f"\n📈 DB 통계:")
+        print("\n📈 DB 통계:")
         for tf in TIMEFRAMES.keys():
             table = f"binance_{tf}"
             try:
@@ -221,7 +221,7 @@ class BinanceSQLiteCollector:
                 count, min_ts, max_ts = cursor.fetchone()
                 if count > 0:
                     print(f"   {tf}: {count:,}개 ({min_ts[:10]} ~ {max_ts[:10]})")
-            except:
+            except Exception:
                 pass
 
     def close(self):
@@ -450,7 +450,7 @@ class BinanceSQLiteCollector:
                 self._add_column_if_not_exists(table_name, col, "REAL")
 
         # DB 업데이트 (배치)
-        print(f"  DB 업데이트 중...")
+        print("  DB 업데이트 중...")
         scaled_cols = [c for c in df.columns if '_scaled' in c]
 
         for idx, row in df.iterrows():
@@ -496,7 +496,7 @@ class BinanceSQLiteCollector:
             rolling_window: 스케일링 윈도우 (기본: 720)
         """
         print(f"\n{'='*60}")
-        print(f"🚀 데이터 수집 + 피처 계산 파이프라인")
+        print("🚀 데이터 수집 + 피처 계산 파이프라인")
         print(f"   기간: {start_date} ~ {end_date}")
         print(f"   k값: {k}, Rolling Window: {rolling_window}")
         print(f"{'='*60}")
@@ -518,7 +518,7 @@ class BinanceSQLiteCollector:
         self.add_scaled_columns(timeframe='minute60', rolling_window=rolling_window)
 
         print(f"\n{'='*60}")
-        print(f"✅ 전체 파이프라인 완료!")
+        print("✅ 전체 파이프라인 완료!")
         self.show_stats()
 
 

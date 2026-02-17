@@ -11,6 +11,8 @@ This module provides feature sets:
 4) cross_44: paper_36 + 8 cross-asset features
 """
 
+# pylint: disable=no-member
+
 from __future__ import annotations
 
 import numpy as np
@@ -220,6 +222,7 @@ def calculate_mlp_features(
     Returns:
         DataFrame with features
     """
+    _ = bwin  # API compatibility; feature generation no longer depends on bwin
     if feature_set == FEATURE_SET_PAPER:
         return calculate_mlp_features_paper(df, include_temporal=include_temporal)
     if feature_set == FEATURE_SET_SHAP:
@@ -275,7 +278,7 @@ def calculate_mlp_features_paper(
         features[f"cdl_{name}"] = func(open_, high, low, close)
 
     # 2) Technical indicators (paper uses 14-period Bollinger)
-    upper, middle, lower = talib.BBANDS(close, timeperiod=14, nbdevup=2, nbdevdn=2)
+    upper, _middle, lower = talib.BBANDS(close, timeperiod=14, nbdevup=2, nbdevdn=2)
     band_width = upper - lower
     band_width = np.where(band_width < 1e-10, 1e-10, band_width)
     features["bollinger_pct_b"] = (close - lower) / band_width
@@ -348,7 +351,7 @@ def calculate_mlp_features_v2(
     Returns:
         DataFrame with 36 feature columns (v2 feature order)
     """
-    open_ = np.asarray(df["open"].values, dtype=np.float64)
+    _open = np.asarray(df["open"].values, dtype=np.float64)
     high = np.asarray(df["high"].values, dtype=np.float64)
     low = np.asarray(df["low"].values, dtype=np.float64)
     close = np.asarray(df["close"].values, dtype=np.float64)
@@ -356,7 +359,7 @@ def calculate_mlp_features_v2(
 
     features = pd.DataFrame(index=df.index)
     close_series = pd.Series(close, index=df.index)
-    volume_series = pd.Series(volume, index=df.index)
+    _volume_series = pd.Series(volume, index=df.index)
 
     # === 13 KEPT features (same calculation as paper_36) ===
 
@@ -627,7 +630,7 @@ def calculate_mlp_features_shap(
     # 1. Bollinger %B (most important feature per SHAP)
     # %B = (Price - Lower Band) / (Upper Band - Lower Band)
     # Range: typically 0-1, can exceed during strong moves
-    upper, middle, lower = talib.BBANDS(close, timeperiod=20, nbdevup=2, nbdevdn=2)
+    upper, _middle, lower = talib.BBANDS(close, timeperiod=20, nbdevup=2, nbdevdn=2)
     band_width = upper - lower
     # Avoid division by zero
     band_width = np.where(band_width < 1e-10, 1e-10, band_width)
@@ -741,7 +744,7 @@ def extract_single_features(
 
 
 def extract_single_features_shap(
-    market_data: dict,
+    _market_data: dict,
     indicators: dict,
 ) -> np.ndarray:
     """Extract legacy 13-feature set for live trading."""
@@ -1068,9 +1071,6 @@ def _compute_mtf_features(
     d_volume = np.asarray(df_daily["volume"].values, dtype=np.float64)
 
     w_close = np.asarray(df_weekly["close"].values, dtype=np.float64)
-    w_high = np.asarray(df_weekly["high"].values, dtype=np.float64)
-    w_low = np.asarray(df_weekly["low"].values, dtype=np.float64)
-
     mtf_daily = pd.DataFrame(index=df_daily.index)
     mtf_weekly = pd.DataFrame(index=df_weekly.index)
 
@@ -1211,7 +1211,6 @@ def calculate_mlp_features_tree(
     close = np.asarray(df["close"].values, dtype=np.float64)
     high = np.asarray(df["high"].values, dtype=np.float64)
     low = np.asarray(df["low"].values, dtype=np.float64)
-    open_ = np.asarray(df["open"].values, dtype=np.float64)
     volume = np.asarray(df["volume"].values, dtype=np.float64)
 
     close_s = pd.Series(close, index=df.index)

@@ -2,6 +2,8 @@
 """Periodic system state logger for observability."""
 from __future__ import annotations
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught,protected-access
+
 import asyncio
 import logging
 from datetime import datetime
@@ -239,8 +241,6 @@ class PeriodicLoggerTask:
     ) -> None:
         """Publish state summary to Redis stream for dashboard access."""
         try:
-            import json
-
             # Build summary for each symbol
             for symbol in self.symbols:
                 price_data = prices.get(symbol, {})

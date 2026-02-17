@@ -56,11 +56,11 @@ class SymbolFeedTask:
                         if not self._running:
                             break
                         await self._handle_price(msg)
-            except Exception as e:
-                logger.error(f"Feed {self.symbol} error: {e}")
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                logger.error("Feed %s error: %s", self.symbol, exc)
                 self._failure_count += 1
                 backoff = self._calculate_backoff(self._failure_count)
-                logger.info(f"Feed {self.symbol} reconnecting in {backoff}s")
+                logger.info("Feed %s reconnecting in %ss", self.symbol, backoff)
                 await asyncio.sleep(backoff)
 
     def stop(self) -> None:

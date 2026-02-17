@@ -1,5 +1,8 @@
 # trading/streams/base_strategy.py
 """Base class for strategy tasks."""
+
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught,unused-argument,unnecessary-pass,protected-access
+
 from __future__ import annotations
 import asyncio
 import time

@@ -10,6 +10,7 @@ Usage:
     python scripts/backtest/optimize_regime_thresholds.py --symbol ETH --n-trials 100
     python scripts/backtest/optimize_regime_thresholds.py --symbol BTC --apply  # apply best to allocation.json
 """
+# pylint: disable=broad-exception-caught
 
 from __future__ import annotations
 
@@ -18,8 +19,6 @@ import copy
 import json
 import sys
 from pathlib import Path
-from typing import Any
-
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -120,13 +119,14 @@ def create_objective(
         # Trim warmup + remap MLP cache
         df_eval = df_prepared
         if eval_start > 0:
-            if adapter._mlp_cache:
+            mlp_cache = getattr(adapter, "_mlp_cache", None)
+            if mlp_cache:
                 remapped = {}
-                for old_idx, val in adapter._mlp_cache.items():
+                for old_idx, val in mlp_cache.items():
                     new_idx = old_idx - eval_start
                     if new_idx >= 0:
                         remapped[new_idx] = val
-                adapter._mlp_cache = remapped
+                setattr(adapter, "_mlp_cache", remapped)
             df_eval = df_prepared.iloc[eval_start:].reset_index(drop=True)
 
         bt = Backtester(initial_capital=10_000, fee_rate=0.001, slippage=0.0002)
@@ -161,7 +161,7 @@ def create_objective(
 
 def apply_best_to_allocation(best_params: dict, config_path: str) -> None:
     """Write best regime thresholds to allocation.json defaults."""
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         allocation = json.load(f)
 
     # Filter to only regime threshold keys
@@ -172,7 +172,7 @@ def apply_best_to_allocation(best_params: dict, config_path: str) -> None:
 
     allocation.setdefault("defaults", {})["regime_thresholds"] = thresholds
 
-    with open(config_path, "w") as f:
+    with open(config_path, "w", encoding="utf-8") as f:
         json.dump(allocation, f, indent=2)
         f.write("\n")
 
@@ -226,7 +226,7 @@ def main():
     print(f"  Total return: {best.user_attrs.get('total_return', 0):.1f}%")
     print(f"  Max drawdown: {best.user_attrs.get('max_drawdown', 0):.1f}%")
     print(f"  Trades: {best.user_attrs.get('n_trades', 0)}")
-    print(f"\nBest thresholds vs defaults:")
+    print("\nBest thresholds vs defaults:")
     for k in sorted(REGIME_THRESHOLD_SPACE.keys()):
         v = best.params.get(k, DEFAULTS[k])
         d = DEFAULTS[k]

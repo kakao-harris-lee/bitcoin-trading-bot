@@ -4,6 +4,8 @@ Trading Engine V2 - Redis Setup Script
 Redis Streams 및 Consumer Groups 초기 설정
 """
 
+# pylint: disable=broad-exception-caught,protected-access
+
 import asyncio
 import sys
 import os
@@ -19,7 +21,7 @@ async def verify_connection(client: RedisClient) -> bool:
     """Redis 연결 확인 및 기본 정보 출력"""
     try:
         info = await client._client.info("server")
-        print(f"\n📍 Redis Server Info:")
+        print("\n📍 Redis Server Info:")
         print(f"   Version: {info.get('redis_version', 'N/A')}")
         print(f"   OS: {info.get('os', 'N/A')}")
         print(f"   Uptime: {info.get('uptime_in_days', 0)} days")
@@ -32,7 +34,7 @@ async def verify_connection(client: RedisClient) -> bool:
 async def create_streams(client: RedisClient, config: Config) -> int:
     """모든 Stream 생성"""
     created = 0
-    print(f"\n📊 Streams 생성:")
+    print("\n📊 Streams 생성:")
 
     for name, stream_key in config.redis.streams.items():
         try:
@@ -48,18 +50,18 @@ async def create_streams(client: RedisClient, config: Config) -> int:
 async def create_consumer_groups(client: RedisClient, config: Config) -> int:
     """모든 Consumer Group 생성"""
     created = 0
-    print(f"\n👥 Consumer Groups 생성:")
+    print("\n👥 Consumer Groups 생성:")
 
     for stream_name, groups in config.redis.consumer_groups.items():
         print(f"\n   📌 {stream_name}:")
         for group_name in groups:
             try:
-                success = await client.create_consumer_group(
+                created_group = await client.create_consumer_group(
                     stream_name,
                     group_name,
                     start_id="$"  # 새 메시지부터 소비
                 )
-                if success:
+                if created_group:
                     print(f"      ✅ {group_name}")
                     created += 1
             except Exception as e:
@@ -70,9 +72,9 @@ async def create_consumer_groups(client: RedisClient, config: Config) -> int:
 
 async def verify_streams(client: RedisClient, config: Config):
     """생성된 Stream 확인"""
-    print(f"\n🔍 Stream 상태 확인:")
+    print("\n🔍 Stream 상태 확인:")
 
-    for name, stream_key in config.redis.streams.items():
+    for _name, stream_key in config.redis.streams.items():
         try:
             info = await client.get_stream_info(stream_key)
             if info:
@@ -87,7 +89,7 @@ async def verify_streams(client: RedisClient, config: Config):
 
 async def test_publish_consume(client: RedisClient, config: Config):
     """Publish/Consume 테스트"""
-    print(f"\n🧪 Publish/Consume 테스트:")
+    print("\n🧪 Publish/Consume 테스트:")
 
     test_stream = config.redis.streams["events"]
     test_group = "all-modules"
@@ -118,11 +120,11 @@ async def test_publish_consume(client: RedisClient, config: Config):
     if messages:
         print(f"   📥 Consumed: {messages[0]['id']}")
         await client.ack(test_stream, test_group, messages[0]['id'])
-        print(f"   ✅ ACK 완료")
+        print("   ✅ ACK 완료")
     else:
-        print(f"   ⚠️  소비할 메시지 없음 (정상 - 새 메시지 대기 중)")
+        print("   ⚠️  소비할 메시지 없음 (정상 - 새 메시지 대기 중)")
 
-    print(f"\n   ✅ Publish/Consume 테스트 완료")
+    print("\n   ✅ Publish/Consume 테스트 완료")
 
 
 async def main():
@@ -134,7 +136,7 @@ async def main():
     # 설정 로드
     config = Config.from_env()
 
-    print(f"\n📡 Redis 연결 정보:")
+    print("\n📡 Redis 연결 정보:")
     print(f"   Host: {config.redis.host}")
     print(f"   Port: {config.redis.port}")
     print(f"   Username: {config.redis.username}")
@@ -168,7 +170,7 @@ async def main():
         print("=" * 70)
         print(f"\n   📊 생성된 Streams: {streams_created}")
         print(f"   👥 생성된 Consumer Groups: {groups_created}")
-        print(f"\n   ✅ Redis 인프라 준비 완료!\n")
+        print("\n   ✅ Redis 인프라 준비 완료!\n")
 
         return True
 

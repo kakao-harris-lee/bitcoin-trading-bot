@@ -43,19 +43,23 @@ class RegimeHoldEntryStrategy:
 
         if not p.allow_extreme_volatility and context.is_extreme_volatility:
             logger.debug(
-                f"{market_data.symbol}: RegimeHold entry blocked - extreme volatility"
+                "%s: RegimeHold entry blocked - extreme volatility",
+                market_data.symbol,
             )
             return None
 
         if context.adx < p.min_adx:
             logger.debug(
-                f"{market_data.symbol}: RegimeHold entry blocked - ADX {context.adx:.1f} < {p.min_adx:.1f}"
+                "%s: RegimeHold entry blocked - ADX %.1f < %.1f",
+                market_data.symbol,
+                context.adx,
+                p.min_adx,
             )
             return None
 
         if context.regime in p.allowed_regimes:
             reason = f"RegimeHold entry: {context.regime}"
-            logger.info(f"{market_data.symbol}: {reason}")
+            logger.info("%s: %s", market_data.symbol, reason)
             return Signal(
                 symbol=market_data.symbol,
                 side="buy",

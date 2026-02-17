@@ -141,8 +141,12 @@ def calculate_quantity(
     min_sellable_qty = limits["min_qty"] + limits["qty_step"]
     if quantity < min_sellable_qty:
         logger.debug(
-            f"{symbol}: qty {quantity} < min_sellable {min_sellable_qty}, "
-            f"risk_budget=${risk_budget:.2f}, stop={stop_distance*100:.2f}%"
+            "%s: qty %s < min_sellable %s, risk_budget=$%.2f, stop=%.2f%%",
+            symbol,
+            quantity,
+            min_sellable_qty,
+            risk_budget,
+            stop_distance * 100,
         )
         return SizingResult(
             0, 0, stop_distance * 100, 0, 0,
@@ -171,9 +175,13 @@ def calculate_quantity(
         )
 
     logger.info(
-        f"{symbol}: risk-sized qty={quantity:.6f} "
-        f"(risk=${actual_risk:.2f}, stop={stop_distance*100:.2f}%, "
-        f"value=${position_value:.2f}, margin=${margin_required:.2f})"
+        "%s: risk-sized qty=%.6f (risk=$%.2f, stop=%.2f%%, value=$%.2f, margin=$%.2f)",
+        symbol,
+        quantity,
+        actual_risk,
+        stop_distance * 100,
+        position_value,
+        margin_required,
     )
 
     return SizingResult(

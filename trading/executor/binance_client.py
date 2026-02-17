@@ -1,5 +1,8 @@
 # trading/executor/binance_client.py
 """Unified Binance client for spot and futures trading."""
+
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 from __future__ import annotations
 import asyncio
 import logging
@@ -797,14 +800,14 @@ class MockBinanceClient:
             result["positionSide"] = kwargs["positionSide"]
         return result
 
-    async def get_open_orders(self, symbol: str) -> list:
+    async def get_open_orders(self, _symbol: str) -> list:
         """Mock: return empty list (no open orders)."""
         return []
 
-    async def cancel_order(self, symbol: str, orderId: int) -> dict:
+    async def cancel_order(self, _symbol: str, orderId: int) -> dict:
         """Mock: return cancelled status."""
         return {"orderId": orderId, "status": "CANCELED"}
 
-    async def futures_cancel_all_open_orders(self, symbol: str) -> list:
+    async def futures_cancel_all_open_orders(self, _symbol: str) -> list:
         """Mock: return empty list (no orders to cancel)."""
         return []

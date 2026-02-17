@@ -6,6 +6,8 @@ DataCache - In-memory OHLCV cache with hybrid update strategy.
 - Background sync with DB every 5 minutes for historical accuracy
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import asyncio
 import logging
 import threading

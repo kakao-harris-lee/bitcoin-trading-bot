@@ -1,5 +1,7 @@
 """Technical indicators using talib. All functions are pure and stateless."""
 
+# pylint: disable=no-member
+
 import talib
 import pandas as pd
 

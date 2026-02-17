@@ -15,11 +15,13 @@ Features:
 - Error classification for retry decisions
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import logging
 import random
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, Optional, Tuple, TypeVar
@@ -483,6 +485,8 @@ class CircuitBreakerRegistry:
 
     _instance: Optional["CircuitBreakerRegistry"] = None
     _lock = threading.Lock()
+    _breakers: Dict[str, CircuitBreaker]
+    _breaker_lock: threading.RLock
 
     def __new__(cls) -> "CircuitBreakerRegistry":
         """Singleton pattern."""

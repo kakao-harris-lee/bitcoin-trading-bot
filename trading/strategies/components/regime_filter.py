@@ -138,6 +138,11 @@ class BBWFilter:
         pct = self.get_percentile()
         return self.block_threshold <= pct < self.confirm_threshold
 
+    def reset(self) -> None:
+        """Reset internal BBW state."""
+        self._bbw_history.clear()
+        self._current_bbw = 0.0
+
 
 @dataclass
 class MTFCandle:
@@ -515,7 +520,7 @@ class EnhancedRegimeRouter:
             return True
         return False
 
-    def _needs_confirmation(self, candidate: Regime, bbw_boosted: bool) -> bool:
+    def _needs_confirmation(self, _candidate: Regime, bbw_boosted: bool) -> bool:
         return self._bbw_enabled and self._bbw_filter.needs_confirmation() and not bbw_boosted
 
     def _handle_pending_confirmation(self, candidate: Regime) -> Regime:
@@ -543,5 +548,4 @@ class EnhancedRegimeRouter:
         self._last_lower_candle_ts = None
         self._pending_regime = None
         self._pending_count = 0
-        self._bbw_filter._bbw_history.clear()
-        self._bbw_filter._current_bbw = 0.0
+        self._bbw_filter.reset()

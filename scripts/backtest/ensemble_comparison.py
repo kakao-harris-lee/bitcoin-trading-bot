@@ -14,12 +14,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -104,7 +102,7 @@ def run_single_asset(
         feature_set: Override feature set (e.g. 'paper_mtf_44').
         exit_overrides: Override exit strategy params (e.g. fwin_exit_enabled).
     """
-    db_file, symbol = ASSET_DB[asset]
+    db_file, _symbol = ASSET_DB[asset]
     db_path = str(PROJECT_ROOT / db_file)
 
     try:
@@ -183,13 +181,14 @@ def run_single_asset(
         eval_start = mask.idxmax() if mask.any() else 0
         if eval_start > 0:
             # Remap precomputed cache indices
-            if adapter._mlp_cache:
+            mlp_cache = getattr(adapter, "_mlp_cache", None)
+            if mlp_cache:
                 remapped = {}
-                for old_idx, val in adapter._mlp_cache.items():
+                for old_idx, val in mlp_cache.items():
                     new_idx = old_idx - eval_start
                     if new_idx >= 0:
                         remapped[new_idx] = val
-                adapter._mlp_cache = remapped
+                setattr(adapter, "_mlp_cache", remapped)
             df = df.iloc[eval_start:].reset_index(drop=True)
 
     # Run backtest
@@ -253,7 +252,7 @@ def run_comparison(
     print("=" * 85)
 
     # Show ensemble weights
-    print(f"\n  Ensemble: ", end="")
+    print("\n  Ensemble: ", end="")
     for cfg in ensemble_configs:
         name = Path(cfg["model_path"]).parent.name
         print(f"{name}(w={cfg['weight']:.1f}) ", end="")
@@ -356,12 +355,12 @@ def run_mtf_comparison(
     print("  MTF COMPARISON: paper_36 Ensemble vs paper_mtf_44 Ensemble")
     print("=" * 85)
 
-    print(f"\n  Baseline (paper_36): ", end="")
+    print("\n  Baseline (paper_36): ", end="")
     for cfg in ENSEMBLE_CONFIGS:
         name = Path(cfg["model_path"]).parent.name
         print(f"{name}(w={cfg['weight']:.2f}) ", end="")
     print()
-    print(f"  MTF (paper_mtf_44): ", end="")
+    print("  MTF (paper_mtf_44): ", end="")
     for cfg in MTF_ENSEMBLE_CONFIGS:
         name = Path(cfg["model_path"]).parent.name
         print(f"{name}(w={cfg['weight']:.2f}) ", end="")
@@ -697,8 +696,8 @@ def run_fwin_comparison(
     print("=" * 85)
     print("  GAP 1 FIX: Label-Strategy Alignment (MLP SELL exit vs FWin exit)")
     print("=" * 85)
-    print(f"\n  Current: MLP SELL exit (fwin disabled, 10% stop loss)")
-    print(f"  Aligned: TP 4% + SL 3% + fwin 5 (20H max hold) + SELL exit")
+    print("\n  Current: MLP SELL exit (fwin disabled, 10% stop loss)")
+    print("  Aligned: TP 4% + SL 3% + fwin 5 (20H max hold) + SELL exit")
     print()
 
     header = f"{'Asset':<8} {'Metric':<14} {'Current':>12} {'Aligned':>12} {'Delta':>10}"

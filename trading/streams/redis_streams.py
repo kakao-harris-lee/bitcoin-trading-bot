@@ -135,7 +135,7 @@ class RedisStreams:
             return []
 
         messages = []
-        for stream_name, stream_messages in result:
+        for _stream_name, stream_messages in result:
             for msg_id, msg_data in stream_messages:
                 msg_data["_id"] = msg_id
                 messages.append(msg_data)

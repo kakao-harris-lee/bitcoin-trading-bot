@@ -7,7 +7,7 @@ This module provides functions to calculate key performance metrics:
 """
 
 import logging
-from typing import Optional, Tuple
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -47,7 +47,7 @@ def calculate_benchmark(
 
     # Validate required columns exist
     if price_column not in price_data.columns:
-        logger.warning(f"Column '{price_column}' not found in price data")
+        logger.warning("Column '%s' not found in price data", price_column)
         return pd.Series(dtype=float), 0.0
     if "timestamp" not in price_data.columns:
         logger.warning("Column 'timestamp' not found in price data")
@@ -106,7 +106,7 @@ def calculate_sharpe_ratio(
 
     # Validate required column exists
     if equity_column not in equity_curve.columns:
-        logger.warning(f"Column '{equity_column}' not found in equity curve")
+        logger.warning("Column '%s' not found in equity curve", equity_column)
         return 0.0
 
     equity = equity_curve[equity_column].values
@@ -158,7 +158,7 @@ def calculate_max_drawdown(
 
     # Validate required column exists
     if equity_column not in equity_curve.columns:
-        logger.warning(f"Column '{equity_column}' not found in equity curve")
+        logger.warning("Column '%s' not found in equity curve", equity_column)
         return 0.0
 
     equity = equity_curve[equity_column].values
@@ -239,7 +239,6 @@ def calculate_sortino_ratio(equity_curve: pd.DataFrame, risk_free: float = 0.0) 
     if len(returns) < 2:
         return 0.0
 
-    excess = returns - risk_free / 252
     downside_returns = returns[returns < 0]
 
     if len(downside_returns) == 0:

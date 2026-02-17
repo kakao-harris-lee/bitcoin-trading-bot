@@ -3,6 +3,8 @@
 Includes mplfinance-based regime charts for indicator analysis.
 """
 
+# pylint: disable=logging-fstring-interpolation
+
 import logging
 import re
 from datetime import date
@@ -112,8 +114,10 @@ def _validate_output_path(output_path: str, base_dir: Optional[Path] = None) -> 
     # Verify the resolved path is within base directory using proper path containment check
     try:
         resolved.relative_to(base_dir)
-    except ValueError:
-        raise ValueError(f"Output path escapes base directory: {output_path}")
+    except ValueError as exc:
+        raise ValueError(
+            f"Output path escapes base directory: {output_path}"
+        ) from exc
 
     return resolved
 
@@ -342,7 +346,7 @@ class BacktestVisualizer:
             return None
 
         fig, ax = plt.subplots(figsize=(self.config.width, self.config.height))
-        colors = plt.cm.tab10.colors
+        colors = plt.get_cmap("tab10").colors
 
         for i, result in enumerate(results):
             comparison = self._build_comparison_line(result, i)
@@ -489,8 +493,8 @@ class BacktestVisualizer:
             plt.close(fig)
             logger.info(f"Regime chart saved to: {safe_path}")
             return str(safe_path)
-        except Exception as e:
-            logger.error(f"Failed to create regime chart: {e}")
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to create regime chart: %s", exc)
             import traceback
             traceback.print_exc()
             return None
@@ -576,8 +580,8 @@ class BacktestVisualizer:
     def _build_regime_addplots(
         self,
         df: pd.DataFrame,
-        trades: Optional[List[dict]],
-        equity_curve: Optional[List[dict]],
+        _trades: Optional[List[dict]],
+        _equity_curve: Optional[List[dict]],
     ) -> tuple[List[Any], tuple[int, ...]]:
         addplots: List[Any] = []
         self._append_bollinger_addplots(df, addplots)
@@ -761,7 +765,7 @@ class BacktestVisualizer:
                     alpha=0.3,
                 )
             )
-        logger.info("ATR% panel added to chart")
+        logger.info("ATR percent panel added to chart")
         return True
 
     def _append_bollinger_addplots(self, df: pd.DataFrame, addplots: List[Any]) -> None:
@@ -880,8 +884,8 @@ class BacktestVisualizer:
                     linestyle="-", secondary_y=True, ylabel="Return %"
                 )
             )
-        except Exception as e:
-            logger.warning(f"Failed to add equity overlay: {e}")
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.warning("Failed to add equity overlay: %s", exc)
 
     def _build_regime_style(self):
         mc = mpf.make_marketcolors(
@@ -978,7 +982,7 @@ class BacktestVisualizer:
 
     def _add_regime_background(
         self,
-        fig: plt.Figure,
+        _fig: plt.Figure,
         axes: List[plt.Axes],
         df: pd.DataFrame
     ) -> None:
@@ -995,18 +999,14 @@ class BacktestVisualizer:
         # Get the main price axis (first one)
         ax = axes[0]
 
-        # Get x-axis limits in terms of data coordinates
-        xlim = ax.get_xlim()
-
         # Create regime segments
         regimes = df['regime'].fillna('UNKNOWN')
-        unique_regimes = regimes.unique()
 
         # Add vertical spans for each regime change
         prev_regime = None
         start_idx = 0
 
-        for i, (idx, regime) in enumerate(regimes.items()):
+        for i, (_idx, regime) in enumerate(regimes.items()):
             if regime != prev_regime:
                 if prev_regime is not None and i > start_idx:
                     # Draw span for previous regime

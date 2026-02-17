@@ -3,6 +3,7 @@
 Trading Engine V2 - Redis Setup Script (Server Version)
 서버에서 localhost로 Redis 연결
 """
+# pylint: disable=broad-exception-caught
 
 import asyncio
 import sys
@@ -66,7 +67,7 @@ async def main():
     print("  Trading Engine V2 - Redis Setup (Server)")
     print("=" * 70)
 
-    print(f"\n📡 Redis 연결 정보:")
+    print("\n📡 Redis 연결 정보:")
     print(f"   Host: {REDIS_HOST}")
     print(f"   Port: {REDIS_PORT}")
 
@@ -79,7 +80,7 @@ async def main():
             decode_responses=True,
         )
         await client.ping()
-        print(f"   ✅ 연결 성공!")
+        print("   ✅ 연결 성공!")
     except Exception as e:
         print(f"   ❌ 연결 실패: {e}")
         return False
@@ -87,14 +88,14 @@ async def main():
     try:
         # 서버 정보
         info = await client.info("server")
-        print(f"\n📍 Redis Server Info:")
+        print("\n📍 Redis Server Info:")
         print(f"   Version: {info.get('redis_version', 'N/A')}")
         print(f"   Uptime: {info.get('uptime_in_days', 0)} days")
 
         # Streams 생성
-        print(f"\n📊 Streams 생성:")
+        print("\n📊 Streams 생성:")
         streams_created = 0
-        for name, stream_key in STREAMS.items():
+        for _name, stream_key in STREAMS.items():
             try:
                 # 존재 여부 확인
                 try:
@@ -109,7 +110,7 @@ async def main():
                 print(f"   ❌ {stream_key:<25} - 오류: {e}")
 
         # Consumer Groups 생성
-        print(f"\n👥 Consumer Groups 생성:")
+        print("\n👥 Consumer Groups 생성:")
         groups_created = 0
         for stream_name, groups in CONSUMER_GROUPS.items():
             print(f"\n   📌 {stream_name}:")
@@ -131,7 +132,7 @@ async def main():
                         print(f"      ❌ {group_name} - {e}")
 
         # 테스트 메시지
-        print(f"\n🧪 테스트 메시지 발행:")
+        print("\n🧪 테스트 메시지 발행:")
         test_id = await client.xadd("system:events", {
             "event": "setup_complete",
             "message": "Trading Engine V2 Redis 설정 완료",
@@ -145,7 +146,7 @@ async def main():
         print("=" * 70)
         print(f"\n   📊 Streams: {streams_created}")
         print(f"   👥 Consumer Groups: {groups_created}")
-        print(f"\n   ✅ Redis 인프라 준비 완료!\n")
+        print("\n   ✅ Redis 인프라 준비 완료!\n")
 
         return True
 

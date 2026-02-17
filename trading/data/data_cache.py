@@ -4,6 +4,7 @@ DataCache - In-memory DataFrame caching for performance.
 Eliminates repeated database loads by caching DataFrames
 with configurable refresh intervals.
 """
+# pylint: disable=broad-exception-caught
 
 import asyncio
 import logging
@@ -122,11 +123,11 @@ class DataCache:
                 self._cache[timeframe] = df
                 self._last_refresh[timeframe] = datetime.now()
 
-            logger.debug(f"Cache refreshed: {timeframe} ({len(df)} rows)")
+            logger.debug("Cache refreshed: %s (%d rows)", timeframe, len(df))
             return True
 
         except Exception as e:
-            logger.error(f"Cache refresh failed for {timeframe}: {e}")
+            logger.error("Cache refresh failed for %s: %s", timeframe, e)
             return False
 
         finally:
@@ -156,11 +157,11 @@ class DataCache:
                 self._cache[timeframe] = df
                 self._last_refresh[timeframe] = datetime.now()
 
-            logger.debug(f"Cache refreshed (async): {timeframe} ({len(df)} rows)")
+            logger.debug("Cache refreshed (async): %s (%d rows)", timeframe, len(df))
             return True
 
         except Exception as e:
-            logger.error(f"Async cache refresh failed for {timeframe}: {e}")
+            logger.error("Async cache refresh failed for %s: %s", timeframe, e)
             return False
 
         finally:
@@ -231,12 +232,13 @@ class DataCache:
 
 
 # Singleton instance for global access
-_cache_instance: Optional[DataCache] = None
+_CACHE_STATE: Dict[str, Optional[DataCache]] = {"instance": None}
 
 
 def get_data_cache() -> DataCache:
     """Get or create global DataCache instance."""
-    global _cache_instance
-    if _cache_instance is None:
-        _cache_instance = DataCache()
-    return _cache_instance
+    cache = _CACHE_STATE["instance"]
+    if cache is None:
+        cache = DataCache()
+        _CACHE_STATE["instance"] = cache
+    return cache

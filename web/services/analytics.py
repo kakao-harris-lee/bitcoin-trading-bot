@@ -3,7 +3,6 @@ Analytics service for calculating trading performance metrics.
 """
 
 from datetime import datetime, timedelta
-from typing import Optional
 
 
 def calculate_metrics(trades: list, period: str = '30d') -> dict:
@@ -275,7 +274,7 @@ def _calculate_sharpe(returns: list, risk_free_rate: float = 0.02) -> float:
         # Annualized (assuming daily returns)
         sharpe = (mean_return - risk_free_rate / 365) / std_return * (365 ** 0.5)
         return round(sharpe, 2)
-    except Exception:
+    except (statistics.StatisticsError, ValueError, TypeError):
         return 0
 
 

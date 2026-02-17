@@ -5,9 +5,11 @@ Tracks health status of each asset to enable graceful degradation
 when individual assets encounter errors.
 """
 
+# pylint: disable=logging-fstring-interpolation,broad-exception-caught
+
 import logging
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
@@ -167,8 +169,6 @@ class AssetHealthTracker:
             health = self._health.get(symbol)
             if not health:
                 return
-
-            was_disabled = not health.enabled
 
             health.consecutive_failures = 0
             health.total_successes += 1

@@ -1,5 +1,8 @@
 """
 업비트 비트코인 DB 데이터 검증 스크립트
+
+[DEPRECATED]
+Upbit 레거시 참조 도구입니다.
 """
 
 import sqlite3

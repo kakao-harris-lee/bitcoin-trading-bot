@@ -2,6 +2,9 @@
 """
 업비트 비트코인 DB 확인 CLI
 간단한 대화형 인터페이스로 DB 내용 확인
+
+[DEPRECATED]
+Upbit 레거시 참조 도구입니다.
 """
 
 import sqlite3

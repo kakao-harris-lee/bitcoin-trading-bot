@@ -5,8 +5,11 @@
 API에서도 확보할 수 없는 미세한 누락 구간을
 이전 값과 이후 값을 기준으로 선형보간합니다.
 
+[DEPRECATED]
+Spot/Binance 운영 전환으로 현재 파이프라인에서는 사용하지 않습니다.
+
 Usage:
-    python automation/interpolate_gaps.py
+    python scripts/references/deprecated_upbit/interpolate_gaps.py
 """
 
 import sqlite3

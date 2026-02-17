@@ -5,12 +5,16 @@ Upbit Altcoin Data Collector
 Generalized data collector for any Upbit-listed cryptocurrency.
 Supports ETH, SOL, XRP, and any KRW-paired asset.
 
+[DEPRECATED]
+This script is archived for reference only.
+Active collection path is spot/Binance.
+
 Usage:
-    python scripts/collect_altcoin_data.py ETH           # Collect ETH data
-    python scripts/collect_altcoin_data.py SOL           # Collect SOL data
-    python scripts/collect_altcoin_data.py ETH SOL XRP   # Collect multiple
-    python scripts/collect_altcoin_data.py --list        # Show available assets
-    python scripts/collect_altcoin_data.py ETH --timeframe minute60  # Specific timeframe
+    python scripts/references/deprecated_upbit/collect_altcoin_data.py ETH
+    python scripts/references/deprecated_upbit/collect_altcoin_data.py SOL
+    python scripts/references/deprecated_upbit/collect_altcoin_data.py ETH SOL XRP
+    python scripts/references/deprecated_upbit/collect_altcoin_data.py --list
+    python scripts/references/deprecated_upbit/collect_altcoin_data.py ETH --timeframe minute60
 """
 
 import argparse
@@ -21,7 +25,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Optional
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 # Asset configurations

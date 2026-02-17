@@ -2,8 +2,11 @@
 """
 전체 타임프레임 데이터 검증 및 누락 구간 리포트 생성
 
+[DEPRECATED]
+Upbit 레거시 검증 도구 보관본입니다.
+
 Usage:
-    python automation/verify_all_timeframes.py
+    python scripts/references/deprecated_upbit/verify_data.py
 """
 
 import sqlite3

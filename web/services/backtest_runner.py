@@ -417,67 +417,72 @@ class BacktestJob:
 
 def get_available_strategies() -> list:
     """Get list of available strategies dynamically from StrategyFactory and allocation.json."""
+    strategies: list[dict] = []
+    existing_ids: set[str] = set()
+    allocation_strategies = _load_allocation_strategies()
+    _append_factory_strategies(strategies, existing_ids, allocation_strategies)
+    _append_allocation_only_strategies(strategies, existing_ids, allocation_strategies)
+    _append_backtest_only_strategies(strategies, existing_ids)
+    return strategies
+
+
+def _load_allocation_strategies() -> dict:
     import json
 
-    strategies = []
-    existing_ids = set()
-    allocation_strategies = {}
-
+    allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
+    if not allocation_path.exists():
+        return {}
     try:
-        allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
-        if allocation_path.exists():
-            with open(allocation_path, 'r') as f:
-                allocation = json.load(f)
-            allocation_strategies = allocation.get('strategies', {})
+        with open(allocation_path, 'r') as f:
+            allocation = json.load(f)
+        return allocation.get('strategies', {})
     except Exception as e:
         print(f"Error preloading allocation.json strategies: {e}")
-        allocation_strategies = {}
+        return {}
 
-    # 1. Get strategies from Factory Registry
+
+def _append_factory_strategies(strategies: list, existing_ids: set[str], allocation_strategies: dict) -> None:
     try:
-        factory_strategies = STRATEGY_REGISTRY.keys()
-
-        for name in factory_strategies:
+        for name, spec in STRATEGY_REGISTRY.items():
             if name in DEPRECATED_BACKTEST_STRATEGIES:
                 continue
             if name in allocation_strategies and not allocation_strategies[name].get('enabled', True):
                 continue
-            spec = STRATEGY_REGISTRY[name]
             strategies.append({
                 'id': name,
                 'name': name.replace('_', ' ').title(),
                 'description': f"{spec.market.title()} strategy ({name})",
-                'exchange': 'binance',  # System is Binance-only since PR #21
-                'default_params': {}
+                'exchange': 'binance',
+                'default_params': {},
             })
             existing_ids.add(name)
     except Exception as e:
         print(f"Error loading factory strategies: {e}")
-        # Fallback if registry fails
 
-    # 2. Get tuned strategies from allocation.json
+
+def _append_allocation_only_strategies(strategies: list, existing_ids: set[str], allocation_strategies: dict) -> None:
     try:
         for name, config in allocation_strategies.items():
             if name in DEPRECATED_BACKTEST_STRATEGIES:
                 continue
-            if not config.get('enabled', True):
+            if not config.get('enabled', True) or name in existing_ids:
                 continue
-            if name not in existing_ids:
-                # This is a tuned/custom strategy not in registry
-                is_tuned = 'tuned_config' in config or 'regime_routing' in config
-                strategies.append({
-                    'id': name,
-                    'name': name.replace('_', ' ').title(),
-                    'description': f"{'Tuned' if is_tuned else 'Custom'} {config.get('market', 'futures').title()} strategy",
-                    'exchange': 'binance',
-                    'default_params': {},
-                    'is_tuned': is_tuned
-                })
-                existing_ids.add(name)
+            is_tuned = 'tuned_config' in config or 'regime_routing' in config
+            strategy_kind = 'Tuned' if is_tuned else 'Custom'
+            strategies.append({
+                'id': name,
+                'name': name.replace('_', ' ').title(),
+                'description': f"{strategy_kind} {config.get('market', 'futures').title()} strategy",
+                'exchange': 'binance',
+                'default_params': {},
+                'is_tuned': is_tuned,
+            })
+            existing_ids.add(name)
     except Exception as e:
         print(f"Error loading allocation.json strategies: {e}")
 
-    # 3. Add explicit backtest-only strategies (not managed in Strategies tab).
+
+def _append_backtest_only_strategies(strategies: list, existing_ids: set[str]) -> None:
     for strategy in BACKTEST_ONLY_STRATEGIES:
         sid = strategy["id"]
         if sid in existing_ids:
@@ -491,8 +496,6 @@ def get_available_strategies() -> list:
             'backtest_only': True,
         })
         existing_ids.add(sid)
-
-    return strategies
 
 
 def create_backtest_job(config: dict) -> BacktestJob:
@@ -1503,235 +1506,206 @@ def _run_generic_backtest(
     ), df
 
 
-def _run_walkforward_backtest(
-    strategy_id: str,
-    start_date: str,
-    end_date: str,
-    initial_capital: float,
-    job: BacktestJob,
-) -> tuple:
-    """Run walk-forward backtest for a single asset using tree_60 XGB+LGB ensemble.
+_WF_ALLOWED_ASSETS = ('BTC', 'ETH', 'SOL')
+_WF_PARAM_DEFAULTS = {
+    "BTC": {
+        "cooldown_reentry_enabled": True,
+        "cooldown_reentry_requires_buy": True,
+        "min_bars_after_risk_exit": 24,
+        "trailing_drawdown_exit_pct": 10.0,
+        "reentry_trend_filter_enabled": True,
+        "reentry_ema_span": 50,
+        "reentry_require_ema_rising": True,
+        "staged_reentry_enabled": True,
+        "reentry_stage1_fraction": 0.55,
+        "reentry_stage2_fraction": 0.8,
+        "stage2_confirm_bars": 6,
+        "stage2_trigger_pct": 0.8,
+    },
+    "ETH": {
+        "cooldown_reentry_enabled": True,
+        "cooldown_reentry_requires_buy": True,
+        "min_bars_after_risk_exit": 24,
+        "trailing_drawdown_exit_pct": 10.0,
+        "reentry_trend_filter_enabled": True,
+        "reentry_ema_span": 50,
+        "reentry_require_ema_rising": True,
+        "staged_reentry_enabled": True,
+        "reentry_stage1_fraction": 0.55,
+        "reentry_stage2_fraction": 0.8,
+        "stage2_confirm_bars": 6,
+        "stage2_trigger_pct": 0.8,
+    },
+    "SOL": {
+        "cooldown_reentry_enabled": True,
+        "cooldown_reentry_requires_buy": True,
+        "min_bars_after_risk_exit": 24,
+        "trailing_drawdown_exit_pct": 12.0,
+        "reentry_trend_filter_enabled": False,
+        "reentry_ema_span": 50,
+        "reentry_require_ema_rising": True,
+        "staged_reentry_enabled": False,
+        "reentry_stage1_fraction": 0.45,
+        "reentry_stage2_fraction": 0.8,
+        "stage2_confirm_bars": 6,
+        "stage2_trigger_pct": 1.5,
+    },
+}
 
-    Calls run_walkforward_asset() with recommended sliding-window config
-    and converts the Backtester output to dashboard format.
-    """
-    import numpy as np
-    from scripts.backtest.walkforward_backtest import run_walkforward_asset
 
-    # Extract asset from strategy_id: wf_tree60_btc -> BTC
+def _resolve_walkforward_asset(strategy_id: str) -> str:
     asset = strategy_id.replace('wf_tree60_', '').upper()
-    if asset not in ('BTC', 'ETH', 'SOL'):
+    if asset not in _WF_ALLOWED_ASSETS:
         raise ValueError(f"Unknown walk-forward asset: {asset}")
+    return asset
 
-    job.progress = 10
 
-    # Dashboard defaults are configurable through env for performance tuning.
-    wf_n_splits = int(os.getenv('WF_N_SPLITS', '7'))
-    wf_max_train_folds = int(os.getenv('WF_MAX_TRAIN_FOLDS', '3'))
-    wf_temporal_decay = float(os.getenv('WF_TEMPORAL_DECAY', '2.0'))
-    wf_xgb_rounds = int(os.getenv('WF_XGB_ROUNDS', '500'))
-    wf_lgb_rounds = int(os.getenv('WF_LGB_ROUNDS', '500'))
+def _env_bool(value: str) -> bool:
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
-    # Risk/re-entry defaults tuned from 2024 grid search.
-    wf_param_defaults = {
-        "BTC": {
-            "cooldown_reentry_enabled": True,
-            "cooldown_reentry_requires_buy": True,
-            "min_bars_after_risk_exit": 24,
-            "trailing_drawdown_exit_pct": 10.0,
-            "reentry_trend_filter_enabled": True,
-            "reentry_ema_span": 50,
-            "reentry_require_ema_rising": True,
-            "staged_reentry_enabled": True,
-            "reentry_stage1_fraction": 0.55,
-            "reentry_stage2_fraction": 0.8,
-            "stage2_confirm_bars": 6,
-            "stage2_trigger_pct": 0.8,
-        },
-        "ETH": {
-            "cooldown_reentry_enabled": True,
-            "cooldown_reentry_requires_buy": True,
-            "min_bars_after_risk_exit": 24,
-            "trailing_drawdown_exit_pct": 10.0,
-            "reentry_trend_filter_enabled": True,
-            "reentry_ema_span": 50,
-            "reentry_require_ema_rising": True,
-            "staged_reentry_enabled": True,
-            "reentry_stage1_fraction": 0.55,
-            "reentry_stage2_fraction": 0.8,
-            "stage2_confirm_bars": 6,
-            "stage2_trigger_pct": 0.8,
-        },
-        # Keep SOL conservative until dedicated tuning is completed.
-        "SOL": {
-            "cooldown_reentry_enabled": True,
-            "cooldown_reentry_requires_buy": True,
-            "min_bars_after_risk_exit": 24,
-            "trailing_drawdown_exit_pct": 12.0,
-            "reentry_trend_filter_enabled": False,
-            "reentry_ema_span": 50,
-            "reentry_require_ema_rising": True,
-            "staged_reentry_enabled": False,
-            "reentry_stage1_fraction": 0.45,
-            "reentry_stage2_fraction": 0.8,
-            "stage2_confirm_bars": 6,
-            "stage2_trigger_pct": 1.5,
-        },
+
+def _resolve_wf_param(asset: str, param_key: str, default_value):
+    raw = os.getenv(f"WF_TREE60_{asset}_{param_key.upper()}")
+    if raw is None:
+        raw = os.getenv(f"WF_TREE60_{param_key.upper()}")
+    if raw is None:
+        return default_value
+    if isinstance(default_value, bool):
+        return _env_bool(raw)
+    if isinstance(default_value, int) and not isinstance(default_value, bool):
+        return int(raw)
+    if isinstance(default_value, float):
+        return float(raw)
+    return raw
+
+
+def _resolve_walkforward_params(asset: str) -> dict:
+    defaults = _WF_PARAM_DEFAULTS[asset]
+    return {key: _resolve_wf_param(asset, key, value) for key, value in defaults.items()}
+
+
+def _load_walkforward_runtime_settings() -> dict:
+    return {
+        'n_splits': int(os.getenv('WF_N_SPLITS', '7')),
+        'max_train_folds': int(os.getenv('WF_MAX_TRAIN_FOLDS', '3')),
+        'temporal_decay': float(os.getenv('WF_TEMPORAL_DECAY', '2.0')),
+        'xgb_rounds': int(os.getenv('WF_XGB_ROUNDS', '500')),
+        'lgb_rounds': int(os.getenv('WF_LGB_ROUNDS', '500')),
     }
 
-    def _env_bool(value: str) -> bool:
-        return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
-    def _resolve_wf_param(param_key: str, default_value):
-        raw = os.getenv(f"WF_TREE60_{asset}_{param_key.upper()}")
-        if raw is None:
-            raw = os.getenv(f"WF_TREE60_{param_key.upper()}")
-        if raw is None:
-            return default_value
-        if isinstance(default_value, bool):
-            return _env_bool(raw)
-        if isinstance(default_value, int) and not isinstance(default_value, bool):
-            return int(raw)
-        if isinstance(default_value, float):
-            return float(raw)
-        return raw
-
-    asset_defaults = wf_param_defaults[asset]
-    wf_params = {
-        key: _resolve_wf_param(key, value)
-        for key, value in asset_defaults.items()
-    }
-
-    # Persist running heartbeat periodically so DB doesn't remain stale pending.
+def _make_walkforward_progress_callback(job: BacktestJob):
     last_heartbeat = 0.0
 
     def _progress_callback(fraction: float) -> None:
         nonlocal last_heartbeat
         bounded = max(0.0, min(float(fraction), 1.0))
-        mapped = max(job.progress, int(round(10 + (bounded * 65))))
-        job.progress = mapped
+        job.progress = max(job.progress, int(round(10 + (bounded * 65))))
 
         now = time.monotonic()
-        if now - last_heartbeat >= 10:
-            last_heartbeat = now
-            backtest_db.save_backtest(
-                job_id=job.job_id,
-                config=job.config,
-                status='running',
-                created_at=job.created_at,
-                completed_at=None,
-                result=None,
-                error=None,
-            )
+        if now - last_heartbeat < 10:
+            return
+        last_heartbeat = now
+        backtest_db.save_backtest(
+            job_id=job.job_id,
+            config=job.config,
+            status='running',
+            created_at=job.created_at,
+            completed_at=None,
+            result=None,
+            error=None,
+        )
 
-    # Run walk-forward with recommended sliding-window config
-    wf_result = run_walkforward_asset(
-        asset=asset,
-        start_date=start_date,
-        end_date=end_date,
-        capital=initial_capital,
-        n_splits=wf_n_splits,
-        max_train_folds=wf_max_train_folds,
-        temporal_decay=wf_temporal_decay,
-        xgb_rounds=wf_xgb_rounds,
-        lgb_rounds=wf_lgb_rounds,
-        cooldown_reentry_enabled=wf_params["cooldown_reentry_enabled"],
-        cooldown_reentry_requires_buy=wf_params["cooldown_reentry_requires_buy"],
-        trailing_drawdown_exit_pct=wf_params["trailing_drawdown_exit_pct"],
-        min_bars_after_risk_exit=wf_params["min_bars_after_risk_exit"],
-        reentry_trend_filter_enabled=wf_params["reentry_trend_filter_enabled"],
-        reentry_ema_span=wf_params["reentry_ema_span"],
-        reentry_require_ema_rising=wf_params["reentry_require_ema_rising"],
-        staged_reentry_enabled=wf_params["staged_reentry_enabled"],
-        reentry_stage1_fraction=wf_params["reentry_stage1_fraction"],
-        reentry_stage2_fraction=wf_params["reentry_stage2_fraction"],
-        stage2_confirm_bars=wf_params["stage2_confirm_bars"],
-        stage2_trigger_pct=wf_params["stage2_trigger_pct"],
-        progress_callback=_progress_callback,
-        should_cancel=lambda: job._cancelled,
-    )
+    return _progress_callback
 
-    if not wf_result:
-        raise ValueError(f"Walk-forward backtest produced no results for {asset}")
 
-    job.progress = 75
+def _build_walkforward_equity_curve(equity_df: pd.DataFrame, initial_capital: float) -> list[dict]:
+    points: list[dict] = []
+    if equity_df is None or equity_df.empty:
+        return points
+    for _, row in equity_df.iterrows():
+        ts = row.get('timestamp', row.name)
+        points.append({
+            'date': str(ts)[:10],
+            'equity': float(row.get('total_equity', row.get('equity', initial_capital))),
+        })
+    return points
 
-    results_inner = wf_result['results']
-    metrics = wf_result.get('metrics', {})
-    equity_df = wf_result.get('equity_curve', pd.DataFrame())
 
-    # Convert equity_curve DataFrame to list of {date, equity} dicts
-    equity_curve = []
-    if equity_df is not None and not equity_df.empty:
-        for _, row in equity_df.iterrows():
-            ts = row.get('timestamp', row.name)
-            equity_curve.append({
-                'date': str(ts)[:10],
-                'equity': float(row.get('total_equity', row.get('equity', initial_capital))),
-            })
-
-    # Convert Trade objects to dashboard trade format
-    trades_list = []
-    raw_trades = results_inner.get('trades', [])
-    # raw_trades are Trade dataclass instances from Backtester
+def _sample_walkforward_trades(raw_trades: list, max_trades: int = 150) -> tuple[list, list]:
     closed_trades = [t for t in raw_trades if t.exit_time is not None]
-    max_trades = 150
-    if len(closed_trades) > max_trades:
-        step = len(closed_trades) / max_trades
-        indices = [int(i * step) for i in range(max_trades)]
-        sampled = [closed_trades[i] for i in indices]
-    else:
-        sampled = closed_trades
+    if len(closed_trades) <= max_trades:
+        return closed_trades, closed_trades
+    step = len(closed_trades) / max_trades
+    indices = [int(i * step) for i in range(max_trades)]
+    sampled = [closed_trades[i] for i in indices]
+    return closed_trades, sampled
 
-    for t in sampled:
-        raw_reason = str(getattr(t, 'reason', '') or '')
+
+def _format_walkforward_trades(trades: list, asset: str) -> list[dict]:
+    formatted: list[dict] = []
+    for trade in trades:
+        raw_reason = str(getattr(trade, 'reason', '') or '')
         entry_reason = raw_reason.split(' -> ', 1)[0] if ' -> ' in raw_reason else raw_reason
         if '[' in raw_reason and raw_reason.endswith(']'):
             exit_reason = raw_reason.rsplit('[', 1)[1][:-1]
         else:
             exit_reason = raw_reason
-
-        trades_list.append({
-            'timestamp': str(t.entry_time)[:19],
+        formatted.append({
+            'timestamp': str(trade.entry_time)[:19],
             'symbol': asset,
             'action': 'BUY',
-            'price': t.entry_price,
+            'price': trade.entry_price,
             'profit': None,
             'reason': entry_reason,
         })
-        trades_list.append({
-            'timestamp': str(t.exit_time)[:19],
+        formatted.append({
+            'timestamp': str(trade.exit_time)[:19],
             'symbol': asset,
             'action': 'SELL',
-            'price': t.exit_price,
-            'profit': round(t.profit_loss, 0) if t.profit_loss else 0,
+            'price': trade.exit_price,
+            'profit': round(trade.profit_loss, 0) if trade.profit_loss else 0,
             'reason': exit_reason,
         })
+    return formatted
 
-    # Build standard metrics
-    total_return_pct = metrics.get('total_return', results_inner.get('total_return', 0))
-    final_capital = initial_capital * (1 + total_return_pct / 100)
+
+def _compute_walkforward_trade_metrics(closed_trades: list) -> tuple[list, list, float, float]:
     wins = [t for t in closed_trades if t.profit_loss and t.profit_loss > 0]
     losses = [t for t in closed_trades if t.profit_loss is not None and t.profit_loss <= 0]
-    win_rate = len(wins) / len(closed_trades) * 100 if closed_trades else 0
-
-    gross_profit = sum(t.profit_loss for t in wins) if wins else 0
-    gross_loss = abs(sum(t.profit_loss for t in losses)) if losses else 0
+    win_rate = (len(wins) / len(closed_trades) * 100) if closed_trades else 0.0
+    gross_profit = sum(t.profit_loss for t in wins) if wins else 0.0
+    gross_loss = abs(sum(t.profit_loss for t in losses)) if losses else 0.0
     profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0.0
+    return wins, losses, win_rate, profit_factor
 
-    # Load price data for visualization (benchmark, regime chart)
-    db_mapping = {
-        'BTC': PROJECT_ROOT / "data" / "binance_bitcoin.db",
-        'ETH': PROJECT_ROOT / "data" / "binance_ethereum.db",
-        'SOL': PROJECT_ROOT / "data" / "binance_solana.db",
-    }
+
+def _load_walkforward_price_data(asset: str, start_date: str, end_date: str) -> pd.DataFrame:
     from core.data_loader import DataLoader
-    db_path = db_mapping.get(asset, db_mapping['BTC'])
+
+    db_path = SYMBOL_DB_MAPPING.get(asset, SYMBOL_DB_MAPPING['BTC'])
     with DataLoader(db_path=str(db_path)) as loader:
-        price_data = loader.load_timeframe('minute240', start_date, end_date)
+        return loader.load_timeframe('minute240', start_date, end_date)
 
-    job.progress = 85
 
+def _build_walkforward_response(
+    strategy_id: str,
+    start_date: str,
+    end_date: str,
+    initial_capital: float,
+    total_return_pct: float,
+    metrics: dict,
+    results_inner: dict,
+    closed_trades: list,
+    wins: list,
+    losses: list,
+    win_rate: float,
+    profit_factor: float,
+    equity_curve: list[dict],
+    trades_list: list[dict],
+) -> dict:
+    final_capital = initial_capital * (1 + total_return_pct / 100)
+    max_drawdown = round(metrics.get('mdd', results_inner.get('max_drawdown_pct', 0)), 2)
     return {
         'strategy': strategy_id,
         'preset': 'walkforward',
@@ -1747,12 +1721,91 @@ def _run_walkforward_backtest(
         'losing_trades': len(losses),
         'win_rate': round(win_rate, 2),
         'profit_factor': round(profit_factor, 2),
-        'max_drawdown': round(metrics.get('mdd', results_inner.get('max_drawdown_pct', 0)), 2),
-        'max_drawdown_pct': round(metrics.get('mdd', results_inner.get('max_drawdown_pct', 0)), 2),
+        'max_drawdown': max_drawdown,
+        'max_drawdown_pct': max_drawdown,
         'sharpe_ratio': round(metrics.get('sharpe', results_inner.get('sharpe_ratio', 0)), 2),
         'equity_curve': equity_curve,
         'trades': trades_list,
-    }, price_data
+    }
+
+
+def _run_walkforward_backtest(
+    strategy_id: str,
+    start_date: str,
+    end_date: str,
+    initial_capital: float,
+    job: BacktestJob,
+) -> tuple:
+    """Run walk-forward backtest for a single asset using tree_60 XGB+LGB ensemble.
+
+    Calls run_walkforward_asset() with recommended sliding-window config
+    and converts the Backtester output to dashboard format.
+    """
+    from scripts.backtest.walkforward_backtest import run_walkforward_asset
+
+    asset = _resolve_walkforward_asset(strategy_id)
+    job.progress = 10
+    runtime = _load_walkforward_runtime_settings()
+    wf_params = _resolve_walkforward_params(asset)
+    wf_result = run_walkforward_asset(
+        asset=asset,
+        start_date=start_date,
+        end_date=end_date,
+        capital=initial_capital,
+        n_splits=runtime['n_splits'],
+        max_train_folds=runtime['max_train_folds'],
+        temporal_decay=runtime['temporal_decay'],
+        xgb_rounds=runtime['xgb_rounds'],
+        lgb_rounds=runtime['lgb_rounds'],
+        cooldown_reentry_enabled=wf_params["cooldown_reentry_enabled"],
+        cooldown_reentry_requires_buy=wf_params["cooldown_reentry_requires_buy"],
+        trailing_drawdown_exit_pct=wf_params["trailing_drawdown_exit_pct"],
+        min_bars_after_risk_exit=wf_params["min_bars_after_risk_exit"],
+        reentry_trend_filter_enabled=wf_params["reentry_trend_filter_enabled"],
+        reentry_ema_span=wf_params["reentry_ema_span"],
+        reentry_require_ema_rising=wf_params["reentry_require_ema_rising"],
+        staged_reentry_enabled=wf_params["staged_reentry_enabled"],
+        reentry_stage1_fraction=wf_params["reentry_stage1_fraction"],
+        reentry_stage2_fraction=wf_params["reentry_stage2_fraction"],
+        stage2_confirm_bars=wf_params["stage2_confirm_bars"],
+        stage2_trigger_pct=wf_params["stage2_trigger_pct"],
+        progress_callback=_make_walkforward_progress_callback(job),
+        should_cancel=lambda: job._cancelled,
+    )
+
+    if not wf_result:
+        raise ValueError(f"Walk-forward backtest produced no results for {asset}")
+
+    job.progress = 75
+
+    results_inner = wf_result['results']
+    metrics = wf_result.get('metrics', {})
+    equity_df = wf_result.get('equity_curve', pd.DataFrame())
+    equity_curve = _build_walkforward_equity_curve(equity_df, initial_capital)
+    raw_trades = results_inner.get('trades', [])
+    closed_trades, sampled_trades = _sample_walkforward_trades(raw_trades)
+    trades_list = _format_walkforward_trades(sampled_trades, asset)
+    wins, losses, win_rate, profit_factor = _compute_walkforward_trade_metrics(closed_trades)
+    total_return_pct = metrics.get('total_return', results_inner.get('total_return', 0))
+    price_data = _load_walkforward_price_data(asset, start_date, end_date)
+    job.progress = 85
+
+    return _build_walkforward_response(
+        strategy_id=strategy_id,
+        start_date=start_date,
+        end_date=end_date,
+        initial_capital=initial_capital,
+        total_return_pct=total_return_pct,
+        metrics=metrics,
+        results_inner=results_inner,
+        closed_trades=closed_trades,
+        wins=wins,
+        losses=losses,
+        win_rate=win_rate,
+        profit_factor=profit_factor,
+        equity_curve=equity_curve,
+        trades_list=trades_list,
+    ), price_data
 
 
 

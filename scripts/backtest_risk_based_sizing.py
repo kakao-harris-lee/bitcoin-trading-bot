@@ -16,6 +16,7 @@ import json
 import argparse
 from pathlib import Path
 from datetime import datetime
+from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
 import pandas as pd
@@ -43,11 +44,27 @@ from core.metrics import (
 from trading.strategies.components import StrategyFactory
 from trading.indicators import add_all_indicators
 from trading.risk.position_sizer import (
-    PositionSizer,
     RiskSizingConfig,
     calculate_stop_price,
     calculate_quantity,
 )
+
+
+@dataclass
+class CoreOverlayState:
+    """Runtime state for optional core+overlay mode."""
+
+    enabled: bool
+    core_hold_pct: float
+    core_exit_on_ema200: bool
+    core_reentry_on_ema200: bool
+    core_drawdown_exit_pct: float
+    core_drawdown_reentry_pct: float
+    core_high_water_mark: float = 0.0
+    core_exited_for_drawdown: bool = False
+    core_ema_confirm_hours: int = 24
+    core_below_ema_count: int = 0
+    core_above_ema_count: int = 0
 
 
 class RiskBasedBacktester:
@@ -104,6 +121,279 @@ class RiskBasedBacktester:
         self.core_cash = 0.0
         self.overlay_cash = 0.0
 
+    def _create_risk_config(self, config: Dict[str, Any]) -> RiskSizingConfig:
+        return RiskSizingConfig(
+            risk_per_trade_pct=config.get('risk_per_trade_pct', self.risk_per_trade),
+            atr_multiplier=config.get('atr_stop_multiplier', 3.5),
+            min_stop_pct=config.get('atr_stop_min_pct', 3.0) / 100,
+            max_stop_pct=config.get('atr_stop_max_pct', 5.0) / 100,
+            fee_pct=self.fee_rate,
+        )
+
+    def _init_core_overlay(self, df: pd.DataFrame, config: Dict[str, Any]) -> CoreOverlayState:
+        core_hold_pct = config.get('core_hold_pct', 0.0)
+        state = CoreOverlayState(
+            enabled=core_hold_pct > 0,
+            core_hold_pct=core_hold_pct,
+            core_exit_on_ema200=config.get('core_exit_on_ema200', False),
+            core_reentry_on_ema200=config.get('core_reentry_on_ema200', True),
+            core_drawdown_exit_pct=config.get('core_drawdown_exit_pct', 20.0) / 100,
+            core_drawdown_reentry_pct=config.get('core_drawdown_reentry_pct', 10.0) / 100,
+        )
+
+        if not state.enabled:
+            return state
+
+        first_price = float(df.iloc[0]['close'])
+        self.core_cash = self.initial_capital * core_hold_pct
+        self.overlay_cash = self.initial_capital * (1 - core_hold_pct)
+        self.cash = self.overlay_cash
+
+        core_cost = self.core_cash * (1 - self.fee_rate)
+        self.core_position = core_cost / first_price
+        self.core_entry_price = first_price
+        state.core_high_water_mark = first_price
+        self.core_cash = 0
+
+        print(f"\n  Core+Overlay Mode: {core_hold_pct*100:.0f}% core, {(1-core_hold_pct)*100:.0f}% overlay")
+        print(f"  Core: {self.core_position:.6f} BTC @ ${first_price:,.0f}")
+        print(f"  Overlay capital: ${self.overlay_cash:,.2f}")
+        if state.core_exit_on_ema200:
+            print("  Core EMA200 filter: ENABLED (exit below, re-enter above)")
+
+        return state
+
+    def _overlay_equity(self, price: float) -> float:
+        overlay_position_value = self.position * price if self.position > 0 else 0.0
+        return self.cash + overlay_position_value
+
+    def _core_values(self, price: float, core_enabled: bool) -> tuple[float, float]:
+        if not core_enabled:
+            return 0.0, 0.0
+        return self.core_position * price, self.core_cash
+
+    def _maybe_update_core_high_water_mark(self, price: float, state: CoreOverlayState) -> None:
+        if self.core_position > 0 and price > state.core_high_water_mark:
+            state.core_high_water_mark = price
+
+    def _maybe_exit_core_on_drawdown(self, price: float, state: CoreOverlayState) -> None:
+        if self.core_position <= 0 or state.core_high_water_mark <= 0:
+            return
+        core_drawdown = (state.core_high_water_mark - price) / state.core_high_water_mark
+        should_exit = (
+            core_drawdown >= state.core_drawdown_exit_pct
+            and not state.core_exited_for_drawdown
+        )
+        if not should_exit:
+            return
+        core_proceeds = self.core_position * price * (1 - self.fee_rate)
+        self.core_cash += core_proceeds
+        self.core_position = 0
+        state.core_exited_for_drawdown = True
+
+    def _update_core_ema_counts(self, price: float, ema_200: float, state: CoreOverlayState) -> None:
+        if price < ema_200:
+            state.core_below_ema_count += 1
+            state.core_above_ema_count = 0
+            return
+        state.core_above_ema_count += 1
+        state.core_below_ema_count = 0
+
+    def _maybe_exit_core_on_ema(self, price: float, state: CoreOverlayState) -> bool:
+        should_exit = (
+            self.core_position > 0
+            and state.core_below_ema_count >= state.core_ema_confirm_hours
+        )
+        if not should_exit:
+            return False
+        core_proceeds = self.core_position * price * (1 - self.fee_rate)
+        self.core_cash += core_proceeds
+        self.core_position = 0
+        return True
+
+    def _should_attempt_core_reentry(self, state: CoreOverlayState) -> bool:
+        return (
+            self.core_position == 0
+            and self.core_cash > 0
+            and state.core_above_ema_count >= state.core_ema_confirm_hours
+            and state.core_reentry_on_ema200
+        )
+
+    def _maybe_clear_drawdown_reentry_block(self, price: float, state: CoreOverlayState) -> None:
+        if not state.core_exited_for_drawdown:
+            return
+        recovery = (
+            price - state.core_high_water_mark * (1 - state.core_drawdown_exit_pct)
+        ) / (state.core_high_water_mark * state.core_drawdown_exit_pct)
+        if recovery >= (state.core_drawdown_reentry_pct / state.core_drawdown_exit_pct):
+            state.core_exited_for_drawdown = False
+
+    def _reenter_core_position(self, price: float, state: CoreOverlayState) -> None:
+        core_buy_cost = self.core_cash * (1 - self.fee_rate)
+        self.core_position = core_buy_cost / price
+        self.core_entry_price = price
+        state.core_high_water_mark = price
+        self.core_cash = 0
+
+    def _update_core_overlay_state(
+        self,
+        row: pd.Series,
+        price: float,
+        state: CoreOverlayState,
+    ) -> None:
+        if not state.enabled:
+            return
+
+        ema_200 = float(row.get('ema_200', 0))
+        self._maybe_update_core_high_water_mark(price, state)
+        self._maybe_exit_core_on_drawdown(price, state)
+
+        if not state.core_exit_on_ema200 or ema_200 <= 0:
+            return
+
+        self._update_core_ema_counts(price, ema_200, state)
+        if self._maybe_exit_core_on_ema(price, state):
+            return
+
+        if not self._should_attempt_core_reentry(state):
+            return
+
+        self._maybe_clear_drawdown_reentry_block(price, state)
+        if state.core_exited_for_drawdown:
+            return
+
+        self._reenter_core_position(price, state)
+
+    def _handle_buy_signal(
+        self,
+        *,
+        timestamp: Any,
+        price: float,
+        atr: float,
+        reason: str,
+        symbol: str,
+        current_equity: float,
+        risk_config: RiskSizingConfig,
+        leverage: float,
+    ) -> None:
+        stop_price = calculate_stop_price(
+            entry_price=price,
+            atr=atr,
+            atr_multiplier=risk_config.atr_multiplier,
+            min_stop_pct=risk_config.min_stop_pct,
+            max_stop_pct=risk_config.max_stop_pct,
+            direction='long',
+        )
+
+        sizing_result = calculate_quantity(
+            equity=current_equity,
+            entry_price=price,
+            stop_price=stop_price,
+            symbol=symbol,
+            risk_pct=risk_config.risk_per_trade_pct,
+            leverage=leverage,
+            fee_pct=risk_config.fee_pct,
+        )
+
+        if sizing_result.quantity <= 0:
+            return
+
+        exec_price = price * (1 + self.slippage)
+        qty = sizing_result.quantity
+        cost = qty * exec_price * (1 + self.fee_rate)
+        if cost > self.cash:
+            return
+
+        self.cash -= cost
+        self.position = qty
+        self.position_entry_price = exec_price
+        self.position_stop_price = stop_price
+        self.trades.append({
+            'entry_time': timestamp,
+            'entry_price': exec_price,
+            'stop_price': stop_price,
+            'quantity': qty,
+            'risk_amount': sizing_result.risk_amount,
+            'stop_distance_pct': sizing_result.stop_distance_pct,
+            'reason': reason,
+        })
+
+    def _handle_sell_signal(
+        self,
+        *,
+        timestamp: Any,
+        price: float,
+        signal: Dict[str, Any],
+        reason: str,
+    ) -> None:
+        fraction = signal.get('fraction', 1.0)
+        sell_qty = self.position * fraction
+        exec_price = price * (1 - self.slippage)
+        proceeds = sell_qty * exec_price * (1 - self.fee_rate)
+        self.cash += proceeds
+
+        if self.trades:
+            trade = self.trades[-1]
+            if 'exit_time' not in trade:
+                trade['exit_time'] = timestamp
+                trade['exit_price'] = exec_price
+                trade['exit_qty'] = sell_qty
+                pnl = (exec_price - trade['entry_price']) * sell_qty
+                pnl_pct = ((exec_price - trade['entry_price']) / trade['entry_price']) * 100
+                trade['pnl'] = pnl
+                trade['pnl_pct'] = pnl_pct
+                trade['exit_reason'] = reason
+
+        if fraction >= 1.0:
+            self.position = 0
+            self.position_entry_price = 0
+            self.position_stop_price = 0
+        else:
+            self.position -= sell_qty
+
+    def _record_equity_point(self, timestamp: Any, price: float, core_enabled: bool) -> None:
+        overlay_pos_value = self.position * price if self.position > 0 else 0.0
+        core_pos_value = self.core_position * price if core_enabled else 0.0
+        core_cash_val = self.core_cash if core_enabled else 0.0
+        total_equity = self.cash + overlay_pos_value + core_pos_value + core_cash_val
+
+        self.equity_curve.append({
+            'timestamp': timestamp,
+            'cash': self.cash,
+            'position_value': overlay_pos_value + core_pos_value,
+            'total_equity': total_equity,
+            'position': self.position,
+            'core_position': self.core_position if core_enabled else 0.0,
+            'core_value': core_pos_value,
+            'core_cash': core_cash_val,
+            'overlay_value': overlay_pos_value,
+            'price': price,
+        })
+
+    def _close_remaining_position(self, df: pd.DataFrame) -> None:
+        if self.position <= 0:
+            return
+
+        last_row = df.iloc[-1]
+        last_price = float(last_row['close'])
+        exec_price = last_price * (1 - self.slippage)
+        proceeds = self.position * exec_price * (1 - self.fee_rate)
+        self.cash += proceeds
+
+        if self.trades:
+            trade = self.trades[-1]
+            if 'exit_time' not in trade:
+                trade['exit_time'] = last_row['timestamp']
+                trade['exit_price'] = exec_price
+                trade['exit_qty'] = self.position
+                pnl = (exec_price - trade['entry_price']) * self.position
+                pnl_pct = ((exec_price - trade['entry_price']) / trade['entry_price']) * 100
+                trade['pnl'] = pnl
+                trade['pnl_pct'] = pnl_pct
+                trade['exit_reason'] = 'END_OF_DATA'
+
+        self.position = 0
+
     def run(
         self,
         df: pd.DataFrame,
@@ -123,53 +413,10 @@ class RiskBasedBacktester:
         self.reset()
         adapter.symbol = symbol
 
-        # Risk sizer config from adapter's config
         config = adapter.config
-        risk_config = RiskSizingConfig(
-            risk_per_trade_pct=config.get('risk_per_trade_pct', self.risk_per_trade),
-            atr_multiplier=config.get('atr_stop_multiplier', 3.5),
-            min_stop_pct=config.get('atr_stop_min_pct', 3.0) / 100,
-            max_stop_pct=config.get('atr_stop_max_pct', 5.0) / 100,
-            fee_pct=self.fee_rate,
-        )
-        position_sizer = PositionSizer(risk_config)
-
-        # Get leverage from config
+        risk_config = self._create_risk_config(config)
         leverage = config.get('leverage', 3)
-
-        # Core+Overlay setup
-        core_hold_pct = config.get('core_hold_pct', 0.0)
-        is_core_overlay = core_hold_pct > 0
-        core_exit_on_ema200 = config.get('core_exit_on_ema200', False)
-        core_reentry_on_ema200 = config.get('core_reentry_on_ema200', True)
-        core_drawdown_exit_pct = config.get('core_drawdown_exit_pct', 20.0) / 100
-        core_drawdown_reentry_pct = config.get('core_drawdown_reentry_pct', 10.0) / 100
-        core_high_water_mark = 0.0
-        core_exited_for_drawdown = False
-        # Use confirmation period to avoid whipsaws (24 hours = 1 day confirmation)
-        core_ema_confirm_hours = 24
-        core_below_ema_count = 0
-        core_above_ema_count = 0
-
-        if is_core_overlay:
-            # Allocate capital: core gets core_hold_pct, overlay gets rest
-            first_price = float(df.iloc[0]['close'])
-            self.core_cash = self.initial_capital * core_hold_pct
-            self.overlay_cash = self.initial_capital * (1 - core_hold_pct)
-            self.cash = self.overlay_cash  # Overlay cash for strategy trading
-
-            # Buy core position at start (with fees)
-            core_cost = self.core_cash * (1 - self.fee_rate)  # Subtract fees
-            self.core_position = core_cost / first_price
-            self.core_entry_price = first_price
-            core_high_water_mark = first_price
-            self.core_cash = 0  # All invested in core
-
-            print(f"\n  Core+Overlay Mode: {core_hold_pct*100:.0f}% core, {(1-core_hold_pct)*100:.0f}% overlay")
-            print(f"  Core: {self.core_position:.6f} BTC @ ${first_price:,.0f}")
-            print(f"  Overlay capital: ${self.overlay_cash:,.2f}")
-            if core_exit_on_ema200:
-                print(f"  Core EMA200 filter: ENABLED (exit below, re-enter above)")
+        core_state = self._init_core_overlay(df, config)
 
         for i in range(len(df)):
             row = df.iloc[i]
@@ -177,151 +424,35 @@ class RiskBasedBacktester:
             price = float(row['close'])
             atr = float(row.get('atr', 0)) or price * 0.02  # Default 2% ATR if missing
 
-            # Current equity (overlay position only)
-            if self.position > 0:
-                overlay_position_value = self.position * price
-            else:
-                overlay_position_value = 0.0
-            overlay_equity = self.cash + overlay_position_value
-
-            # Core position management (EMA200 filter + drawdown protection)
-            if is_core_overlay:
-                ema_200 = float(row.get('ema_200', 0))
-
-                # Update core high water mark
-                if self.core_position > 0 and price > core_high_water_mark:
-                    core_high_water_mark = price
-
-                # Check core drawdown exit
-                if self.core_position > 0 and core_high_water_mark > 0:
-                    core_drawdown = (core_high_water_mark - price) / core_high_water_mark
-                    if core_drawdown >= core_drawdown_exit_pct and not core_exited_for_drawdown:
-                        # Exit core position for drawdown protection
-                        core_proceeds = self.core_position * price * (1 - self.fee_rate)
-                        self.core_cash += core_proceeds
-                        self.core_position = 0
-                        core_exited_for_drawdown = True
-
-                # Check EMA200 filter for core position (with confirmation to avoid whipsaws)
-                if core_exit_on_ema200 and ema_200 > 0:
-                    # Track consecutive hours below/above EMA200
-                    if price < ema_200:
-                        core_below_ema_count += 1
-                        core_above_ema_count = 0
-                    else:
-                        core_above_ema_count += 1
-                        core_below_ema_count = 0
-
-                    # Exit core only after confirmed below EMA200 for N hours
-                    if self.core_position > 0 and core_below_ema_count >= core_ema_confirm_hours:
-                        core_proceeds = self.core_position * price * (1 - self.fee_rate)
-                        self.core_cash += core_proceeds
-                        self.core_position = 0
-
-                    # Re-enter core only after confirmed above EMA200 for N hours
-                    elif self.core_position == 0 and self.core_cash > 0 and core_above_ema_count >= core_ema_confirm_hours:
-                        if core_reentry_on_ema200:
-                            # Check drawdown recovery
-                            if core_exited_for_drawdown:
-                                recovery = (price - core_high_water_mark * (1 - core_drawdown_exit_pct)) / (core_high_water_mark * core_drawdown_exit_pct)
-                                if recovery >= (core_drawdown_reentry_pct / core_drawdown_exit_pct):
-                                    core_exited_for_drawdown = False  # Allow re-entry
-
-                            if not core_exited_for_drawdown:
-                                core_buy_cost = self.core_cash * (1 - self.fee_rate)
-                                self.core_position = core_buy_cost / price
-                                self.core_entry_price = price
-                                core_high_water_mark = price  # Reset HWM
-                                self.core_cash = 0
-
-            # Core position value (if core+overlay mode)
-            core_value = self.core_position * price if is_core_overlay else 0.0
-            core_cash_value = self.core_cash if is_core_overlay else 0.0
-
-            # Total equity (for reporting)
+            overlay_equity = self._overlay_equity(price)
+            self._update_core_overlay_state(row, price, core_state)
+            core_value, core_cash_value = self._core_values(price, core_state.enabled)
             current_equity = overlay_equity + core_value + core_cash_value
-
-            # Update adapter's equity tracking for drawdown protection (overlay only)
             adapter.update_equity(overlay_equity)
 
-            # Get strategy signal
             signal = adapter(df, i, {})
             action = signal.get('action', 'hold')
             reason = signal.get('reason', '')
 
             if action == 'buy' and self.position == 0:
-                # Calculate position size using risk-based sizing
-                stop_price = calculate_stop_price(
-                    entry_price=price,
+                self._handle_buy_signal(
+                    timestamp=timestamp,
+                    price=price,
                     atr=atr,
-                    atr_multiplier=risk_config.atr_multiplier,
-                    min_stop_pct=risk_config.min_stop_pct,
-                    max_stop_pct=risk_config.max_stop_pct,
-                    direction='long',
-                )
-
-                sizing_result = calculate_quantity(
-                    equity=current_equity,
-                    entry_price=price,
-                    stop_price=stop_price,
+                    reason=reason,
                     symbol=symbol,
-                    risk_pct=risk_config.risk_per_trade_pct,
+                    current_equity=current_equity,
+                    risk_config=risk_config,
                     leverage=leverage,
-                    fee_pct=risk_config.fee_pct,
                 )
-
-                if sizing_result.quantity > 0:
-                    # Apply slippage
-                    exec_price = price * (1 + self.slippage)
-                    qty = sizing_result.quantity
-                    cost = qty * exec_price * (1 + self.fee_rate)
-
-                    if cost <= self.cash:
-                        self.cash -= cost
-                        self.position = qty
-                        self.position_entry_price = exec_price
-                        self.position_stop_price = stop_price
-
-                        self.trades.append({
-                            'entry_time': timestamp,
-                            'entry_price': exec_price,
-                            'stop_price': stop_price,
-                            'quantity': qty,
-                            'risk_amount': sizing_result.risk_amount,
-                            'stop_distance_pct': sizing_result.stop_distance_pct,
-                            'reason': reason,
-                        })
 
             elif action == 'sell' and self.position > 0:
-                # Exit position
-                fraction = signal.get('fraction', 1.0)
-                sell_qty = self.position * fraction
-
-                # Apply slippage
-                exec_price = price * (1 - self.slippage)
-                proceeds = sell_qty * exec_price * (1 - self.fee_rate)
-
-                self.cash += proceeds
-
-                # Update trade record
-                if self.trades:
-                    trade = self.trades[-1]
-                    if 'exit_time' not in trade:
-                        trade['exit_time'] = timestamp
-                        trade['exit_price'] = exec_price
-                        trade['exit_qty'] = sell_qty
-                        pnl = (exec_price - trade['entry_price']) * sell_qty
-                        pnl_pct = ((exec_price - trade['entry_price']) / trade['entry_price']) * 100
-                        trade['pnl'] = pnl
-                        trade['pnl_pct'] = pnl_pct
-                        trade['exit_reason'] = reason
-
-                if fraction >= 1.0:
-                    self.position = 0
-                    self.position_entry_price = 0
-                    self.position_stop_price = 0
-                else:
-                    self.position -= sell_qty
+                self._handle_sell_signal(
+                    timestamp=timestamp,
+                    price=price,
+                    signal=signal,
+                    reason=reason,
+                )
 
             elif action == 'open_short':
                 # Short position (if supported)
@@ -330,108 +461,72 @@ class RiskBasedBacktester:
             elif action == 'close_short':
                 pass  # Skip
 
-            # Record equity curve (including core position for core+overlay mode)
-            overlay_pos_value = self.position * price if self.position > 0 else 0.0
-            core_pos_value = self.core_position * price if is_core_overlay else 0.0
-            core_cash_val = self.core_cash if is_core_overlay else 0.0
-            total_equity = self.cash + overlay_pos_value + core_pos_value + core_cash_val
+            self._record_equity_point(timestamp, price, core_state.enabled)
 
-            self.equity_curve.append({
-                'timestamp': timestamp,
-                'cash': self.cash,
-                'position_value': overlay_pos_value + core_pos_value,
-                'total_equity': total_equity,
-                'position': self.position,
-                'core_position': self.core_position if is_core_overlay else 0.0,
-                'core_value': core_pos_value,
-                'core_cash': core_cash_val,
-                'overlay_value': overlay_pos_value,
-                'price': price,
-            })
-
-        # Close any remaining position at final price
-        if self.position > 0:
-            last_row = df.iloc[-1]
-            last_price = float(last_row['close'])
-            exec_price = last_price * (1 - self.slippage)
-            proceeds = self.position * exec_price * (1 - self.fee_rate)
-            self.cash += proceeds
-
-            if self.trades:
-                trade = self.trades[-1]
-                if 'exit_time' not in trade:
-                    trade['exit_time'] = last_row['timestamp']
-                    trade['exit_price'] = exec_price
-                    trade['exit_qty'] = self.position
-                    pnl = (exec_price - trade['entry_price']) * self.position
-                    pnl_pct = ((exec_price - trade['entry_price']) / trade['entry_price']) * 100
-                    trade['pnl'] = pnl
-                    trade['pnl_pct'] = pnl_pct
-                    trade['exit_reason'] = 'END_OF_DATA'
-
-            self.position = 0
-
+        self._close_remaining_position(df)
         return self._generate_results(df)
+
+    def _empty_results(self, final_equity: float, total_return: float, sharpe: float, mdd: float) -> Dict[str, Any]:
+        return {
+            'initial_capital': self.initial_capital,
+            'final_capital': final_equity,
+            'total_return': total_return,
+            'total_trades': 0,
+            'winning_trades': 0,
+            'losing_trades': 0,
+            'win_rate': 0.0,
+            'sharpe_ratio': sharpe,
+            'max_drawdown_pct': mdd,
+            'profit_factor': 0.0,
+            'avg_risk_per_trade': 0.0,
+            'equity_curve': pd.DataFrame(self.equity_curve),
+            'trades': [],
+        }
+
+    def _closed_trade_stats(self, closed_trades: list[dict[str, Any]]) -> Dict[str, Any]:
+        winning_trades = [t for t in closed_trades if t.get('pnl', 0) > 0]
+        losing_trades = [t for t in closed_trades if t.get('pnl', 0) <= 0]
+        gross_profit = sum(t['pnl'] for t in winning_trades) if winning_trades else 0
+        gross_loss = abs(sum(t['pnl'] for t in losing_trades)) if losing_trades else 0
+        return {
+            'winning_trades': len(winning_trades),
+            'losing_trades': len(losing_trades),
+            'win_rate': (len(winning_trades) / len(closed_trades)) if closed_trades else 0.0,
+            'profit_factor': (gross_profit / gross_loss) if gross_loss > 0 else 0.0,
+            'avg_risk_per_trade': float(np.mean([t.get('risk_amount', 0) for t in closed_trades])) if closed_trades else 0.0,
+            'avg_stop_distance_pct': float(np.mean([t.get('stop_distance_pct', 0) for t in closed_trades])) if closed_trades else 0.0,
+        }
 
     def _generate_results(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Generate results dictionary."""
-        # Final equity includes core position value (sold at final price) and core cash
         final_price = float(df.iloc[-1]['close'])
         core_final_value = self.core_position * final_price if self.core_position > 0 else 0.0
         final_equity = self.cash + core_final_value + self.core_cash
         total_return = ((final_equity - self.initial_capital) / self.initial_capital) * 100
 
         equity_df = pd.DataFrame(self.equity_curve)
-
-        # Calculate risk metrics
         sharpe = calculate_sharpe_ratio(equity_df) if not equity_df.empty else 0.0
         mdd = calculate_max_drawdown(equity_df) if not equity_df.empty else 0.0
 
-        # Trade statistics
         closed_trades = [t for t in self.trades if 'exit_time' in t]
-
         if not closed_trades:
-            return {
-                'initial_capital': self.initial_capital,
-                'final_capital': final_equity,
-                'total_return': total_return,
-                'total_trades': 0,
-                'winning_trades': 0,
-                'losing_trades': 0,
-                'win_rate': 0.0,
-                'sharpe_ratio': sharpe,
-                'max_drawdown_pct': mdd,
-                'profit_factor': 0.0,
-                'avg_risk_per_trade': 0.0,
-                'equity_curve': equity_df,
-                'trades': closed_trades,
-            }
+            return self._empty_results(final_equity, total_return, sharpe, mdd)
 
-        winning_trades = [t for t in closed_trades if t.get('pnl', 0) > 0]
-        losing_trades = [t for t in closed_trades if t.get('pnl', 0) <= 0]
-
-        win_rate = len(winning_trades) / len(closed_trades) if closed_trades else 0
-
-        gross_profit = sum(t['pnl'] for t in winning_trades) if winning_trades else 0
-        gross_loss = abs(sum(t['pnl'] for t in losing_trades)) if losing_trades else 0
-        profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0
-
-        avg_risk = np.mean([t.get('risk_amount', 0) for t in closed_trades]) if closed_trades else 0
-        avg_stop_dist = np.mean([t.get('stop_distance_pct', 0) for t in closed_trades]) if closed_trades else 0
+        stats = self._closed_trade_stats(closed_trades)
 
         return {
             'initial_capital': self.initial_capital,
             'final_capital': final_equity,
             'total_return': total_return,
             'total_trades': len(closed_trades),
-            'winning_trades': len(winning_trades),
-            'losing_trades': len(losing_trades),
-            'win_rate': win_rate,
+            'winning_trades': stats['winning_trades'],
+            'losing_trades': stats['losing_trades'],
+            'win_rate': stats['win_rate'],
             'sharpe_ratio': sharpe,
             'max_drawdown_pct': mdd,
-            'profit_factor': profit_factor,
-            'avg_risk_per_trade': avg_risk,
-            'avg_stop_distance_pct': avg_stop_dist,
+            'profit_factor': stats['profit_factor'],
+            'avg_risk_per_trade': stats['avg_risk_per_trade'],
+            'avg_stop_distance_pct': stats['avg_stop_distance_pct'],
             'equity_curve': equity_df,
             'trades': closed_trades,
         }

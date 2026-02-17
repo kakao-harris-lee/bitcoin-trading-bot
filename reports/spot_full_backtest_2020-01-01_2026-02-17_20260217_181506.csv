@@ -1,0 +1,4 @@
+strategy,status,job_id,start_date,end_date,total_return_pct,benchmark_return_pct,alpha_vs_bh_pct,max_drawdown_pct,sharpe_ratio,total_trades,win_rate,profit_factor,final_capital,chart_path,regime_chart_path,mlflow_run_id
+mlp_direction_btc,completed,26d5daa2,2020-01-01,2026-02-17,37.48,853.53,-816.05,-9.16,0.36,66,42.42,2.12,13748.0,/static/charts/backtest_mlp_direction_btc_26d5daa2.png,/static/charts/regime_mlp_direction_btc_26d5daa2.png,
+mlp_direction_eth,completed,9251c26d,2020-01-01,2026-02-17,12.41,1434.82,-1422.4099999999999,-2.93,0.44,104,37.5,2.29,11241.0,/static/charts/backtest_mlp_direction_eth_9251c26d.png,/static/charts/regime_mlp_direction_eth_9251c26d.png,
+mlp_direction_bnb,completed,0c4103b3,2020-01-01,2026-02-17,409.51,4439.26,-4029.75,-22.81,0.54,70,38.57,1.96,50951.0,/static/charts/backtest_mlp_direction_bnb_0c4103b3.png,/static/charts/regime_mlp_direction_bnb_0c4103b3.png,

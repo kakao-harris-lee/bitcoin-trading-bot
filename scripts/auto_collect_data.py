@@ -36,12 +36,12 @@ except ImportError:
 # Altcoin configurations
 ALTCOINS = {
     "ETH": {
-        "symbol": "ETH/USDT:USDT",
+        "symbol": "ETH/USDT",
         "db_name": "binance_ethereum.db",
         "table_name": "ethereum_minute60",
     },
     "SOL": {
-        "symbol": "SOL/USDT:USDT",
+        "symbol": "SOL/USDT",
         "db_name": "binance_solana.db",
         "table_name": "solana_minute60",
     },
@@ -73,13 +73,6 @@ def collect_btc():
         except Exception as e:
             print(f"  minute60: ERROR - {e}")
 
-        # Also collect funding rates
-        try:
-            collector.collect_funding(start_date, end_date)
-            print(f"  funding_rate: updated")
-        except Exception as e:
-            print(f"  funding_rate: ERROR - {e}")
-
         # Calculate volatility breakout features (Larry Williams strategy)
         try:
             updated = collector.add_volatility_breakout(timeframe='minute60', k=0.5)
@@ -104,9 +97,9 @@ def collect_altcoins():
         print("[Altcoins] ERROR: ccxt not installed. Run: pip install ccxt")
         return
 
-    exchange = ccxt.binanceusdm({
+    exchange = ccxt.binance({
         'enableRateLimit': True,
-        'options': {'defaultType': 'future'}
+        'options': {'defaultType': 'spot'}
     })
 
     for asset, config in ALTCOINS.items():

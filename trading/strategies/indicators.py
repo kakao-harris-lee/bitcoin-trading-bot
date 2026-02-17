@@ -6,6 +6,7 @@ import sqlite3
 from pathlib import Path
 from functools import lru_cache
 import numpy as np
+import talib
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -91,31 +92,15 @@ def calculate_mfi(high: np.ndarray, low: np.ndarray, close: np.ndarray,
     """
     if len(close) < period + 1:
         return 50.0  # Neutral default
-
-    # Typical Price
-    typical_price = (high + low + close) / 3
-
-    # Raw Money Flow
-    raw_money_flow = typical_price * volume
-
-    # Calculate positive and negative money flow
-    positive_flow = 0.0
-    negative_flow = 0.0
-
-    for i in range(-period, 0):
-        if typical_price[i] > typical_price[i - 1]:
-            positive_flow += raw_money_flow[i]
-        elif typical_price[i] < typical_price[i - 1]:
-            negative_flow += raw_money_flow[i]
-
-    # Avoid division by zero
-    if negative_flow < 0.0001:
-        return 100.0 if positive_flow > 0 else 50.0
-
-    money_flow_ratio = positive_flow / negative_flow
-    mfi = 100 - (100 / (1 + money_flow_ratio))
-
-    return float(mfi)
+    values = talib.MFI(
+        np.asarray(high, dtype=np.float64),
+        np.asarray(low, dtype=np.float64),
+        np.asarray(close, dtype=np.float64),
+        np.asarray(volume, dtype=np.float64),
+        timeperiod=period,
+    )
+    last = values[-1]
+    return float(last) if np.isfinite(last) else 50.0
 
 
 def calculate_adx(high: np.ndarray, low: np.ndarray, close: np.ndarray,
@@ -129,16 +114,16 @@ def calculate_adx(high: np.ndarray, low: np.ndarray, close: np.ndarray,
     """
     if len(close) < period * 2:
         return 0.0  # No trend default
-
-    tr = _calculate_true_range(high, low, close)
-    plus_dm, minus_dm = _calculate_directional_movement(high, low)
-    atr = _wilder_ema(tr, period)
-    smooth_plus_dm = _wilder_ema(plus_dm, period)
-    smooth_minus_dm = _wilder_ema(minus_dm, period)
-    plus_di, minus_di = _calculate_directional_indices(atr, smooth_plus_dm, smooth_minus_dm, period)
-    dx = _calculate_dx(plus_di, minus_di, period)
-    adx_smooth = _wilder_ema(dx, period)
-    return float(min(100, max(0, adx_smooth[-1])))
+    values = talib.ADX(
+        np.asarray(high, dtype=np.float64),
+        np.asarray(low, dtype=np.float64),
+        np.asarray(close, dtype=np.float64),
+        timeperiod=period,
+    )
+    last = values[-1]
+    if not np.isfinite(last):
+        return 0.0
+    return float(min(100.0, max(0.0, last)))
 
 
 def _calculate_true_range(high: np.ndarray, low: np.ndarray, close: np.ndarray) -> np.ndarray:
@@ -212,27 +197,9 @@ def calculate_rsi(close: np.ndarray, period: int = 14) -> float:
     """
     if len(close) < period + 1:
         return 50.0  # Neutral default
-
-    # Calculate price changes
-    deltas = np.diff(close[-(period + 1):])
-
-    gains = np.where(deltas > 0, deltas, 0)
-    losses = np.where(deltas < 0, -deltas, 0)
-
-    avg_gain = np.mean(gains)
-    avg_loss = np.mean(losses)
-
-    # Minimum movement threshold (0.01% of price)
-    min_movement = np.mean(close[-period:]) * 0.0001
-
-    if avg_gain < min_movement and avg_loss < min_movement:
-        return 50.0  # No significant movement
-    elif avg_loss < min_movement:
-        return 100.0  # Only gains
-    else:
-        rs = avg_gain / max(avg_loss, min_movement)
-        rsi = 100 - (100 / (1 + rs))
-        return float(rsi)
+    values = talib.RSI(np.asarray(close, dtype=np.float64), timeperiod=period)
+    last = values[-1]
+    return float(last) if np.isfinite(last) else 50.0
 
 
 def get_indicators(symbol: str, periods: int = 100) -> dict | None:

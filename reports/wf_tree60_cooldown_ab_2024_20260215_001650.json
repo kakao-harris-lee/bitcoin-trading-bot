@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-02-15T00:16:50.826712",
+  "period": [
+    "2024-01-01",
+    "2024-12-31"
+  ],
+  "capital": 10000.0,
+  "buy_hold_return_pct": 119.20854211704143,
+  "results": [
+    {
+      "name": "wf_tree60_btc_cooldown_on",
+      "total_return_pct": 78.75231503448732,
+      "max_drawdown_pct": -28.10340592515475,
+      "sharpe_ratio": 1.3056875675808643,
+      "trades": 5,
+      "win_rate_pct": 40.0,
+      "reason_counts": {
+        "model_sell": 3,
+        "stop_loss": 1,
+        "final_liquidation": 1
+      },
+      "alpha_vs_bh_pct": -40.45622708255411
+    },
+    {
+      "name": "wf_tree60_btc_cooldown_off",
+      "total_return_pct": 26.6612153967753,
+      "max_drawdown_pct": -20.141965166012895,
+      "sharpe_ratio": 0.7660907500979722,
+      "trades": 2,
+      "win_rate_pct": 50.0,
+      "reason_counts": {
+        "model_sell": 1,
+        "stop_loss": 1
+      },
+      "alpha_vs_bh_pct": -92.54732672026613
+    }
+  ]
+}

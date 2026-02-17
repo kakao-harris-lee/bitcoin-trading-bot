@@ -1,0 +1,74 @@
+{
+  "generated_at": "2026-02-14T23:42:01.821869",
+  "basis": {
+    "source_db": "data/backtest_history.db",
+    "period": [
+      "2024-01-01",
+      "2024-12-31"
+    ],
+    "method": "normalized by deployed capital fraction (return/mdd divided by position fraction)",
+    "notes": [
+      "mlp_direction_* fraction from allocation.json position_pct",
+      "wf_tree60_btc fraction fixed at 0.8 from walkforward_backtest strategy config",
+      "Normalization is linear approximation for fair same-capital comparison"
+    ]
+  },
+  "rows": [
+    {
+      "created_at": "2026-02-14T19:35:35.952493",
+      "strategy": "wf_tree60_btc",
+      "period": "2024-01-01~2024-12-31",
+      "capital_deployed_pct": 80.0,
+      "actual_return_pct": 78.75,
+      "normalized_return_pct_at_100pct": 98.44,
+      "actual_mdd_pct": -28.1,
+      "normalized_mdd_pct_at_100pct": -35.12,
+      "sharpe": 1.31,
+      "trades": 5,
+      "actual_pnl": 7875.0,
+      "normalized_pnl_at_100pct": 9843.75
+    },
+    {
+      "created_at": "2026-02-14T19:04:13.005879",
+      "strategy": "mlp_direction_eth",
+      "period": "2024-01-01~2024-12-31",
+      "capital_deployed_pct": 5.0,
+      "actual_return_pct": 1.74,
+      "normalized_return_pct_at_100pct": 34.8,
+      "actual_mdd_pct": -1.99,
+      "normalized_mdd_pct_at_100pct": -39.8,
+      "sharpe": 0.3,
+      "trades": 16,
+      "actual_pnl": 174.0,
+      "normalized_pnl_at_100pct": 3480.0
+    },
+    {
+      "created_at": "2026-02-14T23:34:33.028204",
+      "strategy": "mlp_direction_btc",
+      "period": "2024-01-01~2024-12-31",
+      "capital_deployed_pct": 25.0,
+      "actual_return_pct": 7.83,
+      "normalized_return_pct_at_100pct": 31.32,
+      "actual_mdd_pct": -2.56,
+      "normalized_mdd_pct_at_100pct": -10.24,
+      "sharpe": 0.74,
+      "trades": 19,
+      "actual_pnl": 783.0,
+      "normalized_pnl_at_100pct": 3132.0
+    },
+    {
+      "created_at": "2026-02-14T20:39:08.477832",
+      "strategy": "mlp_direction_bnb",
+      "period": "2024-01-01~2024-12-31",
+      "capital_deployed_pct": 70.0,
+      "actual_return_pct": 1.84,
+      "normalized_return_pct_at_100pct": 2.63,
+      "actual_mdd_pct": -31.71,
+      "normalized_mdd_pct_at_100pct": -45.3,
+      "sharpe": 0.09,
+      "trades": 9,
+      "actual_pnl": 184.0,
+      "normalized_pnl_at_100pct": 262.86
+    }
+  ]
+}

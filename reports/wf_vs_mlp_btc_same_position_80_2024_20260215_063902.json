@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-02-15T06:39:02.273410",
+  "period": [
+    "2024-01-01",
+    "2024-12-31"
+  ],
+  "initial_capital": 10000.0,
+  "same_position_pct": 80.0,
+  "buy_hold_return_pct": 119.20854211704143,
+  "rows": [
+    {
+      "strategy": "mlp_direction_btc",
+      "position_pct": 80.0,
+      "total_return_pct": 47.0,
+      "max_drawdown_pct": -11.99,
+      "sharpe_ratio": 0.77,
+      "total_trades": 19,
+      "alpha_vs_bh_pct": -72.21
+    },
+    {
+      "strategy": "wf_tree60_btc_cooldown_on",
+      "position_pct": 80.0,
+      "total_return_pct": 78.75,
+      "max_drawdown_pct": -28.1,
+      "sharpe_ratio": 1.31,
+      "total_trades": 5,
+      "alpha_vs_bh_pct": -40.46
+    }
+  ]
+}

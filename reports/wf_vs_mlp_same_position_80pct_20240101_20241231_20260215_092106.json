@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-02-15T09:21:06.662644",
+  "start_date": "2024-01-01",
+  "end_date": "2024-12-31",
+  "capital": 10000.0,
+  "same_position_pct": 80.0,
+  "rows": [
+    {
+      "asset": "BTC",
+      "strategy": "wf_tree60_btc",
+      "position_pct": 80.0,
+      "return_pct": -6.339221225844422,
+      "mdd_pct": -16.68983186220878,
+      "sharpe": -0.24369294323237864,
+      "trades": 7,
+      "bh_return_pct": 119.20854211704142,
+      "alpha_vs_bh_pct": -125.54776334288584
+    },
+    {
+      "asset": "BTC",
+      "strategy": "mlp_direction_btc",
+      "position_pct": 80.0,
+      "return_pct": 40.06810143135253,
+      "mdd_pct": -15.44978289344012,
+      "sharpe": 1.3378623747136795,
+      "trades": 19,
+      "bh_return_pct": 119.20854211704142,
+      "alpha_vs_bh_pct": -79.14044068568889
+    },
+    {
+      "asset": "ETH",
+      "strategy": "wf_tree60_eth",
+      "position_pct": 80.0,
+      "return_pct": 3.064015945299053,
+      "mdd_pct": -19.23991221713536,
+      "sharpe": 0.21809007658854107,
+      "trades": 7,
+      "bh_return_pct": 47.65884891390804,
+      "alpha_vs_bh_pct": -44.59483296860898
+    },
+    {
+      "asset": "ETH",
+      "strategy": "mlp_direction_eth",
+      "position_pct": 80.0,
+      "return_pct": 7.6565894707905136,
+      "mdd_pct": -30.83358322170361,
+      "sharpe": 0.32032180197071636,
+      "trades": 17,
+      "bh_return_pct": 47.65884891390804,
+      "alpha_vs_bh_pct": -40.002259443117524
+    }
+  ]
+}

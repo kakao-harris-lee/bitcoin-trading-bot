@@ -1,0 +1,5 @@
+strategy,period,created_at,capital_deployed_pct,actual_return_pct,normalized_return_pct_at_100pct,actual_mdd_pct,normalized_mdd_pct_at_100pct,sharpe,trades,actual_pnl,normalized_pnl_at_100pct
+wf_tree60_btc,2024-01-01~2024-12-31,2026-02-14T19:35:35.952493,80.0,78.75,98.44,-28.1,-35.12,1.31,5,7875.0,9843.75
+mlp_direction_eth,2024-01-01~2024-12-31,2026-02-14T19:04:13.005879,5.0,1.74,34.8,-1.99,-39.8,0.3,16,174.0,3480.0
+mlp_direction_btc,2024-01-01~2024-12-31,2026-02-14T23:34:33.028204,25.0,7.83,31.32,-2.56,-10.24,0.74,19,783.0,3132.0
+mlp_direction_bnb,2024-01-01~2024-12-31,2026-02-14T20:39:08.477832,70.0,1.84,2.63,-31.71,-45.3,0.09,9,184.0,262.86

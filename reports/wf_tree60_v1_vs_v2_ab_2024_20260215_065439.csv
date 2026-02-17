@@ -1,0 +1,5 @@
+asset,variant,return_pct,mdd_pct,sharpe,trades,win_rate_pct,bh_pct,alpha_vs_bh_pct
+BTC,baseline_v1,-16.00,-24.97,-0.63,5,20.00,119.21,-135.21
+BTC,trend_stage_v2,-10.72,-19.83,-0.46,7,28.57,119.21,-129.93
+ETH,baseline_v1,10.21,-21.25,0.41,5,60.00,47.66,-37.45
+ETH,trend_stage_v2,-3.73,-23.78,-0.10,7,42.86,47.66,-51.39

@@ -1,0 +1,3 @@
+strategy,position_pct,total_return_pct,max_drawdown_pct,sharpe_ratio,total_trades,alpha_vs_bh_pct
+mlp_direction_btc,80.00,47.00,-11.99,0.77,19,-72.21
+wf_tree60_btc_cooldown_on,80.00,78.75,-28.10,1.31,5,-40.46

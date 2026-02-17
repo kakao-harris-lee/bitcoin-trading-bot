@@ -131,6 +131,31 @@ class TestComponentAdapterVolSizing:
         assert fraction == pytest.approx(0.90 * 0.60, rel=1e-9)
         assert "period_scale:0.60" in reason
 
+    def test_entry_fraction_uses_position_pct_by_default(self):
+        """Without use_signal_quantity, entry fraction should follow position_pct."""
+        adapter = self._make_adapter(extra_config={"position_pct": 0.9})
+        signal = MagicMock()
+        signal.quantity = 0.25
+
+        fraction, reason = adapter._resolve_entry_fraction(signal, atr=0.0, close=100.0)
+        assert fraction == pytest.approx(0.9, rel=1e-9)
+        assert "config_pct:0.90" in reason
+
+    def test_entry_fraction_can_use_signal_quantity_when_enabled(self):
+        """When use_signal_quantity is enabled, signal quantity should be used."""
+        adapter = self._make_adapter(
+            extra_config={
+                "position_pct": 0.9,
+                "use_signal_quantity": True,
+            },
+        )
+        signal = MagicMock()
+        signal.quantity = 0.25
+
+        fraction, reason = adapter._resolve_entry_fraction(signal, atr=0.0, close=100.0)
+        assert fraction == pytest.approx(0.25, rel=1e-9)
+        assert "regime_size:0.25" in reason
+
 
 class TestCompositeTaskVolSizingConfig:
     """Test volatility sizing config reads in CompositeStrategyTask."""

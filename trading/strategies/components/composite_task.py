@@ -174,6 +174,15 @@ class CompositeStrategyTask(BaseStrategyTask):
         mtf_enabled = self.config.get("mtf_enabled", True)
         bbw_enabled = self.config.get("bbw_enabled", True)
         volume_filter_enabled = self.config.get("volume_filter_enabled", True)
+        mtf_candles_per_period = self.config.get("mtf_candles_per_period")
+        if mtf_candles_per_period is None:
+            interval = self._resolve_warmup_interval()
+            if interval == "4h":
+                mtf_candles_per_period = 6  # 4h x 6 = 1 day
+            elif interval == "1h":
+                mtf_candles_per_period = 4  # 1h x 4 = 4h
+            else:
+                mtf_candles_per_period = 4
         for symbol in symbols:
             self._enhanced_routers[symbol] = EnhancedRegimeRouter(
                 bbw_block_threshold=bbw_block,
@@ -183,6 +192,7 @@ class CompositeStrategyTask(BaseStrategyTask):
                 mtf_enabled=mtf_enabled,
                 bbw_enabled=bbw_enabled,
                 volume_filter_enabled=volume_filter_enabled,
+                mtf_candles_per_period=mtf_candles_per_period,
             )
 
     def _init_mlp_settings(self) -> None:
@@ -227,8 +237,10 @@ class CompositeStrategyTask(BaseStrategyTask):
         return default
 
     def _init_entry_and_leverage_controls(self) -> None:
+        self._regime_thresholds = self._load_regime_thresholds()
         self._cash_in_bear = self.config.get("cash_in_bear", False)
         self._cash_below_ema200 = self.config.get("cash_below_ema200", False)
+        self._exit_on_bear_regime = bool(self.config.get("exit_on_bear_regime", False))
         self._cooldown_candles = int(self.config.get("stop_loss_cooldown", 24))
         self._cooldown_remaining: dict[str, int] = {}
         self._max_consecutive_losses = int(self.config.get("max_consecutive_losses", 3))
@@ -252,6 +264,18 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._prob_leverage_min = float(self.config.get("prob_leverage_min", 0.5))
         self._bull_prob_threshold = float(self.config.get("bull_prob_threshold", 0.0))
         self._bull_prob_enabled = self._bull_prob_threshold > 0
+
+    def _load_regime_thresholds(self) -> dict[str, float]:
+        thresholds = self.config.get("regime_thresholds", {})
+        if not isinstance(thresholds, dict):
+            return {}
+        normalized: dict[str, float] = {}
+        for key, value in thresholds.items():
+            try:
+                normalized[str(key)] = float(value)
+            except (TypeError, ValueError):
+                continue
+        return normalized
 
     def _init_drawdown_and_breakout_controls(self) -> None:
         self._drawdown_enabled = self.config.get("drawdown_enabled", False)
@@ -313,10 +337,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         """Main loop: warm-up then consume."""
         logger.info(f"Warming up composite strategy {self.name}...")
 
-        # Determine interval based on name (simple heuristic for migration)
-        interval = "1d"
-        if "short" in self.name or "h4" in self.name:
-            interval = "4h"
+        interval = self._resolve_warmup_interval()
 
         for symbol in self.symbols:
             candles = await self.fetch_initial_candles(symbol, interval=interval, limit=200)
@@ -331,6 +352,31 @@ class CompositeStrategyTask(BaseStrategyTask):
                 logger.warning(f"Failed to fetch history for {symbol}")
 
         await super().run()
+
+    def _resolve_warmup_interval(self) -> str:
+        """Resolve warm-up candle interval for this strategy.
+
+        Priority:
+        1. Explicit strategy config (`warmup_interval`)
+        2. Explicit timeframe hint (`timeframe`)
+        3. Strategy-name fallback heuristic
+        """
+        configured = self.config.get("warmup_interval")
+        if isinstance(configured, str) and configured.strip():
+            return configured.strip()
+
+        timeframe = str(self.config.get("timeframe", "")).strip().lower()
+        if timeframe in {"minute240", "4h", "240m"}:
+            return "4h"
+        if timeframe in {"minute60", "1h", "60m"}:
+            return "1h"
+        if timeframe in {"day", "1d", "daily"}:
+            return "1d"
+
+        name_lower = self.name.lower()
+        if name_lower.startswith("mlp_direction") or "short" in name_lower or "h4" in name_lower:
+            return "4h"
+        return "1d"
 
     def _update_buffer(self, symbol: str, msg: dict[str, Any]) -> None:
         """Update local buffer and shared indicator service tick stream."""
@@ -727,6 +773,10 @@ class CompositeStrategyTask(BaseStrategyTask):
         market_data: MarketData,
         context: MarketContext,
     ) -> dict[str, Any] | None:
+        bear_exit = self._check_bear_regime_exit(symbol, position, context)
+        if bear_exit:
+            return bear_exit
+
         drawdown_exit = await self._check_drawdown_protection_exit(symbol, position)
         if drawdown_exit:
             return drawdown_exit
@@ -736,6 +786,24 @@ class CompositeStrategyTask(BaseStrategyTask):
             return v2_filter_exit
 
         return self._check_ma120_panic_exit(symbol, position, market_data)
+
+    def _check_bear_regime_exit(
+        self,
+        symbol: str,
+        position: Position,
+        context: MarketContext,
+    ) -> dict[str, Any] | None:
+        if not self._exit_on_bear_regime:
+            return None
+        if context.regime not in BEAR_REGIMES:
+            return None
+        return {
+            "symbol": symbol,
+            "side": "sell",
+            "market": self.market,
+            "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
+            "reason": f"bear_regime_exit:{context.regime}",
+        }
 
     async def _check_drawdown_protection_exit(
         self,
@@ -1490,6 +1558,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             avg_volume=market_data.avg_volume_20,
             recent_high=recent_high,
             drawdown_bear_threshold=self._drawdown_bear_threshold,
+            **self._regime_thresholds,
         )
 
     def _apply_v2_regime_context(self, context: MarketContext, market_data: MarketData) -> MarketContext:

@@ -342,6 +342,7 @@ class EnhancedRegimeConfig:
     volume_block_ratio: float = 0.8
     volume_boost_ratio: float = 1.2
     mtf_enabled: bool = True
+    mtf_candles_per_period: int = 4
 
 
 class EnhancedRegimeRouter:
@@ -372,6 +373,7 @@ class EnhancedRegimeRouter:
         mtf_enabled: bool = True,
         bbw_enabled: bool = True,
         volume_filter_enabled: bool = True,
+        mtf_candles_per_period: int = 4,
     ):
         """Initialize EnhancedRegimeRouter.
 
@@ -384,6 +386,7 @@ class EnhancedRegimeRouter:
             mtf_enabled: Whether to check MTF direction alignment
             bbw_enabled: Whether to apply BBW filter
             volume_filter_enabled: Whether to apply volume filter
+            mtf_candles_per_period: Number of lower candles for upper timeframe aggregation
         """
         self._bbw_filter = BBWFilter(
             block_threshold=bbw_block_threshold,
@@ -394,7 +397,7 @@ class EnhancedRegimeRouter:
             block_ratio=volume_block_ratio,
             boost_ratio=volume_boost_ratio,
         )
-        self._mtf_filter = MTFFilter()
+        self._mtf_filter = MTFFilter(candles_per_period=max(1, int(mtf_candles_per_period)))
         self._mtf_enabled = mtf_enabled
         self._bbw_enabled = bbw_enabled
         self._volume_filter_enabled = volume_filter_enabled

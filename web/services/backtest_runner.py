@@ -38,6 +38,25 @@ from trading.config.constants import FeeRates, TimePeriods
 
 logger = logging.getLogger(__name__)
 
+DEPRECATED_BACKTEST_STRATEGIES = {"sideways_v2", "mlp_direction"}
+BACKTEST_ONLY_STRATEGIES = (
+    {
+        "id": "wf_tree60_btc",
+        "name": "Walk-Forward Tree60 BTC",
+        "description": "Backtest-only walk-forward XGB+LGB ensemble (BTC spot)",
+    },
+    {
+        "id": "wf_tree60_eth",
+        "name": "Walk-Forward Tree60 ETH",
+        "description": "Backtest-only walk-forward XGB+LGB ensemble (ETH spot)",
+    },
+    {
+        "id": "wf_tree60_sol",
+        "name": "Walk-Forward Tree60 SOL",
+        "description": "Backtest-only walk-forward XGB+LGB ensemble (SOL spot)",
+    },
+)
+
 # Symbol to database path mapping
 SYMBOL_DB_MAPPING = {
     "BTC": PROJECT_ROOT / "data" / "binance_bitcoin.db",
@@ -402,12 +421,27 @@ def get_available_strategies() -> list:
 
     strategies = []
     existing_ids = set()
+    allocation_strategies = {}
+
+    try:
+        allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
+        if allocation_path.exists():
+            with open(allocation_path, 'r') as f:
+                allocation = json.load(f)
+            allocation_strategies = allocation.get('strategies', {})
+    except Exception as e:
+        print(f"Error preloading allocation.json strategies: {e}")
+        allocation_strategies = {}
 
     # 1. Get strategies from Factory Registry
     try:
         factory_strategies = STRATEGY_REGISTRY.keys()
 
         for name in factory_strategies:
+            if name in DEPRECATED_BACKTEST_STRATEGIES:
+                continue
+            if name in allocation_strategies and not allocation_strategies[name].get('enabled', True):
+                continue
             spec = STRATEGY_REGISTRY[name]
             strategies.append({
                 'id': name,
@@ -423,38 +457,40 @@ def get_available_strategies() -> list:
 
     # 2. Get tuned strategies from allocation.json
     try:
-        allocation_path = PROJECT_ROOT / "config" / "strategies" / "allocation.json"
-        if allocation_path.exists():
-            with open(allocation_path, 'r') as f:
-                allocation = json.load(f)
-
-            for name, config in allocation.get('strategies', {}).items():
-                if name not in existing_ids:
-                    # This is a tuned/custom strategy not in registry
-                    is_tuned = 'tuned_config' in config or 'regime_routing' in config
-                    strategies.append({
-                        'id': name,
-                        'name': name.replace('_', ' ').title(),
-                        'description': f"{'Tuned' if is_tuned else 'Custom'} {config.get('market', 'futures').title()} strategy",
-                        'exchange': 'binance',
-                        'default_params': {},
-                        'is_tuned': is_tuned
-                    })
-                    existing_ids.add(name)
+        for name, config in allocation_strategies.items():
+            if name in DEPRECATED_BACKTEST_STRATEGIES:
+                continue
+            if not config.get('enabled', True):
+                continue
+            if name not in existing_ids:
+                # This is a tuned/custom strategy not in registry
+                is_tuned = 'tuned_config' in config or 'regime_routing' in config
+                strategies.append({
+                    'id': name,
+                    'name': name.replace('_', ' ').title(),
+                    'description': f"{'Tuned' if is_tuned else 'Custom'} {config.get('market', 'futures').title()} strategy",
+                    'exchange': 'binance',
+                    'default_params': {},
+                    'is_tuned': is_tuned
+                })
+                existing_ids.add(name)
     except Exception as e:
         print(f"Error loading allocation.json strategies: {e}")
 
-    # 3. Walk-forward backtest strategies (per-asset, tree_60 XGB+LGB ensemble)
-    for asset in ('BTC', 'ETH', 'SOL'):
-        wf_id = f'wf_tree60_{asset.lower()}'
-        if wf_id not in existing_ids:
-            strategies.append({
-                'id': wf_id,
-                'name': f'Walk-Forward Tree60 {asset}',
-                'description': f'Walk-forward XGB+LGB ensemble on tree_60 features ({asset} spot)',
-                'exchange': 'binance',
-                'default_params': {}
-            })
+    # 3. Add explicit backtest-only strategies (not managed in Strategies tab).
+    for strategy in BACKTEST_ONLY_STRATEGIES:
+        sid = strategy["id"]
+        if sid in existing_ids:
+            continue
+        strategies.append({
+            'id': sid,
+            'name': strategy["name"],
+            'description': strategy["description"],
+            'exchange': 'binance',
+            'default_params': {},
+            'backtest_only': True,
+        })
+        existing_ids.add(sid)
 
     return strategies
 
@@ -1211,7 +1247,8 @@ def _execute_open_trade(action: str, signal: dict, row: pd.Series, trade_state: 
     margin = trade_state['capital'] * fraction / (1 + effective_leverage * fee_rate)
     position_size = margin * effective_leverage
     fee = position_size * fee_rate
-    if trade_state['capital'] < (margin + fee):
+    # Allow full-allocation entries despite tiny floating-point drift.
+    if trade_state['capital'] + 1e-9 < (margin + fee):
         return
 
     trade_state['capital'] -= (margin + fee)
@@ -1495,6 +1532,76 @@ def _run_walkforward_backtest(
     wf_xgb_rounds = int(os.getenv('WF_XGB_ROUNDS', '500'))
     wf_lgb_rounds = int(os.getenv('WF_LGB_ROUNDS', '500'))
 
+    # Risk/re-entry defaults tuned from 2024 grid search.
+    wf_param_defaults = {
+        "BTC": {
+            "cooldown_reentry_enabled": True,
+            "cooldown_reentry_requires_buy": True,
+            "min_bars_after_risk_exit": 24,
+            "trailing_drawdown_exit_pct": 10.0,
+            "reentry_trend_filter_enabled": True,
+            "reentry_ema_span": 50,
+            "reentry_require_ema_rising": True,
+            "staged_reentry_enabled": True,
+            "reentry_stage1_fraction": 0.55,
+            "reentry_stage2_fraction": 0.8,
+            "stage2_confirm_bars": 6,
+            "stage2_trigger_pct": 0.8,
+        },
+        "ETH": {
+            "cooldown_reentry_enabled": True,
+            "cooldown_reentry_requires_buy": True,
+            "min_bars_after_risk_exit": 24,
+            "trailing_drawdown_exit_pct": 10.0,
+            "reentry_trend_filter_enabled": True,
+            "reentry_ema_span": 50,
+            "reentry_require_ema_rising": True,
+            "staged_reentry_enabled": True,
+            "reentry_stage1_fraction": 0.55,
+            "reentry_stage2_fraction": 0.8,
+            "stage2_confirm_bars": 6,
+            "stage2_trigger_pct": 0.8,
+        },
+        # Keep SOL conservative until dedicated tuning is completed.
+        "SOL": {
+            "cooldown_reentry_enabled": True,
+            "cooldown_reentry_requires_buy": True,
+            "min_bars_after_risk_exit": 24,
+            "trailing_drawdown_exit_pct": 12.0,
+            "reentry_trend_filter_enabled": False,
+            "reentry_ema_span": 50,
+            "reentry_require_ema_rising": True,
+            "staged_reentry_enabled": False,
+            "reentry_stage1_fraction": 0.45,
+            "reentry_stage2_fraction": 0.8,
+            "stage2_confirm_bars": 6,
+            "stage2_trigger_pct": 1.5,
+        },
+    }
+
+    def _env_bool(value: str) -> bool:
+        return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+    def _resolve_wf_param(param_key: str, default_value):
+        raw = os.getenv(f"WF_TREE60_{asset}_{param_key.upper()}")
+        if raw is None:
+            raw = os.getenv(f"WF_TREE60_{param_key.upper()}")
+        if raw is None:
+            return default_value
+        if isinstance(default_value, bool):
+            return _env_bool(raw)
+        if isinstance(default_value, int) and not isinstance(default_value, bool):
+            return int(raw)
+        if isinstance(default_value, float):
+            return float(raw)
+        return raw
+
+    asset_defaults = wf_param_defaults[asset]
+    wf_params = {
+        key: _resolve_wf_param(key, value)
+        for key, value in asset_defaults.items()
+    }
+
     # Persist running heartbeat periodically so DB doesn't remain stale pending.
     last_heartbeat = 0.0
 
@@ -1528,6 +1635,18 @@ def _run_walkforward_backtest(
         temporal_decay=wf_temporal_decay,
         xgb_rounds=wf_xgb_rounds,
         lgb_rounds=wf_lgb_rounds,
+        cooldown_reentry_enabled=wf_params["cooldown_reentry_enabled"],
+        cooldown_reentry_requires_buy=wf_params["cooldown_reentry_requires_buy"],
+        trailing_drawdown_exit_pct=wf_params["trailing_drawdown_exit_pct"],
+        min_bars_after_risk_exit=wf_params["min_bars_after_risk_exit"],
+        reentry_trend_filter_enabled=wf_params["reentry_trend_filter_enabled"],
+        reentry_ema_span=wf_params["reentry_ema_span"],
+        reentry_require_ema_rising=wf_params["reentry_require_ema_rising"],
+        staged_reentry_enabled=wf_params["staged_reentry_enabled"],
+        reentry_stage1_fraction=wf_params["reentry_stage1_fraction"],
+        reentry_stage2_fraction=wf_params["reentry_stage2_fraction"],
+        stage2_confirm_bars=wf_params["stage2_confirm_bars"],
+        stage2_trigger_pct=wf_params["stage2_trigger_pct"],
         progress_callback=_progress_callback,
         should_cancel=lambda: job._cancelled,
     )
@@ -1565,12 +1684,20 @@ def _run_walkforward_backtest(
         sampled = closed_trades
 
     for t in sampled:
+        raw_reason = str(getattr(t, 'reason', '') or '')
+        entry_reason = raw_reason.split(' -> ', 1)[0] if ' -> ' in raw_reason else raw_reason
+        if '[' in raw_reason and raw_reason.endswith(']'):
+            exit_reason = raw_reason.rsplit('[', 1)[1][:-1]
+        else:
+            exit_reason = raw_reason
+
         trades_list.append({
             'timestamp': str(t.entry_time)[:19],
             'symbol': asset,
             'action': 'BUY',
             'price': t.entry_price,
             'profit': None,
+            'reason': entry_reason,
         })
         trades_list.append({
             'timestamp': str(t.exit_time)[:19],
@@ -1578,6 +1705,7 @@ def _run_walkforward_backtest(
             'action': 'SELL',
             'price': t.exit_price,
             'profit': round(t.profit_loss, 0) if t.profit_loss else 0,
+            'reason': exit_reason,
         })
 
     # Build standard metrics

@@ -2799,7 +2799,7 @@ function renderBacktestRegimeChart(regimeChartPath, yearlyChartPaths) {
 
         container.innerHTML = `
             <h4>Regime Analysis Chart</h4>
-            <p class="chart-description">Bollinger Bands overlay with trade markers</p>
+            <p class="chart-description">Bollinger Bands lines (upper/middle/lower) with shaded band width between upper and lower</p>
             <img src="${regimeChartPath}" alt="Regime Analysis Chart">
             <div class="chart-links">
                 <a href="${regimeChartPath}" target="_blank" class="download-link">Open Full Size</a>

@@ -433,7 +433,13 @@ class Backtester:
             action = signal.get('action', 'hold')
             fraction = signal.get('fraction', 1.0)
             execution_price = self._resolve_execution_price(signal, price)
-            self._execute_action(action, timestamp, execution_price, fraction)
+            self._execute_action(
+                action,
+                timestamp,
+                execution_price,
+                fraction,
+                signal_reason=signal.get('reason', ''),
+            )
             total_equity = self._record_equity_snapshot(timestamp, price)
             if logger is not None:
                 self._log_backtest_candle(
@@ -479,19 +485,26 @@ class Backtester:
             pass
         return float(default_price)
 
-    def _execute_action(self, action: str, timestamp: Any, price: float, fraction: float) -> None:
+    def _execute_action(
+        self,
+        action: str,
+        timestamp: Any,
+        price: float,
+        fraction: float,
+        signal_reason: str = "",
+    ) -> None:
         """Execute buy/sell/short action for the current candle."""
         if action == 'buy':
-            self._execute_buy(timestamp, price, fraction)
+            self._execute_buy(timestamp, price, fraction, signal_reason=signal_reason)
             return
         if action == 'sell':
-            self._execute_sell(timestamp, price, fraction)
+            self._execute_sell(timestamp, price, fraction, signal_reason=signal_reason)
             return
         if action == 'open_short':
-            self._execute_open_short(timestamp, price, fraction)
+            self._execute_open_short(timestamp, price, fraction, signal_reason=signal_reason)
             return
         if action == 'close_short':
-            self._execute_close_short(timestamp, price, fraction)
+            self._execute_close_short(timestamp, price, fraction, signal_reason=signal_reason)
 
     def _record_equity_snapshot(self, timestamp: Any, price: float) -> float:
         """Update position value and append equity curve snapshot."""
@@ -594,7 +607,12 @@ class Backtester:
         if self.position <= 0:
             return
         last_row = df.iloc[-1]
-        self._execute_sell(last_row['timestamp'], last_row['close'], 1.0)
+        self._execute_sell(
+            last_row['timestamp'],
+            last_row['close'],
+            1.0,
+            signal_reason='final_liquidation',
+        )
 
     def run_strategy(
         self,
@@ -772,7 +790,13 @@ class Backtester:
 
         return self.run(df, adapter)
 
-    def _execute_buy(self, timestamp: datetime, price: float, fraction: float):
+    def _execute_buy(
+        self,
+        timestamp: datetime,
+        price: float,
+        fraction: float,
+        signal_reason: str = "",
+    ):
         """매수 실행"""
         # 투자 가능 금액
         available_cash = self.cash * fraction
@@ -806,11 +830,17 @@ class Backtester:
             entry_price=execution_price,
             quantity=quantity,
             side='buy',
-            reason=f'Buy {fraction*100:.1f}% of cash'
+            reason=signal_reason or f'Buy {fraction*100:.1f}% of cash'
         )
         self.trades.append(trade)
 
-    def _execute_sell(self, timestamp: datetime, price: float, fraction: float):
+    def _execute_sell(
+        self,
+        timestamp: datetime,
+        price: float,
+        fraction: float,
+        signal_reason: str = "",
+    ):
         """매도 실행"""
         if self.position <= 0:
             return  # 보유 없음
@@ -835,9 +865,21 @@ class Backtester:
             # Keep position_value in sync when closing at end-of-run liquidation.
             self.position_value = 0.0
 
-        self._close_long_fifo(timestamp, execution_price, quantity, fraction)
+        self._close_long_fifo(
+            timestamp,
+            execution_price,
+            quantity,
+            fraction,
+            signal_reason=signal_reason,
+        )
 
-    def _execute_open_short(self, timestamp: datetime, price: float, fraction: float):
+    def _execute_open_short(
+        self,
+        timestamp: datetime,
+        price: float,
+        fraction: float,
+        signal_reason: str = "",
+    ):
         """Open a short position (futures margin model).
 
         Margin model: selling borrowed asset.
@@ -873,11 +915,17 @@ class Backtester:
             entry_price=execution_price,
             quantity=quantity,
             side='short',
-            reason=f'Short {fraction*100:.1f}% (leverage={self.leverage}x)',
+            reason=signal_reason or f'Short {fraction*100:.1f}% (leverage={self.leverage}x)',
         )
         self.trades.append(trade)
 
-    def _execute_close_short(self, timestamp: datetime, price: float, fraction: float):
+    def _execute_close_short(
+        self,
+        timestamp: datetime,
+        price: float,
+        fraction: float,
+        signal_reason: str = "",
+    ):
         """Close (cover) a short position."""
         if self.position >= 0:
             return  # No short position
@@ -899,9 +947,22 @@ class Backtester:
             self.position = 0.0
             self.position_value = 0.0
 
-        self._close_short_fifo(timestamp, execution_price, quantity, fraction)
+        self._close_short_fifo(
+            timestamp,
+            execution_price,
+            quantity,
+            fraction,
+            signal_reason=signal_reason,
+        )
 
-    def _close_long_fifo(self, timestamp: Any, execution_price: float, target_qty: float, fraction: float) -> None:
+    def _close_long_fifo(
+        self,
+        timestamp: Any,
+        execution_price: float,
+        target_qty: float,
+        fraction: float,
+        signal_reason: str = "",
+    ) -> None:
         """Close long trades in FIFO order, preserving partial-close accounting."""
         remaining = target_qty
         if remaining <= 0:
@@ -919,6 +980,8 @@ class Backtester:
             pnl = (execution_price - trade.entry_price) * close_qty
             pnl_pct = ((execution_price - trade.entry_price) / trade.entry_price) * 100 if trade.entry_price > 0 else 0.0
             reason = f"{trade.reason} -> Sell {fraction*100:.1f}%"
+            if signal_reason:
+                reason = f"{reason} [{signal_reason}]"
 
             if close_qty + 1e-12 >= trade.quantity:
                 trade.exit_time = timestamp
@@ -944,7 +1007,14 @@ class Backtester:
 
             remaining -= close_qty
 
-    def _close_short_fifo(self, timestamp: Any, execution_price: float, target_qty: float, fraction: float) -> None:
+    def _close_short_fifo(
+        self,
+        timestamp: Any,
+        execution_price: float,
+        target_qty: float,
+        fraction: float,
+        signal_reason: str = "",
+    ) -> None:
         """Close short trades in FIFO order, preserving partial-close accounting."""
         remaining = target_qty
         if remaining <= 0:
@@ -962,6 +1032,8 @@ class Backtester:
             pnl = (trade.entry_price - execution_price) * close_qty
             pnl_pct = ((trade.entry_price - execution_price) / trade.entry_price) * 100 if trade.entry_price > 0 else 0.0
             reason = f"{trade.reason} -> Cover {fraction*100:.1f}%"
+            if signal_reason:
+                reason = f"{reason} [{signal_reason}]"
 
             if close_qty + 1e-12 >= trade.quantity:
                 trade.exit_time = timestamp

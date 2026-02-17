@@ -72,7 +72,9 @@ class TestRedisStreamsUnit:
 
             mock_from_url.assert_called_once_with(
                 "redis://localhost:6379",
-                decode_responses=True
+                decode_responses=True,
+                socket_connect_timeout=3.0,
+                socket_timeout=3.0,
             )
             assert redis_streams._client is not None
 

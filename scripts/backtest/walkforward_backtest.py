@@ -50,6 +50,58 @@ ASSET_DB = {
     "SOL": ("data/binance_solana.db", "SOL"),
 }
 
+# Default risk/re-entry settings aligned with dashboard walk-forward runs.
+WF_TREE60_ASSET_DEFAULTS = {
+    "BTC": {
+        "cooldown_reentry_enabled": True,
+        "cooldown_reentry_requires_buy": True,
+        "min_bars_after_risk_exit": 24,
+        "trailing_drawdown_exit_pct": 10.0,
+        "reentry_trend_filter_enabled": True,
+        "reentry_ema_span": 50,
+        "reentry_require_ema_rising": True,
+        "staged_reentry_enabled": True,
+        "reentry_stage1_fraction": 0.55,
+        "reentry_stage2_fraction": 0.8,
+        "stage2_confirm_bars": 6,
+        "stage2_trigger_pct": 0.8,
+    },
+    "ETH": {
+        "cooldown_reentry_enabled": True,
+        "cooldown_reentry_requires_buy": True,
+        "min_bars_after_risk_exit": 24,
+        "trailing_drawdown_exit_pct": 10.0,
+        "reentry_trend_filter_enabled": True,
+        "reentry_ema_span": 50,
+        "reentry_require_ema_rising": True,
+        "staged_reentry_enabled": True,
+        "reentry_stage1_fraction": 0.55,
+        "reentry_stage2_fraction": 0.8,
+        "stage2_confirm_bars": 6,
+        "stage2_trigger_pct": 0.8,
+    },
+    # Keep SOL conservative until dedicated tuning is completed.
+    "SOL": {
+        "cooldown_reentry_enabled": True,
+        "cooldown_reentry_requires_buy": True,
+        "min_bars_after_risk_exit": 24,
+        "trailing_drawdown_exit_pct": 12.0,
+        "reentry_trend_filter_enabled": False,
+        "reentry_ema_span": 50,
+        "reentry_require_ema_rising": True,
+        "staged_reentry_enabled": False,
+        "reentry_stage1_fraction": 0.45,
+        "reentry_stage2_fraction": 0.8,
+        "stage2_confirm_bars": 6,
+        "stage2_trigger_pct": 1.5,
+    },
+}
+
+
+def get_wf_tree60_asset_defaults(asset: str) -> dict:
+    """Return per-asset walk-forward default params."""
+    return dict(WF_TREE60_ASSET_DEFAULTS.get(asset, WF_TREE60_ASSET_DEFAULTS["BTC"]))
+
 
 def compute_tree60_features(df: pd.DataFrame) -> pd.DataFrame:
     """Compute tree_60 features for entire DataFrame."""
@@ -183,39 +235,122 @@ class WalkForwardStrategy:
         self._sell_conf_threshold = config.get("sell_confidence_threshold", 0.45)
         self._buy_conf_threshold = config.get("buy_confidence_threshold", 0.5)
         self._stop_loss_pct = config.get("stop_loss_pct", 15.0)
+        self._trailing_drawdown_exit_pct = float(config.get("trailing_drawdown_exit_pct", 12.0))
         self._position_pct = config.get("position_size", 0.8)
         self._cooldown_bars = config.get("cooldown_bars", 12)  # Auto re-enter after N bars
+        self._cooldown_reentry_enabled = bool(config.get("cooldown_reentry_enabled", True))
+        self._cooldown_reentry_requires_buy = bool(config.get("cooldown_reentry_requires_buy", True))
+        self._min_bars_after_risk_exit = int(config.get("min_bars_after_risk_exit", 24))
+        self._reentry_trend_filter_enabled = bool(config.get("reentry_trend_filter_enabled", False))
+        self._reentry_ema_span = int(config.get("reentry_ema_span", 50))
+        self._reentry_require_ema_rising = bool(config.get("reentry_require_ema_rising", True))
+        self._staged_reentry_enabled = bool(config.get("staged_reentry_enabled", False))
+        self._reentry_stage1_fraction = float(config.get("reentry_stage1_fraction", 0.45))
+        self._reentry_stage2_fraction = float(config.get("reentry_stage2_fraction", 0.8))
+        self._stage2_confirm_bars = int(config.get("stage2_confirm_bars", 6))
+        self._stage2_trigger_pct = float(config.get("stage2_trigger_pct", 1.5))
         self._in_position = False
         self._entry_price = 0.0
+        self._high_water_mark = 0.0
         self._entered_initial = False
         self._bars_since_exit = 0
+        self._last_exit_was_risk = False
+        self._current_fraction = 0.0
+        self._pending_scale_in = False
+        self._scale_target_fraction = 0.0
+        self._bars_since_reentry = 0
+        self._ema_cache = None
 
     def __call__(self, df, i, params=None):
         row = df.iloc[i]
         close = row["close"]
+        ema_value, ema_prev = self._get_reentry_ema(df, i)
 
         # Enter immediately on first bar (hold-biased)
         if not self._entered_initial:
             self._entered_initial = True
             self._in_position = True
             self._entry_price = close
-            return {"action": "buy", "fraction": self._position_pct}
+            self._high_water_mark = close
+            self._last_exit_was_risk = False
+            self._current_fraction = self._position_pct
+            self._pending_scale_in = False
+            self._scale_target_fraction = self._position_pct
+            self._bars_since_reentry = 0
+            return {"action": "buy", "fraction": self._position_pct, "reason": "initial_entry"}
 
         # If in position: check for exit
         if self._in_position:
+            self._bars_since_reentry += 1
+            self._high_water_mark = max(self._high_water_mark, close)
             pnl_pct = (close - self._entry_price) / self._entry_price * 100
+            dd_from_hwm_pct = ((close / self._high_water_mark) - 1.0) * 100 if self._high_water_mark > 0 else 0.0
+
+            # Stage-2 scale-in after re-entry confirmation.
+            if self._pending_scale_in and self._current_fraction < self._scale_target_fraction:
+                if self._bars_since_reentry >= self._stage2_confirm_bars:
+                    gain_from_reentry = ((close / self._entry_price) - 1.0) * 100 if self._entry_price > 0 else 0.0
+                    if gain_from_reentry >= self._stage2_trigger_pct and self._passes_reentry_trend_filter(
+                        close, ema_value, ema_prev
+                    ):
+                        add_fraction = self._compute_scale_in_fraction()
+                        if add_fraction > 0:
+                            self._current_fraction = self._scale_target_fraction
+                            self._pending_scale_in = False
+                            return {
+                                "action": "buy",
+                                "fraction": add_fraction,
+                                "reason": (
+                                    f"scale_in_stage2: gain={gain_from_reentry:.2f}% >= "
+                                    f"{self._stage2_trigger_pct:.2f}%"
+                                ),
+                            }
+
+            # Trailing drawdown from local high-water mark
+            if self._trailing_drawdown_exit_pct > 0 and dd_from_hwm_pct <= -self._trailing_drawdown_exit_pct:
+                self._in_position = False
+                self._bars_since_exit = 0
+                self._last_exit_was_risk = True
+                self._pending_scale_in = False
+                self._scale_target_fraction = 0.0
+                self._current_fraction = 0.0
+                return {
+                    "action": "sell",
+                    "fraction": 1.0,
+                    "reason": (
+                        f"trailing_dd_exit: dd={dd_from_hwm_pct:.2f}% <= "
+                        f"-{self._trailing_drawdown_exit_pct:.2f}%"
+                    ),
+                }
+
             # Stop loss
             if pnl_pct <= -self._stop_loss_pct:
                 self._in_position = False
                 self._bars_since_exit = 0
-                return {"action": "sell", "fraction": 1.0}
+                self._last_exit_was_risk = True
+                self._pending_scale_in = False
+                self._scale_target_fraction = 0.0
+                self._current_fraction = 0.0
+                return {
+                    "action": "sell",
+                    "fraction": 1.0,
+                    "reason": f"stop_loss: pnl={pnl_pct:.2f}% <= -{self._stop_loss_pct:.2f}%",
+                }
             # SELL signal from model
             if i in self._preds and self._preds[i] == 2:
                 conf = self._confs.get(i, 0)
                 if conf >= self._sell_conf_threshold:
                     self._in_position = False
                     self._bars_since_exit = 0
-                    return {"action": "sell", "fraction": 1.0}
+                    self._last_exit_was_risk = False
+                    self._pending_scale_in = False
+                    self._scale_target_fraction = 0.0
+                    self._current_fraction = 0.0
+                    return {
+                        "action": "sell",
+                        "fraction": 1.0,
+                        "reason": f"model_sell: conf={conf:.3f} >= {self._sell_conf_threshold:.2f}",
+                    }
 
         # If out of position: re-enter on BUY signal or after cooldown
         if not self._in_position:
@@ -226,22 +361,106 @@ class WalkForwardStrategy:
                 pred = self._preds[i]
                 conf = self._confs.get(i, 0)
                 if pred == 1 and conf >= self._buy_conf_threshold:
-                    self._in_position = True
-                    self._entry_price = close
-                    return {"action": "buy", "fraction": self._position_pct}
+                    if not self._passes_reentry_trend_filter(close, ema_value, ema_prev):
+                        return {"action": "hold", "reason": "model_buy_blocked_by_trend_filter"}
+                    return self._build_reentry_signal(
+                        close=close,
+                        reason=f"model_buy: conf={conf:.3f} >= {self._buy_conf_threshold:.2f}",
+                    )
 
             # Auto re-enter after cooldown (don't miss prolonged rallies)
-            if self._bars_since_exit >= self._cooldown_bars:
+            if self._cooldown_reentry_enabled and self._bars_since_exit >= self._cooldown_bars:
+                if self._last_exit_was_risk and self._bars_since_exit < self._min_bars_after_risk_exit:
+                    return {
+                        "action": "hold",
+                        "reason": (
+                            f"risk_reentry_wait: bars={self._bars_since_exit} < "
+                            f"{self._min_bars_after_risk_exit}"
+                        ),
+                    }
                 # Don't re-enter if model is still screaming SELL
                 if i in self._preds and self._preds[i] == 2:
                     conf = self._confs.get(i, 0)
                     if conf >= self._sell_conf_threshold:
-                        return {"action": "hold"}
-                self._in_position = True
-                self._entry_price = close
-                return {"action": "buy", "fraction": self._position_pct}
+                        return {
+                            "action": "hold",
+                            "reason": f"cooldown_blocked_by_sell: conf={conf:.3f} >= {self._sell_conf_threshold:.2f}",
+                        }
+                if self._cooldown_reentry_requires_buy:
+                    if i not in self._preds or self._preds[i] != 1:
+                        return {
+                            "action": "hold",
+                            "reason": "cooldown_wait_buy_signal",
+                        }
+                    conf = self._confs.get(i, 0)
+                    if conf < self._buy_conf_threshold:
+                        return {
+                            "action": "hold",
+                            "reason": (
+                                f"cooldown_wait_buy_conf: conf={conf:.3f} < "
+                                f"{self._buy_conf_threshold:.2f}"
+                            ),
+                        }
+                if not self._passes_reentry_trend_filter(close, ema_value, ema_prev):
+                    return {"action": "hold", "reason": "cooldown_blocked_by_trend_filter"}
+                return self._build_reentry_signal(
+                    close=close,
+                    reason=f"cooldown_reentry: bars={self._cooldown_bars}",
+                )
 
         return {"action": "hold"}
+
+    def _get_reentry_ema(self, df, i):
+        if self._ema_cache is None or len(self._ema_cache) != len(df):
+            span = max(2, int(self._reentry_ema_span))
+            self._ema_cache = df["close"].ewm(span=span, adjust=False).mean().values
+        ema_value = float(self._ema_cache[i])
+        ema_prev = float(self._ema_cache[i - 1]) if i > 0 else ema_value
+        return ema_value, ema_prev
+
+    def _passes_reentry_trend_filter(self, close: float, ema_value: float, ema_prev: float) -> bool:
+        if not self._reentry_trend_filter_enabled:
+            return True
+        if close < ema_value:
+            return False
+        if self._reentry_require_ema_rising and ema_value <= ema_prev:
+            return False
+        return True
+
+    def _build_reentry_signal(self, close: float, reason: str):
+        self._in_position = True
+        self._entry_price = close
+        self._high_water_mark = close
+        self._last_exit_was_risk = False
+        self._bars_since_reentry = 0
+
+        entry_fraction = self._position_pct
+        self._pending_scale_in = False
+        self._scale_target_fraction = self._position_pct
+
+        if self._staged_reentry_enabled and self._position_pct > 0:
+            stage1 = min(max(self._reentry_stage1_fraction, 0.0), self._position_pct)
+            stage2 = min(max(self._reentry_stage2_fraction, stage1), self._position_pct)
+            if stage2 > stage1 + 1e-9:
+                entry_fraction = stage1
+                self._pending_scale_in = True
+                self._scale_target_fraction = stage2
+
+        self._current_fraction = entry_fraction
+        return {
+            "action": "buy",
+            "fraction": entry_fraction,
+            "reason": reason,
+        }
+
+    def _compute_scale_in_fraction(self) -> float:
+        if self._current_fraction >= 1.0:
+            return 0.0
+        target = min(max(self._scale_target_fraction, 0.0), 1.0)
+        if target <= self._current_fraction + 1e-9:
+            return 0.0
+        # Backtester fraction applies to remaining cash.
+        return (target - self._current_fraction) / max(1.0 - self._current_fraction, 1e-9)
 
 
 def run_walkforward_asset(
@@ -254,6 +473,19 @@ def run_walkforward_asset(
     temporal_decay: float = 0.0,
     xgb_rounds: int = 500,
     lgb_rounds: int = 500,
+    position_size: float = 0.8,
+    cooldown_reentry_enabled: bool = True,
+    cooldown_reentry_requires_buy: bool = True,
+    trailing_drawdown_exit_pct: float = 12.0,
+    min_bars_after_risk_exit: int = 24,
+    reentry_trend_filter_enabled: bool = False,
+    reentry_ema_span: int = 50,
+    reentry_require_ema_rising: bool = True,
+    staged_reentry_enabled: bool = False,
+    reentry_stage1_fraction: float = 0.45,
+    reentry_stage2_fraction: float = 0.8,
+    stage2_confirm_bars: int = 6,
+    stage2_trigger_pct: float = 1.5,
     progress_callback=None,
     should_cancel=None,
 ) -> dict:
@@ -390,8 +622,20 @@ def run_walkforward_asset(
         "buy_confidence_threshold": 0.5,
         "sell_confidence_threshold": 0.45,
         "stop_loss_pct": 15.0,
-        "position_size": 0.8,
+        "trailing_drawdown_exit_pct": trailing_drawdown_exit_pct,
+        "position_size": position_size,
         "cooldown_bars": 12,  # Auto re-enter after 12 bars (2 days on 4H)
+        "cooldown_reentry_enabled": cooldown_reentry_enabled,
+        "cooldown_reentry_requires_buy": cooldown_reentry_requires_buy,
+        "min_bars_after_risk_exit": min_bars_after_risk_exit,
+        "reentry_trend_filter_enabled": reentry_trend_filter_enabled,
+        "reentry_ema_span": reentry_ema_span,
+        "reentry_require_ema_rising": reentry_require_ema_rising,
+        "staged_reentry_enabled": staged_reentry_enabled,
+        "reentry_stage1_fraction": reentry_stage1_fraction,
+        "reentry_stage2_fraction": reentry_stage2_fraction,
+        "stage2_confirm_bars": stage2_confirm_bars,
+        "stage2_trigger_pct": stage2_trigger_pct,
     })
 
     bt = Backtester(initial_capital=capital, fee_rate=0.001, slippage=0.0002)
@@ -415,12 +659,12 @@ def main():
     parser.add_argument("--capital", type=float, default=10_000)
     parser.add_argument("--start-date", default="2020-01-01")
     parser.add_argument("--end-date", default="2026-02-01")
-    parser.add_argument("--n-splits", type=int, default=5)
+    parser.add_argument("--n-splits", type=int, default=7)
     parser.add_argument("--by-year", action="store_true")
-    parser.add_argument("--max-train-folds", type=int, default=0,
-                        help="Max folds in training window (0=expanding, >0=sliding)")
-    parser.add_argument("--temporal-decay", type=float, default=0.0,
-                        help="Exponential decay rate for older samples (0=off, 2.0=recommended)")
+    parser.add_argument("--max-train-folds", type=int, default=3,
+                        help="Max folds in training window (0=expanding, >0=sliding, default=3)")
+    parser.add_argument("--temporal-decay", type=float, default=2.0,
+                        help="Exponential decay rate for older samples (0=off, default=2.0)")
     args = parser.parse_args()
 
     window_desc = f"sliding (max {args.max_train_folds})" if args.max_train_folds > 0 else "expanding"
@@ -433,11 +677,24 @@ def main():
 
     all_results = {}
     for asset in args.assets:
+        asset_defaults = get_wf_tree60_asset_defaults(asset)
         all_results[asset] = run_walkforward_asset(
             asset, args.start_date, args.end_date,
             args.capital, args.n_splits,
             max_train_folds=args.max_train_folds,
             temporal_decay=args.temporal_decay,
+            cooldown_reentry_enabled=asset_defaults["cooldown_reentry_enabled"],
+            cooldown_reentry_requires_buy=asset_defaults["cooldown_reentry_requires_buy"],
+            trailing_drawdown_exit_pct=asset_defaults["trailing_drawdown_exit_pct"],
+            min_bars_after_risk_exit=asset_defaults["min_bars_after_risk_exit"],
+            reentry_trend_filter_enabled=asset_defaults["reentry_trend_filter_enabled"],
+            reentry_ema_span=asset_defaults["reentry_ema_span"],
+            reentry_require_ema_rising=asset_defaults["reentry_require_ema_rising"],
+            staged_reentry_enabled=asset_defaults["staged_reentry_enabled"],
+            reentry_stage1_fraction=asset_defaults["reentry_stage1_fraction"],
+            reentry_stage2_fraction=asset_defaults["reentry_stage2_fraction"],
+            stage2_confirm_bars=asset_defaults["stage2_confirm_bars"],
+            stage2_trigger_pct=asset_defaults["stage2_trigger_pct"],
         )
 
     # Print results table

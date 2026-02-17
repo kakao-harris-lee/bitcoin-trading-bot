@@ -1828,6 +1828,9 @@ try:
 except ImportError:
     STRATEGY_REGISTRY = {}
 
+# Hide legacy/deprecated strategies from dashboard enable list.
+DEPRECATED_STRATEGY_NAMES = {"sideways_v2", "mlp_direction"}
+
 
 @app.route("/api/strategies")
 @requires_auth
@@ -1855,6 +1858,9 @@ def get_strategies():
         disabled_strategy_names = set()
 
         for name, cfg in strategies_config.items():
+            if name in DEPRECATED_STRATEGY_NAMES:
+                disabled_strategy_names.add(name)
+                continue
             if not bool(cfg.get('enabled', True)):
                 disabled_strategy_names.add(name)
                 continue
@@ -1957,8 +1963,13 @@ def get_strategies():
         # Show as available:
         # 1) Registry strategies not currently enabled
         # 2) Strategies present in allocation but explicitly disabled
-        available_in_registry = set(STRATEGY_REGISTRY.keys()) - enabled_strategy_names
-        available_strategies = sorted(available_in_registry | disabled_strategy_names)
+        available_in_registry = {
+            name for name in STRATEGY_REGISTRY.keys()
+            if name not in DEPRECATED_STRATEGY_NAMES
+        } - enabled_strategy_names
+        available_strategies = sorted(
+            (available_in_registry | disabled_strategy_names) - DEPRECATED_STRATEGY_NAMES
+        )
 
         return jsonify({
             'strategies': strategies,
@@ -1983,6 +1994,8 @@ def enable_strategy(strategy_name: str):
     try:
         if strategy_name not in STRATEGY_REGISTRY:
             return jsonify({'error': f'Unknown strategy: {strategy_name}'}), 400
+        if strategy_name in DEPRECATED_STRATEGY_NAMES:
+            return jsonify({'error': f'Strategy {strategy_name} is deprecated and cannot be enabled'}), 400
 
         # Load current config
         config = load_allocation_config()

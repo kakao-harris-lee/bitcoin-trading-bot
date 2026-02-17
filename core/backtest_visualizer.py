@@ -43,6 +43,11 @@ REGIME_COLORS = {
 # Allowed output formats for chart generation
 ALLOWED_FORMATS = {"png", "svg", "pdf", "jpg", "jpeg"}
 
+# Keep native timeframe for most charts; only resample very long series.
+# Backtest data is commonly 4H bars, so 1 year ~= 2,190 points and should remain unresampled.
+REGIME_RESAMPLE_THRESHOLD = 5000
+REGIME_RESAMPLE_RULE = "D"
+
 
 def _sanitize_filename(name: str) -> str:
     """Sanitize a string for safe use in filenames.
@@ -452,7 +457,7 @@ class BacktestVisualizer:
             return None
         df, trades = prepared
 
-        addplots = self._build_regime_addplots(df, trades, equity_curve)
+        addplots, panel_ratios = self._build_regime_addplots(df, trades, equity_curve)
         style = self._build_regime_style()
         safe_path, chart_format = self._resolve_regime_output_path(output_path)
         if safe_path is None:
@@ -465,7 +470,7 @@ class BacktestVisualizer:
                 style=style,
                 addplot=addplots if addplots else None,
                 volume=True,
-                panel_ratios=(8, 2),
+                panel_ratios=panel_ratios,
                 title=title,
                 figsize=(self.config.width, self.config.height),
                 returnfig=True,
@@ -473,7 +478,7 @@ class BacktestVisualizer:
             )
             if "regime" in df.columns:
                 self._add_regime_background(fig, axes, df)
-            self._add_regime_legend(fig)
+                self._add_regime_legend(fig)
             fig.savefig(
                 str(safe_path),
                 dpi=self.config.dpi,
@@ -503,7 +508,7 @@ class BacktestVisualizer:
             logger.warning("DataFrame needs timestamp column or DatetimeIndex")
             return None
 
-        if len(df) > 1000:
+        if len(df) > REGIME_RESAMPLE_THRESHOLD:
             df, trades = self._resample_regime_data(df, trades)
 
         if not self._has_required_regime_columns(df):
@@ -517,14 +522,33 @@ class BacktestVisualizer:
         df: pd.DataFrame,
         trades: Optional[List[dict]],
     ) -> tuple[pd.DataFrame, Optional[List[dict]]]:
-        logger.info(f"Resampling {len(df)} data points to daily for better visibility")
+        logger.info(
+            "Resampling %s data points with rule=%s for chart visibility",
+            len(df),
+            REGIME_RESAMPLE_RULE,
+        )
         ohlcv_agg = {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
-        indicator_cols = ["mfi", "adx", "bb_upper", "bb_lower", "bb_middle", "ema_200", "macd", "macd_signal", "regime"]
+        indicator_cols = [
+            "rsi",
+            "mfi",
+            "adx",
+            "bb_upper",
+            "bb_lower",
+            "bb_middle",
+            "ema_50",
+            "ema_120",
+            "ema_200",
+            "atr",
+            "macd",
+            "macd_signal",
+            "macd_hist",
+            "regime",
+        ]
         indicator_agg = {col: "last" for col in indicator_cols if col in df.columns}
         agg_dict = {k: v for k, v in {**ohlcv_agg, **indicator_agg}.items() if k in df.columns}
-        df = df.resample("D").agg(agg_dict).dropna(subset=["close"])
+        df = df.resample(REGIME_RESAMPLE_RULE).agg(agg_dict).dropna(subset=["close"])
         trades = self._aggregate_daily_trades(trades)
-        logger.info(f"Resampled to {len(df)} daily bars")
+        logger.info("Resampled to %s bars (rule=%s)", len(df), REGIME_RESAMPLE_RULE)
         return df, trades
 
     def _aggregate_daily_trades(self, trades: Optional[List[dict]]) -> Optional[List[dict]]:
@@ -554,32 +578,253 @@ class BacktestVisualizer:
         df: pd.DataFrame,
         trades: Optional[List[dict]],
         equity_curve: Optional[List[dict]],
-    ) -> List[Any]:
+    ) -> tuple[List[Any], tuple[int, ...]]:
         addplots: List[Any] = []
         self._append_bollinger_addplots(df, addplots)
-        self._append_trade_marker_addplots(df, trades, addplots)
-        self._append_equity_addplot(df, equity_curve, addplots)
-        return addplots
+        return addplots, (8, 2)
+
+    def _append_ema_addplots(self, df: pd.DataFrame, addplots: List[Any]) -> None:
+        ema_specs = [
+            ("ema_50", "#AB47BC", "-", 1.0, 0.75),
+            ("ema_120", "#FB8C00", "-", 1.1, 0.8),
+            ("ema_200", "#FDD835", "-", 1.2, 0.85),
+        ]
+        added = 0
+        for column, color, linestyle, width, alpha in ema_specs:
+            if column not in df.columns:
+                continue
+            series = df[column]
+            if series.notna().sum() <= 0:
+                continue
+            addplots.append(
+                mpf.make_addplot(
+                    series.ffill().bfill(),
+                    panel=0,
+                    color=color,
+                    linestyle=linestyle,
+                    width=width,
+                    alpha=alpha,
+                )
+            )
+            added += 1
+        if added > 0:
+            logger.info(f"EMA overlays added to chart: {added}")
+
+    def _append_momentum_panel_addplots(
+        self,
+        df: pd.DataFrame,
+        addplots: List[Any],
+        panel_index: int,
+    ) -> bool:
+        momentum_specs = [
+            ("rsi", "#42A5F5"),
+            ("mfi", "#26A69A"),
+            ("adx", "#EF5350"),
+        ]
+        added = 0
+        for column, color in momentum_specs:
+            if column not in df.columns:
+                continue
+            series = df[column]
+            if series.notna().sum() <= 0:
+                continue
+            plot_kwargs: Dict[str, Any] = {
+                "panel": panel_index,
+                "color": color,
+                "width": 1.0,
+            }
+            if added == 0:
+                plot_kwargs["ylabel"] = "RSI/MFI/ADX"
+            addplots.append(
+                mpf.make_addplot(
+                    series.ffill().bfill().clip(lower=0, upper=100),
+                    **plot_kwargs,
+                )
+            )
+            added += 1
+
+        if added <= 0:
+            return False
+
+        base_index = df.index
+        for level in (30, 50, 70):
+            addplots.append(
+                mpf.make_addplot(
+                    pd.Series(float(level), index=base_index),
+                    panel=panel_index,
+                    color="#9E9E9E" if level != 50 else "#757575",
+                    linestyle="--",
+                    width=0.8,
+                    alpha=0.35,
+                )
+            )
+
+        logger.info(f"Momentum panel added to chart: {added} indicators")
+        return True
+
+    def _append_macd_overlay_addplots(
+        self,
+        df: pd.DataFrame,
+        addplots: List[Any],
+    ) -> None:
+        if "macd" not in df.columns or "macd_signal" not in df.columns:
+            return
+
+        macd = df["macd"].ffill().bfill()
+        signal = df["macd_signal"].ffill().bfill()
+        if macd.notna().sum() <= 0 or signal.notna().sum() <= 0:
+            return
+
+        hist = df["macd_hist"].ffill().bfill() if "macd_hist" in df.columns else (macd - signal)
+        base_index = df.index
+
+        addplots.append(
+            mpf.make_addplot(
+                macd,
+                panel=0,
+                color="#FFB74D",
+                width=0.9,
+                linestyle="-",
+                alpha=0.85,
+                secondary_y=True,
+                ylabel="Return % / MACD",
+            )
+        )
+        addplots.append(
+            mpf.make_addplot(
+                signal,
+                panel=0,
+                color="#4FC3F7",
+                width=0.9,
+                linestyle="--",
+                alpha=0.8,
+                secondary_y=True,
+            )
+        )
+        addplots.append(
+            mpf.make_addplot(
+                hist,
+                panel=0,
+                type="bar",
+                color="#B0BEC5",
+                alpha=0.25,
+                width=0.6,
+                secondary_y=True,
+            )
+        )
+        addplots.append(
+            mpf.make_addplot(
+                pd.Series(0.0, index=base_index),
+                panel=0,
+                color="#757575",
+                linestyle="--",
+                width=0.7,
+                alpha=0.3,
+                secondary_y=True,
+            )
+        )
+        logger.info("MACD overlay added to main chart")
+
+    def _append_atr_panel_addplots(
+        self,
+        df: pd.DataFrame,
+        addplots: List[Any],
+        panel_index: int,
+    ) -> bool:
+        if "atr" not in df.columns or "close" not in df.columns:
+            return False
+
+        close = df["close"].replace(0, np.nan)
+        atr_pct = ((df["atr"] / close) * 100.0).replace([np.inf, -np.inf], np.nan)
+        if atr_pct.notna().sum() <= 0:
+            return False
+
+        atr_pct = atr_pct.ffill().bfill().clip(lower=0)
+        base_index = df.index
+        addplots.append(
+            mpf.make_addplot(
+                atr_pct,
+                panel=panel_index,
+                color="#CE93D8",
+                width=1.0,
+                ylabel="ATR %",
+            )
+        )
+        for level in (1.0, 2.0, 3.0):
+            addplots.append(
+                mpf.make_addplot(
+                    pd.Series(float(level), index=base_index),
+                    panel=panel_index,
+                    color="#9E9E9E",
+                    linestyle="--",
+                    width=0.7,
+                    alpha=0.3,
+                )
+            )
+        logger.info("ATR% panel added to chart")
+        return True
 
     def _append_bollinger_addplots(self, df: pd.DataFrame, addplots: List[Any]) -> None:
-        if "bb_upper" not in df.columns or "bb_lower" not in df.columns:
-            logger.info(f"BB columns not found. Available: {list(df.columns)}")
-            return
-        bb_upper_valid = df["bb_upper"].notna().sum()
-        bb_lower_valid = df["bb_lower"].notna().sum()
-        logger.info(f"BB columns found: upper={bb_upper_valid} valid, lower={bb_lower_valid} valid")
-        if bb_upper_valid <= 0 or bb_lower_valid <= 0:
-            logger.warning("BB columns exist but have no valid data")
+        # Always compute BB from displayed close series so chart matches visible timeframe.
+        # TradingView default: Basis=SMA(20), Source=Close, StdDev=2.
+        close = df["close"] if "close" in df.columns else None
+        if close is None or close.notna().sum() < 20:
+            logger.info(f"Insufficient close data for Bollinger overlay. Available: {list(df.columns)}")
             return
 
-        bb_upper = df["bb_upper"].ffill().bfill()
-        bb_lower = df["bb_lower"].ffill().bfill()
-        addplots.append(mpf.make_addplot(bb_upper, panel=0, color="#2196F3", width=1.2, linestyle="--", alpha=0.9))
-        addplots.append(mpf.make_addplot(bb_lower, panel=0, color="#2196F3", width=1.2, linestyle="--", alpha=0.9))
-        if "bb_middle" in df.columns:
-            bb_middle = df["bb_middle"].ffill().bfill()
-            addplots.append(mpf.make_addplot(bb_middle, panel=0, color="#1976D2", width=1.5, linestyle="-", alpha=0.9))
-        logger.info("Bollinger Bands added to chart")
+        bb_length = 20
+        bb_mult = 2.0
+        bb_middle = close.rolling(window=bb_length, min_periods=bb_length).mean()
+        # Use biased stdev (ddof=0) to align with TradingView/Pine default behavior.
+        bb_dev = close.rolling(window=bb_length, min_periods=bb_length).std(ddof=0)
+        bb_upper = bb_middle + (bb_mult * bb_dev)
+        bb_lower = bb_middle - (bb_mult * bb_dev)
+
+        bb_upper = bb_upper.ffill()
+        bb_lower = bb_lower.ffill()
+        bb_middle = bb_middle.ffill()
+
+        band_color = "#00ACC1"
+        mid_color = "#006064"
+        fill_color = "#4DD0E1"
+        addplots.append(
+            mpf.make_addplot(
+                bb_upper,
+                panel=0,
+                color=band_color,
+                width=1.8,
+                linestyle="--",
+                alpha=0.95,
+            )
+        )
+        addplots.append(
+            mpf.make_addplot(
+                bb_lower,
+                panel=0,
+                color=band_color,
+                width=1.8,
+                linestyle="--",
+                alpha=0.95,
+                fill_between=dict(
+                    y1=bb_lower.values,
+                    y2=bb_upper.values,
+                    alpha=0.10,
+                    color=fill_color,
+                ),
+            )
+        )
+        if bb_middle is not None and bb_middle.notna().sum() > 0:
+            addplots.append(
+                mpf.make_addplot(
+                    bb_middle,
+                    panel=0,
+                    color=mid_color,
+                    width=1.6,
+                    linestyle="-",
+                    alpha=0.9,
+                )
+            )
+        logger.info("Bollinger Bands overlay added (high-visibility mode)")
 
     def _append_trade_marker_addplots(
         self,

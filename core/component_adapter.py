@@ -1015,7 +1015,8 @@ class ComponentStrategyAdapter:
     def _resolve_entry_fraction(self, signal: Signal, atr: float, close: float) -> tuple[float, str]:
         signal_qty = getattr(signal, "quantity", None)
         position_pct = float(self.config.get("position_pct", 0.02))
-        if signal_qty is not None and signal_qty > 0:
+        use_signal_quantity = bool(self.config.get("use_signal_quantity", False))
+        if use_signal_quantity and signal_qty is not None and signal_qty > 0:
             fraction = signal_qty
             position_reason = f"regime_size:{signal_qty:.2f}"
         else:

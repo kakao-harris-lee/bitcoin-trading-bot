@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Binance BTCUSDT Futures 데이터 수집기
+Binance BTCUSDT Spot 데이터 수집기
 
 Upbit DB와 동일한 SQLite 형식으로 Binance 데이터를 저장
 - binance_bitcoin.db에 저장
-- 테이블 구조: timestamp, open, high, low, close, volume, quote_volume, funding_rate
+- 테이블 구조: timestamp, open, high, low, close, volume, quote_volume
 
 추가 기능:
 - 래리 윌리엄스 변동성 돌파 지표 (target_price, breakout_signal)
@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Tuple
 
 # DB 경로
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -42,7 +42,6 @@ class BinanceSQLiteCollector:
     """Binance 데이터를 SQLite로 수집"""
 
     BASE_URL = "https://api.binance.com/api/v3"
-    FUTURES_URL = "https://fapi.binance.com/fapi/v1"
 
     def __init__(self, db_path: Path = DB_PATH):
         self.db_path = db_path
@@ -63,19 +62,9 @@ class BinanceSQLiteCollector:
                     close REAL NOT NULL,
                     volume REAL NOT NULL,
                     quote_volume REAL,
-                    trades INTEGER,
-                    funding_rate REAL DEFAULT 0.0
+                    trades INTEGER
                 )
             ''')
-
-        # 펀딩비 테이블
-        self.conn.execute('''
-            CREATE TABLE IF NOT EXISTS binance_funding_rate (
-                timestamp TEXT PRIMARY KEY,
-                funding_rate REAL NOT NULL,
-                mark_price REAL
-            )
-        ''')
 
         # 스케일링 파라미터 테이블 (LSTM용)
         self.conn.execute('''
@@ -115,38 +104,6 @@ class BinanceSQLiteCollector:
         except Exception as e:
             print(f"API 오류: {e}")
             return []
-
-    def fetch_funding_rates(self, start_ts: int, end_ts: int) -> List[Dict]:
-        """펀딩비 데이터 가져오기"""
-        url = f"{self.FUTURES_URL}/fundingRate"
-        all_data = []
-        current_ts = start_ts
-
-        while current_ts < end_ts:
-            params = {
-                'symbol': 'BTCUSDT',
-                'startTime': current_ts,
-                'endTime': end_ts,
-                'limit': 1000
-            }
-
-            try:
-                response = requests.get(url, params=params, timeout=30)
-                response.raise_for_status()
-                data = response.json()
-
-                if not data:
-                    break
-
-                all_data.extend(data)
-                current_ts = data[-1]['fundingTime'] + 1
-                time.sleep(0.1)
-
-            except Exception as e:
-                print(f"펀딩비 API 오류: {e}")
-                break
-
-        return all_data
 
     def collect_timeframe(
         self,
@@ -234,40 +191,6 @@ class BinanceSQLiteCollector:
         print(f"  ✅ {inserted}개 저장 완료")
         return inserted
 
-    def collect_funding(self, start_date: str, end_date: str) -> int:
-        """펀딩비 데이터 수집"""
-        start_ts = int(pd.Timestamp(start_date).timestamp() * 1000)
-        end_ts = int(pd.Timestamp(end_date).timestamp() * 1000)
-
-        print(f"\n💰 펀딩비 수집 ({start_date} ~ {end_date})")
-
-        data = self.fetch_funding_rates(start_ts, end_ts)
-
-        if not data:
-            print("  펀딩비 데이터 없음")
-            return 0
-
-        inserted = 0
-        for d in data:
-            timestamp = pd.to_datetime(d['fundingTime'], unit='ms').strftime('%Y-%m-%dT%H:%M:%S')
-            try:
-                self.conn.execute('''
-                    INSERT OR REPLACE INTO binance_funding_rate
-                    (timestamp, funding_rate, mark_price)
-                    VALUES (?, ?, ?)
-                ''', (
-                    timestamp,
-                    float(d.get('fundingRate', 0)),
-                    float(d.get('markPrice', 0)) if d.get('markPrice') else None,
-                ))
-                inserted += 1
-            except Exception as e:
-                print(f"  저장 오류: {e}")
-
-        self.conn.commit()
-        print(f"  ✅ {inserted}개 저장 완료")
-        return inserted
-
     def collect_all(self, start_date: str = "2020-01-01", end_date: str = None):
         """모든 타임프레임 데이터 수집"""
         if end_date is None:
@@ -285,9 +208,6 @@ class BinanceSQLiteCollector:
         for tf in priority_timeframes:
             self.collect_timeframe(tf, start_date, end_date)
 
-        # 펀딩비 수집
-        self.collect_funding(start_date, end_date)
-
         print(f"\n✅ 전체 수집 완료!")
         self.show_stats()
 
@@ -303,14 +223,6 @@ class BinanceSQLiteCollector:
                     print(f"   {tf}: {count:,}개 ({min_ts[:10]} ~ {max_ts[:10]})")
             except:
                 pass
-
-        # 펀딩비
-        try:
-            cursor = self.conn.execute("SELECT COUNT(*) FROM binance_funding_rate")
-            count = cursor.fetchone()[0]
-            print(f"   funding_rate: {count:,}개")
-        except:
-            pass
 
     def close(self):
         """DB 연결 종료"""

@@ -39,7 +39,6 @@ DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "multi_asset_4h"
 
 # Binance API
 BINANCE_API_URL = "https://api.binance.com/api/v3"
-BINANCE_FUTURES_URL = "https://fapi.binance.com/fapi/v1"
 
 # Rate limiting (tunable via CLI)
 MAX_CONCURRENT_REQUESTS = 10

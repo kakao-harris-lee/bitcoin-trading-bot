@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Validate local OHLCV/indicator parity against Binance candles.
+"""Validate local OHLCV/indicator parity against Binance spot candles.
 
-Compares local DB candles to Binance spot/futures klines and reports:
+Compares local DB candles to Binance spot klines and reports:
 - OHLC max absolute diff
 - major indicator max absolute diff (computed with same precompute pipeline)
 
 Usage:
   python scripts/validate_binance_indicator_parity.py \
-    --start 2024-01-01 --end 2025-01-01 --interval 4h --market auto
+    --start 2024-01-01 --end 2025-01-01 --interval 4h
 """
 
 from __future__ import annotations
@@ -66,13 +66,8 @@ def _fetch_klines(
     interval: str,
     start: str,
     end: str,
-    market: str,
 ) -> pd.DataFrame:
-    base_url = (
-        "https://fapi.binance.com/fapi/v1/klines"
-        if market == "futures"
-        else "https://api.binance.com/api/v3/klines"
-    )
+    base_url = "https://api.binance.com/api/v3/klines"
 
     start_ms = int(pd.Timestamp(start, tz="UTC").timestamp() * 1000)
     end_ms = int(pd.Timestamp(end, tz="UTC").timestamp() * 1000)
@@ -138,18 +133,18 @@ def _max_abs_diff(a: Iterable[float], b: Iterable[float]) -> float:
     return float(np.max(np.abs(av[mask] - bv[mask])))
 
 
-def _compare_single(symbol: str, db_path: Path, interval: str, start: str, end: str, market: str) -> CompareResult:
+def _compare_single(symbol: str, db_path: Path, interval: str, start: str, end: str) -> CompareResult:
     timeframe = INTERVAL_TO_TIMEFRAME[interval]
     with DataLoader(db_path=str(db_path)) as loader:
         local = loader.load_timeframe(timeframe, start, end)
     local = local[["timestamp", "open", "high", "low", "close", "volume"]].copy()
 
-    remote = _fetch_klines(symbol=symbol, interval=interval, start=start, end=end, market=market)
+    remote = _fetch_klines(symbol=symbol, interval=interval, start=start, end=end)
     merged = local.merge(remote, on="timestamp", suffixes=("_local", "_remote"))
     if merged.empty:
         return CompareResult(
             symbol=symbol,
-            market=market,
+            market="spot",
             rows=0,
             ohlc_max_abs_diff=float("nan"),
             close_max_abs_diff=float("nan"),
@@ -182,7 +177,7 @@ def _compare_single(symbol: str, db_path: Path, interval: str, start: str, end: 
 
     return CompareResult(
         symbol=symbol,
-        market=market,
+        market="spot",
         rows=len(merged),
         ohlc_max_abs_diff=ohlc_max,
         close_max_abs_diff=_max_abs_diff(merged["close_local"], merged["close_remote"]),
@@ -195,13 +190,13 @@ def _compare_single(symbol: str, db_path: Path, interval: str, start: str, end: 
     )
 
 
-def _to_markdown(rows: list[CompareResult], start: str, end: str, interval: str, market: str) -> str:
+def _to_markdown(rows: list[CompareResult], start: str, end: str, interval: str) -> str:
     lines = [
         "# Binance Indicator Parity Report",
         "",
         f"- period: {start} ~ {end}",
         f"- interval: {interval}",
-        f"- market mode: {market}",
+        "- market mode: spot",
         "",
         "| symbol | selected_market | rows | ohlc_max | close_max | volume_max | rsi_max | mfi_max | adx_max | bb_upper_max | macd_max |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -221,23 +216,12 @@ def main() -> None:
     parser.add_argument("--start", default="2024-01-01")
     parser.add_argument("--end", default="2025-01-01")
     parser.add_argument("--interval", default="4h", choices=sorted(INTERVAL_TO_TIMEFRAME.keys()))
-    parser.add_argument("--market", default="auto", choices=["auto", "spot", "futures"])
     parser.add_argument("--output", default="")
     args = parser.parse_args()
 
     results: list[CompareResult] = []
     for symbol, db_path in SYMBOL_DB_MAP.items():
-        if args.market in ("spot", "futures"):
-            result = _compare_single(symbol, db_path, args.interval, args.start, args.end, args.market)
-        else:
-            spot_result = _compare_single(symbol, db_path, args.interval, args.start, args.end, "spot")
-            futures_result = _compare_single(symbol, db_path, args.interval, args.start, args.end, "futures")
-            if np.isnan(spot_result.ohlc_max_abs_diff):
-                result = futures_result
-            elif np.isnan(futures_result.ohlc_max_abs_diff):
-                result = spot_result
-            else:
-                result = spot_result if spot_result.ohlc_max_abs_diff <= futures_result.ohlc_max_abs_diff else futures_result
+        result = _compare_single(symbol, db_path, args.interval, args.start, args.end)
         results.append(result)
 
     for row in results:
@@ -252,7 +236,7 @@ def main() -> None:
     if args.output:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(_to_markdown(results, args.start, args.end, args.interval, args.market), encoding="utf-8")
+        output_path.write_text(_to_markdown(results, args.start, args.end, args.interval), encoding="utf-8")
         print(f"saved report: {output_path}")
 
 

@@ -217,7 +217,7 @@ def run_backtest(
     entry_params: Dict[str, Any],
     exit_params: Dict[str, Any],
     df: pd.DataFrame,
-    market: str = "futures",
+    market: str = "spot",
     timeframe: str = "minute240",
 ) -> OptimizationResult:
     """Run a single backtest with given parameters.
@@ -227,7 +227,7 @@ def run_backtest(
         entry_params: Entry strategy parameter overrides.
         exit_params: Exit strategy parameter overrides.
         df: Price data DataFrame.
-        market: Market type ("spot" or "futures").
+        market: Market type ("spot").
         timeframe: Data timeframe for accurate annualization.
 
     Returns:
@@ -384,7 +384,7 @@ def run_optimization(
     train_start: str = "2020-01-01",
     train_end: str = "2024-12-31",
     timeframe: str = "minute240",
-    market: str = "futures",
+    market: str = "spot",
     dry_run: bool = False,
     max_combinations: int = 0,
     quick: bool = False,
@@ -593,8 +593,8 @@ def main():
     )
     parser.add_argument(
         "--market",
-        default="futures",
-        choices=["spot", "futures"],
+        default="spot",
+        choices=["spot"],
         help="Market type",
     )
     parser.add_argument(

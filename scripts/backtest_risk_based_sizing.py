@@ -65,7 +65,7 @@ class RiskBasedBacktester:
         fee_rate: float = None,  # Auto-detect from market if None
         slippage: float = 0.0002,
         risk_per_trade: float = 0.01,  # 1% risk per trade
-        market: str = "futures",
+        market: str = "spot",
     ):
         self.initial_capital = initial_capital
         self.market = market
@@ -768,7 +768,7 @@ def main():
     config = allocation['strategies'].get(strategy_name, {})
 
     # Get market from config
-    market = config.get("market", "futures")
+    market = config.get("market", "spot")
     print(f"  market: {market}")
 
     # Override with risk-based sizing parameters for testing

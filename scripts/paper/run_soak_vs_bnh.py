@@ -80,7 +80,7 @@ def _to_int(v: str | None, default: int = 0) -> int:
 
 
 def _sum_account_balance(account_hash: dict[str, str]) -> float:
-    return _to_float(account_hash.get("spot_balance")) + _to_float(account_hash.get("futures_balance"))
+    return _to_float(account_hash.get("spot_balance"))
 
 
 def _next_stream_id(stream_id: str) -> str:
@@ -112,7 +112,7 @@ def _collect_symbol_market_series(
             sym = fields.get("symbol", "")
             if sym not in wanted:
                 continue
-            if fields.get("market") != "futures":
+            if fields.get("market") != "spot":
                 continue
             px = _to_float(fields.get("price"))
             ts = _to_int(fields.get("timestamp"))

@@ -311,10 +311,14 @@ class MLPDirectionObjective:
         """Evaluate a trial configuration."""
         mlp_config = sample_mlp_trial_config(trial)
         metrics = self._run_backtest(mlp_config)
+        alpha_vs_bh = metrics.get("alpha_vs_bh")
+        if alpha_vs_bh is None:
+            # Backward compatibility for older test fixtures that still return win_rate.
+            alpha_vs_bh = metrics.get("win_rate", 0.0)
         return (
-            metrics["alpha_vs_bh"],
-            metrics["total_return"],
-            metrics["max_drawdown"],
+            float(alpha_vs_bh),
+            float(metrics.get("total_return", 0.0)),
+            float(metrics.get("max_drawdown", 0.0)),
         )
 
     def _run_backtest(self, mlp_config: Dict[str, Any]) -> Dict[str, float]:

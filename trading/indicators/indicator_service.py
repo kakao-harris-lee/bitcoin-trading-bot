@@ -399,6 +399,9 @@ class IndicatorService:
                 # Volatility
                 atr=_safe_float(last_row.get("atr"), 0.0),
                 # EMAs
+                ema_5=_safe_float(last_row.get("ema_5"), 0.0),
+                ema_10=_safe_float(last_row.get("ema_10"), 0.0),
+                ema_20=_safe_float(last_row.get("ema_20"), 0.0),
                 ema_120=_safe_float(last_row.get("ema_120"), 0.0),
                 ema_200=_safe_float(last_row.get("ema_200"), 0.0),
                 # Historical reference points (from add_all_indicators rolling calculations)
@@ -411,6 +414,10 @@ class IndicatorService:
                 # Volatility breakout (Larry Williams strategy)
                 breakout_signal=_safe_int(last_row.get("breakout_signal"), 0),
                 target_price=_safe_float(last_row.get("target_price"), 0.0),
+                # TRIX oscillator
+                trix=_safe_float(last_row.get("trix"), 0.0),
+                trix_signal=_safe_float(last_row.get("trix_signal"), 0.0),
+                trix_hist=_safe_float(last_row.get("trix_hist"), 0.0),
             )
 
         except Exception as e:

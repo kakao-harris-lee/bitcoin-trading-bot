@@ -79,6 +79,11 @@ INDICATOR_COLUMNS = [
     'macd',
     'macd_signal',
     'macd_hist',
+    'trix',
+    'trix_signal',
+    'trix_hist',
+    'ema_5',
+    'ema_10',
     'ema_20',
     'ema_50',
     'ema_120',
@@ -165,7 +170,12 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # MACD
     df['macd'], df['macd_signal'], df['macd_hist'] = ta.macd(df['close'])
 
+    # TRIX (triple-smoothed momentum oscillator)
+    df['trix'], df['trix_signal'], df['trix_hist'] = ta.trix(df['close'])
+
     # EMAs (short/mid/long)
+    df['ema_5'] = ta.ema(df['close'], 5)
+    df['ema_10'] = ta.ema(df['close'], 10)
     df['ema_20'] = ta.ema(df['close'], 20)
     df['ema_50'] = ta.ema(df['close'], 50)
     df['ema_100'] = ta.ema(df['close'], 100)

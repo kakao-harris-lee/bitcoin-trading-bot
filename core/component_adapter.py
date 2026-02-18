@@ -538,7 +538,7 @@ class ComponentStrategyAdapter:
     def _extract_indicators(self, row: pd.Series) -> Dict[str, Any]:
         indicators: Dict[str, Any] = {}
         for k, v in row.items():
-            if isinstance(k, str) and k.startswith(("ema", "adx", "rsi", "plus", "minus", "bb")):
+            if isinstance(k, str) and k.startswith(("ema", "adx", "rsi", "plus", "minus", "bb", "trix")):
                 indicators[k] = v
         self._augment_config_indicators(row, indicators)
         return indicators
@@ -583,12 +583,18 @@ class ComponentStrategyAdapter:
             prev_high_20=row.get("prev_high_20", 0.0),
             prev_low_20=row.get("prev_low_20", 0.0),
             atr=values["atr"],
+            ema_5=row.get("ema_5", 0.0),
+            ema_10=row.get("ema_10", 0.0),
+            ema_20=row.get("ema_20", 0.0),
             ema_120=row.get("ema_120", 0.0),
             ema_200=row.get("ema_200", 0.0),
             market_stress=row.get("market_stress", 0.0),
             high_30d=row.get("high_30d", 0.0),
             breakout_signal=int(row.get("breakout_signal", 0)) if pd.notna(row.get("breakout_signal")) else 0,
             target_price=float(row.get("target_price", 0.0)) if pd.notna(row.get("target_price")) else 0.0,
+            trix=float(row.get("trix", 0.0)) if pd.notna(row.get("trix")) else 0.0,
+            trix_signal=float(row.get("trix_signal", 0.0)) if pd.notna(row.get("trix_signal")) else 0.0,
+            trix_hist=float(row.get("trix_hist", 0.0)) if pd.notna(row.get("trix_hist")) else 0.0,
             indicators=indicators,
             high_water_mark=self.high_water_mark,
         )

@@ -84,6 +84,9 @@ class MarketData:
     # 30-day high for drawdown-based BEAR detection (720 periods for hourly data)
     high_30d: float = 0.0  # 30-day rolling high for drawdown calculation
     # EMA for trend filtering
+    ema_5: float = 0.0  # 5-period EMA for short-term momentum
+    ema_10: float = 0.0  # 10-period EMA for short-term momentum
+    ema_20: float = 0.0  # 20-period EMA for dead-cross filtering
     ema_120: float = 0.0  # 120-period EMA for MA120 panic sell
     ema_200: float = 0.0  # 200-period EMA for bear market filter
     # Market stress indicator (0-100, higher = more stress)
@@ -91,6 +94,10 @@ class MarketData:
     # Volatility breakout (Larry Williams strategy)
     breakout_signal: int = 0  # 1 if close > target_price (prev_day_range * k)
     target_price: float = 0.0  # open + (prev_day_range * k)
+    # TRIX momentum oscillator
+    trix: float = 0.0
+    trix_signal: float = 0.0
+    trix_hist: float = 0.0
 
 
 @dataclass(frozen=True)

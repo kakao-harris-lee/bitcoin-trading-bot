@@ -74,6 +74,15 @@ class MLPDirectionExitParams:
     # Take profit levels (NOT in paper - disabled by default)
     take_profit_enabled: bool = False  # Paper does NOT use take profit
     take_profit_pct: float = 25.0  # Exit at +25% profit
+    # Optional TRIX protective exit
+    trix_protective_exit_enabled: bool = False
+    trix_exit_requires_below_ema200: bool = True
+    trix_exit_min_hold_bars: int = 0
+    # Optional EMA(5/10/20) dead-cross protective exit
+    ema_deadcross_exit_enabled: bool = False
+    ema_deadcross_consecutive_bars: int = 2
+    ema_deadcross_require_below_ema20: bool = True
+    ema_deadcross_min_hold_bars: int = 0
 
     market: Literal["spot", "futures"] = "spot"
 
@@ -132,6 +141,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         # History buffer for paper_36 live feature computation
         self._history: dict[str, list[dict]] = {}  # symbol -> history bars
         self._last_timestamp: dict[str, int] = {}  # symbol -> last timestamp
+        self._ema_deadcross_streaks: dict[str, int] = {}
 
     def set_model(self, model, ensemble=None):
         """Inject a pre-loaded model to avoid duplicate loading.
@@ -255,6 +265,24 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         if stop_signal:
             return stop_signal
 
+        ema_deadcross_signal = self._check_ema_deadcross_exit(
+            ctx=ctx,
+            position=position,
+            key=key,
+            candles_held=candles_held,
+        )
+        if ema_deadcross_signal:
+            return ema_deadcross_signal
+
+        trix_signal = self._check_trix_protective_exit(
+            ctx=ctx,
+            position=position,
+            key=key,
+            candles_held=candles_held,
+        )
+        if trix_signal:
+            return trix_signal
+
         fwin_signal = self._check_fwin_exit_if_enabled(ctx, position, pnl_pct, key)
         if fwin_signal:
             return fwin_signal
@@ -326,7 +354,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             trigger_price = None
 
         logger.info(f"{position.symbol}: {reason}")
-        self._clear_state(key)
+        self._clear_all_state(key)
         return self._create_exit_signal(position, reason, trigger_price=trigger_price)
 
     def _check_fwin_exit_if_enabled(
@@ -339,6 +367,88 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         if not self.params.fwin_exit_enabled:
             return None
         return self._check_fwin_exit(ctx, position, pnl_pct, key)
+
+    def _check_ema_deadcross_exit(
+        self,
+        ctx: TradingContext,
+        position: Position,
+        key: str,
+        candles_held: int,
+    ) -> Signal | None:
+        p = self.params
+        if not p.ema_deadcross_exit_enabled:
+            return None
+        if p.ema_deadcross_min_hold_bars > 0 and candles_held < p.ema_deadcross_min_hold_bars:
+            return None
+
+        market = ctx.market
+        ema_5 = float(getattr(market, "ema_5", 0.0))
+        ema_10 = float(getattr(market, "ema_10", 0.0))
+        ema_20 = float(getattr(market, "ema_20", 0.0))
+        close = float(market.close)
+
+        if not all(np.isfinite(v) and v > 0 for v in (ema_5, ema_10, ema_20, close)):
+            self._ema_deadcross_streaks[key] = 0
+            return None
+
+        deadcross = ema_5 < ema_10 < ema_20
+        if p.ema_deadcross_require_below_ema20:
+            deadcross = deadcross and close < ema_20
+
+        if deadcross:
+            self._ema_deadcross_streaks[key] = self._ema_deadcross_streaks.get(key, 0) + 1
+        else:
+            self._ema_deadcross_streaks[key] = 0
+            return None
+
+        required_bars = max(int(p.ema_deadcross_consecutive_bars), 1)
+        streak = self._ema_deadcross_streaks.get(key, 0)
+        if streak < required_bars:
+            return None
+
+        reason = (
+            "MLPDirection exit: EMA deadcross "
+            f"(ema5={ema_5:.2f} < ema10={ema_10:.2f} < ema20={ema_20:.2f}, "
+            f"close={close:.2f}, streak={streak}/{required_bars})"
+        )
+        logger.info(f"{position.symbol}: {reason}")
+        self._clear_all_state(key)
+        return self._create_exit_signal(position, reason)
+
+    def _check_trix_protective_exit(
+        self,
+        ctx: TradingContext,
+        position: Position,
+        key: str,
+        candles_held: int,
+    ) -> Signal | None:
+        p = self.params
+        if not p.trix_protective_exit_enabled:
+            return None
+        if p.trix_exit_min_hold_bars > 0 and candles_held < p.trix_exit_min_hold_bars:
+            return None
+
+        market = ctx.market
+        trix = float(getattr(market, "trix", 0.0))
+        trix_signal = float(getattr(market, "trix_signal", 0.0))
+
+        if not np.isfinite(trix) or not np.isfinite(trix_signal):
+            return None
+        if trix >= trix_signal:
+            return None
+
+        if p.trix_exit_requires_below_ema200 and market.ema_200 > 0 and market.close >= market.ema_200:
+            return None
+
+        reason = (
+            f"MLPDirection exit: TRIX protective exit "
+            f"(trix={trix:.5f} < signal={trix_signal:.5f})"
+        )
+        if p.trix_exit_requires_below_ema200 and market.ema_200 > 0:
+            reason += f", close={market.close:.2f} < ema200={market.ema_200:.2f}"
+        logger.info(f"{position.symbol}: {reason}")
+        self._clear_all_state(key)
+        return self._create_exit_signal(position, reason)
 
     def _check_take_profit_exit(
         self,
@@ -354,7 +464,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             f"(target: +{p.take_profit_pct:.1f}%)"
         )
         logger.info(f"{position.symbol}: {reason}")
-        self._clear_state(key)
+        self._clear_all_state(key)
         return self._create_exit_signal(position, reason)
 
     def _check_mlp_sell_exit_if_enabled(
@@ -406,7 +516,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         locked_pnl = ((trailing_stop_price - position.entry_price) / position.entry_price) * 100
         reason = f"MLPDirection exit: Trailing stop {locked_pnl:.2f}% (HWM={hwm_pnl:.2f}%)"
         logger.info(f"{position.symbol}: {reason}")
-        self._clear_state(key)
+        self._clear_all_state(key)
         return self._create_exit_signal(position, reason)
 
     def _calculate_stop_loss(
@@ -493,7 +603,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
                 f"(FWin={p.fwin_periods}), P&L={pnl_pct:.2f}%"
             )
             logger.info(f"{symbol}: {reason}")
-            self._clear_state(key)
+            self._clear_all_state(key)
             return self._create_exit_signal(position, reason)
 
         return None
@@ -553,7 +663,7 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
                 f"P&L={pnl_pct:.2f}%"
             )
             logger.info(f"{symbol}: {reason}")
-            self._clear_state(key)
+            self._clear_all_state(key)
             return self._create_exit_signal(position, reason)
 
         return None
@@ -569,6 +679,8 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         """
         _ = entry_timestamp
         super().on_position_opened(position)
+        key = self._get_position_key(position)
+        self._ema_deadcross_streaks[key] = 0
 
         logger.debug(
             f"{position.symbol}: MLPDirection position opened at {position.entry_price:.2f}"
@@ -581,7 +693,15 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             symbol: The symbol whose position was closed.
         """
         super().on_position_closed(symbol)
+        stale_keys = [k for k in self._ema_deadcross_streaks if k.startswith(f"{symbol}:")]
+        for key in stale_keys:
+            self._ema_deadcross_streaks.pop(key, None)
         logger.debug(f"{symbol}: MLPDirection position closed")
+
+    def _clear_all_state(self, key: str) -> None:
+        """Clear base + strategy-specific state for a position."""
+        self._clear_state(key)
+        self._ema_deadcross_streaks.pop(key, None)
 
     def _update_history(self, market_data: MarketData) -> None:
         """Update history buffer with current bar data.

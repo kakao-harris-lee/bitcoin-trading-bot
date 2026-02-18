@@ -272,11 +272,17 @@ class BacktestAdapter:
             prev_high_20=float(row.get('prev_high_20', 0)),
             prev_low_20=float(row.get('prev_low_20', 0)),
             avg_volume_20=float(row.get('avg_volume_20', 0)),
+            ema_5=float(row.get('ema_5', 0.0)) if pd.notna(row.get('ema_5')) else 0.0,
+            ema_10=float(row.get('ema_10', 0.0)) if pd.notna(row.get('ema_10')) else 0.0,
+            ema_20=float(row.get('ema_20', 0.0)) if pd.notna(row.get('ema_20')) else 0.0,
             ema_200=float(row.get('ema_200', 0)),
             market_stress=float(row.get('market_stress', 0)),
             high_30d=float(row.get('high_30d', 0)),
             breakout_signal=int(row.get('breakout_signal', 0)) if pd.notna(row.get('breakout_signal')) else 0,
             target_price=float(row.get('target_price', 0.0)) if pd.notna(row.get('target_price')) else 0.0,
+            trix=float(row.get('trix', 0.0)) if pd.notna(row.get('trix')) else 0.0,
+            trix_signal=float(row.get('trix_signal', 0.0)) if pd.notna(row.get('trix_signal')) else 0.0,
+            trix_hist=float(row.get('trix_hist', 0.0)) if pd.notna(row.get('trix_hist')) else 0.0,
         )
 
     def _build_market_context(self, i: int) -> Any:

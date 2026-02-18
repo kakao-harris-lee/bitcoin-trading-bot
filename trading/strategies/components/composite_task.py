@@ -1216,6 +1216,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             bb_lower=float(last_row.get("bb_lower", 0)),
             bb_middle=float(last_row.get("bb_middle", 0)),
             atr=float(last_row.get("atr", 0)),
+            ema_5=float(last_row.get("ema_5", 0)),
+            ema_10=float(last_row.get("ema_10", 0)),
+            ema_20=float(last_row.get("ema_20", 0)),
             ema_120=float(last_row.get("ema_120", 0)),
             ema_200=float(last_row.get("ema_200", 0)),
             market_stress=float(last_row.get("market_stress", 0)),
@@ -1225,6 +1228,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             high_30d=float(last_row.get("high_30d", 0)),
             breakout_signal=breakout_signal,
             target_price=target_price,
+            trix=float(last_row.get("trix", 0)),
+            trix_signal=float(last_row.get("trix_signal", 0)),
+            trix_hist=float(last_row.get("trix_hist", 0)),
         )
 
     def _decrement_entry_blocks(self, symbol: str) -> None:

@@ -209,7 +209,10 @@
           "stop_loss_pct": 9.0,
           "fwin_exit_enabled": false,
           "fwin_periods": 5,
-          "atr_stop_enabled": false,
+          "atr_stop_enabled": true,
+          "atr_stop_multiplier": 2.5,
+          "atr_stop_min_pct": 5.0,
+          "atr_stop_max_pct": 14.0,
           "trailing_enabled": true,
           "take_profit_enabled": false,
           "use_mlp_sell_exit": false,
@@ -227,7 +230,11 @@
           "bull_regime_sell_guard": true,
           "trailing_activation": 11.5,
           "trailing_distance": 5.8,
-          "take_profit_pct": 32.34815576954866
+          "take_profit_pct": 32.34815576954866,
+          "ema_deadcross_exit_enabled": true,
+          "ema_deadcross_consecutive_bars": 2,
+          "ema_deadcross_require_below_ema20": true,
+          "ema_deadcross_min_hold_bars": 2
         }
       },
       "cash_in_bear": false,
@@ -387,7 +394,8 @@
           "min_hold_bars_for_sell_exit": 10,
           "bull_regime_sell_guard": true,
           "trailing_activation": 18.0,
-          "trailing_distance": 10.0
+          "trailing_distance": 10.0,
+          "ema_deadcross_exit_enabled": false
         }
       },
       "drawdown_warning_pct": 12.0,
@@ -519,7 +527,10 @@
           "stop_loss_pct": 10.0,
           "fwin_exit_enabled": false,
           "fwin_periods": 2,
-          "atr_stop_enabled": false,
+          "atr_stop_enabled": true,
+          "atr_stop_multiplier": 2.5,
+          "atr_stop_min_pct": 5.0,
+          "atr_stop_max_pct": 14.0,
           "trailing_enabled": true,
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
@@ -536,7 +547,8 @@
           "min_hold_bars_for_sell_exit": 10,
           "bull_regime_sell_guard": true,
           "trailing_activation": 18.0,
-          "trailing_distance": 10.0
+          "trailing_distance": 10.0,
+          "ema_deadcross_exit_enabled": false
         }
       },
       "exit_on_bear_regime": true,

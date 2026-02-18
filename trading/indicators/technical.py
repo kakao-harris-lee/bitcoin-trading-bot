@@ -88,6 +88,16 @@ def macd(
     )
 
 
+def trix(
+    close: pd.Series, period: int = 9, signal_period: int = 21
+) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """TRIX oscillator. Returns (trix, signal, histogram)."""
+    trix_val = pd.Series(talib.TRIX(close.values, timeperiod=period), index=close.index)
+    signal = pd.Series(talib.EMA(trix_val.values, timeperiod=signal_period), index=close.index)
+    hist = trix_val - signal
+    return trix_val, signal, hist
+
+
 def ema(close: pd.Series, period: int) -> pd.Series:
     """Exponential Moving Average."""
     return pd.Series(talib.EMA(close.values, timeperiod=period), index=close.index)

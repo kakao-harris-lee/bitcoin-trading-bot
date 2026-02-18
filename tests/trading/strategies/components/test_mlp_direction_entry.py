@@ -25,6 +25,8 @@ def _make_context(
     ema_200: float = 95000.0,
     mlp_prediction: int = None,
     mlp_confidence: float = None,
+    trix: float = 0.1,
+    trix_signal: float = 0.0,
 ) -> TradingContext:
     """Helper to create TradingContext for tests."""
     market = MarketData(
@@ -38,6 +40,8 @@ def _make_context(
         volume=100.0,
         avg_volume_20=80.0,
         ema_200=ema_200,
+        trix=trix,
+        trix_signal=trix_signal,
     )
     regime = build_market_context(mfi=mfi, adx=adx, atr=1000.0, close=close)
 
@@ -169,6 +173,29 @@ class TestMLPDirectionEntryStrategy:
         assert strategy._label_name(1) == "BUY"
         assert strategy._label_name(2) == "SELL"
         assert strategy._label_name(99) == "UNKNOWN"
+
+    def test_trix_gate_blocks_before_model_check(self):
+        """TRIX gate should block entry when TRIX is below signal."""
+        params = MLPDirectionEntryParams(trix_gate_enabled=True)
+        strategy = MLPDirectionEntryStrategy(params=params)
+        strategy._ensure_model = Mock(side_effect=AssertionError("should not call model"))
+        ctx = _make_context(trix=-0.02, trix_signal=0.01)
+
+        signal = strategy.check_entry(ctx)
+
+        assert signal is None
+
+    def test_trix_gate_allows_model_path_when_passed(self):
+        """TRIX gate pass should continue to model check path."""
+        params = MLPDirectionEntryParams(trix_gate_enabled=True)
+        strategy = MLPDirectionEntryStrategy(params=params)
+        strategy._ensure_model = Mock(return_value=False)
+        ctx = _make_context(trix=0.02, trix_signal=0.01)
+
+        signal = strategy.check_entry(ctx)
+
+        assert signal is None
+        strategy._ensure_model.assert_called_once()
 
 
 class TestMLPDirectionEntryWithMockedModel:

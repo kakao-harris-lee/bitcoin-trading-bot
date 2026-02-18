@@ -28,6 +28,12 @@ def _make_context(
     timestamp: int = 1000,
     mlp_prediction: int | None = None,
     mlp_confidence: float | None = None,
+    ema_200: float = 0.0,
+    ema_5: float = 0.0,
+    ema_10: float = 0.0,
+    ema_20: float = 0.0,
+    trix: float = 0.0,
+    trix_signal: float = 0.0,
 ) -> TradingContext:
     """Helper to create TradingContext for tests."""
     market = MarketData(
@@ -41,6 +47,12 @@ def _make_context(
         atr=atr,
         volume=100.0,
         avg_volume_20=80.0,
+        ema_200=ema_200,
+        ema_5=ema_5,
+        ema_10=ema_10,
+        ema_20=ema_20,
+        trix=trix,
+        trix_signal=trix_signal,
     )
     regime = build_market_context(mfi=mfi, adx=adx, atr=atr, close=close)
     return TradingContext(
@@ -182,6 +194,103 @@ class TestMLPDirectionExitStrategy:
 
         signal = strategy.check_exit(ctx, position)
 
+        assert signal is None
+
+    def test_trix_protective_exit_triggered(self):
+        """Exit triggers when TRIX falls below signal and below EMA200."""
+        params = MLPDirectionExitParams(
+            stop_loss_pct=50.0,
+            fwin_exit_enabled=False,
+            trix_protective_exit_enabled=True,
+            trix_exit_requires_below_ema200=True,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+        ctx = _make_context(
+            close=98000.0,
+            ema_200=100000.0,
+            trix=-0.02,
+            trix_signal=0.01,
+        )
+
+        signal = strategy.check_exit(ctx, position)
+
+        assert signal is not None
+        assert "TRIX protective exit" in signal.reason
+
+    def test_trix_protective_exit_respects_ema200_guard(self):
+        """TRIX protective exit can be guarded by EMA200 condition."""
+        params = MLPDirectionExitParams(
+            stop_loss_pct=50.0,
+            fwin_exit_enabled=False,
+            trix_protective_exit_enabled=True,
+            trix_exit_requires_below_ema200=True,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+        ctx = _make_context(
+            close=102000.0,
+            ema_200=100000.0,
+            trix=-0.02,
+            trix_signal=0.01,
+        )
+
+        signal = strategy.check_exit(ctx, position)
+
+        assert signal is None
+
+    def test_ema_deadcross_exit_triggered_after_consecutive_bars(self):
+        """EMA deadcross exit should trigger only after required streak."""
+        params = MLPDirectionExitParams(
+            stop_loss_pct=50.0,
+            fwin_exit_enabled=False,
+            ema_deadcross_exit_enabled=True,
+            ema_deadcross_consecutive_bars=2,
+            ema_deadcross_require_below_ema20=True,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+
+        # 1st bar: deadcross condition true but streak=1 -> no exit
+        ctx1 = _make_context(
+            close=98000.0,
+            ema_5=97500.0,
+            ema_10=98500.0,
+            ema_20=99500.0,
+        )
+        signal1 = strategy.check_exit(ctx1, position)
+        assert signal1 is None
+
+        # 2nd consecutive bar: should exit
+        ctx2 = _make_context(
+            close=97500.0,
+            ema_5=97000.0,
+            ema_10=98000.0,
+            ema_20=99000.0,
+        )
+        signal2 = strategy.check_exit(ctx2, position)
+        assert signal2 is not None
+        assert "EMA deadcross" in signal2.reason
+
+    def test_ema_deadcross_requires_price_below_ema20(self):
+        """EMA deadcross guard should not trigger if close is above EMA20."""
+        params = MLPDirectionExitParams(
+            stop_loss_pct=50.0,
+            fwin_exit_enabled=False,
+            ema_deadcross_exit_enabled=True,
+            ema_deadcross_consecutive_bars=1,
+            ema_deadcross_require_below_ema20=True,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+        ctx = _make_context(
+            close=100500.0,  # above ema20
+            ema_5=99500.0,
+            ema_10=100000.0,
+            ema_20=100200.0,
+        )
+
+        signal = strategy.check_exit(ctx, position)
         assert signal is None
 
 

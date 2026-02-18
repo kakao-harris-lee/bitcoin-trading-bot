@@ -47,6 +47,9 @@ class MLPDirectionEntryParams:
 
     # EMA200 filter
     use_ema200_filter: bool = False  # No EMA200 filter (relaxed)
+    # Optional TRIX momentum gate (long-only confirmation)
+    trix_gate_enabled: bool = False
+    trix_require_positive: bool = False
 
     # Position sizing
     position_size: float = 0.01
@@ -93,6 +96,7 @@ class MLPDirectionEntryStrategy:
     3. Not in BEAR regime (if skip_bear_regime)
     4. ADX >= threshold (trend strength)
     5. Price >= EMA200 (if use_ema200_filter)
+    6. TRIX > TRIX signal (if trix_gate_enabled)
     """
 
     # Minimum history required for paper_36 features (EMA100 + buffer)
@@ -391,6 +395,31 @@ class MLPDirectionEntryStrategy:
                 f"({market_data.close:.0f} < {market_data.ema_200:.0f})"
             )
             return False
+        if p.trix_gate_enabled and not self._passes_trix_gate(market_data):
+            return False
+        return True
+
+    def _passes_trix_gate(self, market_data: MarketData) -> bool:
+        p = self.params
+        trix = float(getattr(market_data, "trix", 0.0))
+        trix_signal = float(getattr(market_data, "trix_signal", 0.0))
+
+        if not np.isfinite(trix) or not np.isfinite(trix_signal):
+            logger.debug(f"{market_data.symbol}: Skip - TRIX gate unavailable")
+            return False
+
+        if trix <= trix_signal:
+            logger.debug(
+                f"{market_data.symbol}: Skip - TRIX gate fail (trix={trix:.5f} <= signal={trix_signal:.5f})"
+            )
+            return False
+
+        if p.trix_require_positive and trix <= 0:
+            logger.debug(
+                f"{market_data.symbol}: Skip - TRIX <= 0 (trix={trix:.5f})"
+            )
+            return False
+
         return True
 
     def _get_prediction_and_confidence(
@@ -427,6 +456,11 @@ class MLPDirectionEntryStrategy:
             f"MLPDirection: pred=BUY, conf={confidence:.2f}, "
             f"thr={threshold:.2f}, regime={context.regime}, ADX={context.adx:.1f}, mode={switch_mode}"
         )
+        if self.params.trix_gate_enabled:
+            reason += (
+                f", trix={getattr(market_data, 'trix', 0.0):.5f}"
+                f", trix_sig={getattr(market_data, 'trix_signal', 0.0):.5f}"
+            )
         logger.info(f"{market_data.symbol}: {reason}")
         return Signal(
             symbol=market_data.symbol,

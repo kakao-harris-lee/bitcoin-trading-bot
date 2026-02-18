@@ -1,5 +1,0 @@
-strategy,type,symbol,position_pct,start_date,end_date,initial_capital,total_return_pct,max_drawdown_pct,sharpe_ratio,total_trades,buy_hold_return_pct,alpha_vs_bh_pct
-wf_tree60_btc,walkforward_tree60,BTC,100.0,2024-01-01,2024-12-31,10000.0,97.8,-33.7,1.32,5,119.21,-21.41
-mlp_direction_bnb,mlp_direction,BNB,100.0,2024-01-01,2024-12-31,10000.0,39.22,-11.76,0.7,10,128.12,-88.9
-mlp_direction_btc,mlp_direction,BTC,100.0,2024-01-01,2024-12-31,10000.0,7.83,-2.56,0.74,19,119.21,-111.38
-mlp_direction_eth,mlp_direction,ETH,100.0,2024-01-01,2024-12-31,10000.0,1.74,-1.99,0.3,16,47.66,-45.92

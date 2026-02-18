@@ -124,6 +124,11 @@ reports/trade_decomposition_*.md
 reports/trade_decomposition_loss_breakdown_*.csv
 reports/trade_decomposition_priorities_*.md
 
+# Keep reports directory lightweight: summary-only tracking.
+reports/*
+!reports/.gitkeep
+!reports/SESSION_SUMMARY_*.md
+
 # One-off backtest research scripts (local)
 scripts/backtest/compare_current_vs_optimal_mdd50.py
 scripts/backtest/compare_main_replacements.py

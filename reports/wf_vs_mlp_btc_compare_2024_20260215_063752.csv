@@ -1,3 +1,0 @@
-strategy,position_pct,total_return_pct,max_drawdown_pct,sharpe_ratio,total_trades,alpha_vs_bh_pct,return_pct_per_100pct_alloc
-mlp_direction_btc (current),25.00,13.69,-3.89,0.76,19,-105.52,54.76
-wf_tree60_btc (cooldown on),80.00,78.75,-28.10,1.31,5,-40.46,98.44

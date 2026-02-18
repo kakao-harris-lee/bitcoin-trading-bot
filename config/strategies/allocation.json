@@ -149,7 +149,7 @@
       "bbw_enabled": true,
       "volume_filter_enabled": true,
       "entry": {
-        "class": "MLPDirectionEntryStrategy",
+        "class": "HybridLongEntryStrategy",
         "params": {
           "model_path": "models/mlp_direction/btc_v2_bwin5_fwin2/model_best.pt",
           "ensemble_models": [
@@ -194,6 +194,17 @@
           "risk_on_position_size": 0.25,
           "risk_off_position_size": 0.12,
           "regime_confidence_gate_enabled": true,
+          "mlp_route_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP"
+          ],
+          "fallback_to_regime_when_mlp_none": true,
+          "regime_params": {
+            "cooldown_bars": 30,
+            "entry_lookback_bars": 24,
+            "entry_quorum_ratio": 0.75
+          },
           "regime_buy_confidence_thresholds": {
             "BULL_STRONG": 0.54,
             "SIDEWAYS_UP": 0.57,
@@ -204,7 +215,7 @@
         }
       },
       "exit": {
-        "class": "MLPDirectionExitStrategy",
+        "class": "HybridLongExitStrategy",
         "params": {
           "stop_loss_pct": 9.0,
           "fwin_exit_enabled": false,
@@ -228,6 +239,16 @@
           "risk_off_sell_confidence_threshold": 0.7,
           "min_hold_bars_for_sell_exit": 10,
           "bull_regime_sell_guard": true,
+          "always_apply_regime_protection": true,
+          "mlp_route_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP"
+          ],
+          "regime_params": {
+            "cooldown_bars": 30,
+            "peak_drawdown_exit_pct": 0.15
+          },
           "trailing_activation": 11.5,
           "trailing_distance": 5.8,
           "take_profit_pct": 32.34815576954866,
@@ -318,7 +339,7 @@
       "bbw_enabled": false,
       "volume_filter_enabled": false,
       "entry": {
-        "class": "MLPDirectionEntryStrategy",
+        "class": "HybridLongEntryStrategy",
         "params": {
           "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "ensemble_models": [
@@ -363,6 +384,17 @@
           "risk_on_position_size": 0.05,
           "risk_off_position_size": 0.05,
           "regime_confidence_gate_enabled": true,
+          "mlp_route_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP"
+          ],
+          "fallback_to_regime_when_mlp_none": true,
+          "regime_params": {
+            "cooldown_bars": 30,
+            "entry_lookback_bars": 24,
+            "entry_quorum_ratio": 0.75
+          },
           "regime_buy_confidence_thresholds": {
             "BULL_STRONG": 0.6,
             "SIDEWAYS_FLAT": 0.63,
@@ -372,7 +404,7 @@
         }
       },
       "exit": {
-        "class": "MLPDirectionExitStrategy",
+        "class": "HybridLongExitStrategy",
         "params": {
           "stop_loss_pct": 9.0,
           "fwin_exit_enabled": false,
@@ -393,6 +425,16 @@
           "risk_off_sell_confidence_threshold": 0.7,
           "min_hold_bars_for_sell_exit": 10,
           "bull_regime_sell_guard": true,
+          "always_apply_regime_protection": true,
+          "mlp_route_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP"
+          ],
+          "regime_params": {
+            "cooldown_bars": 30,
+            "peak_drawdown_exit_pct": 0.15
+          },
           "trailing_activation": 18.0,
           "trailing_distance": 10.0,
           "ema_deadcross_exit_enabled": false
@@ -468,7 +510,7 @@
       "bbw_enabled": false,
       "volume_filter_enabled": false,
       "entry": {
-        "class": "MLPDirectionEntryStrategy",
+        "class": "HybridLongEntryStrategy",
         "params": {
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "ensemble_models": [
@@ -513,6 +555,17 @@
           "risk_on_position_size": 0.85,
           "risk_off_position_size": 0.7,
           "regime_confidence_gate_enabled": true,
+          "mlp_route_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP"
+          ],
+          "fallback_to_regime_when_mlp_none": true,
+          "regime_params": {
+            "cooldown_bars": 30,
+            "entry_lookback_bars": 24,
+            "entry_quorum_ratio": 0.75
+          },
           "regime_buy_confidence_thresholds": {
             "BULL_STRONG": 0.63,
             "SIDEWAYS_FLAT": 0.66,
@@ -522,7 +575,7 @@
         }
       },
       "exit": {
-        "class": "MLPDirectionExitStrategy",
+        "class": "HybridLongExitStrategy",
         "params": {
           "stop_loss_pct": 10.0,
           "fwin_exit_enabled": false,
@@ -546,6 +599,16 @@
           "risk_off_sell_confidence_threshold": 0.6,
           "min_hold_bars_for_sell_exit": 10,
           "bull_regime_sell_guard": true,
+          "always_apply_regime_protection": true,
+          "mlp_route_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP"
+          ],
+          "regime_params": {
+            "cooldown_bars": 30,
+            "peak_drawdown_exit_pct": 0.15
+          },
           "trailing_activation": 18.0,
           "trailing_distance": 10.0,
           "ema_deadcross_exit_enabled": false

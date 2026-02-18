@@ -83,6 +83,10 @@ from .sideways_exit import SidewaysExitParams, SidewaysExitStrategy
 # MLP Direction strategy components (Parente & Rizzuti 2025)
 from .mlp_direction_entry import MLPDirectionEntryParams, MLPDirectionEntryStrategy
 from .mlp_direction_exit import MLPDirectionExitParams, MLPDirectionExitStrategy
+from .regime_long_v2_entry import RegimeLongV2EntryParams, RegimeLongV2EntryStrategy
+from .regime_long_v2_exit import RegimeLongV2ExitParams, RegimeLongV2ExitStrategy
+from .hybrid_long_entry import HybridLongEntryParams, HybridLongEntryStrategy
+from .hybrid_long_exit import HybridLongExitParams, HybridLongExitStrategy
 
 __all__ = [
     # Interfaces
@@ -126,4 +130,14 @@ __all__ = [
     "MLPDirectionEntryParams",
     "MLPDirectionExitStrategy",
     "MLPDirectionExitParams",
+    # Regime long v2
+    "RegimeLongV2EntryStrategy",
+    "RegimeLongV2EntryParams",
+    "RegimeLongV2ExitStrategy",
+    "RegimeLongV2ExitParams",
+    # Hybrid long v2
+    "HybridLongEntryStrategy",
+    "HybridLongEntryParams",
+    "HybridLongExitStrategy",
+    "HybridLongExitParams",
 ]

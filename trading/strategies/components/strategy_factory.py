@@ -55,10 +55,14 @@ from .interfaces import IEntryStrategy, IExitStrategy
 # Entry strategies (imports trigger registration via decorators)
 from .sideways_entry import SidewaysEntryStrategy, SidewaysEntryParams
 from .mlp_direction_entry import MLPDirectionEntryStrategy, MLPDirectionEntryParams
+from .regime_long_v2_entry import RegimeLongV2EntryStrategy, RegimeLongV2EntryParams
+from .hybrid_long_entry import HybridLongEntryStrategy, HybridLongEntryParams
 
 # Exit strategies (imports trigger registration via decorators)
 from .sideways_exit import SidewaysExitStrategy, SidewaysExitParams
 from .mlp_direction_exit import MLPDirectionExitStrategy, MLPDirectionExitParams
+from .regime_long_v2_exit import RegimeLongV2ExitStrategy, RegimeLongV2ExitParams
+from .hybrid_long_exit import HybridLongExitStrategy, HybridLongExitParams
 
 # Registry and config validation
 from .registry import (
@@ -117,6 +121,26 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         persistent_exit_class=None,
         market="spot",  # Multi-asset trained, uses 4h timeframe
         timeframe="hour4",  # Paper uses 4-hour candles
+    ),
+    "regime_long_v2": StrategySpec(
+        name="regime_long_v2",
+        entry_class=RegimeLongV2EntryStrategy,
+        entry_params_class=RegimeLongV2EntryParams,
+        exit_class=RegimeLongV2ExitStrategy,
+        exit_params_class=RegimeLongV2ExitParams,
+        persistent_exit_class=None,
+        market="spot",
+        timeframe="hour4",
+    ),
+    "hybrid_long_v2": StrategySpec(
+        name="hybrid_long_v2",
+        entry_class=HybridLongEntryStrategy,
+        entry_params_class=HybridLongEntryParams,
+        exit_class=HybridLongExitStrategy,
+        exit_params_class=HybridLongExitParams,
+        persistent_exit_class=None,
+        market="spot",
+        timeframe="hour4",
     ),
 }
 
@@ -255,11 +279,17 @@ class StrategyFactory:
         Example:
             entry, exit_strat = factory.create_components("mlp_direction_btc")
         """
-        entry = self.create_entry(strategy_name, config, param_overrides=entry_overrides)
-        exit_strat = self.create_exit(strategy_name, config, persistent, param_overrides=exit_overrides)
+        entry = self.create_entry(
+            strategy_name, config, param_overrides=entry_overrides
+        )
+        exit_strat = self.create_exit(
+            strategy_name, config, persistent, param_overrides=exit_overrides
+        )
         return entry, exit_strat
 
-    def get_market(self, strategy_name: str, config: dict[str, Any] | None = None) -> str:
+    def get_market(
+        self, strategy_name: str, config: dict[str, Any] | None = None
+    ) -> str:
         """Get the market type for a strategy.
 
         Args:
@@ -308,10 +338,10 @@ class StrategyFactory:
         # Validate and get class from registry
         if not is_entry_registered(class_name):
             from .registry import get_registered_entry_names
+
             available = get_registered_entry_names()
             raise ValueError(
-                f"Unknown entry class: {class_name}. "
-                f"Available: {available}"
+                f"Unknown entry class: {class_name}. " f"Available: {available}"
             )
 
         entry_class = get_entry_class(class_name)
@@ -361,10 +391,10 @@ class StrategyFactory:
         # Validate and get class from registry
         if not is_exit_registered(class_name):
             from .registry import get_registered_exit_names
+
             available = get_registered_exit_names()
             raise ValueError(
-                f"Unknown exit class: {class_name}. "
-                f"Available: {available}"
+                f"Unknown exit class: {class_name}. " f"Available: {available}"
             )
 
         exit_class = get_exit_class(class_name)
@@ -450,23 +480,20 @@ class StrategyFactory:
         if has_new_config_format(config):
             # New format: merge into entry.params or exit.params
             # Use single dict comprehension to reduce copies
-            result = {
-                k: v for k, v in config.items()
-                if k not in ("entry", "exit")
-            }
+            result = {k: v for k, v in config.items() if k not in ("entry", "exit")}
 
             if "entry" in config and isinstance(config["entry"], dict):
                 entry = config["entry"]
                 result["entry"] = {
                     **entry,
-                    "params": {**entry.get("params", {}), **param_overrides}
+                    "params": {**entry.get("params", {}), **param_overrides},
                 }
 
             if "exit" in config and isinstance(config["exit"], dict):
                 exit_cfg = config["exit"]
                 result["exit"] = {
                     **exit_cfg,
-                    "params": {**exit_cfg.get("params", {}), **param_overrides}
+                    "params": {**exit_cfg.get("params", {}), **param_overrides},
                 }
 
             return result
@@ -546,7 +573,9 @@ class StrategyFactory:
                 params=params,
                 strategy_name=f"{strategy_name}_exit",
             )
-            logger.debug(f"Created persistent exit strategy: {strategy_name} (legacy format)")
+            logger.debug(
+                f"Created persistent exit strategy: {strategy_name} (legacy format)"
+            )
         else:
             exit_strat = spec.exit_class(params=params)
             logger.debug(f"Created exit strategy: {strategy_name} (legacy format)")

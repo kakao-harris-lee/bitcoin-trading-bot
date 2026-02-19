@@ -19,6 +19,10 @@ from .optimizer.search_space import (
     MLP_ENTRY_PARAMS, MLP_EXIT_PARAMS, MLP_ENSEMBLE_PARAMS, MLP_ADAPTER_PARAMS,
     REGIME_THRESHOLD_PARAMS,
 )
+from trading.core.runtime_defaults import (
+    load_allocation_symbols,
+    default_backtest_date_range,
+)
 
 quant_lab_bp = Blueprint(
     'quant_lab',
@@ -68,7 +72,7 @@ def requires_auth(f):
 MAX_TRIALS = 5000
 MAX_HOURS = 48
 MIN_TRIALS = 1
-VALID_ASSETS = ("BTC", "ETH", "SOL")
+VALID_ASSETS = tuple(load_allocation_symbols(default=("BTC", "ETH", "SOL", "BNB")))
 
 # Allowed data directory (relative to project root)
 PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
@@ -146,7 +150,7 @@ def validate_data_path(data_path: str) -> str:
 
 
 def normalize_asset(asset: Optional[str]) -> Optional[str]:
-    """Normalize user-supplied asset/symbol to BTC/ETH/SOL."""
+    """Normalize user-supplied asset/symbol to configured assets."""
     if not asset:
         return None
 
@@ -169,8 +173,9 @@ def build_suggested_study_name(
 ) -> str:
     """Build a timestamp-suffixed study name suggestion."""
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    default_asset = VALID_ASSETS[0] if VALID_ASSETS else "BTC"
     if strategy_type == "mlp_direction":
-        return f"mlp_{(asset or 'BTC').lower()}_{ts}"
+        return f"mlp_{(asset or default_asset).lower()}_{ts}"
     return f"regime_{ts}"
 
 
@@ -243,7 +248,16 @@ TEMPLATES = {
 @requires_auth
 def index():
     """Render main Quant Lab page."""
-    return render_template('designer.html', regimes=REGIMES)
+    default_start_date, default_end_date = default_backtest_date_range()
+    default_asset = VALID_ASSETS[0] if VALID_ASSETS else "BTC"
+    return render_template(
+        'designer.html',
+        regimes=REGIMES,
+        assets=VALID_ASSETS,
+        default_asset=default_asset,
+        default_start_date=default_start_date,
+        default_end_date=default_end_date,
+    )
 
 
 @quant_lab_bp.route('/api/templates')
@@ -287,12 +301,13 @@ def create_experiment():
 
     symbols = data.get('symbols', [])
     asset = normalize_asset(data.get('asset'))
+    valid_assets_text = ", ".join(VALID_ASSETS)
     if strategy_type == 'mlp_direction' and not asset and symbols:
         asset = normalize_asset(symbols[0])
     if strategy_type == 'mlp_direction' and not asset:
-        return jsonify({"error": "MLP optimization requires 'asset' or symbol (BTC, ETH, SOL)"}), 400
+        return jsonify({"error": f"MLP optimization requires 'asset' or symbol ({valid_assets_text})"}), 400
     if data.get('asset') and not asset:
-        return jsonify({"error": f"Invalid asset: '{data.get('asset')}'. Must be BTC, ETH, or SOL"}), 400
+        return jsonify({"error": f"Invalid asset: '{data.get('asset')}'. Must be {valid_assets_text}"}), 400
 
     # Validate and sanitize study name
     study_name = data.get('study_name', '').strip()
@@ -315,6 +330,9 @@ def create_experiment():
     # Validate and limit resource consumption
     max_trials = min(data.get('max_trials', 500), MAX_TRIALS)
     max_trials = max(max_trials, MIN_TRIALS)
+    default_start_date, default_end_date = default_backtest_date_range()
+    start_date = data.get("start_date") or default_start_date
+    end_date = data.get("end_date") or default_end_date
 
     max_hours = data.get('max_hours')
     if max_hours is not None:
@@ -326,9 +344,11 @@ def create_experiment():
         job_id=job_id,
         study_name=study_name,
         data_path=validated_data_path,
-        start_date=data['start_date'],
-        end_date=data['end_date'],
-        symbols=[asset] if strategy_type == 'mlp_direction' and asset else (symbols or ['BTC']),
+        start_date=start_date,
+        end_date=end_date,
+        symbols=[asset] if strategy_type == 'mlp_direction' and asset else (
+            symbols or [VALID_ASSETS[0] if VALID_ASSETS else "BTC"]
+        ),
         max_trials=max_trials,
         max_hours=max_hours,
         search_config=data.get('search_config'),

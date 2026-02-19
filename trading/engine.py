@@ -24,6 +24,7 @@ from trading.risk.leverage_manager import LeverageManager
 from trading.observability import PeriodicLoggerTask
 from trading.indicators.indicator_service import IndicatorService
 from trading.strategies.components.context_builder import TradingContextBuilder, PositionManager
+from trading.core.runtime_defaults import load_allocation_symbols
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ class TradingEngine:
         # Initialize/sync risk state.
         await self._initialize_risk_state(mode)
 
-        symbols = self.config.get("symbols", ["BTC"])
+        symbols = self.config.get("symbols") or load_allocation_symbols()
 
         # 1. Create feed instances and run warmup BEFORE starting strategies
         # This ensures warmup data is in Redis before strategy consumer groups are created

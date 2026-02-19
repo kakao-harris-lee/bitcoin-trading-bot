@@ -69,7 +69,7 @@
                 <div class="mt-6">
                     <label class="block text-sm text-gray-400 mb-2">Asset</label>
                     <div class="flex space-x-4">
-                        <template x-for="asset in ['BTC', 'ETH', 'SOL']" :key="asset">
+                        <template x-for="asset in assetOptions" :key="asset">
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="radio" :value="asset" x-model="config.asset"
                                        class="form-radio bg-gray-700 border-gray-600">
@@ -159,12 +159,13 @@
                 launching: false,
                 studyNameUserEdited: false,
                 lastSuggestedStudyName: '',
+                assetOptions: {{ assets | tojson }},
                 config: {
                     study_name: '',
-                    start_date: '2024-01-01',
-                    end_date: '2024-12-31',
+                    start_date: '{{ default_start_date }}',
+                    end_date: '{{ default_end_date }}',
                     strategy_type: 'mlp_direction',
-                    asset: 'BTC',
+                    asset: '{{ default_asset }}',
                     max_trials: 500,
                     max_hours: null,
                     max_drawdown: 30,

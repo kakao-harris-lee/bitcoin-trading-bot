@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -19,8 +19,16 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Send Telegram reminder for MLP final validation."
     )
-    parser.add_argument("--target-date", default="2026-02-20")
-    parser.add_argument("--target-time", default="09:40")
+    parser.add_argument(
+        "--target-date",
+        default=None,
+        help="Target date in YYYY-MM-DD (default: derived from --label and current KST date)",
+    )
+    parser.add_argument(
+        "--target-time",
+        default="09:40",
+        help="Target time in HH:MM (default: 09:40)",
+    )
     parser.add_argument("--label", default="REMINDER")
     return parser.parse_args()
 
@@ -61,6 +69,26 @@ def _build_message(target_dt: datetime, label: str) -> str:
     return "\n".join(lines)
 
 
+def _resolve_target_dt(args: argparse.Namespace) -> datetime:
+    """Resolve target datetime with dynamic defaults for cron reminder labels.
+
+    - `--target-date` provided: use explicit date.
+    - omitted date:
+      - label D-1: tomorrow (KST)
+      - otherwise: today (KST)
+    """
+    now_kst = datetime.now(KST)
+    if args.target_date:
+        date_text = args.target_date
+    else:
+        label = (args.label or "").strip().upper()
+        day_offset = 1 if label in {"D-1", "D_MINUS_1"} else 0
+        date_text = (now_kst + timedelta(days=day_offset)).date().isoformat()
+    return datetime.strptime(
+        f"{date_text} {args.target_time}", "%Y-%m-%d %H:%M"
+    ).replace(tzinfo=KST)
+
+
 def _send_telegram(message: str) -> bool:
     _load_env(PROJECT_ROOT / ".env")
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -83,9 +111,7 @@ def _send_telegram(message: str) -> bool:
 
 def main() -> int:
     args = parse_args()
-    target_dt = datetime.strptime(
-        f"{args.target_date} {args.target_time}", "%Y-%m-%d %H:%M"
-    ).replace(tzinfo=KST)
+    target_dt = _resolve_target_dt(args)
 
     msg = _build_message(target_dt, args.label)
     sent = _send_telegram(msg)

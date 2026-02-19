@@ -40,6 +40,7 @@ from trading.strategies.components.config_schema import has_new_config_format
 from core.component_adapter import ComponentStrategyAdapter
 from trading.indicators import add_all_indicators
 from trading.config.constants import FeeRates, TimePeriods
+from trading.core.runtime_defaults import default_backtest_date_range
 
 logger = logging.getLogger(__name__)
 
@@ -656,8 +657,9 @@ def run_backtest(job: BacktestJob) -> None:
             strategy_id = config.get("strategy_id") or config.get(
                 "strategy", "mlp_direction_btc"
             )
-            start_date = config.get("start_date", "2024-01-01")
-            end_date = config.get("end_date", "2024-12-31")
+            default_start_date, default_end_date = default_backtest_date_range()
+            start_date = config.get("start_date") or default_start_date
+            end_date = config.get("end_date") or default_end_date
             initial_capital = config.get("initial_capital", 10000)
 
             # SECURITY: Validate strategy_id

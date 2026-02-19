@@ -17,11 +17,13 @@ import json
 import os
 import redis
 
+from trading.core.runtime_defaults import load_allocation_symbols
+
 
 class MetricsService:
     """Service for reading and transforming trading metrics data from Redis."""
 
-    SYMBOLS = ["BTC", "ETH", "SOL"]
+    DEFAULT_SYMBOLS = ["BTC", "ETH", "SOL", "BNB"]
     MARKETS = ["spot", "futures"]
     STALE_THRESHOLD_SECONDS = 30
 
@@ -32,6 +34,7 @@ class MetricsService:
             redis_url: Redis connection URL. Defaults to env var or localhost.
         """
         self._redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
+        self._symbols = load_allocation_symbols(default=self.DEFAULT_SYMBOLS)
         self._redis: Optional[redis.Redis] = None
         self._last_prices: dict[str, float] = {}
         self._last_price_time: Optional[datetime] = None
@@ -140,7 +143,7 @@ class MetricsService:
         positions: list[dict] = []
         total_position_value = 0.0
         configured_strategies: set[str] = set()
-        for symbol in self.SYMBOLS:
+        for symbol in self._symbols:
             for market in self.MARKETS:
                 pos = self._get_position(symbol, market)
                 if not pos:
@@ -359,7 +362,7 @@ class MetricsService:
         prices = self._get_last_prices()
         timestamp = datetime.now().isoformat()
 
-        for symbol in self.SYMBOLS:
+        for symbol in self._symbols:
             for market in self.MARKETS:
                 pos = self._get_position(symbol, market)
 

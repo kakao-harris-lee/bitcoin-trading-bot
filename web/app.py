@@ -78,6 +78,15 @@ except Exception as e:
     print(f"Failed to import quant_lab: {e}")
     quant_lab_bp = None
 
+# Shared runtime defaults
+try:
+    from trading.core.runtime_defaults import default_backtest_date_range
+except Exception:
+    def default_backtest_date_range(days: int = 365) -> tuple[str, str]:
+        end_dt = datetime.now().date()
+        start_dt = end_dt - timedelta(days=max(1, int(days)))
+        return start_dt.isoformat(), end_dt.isoformat()
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
 CORS(app)
@@ -2310,10 +2319,11 @@ def run_backtest():
     if initial_capital <= 0:
         return jsonify({'error': 'initial_capital must be > 0'}), 400
 
+    default_start_date, default_end_date = default_backtest_date_range()
     config = {
         'strategy': strategy,
-        'start_date': data.get('start_date', '2024-01-01'),
-        'end_date': data.get('end_date', '2024-12-31'),
+        'start_date': data.get('start_date') or default_start_date,
+        'end_date': data.get('end_date') or default_end_date,
         'initial_capital': initial_capital,
     }
 

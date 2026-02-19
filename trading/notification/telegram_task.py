@@ -16,6 +16,7 @@ import pyotp
 import pytz
 from dotenv import load_dotenv
 
+from trading.core.runtime_defaults import load_allocation_symbols
 from trading.streams import RedisStreams
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ class TelegramTask:
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}"
         self.redis = redis
         self.utc = pytz.UTC
+        self.symbols = tuple(load_allocation_symbols(default=("BTC", "ETH", "SOL", "BNB")))
         self._running = False
         self._last_update_id = 0
 
@@ -266,7 +268,7 @@ _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
             for _, data in entries:
                 symbol = data.get("symbol")
                 price_raw = data.get("price")
-                if symbol in ("BTC", "ETH", "SOL") and symbol not in prices and price_raw:
+                if symbol in self.symbols and symbol not in prices and price_raw:
                     prices[symbol] = float(price_raw)
         except Exception:
             return {}
@@ -278,12 +280,12 @@ _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
             entries = await self.redis._client.xrevrange("strategy:decisions", count=200)
             for _, data in entries:
                 symbol = data.get("symbol", "")
-                if symbol in ("BTC", "ETH", "SOL") and symbol not in signals_by_symbol:
+                if symbol in self.symbols and symbol not in signals_by_symbol:
                     decision = (data.get("decision") or "WAIT").upper()
                     regime = data.get("regime", "UNKNOWN")
                     strategy = data.get("strategy", "unknown")
                     signals_by_symbol[symbol] = f"{decision} | {regime} ({strategy})"
-                if len(signals_by_symbol) == 3:
+                if len(signals_by_symbol) == len(self.symbols):
                     break
         except Exception:
             return {}
@@ -291,7 +293,7 @@ _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
 
     async def _get_positions_text(self) -> str:
         text = ""
-        for symbol in ("BTC", "ETH", "SOL"):
+        for symbol in self.symbols:
             for market in ("spot", "futures"):
                 pos = await self.redis.get_position(symbol, market)
                 if pos and pos.get("quantity"):
@@ -303,14 +305,14 @@ _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
 
     def _format_prices_text(self, prices: dict[str, float]) -> str:
         text = ""
-        for symbol in ("BTC", "ETH", "SOL"):
+        for symbol in self.symbols:
             if symbol in prices:
                 text += f"\n  {symbol}: ${prices[symbol]:,.2f}"
         return text or "\n  No recent price data"
 
     def _format_signals_text(self, signals_by_symbol: dict[str, str]) -> str:
         text = ""
-        for symbol in ("BTC", "ETH", "SOL"):
+        for symbol in self.symbols:
             if symbol in signals_by_symbol:
                 text += f"\n  {symbol}: {signals_by_symbol[symbol]}"
         return text or "\n  No recent strategy signals"

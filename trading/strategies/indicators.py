@@ -9,20 +9,48 @@ from pathlib import Path
 import numpy as np
 import talib
 
+from trading.core.runtime_defaults import load_allocation_symbols
+
 logger = logging.getLogger(__name__)
 
 # Database paths
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
-DB_MAPPING = {
-    "BTC": DATA_DIR / "binance_bitcoin.db",
-    "ETH": DATA_DIR / "binance_ethereum.db",
-    "SOL": DATA_DIR / "binance_solana.db",
+_DB_FILENAME_BY_SYMBOL = {
+    "BTC": "binance_bitcoin.db",
+    "ETH": "binance_ethereum.db",
+    "SOL": "binance_solana.db",
+    "BNB": "binance_bnb.db",
+    "XRP": "binance_xrp.db",
 }
-TABLE_MAPPING = {
+_TABLE_NAME_BY_SYMBOL = {
     "BTC": "binance_minute60",
     "ETH": "ethereum_minute60",
     "SOL": "solana_minute60",
+    "BNB": "bnb_minute60",
+    "XRP": "xrp_minute60",
 }
+
+
+def _build_symbol_mappings() -> tuple[dict[str, Path], dict[str, str]]:
+    symbols = load_allocation_symbols(default=tuple(_DB_FILENAME_BY_SYMBOL.keys()))
+    db_mapping: dict[str, Path] = {}
+    table_mapping: dict[str, str] = {}
+    for symbol in symbols:
+        db_filename = _DB_FILENAME_BY_SYMBOL.get(symbol)
+        table_name = _TABLE_NAME_BY_SYMBOL.get(symbol)
+        if db_filename and table_name:
+            db_mapping[symbol] = DATA_DIR / db_filename
+            table_mapping[symbol] = table_name
+    if not db_mapping:
+        for symbol, db_filename in _DB_FILENAME_BY_SYMBOL.items():
+            table_name = _TABLE_NAME_BY_SYMBOL.get(symbol)
+            if table_name:
+                db_mapping[symbol] = DATA_DIR / db_filename
+                table_mapping[symbol] = table_name
+    return db_mapping, table_mapping
+
+
+DB_MAPPING, TABLE_MAPPING = _build_symbol_mappings()
 
 
 def load_ohlcv(symbol: str, periods: int = 100) -> dict | None:

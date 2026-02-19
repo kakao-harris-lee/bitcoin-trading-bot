@@ -1,7 +1,12 @@
 #!/bin/bash
 # Update OHLCV data for all symbols
-cd /home/deploy/project/bitcoin-trading-bot
-source .venv/bin/activate
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "${ROOT_DIR}"
+
+if [[ -f ".venv/bin/activate" ]]; then
+  # shellcheck disable=SC1091
+  source .venv/bin/activate
+fi
 
 START=$(date -d '2 days ago' +%Y-%m-%d)
 END=$(date -d 'tomorrow' +%Y-%m-%d)
@@ -41,4 +46,4 @@ update_db('ETH', 'binance_ethereum.db', 'ethereum')
 update_db('SOL', 'binance_solana.db', 'solana')
 " 2>/dev/null
 
-echo "$(date): OHLCV update complete" >> /home/deploy/project/bitcoin-trading-bot/logs/ohlcv_update.log
+echo "$(date): OHLCV update complete" >> "${ROOT_DIR}/logs/ohlcv_update.log"

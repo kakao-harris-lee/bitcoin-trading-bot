@@ -198,6 +198,7 @@ class TestStatusAPI:
         assert 'XRP_futures' in assets
         assert 'DOGE_futures' not in assets
         assert 'AVAX_futures' not in assets
+        assert all(a.get('strategy') == '-' for a in assets.values())
 
     @patch('web.app.get_redis')
     def test_load_selector_fallback_symbols(self, mock_get_redis):

@@ -734,7 +734,7 @@ def _build_status_fallback_assets(
             'position_active': False,
             'position_qty': 0,
             'direction': 'long',
-            'strategy': 'None',
+            'strategy': '-',
             'regime': regime_info.get('regime', 'UNKNOWN'),
             'trend': regime_info.get('trend', 'UNKNOWN'),
             'regime_updated_at': regime_info.get('timestamp', ''),

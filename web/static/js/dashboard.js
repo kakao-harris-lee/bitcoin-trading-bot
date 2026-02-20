@@ -626,11 +626,14 @@ function renderAssetCards(assets) {
         }
 
         // Get active strategy from strategies config
-        let activeStrategy = data.strategy || '-';
-        if (!activeStrategy || activeStrategy === '-') {
+        let activeStrategy = typeof data.strategy === 'string' ? data.strategy.trim() : data.strategy;
+        const isMissingStrategy = !activeStrategy || activeStrategy === '-' || String(activeStrategy).toLowerCase() === 'none';
+        if (isMissingStrategy) {
             if (data.strategies) {
                 const regimeKey = data.regime?.split('_')[0] || 'BULL';
                 activeStrategy = data.strategies[regimeKey] || '-';
+            } else {
+                activeStrategy = '-';
             }
         }
 

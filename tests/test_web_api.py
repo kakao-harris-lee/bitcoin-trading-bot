@@ -17,6 +17,7 @@ flask = pytest.importorskip("flask")
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from web.app import app
+import web.app as web_app
 
 
 @pytest.fixture
@@ -163,6 +164,55 @@ class TestStatusAPI:
 
         # Legacy path uses symbol as key
         assert 'BTC' in data['assets']
+
+    def test_fallback_assets_use_selector_symbols_only(self):
+        """Fallback assets should prioritize selector symbols, not full regime universe."""
+        prices = {
+            'BTC': 90000,
+            'ETH': 3000,
+            'SOL': 180,
+            'ADA': 0.8,
+            'XRP': 0.6,
+            'DOGE': 0.2,
+        }
+        regime_status = {
+            'BTC': {'regime': 'BULL_STRONG'},
+            'ETH': {'regime': 'BULL_STRONG'},
+            'SOL': {'regime': 'SIDEWAYS_FLAT'},
+            'ADA': {'regime': 'BULL_MODERATE'},
+            'XRP': {'regime': 'SIDEWAYS_UP'},
+            'DOGE': {'regime': 'BEAR_STRONG'},
+            'AVAX': {'regime': 'BULL_MODERATE'},
+        }
+
+        assets = web_app._build_status_fallback_assets(
+            prices,
+            regime_status,
+            selector_symbols=['ADA', 'XRP'],
+        )
+
+        assert 'BTC_futures' in assets
+        assert 'ETH_futures' in assets
+        assert 'SOL_futures' in assets
+        assert 'ADA_futures' in assets
+        assert 'XRP_futures' in assets
+        assert 'DOGE_futures' not in assets
+        assert 'AVAX_futures' not in assets
+
+    @patch('web.app.get_redis')
+    def test_load_selector_fallback_symbols(self, mock_get_redis):
+        """Selector fallback symbol loader should parse latest selector state."""
+        mock_redis = MagicMock()
+        mock_redis.keys.return_value = [
+            'strategy:selector:latest:mlp_direction_bnb',
+        ]
+        mock_redis.hgetall.return_value = {
+            'selected_symbols': '["ADA","XRP","DOGE"]',
+        }
+        mock_get_redis.return_value = mock_redis
+
+        symbols = web_app._load_selector_fallback_symbols(mock_get_redis.return_value, limit=5)
+        assert symbols == ['ADA', 'XRP', 'DOGE']
 
 
 class TestKillSwitchAPI:

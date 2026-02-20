@@ -549,10 +549,17 @@ def block_common():
 @requires_auth
 def dashboard():
     """메인 대시보드 (Basic Auth 인증 필요)"""
-    return render_template("dashboard.html")
+    css_path = BASE_DIR / "static" / "css" / "style.css"
+    js_path = BASE_DIR / "static" / "js" / "dashboard.js"
+    return render_template(
+        "dashboard.html",
+        css_version=int(css_path.stat().st_mtime) if css_path.exists() else 1,
+        js_version=int(js_path.stat().st_mtime) if js_path.exists() else 1,
+    )
 
 
 _STATUS_FALLBACK_SYMBOLS = ('BTC', 'ETH', 'SOL')
+_STATUS_FALLBACK_MAX_ASSETS = 28
 
 
 def _read_status_prices(r: redis.Redis, count: int = 100) -> dict:
@@ -626,11 +633,94 @@ def _build_status_assets_from_positions(binance_positions: list, regime_status: 
     return assets
 
 
-def _build_status_fallback_assets(prices: dict, regime_status: dict) -> dict:
+def _parse_selector_symbol_list(payload: str | None) -> list[str]:
+    if not payload:
+        return []
+    try:
+        raw = json.loads(payload)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    if not isinstance(raw, list):
+        return []
+    symbols: list[str] = []
+    for item in raw:
+        symbol = _normalize_symbol(str(item))
+        if symbol:
+            symbols.append(symbol)
+    return symbols
+
+
+def _parse_selector_top_scores(payload: str | None) -> list[str]:
+    if not payload:
+        return []
+    try:
+        raw = json.loads(payload)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    if not isinstance(raw, list):
+        return []
+    symbols: list[str] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        symbol = _normalize_symbol(str(item.get("symbol", "")))
+        if symbol:
+            symbols.append(symbol)
+    return symbols
+
+
+def _load_selector_fallback_symbols(r: redis.Redis, limit: int = _STATUS_FALLBACK_MAX_ASSETS) -> list[str]:
+    symbols: list[str] = []
+    seen: set[str] = set()
+    try:
+        keys = sorted(r.keys("strategy:selector:latest:*") or [])
+    except Exception:
+        return symbols
+
+    for key in keys:
+        try:
+            state = r.hgetall(key) or {}
+        except Exception:
+            continue
+
+        candidates = _parse_selector_symbol_list(state.get("selected_symbols"))
+        if not candidates:
+            candidates = _parse_selector_top_scores(state.get("top_scores"))
+
+        for symbol in candidates:
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            symbols.append(symbol)
+            if len(symbols) >= limit:
+                return symbols
+    return symbols
+
+
+def _build_status_fallback_assets(
+    prices: dict,
+    regime_status: dict,
+    selector_symbols: list[str] | None = None,
+) -> dict:
     fallback_symbols = list(_STATUS_FALLBACK_SYMBOLS)
-    for symbol in regime_status.keys():
-        if symbol not in fallback_symbols:
+
+    if selector_symbols:
+        for symbol in selector_symbols:
+            normalized = _normalize_symbol(symbol)
+            if normalized and normalized not in fallback_symbols:
+                fallback_symbols.append(normalized)
+    else:
+        # Legacy-safe fallback when selector state is unavailable:
+        # keep snapshot compact by adding only a few symbols from recent prices.
+        for raw_symbol in prices.keys():
+            symbol = _normalize_symbol(raw_symbol)
+            if not symbol or symbol in fallback_symbols:
+                continue
             fallback_symbols.append(symbol)
+            if len(fallback_symbols) >= min(_STATUS_FALLBACK_MAX_ASSETS, len(_STATUS_FALLBACK_SYMBOLS) + 8):
+                break
+
+    fallback_symbols = fallback_symbols[:_STATUS_FALLBACK_MAX_ASSETS]
 
     assets: dict = {}
     for symbol in fallback_symbols:
@@ -652,10 +742,17 @@ def _build_status_fallback_assets(prices: dict, regime_status: dict) -> dict:
     return assets
 
 
-def _build_stream_status(dashboard_state: dict, binance_data: dict, prices: dict, regime_status: dict, risk: dict) -> dict:
+def _build_stream_status(
+    dashboard_state: dict,
+    binance_data: dict,
+    prices: dict,
+    regime_status: dict,
+    risk: dict,
+    selector_symbols: list[str] | None = None,
+) -> dict:
     assets = _build_status_assets_from_positions(binance_data.get('positions', []), regime_status)
     if not assets:
-        assets = _build_status_fallback_assets(prices, regime_status)
+        assets = _build_status_fallback_assets(prices, regime_status, selector_symbols=selector_symbols)
 
     return {
         'timestamp': dashboard_state.get('timestamp', datetime.now().isoformat()),
@@ -681,7 +778,19 @@ def _load_stream_status(prices: dict, regime_status: dict, risk: dict) -> dict |
         binance_data = dashboard_state.get('binance')
         if not binance_data:
             return None
-        return _build_stream_status(dashboard_state, binance_data, prices, regime_status, risk)
+        selector_symbols: list[str] = []
+        try:
+            selector_symbols = _load_selector_fallback_symbols(get_redis())
+        except Exception as e:
+            print(f"Error loading selector fallback symbols: {e}")
+        return _build_stream_status(
+            dashboard_state,
+            binance_data,
+            prices,
+            regime_status,
+            risk,
+            selector_symbols=selector_symbols,
+        )
     except Exception as e:
         print(f"Error loading from metrics service: {e}")
         return None
@@ -1983,6 +2092,35 @@ def _load_strategy_active_positions(r, strategy_name: str, symbols: list[str]) -
     return active_positions
 
 
+def _parse_json_field(raw: str, default):
+    if not raw:
+        return default
+    try:
+        return json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return default
+
+
+def _load_strategy_selector_state(r, strategy_name: str) -> dict | None:
+    key = f"strategy:selector:latest:{strategy_name}"
+    raw = r.hgetall(key)
+    if not raw:
+        return None
+    return {
+        "timestamp": raw.get("timestamp", ""),
+        "changed": raw.get("changed", "false") == "true",
+        "selected_symbols": _parse_json_field(raw.get("selected_symbols"), []),
+        "top_scores": _parse_json_field(raw.get("top_scores"), []),
+        "rejected": _parse_json_field(raw.get("rejected"), []),
+        "rejection_counts": _parse_json_field(raw.get("rejection_counts"), {}),
+        "data_quality": _parse_json_field(raw.get("data_quality"), {}),
+        "dq_enabled": raw.get("dq_enabled", "false") == "true",
+        "dq_blocked_count": int(_safe_float(raw.get("dq_blocked_count", 0))),
+        "selected_count": int(_safe_float(raw.get("selected_count", 0))),
+        "universe_size": int(_safe_float(raw.get("universe_size", 0))),
+    }
+
+
 def _build_strategy_info(strategy_name: str, cfg: dict, r, symbols: list[str]) -> dict:
     strategy_info = {
         'name': strategy_name,
@@ -2013,6 +2151,10 @@ def _build_strategy_info(strategy_name: str, cfg: dict, r, symbols: list[str]) -
 
     strategy_info['live_state'] = _load_strategy_live_state(r, strategy_name, symbols)
     strategy_info['active_positions'] = _load_strategy_active_positions(r, strategy_name, symbols)
+    selector_cfg = cfg.get("symbol_selector") if isinstance(cfg.get("symbol_selector"), dict) else None
+    if selector_cfg:
+        strategy_info["symbol_selector"] = selector_cfg
+        strategy_info["selector_state"] = _load_strategy_selector_state(r, strategy_name)
     return strategy_info
 
 
@@ -2927,6 +3069,44 @@ def get_safety_rejections():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route("/api/events/selector")
+@requires_auth
+def get_selector_events():
+    """
+    Get symbol-selector events with optional filters.
+
+    Query parameters:
+    - hours: Hours of history (default 24, max 72)
+    - limit: Maximum events (default 50, max 200)
+    - strategy: Filter by strategy
+    - changed_only: true/false (default true)
+    """
+    if not metrics_service:
+        return jsonify({'error': 'Metrics service not available'}), 500
+
+    try:
+        hours = max(1, min(int(request.args.get('hours', 24)), 72))
+        limit = max(1, min(int(request.args.get('limit', 50)), 200))
+        strategy = request.args.get('strategy')
+        changed_only = request.args.get('changed_only', 'true').lower() == 'true'
+
+        events = metrics_service.get_selector_events(
+            hours=hours,
+            limit=limit,
+            strategy=strategy,
+            changed_only=changed_only,
+        )
+
+        return jsonify({
+            'events': events,
+            'total_count': len(events),
+        })
+    except ValueError:
+        return jsonify({'error': 'Invalid parameter values'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route("/api/events/summary")
 @requires_auth
 def get_events_summary():
@@ -2945,6 +3125,7 @@ def get_events_summary():
         entry_events = metrics_service.get_entry_events(hours=hours, limit=1000)
         exit_events = metrics_service.get_exit_events(hours=hours, limit=1000)
         safety_rejections = metrics_service.get_safety_rejections(hours=hours, limit=1000)
+        selector_events = metrics_service.get_selector_events(hours=hours, limit=1000, changed_only=True)
 
         # Calculate summary stats
         entry_signals = sum(1 for e in entry_events if e.get('signal_generated') == 'true')
@@ -2963,6 +3144,7 @@ def get_events_summary():
             'exit_events_count': len(exit_events),
             'exit_signals_count': exit_signals,
             'safety_rejections_count': len(safety_rejections),
+            'selector_changes_count': len(selector_events),
             'rejections_by_type': rejection_by_type,
             'timestamp': datetime.now().isoformat(),
         })

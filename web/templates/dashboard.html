@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Asset Trading Bot - Live Dashboard</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css?v={{ css_version or 1 }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <style>
         /* Hybrid View Styles */
@@ -200,7 +200,15 @@
 
         <!-- Market Snapshot Section -->
         <section class="assets-section">
-            <h2>Market Snapshot</h2>
+            <div class="assets-header">
+                <h2>Market Snapshot</h2>
+                <div class="assets-controls">
+                    <span id="asset-card-meta" class="asset-card-meta">-</span>
+                    <button id="asset-card-toggle" class="asset-card-toggle" type="button" style="display:none;">
+                        Show All
+                    </button>
+                </div>
+            </div>
             <div id="assets-grid" class="assets-grid">
                 <p class="loading">Loading market snapshot...</p>
             </div>
@@ -238,6 +246,15 @@
                     <div class="summary-stat">
                         <span class="label">Total P&L</span>
                         <span id="positions-total-pnl" class="value">-</span>
+                    </div>
+                </div>
+                <div id="selector-snapshot" class="selector-snapshot">
+                    <div class="selector-snapshot-header">
+                        <h4>Coin Selector Snapshot</h4>
+                        <span id="selector-snapshot-updated" class="selector-snapshot-updated">-</span>
+                    </div>
+                    <div id="selector-snapshot-content" class="selector-snapshot-content">
+                        <p class="loading">Loading selector snapshot...</p>
                     </div>
                 </div>
                 <!-- Positions Grid -->
@@ -520,6 +537,19 @@
                         <span id="strategies-positions-count" class="value">-</span>
                     </div>
                 </div>
+                <!-- Selector Monitor -->
+                <div id="selector-monitor" class="selector-monitor">
+                    <div class="selector-monitor-header">
+                        <h4>Coin Selector Monitor</h4>
+                        <span class="selector-monitor-subtitle">Top-N selection, score, rejection reason, change history</span>
+                    </div>
+                    <div id="selector-overview" class="selector-overview-grid">
+                        <p class="loading">Loading selector monitor...</p>
+                    </div>
+                    <div id="selector-events" class="selector-events-list">
+                        <p class="loading">Loading selector events...</p>
+                    </div>
+                </div>
                 <!-- Strategies Grid -->
                 <div id="strategies-container" class="strategies-grid">
                     <p class="loading">Loading strategies...</p>
@@ -532,6 +562,6 @@
         </footer>
     </div>
 
-    <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/dashboard.js?v={{ js_version or 1 }}"></script>
 </body>
 </html>

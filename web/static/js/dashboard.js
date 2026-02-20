@@ -17,6 +17,11 @@ const PRICE_HISTORY_LENGTH = 60; // Keep last 60 data points
 
 // Entry prices for position indicators (symbol -> entry price)
 const entryPrices = {};
+const MARKET_SNAPSHOT_FOCUS_LIMIT = 16;
+
+let marketSnapshotExpanded = false;
+let selectorFocusSymbols = new Set();
+let latestStatusPayload = null;
 
 // API Fetch Utility with Error Handling and Retry
 async function apiFetch(endpoint, options = {}, retryCount = 0) {
@@ -491,19 +496,112 @@ function drawAllSparklines() {
     }
 }
 
+function initAssetCardToggle() {
+    const toggle = document.getElementById('asset-card-toggle');
+    if (!toggle) return;
+    toggle.addEventListener('click', () => {
+        marketSnapshotExpanded = !marketSnapshotExpanded;
+        if (!latestStatusPayload) return;
+        const assetCardsData = buildAssetCardsData(latestStatusPayload);
+        renderAssetCards(assetCardsData);
+    });
+}
+
+function getAssetPriority(asset, symbol) {
+    if (asset.position_active) return 0;
+    if (selectorFocusSymbols.has(symbol)) return 1;
+
+    const regime = String(asset.regime || '').toUpperCase();
+    if (regime.startsWith('BULL')) return 2;
+    if (regime.startsWith('SIDEWAYS')) return 3;
+    if (regime.startsWith('BEAR')) return 4;
+    return 5;
+}
+
+function compareAssetCards(a, b) {
+    if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+    }
+
+    const aPnl = Math.abs(Number(a.asset.unrealized_pnl_pct || 0));
+    const bPnl = Math.abs(Number(b.asset.unrealized_pnl_pct || 0));
+    if (bPnl !== aPnl) {
+        return bPnl - aPnl;
+    }
+
+    return a.symbol.localeCompare(b.symbol);
+}
+
+function updateAssetCardControls(totalCount, visibleCount) {
+    const metaEl = document.getElementById('asset-card-meta');
+    const toggleEl = document.getElementById('asset-card-toggle');
+
+    if (metaEl) {
+        if (totalCount <= 0) {
+            metaEl.textContent = 'No symbols';
+        } else if (totalCount > visibleCount) {
+            metaEl.textContent = `${visibleCount}/${totalCount} shown (focus)`;
+        } else {
+            metaEl.textContent = `All ${totalCount} shown`;
+        }
+    }
+
+    if (!toggleEl) return;
+    if (totalCount <= MARKET_SNAPSHOT_FOCUS_LIMIT) {
+        toggleEl.style.display = 'none';
+        return;
+    }
+    toggleEl.style.display = '';
+    toggleEl.textContent = marketSnapshotExpanded ? 'Show Focus' : `Show All (${totalCount})`;
+}
+
+function buildSelectorFocusSet(strategies) {
+    const next = new Set();
+    for (const strategy of strategies) {
+        const selectedSymbols = strategy.selector_state?.selected_symbols;
+        if (!Array.isArray(selectedSymbols)) continue;
+        for (const raw of selectedSymbols) {
+            const symbol = normalizeSymbol(raw);
+            if (symbol) next.add(symbol);
+        }
+    }
+    return next;
+}
+
 // Render asset cards (exchange-aware)
 function renderAssetCards(assets) {
     const container = document.getElementById('assets-grid');
     if (!container) return;
 
     if (!assets || Object.keys(assets).length === 0) {
+        updateAssetCardControls(0, 0);
         container.innerHTML = '<p class="no-data">No assets available</p>';
         return;
     }
 
+    const orderedCards = Object.entries(assets)
+        .map(([key, asset]) => {
+            const symbol = normalizeSymbol(asset.symbol || key);
+            return {
+                key,
+                symbol,
+                asset,
+                priority: getAssetPriority(asset, symbol),
+            };
+        })
+        .sort(compareAssetCards);
+
+    const totalCount = orderedCards.length;
+    const visibleCards = marketSnapshotExpanded
+        ? orderedCards
+        : orderedCards.slice(0, MARKET_SNAPSHOT_FOCUS_LIMIT);
+
+    updateAssetCardControls(totalCount, visibleCards.length);
+
     let html = '';
-    for (const [key, data] of Object.entries(assets)) {
-        const symbol = normalizeSymbol(data.symbol || key);
+    for (const card of visibleCards) {
+        const data = card.asset;
+        const symbol = card.symbol;
         const regimeClass = getRegimeClass(data.regime) || 'regime-unknown';
         const regimeLabel = getRegimeLabel(data.regime || 'UNKNOWN');
         const exchange = (data.exchange || 'binance').toLowerCase();
@@ -645,6 +743,7 @@ function updateStatus(data) {
         console.error('Status error:', data.error);
         return;
     }
+    latestStatusPayload = data;
 
     document.getElementById('last-update-time').textContent = formatTime(data.timestamp);
     document.getElementById('engine-mode').textContent = (data.mode || 'paper').toUpperCase();
@@ -920,6 +1019,72 @@ function renderLeverageState(data) {
     `;
 }
 
+async function fetchSelectorSnapshot() {
+    const contentEl = document.getElementById('selector-snapshot-content');
+    const updatedEl = document.getElementById('selector-snapshot-updated');
+    if (!contentEl) return;
+
+    try {
+        const data = await apiFetch('/api/strategies');
+        const strategies = Array.isArray(data.strategies) ? data.strategies : [];
+        const selectorStrategies = strategies.filter(
+            (strategy) => strategy.symbol_selector && strategy.symbol_selector.enabled
+        );
+        selectorFocusSymbols = buildSelectorFocusSet(selectorStrategies);
+        if (latestStatusPayload) {
+            const cards = buildAssetCardsData(latestStatusPayload);
+            renderAssetCards(cards);
+        }
+
+        if (selectorStrategies.length === 0) {
+            contentEl.innerHTML = '<p class="selector-snapshot-empty">No enabled selector strategies.</p>';
+            if (updatedEl) updatedEl.textContent = '-';
+            return;
+        }
+
+        const latestTimestamp = selectorStrategies
+            .map((strategy) => strategy.selector_state?.timestamp)
+            .filter((timestamp) => Boolean(timestamp))
+            .sort()
+            .pop();
+
+        contentEl.innerHTML = selectorStrategies.map((strategy) => {
+            const state = strategy.selector_state || {};
+            const selectedSymbols = Array.isArray(state.selected_symbols) ? state.selected_symbols : [];
+            const topScores = Array.isArray(state.top_scores) ? state.top_scores : [];
+            const scoreText = topScores
+                .slice(0, 3)
+                .map((item) => `${escapeHtml(item.symbol)}:${Number(item.score ?? 0).toFixed(3)}`)
+                .join(', ');
+
+            return `
+                <div class="selector-snapshot-item">
+                    <div class="selector-snapshot-line">
+                        <span class="strategy-name">${escapeHtml(strategy.name)}</span>
+                        <span class="selector-chip ${state.changed ? 'selected' : ''}">${state.changed ? 'changed' : 'stable'}</span>
+                    </div>
+                    <div class="selector-snapshot-line">
+                        <span class="selector-snapshot-label">Selected</span>
+                        <span>${selectedSymbols.length > 0 ? selectedSymbols.map(escapeHtml).join(', ') : '-'}</span>
+                    </div>
+                    <div class="selector-snapshot-line">
+                        <span class="selector-snapshot-label">Top score</span>
+                        <span>${scoreText || '-'}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        if (updatedEl) {
+            updatedEl.textContent = latestTimestamp ? `Updated ${formatDateTime(latestTimestamp)}` : 'Updated -';
+        }
+    } catch (error) {
+        console.error('Selector snapshot fetch error:', error);
+        contentEl.innerHTML = '<p class="error">Failed to load selector snapshot.</p>';
+        if (updatedEl) updatedEl.textContent = '-';
+    }
+}
+
 // Fetch all data
 async function fetchAll() {
     await Promise.all([
@@ -927,6 +1092,7 @@ async function fetchAll() {
         fetchKillSwitch(),
         fetchExchangeBalances(),
         fetchLeverageState(),
+        fetchSelectorSnapshot(),
     ]);
 }
 
@@ -952,6 +1118,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize market filter tabs
     initMarketFilterTabs();
+    initAssetCardToggle();
 
     // Fetch initial data
     fetchAll();
@@ -967,6 +1134,8 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchPositions();
         } else if (isTabActive('signals')) {
             fetchSignals();
+        } else if (isTabActive('strategies')) {
+            fetchStrategiesTab();
         }
         // Update staleness indicator
         updateStalenessIndicator();
@@ -983,7 +1152,8 @@ function initKeyboardShortcuts() {
         '2': 'history',
         '3': 'signals',
         '4': 'analytics',
-        '5': 'backtest'
+        '5': 'backtest',
+        '6': 'strategies'
     };
 
     document.addEventListener('keydown', (e) => {
@@ -992,7 +1162,7 @@ function initKeyboardShortcuts() {
             return;
         }
 
-        // Tab navigation with number keys (1-5)
+        // Tab navigation with number keys (1-6)
         if (TAB_KEYS[e.key]) {
             e.preventDefault();
             switchToTab(TAB_KEYS[e.key]);
@@ -3139,22 +3309,34 @@ async function loadBacktestJob(jobId) {
 // =====================
 
 async function fetchStrategiesTab() {
-    const containerId = 'strategies-container';
-    const container = document.getElementById(containerId);
+    const container = document.getElementById('strategies-container');
+    const selectorOverview = document.getElementById('selector-overview');
+    const selectorEvents = document.getElementById('selector-events');
     if (!container) return;
 
     container.innerHTML = '<p class="loading">Loading strategies...</p>';
+    if (selectorOverview) selectorOverview.innerHTML = '<p class="loading">Loading selector monitor...</p>';
+    if (selectorEvents) selectorEvents.innerHTML = '<p class="loading">Loading selector events...</p>';
 
     try {
-        const data = await apiFetch('/api/strategies');
-        renderStrategiesTab(data);
+        const [data, selectorData] = await Promise.all([
+            apiFetch('/api/strategies'),
+            apiFetch('/api/events/selector?hours=24&limit=40&changed_only=true')
+                .catch((error) => {
+                    console.warn('Selector events fetch failed:', error);
+                    return { events: [] };
+                })
+        ]);
+        renderStrategiesTab(data, selectorData.events || []);
     } catch (error) {
         console.error('Failed to fetch strategies:', error);
         container.innerHTML = `<p class="error">Failed to load strategies: ${error.message}</p>`;
+        if (selectorOverview) selectorOverview.innerHTML = '<p class="error">Failed to load selector monitor</p>';
+        if (selectorEvents) selectorEvents.innerHTML = '<p class="error">Failed to load selector events</p>';
     }
 }
 
-function renderStrategiesTab(data) {
+function renderStrategiesTab(data, selectorEvents = []) {
     const container = document.getElementById('strategies-container');
     if (!container) return;
 
@@ -3176,6 +3358,8 @@ function renderStrategiesTab(data) {
         const totalPositions = strategies.reduce((sum, s) => sum + (s.active_positions?.length || 0), 0);
         positionsCountEl.textContent = totalPositions;
     }
+
+    renderSelectorMonitor(strategies, selectorEvents);
 
     if (strategies.length === 0 && availableStrategies.length === 0) {
         container.innerHTML = '<p class="no-data">No strategies configured</p>';
@@ -3211,6 +3395,103 @@ function renderStrategiesTab(data) {
 
     // Attach event handlers
     attachStrategyEventHandlers();
+}
+
+function renderSelectorMonitor(strategies, selectorEvents) {
+    const overviewEl = document.getElementById('selector-overview');
+    const eventsEl = document.getElementById('selector-events');
+    if (!overviewEl || !eventsEl) return;
+
+    const selectorStrategies = (strategies || []).filter(
+        (s) => s.symbol_selector && s.symbol_selector.enabled
+    );
+
+    if (selectorStrategies.length === 0) {
+        overviewEl.innerHTML = '<p class="empty-state">No enabled selector strategies.</p>';
+    } else {
+        const overviewHtml = selectorStrategies.map((strategy) => {
+            const state = strategy.selector_state || {};
+            const selectedSymbols = Array.isArray(state.selected_symbols) ? state.selected_symbols : [];
+            const topScores = Array.isArray(state.top_scores) ? state.top_scores : [];
+            const rejectionCounts = state.rejection_counts || {};
+            const topRejections = Object.entries(rejectionCounts)
+                .sort((a, b) => Number(b[1]) - Number(a[1]))
+                .slice(0, 3);
+
+            const selectedHtml = selectedSymbols.length > 0
+                ? selectedSymbols.map((s) => `<span class="selector-chip selected">${escapeHtml(s)}</span>`).join('')
+                : '<span class="selector-empty">No selected symbols</span>';
+
+            const scoreHtml = topScores.length > 0
+                ? topScores.slice(0, 5).map((item) => {
+                    const score = Number(item.score ?? 0).toFixed(3);
+                    return `<span class="selector-chip">${escapeHtml(item.symbol)}:${score}</span>`;
+                }).join('')
+                : '<span class="selector-empty">No score snapshot</span>';
+
+            const rejectHtml = topRejections.length > 0
+                ? topRejections.map(([reason, count]) =>
+                    `<span class="selector-chip reject">${escapeHtml(reason)}:${Number(count)}</span>`
+                ).join('')
+                : '<span class="selector-empty">No rejection reasons</span>';
+
+            return `
+                <div class="selector-overview-card">
+                    <div class="selector-overview-title">
+                        <span class="strategy-name">${escapeHtml(strategy.name)}</span>
+                        <span class="selector-flag">${state.changed ? 'Changed' : 'Stable'} · ${state.timestamp ? formatDateTime(state.timestamp) : '-'}</span>
+                    </div>
+                    <div class="selector-overview-row">
+                        <span class="selector-overview-kv">Top N: <b>${strategy.symbol_selector?.top_n ?? '-'}</b></span>
+                        <span class="selector-overview-kv">Selected: <b>${selectedSymbols.length}</b></span>
+                        <span class="selector-overview-kv">Universe: <b>${state.universe_size ?? '-'}</b></span>
+                    </div>
+                    <div class="selector-overview-row">${selectedHtml}</div>
+                    <div class="selector-overview-row">${scoreHtml}</div>
+                    <div class="selector-overview-row">${rejectHtml}</div>
+                </div>
+            `;
+        }).join('');
+
+        overviewEl.innerHTML = overviewHtml;
+    }
+
+    const events = Array.isArray(selectorEvents) ? selectorEvents : [];
+    if (events.length === 0) {
+        eventsEl.innerHTML = '<p class="empty-state">No selector change events in the last 24h.</p>';
+        return;
+    }
+
+    const eventsHtml = events.slice(0, 20).map((event) => {
+        const selectedSymbols = Array.isArray(event.selected_symbols) ? event.selected_symbols : [];
+        const topScores = Array.isArray(event.top_scores) ? event.top_scores : [];
+        const rejectionCounts = event.rejection_counts || {};
+        const topRejections = Object.entries(rejectionCounts)
+            .sort((a, b) => Number(b[1]) - Number(a[1]))
+            .slice(0, 3)
+            .map(([reason, count]) => `${reason}:${count}`)
+            .join(', ');
+        const scoreText = topScores.slice(0, 3)
+            .map((item) => `${item.symbol}:${Number(item.score ?? 0).toFixed(3)}`)
+            .join(', ');
+
+        return `
+            <div class="selector-event-item">
+                <div class="selector-event-head">
+                    <span class="selector-event-strategy">${escapeHtml(event.strategy || '-')}</span>
+                    <span>${formatDateTime(event.timestamp)}</span>
+                </div>
+                <div class="selector-event-body">
+                    <span class="selector-chip ${event.changed ? 'selected' : ''}">${event.changed ? 'changed' : 'stable'}</span>
+                    <span class="selector-chip">selected: ${selectedSymbols.join(', ') || '-'}</span>
+                    <span class="selector-chip">score: ${scoreText || '-'}</span>
+                    <span class="selector-chip reject">reject: ${escapeHtml(topRejections || '-')}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    eventsEl.innerHTML = eventsHtml;
 }
 
 function attachStrategyEventHandlers() {
@@ -3278,6 +3559,8 @@ function renderStrategyCard(strategy, symbols) {
     const isTuned = strategy.is_tuned;
     const activePositions = strategy.active_positions || [];
     const liveState = strategy.live_state || {};
+    const selectorCfg = strategy.symbol_selector || null;
+    const selectorState = strategy.selector_state || null;
 
     // Status badge
     let statusBadge = '';
@@ -3387,6 +3670,61 @@ function renderStrategyCard(strategy, symbols) {
         positionsHtml += '</div></div>';
     }
 
+    let selectorHtml = '';
+    if (selectorCfg && selectorCfg.enabled) {
+        const selectedSymbols = Array.isArray(selectorState?.selected_symbols)
+            ? selectorState.selected_symbols
+            : [];
+        const topScores = Array.isArray(selectorState?.top_scores)
+            ? selectorState.top_scores
+            : [];
+        const rejected = Array.isArray(selectorState?.rejected)
+            ? selectorState.rejected
+            : [];
+        const rejectionCounts = selectorState?.rejection_counts || {};
+        const topRejectReasons = Object.entries(rejectionCounts)
+            .sort((a, b) => Number(b[1]) - Number(a[1]))
+            .slice(0, 3);
+
+        selectorHtml = `
+            <div class="strategy-selector">
+                <h5>Symbol Selector</h5>
+                <div class="selector-meta">
+                    <span class="selector-kv">Top N: <b>${selectorCfg.top_n || '-'}</b></span>
+                    <span class="selector-kv">Selected: <b>${selectedSymbols.length}</b></span>
+                    <span class="selector-kv">Universe: <b>${selectorState?.universe_size ?? '-'}</b></span>
+                </div>
+                <div class="selector-selected">
+                    ${(selectedSymbols.length > 0)
+                        ? selectedSymbols.map(s => `<span class="selector-chip selected">${escapeHtml(s)}</span>`).join('')
+                        : '<span class="selector-empty">No selected symbols</span>'}
+                </div>
+                <div class="selector-scores">
+                    ${(topScores.length > 0)
+                        ? topScores.slice(0, 5).map(item => {
+                            const score = Number(item.score ?? 0).toFixed(3);
+                            return `<span class="selector-chip">${escapeHtml(item.symbol)}:${score}</span>`;
+                        }).join('')
+                        : '<span class="selector-empty">No score snapshot</span>'}
+                </div>
+                <div class="selector-rejections">
+                    ${(topRejectReasons.length > 0)
+                        ? topRejectReasons.map(([reason, count]) =>
+                            `<span class="selector-chip reject">${escapeHtml(reason)}:${Number(count)}</span>`
+                        ).join('')
+                        : '<span class="selector-empty">No rejection reasons</span>'}
+                </div>
+                ${rejected.length > 0 ? `
+                    <div class="selector-rejected-list">
+                        ${rejected.slice(0, 5).map(item =>
+                            `<span class="selector-rejected-item">${escapeHtml(item.symbol)}(${escapeHtml(item.reason)})</span>`
+                        ).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
     // Disable button (disabled if has active positions)
     const hasPositions = activePositions.length > 0;
     const disableBtn = hasPositions
@@ -3426,6 +3764,7 @@ function renderStrategyCard(strategy, symbols) {
             </div>
             ${regimeHtml}
             ${stateHtml}
+            ${selectorHtml}
             ${positionsHtml}
         </div>
     `;

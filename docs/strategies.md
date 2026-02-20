@@ -10,6 +10,36 @@ This document describes all trading strategies, their data sources, indicators, 
 | Sideways_V2 | Binance | LONG | Daily | RSI, BB, Stoch, OBV | Multi-method (3 entries) |
 | MLP_Direction | Binance | LONG | 4H | MLP Classifier | 3-class prediction |
 
+## Multi-Coin Rotation (Long-Only)
+
+`CompositeStrategyTask` now supports `symbol_selector` for dynamic entry gating.
+
+- `enabled`: turn on dynamic rotation
+- `top_n`: keep only top-N symbols tradable for new entries
+- `refresh_seconds`: ranking refresh interval
+- `require_above_ema200`, `skip_bear_regime`: long-only safety filters
+- `score_weights`: scoring mix (`regime`, `momentum`, `volume`, `adx`)
+
+Example:
+
+```json
+"symbol_selector": {
+  "enabled": true,
+  "top_n": 2,
+  "refresh_seconds": 900,
+  "min_adx": 16.0,
+  "min_volume_ratio": 0.9,
+  "require_above_ema200": true,
+  "skip_bear_regime": true
+}
+```
+
+Monitoring:
+
+- Dashboard: `Strategies` tab shows selected symbols, top scores, and rejection reasons.
+- API: `GET /api/events/selector?hours=24&limit=50&changed_only=true`
+- Telegram: `/selector` for latest snapshot, plus auto-alert on selector change.
+
 ---
 
 ## 1. Short_V1 Strategy

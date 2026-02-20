@@ -110,10 +110,17 @@ class PeriodicLoggerTask:
                 high = float(price_data.get("high", price))
                 low = float(price_data.get("low", price))
                 volume = float(price_data.get("volume", 0))
+                latency_text = ""
+                latency_raw = price_data.get("ingest_latency_ms")
+                if latency_raw is not None:
+                    try:
+                        latency_text = f" | Lag: {int(float(latency_raw))}ms"
+                    except (TypeError, ValueError):
+                        latency_text = ""
                 lines.append(
                     f"    {symbol}: ${price:,.2f} | "
                     f"H: ${high:,.2f} | L: ${low:,.2f} | "
-                    f"Vol: {volume:,.0f}"
+                    f"Vol: {volume:,.0f}{latency_text}"
                 )
             else:
                 lines.append(f"    {symbol}: No data")
@@ -194,15 +201,37 @@ class PeriodicLoggerTask:
     async def _get_latest_prices(self) -> dict[str, dict[str, Any]]:
         """Get latest prices from market:prices stream."""
         prices: dict[str, dict[str, Any]] = {}
+        target_symbols = set(self.symbols)
+        if not target_symbols:
+            return prices
 
         try:
-            # Read last 50 entries to find latest for each symbol
-            entries = await self.redis._client.xrevrange("market:prices", count=50)
+            # Scan backwards in chunks until each configured symbol has one price.
+            max_id = "+"
+            chunk_size = max(200, len(target_symbols) * 6)
+            scan_limit = max(3000, len(target_symbols) * 120)
+            scanned = 0
 
-            for _, data in entries:
-                symbol = data.get("symbol", "")
-                if symbol and symbol not in prices:
-                    prices[symbol] = data
+            while len(prices) < len(target_symbols) and scanned < scan_limit:
+                entries = await self.redis._client.xrevrange(
+                    "market:prices",
+                    max=max_id,
+                    min="-",
+                    count=chunk_size,
+                )
+                if not entries:
+                    break
+
+                scanned += len(entries)
+                for _, data in entries:
+                    symbol = data.get("symbol", "")
+                    if symbol in target_symbols and symbol not in prices:
+                        prices[symbol] = data
+
+                last_id = entries[-1][0]
+                if last_id == "0-0" or len(entries) < chunk_size:
+                    break
+                max_id = f"({last_id}"
 
         except Exception as e:
             logger.error(f"Error getting latest prices: {e}")
@@ -253,6 +282,7 @@ class PeriodicLoggerTask:
                     "high": price_data.get("high", "0"),
                     "low": price_data.get("low", "0"),
                     "volume": price_data.get("volume", "0"),
+                    "ingest_latency_ms": price_data.get("ingest_latency_ms", ""),
                     "position_qty": pos_data.get("quantity", "0"),
                     "position_entry": pos_data.get("entry_price", "0"),
                     "position_strategy": pos_data.get("strategy", ""),

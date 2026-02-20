@@ -1,6 +1,6 @@
 # tests/trading/test_engine.py
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 from trading.engine import TradingEngine
 
 
@@ -95,3 +95,66 @@ async def test_initialize_risk_state_preserves_daily_pnl_in_same_mode(mock_confi
         "risk",
         mapping={"mode": "live"},
     )
+
+
+def test_resolve_feed_market_uses_explicit_override(mock_config):
+    """Top-level feed_market should override strategy-derived market."""
+    cfg = dict(mock_config)
+    cfg["feed_market"] = "spot"
+    with patch("trading.engine.load_config", return_value=cfg):
+        engine = TradingEngine(config_path="test.json")
+
+    market = engine._resolve_feed_market(
+        {"some_futures_strat": {"enabled": True, "market": "futures"}}
+    )
+    assert market == "spot"
+
+
+def test_resolve_feed_market_prefers_futures_in_mixed_mode(mock_config):
+    """When both markets are enabled, choose futures for a single shared feed."""
+    with patch("trading.engine.load_config", return_value=mock_config):
+        engine = TradingEngine(config_path="test.json")
+
+    market = engine._resolve_feed_market(
+        {
+            "spot_strat": {"enabled": True, "market": "spot"},
+            "futures_strat": {"enabled": True, "market": "futures"},
+        }
+    )
+    assert market == "futures"
+
+
+def test_resolve_feed_market_uses_spot_for_spot_only(mock_config):
+    """Spot-only strategy set should use spot feed."""
+    with patch("trading.engine.load_config", return_value=mock_config):
+        engine = TradingEngine(config_path="test.json")
+
+    market = engine._resolve_feed_market(
+        {
+            "mlp_direction_btc": {"enabled": True, "market": "spot"},
+            "mlp_direction_eth": {"enabled": True, "market": "spot"},
+        }
+    )
+    assert market == "spot"
+
+
+def test_resolve_feed_warmup_enabled_default_false(mock_config):
+    """Feed warmup should default to disabled to avoid duplicate startup warmups."""
+    with patch("trading.engine.load_config", return_value=mock_config):
+        engine = TradingEngine(config_path="test.json")
+
+    assert engine._resolve_feed_warmup_enabled() is False
+
+
+def test_resolve_feed_stream_type_defaults_to_miniticker(mock_config):
+    with patch("trading.engine.load_config", return_value=mock_config):
+        engine = TradingEngine(config_path="test.json")
+    assert engine._resolve_feed_stream_type() == "miniTicker"
+
+
+def test_resolve_feed_stream_type_accepts_bookticker(mock_config):
+    cfg = dict(mock_config)
+    cfg["feed_stream_type"] = "bookTicker"
+    with patch("trading.engine.load_config", return_value=cfg):
+        engine = TradingEngine(config_path="test.json")
+    assert engine._resolve_feed_stream_type() == "bookTicker"

@@ -213,6 +213,37 @@ class TestMetricsServiceEventMethods:
         assert len(rejections) == 1
         assert rejections[0]["rejection_type"] == "weak_trend"
 
+    def test_get_selector_events_returns_parsed_payload(self):
+        """Test get_selector_events parses selector payload JSON fields."""
+        from web.services.metrics_service import MetricsService
+
+        service = MetricsService()
+
+        mock_redis = MagicMock()
+        mock_redis.xrevrange = MagicMock(return_value=[
+            ("1234567890-0", {
+                "timestamp": "2026-02-19T12:00:00",
+                "strategy": "mlp_direction_bnb",
+                "market": "spot",
+                "changed": "true",
+                "selected_symbols": '["BNB","XRP"]',
+                "top_scores": '[{"symbol":"BNB","score":0.8}]',
+                "rejected": '[{"symbol":"DOGE","reason":"low_volume"}]',
+                "rejection_counts": '{"low_volume":2}',
+                "selected_count": "2",
+                "universe_size": "6",
+            }),
+        ])
+        service._redis = mock_redis
+
+        events = service.get_selector_events(hours=24, limit=50, changed_only=True)
+
+        assert isinstance(events, list)
+        assert len(events) == 1
+        assert events[0]["strategy"] == "mlp_direction_bnb"
+        assert events[0]["selected_symbols"] == ["BNB", "XRP"]
+        assert events[0]["changed"] is True
+
 
 class TestEventsAPIEndpoints:
     """Test API endpoints for events."""
@@ -318,6 +349,28 @@ class TestEventsAPIEndpoints:
             assert response.status_code == 200
             data = json.loads(response.data)
             assert "rejections" in data
+
+    def test_get_selector_events_endpoint(self, client):
+        """Test GET /api/events/selector endpoint."""
+        with patch('web.app.metrics_service') as mock_service:
+            mock_service.get_selector_events.return_value = [
+                {
+                    "timestamp": "2026-02-19T12:00:00",
+                    "strategy": "mlp_direction_bnb",
+                    "changed": True,
+                    "selected_symbols": ["BNB", "XRP"],
+                }
+            ]
+
+            response = client.get('/api/events/selector?hours=12&limit=100&changed_only=true', headers=client.auth_header)
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert "events" in data
+            assert len(data["events"]) == 1
+            mock_service.get_selector_events.assert_called_once_with(
+                hours=12, limit=100, strategy=None, changed_only=True
+            )
 
     def test_get_events_summary_endpoint(self, client):
         """Test GET /api/events/summary endpoint."""

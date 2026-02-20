@@ -76,6 +76,140 @@ class RedisStreams:
             if "BUSYGROUP" not in str(e):
                 raise
 
+    async def reclaim_and_ack_stale_messages(
+        self,
+        stream: str,
+        group: str,
+        consumer: str,
+        min_idle_ms: int = 30_000,
+        count: int = 200,
+        max_passes: int = 20,
+    ) -> int:
+        """Reclaim stale pending messages and ack them.
+
+        This is intended for ephemeral streams such as market data where old
+        pending entries should not block group health after restarts.
+
+        Args:
+            stream: Stream name.
+            group: Consumer group name.
+            consumer: Active consumer that reclaims stale entries.
+            min_idle_ms: Minimum idle time before reclaiming.
+            count: Maximum entries per reclaim pass.
+            max_passes: Maximum reclaim passes to avoid long startup stalls.
+
+        Returns:
+            Number of reclaimed+acked messages.
+        """
+        reclaimed = 0
+        start_id = "0-0"
+
+        for _ in range(max_passes):
+            try:
+                result = await self._client.xautoclaim(
+                    stream,
+                    group,
+                    consumer,
+                    min_idle_ms,
+                    start_id=start_id,
+                    count=count,
+                )
+            except redis.ResponseError as e:
+                if "NOGROUP" in str(e):
+                    return reclaimed
+                raise
+
+            if not result:
+                break
+
+            next_start = result[0] if len(result) > 0 else start_id
+            claimed_raw = result[1] if len(result) > 1 else []
+            claimed_ids: list[str] = []
+
+            for item in claimed_raw:
+                if isinstance(item, (tuple, list)) and item:
+                    claimed_ids.append(item[0])
+                elif isinstance(item, str):
+                    claimed_ids.append(item)
+
+            if claimed_ids:
+                await self._client.xack(stream, group, *claimed_ids)
+                reclaimed += len(claimed_ids)
+
+            if len(claimed_ids) < count or next_start == start_id:
+                break
+            start_id = next_start
+
+        return reclaimed
+
+    async def prune_idle_consumers(
+        self,
+        stream: str,
+        group: str,
+        active_consumers: set[str] | None = None,
+        min_idle_ms: int = 300_000,
+    ) -> int:
+        """Remove stale idle consumers from a group.
+
+        Args:
+            stream: Stream name.
+            group: Consumer group name.
+            active_consumers: Consumers to keep even if idle.
+            min_idle_ms: Minimum idle time before deletion.
+
+        Returns:
+            Number of consumers removed.
+        """
+        keep = active_consumers or set()
+        removed = 0
+
+        try:
+            consumers = await self._client.xinfo_consumers(stream, group)
+        except redis.ResponseError as e:
+            if "NOGROUP" in str(e):
+                return 0
+            raise
+
+        for info in consumers:
+            name = info.get("name")
+            if isinstance(name, bytes):
+                name = name.decode("utf-8", errors="ignore")
+            if not name or name in keep:
+                continue
+
+            idle_ms = int(info.get("idle", 0))
+            if idle_ms < min_idle_ms:
+                continue
+
+            await self._client.xgroup_delconsumer(stream, group, name)
+            removed += 1
+
+        return removed
+
+    async def ensure_ephemeral_consumer_group(
+        self,
+        stream: str,
+        group: str,
+        consumer: str,
+        reclaim_idle_ms: int = 30_000,
+        prune_idle_ms: int = 300_000,
+    ) -> dict[str, int]:
+        """Create + clean an ephemeral group used for realtime feeds."""
+        await self.create_consumer_group(stream, group, start_id="$")
+        reclaimed = await self.reclaim_and_ack_stale_messages(
+            stream=stream,
+            group=group,
+            consumer=consumer,
+            min_idle_ms=reclaim_idle_ms,
+        )
+        pruned = await self.prune_idle_consumers(
+            stream=stream,
+            group=group,
+            active_consumers={consumer},
+            min_idle_ms=prune_idle_ms,
+        )
+        return {"reclaimed": reclaimed, "pruned_consumers": pruned}
+
     async def publish(self, stream: str, data: dict[str, Any]) -> str:
         """Publish message to stream.
 

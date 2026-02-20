@@ -124,10 +124,23 @@ class PaperExecutor:
     async def _price_tracker(self) -> None:
         """Track latest prices from price stream."""
         group = "paper-price-tracker"
-        consumer = "tracker"
+        consumer = "paper-price-tracker-consumer"
 
         try:
-            await self.redis.create_consumer_group("market:prices", group)
+            if hasattr(self.redis.__class__, "ensure_ephemeral_consumer_group"):
+                stats = await self.redis.ensure_ephemeral_consumer_group(
+                    stream="market:prices",
+                    group=group,
+                    consumer=consumer,
+                )
+                if stats["reclaimed"] > 0 or stats["pruned_consumers"] > 0:
+                    logger.info(
+                        "Paper price tracker stream cleanup: reclaimed=%s pruned=%s",
+                        stats["reclaimed"],
+                        stats["pruned_consumers"],
+                    )
+            else:
+                await self.redis.create_consumer_group("market:prices", group, start_id="$")
         except Exception as e:
             # Group may already exist, which is fine
             logger.debug(f"Consumer group creation: {e}")

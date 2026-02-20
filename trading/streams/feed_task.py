@@ -92,15 +92,32 @@ class SymbolFeedTask:
         Uses approximate trimming (~) for better performance.
         Stream is trimmed to STREAM_MAX_LENGTH entries.
         """
+        now_ms = int(time.time() * 1000)
+        source = str(msg.get("source", "binance"))
+        payload = {
+            "symbol": self.symbol,
+            "price": msg["price"],
+            "source": source,
+            "market": msg["market"],
+            "timestamp": str(now_ms),
+        }
+
+        exchange_ts = msg.get("exchange_ts")
+        if exchange_ts is not None:
+            try:
+                exchange_ts_ms = int(float(exchange_ts))
+                payload["exchange_ts"] = str(exchange_ts_ms)
+                payload["ingest_latency_ms"] = str(max(0, now_ms - exchange_ts_ms))
+            except (TypeError, ValueError):
+                # Ignore malformed timestamps and keep publishing price updates.
+                pass
+
+        if msg.get("heartbeat") is not None:
+            payload["heartbeat"] = str(msg.get("heartbeat")).lower()
+
         await self.redis.publish_event(
             "market:prices",
-            {
-                "symbol": self.symbol,
-                "price": msg["price"],
-                "source": "binance",
-                "market": msg["market"],
-                "timestamp": str(int(time.time() * 1000)),
-            },
+            payload,
             maxlen=self.STREAM_MAX_LENGTH,
         )
 

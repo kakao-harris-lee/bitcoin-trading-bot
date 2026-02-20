@@ -24,6 +24,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 import json
 import logging
 import time
@@ -47,6 +48,7 @@ from .models import (
     BEAR_REGIMES,
 )
 from .regime_filter import EnhancedRegimeRouter, MTFCandle
+from .symbol_selector import DynamicSymbolSelector, SymbolSelectorConfig
 from trading.observability.structured_logger import trade_logger
 from trading.risk.position_sizer import PositionSizer, RiskSizingConfig
 from trading.risk.portfolio_risk_manager import PortfolioRiskManager, RiskCapConfig
@@ -128,6 +130,8 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._init_drawdown_and_breakout_controls()
         self._init_risk_controls(redis)
         self._init_volatility_sizing()
+        self._init_symbol_selector()
+        self._init_data_quality_controls()
 
     def _init_eventing(self, emit_events: bool, redis: RedisStreams) -> None:
         self.emit_events = emit_events
@@ -334,6 +338,78 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._vol_min_scale = vol_cfg.get("min_scale", 0.25)
         self._vol_max_scale = vol_cfg.get("max_scale", 1.0)
 
+    def _init_symbol_selector(self) -> None:
+        selector_cfg = SymbolSelectorConfig.from_dict(self.config.get("symbol_selector"))
+        self._symbol_selector = DynamicSymbolSelector(
+            config=selector_cfg,
+            fallback_symbols=sorted(self.symbols),
+        )
+        self._selector_market_data: dict[str, MarketData] = {}
+        self._selector_context: dict[str, MarketContext] = {}
+
+    def _init_data_quality_controls(self) -> None:
+        dq_cfg = self.config.get("data_quality", {})
+        self._dq_enabled = bool(dq_cfg.get("enabled", False))
+        self._dq_max_price_age_seconds = max(
+            0.0,
+            float(dq_cfg.get("max_price_age_seconds", 0.0) or 0.0),
+        )
+        self._dq_min_ticks_per_minute = max(
+            0.0,
+            float(dq_cfg.get("min_ticks_per_minute", 0.0) or 0.0),
+        )
+        self._dq_tick_window_seconds = max(
+            30.0,
+            float(dq_cfg.get("tick_window_seconds", 300.0) or 300.0),
+        )
+        self._dq_eviction_cooldown_seconds = max(
+            10.0,
+            float(dq_cfg.get("eviction_cooldown_seconds", 900.0) or 900.0),
+        )
+        self._dq_cooldown_on_low_tick_rate = bool(
+            dq_cfg.get("cooldown_on_low_tick_rate", False)
+        )
+        self._dq_tier_thresholds = {
+            "high": max(
+                0.0,
+                float((dq_cfg.get("tier_thresholds", {}) or {}).get("high", 24.0) or 24.0),
+            ),
+            "medium": max(
+                0.0,
+                float((dq_cfg.get("tier_thresholds", {}) or {}).get("medium", 12.0) or 12.0),
+            ),
+        }
+        if self._dq_tier_thresholds["high"] < self._dq_tier_thresholds["medium"]:
+            self._dq_tier_thresholds["high"] = self._dq_tier_thresholds["medium"]
+
+        tier_scale_cfg = dq_cfg.get("tier_position_scale", {}) or {}
+        self._dq_position_scales = {
+            "high": max(
+                0.0,
+                min(
+                    1.0,
+                    float(tier_scale_cfg.get("high", 1.0) or 1.0),
+                ),
+            ),
+            "medium": max(
+                0.0,
+                min(
+                    1.0,
+                    float(tier_scale_cfg.get("medium", 0.75) or 0.75),
+                ),
+            ),
+            "low": max(
+                0.0,
+                min(
+                    1.0,
+                    float(tier_scale_cfg.get("low", 0.45) or 0.45),
+                ),
+            ),
+        }
+        self._dq_tick_times: dict[str, deque[float]] = {}
+        self._dq_blocked_until: dict[str, float] = {}
+        self._dq_entry_assessment: dict[str, dict[str, Any]] = {}
+
     async def run(self) -> None:
         """Main loop: warm-up then consume."""
         logger.info(f"Warming up composite strategy {self.name}...")
@@ -384,6 +460,35 @@ class CompositeStrategyTask(BaseStrategyTask):
         super()._update_buffer(symbol, msg)
         if self.indicator_service is not None and msg.get("warmup") != "true":
             self.indicator_service.add_price(symbol, msg)
+        if msg.get("warmup") != "true":
+            self._record_data_quality_tick(symbol, msg)
+
+    async def _handle_message(self, msg: dict[str, Any]) -> None:
+        """Handle message and keep selector state fresh outside entry gates.
+
+        BaseStrategyTask throttles entry evaluation by candle-close/time interval.
+        Selector refresh is decoupled so dashboard/monitoring state still updates
+        even when entry checks are intentionally skipped.
+        """
+        await super()._handle_message(msg)
+        await self._post_message_selector_refresh(msg)
+
+    async def _post_message_selector_refresh(self, msg: dict[str, Any]) -> None:
+        if not self._symbol_selector.enabled:
+            return
+        if msg.get("warmup") == "true":
+            return
+
+        symbol = msg.get("symbol")
+        if symbol not in self.symbols:
+            return
+
+        market_data = self._build_market_data(symbol)
+        if market_data is None:
+            return
+        context = self._build_market_context(market_data)
+        self._update_symbol_selector_inputs(symbol, market_data, context)
+        await self._refresh_symbol_selector_if_due()
 
     def _should_evaluate_entry(self, symbol: str, msg: dict[str, Any]) -> bool:
         """Evaluate entry at candle close when enabled, else fallback interval."""
@@ -435,6 +540,8 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
 
         context, ctx = self._build_entry_context(symbol, market_data)
+        self._update_symbol_selector_inputs(symbol, market_data, context)
+        await self._refresh_symbol_selector_if_due()
 
         # Record decision at candle close for dashboard visibility
         await self._check_and_record_decision(symbol, market_data, context)
@@ -494,6 +601,8 @@ class CompositeStrategyTask(BaseStrategyTask):
         position = self._dict_to_position(position)
 
         context, ctx = self._build_exit_context(symbol, position, market_data)
+        self._update_symbol_selector_inputs(symbol, market_data, context)
+        await self._refresh_symbol_selector_if_due()
 
         protective_exit = await self._check_protective_exit_conditions(
             symbol=symbol,
@@ -551,12 +660,315 @@ class CompositeStrategyTask(BaseStrategyTask):
         )
         return context, ctx
 
+    def _update_symbol_selector_inputs(
+        self,
+        symbol: str,
+        market_data: MarketData,
+        context: MarketContext,
+    ) -> None:
+        if not self._symbol_selector.enabled:
+            return
+        self._selector_market_data[symbol] = market_data
+        self._selector_context[symbol] = context
+
+    async def _refresh_symbol_selector_if_due(self) -> None:
+        if not self._symbol_selector.enabled:
+            return
+        now = time.time()
+        if not self._symbol_selector.should_refresh(now):
+            return
+
+        self._hydrate_symbol_selector_inputs()
+        changed = self._symbol_selector.refresh(
+            now=now,
+            symbols=sorted(self.symbols),
+            market_data=self._selector_market_data,
+            contexts=self._selector_context,
+        )
+        if changed:
+            selected = sorted(self._symbol_selector.selected_symbols)
+            ranking = ", ".join(
+                f"{row.symbol}:{row.score:.3f}" for row in self._symbol_selector.ranking[:5]
+            )
+            logger.info(
+                "%s: symbol selector updated selected=%s ranking=[%s]",
+                self.name,
+                selected,
+                ranking,
+            )
+        await self._persist_symbol_selector_state(changed=changed)
+
+    async def _persist_symbol_selector_state(self, changed: bool) -> None:
+        selected = sorted(self._symbol_selector.selected_symbols)
+        evaluations = self._symbol_selector.evaluations
+        ranked = self._symbol_selector.ranking
+        top_scores = [
+            {
+                "symbol": row.symbol,
+                "score": round(float(row.score), 6),
+                "regime": row.regime,
+            }
+            for row in ranked[:5]
+        ]
+        rejected = [
+            {
+                "symbol": row.symbol,
+                "reason": row.reason,
+                "regime": row.regime,
+            }
+            for row in evaluations
+            if not row.eligible
+        ]
+        rejection_counts: dict[str, int] = {}
+        for row in evaluations:
+            if row.eligible:
+                continue
+            rejection_counts[row.reason] = rejection_counts.get(row.reason, 0) + 1
+
+        data_quality_summary = self._build_data_quality_summary()
+
+        payload = {
+            "timestamp": datetime.now().isoformat(),
+            "strategy": self.name,
+            "market": self.market,
+            "changed": "true" if changed else "false",
+            "selected_symbols": json.dumps(selected),
+            "top_scores": json.dumps(top_scores),
+            "rejected": json.dumps(rejected[:20]),
+            "rejection_counts": json.dumps(rejection_counts),
+            "universe_size": str(len(self.symbols)),
+            "selected_count": str(len(selected)),
+            "data_quality": json.dumps(data_quality_summary),
+            "dq_blocked_count": str(int(data_quality_summary.get("blocked_count", 0))),
+            "dq_enabled": "true" if self._dq_enabled else "false",
+        }
+        try:
+            await self.redis.publish_event(
+                "strategy:selector:events",
+                payload,
+                maxlen=2000,
+            )
+            await self.redis._client.hset(
+                f"strategy:selector:latest:{self.name}",
+                mapping=payload,
+            )
+        except Exception as e:
+            logger.debug("%s: failed to persist symbol selector state: %s", self.name, e)
+
+    def _hydrate_symbol_selector_inputs(self) -> None:
+        for symbol in self.symbols:
+            market_data = self._selector_market_data.get(symbol)
+            if market_data is None:
+                market_data = self._build_market_data(symbol)
+                if market_data is None:
+                    continue
+                self._selector_market_data[symbol] = market_data
+
+            if symbol not in self._selector_context:
+                self._selector_context[symbol] = self._build_market_context(market_data)
+
+    def _record_data_quality_tick(self, symbol: str, msg: dict[str, Any]) -> None:
+        if not self._dq_enabled:
+            return
+        raw_ts = msg.get("timestamp")
+        tick_ts = 0.0
+        try:
+            if raw_ts is not None:
+                tick_ts = float(raw_ts) / 1000.0
+        except (TypeError, ValueError):
+            tick_ts = 0.0
+        if tick_ts <= 0:
+            tick_ts = time.time()
+
+        ticks = self._dq_tick_times.setdefault(symbol, deque())
+        ticks.append(tick_ts)
+        cutoff = tick_ts - self._dq_tick_window_seconds
+        while ticks and ticks[0] < cutoff:
+            ticks.popleft()
+
+    def _assess_data_quality(
+        self,
+        symbol: str,
+        market_data: MarketData,
+        *,
+        mutate: bool = True,
+    ) -> dict[str, Any]:
+        if not self._dq_enabled:
+            return {
+                "allowed": True,
+                "reason": "disabled",
+                "price_age_seconds": 0.0,
+                "ticks_per_minute": 0.0,
+                "tier": "high",
+                "position_scale": 1.0,
+            }
+
+        now = time.time()
+        blocked_until = self._dq_blocked_until.get(symbol, 0.0)
+        if blocked_until > now:
+            return {
+                "allowed": False,
+                "reason": "cooldown_block",
+                "price_age_seconds": 0.0,
+                "ticks_per_minute": self._ticks_per_minute(symbol, now),
+                "tier": "low",
+                "position_scale": self._dq_position_scales["low"],
+                "blocked_for_seconds": round(blocked_until - now, 2),
+            }
+
+        price_age_seconds = self._price_age_seconds(market_data.timestamp, now)
+        ticks_per_minute = self._ticks_per_minute(symbol, now)
+
+        if (
+            self._dq_max_price_age_seconds > 0
+            and price_age_seconds > self._dq_max_price_age_seconds
+        ):
+            if mutate:
+                self._dq_blocked_until[symbol] = now + self._dq_eviction_cooldown_seconds
+            return {
+                "allowed": False,
+                "reason": "stale_price",
+                "price_age_seconds": round(price_age_seconds, 3),
+                "ticks_per_minute": round(ticks_per_minute, 3),
+                "tier": "low",
+                "position_scale": self._dq_position_scales["low"],
+            }
+
+        if (
+            self._dq_min_ticks_per_minute > 0
+            and ticks_per_minute < self._dq_min_ticks_per_minute
+        ):
+            if mutate and self._dq_cooldown_on_low_tick_rate:
+                self._dq_blocked_until[symbol] = now + self._dq_eviction_cooldown_seconds
+            return {
+                "allowed": False,
+                "reason": "low_tick_rate",
+                "price_age_seconds": round(price_age_seconds, 3),
+                "ticks_per_minute": round(ticks_per_minute, 3),
+                "tier": "low",
+                "position_scale": self._dq_position_scales["low"],
+            }
+
+        tier = "high"
+        if ticks_per_minute < self._dq_tier_thresholds["medium"]:
+            tier = "low"
+        elif ticks_per_minute < self._dq_tier_thresholds["high"]:
+            tier = "medium"
+
+        return {
+            "allowed": True,
+            "reason": "ok",
+            "price_age_seconds": round(price_age_seconds, 3),
+            "ticks_per_minute": round(ticks_per_minute, 3),
+            "tier": tier,
+            "position_scale": self._dq_position_scales[tier],
+        }
+
+    def _ticks_per_minute(self, symbol: str, now: float | None = None) -> float:
+        if not self._dq_enabled:
+            return 0.0
+        timestamp_now = now if now is not None else time.time()
+        ticks = self._dq_tick_times.setdefault(symbol, deque())
+        cutoff = timestamp_now - self._dq_tick_window_seconds
+        while ticks and ticks[0] < cutoff:
+            ticks.popleft()
+        if self._dq_tick_window_seconds <= 0:
+            return 0.0
+        return len(ticks) * (60.0 / self._dq_tick_window_seconds)
+
+    @staticmethod
+    def _price_age_seconds(timestamp_ms: int, now: float | None = None) -> float:
+        if timestamp_ms <= 0:
+            return 0.0
+        current = now if now is not None else time.time()
+        return max(0.0, current - (float(timestamp_ms) / 1000.0))
+
+    def _build_data_quality_summary(self) -> dict[str, Any]:
+        if not self._dq_enabled:
+            return {
+                "enabled": False,
+                "blocked_count": 0,
+                "tier_counts": {},
+                "top_stale_symbols": [],
+            }
+
+        now = time.time()
+        assessments: list[dict[str, Any]] = []
+        for symbol in sorted(self.symbols):
+            market_data = self._selector_market_data.get(symbol) or self._market_data_cache.get(symbol)
+            if market_data is None:
+                assessments.append(
+                    {
+                        "symbol": symbol,
+                        "allowed": False,
+                        "reason": "missing_market_data",
+                        "price_age_seconds": 0.0,
+                        "ticks_per_minute": round(self._ticks_per_minute(symbol, now), 3),
+                        "tier": "low",
+                    }
+                )
+                continue
+            assessment = self._assess_data_quality(symbol, market_data, mutate=False)
+            assessments.append({"symbol": symbol, **assessment})
+
+        tier_counts: dict[str, int] = {}
+        blocked: list[dict[str, Any]] = []
+        for row in assessments:
+            tier = str(row.get("tier", "unknown"))
+            tier_counts[tier] = tier_counts.get(tier, 0) + 1
+            if not bool(row.get("allowed", False)):
+                blocked.append(
+                    {
+                        "symbol": row["symbol"],
+                        "reason": row.get("reason", "unknown"),
+                        "age": round(float(row.get("price_age_seconds", 0.0)), 3),
+                        "tpm": round(float(row.get("ticks_per_minute", 0.0)), 3),
+                    }
+                )
+
+        top_stale = sorted(
+            (
+                {
+                    "symbol": row["symbol"],
+                    "age": round(float(row.get("price_age_seconds", 0.0)), 3),
+                    "tpm": round(float(row.get("ticks_per_minute", 0.0)), 3),
+                }
+                for row in assessments
+            ),
+            key=lambda item: float(item["age"]),
+            reverse=True,
+        )[:10]
+
+        return {
+            "enabled": True,
+            "blocked_count": len(blocked),
+            "tier_counts": tier_counts,
+            "blocked_samples": blocked[:20],
+            "top_stale_symbols": top_stale,
+            "window_seconds": self._dq_tick_window_seconds,
+            "max_price_age_seconds": self._dq_max_price_age_seconds,
+            "min_ticks_per_minute": self._dq_min_ticks_per_minute,
+        }
+
     def _passes_entry_gates(
         self,
         symbol: str,
         market_data: MarketData,
         context: MarketContext,
     ) -> bool:
+        dq_assessment = self._assess_data_quality(symbol, market_data, mutate=True)
+        self._dq_entry_assessment[symbol] = dq_assessment
+        if not dq_assessment["allowed"]:
+            logger.debug(
+                "%s: entry blocked by data_quality (%s, age=%.2fs, tpm=%.2f)",
+                symbol,
+                dq_assessment.get("reason", "unknown"),
+                float(dq_assessment.get("price_age_seconds", 0.0)),
+                float(dq_assessment.get("ticks_per_minute", 0.0)),
+            )
+            return False
+        if not self._symbol_selector.is_symbol_allowed(symbol):
+            return False
         if self._cash_in_bear and context.regime in BEAR_REGIMES:
             return False
         if self._cash_below_ema200 and market_data.ema_200 > 0 and market_data.close < market_data.ema_200:
@@ -632,6 +1044,27 @@ class CompositeStrategyTask(BaseStrategyTask):
             symbol, market_data.close, signal.quantity, context, market_data
         )
 
+        dq_assessment = self._dq_entry_assessment.get(symbol) or self._assess_data_quality(
+            symbol,
+            market_data,
+            mutate=False,
+        )
+        scale = float(dq_assessment.get("position_scale", 1.0))
+        if scale <= 0:
+            logger.info("%s: entry blocked by data_quality scale <= 0", symbol)
+            return None
+        if scale < 0.999:
+            quantity *= scale
+            logger.info(
+                "%s: Data-quality sizing tier=%s scale=%.2f age=%.2fs tpm=%.2f qty=%.6f",
+                symbol,
+                dq_assessment.get("tier", "unknown"),
+                scale,
+                float(dq_assessment.get("price_age_seconds", 0.0)),
+                float(dq_assessment.get("ticks_per_minute", 0.0)),
+                quantity,
+            )
+
         allowed, reason = await self._passes_context_risk_caps(
             symbol=symbol,
             quantity=quantity,
@@ -657,6 +1090,13 @@ class CompositeStrategyTask(BaseStrategyTask):
                 return None
 
         order = self._signal_to_dict(signal, quantity, leverage=leverage)
+        order["data_quality_tier"] = str(dq_assessment.get("tier", "unknown"))
+        order["data_quality_age_seconds"] = str(
+            round(float(dq_assessment.get("price_age_seconds", 0.0)), 3)
+        )
+        order["data_quality_ticks_per_minute"] = str(
+            round(float(dq_assessment.get("ticks_per_minute", 0.0)), 3)
+        )
         if stop_price and stop_price > 0:
             order["stop_price"] = stop_price
         if hasattr(self.exit_strategy, "params"):
@@ -1654,6 +2094,12 @@ class CompositeStrategyTask(BaseStrategyTask):
         "ETH": 0.0001,
         "SOL": 0.01,
         "BNB": 0.001,
+        "XRP": 0.1,
+        "DOGE": 1.0,
+        "ADA": 0.1,
+        "MATIC": 0.1,
+        "AVAX": 0.01,
+        "LINK": 0.01,
     }
 
     def _spot_adjusted_qty(self, symbol: str, qty: float) -> float:

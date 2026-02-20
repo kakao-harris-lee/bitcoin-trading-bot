@@ -63,7 +63,14 @@ class TestRedisStreamsUnit:
 
     async def test_connect_creates_client(self, redis_streams):
         """Test connect creates Redis client."""
-        with patch('redis.asyncio.from_url') as mock_from_url:
+        with patch('redis.asyncio.from_url') as mock_from_url, patch.dict(
+            "os.environ",
+            {
+                "REDIS_CONNECT_TIMEOUT_SEC": "3",
+                "REDIS_SOCKET_TIMEOUT_SEC": "3",
+            },
+            clear=False,
+        ):
             mock_client = MagicMock()
             mock_client.ping = AsyncMock(return_value=True)
             mock_from_url.return_value = mock_client
@@ -113,6 +120,77 @@ class TestRedisStreamsUnit:
 
         # Should not raise
         await redis_streams.create_consumer_group("test:stream", "test-group")
+
+    async def test_ensure_ephemeral_consumer_group(self, redis_streams):
+        """Ephemeral consumer group should start from new messages and cleanup state."""
+        redis_streams.create_consumer_group = AsyncMock()
+        redis_streams.reclaim_and_ack_stale_messages = AsyncMock(return_value=3)
+        redis_streams.prune_idle_consumers = AsyncMock(return_value=2)
+
+        stats = await redis_streams.ensure_ephemeral_consumer_group(
+            stream="market:prices",
+            group="strategy-test",
+            consumer="test-consumer",
+        )
+
+        redis_streams.create_consumer_group.assert_called_once_with(
+            "market:prices",
+            "strategy-test",
+            start_id="$",
+        )
+        redis_streams.reclaim_and_ack_stale_messages.assert_called_once()
+        redis_streams.prune_idle_consumers.assert_called_once()
+        assert stats == {"reclaimed": 3, "pruned_consumers": 2}
+
+    async def test_reclaim_and_ack_stale_messages(self, redis_streams):
+        """Stale pending messages should be reclaimed then acknowledged."""
+        mock_client = MagicMock()
+        mock_client.xautoclaim = AsyncMock(side_effect=[
+            ("2-0", [("1-0", {"symbol": "BTC"}), ("2-0", {"symbol": "ETH"})], []),
+            ("2-0", [], []),
+        ])
+        mock_client.xack = AsyncMock()
+        redis_streams._client = mock_client
+
+        reclaimed = await redis_streams.reclaim_and_ack_stale_messages(
+            "market:prices",
+            "strategy-test",
+            "test-consumer",
+            count=2,
+        )
+
+        assert reclaimed == 2
+        mock_client.xack.assert_called_once_with(
+            "market:prices",
+            "strategy-test",
+            "1-0",
+            "2-0",
+        )
+
+    async def test_prune_idle_consumers(self, redis_streams):
+        """Idle consumers should be deleted except explicitly active ones."""
+        mock_client = MagicMock()
+        mock_client.xinfo_consumers = AsyncMock(return_value=[
+            {"name": "active-consumer", "idle": 900000},
+            {"name": "stale-consumer", "idle": 900000},
+            {"name": "recent-consumer", "idle": 500},
+        ])
+        mock_client.xgroup_delconsumer = AsyncMock(return_value=0)
+        redis_streams._client = mock_client
+
+        pruned = await redis_streams.prune_idle_consumers(
+            stream="market:prices",
+            group="strategy-test",
+            active_consumers={"active-consumer"},
+            min_idle_ms=300000,
+        )
+
+        assert pruned == 1
+        mock_client.xgroup_delconsumer.assert_called_once_with(
+            "market:prices",
+            "strategy-test",
+            "stale-consumer",
+        )
 
     async def test_publish_returns_message_id(self, redis_streams):
         """Test publish returns message ID."""

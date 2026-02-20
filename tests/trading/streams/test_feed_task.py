@@ -1,7 +1,6 @@
 # tests/trading/streams/test_feed_task.py
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from trading.streams.feed_task import SymbolFeedTask
 
 
@@ -30,6 +29,42 @@ async def test_feed_task_publishes_price(mock_redis):
     assert call_args[0][1]["price"] == "43250.50"
     assert call_args[0][1]["market"] == "futures"
     assert call_args[0][1]["source"] == "binance"
+
+
+@pytest.mark.asyncio
+async def test_feed_task_publishes_exchange_latency(mock_redis):
+    """Exchange event timestamp should be forwarded with ingest latency."""
+    task = SymbolFeedTask(symbol="BTC", redis=mock_redis)
+
+    await task._publish_price({
+        "price": "43250.50",
+        "market": "futures",
+        "exchange_ts": 1700000000000,
+    })
+
+    payload = mock_redis.publish_event.call_args[0][1]
+    assert payload["exchange_ts"] == "1700000000000"
+    assert "ingest_latency_ms" in payload
+    assert int(payload["ingest_latency_ms"]) >= 0
+
+
+@pytest.mark.asyncio
+async def test_feed_task_preserves_source_and_heartbeat(mock_redis):
+    """Custom source/heartbeat flags should be forwarded to Redis payload."""
+    task = SymbolFeedTask(symbol="BTC", redis=mock_redis)
+
+    await task._publish_price(
+        {
+            "price": "43000.00",
+            "market": "futures",
+            "source": "binance_rest",
+            "heartbeat": "true",
+        }
+    )
+
+    payload = mock_redis.publish_event.call_args[0][1]
+    assert payload["source"] == "binance_rest"
+    assert payload["heartbeat"] == "true"
 
 
 @pytest.mark.asyncio

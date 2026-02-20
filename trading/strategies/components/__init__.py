@@ -87,6 +87,7 @@ from .regime_long_v2_entry import RegimeLongV2EntryParams, RegimeLongV2EntryStra
 from .regime_long_v2_exit import RegimeLongV2ExitParams, RegimeLongV2ExitStrategy
 from .hybrid_long_entry import HybridLongEntryParams, HybridLongEntryStrategy
 from .hybrid_long_exit import HybridLongExitParams, HybridLongExitStrategy
+from .symbol_selector import SymbolSelectorConfig, SymbolScore, DynamicSymbolSelector
 
 __all__ = [
     # Interfaces
@@ -140,4 +141,8 @@ __all__ = [
     "HybridLongEntryParams",
     "HybridLongExitStrategy",
     "HybridLongExitParams",
+    # Symbol selector
+    "SymbolSelectorConfig",
+    "SymbolScore",
+    "DynamicSymbolSelector",
 ]

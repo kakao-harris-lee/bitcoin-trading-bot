@@ -61,6 +61,45 @@ class TradingEngine:
             return None
         return getattr(self.redis, "_client", None)
 
+    def _resolve_feed_market(self, strategy_config: dict[str, Any]) -> str:
+        """Resolve feed market from config and enabled strategy mix.
+
+        Priority:
+        1) Explicit top-level `feed_market` ("spot" | "futures")
+        2) Enabled strategy markets (prefer futures in mixed mode)
+        3) Safe default: spot
+        """
+        explicit = str(self.config.get("feed_market", "")).strip().lower()
+        if explicit in {"spot", "futures"}:
+            return explicit
+
+        markets: set[str] = set()
+        for raw in strategy_config.values():
+            if not isinstance(raw, dict):
+                continue
+            if raw.get("enabled") is False:
+                continue
+            market = str(raw.get("market", "")).strip().lower()
+            if market in {"spot", "futures"}:
+                markets.add(market)
+
+        if "futures" in markets:
+            return "futures"
+        if "spot" in markets:
+            return "spot"
+        return "spot"
+
+    def _resolve_feed_warmup_enabled(self) -> bool:
+        """Return whether feed-level warmup is enabled."""
+        return bool(self.config.get("feed_warmup_enabled", False))
+
+    def _resolve_feed_stream_type(self) -> str:
+        """Return Binance feed stream type (`miniTicker` or `bookTicker`)."""
+        raw = str(self.config.get("feed_stream_type", "miniTicker")).strip().lower()
+        if raw in {"bookticker", "book_ticker"}:
+            return "bookTicker"
+        return "miniTicker"
+
     async def start(self, mode: str = "paper") -> None:
         """Start all trading components."""
         if mode == "live" and os.getenv("ENABLE_LIVE_TRADING") != "1":
@@ -79,22 +118,36 @@ class TradingEngine:
 
         symbols = self.config.get("symbols") or load_allocation_symbols()
 
-        # 1. Create feed instances and run warmup BEFORE starting strategies
-        # This ensures warmup data is in Redis before strategy consumer groups are created
-        #
-        # Hybrid mode: Uses futures price feeds for both spot and futures strategies.
-        # Rationale: Spot and perpetual futures prices are nearly identical (arbitrage
-        # keeps them within ~0.1%). Using a single feed per symbol reduces WebSocket
-        # connections and complexity without meaningful accuracy loss.
+        strategy_config = self.config.get("strategies", {})
+        feed_market = self._resolve_feed_market(strategy_config)
+        feed_warmup_enabled = self._resolve_feed_warmup_enabled()
+        feed_stream_type = self._resolve_feed_stream_type()
+        logger.info(
+            "Feed config resolved: market=%s, warmup_enabled=%s, stream_type=%s",
+            feed_market,
+            feed_warmup_enabled,
+            feed_stream_type,
+        )
+
+        # 1. Create feed instances and optionally run feed warmup BEFORE starting strategies
         feeds: list[BinanceFeedTask] = []
         for symbol in symbols:
-            futures_feed = BinanceFeedTask(symbol=symbol, redis=self.redis, market="futures")
-            feeds.append(futures_feed)
+            feed = BinanceFeedTask(
+                symbol=symbol,
+                redis=self.redis,
+                market=feed_market,
+                stream_type=feed_stream_type,
+                warmup_enabled=feed_warmup_enabled,
+            )
+            feeds.append(feed)
 
-        # Run warmup for all feeds concurrently and wait for completion
-        warmup_tasks = [feed.warmup() for feed in feeds]
-        await asyncio.gather(*warmup_tasks, return_exceptions=True)
-        logger.info(f"Completed warmup for {len(feeds)} feeds")
+        if feed_warmup_enabled:
+            # Run warmup for all feeds concurrently and wait for completion.
+            warmup_tasks = [feed.warmup() for feed in feeds]
+            await asyncio.gather(*warmup_tasks, return_exceptions=True)
+            logger.info(f"Completed warmup for {len(feeds)} feeds")
+        else:
+            logger.info("Skipped feed warmup (feed_warmup_enabled=false)")
 
         # Now start feed run tasks (warmup already done, will skip to WebSocket streaming)
         for feed in feeds:
@@ -102,9 +155,7 @@ class TradingEngine:
 
         logger.info(f"Started {len(feeds)} feed tasks")
 
-        # 2. Start strategy tasks (AFTER warmup is complete)
-        strategy_config = self.config.get("strategies", {})
-
+        # 2. Start strategy tasks (AFTER optional feed warmup is complete)
         # Always use component-based strategy architecture
         await self._start_component_strategies(symbols, strategy_config, mode)
 

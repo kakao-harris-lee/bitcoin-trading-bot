@@ -91,10 +91,24 @@ class BaseStrategyTask(ABC):
         """Main loop: consume prices, evaluate, publish orders."""
         self._running = True
         group = f"strategy-{self.name}"
-        consumer = f"{self.name}-{uuid.uuid4().hex[:8]}"
+        consumer = f"{self.name}-consumer"
 
-        # Ensure consumer group exists
-        await self.redis.create_consumer_group("market:prices", group)
+        # Market data stream is ephemeral: only read new events after startup.
+        if hasattr(self.redis.__class__, "ensure_ephemeral_consumer_group"):
+            stats = await self.redis.ensure_ephemeral_consumer_group(
+                stream="market:prices",
+                group=group,
+                consumer=consumer,
+            )
+            if stats["reclaimed"] > 0 or stats["pruned_consumers"] > 0:
+                logger.info(
+                    "Strategy %s stream cleanup: reclaimed=%s pruned=%s",
+                    self.name,
+                    stats["reclaimed"],
+                    stats["pruned_consumers"],
+                )
+        else:
+            await self.redis.create_consumer_group("market:prices", group, start_id="$")
 
         logger.info(f"Strategy {self.name} started, watching {self.symbols}")
 
@@ -389,6 +403,25 @@ class BaseStrategyTask(ABC):
         "ETH": 0.0002,    # 2 × 0.0001 step
         "SOL": 0.02,      # 2 × 0.01 step
         "BNB": 0.002,     # 2 × 0.001 step
+        "XRP": 0.2,       # 2 × 0.1 step
+        "DOGE": 2.0,      # 2 × 1 step
+        "ADA": 0.2,       # 2 × 0.1 step
+        "MATIC": 0.2,     # 2 × 0.1 step
+        "AVAX": 0.02,     # 2 × 0.01 step
+        "LINK": 0.02,     # 2 × 0.01 step
+    }
+
+    _QTY_PRECISION = {
+        "BTC": 5,
+        "ETH": 4,
+        "SOL": 2,
+        "BNB": 3,
+        "XRP": 1,
+        "DOGE": 0,
+        "ADA": 1,
+        "MATIC": 1,
+        "AVAX": 2,
+        "LINK": 2,
     }
 
     async def get_dynamic_position_size(
@@ -436,13 +469,9 @@ class BaseStrategyTask(ABC):
             position_value = balance * position_pct
             size = position_value / price
 
-            # Round to appropriate precision
-            if symbol == "BTC":
-                size = round(size, 5)  # 0.00001 BTC precision
-            elif symbol == "ETH":
-                size = round(size, 4)  # 0.0001 ETH precision
-            else:
-                size = round(size, 3)  # 0.001 for others
+            # Round using symbol-specific precision (Binance step-size aligned).
+            precision = self._QTY_PRECISION.get(symbol, 3)
+            size = round(size, precision)
 
             return max(size, effective_min)
 

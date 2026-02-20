@@ -608,6 +608,60 @@ class MetricsService:
             print(f"Error reading safety rejections: {e}")
             return []
 
+    def get_selector_events(
+        self,
+        hours: int = 24,
+        limit: int = 50,
+        strategy: Optional[str] = None,
+        changed_only: bool = False,
+    ) -> list[dict]:
+        """
+        Get symbol-selector rotation events from strategy:selector:events stream.
+
+        Args:
+            hours: Number of hours of history to retrieve
+            limit: Maximum events to return
+            strategy: Optional strategy filter
+            changed_only: If True, only include changed=true events
+
+        Returns:
+            List of selector event dicts (newest first)
+        """
+        _ = hours
+        try:
+            r = self._get_redis()
+            entries = r.xrevrange("strategy:selector:events", count=limit * 4)
+
+            events: list[dict] = []
+            for _msg_id, data in entries:
+                if strategy and data.get("strategy") != strategy:
+                    continue
+                if changed_only and data.get("changed", "false") != "true":
+                    continue
+
+                events.append({
+                    "timestamp": data.get("timestamp", ""),
+                    "strategy": data.get("strategy", ""),
+                    "market": data.get("market", ""),
+                    "changed": data.get("changed", "false") == "true",
+                    "selected_symbols": self._parse_position_payload(data.get("selected_symbols")),
+                    "top_scores": self._parse_position_payload(data.get("top_scores")),
+                    "rejected": self._parse_position_payload(data.get("rejected")),
+                    "rejection_counts": self._parse_position_payload(data.get("rejection_counts")),
+                    "data_quality": self._parse_position_payload(data.get("data_quality")),
+                    "dq_enabled": data.get("dq_enabled", "false") == "true",
+                    "dq_blocked_count": int(float(data.get("dq_blocked_count", 0) or 0)),
+                    "selected_count": int(float(data.get("selected_count", 0) or 0)),
+                    "universe_size": int(float(data.get("universe_size", 0) or 0)),
+                })
+
+                if len(events) >= limit:
+                    break
+            return events
+        except Exception as e:
+            print(f"Error reading selector events: {e}")
+            return []
+
 
 # Singleton instance for use in app.py
 metrics_service = MetricsService()

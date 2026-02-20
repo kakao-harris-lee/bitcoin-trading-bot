@@ -18,6 +18,17 @@ PID_FILE="$SCRIPT_DIR/.bot.pid"
 LOG_DIR="$SCRIPT_DIR/logs"
 LOG_FILE="$LOG_DIR/bot.log"
 
+find_running_bot_pid() {
+    # Find running paper/live engine process by concrete python invocation.
+    # Avoid false-positives from shell commands that merely contain the pattern string.
+    ps -eo pid=,args= | awk '
+        $0 ~ /python/ &&
+        $0 ~ /run\.py[[:space:]]+--trend(=|[[:space:]])(paper|live)([[:space:]]|$)/ {
+            print $1
+        }
+    ' | tail -n 1 || true
+}
+
 # 로그 디렉토리 생성
 mkdir -p "$LOG_DIR"
 
@@ -80,6 +91,9 @@ start() {
     # This avoids mixing test-generated events with live/paper readiness data.
     export TRADE_LOG_PATH="${TRADE_LOG_PATH:-$LOG_DIR/trades.runtime.jsonl}"
     export PAPER_TRADES_LOG_PATH="${PAPER_TRADES_LOG_PATH:-$TRADE_LOG_PATH}"
+    # Redis timeout defaults for larger symbol universes.
+    export REDIS_CONNECT_TIMEOUT_SEC="${REDIS_CONNECT_TIMEOUT_SEC:-20}"
+    export REDIS_SOCKET_TIMEOUT_SEC="${REDIS_SOCKET_TIMEOUT_SEC:-60}"
     echo "   Trade log: $TRADE_LOG_PATH"
 
     # Capture current log line so startup checks only inspect fresh lines.
@@ -176,12 +190,31 @@ stop() {
 }
 
 status() {
-    if [ ! -f "$PID_FILE" ]; then
-        echo "❌ 봇이 실행 중이지 않습니다"
-        exit 1
+    local pid=""
+
+    if [ -f "$PID_FILE" ]; then
+        pid=$(cat "$PID_FILE")
     fi
 
-    PID=$(cat "$PID_FILE")
+    if [ -n "$pid" ] && ps -p "$pid" > /dev/null 2>&1; then
+        PID="$pid"
+    else
+        # Self-heal stale/missing pid file by probing running bot process.
+        local discovered
+        discovered=$(find_running_bot_pid)
+        if [ -n "$discovered" ] && ps -p "$discovered" > /dev/null 2>&1; then
+            PID="$discovered"
+            echo "$PID" > "$PID_FILE"
+        else
+            if [ -n "$pid" ]; then
+                echo "❌ 봇이 실행 중이지 않습니다 (stale PID file)"
+                rm -f "$PID_FILE"
+            else
+                echo "❌ 봇이 실행 중이지 않습니다"
+            fi
+            exit 1
+        fi
+    fi
 
     if ps -p "$PID" > /dev/null 2>&1; then
         UPTIME=$(ps -o etime= -p "$PID" | tr -d ' ')
@@ -206,10 +239,6 @@ if d['prices'].get('binance', {}).get('price'):
     print(f\"   BTC (Binance): \${d['prices']['binance']['price']:,.2f}\")
 " 2>/dev/null
         fi
-    else
-        echo "❌ 봇이 실행 중이지 않습니다 (stale PID file)"
-        rm -f "$PID_FILE"
-        exit 1
     fi
 }
 

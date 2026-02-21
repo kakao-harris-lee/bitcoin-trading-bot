@@ -216,6 +216,35 @@ class TestStatusAPI:
         assert symbols == ['ADA', 'XRP', 'DOGE']
 
 
+class TestPositionsAPI:
+    """Test /api/positions endpoint."""
+
+    @patch('web.app.get_latest_prices')
+    @patch('web.app.get_redis')
+    def test_positions_include_dynamic_symbol_in_paper_mode(self, mock_get_redis, mock_get_prices, client):
+        """Paper positions should include Redis-tracked symbols outside defaults."""
+        mock_redis = MagicMock()
+        mock_redis.keys.return_value = ['positions:GRT:spot']
+        mock_redis.hgetall.side_effect = lambda key: {
+            'risk': {'mode': 'paper'},
+            'positions:GRT:spot': {
+                'quantity': '26935.24799083962',
+                'entry_price': '0.028271304',
+                'strategy': 'mlp_direction_bnb',
+                'entry_time': '1771696808878',
+            },
+        }.get(key, {})
+        mock_get_redis.return_value = mock_redis
+        mock_get_prices.return_value = {'GRTUSDT': 0.02827}
+
+        response = client.get('/api/positions')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert len(data['positions']) == 1
+        assert data['positions'][0]['symbol'] == 'GRTUSDT'
+        assert data['positions'][0]['market'] == 'spot'
+
+
 class TestKillSwitchAPI:
     """Test /api/kill_switch endpoints."""
 

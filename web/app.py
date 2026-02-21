@@ -1504,7 +1504,7 @@ def _get_paper_positions(r, prices: dict) -> dict:
         'errors': []
     }
 
-    symbols = ['BTC', 'ETH', 'SOL']
+    symbols = _discover_position_symbols(r)
 
     for symbol in symbols:
         # Check spot position
@@ -1599,8 +1599,6 @@ def _calculate_unrealized_pct(side: str, entry_price: float, current_price: floa
 def _append_live_spot_positions(result: dict, r, spot_account: dict, prices: dict) -> None:
     for balance in spot_account['balances']:
         asset = balance['asset']
-        if asset not in _EXCHANGE_BALANCE_SYMBOLS:
-            continue
         total = _safe_float(balance['free']) + _safe_float(balance['locked'])
         if total <= 0:
             continue
@@ -1728,7 +1726,7 @@ def _build_paper_summary_positions(r, prices: dict) -> tuple[list[dict], float, 
     spot_count = 0
     futures_pnl = 0.0
     futures_count = 0
-    for symbol in _EXCHANGE_BALANCE_SYMBOLS:
+    for symbol in _discover_position_symbols(r):
         spot_pos = r.hgetall(f"positions:{symbol}:spot")
         spot_qty = _safe_float((spot_pos or {}).get('quantity', 0))
         if spot_pos and spot_qty > 0:
@@ -1802,8 +1800,6 @@ def _build_live_summary_spot_positions(r, spot_account: dict, prices: dict) -> t
             continue
         if asset == 'USDT':
             spot_usdt = total
-            continue
-        if asset not in _EXCHANGE_BALANCE_SYMBOLS:
             continue
         symbol = f"{asset}USDT"
         price = _safe_float(prices.get(symbol, 0))
@@ -1927,7 +1923,7 @@ def get_spot_positions_api():
         prices = get_latest_prices()
 
         positions = []
-        symbols = ['BTC', 'ETH', 'SOL']
+        symbols = _discover_position_symbols(r)
 
         for symbol in symbols:
             spot_pos = r.hgetall(f"positions:{symbol}:spot")
@@ -2543,6 +2539,36 @@ def get_backtest_history():
 _EXCHANGE_BALANCE_SYMBOLS = ('BTC', 'ETH', 'SOL')
 
 
+def _discover_position_symbols(r) -> list[str]:
+    """Return tracked symbols plus any symbols currently persisted in Redis positions keys."""
+    base = list(_EXCHANGE_BALANCE_SYMBOLS)
+    seen = set(base)
+    try:
+        raw_keys = r.keys("positions:*:*") or []
+    except Exception:
+        return base
+
+    if not isinstance(raw_keys, (list, tuple, set)):
+        return base
+
+    discovered: set[str] = set()
+    for raw_key in raw_keys:
+        key = str(raw_key or "")
+        parts = key.split(":")
+        if len(parts) != 3:
+            continue
+        if parts[0] != "positions":
+            continue
+        if parts[2] not in ("spot", "futures"):
+            continue
+        symbol = _normalize_symbol(parts[1])
+        if not symbol or symbol in seen:
+            continue
+        discovered.add(symbol)
+
+    return base + sorted(discovered)
+
+
 def _safe_float(value, default=0.0) -> float:
     try:
         return float(value)
@@ -2577,7 +2603,7 @@ def _normalize_futures_side(side: str) -> str:
 def _build_spot_paper_positions(r, prices: dict) -> tuple[list[dict], float]:
     positions: list[dict] = []
     position_value = 0.0
-    for symbol in _EXCHANGE_BALANCE_SYMBOLS:
+    for symbol in _discover_position_symbols(r):
         spot_pos = r.hgetall(f"positions:{symbol}:spot")
         qty = _safe_float((spot_pos or {}).get('quantity', 0))
         if not spot_pos or qty <= 0:
@@ -2599,7 +2625,7 @@ def _build_spot_paper_positions(r, prices: dict) -> tuple[list[dict], float]:
 def _build_futures_paper_positions(r, prices: dict) -> tuple[list[dict], float]:
     positions: list[dict] = []
     unrealized_pnl = 0.0
-    for symbol in _EXCHANGE_BALANCE_SYMBOLS:
+    for symbol in _discover_position_symbols(r):
         futures_pos = r.hgetall(f"positions:{symbol}:futures")
         qty = _safe_float((futures_pos or {}).get('quantity', 0))
         if not futures_pos or qty == 0:
@@ -2703,8 +2729,6 @@ def _build_spot_live_positions(spot_account: dict, prices: dict) -> tuple[float,
             continue
         if asset == 'USDT':
             spot_usdt = total
-            continue
-        if asset not in _EXCHANGE_BALANCE_SYMBOLS:
             continue
         symbol = f"{asset}USDT"
         price = _safe_float(prices.get(symbol, 0))

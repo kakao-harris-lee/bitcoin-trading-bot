@@ -5,7 +5,21 @@ import pytest
 import json
 import os
 import base64
+import sys
+import importlib
+from pathlib import Path
 from unittest.mock import Mock, patch
+
+# Skip this module when Flask is unavailable.
+flask = pytest.importorskip("flask")
+
+# Ensure project root (with local `web` package) is importable.
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+# Ensure `patch("web.app.*")` resolves to the local dashboard module.
+import web as web_pkg  # type: ignore
+dashboard_app_module = importlib.import_module("web.app")
+setattr(web_pkg, "app", dashboard_app_module)
 
 
 @pytest.fixture(autouse=True)
@@ -90,6 +104,34 @@ class TestSummaryAPI:
             assert data['futures']['positions'] == 0
             assert len(data['positions']) == 0
 
+    def test_get_summary_includes_dynamic_spot_symbol(self, client, auth_headers, mock_redis):
+        """Summary should count spot positions outside default BTC/ETH/SOL symbols."""
+        mock_redis.keys.return_value = ['positions:GRT:spot']
+        mock_redis.hgetall.side_effect = lambda key: {
+            'risk': {'mode': 'paper'},
+            'account:paper': {'spot_balance': '191.09', 'futures_balance': '10000'},
+            'positions:GRT:spot': {
+                'quantity': '26935.24799083962',
+                'entry_price': '0.028271304',
+                'strategy': 'mlp_direction_bnb',
+            },
+        }.get(key, {})
+
+        with patch('web.app.get_latest_prices') as mock_prices:
+            mock_prices.return_value = {
+                'GRTUSDT': 0.02827,
+            }
+
+            response = client.get('/api/summary', headers=auth_headers)
+            assert response.status_code == 200
+
+            data = response.get_json()
+            assert data['spot']['positions'] == 1
+            assert any(
+                p['symbol'] == 'GRTUSDT' and p['market'] == 'spot'
+                for p in data['positions']
+            )
+
 
 class TestSpotPositionsAPI:
     """Test /api/spot/positions endpoint."""
@@ -154,6 +196,31 @@ class TestSpotPositionsAPI:
             assert eth_pos is not None
             assert eth_pos['quantity'] == 2.5
             assert eth_pos['unrealized_pnl'] > 0  # Profit
+
+    def test_get_spot_positions_includes_dynamic_symbol(self, client, auth_headers, mock_redis):
+        """Spot positions endpoint should include non-default symbols from Redis keys."""
+        mock_redis.keys.return_value = ['positions:GRT:spot']
+        mock_redis.hgetall.side_effect = lambda key: {
+            'positions:GRT:spot': {
+                'quantity': '26935.24799083962',
+                'entry_price': '0.028271304',
+                'strategy': 'mlp_direction_bnb',
+                'entry_time': '1771696808878',
+            },
+        }.get(key, {})
+
+        with patch('web.app.get_latest_prices') as mock_prices:
+            mock_prices.return_value = {
+                'GRTUSDT': 0.02827,
+            }
+
+            response = client.get('/api/spot/positions', headers=auth_headers)
+            assert response.status_code == 200
+
+            data = response.get_json()
+            assert data['count'] == 1
+            assert len(data['positions']) == 1
+            assert data['positions'][0]['symbol'] == 'GRTUSDT'
 
 
 class TestSpotBalanceAPI:

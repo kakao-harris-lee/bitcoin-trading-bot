@@ -29,6 +29,7 @@ VALID_SYMBOLS = {"BTC", "ETH", "SOL", "BNB"}  # Fallback supported trading symbo
 
 # Default configuration values
 DEFAULT_PAPER_BALANCE = 10000  # Default initial balance in USDT
+POSITION_EPSILON = 1e-9
 
 
 class PaperExecutor:
@@ -261,6 +262,23 @@ class PaperExecutor:
 
         # Check if this is an exit (closing an existing position)
         is_exit = await self._is_exit_order(order)
+        exit_position: dict[str, Any] | None = None
+        exit_position_qty = 0.0
+        if is_exit:
+            exit_position = await self.redis.get_position(symbol, order["market"])
+            exit_position_qty = self._to_float(
+                exit_position.get("quantity") if exit_position else 0.0
+            )
+            if exit_position_qty > 0 and quantity > exit_position_qty + POSITION_EPSILON:
+                logger.warning(
+                    "Insufficient futures position for exit: %s < %s",
+                    exit_position_qty,
+                    quantity,
+                )
+                await self._publish_rejection(
+                    order, f"insufficient_futures_position:{exit_position_qty:.8f}"
+                )
+                return None
 
         # Check leverage allowance for futures entry orders
         allowed_leverage = None
@@ -329,13 +347,19 @@ class PaperExecutor:
         entry_price = 0.0
         entry_time = 0
         if is_exit:
-            # Capture position data BEFORE clearing
-            position = await self.redis.get_position(order["symbol"], order["market"])
-            entry_price = float(position.get("entry_price", 0)) if position else 0
-            entry_time = int(position.get("entry_time", 0)) if position else 0
+            # Capture position data BEFORE updating/clearing
+            position = exit_position
+            entry_price = self._to_float(position.get("entry_price") if position else 0.0)
+            entry_time = self._to_int(position.get("entry_time") if position else 0)
 
             profit_data = await self._calculate_exit_pnl(order, fill)
-            await self.redis.clear_position(order["symbol"], order["market"])
+            await self._update_position_after_exit(
+                symbol=order["symbol"],
+                market=order["market"],
+                position=position,
+                filled_qty=quantity,
+                position_qty=exit_position_qty,
+            )
 
             # Update LeverageManager equity after P&L realized
             if profit_data and self.leverage_manager:
@@ -357,17 +381,24 @@ class PaperExecutor:
 
         logger.info(f"Paper fill: {fill}, balance: {self.balance:.2f}")
 
-        # Structured logging for trade analysis (using captured data from before clear)
-        if is_exit and profit_data:
+        # Structured logging for trade analysis
+        if is_exit:
+            if not profit_data:
+                logger.warning(
+                    "Exit filled without realized P&L data: symbol=%s market=%s strategy=%s",
+                    symbol,
+                    order.get("market"),
+                    order.get("strategy"),
+                )
             hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
             trade_logger.exit(
                 symbol=symbol,
                 price=fill_price,
                 qty=quantity,
-                entry_price=entry_price,
+                entry_price=entry_price if entry_price > 0 else fill_price,
                 strategy=order["strategy"],
-                pnl=profit_data["profit"],
-                pnl_pct=profit_data["profit_pct"],
+                pnl=profit_data.get("profit", 0.0) if profit_data else 0.0,
+                pnl_pct=profit_data.get("profit_pct", 0.0) if profit_data else 0.0,
                 hold_time_sec=hold_time,
                 exit_reason=order.get("reason", ""),
                 mode="paper",
@@ -404,9 +435,15 @@ class PaperExecutor:
         fees = order_value * self.spot_fee_rate
 
         # Check if this is an exit (selling existing spot position)
-        # Also check Redis for position (in case of restart)
         redis_position = await self.redis.get_position(symbol, "spot")
-        is_exit = (symbol in self.spot_positions or redis_position) and side == "sell"
+        redis_qty = self._to_float(redis_position.get("quantity") if redis_position else 0.0)
+        current_qty = self.spot_positions.get(symbol, 0.0)
+        if current_qty <= POSITION_EPSILON and redis_qty > POSITION_EPSILON:
+            # Recover in-memory state after restart from Redis position.
+            current_qty = redis_qty
+            self.spot_positions[symbol] = current_qty
+
+        is_exit = side == "sell" and (current_qty > POSITION_EPSILON or redis_qty > POSITION_EPSILON)
 
         if side == "buy":
             # Spot buy: deduct from spot balance
@@ -418,26 +455,43 @@ class PaperExecutor:
 
             self.spot_balance -= total_cost
 
-            # Add to spot positions
-            current_qty = self.spot_positions.get(symbol, 0.0)
-            self.spot_positions[symbol] = current_qty + quantity
+            # Add to spot positions (weighted entry for add-ons)
+            existing_qty = current_qty
+            new_qty = existing_qty + quantity
+            existing_entry = self._to_float(
+                redis_position.get("entry_price") if redis_position else 0.0
+            )
+            if existing_qty > POSITION_EPSILON and existing_entry > 0:
+                avg_entry_price = (
+                    (existing_entry * existing_qty) + (fill_price * quantity)
+                ) / new_qty
+                entry_time = str(self._to_int(redis_position.get("entry_time"), int(time.time() * 1000)))
+            else:
+                avg_entry_price = fill_price
+                entry_time = str(int(time.time() * 1000))
+
+            self.spot_positions[symbol] = new_qty
 
             # Store entry price in Redis for P&L calculation
             await self.redis.set_position(symbol, "spot", {
-                "quantity": str(self.spot_positions[symbol]),
-                "entry_price": str(fill_price),
-                "strategy": order["strategy"],
-                "entry_time": str(int(time.time() * 1000)),
+                "quantity": str(new_qty),
+                "entry_price": str(avg_entry_price),
+                "strategy": str(
+                    redis_position.get("strategy", order["strategy"])
+                    if redis_position
+                    else order["strategy"]
+                ),
+                "entry_time": entry_time,
                 "side": "buy",
                 "leverage": "1",
                 "liquidation_price": "0",
             })
 
-            logger.info(f"Spot buy: {symbol} {quantity} @ {fill_price}, new position: {self.spot_positions[symbol]}")
+            logger.info(f"Spot buy: {symbol} {quantity} @ {fill_price}, new position: {new_qty}")
 
         else:  # sell
             # Check if we have enough spot holdings
-            current_qty = self.spot_positions.get(symbol, 0.0)
+            current_qty = self.spot_positions.get(symbol, current_qty)
             if current_qty < quantity:
                 logger.warning(f"Insufficient spot position: {current_qty} < {quantity}")
                 await self._publish_rejection(order, f"insufficient_spot_position:{current_qty}")
@@ -447,11 +501,16 @@ class PaperExecutor:
             self.spot_balance += order_value - fees
 
             # Reduce spot position
-            self.spot_positions[symbol] = current_qty - quantity
-            if self.spot_positions[symbol] <= 0:
+            remaining_qty = max(current_qty - quantity, 0.0)
+            if remaining_qty <= POSITION_EPSILON:
                 del self.spot_positions[symbol]
+                remaining_qty = 0.0
+            else:
+                self.spot_positions[symbol] = remaining_qty
 
-            logger.info(f"Spot sell: {symbol} {quantity} @ {fill_price}, remaining: {self.spot_positions.get(symbol, 0)}")
+            logger.info(
+                f"Spot sell: {symbol} {quantity} @ {fill_price}, remaining: {self.spot_positions.get(symbol, 0)}"
+            )
 
         # Sync updated balance to Redis for dashboard
         await self._sync_balance_to_redis()
@@ -473,11 +532,11 @@ class PaperExecutor:
         entry_price = 0.0
         entry_time = 0
         if is_exit:
-            # Get entry price from Redis position
-            position = await self.redis.get_position(symbol, "spot")
+            # Use the pre-fill snapshot to keep partial exits consistent.
+            position = redis_position or await self.redis.get_position(symbol, "spot")
             if position:
-                entry_price = float(position.get("entry_price", 0))
-                entry_time = int(position.get("entry_time", 0))
+                entry_price = self._to_float(position.get("entry_price"))
+                entry_time = self._to_int(position.get("entry_time"))
 
                 if entry_price > 0:
                     # Calculate spot P&L (no leverage)
@@ -493,8 +552,22 @@ class PaperExecutor:
 
                     logger.info(f"Spot P&L: {symbol} {pnl:+.2f} USDT ({pnl_pct:+.2f}%)")
 
-            # Clear Redis position
-            await self.redis.clear_position(symbol, "spot")
+            # Preserve remaining quantity for partial exits.
+            await self._update_position_after_exit(
+                symbol=symbol,
+                market="spot",
+                position=position,
+                filled_qty=quantity,
+                position_qty=current_qty,
+                fallback_updates={
+                    "entry_price": str(entry_price if entry_price > 0 else fill_price),
+                    "strategy": order["strategy"],
+                    "entry_time": str(entry_time if entry_time > 0 else int(time.time() * 1000)),
+                    "side": "buy",
+                    "leverage": "1",
+                    "liquidation_price": "0",
+                },
+            )
 
         # Publish trade to Redis stream
         await self._publish_trade(order, fill, profit_data)
@@ -505,16 +578,22 @@ class PaperExecutor:
         logger.info(f"Spot paper fill: {fill}, balance: {self.spot_balance:.2f}")
 
         # Structured logging
-        if is_exit and profit_data:
+        if is_exit:
+            if not profit_data:
+                logger.warning(
+                    "Spot exit filled without realized P&L data: symbol=%s strategy=%s",
+                    symbol,
+                    order.get("strategy"),
+                )
             hold_time = int(time.time() * 1000 - entry_time) // 1000 if entry_time else 0
             trade_logger.exit(
                 symbol=symbol,
                 price=fill_price,
                 qty=quantity,
-                entry_price=entry_price,
+                entry_price=entry_price if entry_price > 0 else fill_price,
                 strategy=order["strategy"],
-                pnl=profit_data.get("profit", 0),
-                pnl_pct=profit_data.get("profit_pct", 0),
+                pnl=profit_data.get("profit", 0.0) if profit_data else 0.0,
+                pnl_pct=profit_data.get("profit_pct", 0.0) if profit_data else 0.0,
                 hold_time_sec=hold_time,
                 exit_reason=order.get("reason", ""),
                 mode="paper",
@@ -559,6 +638,54 @@ class PaperExecutor:
             return price * (1 + self.slippage)
         else:
             return price * (1 - self.slippage)
+
+    @staticmethod
+    def _to_float(value: Any, default: float = 0.0) -> float:
+        """Safely convert a value to float."""
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _to_int(value: Any, default: int = 0) -> int:
+        """Safely convert a value to int."""
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _position_payload(position: dict[str, Any] | None) -> dict[str, Any]:
+        """Return position payload excluding helper metadata keys."""
+        if not position:
+            return {}
+        return {k: v for k, v in position.items() if k not in {"symbol", "market"}}
+
+    async def _update_position_after_exit(
+        self,
+        symbol: str,
+        market: str,
+        position: dict[str, Any] | None,
+        filled_qty: float,
+        position_qty: float | None = None,
+        fallback_updates: dict[str, Any] | None = None,
+    ) -> None:
+        """Update remaining quantity after an exit, or clear position when fully closed."""
+        base_qty = position_qty
+        if base_qty is None:
+            base_qty = self._to_float(position.get("quantity") if position else 0.0)
+        remaining_qty = max(base_qty - filled_qty, 0.0)
+
+        if remaining_qty <= POSITION_EPSILON:
+            await self.redis.clear_position(symbol, market)
+            return
+
+        payload = self._position_payload(position)
+        if fallback_updates:
+            payload = {**fallback_updates, **payload}
+        payload["quantity"] = str(remaining_qty)
+        await self.redis.set_position(symbol, market, payload)
 
     async def _pass_risk_gates(self) -> bool:
         """Check risk conditions."""

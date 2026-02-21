@@ -115,7 +115,7 @@ class DataWarmup:
                     "volume": float(kline[5]),
                 })
 
-            logger.info(
+            logger.debug(
                 "Fetched %d %s candles for %s (%s)",
                 len(candles),
                 interval,

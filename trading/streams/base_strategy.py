@@ -11,6 +11,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import deque
 from trading.streams.data_warmup import DataWarmup
+from trading.observability.structured_logger import trade_logger
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -327,6 +328,7 @@ class BaseStrategyTask(ABC):
 
     async def _publish_order(self, signal: dict[str, Any]) -> None:
         """Publish order intent to orders stream."""
+        self._emit_structured_signal(signal, stream="orders")
         order = {
             "id": str(uuid.uuid4()),
             "strategy": self.name,
@@ -338,6 +340,7 @@ class BaseStrategyTask(ABC):
     async def _publish_exit(self, signal: dict[str, Any], position: dict) -> None:
         """Publish exit signal to appropriate stream."""
         if self.use_smart_exit:
+            self._emit_structured_signal(signal, stream="exit_signals")
             # Add trigger price if not present
             if "trigger_price" not in signal:
                 buffer = self.price_buffer.get(signal["symbol"], [])
@@ -353,6 +356,43 @@ class BaseStrategyTask(ABC):
             logger.info(f"Strategy {self.name} published exit signal: {exit_signal}")
         else:
             await self._publish_order(signal)
+
+    def _emit_structured_signal(self, signal: dict[str, Any], stream: str) -> None:
+        """Emit compact signal event for trade analysis logs."""
+        try:
+            symbol = str(signal.get("symbol", "")).upper()
+            side = str(signal.get("side", "")).upper()
+            if not symbol or side not in {"BUY", "SELL"}:
+                return
+
+            price = 0.0
+            trigger_price = signal.get("trigger_price")
+            if trigger_price is not None:
+                try:
+                    price = float(trigger_price)
+                except (TypeError, ValueError):
+                    price = 0.0
+            if price <= 0:
+                buffer = self.price_buffer.get(symbol, [])
+                if buffer:
+                    try:
+                        price = float(buffer[-1].get("price", 0))
+                    except (TypeError, ValueError):
+                        price = 0.0
+            if price <= 0:
+                return
+
+            trade_logger.signal(
+                symbol=symbol,
+                side=side,
+                strategy=self.name,
+                price=price,
+                reason=str(signal.get("reason", "") or ""),
+                market=self.market,
+                stream=stream,
+            )
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.debug("Failed to emit structured signal log: %s", exc)
 
     @abstractmethod
     async def evaluate(self, symbol: str) -> dict[str, Any] | None:

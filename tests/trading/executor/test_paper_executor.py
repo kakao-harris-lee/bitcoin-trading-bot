@@ -15,6 +15,8 @@ def mock_redis():
     redis.create_consumer_group = AsyncMock()
     # Mock getting latest price
     redis.hgetall = AsyncMock(return_value={"BTC": "43000"})
+    redis.get_position = AsyncMock(return_value=None)
+    redis.clear_position = AsyncMock()
     return redis
 
 
@@ -822,6 +824,53 @@ class TestSpotSimulation:
         assert "BTC" not in executor.spot_positions
 
     @pytest.mark.asyncio
+    async def test_spot_partial_sell_keeps_redis_position(self):
+        """Partial spot sell should keep remaining position in Redis."""
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.get_risk = AsyncMock(
+            return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"}
+        )
+        mock_redis.publish = AsyncMock()
+        mock_redis.hset = AsyncMock()
+        mock_redis.set_position = AsyncMock()
+        mock_redis.clear_position = AsyncMock()
+        mock_redis.get_position = AsyncMock(
+            return_value={
+                "quantity": "0.2",
+                "entry_price": "49000",
+                "entry_time": "1000000",
+                "side": "buy",
+                "strategy": "spot_test",
+                "leverage": "1",
+                "liquidation_price": "0",
+            }
+        )
+
+        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor.last_prices = {"BTC": 50000.0}
+        executor.spot_positions["BTC"] = 0.2
+
+        order = {
+            "id": "spot-sell-partial-1",
+            "symbol": "BTC",
+            "side": "sell",
+            "market": "spot",
+            "quantity": "0.1",
+            "strategy": "spot_test",
+        }
+
+        result = await executor._process_order(order)
+
+        assert result is not None
+        assert executor.spot_positions["BTC"] == pytest.approx(0.1)
+        mock_redis.clear_position.assert_not_called()
+        mock_redis.set_position.assert_called_once()
+        payload = mock_redis.set_position.call_args[0][2]
+        assert float(payload["quantity"]) == pytest.approx(0.1)
+
+    @pytest.mark.asyncio
     async def test_spot_buy_insufficient_balance(self):
         """Spot buy should fail with insufficient balance."""
         from unittest.mock import MagicMock
@@ -956,3 +1005,41 @@ class TestSpotSimulation:
 
         # Verify clear_position was called
         mock_redis.clear_position.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_spot_exit_logs_exit_even_without_profit_data(self, monkeypatch):
+        """Spot sell should emit EXIT event even when entry metadata is missing."""
+        from unittest.mock import MagicMock
+        from trading.executor import paper_executor as paper_executor_module
+
+        mock_structured_logger = MagicMock()
+        monkeypatch.setattr(paper_executor_module, "trade_logger", mock_structured_logger)
+
+        mock_redis = MagicMock()
+        mock_redis.get_risk = AsyncMock(
+            return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"}
+        )
+        mock_redis.publish = AsyncMock()
+        mock_redis.hset = AsyncMock()
+        mock_redis.set_position = AsyncMock()
+        mock_redis.clear_position = AsyncMock()
+        mock_redis.get_position = AsyncMock(return_value={})
+
+        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor.last_prices = {"BTC": 50000.0}
+        executor.spot_positions["BTC"] = 0.1
+
+        order = {
+            "id": "spot-sell-no-profit-1",
+            "symbol": "BTC",
+            "side": "sell",
+            "market": "spot",
+            "quantity": "0.1",
+            "strategy": "spot_test",
+        }
+
+        result = await executor._process_order(order)
+
+        assert result is not None
+        mock_structured_logger.exit.assert_called_once()
+        mock_structured_logger.entry.assert_not_called()

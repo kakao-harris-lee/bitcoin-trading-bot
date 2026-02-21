@@ -306,7 +306,7 @@
             }
           ],
           "buy_confidence_threshold": 0.38,
-          "skip_bear_regime": false,
+          "skip_bear_regime": true,
           "adx_min": 15.0,
           "use_ema200_filter": true,
           "position_size": 0.25,
@@ -326,8 +326,7 @@
             "BULL_MODERATE",
             "SIDEWAYS_UP",
             "SIDEWAYS_FLAT",
-            "SIDEWAYS_DOWN",
-            "BEAR_MODERATE"
+            "SIDEWAYS_DOWN"
           ],
           "fallback_to_regime_when_mlp_none": true,
           "regime_params": {
@@ -505,7 +504,7 @@
             }
           ],
           "buy_confidence_threshold": 0.45,
-          "skip_bear_regime": false,
+          "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
           "position_size": 0.05,
@@ -525,8 +524,7 @@
             "BULL_MODERATE",
             "SIDEWAYS_UP",
             "SIDEWAYS_FLAT",
-            "SIDEWAYS_DOWN",
-            "BEAR_MODERATE"
+            "SIDEWAYS_DOWN"
           ],
           "fallback_to_regime_when_mlp_none": true,
           "regime_params": {
@@ -718,16 +716,16 @@
       "bbw_enabled": false,
       "volume_filter_enabled": false,
       "symbol_selector": {
-        "_comment": "Paper hyper-aggressive rotation (long-only). Broad high-beta universe, top 24, refresh 60s.",
+        "_comment": "Paper aggressive rotation (long-only). Broad high-beta universe, top 16, refresh 60s.",
         "enabled": true,
-        "top_n": 24,
+        "top_n": 16,
         "refresh_seconds": 60,
-        "min_score": -0.55,
+        "min_score": 0.0,
         "min_adx": 3.0,
         "min_volume_ratio": 0.05,
         "max_price_age_seconds": 30.0,
         "require_above_ema200": false,
-        "skip_bear_regime": false,
+        "skip_bear_regime": true,
         "keep_previous_on_empty": false,
         "score_weights": {
           "regime": 0.15,
@@ -784,8 +782,8 @@
               "weight": 0.3
             }
           ],
-          "buy_confidence_threshold": 0.35,
-          "skip_bear_regime": false,
+          "buy_confidence_threshold": 0.42,
+          "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
           "position_size": 0.12,
@@ -795,8 +793,8 @@
           "switch_mfi_threshold": 42.0,
           "switch_adx_threshold": 3.0,
           "switch_require_above_ema200": false,
-          "risk_on_buy_confidence_threshold": 0.31,
-          "risk_off_buy_confidence_threshold": 0.35,
+          "risk_on_buy_confidence_threshold": 0.45,
+          "risk_off_buy_confidence_threshold": 0.52,
           "risk_on_position_size": 0.12,
           "risk_off_position_size": 0.1,
           "regime_confidence_gate_enabled": false,
@@ -805,9 +803,7 @@
             "BULL_MODERATE",
             "SIDEWAYS_UP",
             "SIDEWAYS_FLAT",
-            "SIDEWAYS_DOWN",
-            "BEAR_MODERATE",
-            "BEAR_STRONG"
+            "SIDEWAYS_DOWN"
           ],
           "fallback_to_regime_when_mlp_none": true,
           "regime_params": {

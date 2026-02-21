@@ -192,8 +192,23 @@ class PeriodicLoggerTask:
         lines.append("=" * 70)
         lines.append("")
 
-        # Log to console
-        logger.info("\n".join(lines))
+        # Keep console logs compact; full snapshot remains available at DEBUG.
+        active_positions = 0
+        for pos in positions.values():
+            try:
+                if float(pos.get("quantity", 0)) != 0:
+                    active_positions += 1
+            except (TypeError, ValueError):
+                continue
+        logger.info(
+            "SYSTEM SNAPSHOT mode=%s blocked=%s daily_pnl=%.2f positions=%d decisions=%d",
+            mode.upper(),
+            "YES" if blocked else "NO",
+            daily_pnl,
+            active_positions,
+            len(decisions),
+        )
+        logger.debug("\n".join(lines))
 
         # Also publish to Redis stream for dashboard access
         await self._publish_state_event(timestamp, prices, positions, risk)

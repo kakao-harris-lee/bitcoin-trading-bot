@@ -690,7 +690,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             ranking = ", ".join(
                 f"{row.symbol}:{row.score:.3f}" for row in self._symbol_selector.ranking[:5]
             )
-            logger.info(
+            logger.debug(
                 "%s: symbol selector updated selected=%s ranking=[%s]",
                 self.name,
                 selected,
@@ -1801,7 +1801,7 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         df = self._get_mlp_history_df(symbol)
         if df is None:
-            logger.info(f"{self.name}: No history df for {symbol}")
+            logger.debug(f"{self.name}: No history df for {symbol}")
             return None, None
 
         self._update_latest_history_candle(df, market_data)
@@ -1846,7 +1846,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         from trading.indicators.mlp_features import calculate_mlp_features
         import numpy as np
 
-        logger.info(
+        logger.debug(
             f"{self.name}: Computing MLP features (df={len(df)} rows, feature_set={self._mlp_feature_set})"
         )
         mlp_features = calculate_mlp_features(
@@ -1856,7 +1856,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             feature_set=self._mlp_feature_set,
         )
         if mlp_features is None or mlp_features.empty:
-            logger.info(f"{self.name}: MLP features empty, skipping prediction")
+            logger.debug(f"{self.name}: MLP features empty, skipping prediction")
             return None
 
         row = mlp_features.iloc[-1]
@@ -1883,7 +1883,7 @@ class CompositeStrategyTask(BaseStrategyTask):
 
     def _log_mlp_prediction(self, pred_class: int, confidence: float) -> None:
         labels = {0: "HOLD", 1: "BUY", 2: "SELL"}
-        logger.info(f"{self.name}: MLP prediction: {labels.get(pred_class, 'UNK')} (conf={confidence:.2f})")
+        logger.debug(f"{self.name}: MLP prediction: {labels.get(pred_class, 'UNK')} (conf={confidence:.2f})")
 
     def _cache_mlp_prediction(
         self, symbol: str, candle_ts: int, prediction: int, confidence: float
@@ -2631,7 +2631,7 @@ class CompositeStrategyTask(BaseStrategyTask):
                 f"({position_data['unrealized_pnl_pct']:+.2f}%)"
             )
         log_lines.append(f"{'='*60}")
-        logger.info("\n".join(log_lines))
+        logger.debug("\n".join(log_lines))
 
     def _emit_structured_decision_log(
         self,

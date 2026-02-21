@@ -167,7 +167,7 @@ class IndicatorService:
                     int(diff), "1h"
                 )
 
-                logger.info(
+                logger.debug(
                     f"IndicatorService: {symbol} candle interval = {diff}s "
                     f"({diff // 60}m)"
                 )
@@ -175,7 +175,7 @@ class IndicatorService:
         # Reset building candle for this symbol
         self._building_candle.pop(symbol, None)
 
-        logger.info(f"IndicatorService: Updated {symbol} history ({len(candles)} candles)")
+        logger.debug(f"IndicatorService: Updated {symbol} history ({len(candles)} candles)")
 
     def add_price(self, symbol: str, price_msg: dict) -> None:
         """Add a price update to the buffer.
@@ -269,7 +269,7 @@ class IndicatorService:
         # Invalidate indicator cache so next get_market_data() recalculates
         self._cache.pop(symbol, None)
 
-        logger.info(
+        logger.debug(
             f"IndicatorService: New candle for {symbol} | "
             f"O={candle['open']:.2f} H={candle['high']:.2f} "
             f"L={candle['low']:.2f} C={candle['close']:.2f} "
@@ -545,7 +545,7 @@ class IndicatorService:
             self._cache.pop(symbol, None)
 
             if replaced > 0:
-                logger.info(
+                logger.debug(
                     f"IndicatorService: Candle refresh for {symbol} — "
                     f"replaced {replaced} candle(s) with real OHLCV data"
                 )

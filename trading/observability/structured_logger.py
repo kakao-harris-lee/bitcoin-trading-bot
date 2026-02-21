@@ -27,6 +27,8 @@ _structured_logger.propagate = False  # Don't propagate to root logger
 # File handler for trade logs
 _file_handler: Optional[logging.FileHandler] = None
 _logging_disabled = False
+_allowed_event_types: set[str] | None = None
+_allowed_decision_values: set[str] | None = None
 
 
 def _is_structured_logging_enabled() -> bool:
@@ -66,10 +68,76 @@ def _init_file_handler(log_path: str | None = None) -> None:
     globals()["_file_handler"] = file_handler
 
 
+def _parse_csv_upper(raw: str) -> set[str]:
+    return {item.strip().upper() for item in raw.split(",") if item.strip()}
+
+
+def _get_allowed_event_types() -> set[str] | None:
+    """Get allowed structured event types from env.
+
+    TRADE_LOG_EVENTS:
+      - CSV list (default: SIGNAL,ENTRY,EXIT,DECISION,PNL,ERROR)
+      - "ALL" or "*" to allow every event type.
+    """
+    cached = globals().get("_allowed_event_types")
+    if cached is not None:
+        return cached
+
+    raw = os.getenv("TRADE_LOG_EVENTS", "SIGNAL,ENTRY,EXIT,DECISION,PNL,ERROR")
+    allowed = _parse_csv_upper(raw)
+    if not allowed or "ALL" in allowed or "*" in allowed:
+        globals()["_allowed_event_types"] = set()
+        return set()
+
+    globals()["_allowed_event_types"] = allowed
+    return allowed
+
+
+def _get_allowed_decision_values() -> set[str] | None:
+    """Get allowed DECISION values from env.
+
+    TRADE_LOG_DECISIONS:
+      - CSV list (default: BUY,SELL)
+      - "ALL" or "*" to keep all decisions.
+    """
+    cached = globals().get("_allowed_decision_values")
+    if cached is not None:
+        return cached
+
+    raw = os.getenv("TRADE_LOG_DECISIONS", "BUY,SELL")
+    allowed = _parse_csv_upper(raw)
+    if not allowed or "ALL" in allowed or "*" in allowed:
+        globals()["_allowed_decision_values"] = set()
+        return set()
+
+    globals()["_allowed_decision_values"] = allowed
+    return allowed
+
+
+def _should_log_event(event_type: str, payload: dict[str, Any]) -> bool:
+    allowed_event_types = _get_allowed_event_types()
+    if allowed_event_types and event_type.upper() not in allowed_event_types:
+        return False
+
+    if event_type.upper() != "DECISION":
+        return True
+
+    allowed_decisions = _get_allowed_decision_values()
+    if not allowed_decisions:
+        return True
+
+    decision = str(payload.get("decision", "")).upper().strip()
+    if not decision:
+        return False
+    return decision in allowed_decisions
+
+
 def _log_event(event_type: str, **kwargs: Any) -> None:
     """Log a structured event as single-line JSON."""
     _init_file_handler()
     if _logging_disabled:
+        return
+    if not _should_log_event(event_type, kwargs):
         return
 
     record = {

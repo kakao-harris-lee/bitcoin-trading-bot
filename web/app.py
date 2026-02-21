@@ -98,7 +98,11 @@ if quant_lab_bp:
 BASE_DIR = Path(__file__).parent
 
 # Valid exchange names (prevents path traversal attacks)
-VALID_EXCHANGES = {"binance"}
+VALID_EXCHANGES = {
+    ex.strip().lower()
+    for ex in os.getenv("VALID_EXCHANGES", "binance").split(",")
+    if ex.strip()
+}
 
 # Redis connection pool (shared across all requests)
 _redis_pool = ConnectionPool.from_url(
@@ -113,11 +117,15 @@ def get_redis() -> redis.Redis:
     return redis.Redis(connection_pool=_redis_pool)
 
 
-# 대시보드 고정 경로
+# 대시보드 경로/주소 기본값
 # Localhost must stay local by default (no domain redirection guidance).
 DEFAULT_DOMAIN = "localhost"
 DEFAULT_PORT = "5080"
-DASHBOARD_PATH = "btc-dashboard"
+DEFAULT_DASHBOARD_PATH = "btc-dashboard"
+DASHBOARD_PATH = (os.getenv("DASHBOARD_PATH", DEFAULT_DASHBOARD_PATH) or DEFAULT_DASHBOARD_PATH).strip("/")
+DASHBOARD_PATH = DASHBOARD_PATH or DEFAULT_DASHBOARD_PATH
+
+DEFAULT_DASHBOARD_SYMBOLS = ("BTC", "ETH", "SOL")
 
 # 대시보드 인증 정보 (Basic Auth) - loaded from environment variables
 DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME", "admin")
@@ -160,6 +168,49 @@ def load_allocation_config() -> dict:
         except Exception:
             pass
     return {}
+
+
+def _parse_symbol_list(raw_symbols) -> list[str]:
+    if not isinstance(raw_symbols, list):
+        return []
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in raw_symbols:
+        symbol = _normalize_symbol(item)
+        if not symbol or symbol in seen:
+            continue
+        seen.add(symbol)
+        normalized.append(symbol)
+    return normalized
+
+
+def _load_dashboard_symbols(config: dict | None = None) -> list[str]:
+    if config is None:
+        config = load_allocation_config()
+    from_config = _parse_symbol_list(config.get("symbols", [])) if isinstance(config, dict) else []
+    if from_config:
+        return from_config
+
+    env_symbols = [_normalize_symbol(token) for token in os.getenv("DASHBOARD_DEFAULT_SYMBOLS", "").split(",")]
+    env_symbols = [symbol for symbol in env_symbols if symbol]
+    if env_symbols:
+        unique_symbols: list[str] = []
+        seen = set()
+        for symbol in env_symbols:
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            unique_symbols.append(symbol)
+        return unique_symbols
+
+    return list(DEFAULT_DASHBOARD_SYMBOLS)
+
+
+def _dashboard_api_base() -> str:
+    raw_base = (os.getenv("DASHBOARD_API_BASE", "") or "").strip()
+    if not raw_base or raw_base == "/":
+        return ""
+    return "/" + raw_base.strip("/")
 
 
 def _detect_project_root() -> Path:
@@ -516,7 +567,7 @@ def _send_telegram_notification(message: str) -> bool:
         return False
 
 
-def _notify_dashboard_url(port: int = 5080):
+def _notify_dashboard_url():
     """대시보드 URL을 텔레그램으로 알림"""
     domain = os.getenv("DASHBOARD_DOMAIN", DEFAULT_DOMAIN)
     port = os.getenv("DASHBOARD_PORT", DEFAULT_PORT)
@@ -551,14 +602,16 @@ def dashboard():
     """메인 대시보드 (Basic Auth 인증 필요)"""
     css_path = BASE_DIR / "static" / "css" / "style.css"
     js_path = BASE_DIR / "static" / "js" / "dashboard.js"
+    allocation_config = load_allocation_config()
     return render_template(
         "dashboard.html",
         css_version=int(css_path.stat().st_mtime) if css_path.exists() else 1,
         js_version=int(js_path.stat().st_mtime) if js_path.exists() else 1,
+        dashboard_path=DASHBOARD_PATH,
+        dashboard_symbols=_load_dashboard_symbols(allocation_config),
+        api_base=_dashboard_api_base(),
     )
 
-
-_STATUS_FALLBACK_SYMBOLS = ('BTC', 'ETH', 'SOL')
 _STATUS_FALLBACK_MAX_ASSETS = 28
 
 
@@ -702,7 +755,8 @@ def _build_status_fallback_assets(
     regime_status: dict,
     selector_symbols: list[str] | None = None,
 ) -> dict:
-    fallback_symbols = list(_STATUS_FALLBACK_SYMBOLS)
+    fallback_symbols = _load_dashboard_symbols()
+    base_symbol_count = len(fallback_symbols)
 
     if selector_symbols:
         for symbol in selector_symbols:
@@ -717,7 +771,7 @@ def _build_status_fallback_assets(
             if not symbol or symbol in fallback_symbols:
                 continue
             fallback_symbols.append(symbol)
-            if len(fallback_symbols) >= min(_STATUS_FALLBACK_MAX_ASSETS, len(_STATUS_FALLBACK_SYMBOLS) + 8):
+            if len(fallback_symbols) >= min(_STATUS_FALLBACK_MAX_ASSETS, base_symbol_count + 8):
                 break
 
     fallback_symbols = fallback_symbols[:_STATUS_FALLBACK_MAX_ASSETS]
@@ -1712,6 +1766,7 @@ def _new_summary(mode: str) -> dict:
         'futures': {
             'balance': 0.0,
             'unrealized_pnl': 0.0,
+            'position_value': 0.0,
             'total': 0.0,
             'positions': 0,
         },
@@ -1720,11 +1775,15 @@ def _new_summary(mode: str) -> dict:
     }
 
 
-def _build_paper_summary_positions(r, prices: dict) -> tuple[list[dict], float, int, float, int]:
+def _build_paper_summary_positions(
+    r,
+    prices: dict,
+) -> tuple[list[dict], float, int, float, float, int]:
     positions: list[dict] = []
     spot_value = 0.0
     spot_count = 0
     futures_pnl = 0.0
+    futures_position_value = 0.0
     futures_count = 0
     for symbol in _discover_position_symbols(r):
         spot_pos = r.hgetall(f"positions:{symbol}:spot")
@@ -1756,8 +1815,10 @@ def _build_paper_summary_positions(r, prices: dict) -> tuple[list[dict], float, 
         current_price = _safe_float(prices.get(f'{symbol}USDT', entry_price), entry_price)
         side = _normalize_futures_side(futures_pos.get('side', 'buy'))
         abs_qty = abs(futures_qty)
+        notional_value = abs_qty * current_price
         pnl = (current_price - entry_price) * abs_qty if side == 'LONG' else (entry_price - current_price) * abs_qty
         futures_pnl += pnl
+        futures_position_value += notional_value
         futures_count += 1
         positions.append({
             'symbol': f'{symbol}USDT',
@@ -1766,23 +1827,27 @@ def _build_paper_summary_positions(r, prices: dict) -> tuple[list[dict], float, 
             'quantity': abs_qty,
             'entry_price': entry_price,
             'current_price': current_price,
+            'value': notional_value,
             'unrealized_pnl': pnl,
             'leverage': _safe_int(futures_pos.get('leverage', 1), 1),
             'strategy': futures_pos.get('strategy', 'unknown'),
         })
-    return positions, spot_value, spot_count, futures_pnl, futures_count
+    return positions, spot_value, spot_count, futures_pnl, futures_position_value, futures_count
 
 
 def _populate_paper_summary(summary: dict, r, prices: dict) -> dict:
     account = r.hgetall('account:paper') or {}
     spot_balance = _safe_float(account.get('spot_balance', 10000), 10000)
     futures_balance = _safe_float(account.get('futures_balance', 10000), 10000)
-    positions, spot_value, spot_count, futures_pnl, futures_count = _build_paper_summary_positions(r, prices)
+    positions, spot_value, spot_count, futures_pnl, futures_position_value, futures_count = _build_paper_summary_positions(
+        r, prices
+    )
     summary['spot']['balance'] = spot_balance
     summary['spot']['position_value'] = spot_value
     summary['spot']['positions'] = spot_count
     summary['futures']['balance'] = futures_balance
     summary['futures']['unrealized_pnl'] = futures_pnl
+    summary['futures']['position_value'] = futures_position_value
     summary['futures']['positions'] = futures_count
     summary['positions'] = positions
     return summary
@@ -1825,7 +1890,7 @@ def _build_live_summary_spot_positions(r, spot_account: dict, prices: dict) -> t
     return spot_usdt, spot_position_value, spot_count, positions
 
 
-def _build_live_summary_futures_positions(r, futures_account: dict) -> tuple[float, float, int, list[dict]]:
+def _build_live_summary_futures_positions(r, futures_account: dict) -> tuple[float, float, float, int, list[dict]]:
     futures_usdt = 0.0
     futures_unrealized_pnl = 0.0
     for asset in futures_account['assets']:
@@ -1835,6 +1900,7 @@ def _build_live_summary_futures_positions(r, futures_account: dict) -> tuple[flo
             break
 
     futures_count = 0
+    futures_position_value = 0.0
     positions: list[dict] = []
     for pos in futures_account['positions']:
         size = _safe_float(pos['positionAmt'])
@@ -1844,19 +1910,23 @@ def _build_live_summary_futures_positions(r, futures_account: dict) -> tuple[flo
         side = 'LONG' if position_side == 'BOTH' and size > 0 else 'SHORT' if position_side == 'BOTH' else position_side
         asset = pos['symbol'].replace('USDT', '')
         redis_pos = r.hgetall(f"positions:{asset}:futures")
+        current_price = _safe_float(pos['markPrice'])
+        abs_size = abs(size)
         positions.append({
             'symbol': pos['symbol'],
             'market': 'futures',
             'side': side,
-            'quantity': abs(size),
+            'quantity': abs_size,
             'entry_price': _safe_float(pos['entryPrice']),
-            'current_price': _safe_float(pos['markPrice']),
+            'current_price': current_price,
+            'value': abs_size * current_price,
             'unrealized_pnl': _safe_float(pos['unrealizedProfit']),
             'leverage': _safe_int(pos['leverage']),
             'strategy': (redis_pos or {}).get('strategy', 'manual'),
         })
+        futures_position_value += abs_size * current_price
         futures_count += 1
-    return futures_usdt, futures_unrealized_pnl, futures_count, positions
+    return futures_usdt, futures_unrealized_pnl, futures_position_value, futures_count, positions
 
 
 def _populate_live_summary(summary: dict, r, prices: dict) -> dict:
@@ -1865,8 +1935,8 @@ def _populate_live_summary(summary: dict, r, prices: dict) -> dict:
     futures_account = client.futures_account(recvWindow=60000)
 
     spot_usdt, spot_position_value, spot_count, spot_positions = _build_live_summary_spot_positions(r, spot_account, prices)
-    futures_usdt, futures_unrealized_pnl, futures_count, futures_positions = _build_live_summary_futures_positions(
-        r, futures_account
+    futures_usdt, futures_unrealized_pnl, futures_position_value, futures_count, futures_positions = (
+        _build_live_summary_futures_positions(r, futures_account)
     )
 
     summary['spot']['balance'] = spot_usdt
@@ -1874,6 +1944,7 @@ def _populate_live_summary(summary: dict, r, prices: dict) -> dict:
     summary['spot']['positions'] = spot_count
     summary['futures']['balance'] = futures_usdt
     summary['futures']['unrealized_pnl'] = futures_unrealized_pnl
+    summary['futures']['position_value'] = futures_position_value
     summary['futures']['positions'] = futures_count
     summary['positions'] = spot_positions + futures_positions
     return summary
@@ -2176,7 +2247,7 @@ def get_strategies():
             return jsonify({'error': 'Failed to load allocation config'}), 500
 
         strategies_config = config.get('strategies', {})
-        symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
+        symbols = _load_dashboard_symbols(config)
         defaults = config.get('defaults', {})
         r = get_redis()
 
@@ -2315,7 +2386,7 @@ def disable_strategy(strategy_name: str):
 
         # Check for active positions before disabling
         r = get_redis()
-        symbols = config.get('symbols', ['BTC', 'ETH', 'SOL'])
+        symbols = _load_dashboard_symbols(config)
 
         for symbol in symbols:
             pos_key = f"positions:{symbol}:futures"
@@ -2536,12 +2607,9 @@ def get_backtest_history():
     return jsonify({'jobs': jobs})
 
 
-_EXCHANGE_BALANCE_SYMBOLS = ('BTC', 'ETH', 'SOL')
-
-
 def _discover_position_symbols(r) -> list[str]:
     """Return tracked symbols plus any symbols currently persisted in Redis positions keys."""
-    base = list(_EXCHANGE_BALANCE_SYMBOLS)
+    base = _load_dashboard_symbols()
     seen = set(base)
     try:
         raw_keys = r.keys("positions:*:*") or []
@@ -2622,9 +2690,10 @@ def _build_spot_paper_positions(r, prices: dict) -> tuple[list[dict], float]:
     return positions, position_value
 
 
-def _build_futures_paper_positions(r, prices: dict) -> tuple[list[dict], float]:
+def _build_futures_paper_positions(r, prices: dict) -> tuple[list[dict], float, float]:
     positions: list[dict] = []
     unrealized_pnl = 0.0
+    position_value = 0.0
     for symbol in _discover_position_symbols(r):
         futures_pos = r.hgetall(f"positions:{symbol}:futures")
         qty = _safe_float((futures_pos or {}).get('quantity', 0))
@@ -2635,6 +2704,7 @@ def _build_futures_paper_positions(r, prices: dict) -> tuple[list[dict], float]:
         side = _normalize_futures_side(futures_pos.get('side', 'buy'))
         abs_qty = abs(qty)
         pnl = (current_price - entry_price) * abs_qty if side == 'LONG' else (entry_price - current_price) * abs_qty
+        notional_value = abs_qty * current_price
         positions.append({
             'symbol': symbol,
             'market': 'futures',
@@ -2642,6 +2712,7 @@ def _build_futures_paper_positions(r, prices: dict) -> tuple[list[dict], float]:
             'side': side,
             'entry_price': entry_price,
             'mark_price': current_price,
+            'value': notional_value,
             'unrealized_pnl': pnl,
             'leverage': _safe_int(futures_pos.get('leverage', 1), 1),
             'liquidation_price': 0,
@@ -2649,7 +2720,8 @@ def _build_futures_paper_positions(r, prices: dict) -> tuple[list[dict], float]:
             'strategy': futures_pos.get('strategy', 'unknown'),
         })
         unrealized_pnl += pnl
-    return positions, unrealized_pnl
+        position_value += notional_value
+    return positions, unrealized_pnl, position_value
 
 
 def _compose_exchange_balance_payload(
@@ -2658,6 +2730,7 @@ def _compose_exchange_balance_payload(
     spot_positions: list[dict],
     futures_usdt: float,
     futures_unrealized_pnl: float,
+    futures_position_value: float,
     futures_positions: list[dict],
     hedge_mode_enabled: bool,
 ) -> dict:
@@ -2672,6 +2745,7 @@ def _compose_exchange_balance_payload(
         'futures': {
             'usdt_balance': futures_usdt,
             'unrealized_pnl': futures_unrealized_pnl,
+            'position_value': futures_position_value,
             'total': futures_usdt + futures_unrealized_pnl,
             'positions': futures_positions,
             'hedge_mode': hedge_mode_enabled,
@@ -2685,13 +2759,14 @@ def _build_paper_exchange_balances(r, prices: dict) -> dict:
     spot_balance = _safe_float(account.get('spot_balance', 10000), 10000)
     futures_balance = _safe_float(account.get('futures_balance', 10000), 10000)
     spot_positions, spot_position_value = _build_spot_paper_positions(r, prices)
-    futures_positions, futures_unrealized_pnl = _build_futures_paper_positions(r, prices)
+    futures_positions, futures_unrealized_pnl, futures_position_value = _build_futures_paper_positions(r, prices)
     return _compose_exchange_balance_payload(
         spot_usdt=spot_balance,
         spot_position_value=spot_position_value,
         spot_positions=spot_positions,
         futures_usdt=futures_balance,
         futures_unrealized_pnl=futures_unrealized_pnl,
+        futures_position_value=futures_position_value,
         futures_positions=futures_positions,
         hedge_mode_enabled=False,
     )
@@ -2754,7 +2829,7 @@ def _resolve_hedge_mode(client) -> bool:
         return False
 
 
-def _build_futures_live_positions(futures_account: dict, r) -> tuple[float, float, list[dict]]:
+def _build_futures_live_positions(futures_account: dict, r) -> tuple[float, float, float, list[dict]]:
     futures_usdt = 0.0
     futures_unrealized_pnl = 0.0
     for asset in futures_account['assets']:
@@ -2764,6 +2839,7 @@ def _build_futures_live_positions(futures_account: dict, r) -> tuple[float, floa
             break
 
     positions: list[dict] = []
+    position_value = 0.0
     for pos in futures_account['positions']:
         size = _safe_float(pos['positionAmt'])
         if size == 0:
@@ -2774,20 +2850,24 @@ def _build_futures_live_positions(futures_account: dict, r) -> tuple[float, floa
         redis_pos = r.hgetall(f"positions:{asset}:futures")
         entry_time = _safe_int((redis_pos or {}).get('entry_time', 0))
         strategy = (redis_pos or {}).get('strategy', 'unknown')
+        mark_price = _safe_float(pos['markPrice'])
+        notional_value = abs(size) * mark_price
         positions.append({
             'symbol': asset,
             'market': 'futures',
             'size': size,
             'side': side,
             'entry_price': _safe_float(pos['entryPrice']),
-            'mark_price': _safe_float(pos['markPrice']),
+            'mark_price': mark_price,
+            'value': notional_value,
             'unrealized_pnl': _safe_float(pos['unrealizedProfit']),
             'leverage': _safe_int(pos['leverage']),
             'liquidation_price': _safe_float(pos.get('liquidationPrice', 0)),
             'entry_time': entry_time,
             'strategy': strategy,
         })
-    return futures_usdt, futures_unrealized_pnl, positions
+        position_value += notional_value
+    return futures_usdt, futures_unrealized_pnl, position_value, positions
 
 
 @app.route("/api/exchange_balances")
@@ -2815,13 +2895,16 @@ def get_exchange_balances():
         prices = _load_live_price_map(client)
         spot_usdt, spot_positions, spot_position_value = _build_spot_live_positions(spot_account, prices)
         futures_account = client.futures_account(recvWindow=60000)
-        futures_usdt, futures_unrealized_pnl, futures_positions = _build_futures_live_positions(futures_account, r)
+        futures_usdt, futures_unrealized_pnl, futures_position_value, futures_positions = _build_futures_live_positions(
+            futures_account, r
+        )
         result['binance'] = _compose_exchange_balance_payload(
             spot_usdt=spot_usdt,
             spot_position_value=spot_position_value,
             spot_positions=spot_positions,
             futures_usdt=futures_usdt,
             futures_unrealized_pnl=futures_unrealized_pnl,
+            futures_position_value=futures_position_value,
             futures_positions=futures_positions,
             hedge_mode_enabled=_resolve_hedge_mode(client),
         )
@@ -3360,12 +3443,16 @@ def download_trade_log():
 
 
 if __name__ == "__main__":
+    host = os.getenv("DASHBOARD_HOST", "0.0.0.0")
+    port = int(os.getenv("DASHBOARD_PORT", DEFAULT_PORT))
+    local_url = f"http://localhost:{port}/{DASHBOARD_PATH}"
+
     print(f"\n{'='*50}")
-    print(f"Dashboard available at: http://localhost:5080/{DASHBOARD_PATH}")
+    print(f"Dashboard available at: {local_url}")
     print("Basic Auth required (credentials from environment)")
     print(f"{'='*50}\n")
 
     # 텔레그램으로 대시보드 URL 알림
-    _notify_dashboard_url(port=5080)
+    _notify_dashboard_url()
 
-    app.run(host="0.0.0.0", port=5080, debug=False)
+    app.run(host=host, port=port, debug=False)

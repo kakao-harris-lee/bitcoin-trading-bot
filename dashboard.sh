@@ -9,7 +9,19 @@ cd "$SCRIPT_DIR"
 
 PIDFILE="$SCRIPT_DIR/logs/dashboard.pid"
 LOGFILE="$SCRIPT_DIR/logs/dashboard.log"
-PORT=5080
+
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "$SCRIPT_DIR/.env"
+    set +a
+fi
+
+PORT="${DASHBOARD_PORT:-5080}"
+DASHBOARD_PATH="${DASHBOARD_PATH:-btc-dashboard}"
+DASHBOARD_PATH="${DASHBOARD_PATH#/}"
+DASHBOARD_PATH="${DASHBOARD_PATH%/}"
+[ -z "$DASHBOARD_PATH" ] && DASHBOARD_PATH="btc-dashboard"
 
 # Ensure logs directory exists
 mkdir -p "$SCRIPT_DIR/logs"
@@ -28,7 +40,8 @@ is_running() {
         return 0
     else
         # Check if process is running on port even without pidfile
-        local port_pid=$(lsof -ti :$PORT 2>/dev/null)
+        local port_pid
+        port_pid=$(lsof -ti :"$PORT" 2>/dev/null)
         if [ -n "$port_pid" ]; then
             echo "$port_pid" > "$PIDFILE"
             return 0
@@ -59,7 +72,7 @@ start() {
 
     if is_running; then
         echo "Dashboard started successfully (PID: $pid)"
-        echo "Access at: http://localhost:$PORT/btc-dashboard"
+        echo "Access at: http://localhost:$PORT/$DASHBOARD_PATH"
     else
         echo "Failed to start dashboard. Check logs: $LOGFILE"
         exit 1
@@ -107,7 +120,7 @@ status() {
         local pid=$(get_pid)
         echo "Dashboard is running (PID: $pid)"
         echo "Port: $PORT"
-        echo "URL: http://localhost:$PORT/btc-dashboard"
+        echo "URL: http://localhost:$PORT/$DASHBOARD_PATH"
     else
         echo "Dashboard is not running"
     fi

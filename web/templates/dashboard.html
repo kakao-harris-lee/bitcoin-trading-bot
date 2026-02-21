@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Asset Trading Bot - Live Dashboard</title>
-    <link rel="stylesheet" href="/static/css/style.css?v={{ css_version or 1 }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ css_version or 1 }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <style>
         /* Hybrid View Styles */
@@ -394,9 +394,9 @@
                         </select>
                         <select id="tradelog-symbol-filter" class="form-select">
                             <option value="">All Symbols</option>
-                            <option value="BTC">BTC</option>
-                            <option value="ETH">ETH</option>
-                            <option value="SOL">SOL</option>
+                            {% for symbol in dashboard_symbols %}
+                            <option value="{{ symbol }}">{{ symbol }}</option>
+                            {% endfor %}
                         </select>
                         <button id="tradelog-download" class="btn btn-secondary">Download JSONL</button>
                     </div>
@@ -562,6 +562,12 @@
         </footer>
     </div>
 
-    <script src="/static/js/dashboard.js?v={{ js_version or 1 }}"></script>
+    <script>
+        window.DASHBOARD_CONFIG = {
+            apiBase: {{ api_base|tojson }},
+            dashboardPath: {{ dashboard_path|tojson }}
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v={{ js_version or 1 }}"></script>
 </body>
 </html>

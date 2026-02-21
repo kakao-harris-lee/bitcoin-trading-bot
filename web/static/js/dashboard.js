@@ -7,6 +7,10 @@ const REFRESH_INTERVAL = 30000; // 30 seconds
 const STALE_THRESHOLD = 60000; // 60 seconds - data considered stale
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
+const STATUS_ENDPOINT = '/api/status';
+
+const DASHBOARD_CONFIG = window.DASHBOARD_CONFIG || {};
+const API_BASE = normalizeApiBase(DASHBOARD_CONFIG.apiBase || '');
 
 // Track last successful fetch times
 let lastFetchTimes = {};
@@ -23,6 +27,24 @@ let marketSnapshotExpanded = false;
 let selectorFocusSymbols = new Set();
 let latestStatusPayload = null;
 
+function normalizeApiBase(base) {
+    const trimmed = String(base || '').trim();
+    if (!trimmed || trimmed === '/') {
+        return '';
+    }
+    return `/${trimmed.replace(/^\/+|\/+$/g, '')}`;
+}
+
+function resolveApiEndpoint(endpoint) {
+    if (/^https?:\/\//i.test(endpoint)) {
+        return endpoint;
+    }
+    if (!endpoint.startsWith('/')) {
+        return `${API_BASE}/${endpoint}`;
+    }
+    return `${API_BASE}${endpoint}`;
+}
+
 // API Fetch Utility with Error Handling and Retry
 async function apiFetch(endpoint, options = {}, retryCount = 0) {
     const defaultOptions = {
@@ -35,7 +57,7 @@ async function apiFetch(endpoint, options = {}, retryCount = 0) {
     const mergedOptions = { ...defaultOptions, ...options };
 
     try {
-        const response = await fetch(endpoint, mergedOptions);
+        const response = await fetch(resolveApiEndpoint(endpoint), mergedOptions);
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
@@ -88,7 +110,7 @@ function updateStalenessIndicator() {
     const lastUpdateEl = document.getElementById('last-update-time');
     if (!lastUpdateEl) return;
 
-    const statusFetchTime = lastFetchTimes['/api/status'];
+    const statusFetchTime = lastFetchTimes[STATUS_ENDPOINT];
     if (!statusFetchTime) return;
 
     const age = Date.now() - statusFetchTime;
@@ -779,9 +801,7 @@ function updateKillSwitch(data) {
 // Fetch and update status
 async function fetchStatus() {
     try {
-        const response = await fetch('/api/status', { credentials: 'include' });
-        if (!response.ok) throw new Error('Status fetch failed');
-        const data = await response.json();
+        const data = await apiFetch(STATUS_ENDPOINT);
         updateStatus(data);
     } catch (err) {
         console.error('Status fetch error:', err);
@@ -791,9 +811,7 @@ async function fetchStatus() {
 // Fetch and update kill switch
 async function fetchKillSwitch() {
     try {
-        const response = await fetch('/api/kill_switch/status', { credentials: 'include' });
-        if (!response.ok) throw new Error('Kill switch fetch failed');
-        const data = await response.json();
+        const data = await apiFetch('/api/kill_switch/status');
         updateKillSwitch(data);
     } catch (err) {
         console.error('Kill switch fetch error:', err);
@@ -809,8 +827,13 @@ function updateExchangeBalances(data) {
     }
 
     const binance = data.binance;
+    const spot = binance.spot || {};
 
-    // ==================== FUTURES SECTION (Futures-only system) ====================
+    document.getElementById('spot-status').textContent = 'Connected';
+    document.getElementById('spot-status').className = 'exchange-status connected';
+    document.getElementById('spot-balance').textContent = formatUSD(spot.usdt_balance || 0);
+    document.getElementById('spot-positions-count').textContent = (spot.positions || []).length;
+
     const futures = binance.futures || {};
     document.getElementById('futures-status').textContent = 'Connected';
     document.getElementById('futures-status').className = 'exchange-status connected';
@@ -822,6 +845,7 @@ function updateExchangeBalances(data) {
     unrealizedPnlEl.textContent = formatUSD(unrealizedPnl);
     unrealizedPnlEl.className = `value ${unrealizedPnl >= 0 ? 'positive' : 'negative'}`;
 
+    document.getElementById('futures-positions-count').textContent = (futures.positions || []).length;
     document.getElementById('futures-total').textContent = formatUSD(futures.total || 0);
 
     // Hedge mode badge
@@ -832,21 +856,14 @@ function updateExchangeBalances(data) {
         hedgeBadge.style.display = 'none';
     }
 
-    // ==================== UPDATE PORTFOLIO SUMMARY ====================
-    const totalEquity = futures.total || 0;
+    const totalEquity = binance.total_equity || 0;
     const totalUnrealizedPnl = futures.unrealized_pnl || 0;
-    const positions = futures.positions || [];
-
-    // Calculate total position value
-    let totalPositionValue = 0;
-    for (const pos of positions) {
-        totalPositionValue += Math.abs(pos.size || 0) * (pos.mark_price || 0);
-    }
-
-    // Exposure = position value / total equity * 100
+    const spotPositionValue = spot.position_value || 0;
+    const futuresPositionValue = futures.position_value || 0;
+    const totalPositionValue = spotPositionValue + futuresPositionValue;
     const exposurePct = totalEquity > 0 ? (totalPositionValue / totalEquity * 100) : 0;
 
-    // Update portfolio summary elements
+    document.getElementById('total-equity').textContent = formatUSD(totalEquity);
     document.getElementById('total-capital').textContent = formatUSD(totalEquity);
     document.getElementById('total-value').textContent = formatUSD(totalEquity);
     document.getElementById('exposure-pct').textContent = `${exposurePct.toFixed(1)}%`;
@@ -864,18 +881,13 @@ function updateExchangeBalances(data) {
 // Fetch exchange balances (hybrid: spot + futures)
 async function fetchExchangeBalances() {
     try {
-        // Fetch summary endpoint for hybrid view
-        const response = await fetch('/api/summary', { credentials: 'include' });
-        if (!response.ok) throw new Error('Summary fetch failed');
-        const data = await response.json();
+        const data = await apiFetch('/api/summary');
         updateHybridSummary(data);
     } catch (err) {
         console.error('Summary fetch error:', err);
         // Fallback to old API for backwards compatibility
         try {
-            const response = await fetch('/api/exchange_balances', { credentials: 'include' });
-            if (!response.ok) throw new Error('Exchange balances fetch failed');
-            const data = await response.json();
+            const data = await apiFetch('/api/exchange_balances');
             updateExchangeBalances(data);
         } catch (fallbackErr) {
             console.error('Fallback exchange balances fetch error:', fallbackErr);
@@ -909,7 +921,7 @@ function updateHybridSummary(data) {
     unrealizedPnlEl.className = `value ${unrealizedPnl >= 0 ? 'positive' : 'negative'}`;
 
     document.getElementById('futures-positions-count').textContent = futures.positions || 0;
-    document.getElementById('futures-total').textContent = formatUSD(futures.balance || 0);
+    document.getElementById('futures-total').textContent = formatUSD(futures.total || 0);
 
     // Hedge mode badge (futures)
     const hedgeBadge = document.getElementById('hedge-mode-badge');
@@ -930,18 +942,22 @@ function updateHybridSummary(data) {
     portfolioPnlEl.textContent = formatUSD(totalUnrealizedPnl);
     portfolioPnlEl.className = `value ${totalUnrealizedPnl >= 0 ? 'positive' : 'negative'}`;
 
-    // Calculate exposure (futures only for now)
-    const futuresPositionValue = (futures.positions || 0) * 1000; // Rough estimate
-    const exposurePct = totalEquity > 0 ? (futuresPositionValue / totalEquity * 100) : 0;
+    const spotPositionValue = spot.position_value || 0;
+    let futuresPositionValue = futures.position_value;
+    if (futuresPositionValue === undefined || futuresPositionValue === null) {
+        futuresPositionValue = (data.positions || [])
+            .filter((pos) => pos.market === 'futures')
+            .reduce((acc, pos) => acc + (Math.abs(pos.quantity || 0) * (pos.current_price || 0)), 0);
+    }
+    const totalPositionValue = spotPositionValue + (futuresPositionValue || 0);
+    const exposurePct = totalEquity > 0 ? (totalPositionValue / totalEquity * 100) : 0;
     document.getElementById('exposure-pct').textContent = `${exposurePct.toFixed(1)}%`;
 }
 
 // Fetch leverage state
 async function fetchLeverageState() {
     try {
-        const response = await fetch('/api/metrics/leverage', { credentials: 'include' });
-        if (!response.ok) throw new Error('Leverage state fetch failed');
-        const data = await response.json();
+        const data = await apiFetch('/api/metrics/leverage');
         renderLeverageState(data);
     } catch (err) {
         console.error('Leverage state fetch error:', err);
@@ -2464,7 +2480,7 @@ function initTradeLogControls() {
         downloadBtn.addEventListener('click', () => {
             const period = analyticsState.period;
             const days = period === 'all' ? 365 : parseInt(period.replace('d', ''));
-            window.location.href = `/api/analytics/trade-log/download?days=${days}`;
+            window.location.href = resolveApiEndpoint(`/api/analytics/trade-log/download?days=${days}`);
         });
     }
 }

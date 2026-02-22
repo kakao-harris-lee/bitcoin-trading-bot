@@ -1325,29 +1325,56 @@ async function fetchPositions() {
     try {
         renderLoading(containerId);
 
-        // Fetch both spot and futures positions in parallel
-        const [futuresData, spotData] = await Promise.all([
+        // /api/positions is authoritative in both paper/live modes.
+        // Keep spot endpoint as fallback only when spot positions are missing.
+        const [positionsDataRaw, spotData] = await Promise.all([
             apiFetch('/api/positions').catch(err => {
-                console.error('Futures positions fetch error:', err);
+                console.error('Positions fetch error:', err);
                 return { positions: [], total_value: 0, total_unrealized_pnl: 0 };
             }),
             apiFetch('/api/spot/positions').catch(err => {
                 console.error('Spot positions fetch error:', err);
-                return { positions: [], total_value: 0 };
+                return { positions: [], count: 0 };
             })
         ]);
 
-        // Merge positions with market indicator
-        const futuresPositions = (futuresData.positions || []).map(p => ({ ...p, market: 'futures' }));
-        const spotPositions = (spotData.positions || []).map(p => ({ ...p, market: 'spot' }));
+        const normalizePosition = (pos, fallbackMarket = null) => {
+            const market = String(pos.market || fallbackMarket || '').toLowerCase();
+            return {
+                ...pos,
+                market: market === 'spot' ? 'spot' : 'futures',
+                exchange: pos.exchange || 'binance',
+            };
+        };
 
-        const allPositions = [...futuresPositions, ...spotPositions];
+        const dedupePositions = (positions) => {
+            const deduped = [];
+            const seen = new Set();
+            for (const pos of positions) {
+                const key = [
+                    String(pos.symbol || '').toUpperCase(),
+                    String(pos.market || '').toLowerCase(),
+                    String(pos.side || '').toUpperCase(),
+                ].join('|');
+                if (seen.has(key)) continue;
+                seen.add(key);
+                deduped.push(pos);
+            }
+            return deduped;
+        };
+
+        const mergedPositions = (positionsDataRaw.positions || []).map((p) => normalizePosition(p));
+        const hasSpotInPrimary = mergedPositions.some((p) => p.market === 'spot');
+        const fallbackSpotPositions = hasSpotInPrimary
+            ? []
+            : (spotData.positions || []).map((p) => normalizePosition(p, 'spot'));
+        const allPositions = dedupePositions([...mergedPositions, ...fallbackSpotPositions]);
 
         // Combined data
         const combinedData = {
             positions: allPositions,
-            total_value: (futuresData.total_value || 0) + (spotData.total_value || 0),
-            total_unrealized_pnl: futuresData.total_unrealized_pnl || 0 // Spot doesn't have unrealized PnL
+            total_value: Number(positionsDataRaw.total_value || 0),
+            total_unrealized_pnl: Number(positionsDataRaw.total_unrealized_pnl || 0),
         };
 
         positionsData = combinedData;

@@ -310,15 +310,13 @@ class BaseStrategyTask(ABC):
         exit_signal: dict[str, Any],
     ) -> None:
         """Publish exit signal and update position lifecycle state."""
-        if self.use_smart_exit:
-            self._pending_exits.add(symbol)
+        # Keep exit pending until executor/processor actually clears position.
+        self._pending_exits.add(symbol)
         await self._publish_exit(exit_signal, position)
         if self.use_smart_exit:
             return
 
-        await self.redis.clear_position(symbol, self.market)
-        self._notified_positions.discard(symbol)
-        await self.on_position_closed(symbol)
+        # Non-smart exit also waits for real fill-driven position clear.
 
     def _update_buffer(self, symbol: str, msg: dict[str, Any]) -> None:
         """Update price buffer for symbol."""

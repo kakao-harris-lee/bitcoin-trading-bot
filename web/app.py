@@ -2008,6 +2008,7 @@ def get_spot_positions_api():
 
                 positions.append({
                     'symbol': f'{symbol}USDT',
+                    'exchange': 'binance',
                     'market': 'spot',
                     'side': 'LONG',
                     'quantity': qty,

@@ -208,8 +208,9 @@ async def test_strategy_publishes_to_orders_without_smart_exit(mock_redis):
     assert len(calls) == 1
     assert calls[0][0][0] == "orders"
 
-    # Position should be cleared
-    mock_redis.clear_position.assert_called_once_with("BTC", "futures")
+    # Position should not be cleared until executor confirms fill
+    mock_redis.clear_position.assert_not_called()
+    assert "BTC" in strategy._pending_exits
 
 
 @pytest.mark.asyncio

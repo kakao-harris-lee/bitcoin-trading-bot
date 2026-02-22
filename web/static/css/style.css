@@ -1646,6 +1646,43 @@ footer kbd {
     color: var(--text-muted);
 }
 
+.signal-card .impact-badge {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    background: rgba(136, 136, 136, 0.12);
+}
+
+.signal-card .impact-badge.entry_filled,
+.signal-card .impact-badge.entry_ordered {
+    background: rgba(63, 185, 80, 0.15);
+    border-color: rgba(63, 185, 80, 0.35);
+    color: var(--profit);
+}
+
+.signal-card .impact-badge.entry_signal {
+    background: rgba(88, 166, 255, 0.12);
+    border-color: rgba(88, 166, 255, 0.35);
+    color: #58a6ff;
+}
+
+.signal-card .impact-badge.entry_blocked {
+    background: rgba(248, 81, 73, 0.12);
+    border-color: rgba(248, 81, 73, 0.35);
+    color: var(--loss);
+}
+
+.signal-card .impact-badge.position_hold,
+.signal-card .impact-badge.entry_wait {
+    background: rgba(210, 153, 34, 0.15);
+    border-color: rgba(210, 153, 34, 0.35);
+    color: var(--warning);
+}
+
 .signal-card .signal-body {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1714,6 +1751,23 @@ footer kbd {
 .signal-card .acted-badge.no {
     background: rgba(136, 136, 136, 0.15);
     color: var(--text-muted);
+}
+
+.signal-card .signal-impact-factors {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.signal-card .impact-factor {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    background: rgba(136, 136, 136, 0.08);
 }
 
 /* Decision History Styles */

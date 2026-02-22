@@ -1751,6 +1751,17 @@ function renderSignals(data) {
             const indicators = signal.indicators || {};
             const symbolDisplay = signal.symbol || '-';
             const marketDisplay = signal.market === 'futures' ? 'Futures' : 'Spot';
+            const entryImpact = String(signal.entry_impact || '').toLowerCase();
+            const impactDetail = signal.impact_detail || '-';
+            const impactFactors = Array.isArray(signal.impact_factors) ? signal.impact_factors : [];
+            const impactLabel = ({
+                entry_filled: 'ENTRY FILLED',
+                entry_ordered: 'ENTRY ORDERED',
+                entry_signal: 'ENTRY SIGNAL',
+                entry_blocked: 'ENTRY BLOCKED',
+                position_hold: 'POSITION HOLD',
+                entry_wait: 'ENTRY WAIT',
+            })[entryImpact] || (signal.entry_impact || '-');
 
             html += `
                 <div class="signal-card ${actionClass}">
@@ -1759,6 +1770,8 @@ function renderSignals(data) {
                         <div class="signal-badges">
                             <span class="symbol-badge">${escapeHtml(symbolDisplay)}</span>
                             <span class="signal-action ${actionClass}">${decisionLabel}</span>
+                            <span class="impact-badge ${entryImpact}">${escapeHtml(impactLabel)}</span>
+                            <span class="acted-badge ${signal.acted ? 'yes' : 'no'}">${signal.acted ? 'Acted' : 'Not Acted'}</span>
                         </div>
                     </div>
                     <div class="signal-body">
@@ -1782,7 +1795,16 @@ function renderSignals(data) {
                             <span class="label">Market State</span>
                             <span class="value">${escapeHtml(signal.market_state) || '-'}</span>
                         </div>
+                        <div class="signal-info">
+                            <span class="label">Entry Impact</span>
+                            <span class="value">${escapeHtml(impactDetail)}</span>
+                        </div>
                     </div>
+                    ${impactFactors.length > 0 ? `
+                    <div class="signal-impact-factors">
+                        ${impactFactors.map((factor) => `<span class="impact-factor">${escapeHtml(factor)}</span>`).join('')}
+                    </div>
+                    ` : ''}
                     ${Object.keys(indicators).length > 0 ? `
                     <div class="signal-indicators">
                         ${indicators.rsi !== undefined ? `

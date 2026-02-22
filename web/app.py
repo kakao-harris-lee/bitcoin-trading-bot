@@ -1155,6 +1155,80 @@ def _summarize_filtered_trades(filtered_trades: list[dict]) -> dict:
     }
 
 
+def _parse_iso8601(value: str | None) -> datetime | None:
+    """Parse ISO timestamp defensively."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_entry_blockers(reason: str | None) -> list[str]:
+    """Extract blocker factors from reason text for WAIT decisions."""
+    text = str(reason or "")
+    if "No entry:" not in text or "|" not in text:
+        return []
+    _, tail = text.split("|", 1)
+    return [token.strip() for token in tail.split(",") if token.strip()]
+
+
+def _find_first_event_after(
+    timestamps: list[datetime],
+    base_ts: datetime | None,
+    window_minutes: int = 75,
+) -> datetime | None:
+    """Find first event timestamp within [base_ts, base_ts + window]."""
+    if base_ts is None:
+        return None
+    deadline = base_ts + timedelta(minutes=window_minutes)
+    for ts in timestamps:
+        if ts < base_ts:
+            continue
+        if ts > deadline:
+            return None
+        return ts
+    return None
+
+
+def _build_entry_impact(
+    decision: str,
+    reason: str,
+    position_active: bool,
+    order_ts: datetime | None,
+    fill_ts: datetime | None,
+) -> tuple[str, str, list[str], bool]:
+    """Map decision + execution traces to entry impact fields."""
+    decision_upper = str(decision or "WAIT").upper()
+    blockers = _extract_entry_blockers(reason)
+
+    if decision_upper == "BUY":
+        if fill_ts:
+            return (
+                "ENTRY_FILLED",
+                f"Entry filled at {fill_ts.strftime('%H:%M:%S')}",
+                [],
+                True,
+            )
+        if order_ts:
+            return (
+                "ENTRY_ORDERED",
+                f"Entry order published at {order_ts.strftime('%H:%M:%S')}",
+                [],
+                True,
+            )
+        return ("ENTRY_SIGNAL", "Entry signal generated (no order yet)", [], False)
+
+    if decision_upper == "HOLD" or position_active:
+        return ("POSITION_HOLD", "Position already open; no new entry", [], False)
+
+    if blockers:
+        return ("ENTRY_BLOCKED", "Blocked by filters", blockers, False)
+
+    return ("ENTRY_WAIT", "No entry condition met", [], False)
+
+
 @app.route("/api/trades")
 def get_trades():
     """
@@ -1302,7 +1376,36 @@ def get_signals():
             hours=hours,
             limit=limit,
             exchange='binance',
+            include_fallback=False,
         )
+
+        # Correlate entry decisions with order/fill traces to explain impact.
+        order_times: dict[tuple[str, str], list[datetime]] = {}
+        fill_times: dict[tuple[str, str], list[datetime]] = {}
+
+        for order in read_redis_orders(limit=1000):
+            if str(order.get("action", "")).upper() != "BUY":
+                continue
+            ts = _parse_iso8601(order.get("timestamp"))
+            if ts is None:
+                continue
+            key = (str(order.get("symbol", "")).upper(), str(order.get("strategy", "")))
+            order_times.setdefault(key, []).append(ts)
+
+        for trade in read_redis_trades(limit=1000):
+            if str(trade.get("action", "")).upper() != "BUY":
+                continue
+            ts = _parse_iso8601(trade.get("timestamp"))
+            if ts is None:
+                continue
+            key = (str(trade.get("symbol", "")).upper(), str(trade.get("strategy", "")))
+            fill_times.setdefault(key, []).append(ts)
+
+        for ts_list in order_times.values():
+            ts_list.sort()
+        for ts_list in fill_times.values():
+            ts_list.sort()
+
         for d in decisions:
             regime = d.get('regime', '')
             market_state = ''
@@ -1316,6 +1419,22 @@ def get_signals():
                 market_state = 'RANGING'
 
             decision = (d.get('decision') or 'WAIT').upper()
+            position_payload = d.get('position') or {}
+            position_active = bool(position_payload.get('active', False))
+            decision_ts = _parse_iso8601(d.get('timestamp'))
+            symbol_key = str(d.get('symbol', '')).upper()
+            strategy_key = str(d.get('strategy', ''))
+            lookup_key = (symbol_key, strategy_key)
+            order_ts = _find_first_event_after(order_times.get(lookup_key, []), decision_ts)
+            fill_ts = _find_first_event_after(fill_times.get(lookup_key, []), decision_ts)
+            impact_code, impact_detail, impact_factors, acted = _build_entry_impact(
+                decision=decision,
+                reason=d.get('reason', ''),
+                position_active=position_active,
+                order_ts=order_ts,
+                fill_ts=fill_ts,
+            )
+
             signals.append({
                 'timestamp': d.get('timestamp', ''),
                 'exchange': d.get('exchange', 'binance'),
@@ -1328,7 +1447,10 @@ def get_signals():
                 'reason': d.get('reason', ''),
                 'regime': regime,
                 'market_state': market_state,
-                'acted': False,
+                'acted': acted,
+                'entry_impact': impact_code,
+                'impact_detail': impact_detail,
+                'impact_factors': impact_factors,
                 'indicators': d.get('indicators', {}),
             })
 
@@ -3012,7 +3134,8 @@ def get_decision_history():
         decisions = metrics_service.get_recent_decisions(
             hours=hours,
             limit=limit,
-            exchange='binance'  # Binance-only now
+            exchange='binance',  # Binance-only now
+            include_fallback=False,
         )
 
         return jsonify({

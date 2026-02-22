@@ -273,7 +273,8 @@ class MetricsService:
         self,
         hours: int = 24,
         limit: int = 50,
-        exchange: Optional[str] = None
+        exchange: Optional[str] = None,
+        include_fallback: bool = True,
     ) -> list[dict]:
         """
         Get recent strategy decisions from strategy:decisions stream.
@@ -297,7 +298,9 @@ class MetricsService:
             is_paper_mode = self._is_paper_mode(r)
             entries = self._read_decision_entries(r, limit)
             if not entries:
-                return self._get_position_based_decisions(limit)
+                if include_fallback:
+                    return self._get_position_based_decisions(limit)
+                return []
             return self._parse_decision_entries(entries, is_paper_mode, limit)
 
         except Exception as e:

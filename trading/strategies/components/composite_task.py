@@ -621,8 +621,20 @@ class CompositeStrategyTask(BaseStrategyTask):
         if not signal:
             return None
 
+        exit_quantity = self._resolve_exit_order_quantity(position=position, signal=signal)
+        if exit_quantity <= 0:
+            logger.warning(
+                "%s: Skip exit order due to non-positive resolved qty "
+                "(signal_qty=%s, position_qty=%.8f, reason=%s)",
+                symbol,
+                signal.quantity,
+                position.quantity,
+                signal.reason,
+            )
+            return None
+
         self._update_exit_loss_tracking(symbol, signal)
-        return self._signal_to_dict(signal, signal.quantity)
+        return self._signal_to_dict(signal, exit_quantity)
 
     async def _refresh_indicator_history(self, symbol: str) -> None:
         if self.indicator_service and self.indicator_service.needs_refresh(symbol):
@@ -2147,6 +2159,27 @@ class CompositeStrategyTask(BaseStrategyTask):
             result["trigger_price"] = signal.trigger_price
 
         return result
+
+    def _resolve_exit_order_quantity(self, position: Position, signal: Signal) -> float:
+        """Resolve exit signal quantity to absolute order quantity.
+
+        Exit components currently emit two quantity styles:
+        - Fractional (<= 1.0): BaseExitStrategy convention (1.0=full, 0.5=half)
+        - Absolute (> 1.0): legacy/custom absolute quantity
+
+        Always clamp to current position quantity to avoid oversize sell attempts.
+        """
+        position_qty = max(float(position.quantity), 0.0)
+        raw_qty = float(signal.quantity)
+        if position_qty <= 0.0 or raw_qty <= 0.0:
+            return 0.0
+
+        if raw_qty <= 1.0 + 1e-9:
+            resolved_qty = position_qty * min(max(raw_qty, 0.0), 1.0)
+        else:
+            resolved_qty = raw_qty
+
+        return min(resolved_qty, position_qty)
 
     async def _get_quantity(
         self,

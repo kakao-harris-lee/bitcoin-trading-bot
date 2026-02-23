@@ -145,3 +145,13 @@ def test_none_for_invalid_position_values():
 
     assert strategy.check_exit(ctx, _make_position(entry_price=0.0)) is None
     assert strategy.check_exit(ctx, _make_position(quantity=0.0)) is None
+
+
+def test_exit_signal_uses_fraction_quantity_convention():
+    strategy = SidewaysExitStrategy(SidewaysExitParams(take_profit_pct=1.0))
+    position = _make_position(quantity=0.7363)
+    ctx = _make_context(close=101500.0)  # +1.5%
+
+    signal = strategy.check_exit(ctx, position)
+    assert signal is not None
+    assert signal.quantity == 1.0

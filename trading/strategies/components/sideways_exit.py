@@ -132,10 +132,12 @@ class SidewaysExitStrategy:
         Returns:
             Signal to close the position.
         """
+        # Exit quantities follow BaseExitStrategy convention:
+        # 1.0 means full close, 0.5 means half close.
         return Signal(
             symbol=position.symbol,
             side="sell",
             market=position.market,
-            quantity=position.quantity,
+            quantity=1.0,
             reason=reason,
         )

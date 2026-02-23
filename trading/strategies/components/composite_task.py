@@ -488,12 +488,13 @@ class CompositeStrategyTask(BaseStrategyTask):
         await super()._handle_message(msg)
         await self._post_message_monitoring_refresh(msg)
 
-    def _is_regime_snapshot_due(self, symbol: str) -> bool:
+    def _is_regime_snapshot_due(self, symbol: str, now: float | None = None) -> bool:
         interval = self._regime_snapshot_interval_seconds
         if interval <= 0:
             return True
+        current_time = time.time() if now is None else now
         last_snapshot = self._last_regime_snapshot_time.get(symbol, 0.0)
-        return (time.time() - last_snapshot) >= interval
+        return (current_time - last_snapshot) >= interval
 
     async def _post_message_monitoring_refresh(self, msg: dict[str, Any]) -> None:
         if msg.get("warmup") == "true":
@@ -503,8 +504,10 @@ class CompositeStrategyTask(BaseStrategyTask):
         if symbol not in self.symbols:
             return
 
-        snapshot_due = self._is_regime_snapshot_due(symbol)
-        if not snapshot_due and not self._symbol_selector.enabled:
+        now = time.time()
+        snapshot_due = self._is_regime_snapshot_due(symbol, now=now)
+        selector_due = self._symbol_selector.enabled and self._symbol_selector.should_refresh(now)
+        if not snapshot_due and not selector_due:
             return
 
         market_data = self._build_market_data(symbol)
@@ -515,7 +518,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         if snapshot_due:
             await self._update_regime_snapshot(symbol, market_data, context)
 
-        if not self._symbol_selector.enabled:
+        if not selector_due:
             return
         self._update_symbol_selector_inputs(symbol, market_data, context)
         await self._refresh_symbol_selector_if_due()

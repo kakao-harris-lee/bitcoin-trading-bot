@@ -422,6 +422,33 @@ def _normalize_symbol(symbol: str) -> str:
     return normalized
 
 
+def _parse_regime_timestamp_ms(value: object) -> int:
+    """Parse mixed timestamp formats (ms/sec epoch, ISO string) into epoch ms."""
+    if value is None:
+        return 0
+
+    if isinstance(value, (int, float)):
+        ts = int(float(value))
+        return ts if ts >= 1_000_000_000_000 else ts * 1000
+
+    text = str(value).strip()
+    if not text:
+        return 0
+
+    try:
+        ts = int(float(text))
+        return ts if ts >= 1_000_000_000_000 else ts * 1000
+    except (TypeError, ValueError):
+        pass
+
+    try:
+        iso_text = text.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(iso_text)
+        return int(dt.timestamp() * 1000)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _read_latest_regime_status(r: redis.Redis, limit: int = 300) -> dict:
     """
     Read latest per-symbol regime/trend from strategy decisions stream.
@@ -441,21 +468,61 @@ def _read_latest_regime_status(r: redis.Redis, limit: int = 300) -> dict:
             continue
 
         ts_raw = data.get('timestamp', msg_id.split('-')[0])
-        try:
-            ts_ms = int(float(ts_raw))
-            ts_iso = datetime.fromtimestamp(ts_ms / 1000).isoformat()
-        except (TypeError, ValueError):
-            ts_iso = str(ts_raw)
+        ts_ms = _parse_regime_timestamp_ms(ts_raw)
+        if ts_ms <= 0:
+            ts_ms = _parse_regime_timestamp_ms(msg_id.split('-')[0])
+        ts_iso = datetime.fromtimestamp(ts_ms / 1000).isoformat() if ts_ms > 0 else str(ts_raw)
 
         regime_status[symbol] = {
             'symbol': symbol,
             'regime': data.get('regime', 'UNKNOWN'),
             'trend': data.get('trend', 'UNKNOWN'),
             'decision': data.get('decision', data.get('action', 'WAIT')),
+            'strategy': data.get('strategy'),
+            'market': data.get('market'),
+            'source': 'strategy:decisions',
             'timestamp': ts_iso,
+            'timestamp_ms': ts_ms,
         }
 
     return regime_status
+
+
+def _read_regime_snapshots(r: redis.Redis) -> dict:
+    """Read current per-symbol regime snapshots from hash storage."""
+    snapshots: dict[str, dict] = {}
+    try:
+        payloads = r.hgetall("regime:latest") or {}
+    except Exception as e:
+        print(f"Error reading regime snapshots from Redis: {e}")
+        return snapshots
+
+    for raw_symbol, raw_payload in payloads.items():
+        symbol = _normalize_symbol(raw_symbol)
+        if not symbol:
+            continue
+        try:
+            parsed = json.loads(raw_payload)
+            if not isinstance(parsed, dict):
+                continue
+        except (TypeError, json.JSONDecodeError):
+            continue
+
+        ts_ms = _parse_regime_timestamp_ms(parsed.get("timestamp_ms", parsed.get("timestamp")))
+        ts_iso = datetime.fromtimestamp(ts_ms / 1000).isoformat() if ts_ms > 0 else str(parsed.get("timestamp", ""))
+        snapshots[symbol] = {
+            "symbol": symbol,
+            "regime": parsed.get("regime", "UNKNOWN"),
+            "trend": parsed.get("trend", "UNKNOWN"),
+            "decision": parsed.get("decision", "WAIT"),
+            "strategy": parsed.get("strategy"),
+            "market": parsed.get("market"),
+            "source": "regime:latest",
+            "timestamp": ts_iso,
+            "timestamp_ms": ts_ms,
+        }
+
+    return snapshots
 
 def read_redis_orders(limit: int = 200) -> list:
     """
@@ -639,6 +706,13 @@ def _load_status_prices_and_regimes() -> tuple[dict, dict]:
         r = get_redis()
         prices = _read_status_prices(r)
         regime_status = _read_latest_regime_status(r)
+        live_snapshots = _read_regime_snapshots(r)
+        for symbol, snapshot in live_snapshots.items():
+            existing = regime_status.get(symbol, {})
+            existing_ms = _parse_regime_timestamp_ms(existing.get("timestamp_ms", existing.get("timestamp")))
+            snapshot_ms = _parse_regime_timestamp_ms(snapshot.get("timestamp_ms", snapshot.get("timestamp")))
+            if snapshot_ms >= existing_ms:
+                regime_status[symbol] = snapshot
         return prices, regime_status
     except Exception as e:
         print(f"Error reading prices from Redis: {e}")

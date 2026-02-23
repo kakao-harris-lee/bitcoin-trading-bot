@@ -1177,8 +1177,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize backtest
     initBacktest();
 
-    // Initialize market filter tabs
-    initMarketFilterTabs();
     initAssetCardToggle();
 
     // Fetch initial data
@@ -1330,37 +1328,6 @@ function onTabActivated(tabId) {
 
 let positionsData = null;
 
-// Initialize market filter tabs
-function initMarketFilterTabs() {
-    const marketTabs = document.querySelectorAll('.market-tab');
-
-    marketTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const market = tab.dataset.market;
-
-            // Update active tab
-            marketTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-
-            // Filter positions
-            filterPositionsByMarket(market);
-        });
-    });
-}
-
-// Filter positions by market (all, spot, futures)
-function filterPositionsByMarket(market) {
-    const positionCards = document.querySelectorAll('.position-card');
-
-    positionCards.forEach(card => {
-        if (market === 'all' || card.dataset.market === market) {
-            card.style.display = '';
-        } else {
-            card.style.display = 'none';
-        }
-    });
-}
-
 async function fetchPositions() {
     const containerId = 'positions-container';
 
@@ -1411,12 +1378,18 @@ async function fetchPositions() {
             ? []
             : (spotData.positions || []).map((p) => normalizePosition(p, 'spot'));
         const allPositions = dedupePositions([...mergedPositions, ...fallbackSpotPositions]);
+        const spotPositions = allPositions.filter((p) => p.market === 'spot');
+        const totalSpotValue = spotPositions.reduce((sum, p) => sum + Number(p.value || 0), 0);
+        const totalSpotUnrealizedPnl = spotPositions.reduce((sum, p) => {
+            const pnl = Number(p.unrealized_pnl);
+            return sum + (Number.isFinite(pnl) ? pnl : 0);
+        }, 0);
 
-        // Combined data
+        // Open Positions tab uses spot positions only.
         const combinedData = {
-            positions: allPositions,
-            total_value: Number(positionsDataRaw.total_value || 0),
-            total_unrealized_pnl: Number(positionsDataRaw.total_unrealized_pnl || 0),
+            positions: spotPositions,
+            total_value: totalSpotValue,
+            total_unrealized_pnl: totalSpotUnrealizedPnl,
         };
 
         positionsData = combinedData;
@@ -1438,12 +1411,12 @@ function renderPositions(data) {
 
     let html = '';
 
-    // Render all positions (spot + futures)
+    // Render spot positions only
     for (const pos of data.positions) {
         const pnlClass = getPnLClass(pos.unrealized_pnl);
         const sideRaw = String(pos.side || 'LONG');
         const sideClass = sideRaw.toLowerCase();
-        const market = pos.market || 'futures'; // Default to futures for backwards compatibility
+        const market = pos.market || 'spot';
         const marketBadge = market === 'spot' ? '<span class="market-badge spot">SPOT</span>' : '<span class="market-badge futures">FUTURES</span>';
         const symbolLabel = escapeHtml(pos.symbol || '-');
         const symbolChartUrl = getBinanceChartUrl(pos.symbol, market);

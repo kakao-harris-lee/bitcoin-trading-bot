@@ -160,6 +160,10 @@ class CompositeStrategyTask(BaseStrategyTask):
             self.config.get("entry_evaluation_interval_seconds", self.evaluation_interval)
         )
         self._last_entry_candle_ts: dict[str, int] = {}
+        self._regime_snapshot_interval_seconds = float(
+            self.config.get("regime_snapshot_interval_seconds", 60)
+        )
+        self._last_regime_snapshot_time: dict[str, float] = {}
 
     def _init_regime_detectors(self, symbols: list[str], regime_version: str) -> None:
         self.regime_version = regime_version
@@ -475,18 +479,23 @@ class CompositeStrategyTask(BaseStrategyTask):
             self._record_data_quality_tick(symbol, msg)
 
     async def _handle_message(self, msg: dict[str, Any]) -> None:
-        """Handle message and keep selector state fresh outside entry gates.
+        """Handle message and keep monitoring state fresh outside entry gates.
 
-        BaseStrategyTask throttles entry evaluation by candle-close/time interval.
-        Selector refresh is decoupled so dashboard/monitoring state still updates
-        even when entry checks are intentionally skipped.
+        BaseStrategyTask throttles entry/exit evaluation by candle-close/time
+        interval. Dashboard regime status and selector snapshots are decoupled so
+        visibility stays fresh even when trading evaluation is intentionally skipped.
         """
         await super()._handle_message(msg)
-        await self._post_message_selector_refresh(msg)
+        await self._post_message_monitoring_refresh(msg)
 
-    async def _post_message_selector_refresh(self, msg: dict[str, Any]) -> None:
-        if not self._symbol_selector.enabled:
-            return
+    def _is_regime_snapshot_due(self, symbol: str) -> bool:
+        interval = self._regime_snapshot_interval_seconds
+        if interval <= 0:
+            return True
+        last_snapshot = self._last_regime_snapshot_time.get(symbol, 0.0)
+        return (time.time() - last_snapshot) >= interval
+
+    async def _post_message_monitoring_refresh(self, msg: dict[str, Any]) -> None:
         if msg.get("warmup") == "true":
             return
 
@@ -494,10 +503,20 @@ class CompositeStrategyTask(BaseStrategyTask):
         if symbol not in self.symbols:
             return
 
+        snapshot_due = self._is_regime_snapshot_due(symbol)
+        if not snapshot_due and not self._symbol_selector.enabled:
+            return
+
         market_data = self._build_market_data(symbol)
         if market_data is None:
             return
         context = self._build_market_context(market_data)
+
+        if snapshot_due:
+            await self._update_regime_snapshot(symbol, market_data, context)
+
+        if not self._symbol_selector.enabled:
+            return
         self._update_symbol_selector_inputs(symbol, market_data, context)
         await self._refresh_symbol_selector_if_due()
 
@@ -554,6 +573,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._update_symbol_selector_inputs(symbol, market_data, context)
         await self._refresh_symbol_selector_if_due()
 
+        # Keep dashboard regime status fresh even between hourly decision records.
+        await self._update_regime_snapshot(symbol, market_data, context)
+
         # Record decision at candle close for dashboard visibility
         await self._check_and_record_decision(symbol, market_data, context)
 
@@ -605,15 +627,18 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         self._decrement_entry_blocks(symbol)
 
-        # Record decision at candle close for dashboard visibility (with position)
-        await self._check_and_record_decision(symbol, market_data)
-
         # Build Position model from dict
         position = self._dict_to_position(position)
 
         context, ctx = self._build_exit_context(symbol, position, market_data)
         self._update_symbol_selector_inputs(symbol, market_data, context)
         await self._refresh_symbol_selector_if_due()
+
+        # Keep dashboard regime status fresh even between hourly decision records.
+        await self._update_regime_snapshot(symbol, market_data, context)
+
+        # Record decision at candle close for dashboard visibility (with position)
+        await self._check_and_record_decision(symbol, market_data, context)
 
         protective_exit = await self._check_protective_exit_conditions(
             symbol=symbol,
@@ -2578,6 +2603,42 @@ class CompositeStrategyTask(BaseStrategyTask):
             )
         except Exception as e:
             logger.error(f"Failed to record decision for {symbol}: {e}")
+
+    async def _update_regime_snapshot(
+        self,
+        symbol: str,
+        market_data: MarketData,
+        context: MarketContext | None = None,
+    ) -> None:
+        """Publish latest per-symbol regime snapshot for dashboard freshness."""
+        interval = self._regime_snapshot_interval_seconds
+        if interval <= 0:
+            return
+
+        now_sec = time.time()
+        last_sec = self._last_regime_snapshot_time.get(symbol, 0.0)
+        if now_sec - last_sec < interval:
+            return
+        self._last_regime_snapshot_time[symbol] = now_sec
+
+        regime = self._get_decision_regime(market_data, context)
+        trend = context.trend if context is not None else self._trend_from_regime(regime)
+        now_ms = int(now_sec * 1000)
+        payload = {
+            "symbol": symbol,
+            "strategy": self.name,
+            "market": self.market,
+            "regime": regime,
+            "trend": trend,
+            "price": round(float(market_data.close), 8),
+            "timestamp_ms": now_ms,
+            "timestamp": datetime.fromtimestamp(now_ms / 1000).isoformat(),
+        }
+
+        try:
+            await self.redis._client.hset("regime:latest", symbol, json.dumps(payload))
+        except Exception as exc:
+            logger.debug("%s: failed to update regime snapshot: %s", symbol, exc)
 
     def _get_decision_regime(
         self,

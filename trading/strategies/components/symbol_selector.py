@@ -234,6 +234,8 @@ class DynamicSymbolSelector:
     def _fallback_selection(self, universe: list[str]) -> set[str]:
         if self.config.keep_previous_on_empty and self._selected:
             return set(self._selected)
+        if not self.config.keep_previous_on_empty:
+            return set()
         if universe:
             return {universe[0]}
         return set(self._fallback_symbols[:1])

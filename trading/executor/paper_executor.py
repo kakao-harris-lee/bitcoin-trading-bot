@@ -15,6 +15,7 @@ from pathlib import Path
 from trading.risk.trade_logger import TradeLogger
 from trading.risk.liquidation_guard import LiquidationGuard
 from trading.observability.structured_logger import trade_logger
+from trading.utils.precision import PriceUtils, get_symbol_info
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -678,14 +679,38 @@ class PaperExecutor:
         remaining_qty = max(base_qty - filled_qty, 0.0)
 
         if remaining_qty <= POSITION_EPSILON:
+            if market == "spot":
+                self.spot_positions.pop(symbol, None)
             await self.redis.clear_position(symbol, market)
             return
+
+        if market == "spot":
+            if self._is_spot_dust_position(symbol, remaining_qty):
+                # Residual spot dust below tradable constraints should not remain as
+                # an active position in paper mode.
+                self.spot_positions.pop(symbol, None)
+                await self.redis.clear_position(symbol, market)
+                return
 
         payload = self._position_payload(position)
         if fallback_updates:
             payload = {**fallback_updates, **payload}
         payload["quantity"] = str(remaining_qty)
         await self.redis.set_position(symbol, market, payload)
+
+    def _is_spot_dust_position(self, symbol: str, quantity: float) -> bool:
+        """Return True when remaining spot quantity is not practically tradable."""
+        try:
+            symbol_info = get_symbol_info(symbol)
+            if not PriceUtils.meets_min_qty(quantity, symbol_info):
+                return True
+
+            ref_price = self.last_prices.get(symbol)
+            if ref_price and not PriceUtils.meets_min_notional(ref_price, quantity, symbol_info):
+                return True
+        except Exception:
+            return False
+        return False
 
     async def _pass_risk_gates(self) -> bool:
         """Check risk conditions."""

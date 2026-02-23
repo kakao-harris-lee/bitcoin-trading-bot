@@ -33,6 +33,14 @@
       "tick_size": "0.01",
       "min_notional": "10.0"
     },
+    "BCHUSDT": {
+      "price_precision": 1,
+      "qty_precision": 3,
+      "min_qty": "0.001",
+      "step_size": "0.001",
+      "tick_size": "0.1",
+      "min_notional": "5.0"
+    },
     "XRPUSDT": {
       "price_precision": 4,
       "qty_precision": 1,

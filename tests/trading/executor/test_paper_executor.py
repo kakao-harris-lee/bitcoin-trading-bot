@@ -417,7 +417,10 @@ class TestPaperExecutorRun:
         mock_redis.consume = AsyncMock(return_value=[])
         mock_redis.get_risk = AsyncMock(return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"})
 
-        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor = PaperExecutor(
+            redis=mock_redis,
+            config={"initial_balance": 10000, "symbols": ["BCH"]},
+        )
 
         # Side effect to stop executor immediately after first consume call
         async def stop_side_effect(*args, **kwargs):
@@ -443,7 +446,10 @@ class TestPaperExecutorRun:
         mock_redis.get_risk = AsyncMock(return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"})
         mock_redis.ack = AsyncMock()
 
-        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor = PaperExecutor(
+            redis=mock_redis,
+            config={"initial_balance": 10000, "symbols": ["BCH"]},
+        )
 
         async def stop_side_effect(*args, **kwargs):
             # Only stop if we are consuming orders (main loop), leave price tracker running ideally or stop global
@@ -464,7 +470,10 @@ class TestPaperExecutorRun:
         from unittest.mock import MagicMock
 
         mock_redis = MagicMock()
-        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor = PaperExecutor(
+            redis=mock_redis,
+            config={"initial_balance": 10000, "symbols": ["BCH"]},
+        )
 
         executor._running = True
         executor.stop()
@@ -485,7 +494,10 @@ class TestPaperExecutorRun:
         mock_redis.get_position = AsyncMock(return_value=None)
         mock_redis.publish = AsyncMock()
 
-        executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+        executor = PaperExecutor(
+            redis=mock_redis,
+            config={"initial_balance": 10000, "symbols": ["BCH"]},
+        )
         executor.last_prices = {"BTC": 50000.0}
 
         async def mock_consume(*args, **kwargs):
@@ -869,6 +881,102 @@ class TestSpotSimulation:
         mock_redis.set_position.assert_called_once()
         payload = mock_redis.set_position.call_args[0][2]
         assert float(payload["quantity"]) == pytest.approx(0.1)
+
+    @pytest.mark.asyncio
+    async def test_spot_partial_sell_clears_dust_below_min_qty(self):
+        """Partial spot sell should clear non-tradable dust below minQty."""
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.get_risk = AsyncMock(
+            return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"}
+        )
+        mock_redis.publish = AsyncMock()
+        mock_redis.hset = AsyncMock()
+        mock_redis.set_position = AsyncMock()
+        mock_redis.clear_position = AsyncMock()
+        mock_redis.get_position = AsyncMock(
+            return_value={
+                "quantity": "0.001343836389923081",
+                "entry_price": "577.68098",
+                "entry_time": "1000000",
+                "side": "buy",
+                "strategy": "spot_test",
+                "leverage": "1",
+                "liquidation_price": "0",
+            }
+        )
+
+        executor = PaperExecutor(
+            redis=mock_redis,
+            config={"initial_balance": 10000, "symbols": ["BCH"]},
+        )
+        executor.last_prices = {"BCH": 540.0}
+        executor.spot_positions["BCH"] = 0.001343836389923081
+
+        order = {
+            "id": "spot-sell-dust-qty-1",
+            "symbol": "BCH",
+            "side": "sell",
+            "market": "spot",
+            "quantity": "0.001",
+            "strategy": "spot_test",
+        }
+
+        result = await executor._process_order(order)
+
+        assert result is not None
+        assert "BCH" not in executor.spot_positions
+        mock_redis.clear_position.assert_called_once_with("BCH", "spot")
+        mock_redis.set_position.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_spot_partial_sell_clears_dust_below_min_notional(self):
+        """Partial spot sell should clear remaining qty that fails MIN_NOTIONAL."""
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.get_risk = AsyncMock(
+            return_value={"kill_switch": "false", "blocked": "false", "daily_pnl": "0"}
+        )
+        mock_redis.publish = AsyncMock()
+        mock_redis.hset = AsyncMock()
+        mock_redis.set_position = AsyncMock()
+        mock_redis.clear_position = AsyncMock()
+        mock_redis.get_position = AsyncMock(
+            return_value={
+                "quantity": "0.002",
+                "entry_price": "577.68098",
+                "entry_time": "1000000",
+                "side": "buy",
+                "strategy": "spot_test",
+                "leverage": "1",
+                "liquidation_price": "0",
+            }
+        )
+
+        executor = PaperExecutor(
+            redis=mock_redis,
+            config={"initial_balance": 10000, "symbols": ["BCH"]},
+        )
+        executor.last_prices = {"BCH": 540.0}
+        executor.spot_positions["BCH"] = 0.002
+
+        order = {
+            "id": "spot-sell-dust-notional-1",
+            "symbol": "BCH",
+            "side": "sell",
+            "market": "spot",
+            "quantity": "0.001",
+            "strategy": "spot_test",
+        }
+
+        result = await executor._process_order(order)
+
+        assert result is not None
+        assert "BCH" not in executor.spot_positions
+        mock_redis.clear_position.assert_called_once_with("BCH", "spot")
+        mock_redis.set_position.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_spot_buy_insufficient_balance(self):

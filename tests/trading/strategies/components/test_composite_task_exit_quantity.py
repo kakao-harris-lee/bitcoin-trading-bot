@@ -6,6 +6,7 @@ import pytest
 
 from trading.strategies.components.composite_task import CompositeStrategyTask
 from trading.strategies.components.models import Position, Signal
+from trading.utils.precision import SymbolInfo
 
 
 def _make_task(market: str = "spot") -> CompositeStrategyTask:
@@ -43,7 +44,7 @@ def _make_task(market: str = "spot") -> CompositeStrategyTask:
 def test_resolve_exit_quantity_full_fraction_uses_position_size():
     task = _make_task(market="spot")
     position = Position(
-        symbol="BCH",
+        symbol="BTC",
         entry_price=577.68,
         quantity=0.7363438363899231,
         strategy="mlp_direction_bnb",
@@ -51,7 +52,7 @@ def test_resolve_exit_quantity_full_fraction_uses_position_size():
         timestamp=1,
     )
     signal = Signal(
-        symbol="BCH",
+        symbol="BTC",
         side="sell",
         market="spot",
         quantity=1.0,
@@ -62,8 +63,8 @@ def test_resolve_exit_quantity_full_fraction_uses_position_size():
     assert resolved == pytest.approx(position.quantity, rel=1e-12)
 
     order = task._signal_to_dict(signal, resolved)
-    # Spot fee/step adjustment still applies in order conversion; ensure we do not oversize.
-    assert float(order["quantity"]) == pytest.approx(0.735, rel=1e-12)
+    # Spot order should be rounded by exchange step size (BTC step 0.00001).
+    assert float(order["quantity"]) == pytest.approx(0.73634, rel=1e-12)
 
 
 def test_resolve_exit_quantity_partial_fraction_scales_position():
@@ -108,3 +109,26 @@ def test_resolve_exit_quantity_clamps_oversized_absolute_signal():
 
     resolved = task._resolve_exit_order_quantity(position=position, signal=signal)
     assert resolved == pytest.approx(position.quantity, rel=1e-12)
+
+
+def test_spot_adjusted_qty_respects_min_trade_unit(monkeypatch):
+    task = _make_task(market="spot")
+
+    def _mock_symbol_info(_symbol: str) -> SymbolInfo:
+        return SymbolInfo(
+            symbol="BCHUSDT",
+            price_precision=2,
+            qty_precision=3,
+            min_qty="0.001",
+            step_size="0.001",
+            tick_size="0.01",
+            min_notional="10",
+        )
+
+    monkeypatch.setattr(
+        "trading.strategies.components.composite_task.get_symbol_info",
+        _mock_symbol_info,
+    )
+
+    assert task._spot_adjusted_qty("BCH", 0.0013) == pytest.approx(0.001, rel=1e-12)
+    assert task._spot_adjusted_qty("BCH", 0.0009) == 0.0

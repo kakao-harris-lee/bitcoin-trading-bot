@@ -98,6 +98,48 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
+function normalizeBinancePair(symbol) {
+    const cleaned = String(symbol || '')
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '');
+    if (!cleaned) {
+        return { base: '', quote: 'USDT', pair: 'BTCUSDT' };
+    }
+
+    const knownQuotes = [
+        'FDUSD', 'USDT', 'USDC', 'BUSD', 'TUSD', 'BTC', 'ETH', 'BNB',
+        'TRY', 'BRL', 'EUR', 'GBP', 'DAI', 'RUB', 'JPY', 'AUD', 'UAH', 'USD',
+    ];
+
+    for (const quote of knownQuotes) {
+        if (cleaned.length > quote.length && cleaned.endsWith(quote)) {
+            const base = cleaned.slice(0, -quote.length);
+            return { base, quote, pair: `${base}${quote}` };
+        }
+    }
+
+    return { base: cleaned, quote: 'USDT', pair: `${cleaned}USDT` };
+}
+
+function getBinanceChartUrl(symbol, market = 'spot') {
+    const { base, quote, pair } = normalizeBinancePair(symbol);
+    if (!base) {
+        return 'https://www.binance.com/en/markets';
+    }
+    const isFutures = String(market || '').toLowerCase() === 'futures';
+
+    if (isFutures) {
+        if (quote === 'USD' && base) {
+            return `https://www.binance.com/en/futures/${base}USD_PERP`;
+        }
+        return `https://www.binance.com/en/futures/${pair}`;
+    }
+
+    const spotQuote = quote === 'USD' ? 'USDT' : quote;
+    return `https://www.binance.com/en/trade/${base}_${spotQuote}?type=spot`;
+}
+
 // Check if data is stale
 function isDataStale(endpoint) {
     const lastFetch = lastFetchTimes[endpoint];
@@ -1399,16 +1441,22 @@ function renderPositions(data) {
     // Render all positions (spot + futures)
     for (const pos of data.positions) {
         const pnlClass = getPnLClass(pos.unrealized_pnl);
-        const sideClass = pos.side.toLowerCase();
+        const sideRaw = String(pos.side || 'LONG');
+        const sideClass = sideRaw.toLowerCase();
         const market = pos.market || 'futures'; // Default to futures for backwards compatibility
         const marketBadge = market === 'spot' ? '<span class="market-badge spot">SPOT</span>' : '<span class="market-badge futures">FUTURES</span>';
+        const symbolLabel = escapeHtml(pos.symbol || '-');
+        const symbolChartUrl = getBinanceChartUrl(pos.symbol, market);
+        const sideLabel = escapeHtml(sideRaw);
 
         html += `
             <div class="position-card ${pos.exchange}" data-market="${market}">
                 <div class="card-header">
                     <div>
-                        <span class="symbol">${pos.symbol}</span>
-                        <span class="side-badge ${sideClass}">${pos.side}</span>
+                        <span class="symbol">
+                            <a href="${symbolChartUrl}" class="symbol-link" target="_blank" rel="noopener noreferrer" title="Open Binance chart">${symbolLabel}</a>
+                        </span>
+                        <span class="side-badge ${sideClass}">${sideLabel}</span>
                         ${marketBadge}
                     </div>
                     <span class="exchange-badge ${pos.exchange}">${pos.exchange}</span>

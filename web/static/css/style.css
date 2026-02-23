@@ -1282,6 +1282,16 @@ footer kbd {
     color: var(--text-primary);
 }
 
+.position-card .symbol-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.position-card .symbol-link:hover {
+    color: var(--accent-cyan);
+    text-decoration: underline;
+}
+
 .position-card .exchange-badge {
     padding: 3px 8px;
     border-radius: 3px;

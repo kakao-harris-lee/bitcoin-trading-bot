@@ -54,6 +54,7 @@ from trading.risk.position_sizer import PositionSizer, RiskSizingConfig
 from trading.risk.portfolio_risk_manager import PortfolioRiskManager, RiskCapConfig
 from trading.risk.correlation_filter import CorrelationFilter, CorrelationConfig
 from trading.regime.runtime import RuntimeRegimeOverlay, RuntimeRegimePrediction
+from trading.utils.precision import PriceUtils, get_symbol_info
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
@@ -644,7 +645,22 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
 
         self._update_exit_loss_tracking(symbol, signal)
-        return self._signal_to_dict(signal, exit_quantity)
+        order = self._signal_to_dict(signal, exit_quantity)
+        try:
+            order_qty = float(order.get("quantity", 0.0))
+        except (TypeError, ValueError):
+            order_qty = 0.0
+        if order_qty <= 0.0:
+            logger.info(
+                "%s: Skip exit order after lot-size rounding "
+                "(resolved_qty=%.12f, order_qty=%s, reason=%s)",
+                symbol,
+                exit_quantity,
+                order.get("quantity"),
+                signal.reason,
+            )
+            return None
+        return order
 
     async def _refresh_indicator_history(self, symbol: str) -> None:
         if self.indicator_service and self.indicator_service.needs_refresh(symbol):
@@ -1310,11 +1326,14 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
         if context.regime not in BEAR_REGIMES:
             return None
+        exit_qty = self._spot_adjusted_qty(symbol, position.quantity)
+        if exit_qty <= 0:
+            return None
         return {
             "symbol": symbol,
             "side": "sell",
             "market": self.market,
-            "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
+            "quantity": str(exit_qty),
             "reason": f"bear_regime_exit:{context.regime}",
         }
 
@@ -1329,11 +1348,14 @@ class CompositeStrategyTask(BaseStrategyTask):
         if drawdown_pct >= self._drawdown_exit_pct:
             if self._loss_pause_candles > 0:
                 self._loss_pause_remaining[symbol] = self._loss_pause_candles
+            exit_qty = self._spot_adjusted_qty(symbol, position.quantity)
+            if exit_qty <= 0:
+                return None
             return {
                 "symbol": symbol,
                 "side": "sell",
                 "market": self.market,
-                "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
+                "quantity": str(exit_qty),
                 "reason": f"DRAWDOWN_EXIT:{drawdown_pct:.1f}%>={self._drawdown_exit_pct:.1f}%",
             }
 
@@ -1384,11 +1406,14 @@ class CompositeStrategyTask(BaseStrategyTask):
         if v2_entry_allowed:
             return None
 
+        exit_qty = self._spot_adjusted_qty(symbol, position.quantity)
+        if exit_qty <= 0:
+            return None
         return {
             "symbol": symbol,
             "side": "sell",
             "market": self.market,
-            "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
+            "quantity": str(exit_qty),
             "reason": "v2_filter_protective_exit",
         }
 
@@ -1402,11 +1427,14 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
         if market_data.close >= market_data.ema_120:
             return None
+        exit_qty = self._spot_adjusted_qty(symbol, position.quantity)
+        if exit_qty <= 0:
+            return None
         return {
             "symbol": symbol,
             "side": "sell",
             "market": self.market,
-            "quantity": str(self._spot_adjusted_qty(symbol, position.quantity)),
+            "quantity": str(exit_qty),
             "reason": (
                 f"MA120 panic_sell: close={market_data.close:.0f} < "
                 f"ema120={market_data.ema_120:.0f}"
@@ -2160,32 +2188,22 @@ class CompositeStrategyTask(BaseStrategyTask):
             timestamp=position_dict.get("timestamp", 0),
         )
 
-    # Step sizes per symbol for spot exit quantity adjustment
-    _STEP_SIZES = {
-        "BTC": 0.00001,
-        "ETH": 0.0001,
-        "SOL": 0.01,
-        "BNB": 0.001,
-        "XRP": 0.1,
-        "DOGE": 1.0,
-        "ADA": 0.1,
-        "MATIC": 0.1,
-        "AVAX": 0.01,
-        "LINK": 0.01,
-    }
-
     def _spot_adjusted_qty(self, symbol: str, qty: float) -> float:
-        """Adjust quantity for spot exits to account for buy-side fee.
-
-        On spot, buy fees reduce actual holdings below the recorded executedQty.
-        Selling the full recorded quantity would fail with insufficient balance.
-        """
+        """Adjust spot exit quantity to exchange LOT_SIZE filters."""
         if self.market != "spot":
             return qty
-        fee_rate = 0.001  # 0.1% spot fee
-        actual_holdings = qty * (1 - fee_rate)
-        step = self._STEP_SIZES.get(symbol, 0.001)
-        return int(actual_holdings / step) * step
+        try:
+            qty_dec = PriceUtils.to_decimal(qty)
+            if qty_dec <= 0:
+                return 0.0
+            symbol_info = get_symbol_info(symbol)
+            rounded_qty = PriceUtils.round_quantity(qty_dec, symbol_info)
+            if not PriceUtils.meets_min_qty(rounded_qty, symbol_info):
+                return 0.0
+            return float(rounded_qty)
+        except Exception as exc:
+            logger.warning("%s: spot qty adjustment failed: %s", symbol, exc)
+            return max(float(qty), 0.0)
 
     def _signal_to_dict(
         self,
@@ -2202,7 +2220,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         Returns:
             Order intent dict.
         """
-        # Adjust exit quantities for spot fee deduction
+        # Adjust spot exit quantities for exchange LOT_SIZE compliance.
         if signal.side == "sell":
             quantity = self._spot_adjusted_qty(signal.symbol, quantity)
 

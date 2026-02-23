@@ -339,7 +339,12 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._vol_max_scale = vol_cfg.get("max_scale", 1.0)
 
     def _init_symbol_selector(self) -> None:
-        selector_cfg = SymbolSelectorConfig.from_dict(self.config.get("symbol_selector"))
+        raw_selector_cfg = self.config.get("symbol_selector") or {}
+        selector_cfg = SymbolSelectorConfig.from_dict(raw_selector_cfg)
+        self._selector_event_maxlen = max(
+            2000,
+            int((raw_selector_cfg if isinstance(raw_selector_cfg, dict) else {}).get("event_maxlen", 50000) or 50000),
+        )
         self._symbol_selector = DynamicSymbolSelector(
             config=selector_cfg,
             fallback_symbols=sorted(self.symbols),
@@ -350,6 +355,11 @@ class CompositeStrategyTask(BaseStrategyTask):
     def _init_data_quality_controls(self) -> None:
         dq_cfg = self.config.get("data_quality", {})
         self._dq_enabled = bool(dq_cfg.get("enabled", False))
+        self._dq_started_at = time.time()
+        self._dq_startup_grace_seconds = max(
+            0.0,
+            float(dq_cfg.get("startup_grace_seconds", 0.0) or 0.0),
+        )
         self._dq_max_price_age_seconds = max(
             0.0,
             float(dq_cfg.get("max_price_age_seconds", 0.0) or 0.0),
@@ -714,13 +724,28 @@ class CompositeStrategyTask(BaseStrategyTask):
         selected = sorted(self._symbol_selector.selected_symbols)
         evaluations = self._symbol_selector.evaluations
         ranked = self._symbol_selector.ranking
+        signal_events = self._symbol_selector.signal_events
         top_scores = [
             {
                 "symbol": row.symbol,
                 "score": round(float(row.score), 6),
                 "regime": row.regime,
+                "ignition": round(float(row.ignition_score), 6),
+                "breakout_ratio": round(float(row.breakout_ratio), 6),
+                "volume_ratio": round(float(row.volume_burst), 6),
+                "compression": round(float(row.compression_score), 6),
             }
             for row in ranked[:5]
+        ]
+        signal_event_payload = [
+            {
+                "type": row.event_type,
+                "symbol": row.symbol,
+                "score": round(float(row.score), 6),
+                "reason": row.reason,
+                "delta": round(float(row.delta), 6),
+            }
+            for row in signal_events
         ]
         rejected = [
             {
@@ -746,6 +771,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             "changed": "true" if changed else "false",
             "selected_symbols": json.dumps(selected),
             "top_scores": json.dumps(top_scores),
+            "signal_events": json.dumps(signal_event_payload),
             "rejected": json.dumps(rejected[:20]),
             "rejection_counts": json.dumps(rejection_counts),
             "universe_size": str(len(self.symbols)),
@@ -758,7 +784,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             await self.redis.publish_event(
                 "strategy:selector:events",
                 payload,
-                maxlen=2000,
+                maxlen=self._selector_event_maxlen,
             )
             await self.redis._client.hset(
                 f"strategy:selector:latest:{self.name}",
@@ -816,6 +842,18 @@ class CompositeStrategyTask(BaseStrategyTask):
             }
 
         now = time.time()
+        startup_grace_remaining = self._dq_startup_grace_remaining(now)
+        if startup_grace_remaining > 0:
+            return {
+                "allowed": False,
+                "reason": "startup_warmup",
+                "price_age_seconds": round(self._price_age_seconds(market_data.timestamp, now), 3),
+                "ticks_per_minute": round(self._ticks_per_minute(symbol, now), 3),
+                "tier": "low",
+                "position_scale": self._dq_position_scales["low"],
+                "startup_grace_remaining_seconds": round(startup_grace_remaining, 2),
+            }
+
         blocked_until = self._dq_blocked_until.get(symbol, 0.0)
         if blocked_until > now:
             return {
@@ -888,6 +926,13 @@ class CompositeStrategyTask(BaseStrategyTask):
             return 0.0
         return len(ticks) * (60.0 / self._dq_tick_window_seconds)
 
+    def _dq_startup_grace_remaining(self, now: float | None = None) -> float:
+        if self._dq_startup_grace_seconds <= 0:
+            return 0.0
+        current = now if now is not None else time.time()
+        elapsed = current - self._dq_started_at
+        return max(0.0, self._dq_startup_grace_seconds - elapsed)
+
     @staticmethod
     def _price_age_seconds(timestamp_ms: int, now: float | None = None) -> float:
         if timestamp_ms <= 0:
@@ -905,6 +950,21 @@ class CompositeStrategyTask(BaseStrategyTask):
             }
 
         now = time.time()
+        startup_grace_remaining = self._dq_startup_grace_remaining(now)
+        if startup_grace_remaining > 0:
+            return {
+                "enabled": True,
+                "startup_warmup": True,
+                "startup_grace_remaining_seconds": round(startup_grace_remaining, 2),
+                "blocked_count": 0,
+                "tier_counts": {"warmup": len(self.symbols)},
+                "blocked_samples": [],
+                "top_stale_symbols": [],
+                "window_seconds": self._dq_tick_window_seconds,
+                "max_price_age_seconds": self._dq_max_price_age_seconds,
+                "min_ticks_per_minute": self._dq_min_ticks_per_minute,
+            }
+
         assessments: list[dict[str, Any]] = []
         for symbol in sorted(self.symbols):
             market_data = self._selector_market_data.get(symbol) or self._market_data_cache.get(symbol)

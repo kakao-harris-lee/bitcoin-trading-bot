@@ -716,22 +716,34 @@
       "bbw_enabled": false,
       "volume_filter_enabled": false,
       "symbol_selector": {
-        "_comment": "Paper aggressive rotation (long-only). Broad high-beta universe, top 16, refresh 60s.",
+        "_comment": "Paper aggressive rotation (long-only) with ignition monitor (breakout/volume/compression).",
         "enabled": true,
         "top_n": 16,
         "refresh_seconds": 60,
+        "event_maxlen": 50000,
         "min_score": 0.0,
         "min_adx": 3.0,
         "min_volume_ratio": 0.05,
-        "max_price_age_seconds": 30.0,
+        "volume_burst_ratio": 1.15,
+        "compression_bbw_threshold": 0.11,
+        "score_jump_threshold": 0.22,
+        "entry_ready_score": 0.35,
+        "max_signal_events": 8,
+        "max_price_age_seconds": 90.0,
+        "startup_grace_seconds": 180.0,
         "require_above_ema200": false,
         "skip_bear_regime": true,
         "keep_previous_on_empty": false,
         "score_weights": {
-          "regime": 0.15,
-          "momentum": 0.6,
-          "volume": 0.2,
-          "adx": 0.05
+          "regime": 0.12,
+          "momentum": 0.38,
+          "volume": 0.1,
+          "adx": 0.05,
+          "breakout": 0.15,
+          "compression": 0.08,
+          "ema_alignment": 0.07,
+          "mfi": 0.03,
+          "volume_burst": 0.12
         }
       },
       "data_quality": {
@@ -740,6 +752,7 @@
         "max_price_age_seconds": 90.0,
         "min_ticks_per_minute": 2.0,
         "tick_window_seconds": 300,
+        "startup_grace_seconds": 180,
         "eviction_cooldown_seconds": 180,
         "cooldown_on_low_tick_rate": false,
         "tier_thresholds": {

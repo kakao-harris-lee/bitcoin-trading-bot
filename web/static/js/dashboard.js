@@ -3481,6 +3481,7 @@ function renderSelectorMonitor(strategies, selectorEvents) {
             const state = strategy.selector_state || {};
             const selectedSymbols = Array.isArray(state.selected_symbols) ? state.selected_symbols : [];
             const topScores = Array.isArray(state.top_scores) ? state.top_scores : [];
+            const signalEvents = Array.isArray(state.signal_events) ? state.signal_events : [];
             const rejectionCounts = state.rejection_counts || {};
             const topRejections = Object.entries(rejectionCounts)
                 .sort((a, b) => Number(b[1]) - Number(a[1]))
@@ -3493,9 +3494,16 @@ function renderSelectorMonitor(strategies, selectorEvents) {
             const scoreHtml = topScores.length > 0
                 ? topScores.slice(0, 5).map((item) => {
                     const score = Number(item.score ?? 0).toFixed(3);
-                    return `<span class="selector-chip">${escapeHtml(item.symbol)}:${score}</span>`;
+                    const ignition = Number(item.ignition ?? item.score ?? 0).toFixed(3);
+                    return `<span class="selector-chip">${escapeHtml(item.symbol)}:${score} (ign:${ignition})</span>`;
                 }).join('')
                 : '<span class="selector-empty">No score snapshot</span>';
+            const signalHtml = signalEvents.length > 0
+                ? signalEvents.slice(0, 5).map((item) => {
+                    const score = Number(item.score ?? 0).toFixed(3);
+                    return `<span class="selector-chip selected">${escapeHtml(item.type || '?')}:${escapeHtml(item.symbol || '?')}(${score})</span>`;
+                }).join('')
+                : '<span class="selector-empty">No signal events</span>';
 
             const rejectHtml = topRejections.length > 0
                 ? topRejections.map(([reason, count]) =>
@@ -3516,6 +3524,7 @@ function renderSelectorMonitor(strategies, selectorEvents) {
                     </div>
                     <div class="selector-overview-row">${selectedHtml}</div>
                     <div class="selector-overview-row">${scoreHtml}</div>
+                    <div class="selector-overview-row">${signalHtml}</div>
                     <div class="selector-overview-row">${rejectHtml}</div>
                 </div>
             `;
@@ -3533,6 +3542,7 @@ function renderSelectorMonitor(strategies, selectorEvents) {
     const eventsHtml = events.slice(0, 20).map((event) => {
         const selectedSymbols = Array.isArray(event.selected_symbols) ? event.selected_symbols : [];
         const topScores = Array.isArray(event.top_scores) ? event.top_scores : [];
+        const signalEvents = Array.isArray(event.signal_events) ? event.signal_events : [];
         const rejectionCounts = event.rejection_counts || {};
         const topRejections = Object.entries(rejectionCounts)
             .sort((a, b) => Number(b[1]) - Number(a[1]))
@@ -3540,7 +3550,10 @@ function renderSelectorMonitor(strategies, selectorEvents) {
             .map(([reason, count]) => `${reason}:${count}`)
             .join(', ');
         const scoreText = topScores.slice(0, 3)
-            .map((item) => `${item.symbol}:${Number(item.score ?? 0).toFixed(3)}`)
+            .map((item) => `${item.symbol}:${Number(item.score ?? 0).toFixed(3)}(ign:${Number(item.ignition ?? item.score ?? 0).toFixed(3)})`)
+            .join(', ');
+        const signalText = signalEvents.slice(0, 4)
+            .map((item) => `${item.type}:${item.symbol}`)
             .join(', ');
 
         return `
@@ -3553,6 +3566,7 @@ function renderSelectorMonitor(strategies, selectorEvents) {
                     <span class="selector-chip ${event.changed ? 'selected' : ''}">${event.changed ? 'changed' : 'stable'}</span>
                     <span class="selector-chip">selected: ${selectedSymbols.join(', ') || '-'}</span>
                     <span class="selector-chip">score: ${scoreText || '-'}</span>
+                    <span class="selector-chip selected">signals: ${escapeHtml(signalText || '-')}</span>
                     <span class="selector-chip reject">reject: ${escapeHtml(topRejections || '-')}</span>
                 </div>
             </div>
@@ -3746,6 +3760,9 @@ function renderStrategyCard(strategy, symbols) {
         const topScores = Array.isArray(selectorState?.top_scores)
             ? selectorState.top_scores
             : [];
+        const signalEvents = Array.isArray(selectorState?.signal_events)
+            ? selectorState.signal_events
+            : [];
         const rejected = Array.isArray(selectorState?.rejected)
             ? selectorState.rejected
             : [];
@@ -3771,9 +3788,18 @@ function renderStrategyCard(strategy, symbols) {
                     ${(topScores.length > 0)
                         ? topScores.slice(0, 5).map(item => {
                             const score = Number(item.score ?? 0).toFixed(3);
-                            return `<span class="selector-chip">${escapeHtml(item.symbol)}:${score}</span>`;
+                            const ignition = Number(item.ignition ?? item.score ?? 0).toFixed(3);
+                            return `<span class="selector-chip">${escapeHtml(item.symbol)}:${score} (ign:${ignition})</span>`;
                         }).join('')
                         : '<span class="selector-empty">No score snapshot</span>'}
+                </div>
+                <div class="selector-scores">
+                    ${(signalEvents.length > 0)
+                        ? signalEvents.slice(0, 6).map(item => {
+                            const score = Number(item.score ?? 0).toFixed(3);
+                            return `<span class="selector-chip selected">${escapeHtml(item.type || '?')}:${escapeHtml(item.symbol || '?')}(${score})</span>`;
+                        }).join('')
+                        : '<span class="selector-empty">No signal events</span>'}
                 </div>
                 <div class="selector-rejections">
                     ${(topRejectReasons.length > 0)

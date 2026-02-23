@@ -2301,6 +2301,7 @@ def _load_strategy_selector_state(r, strategy_name: str) -> dict | None:
         "changed": raw.get("changed", "false") == "true",
         "selected_symbols": _parse_json_field(raw.get("selected_symbols"), []),
         "top_scores": _parse_json_field(raw.get("top_scores"), []),
+        "signal_events": _parse_json_field(raw.get("signal_events"), []),
         "rejected": _parse_json_field(raw.get("rejected"), []),
         "rejection_counts": _parse_json_field(raw.get("rejection_counts"), {}),
         "data_quality": _parse_json_field(raw.get("data_quality"), {}),

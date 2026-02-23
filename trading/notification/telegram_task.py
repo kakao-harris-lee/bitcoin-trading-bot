@@ -502,6 +502,7 @@ _Code valid for ~30 seconds_
         changed = event.get("changed", "false") == "true"
         selected = [str(x) for x in self._parse_json_array(event.get("selected_symbols", "[]"))]
         top_scores = self._parse_json_array(event.get("top_scores", "[]"))
+        signal_events = self._parse_json_array(event.get("signal_events", "[]"))
         rejection_counts = self._parse_json_object(event.get("rejection_counts", "{}"))
         selected_count = self._to_int(event.get("selected_count"), len(selected))
         dq_blocked_count = self._to_int(event.get("dq_blocked_count"), 0)
@@ -515,6 +516,7 @@ _Code valid for ~30 seconds_
         prev_selected_count = self._to_int(prev_snapshot.get("selected_count"), 0)
         prev_dq_ratio = self._to_float(prev_snapshot.get("dq_ratio"), 0.0)
         prev_dq_blocked = self._to_int(prev_snapshot.get("dq_blocked_count"), 0)
+        prev_signal_signature = prev_snapshot.get("signal_signature", ())
         is_first_snapshot = strategy not in self._selector_last_snapshot
 
         selected_set = set(selected)
@@ -540,6 +542,16 @@ _Code valid for ~30 seconds_
             prev_selected_count > 0
             and selected_count <= max(2, int(prev_selected_count * self._selector_low_selected_ratio))
         )
+        parsed_signal_events: list[dict] = [
+            item for item in signal_events[:8] if isinstance(item, dict) and item.get("type") and item.get("symbol")
+        ]
+        signal_signature = tuple(
+            (str(item.get("type", "")), str(item.get("symbol", "")))
+            for item in parsed_signal_events
+        )
+        has_new_signal_event = bool(signal_signature) and signal_signature != prev_signal_signature
+        has_entry_ready = any(str(item.get("type")) == "ENTRY_READY" for item in parsed_signal_events)
+        has_new_candidate = any(str(item.get("type")) == "NEW_CANDIDATE" for item in parsed_signal_events)
 
         anomaly = dq_warn or dq_jump or selected_drop
         reason = ""
@@ -556,6 +568,10 @@ _Code valid for ~30 seconds_
         elif dq_recovered:
             reason = "dq_recovered"
             anomaly_mode = True
+        elif has_new_signal_event and has_entry_ready:
+            reason = "entry_ready"
+        elif has_new_signal_event and has_new_candidate:
+            reason = "new_candidate"
         elif significant_churn:
             reason = "significant_rotation"
 
@@ -564,6 +580,7 @@ _Code valid for ~30 seconds_
             "selected_count": selected_count,
             "dq_blocked_count": dq_blocked_count,
             "dq_ratio": dq_ratio,
+            "signal_signature": signal_signature,
         }
         if not reason:
             logger.debug(
@@ -605,6 +622,10 @@ _Code valid for ~30 seconds_
         reject_text = ", ".join(f"{k}:{v}" for k, v in top_rejections)
         entered_text = ", ".join(entered[:6])
         exited_text = ", ".join(exited[:6])
+        signal_text = ", ".join(
+            f"{item.get('type')}:{item.get('symbol')}({float(item.get('score', 0.0)):.3f})"
+            for item in parsed_signal_events[:4]
+        )
         selected_preview = ", ".join(selected[:12]) if selected else "-"
         if len(selected) > 12:
             selected_preview += f" (+{len(selected) - 12})"
@@ -619,6 +640,7 @@ _Code valid for ~30 seconds_
 *Selected({selected_count}):* {selected_preview}
 *Entered:* {entered_text or '-'}
 *Exited:* {exited_text or '-'}
+*Signal Events:* {signal_text or '-'}
 *Top Scores:* {score_text or '-'}
 *Reject Top3:* {reject_text or '-'}
 """

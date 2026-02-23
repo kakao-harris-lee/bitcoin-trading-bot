@@ -649,6 +649,7 @@ class MetricsService:
                     "changed": data.get("changed", "false") == "true",
                     "selected_symbols": self._parse_position_payload(data.get("selected_symbols")),
                     "top_scores": self._parse_position_payload(data.get("top_scores")),
+                    "signal_events": self._parse_position_payload(data.get("signal_events")),
                     "rejected": self._parse_position_payload(data.get("rejected")),
                     "rejection_counts": self._parse_position_payload(data.get("rejection_counts")),
                     "data_quality": self._parse_position_payload(data.get("data_quality")),

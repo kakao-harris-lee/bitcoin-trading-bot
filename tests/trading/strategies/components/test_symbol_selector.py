@@ -23,18 +23,31 @@ def _market_data(
     ema_200: float,
     adx: float,
     volume_ratio: float,
+    mfi: float = 55.0,
+    prev_high_20: float = 0.0,
+    bb_upper: float = 0.0,
+    bb_lower: float = 0.0,
+    bb_middle: float = 0.0,
+    ema_5: float = 0.0,
+    ema_10: float = 0.0,
 ) -> MarketData:
     return MarketData(
         symbol=symbol,
         close=close,
-        mfi=55.0,
+        mfi=mfi,
         adx=adx,
         rsi=50.0,
         timestamp=1700000000000,
         ema_20=ema_20,
         ema_200=ema_200,
+        ema_5=ema_5,
+        ema_10=ema_10,
         volume=1000.0 * volume_ratio,
         avg_volume_20=1000.0,
+        prev_high_20=prev_high_20,
+        bb_upper=bb_upper,
+        bb_lower=bb_lower,
+        bb_middle=bb_middle,
     )
 
 
@@ -197,6 +210,153 @@ def test_symbol_selector_rejects_stale_price_data() -> None:
         contexts=second_contexts,
     )
     assert selector.selected_symbols == {"BTC"}
+
+
+def test_symbol_selector_stale_uses_refresh_cadence_guard() -> None:
+    selector = DynamicSymbolSelector(
+        SymbolSelectorConfig(
+            enabled=True,
+            top_n=1,
+            refresh_seconds=60.0,
+            min_score=-1.0,
+            min_adx=1.0,
+            min_volume_ratio=0.0,
+            require_above_ema200=False,
+            skip_bear_regime=False,
+            max_price_age_seconds=30.0,
+        ),
+        fallback_symbols=["BTC"],
+    )
+
+    now_ms = int(time.time() * 1000)
+    slightly_old = _market_data(
+        symbol="BTC",
+        close=110.0,
+        ema_20=100.0,
+        ema_200=90.0,
+        adx=30.0,
+        volume_ratio=1.2,
+    )
+    slightly_old = MarketData(**{**slightly_old.__dict__, "timestamp": now_ms - 45_000})
+
+    selector.refresh(
+        now=100.0,
+        symbols=["BTC"],
+        market_data={"BTC": slightly_old},
+        contexts={"BTC": _context("BULL_STRONG")},
+    )
+
+    assert selector.selected_symbols == {"BTC"}
+    ev = next(x for x in selector.evaluations if x.symbol == "BTC")
+    assert ev.eligible is True
+
+
+def test_symbol_selector_startup_grace_skips_stale_then_restores() -> None:
+    selector = DynamicSymbolSelector(
+        SymbolSelectorConfig(
+            enabled=True,
+            top_n=1,
+            refresh_seconds=1.0,
+            min_score=-1.0,
+            min_adx=1.0,
+            min_volume_ratio=0.0,
+            require_above_ema200=False,
+            skip_bear_regime=False,
+            max_price_age_seconds=5.0,
+            startup_grace_seconds=120.0,
+        ),
+        fallback_symbols=["BTC"],
+    )
+
+    now_ms = int(time.time() * 1000)
+    stale_md = _market_data(
+        symbol="BTC",
+        close=110.0,
+        ema_20=100.0,
+        ema_200=90.0,
+        adx=30.0,
+        volume_ratio=1.2,
+    )
+    stale_md = MarketData(**{**stale_md.__dict__, "timestamp": now_ms - 60_000})
+
+    selector.refresh(
+        now=100.0,
+        symbols=["BTC"],
+        market_data={"BTC": stale_md},
+        contexts={"BTC": _context("BULL_STRONG")},
+    )
+    eval_now = next(x for x in selector.evaluations if x.symbol == "BTC")
+    assert eval_now.eligible is True
+
+    selector._started_at = time.time() - 600.0
+    selector.refresh(
+        now=102.0,
+        symbols=["BTC"],
+        market_data={"BTC": stale_md},
+        contexts={"BTC": _context("BULL_STRONG")},
+    )
+    eval_later = next(x for x in selector.evaluations if x.symbol == "BTC")
+    assert eval_later.eligible is False
+    assert eval_later.reason == "stale_price"
+
+
+def test_symbol_selector_generates_score_jump_and_entry_ready_events() -> None:
+    selector = DynamicSymbolSelector(
+        SymbolSelectorConfig(
+            enabled=True,
+            top_n=1,
+            refresh_seconds=1.0,
+            min_score=-1.0,
+            min_adx=1.0,
+            min_volume_ratio=0.0,
+            require_above_ema200=False,
+            skip_bear_regime=False,
+            score_jump_threshold=0.15,
+            entry_ready_score=0.35,
+            score_weights={"momentum": 1.0, "regime": 0.0, "volume": 0.0, "adx": 0.0},
+        ),
+        fallback_symbols=["BTC"],
+    )
+
+    first_md = _market_data(
+        symbol="BTC",
+        close=102.0,
+        ema_20=100.0,
+        ema_200=95.0,
+        adx=20.0,
+        volume_ratio=1.1,
+    )
+    second_md = _market_data(
+        symbol="BTC",
+        close=108.0,
+        ema_20=100.0,
+        ema_200=95.0,
+        adx=20.0,
+        volume_ratio=1.2,
+        ema_5=106.0,
+        prev_high_20=106.0,
+        bb_upper=109.0,
+        bb_lower=101.0,
+        bb_middle=105.0,
+    )
+    ctx = _context("BULL_STRONG")
+
+    selector.refresh(
+        now=100.0,
+        symbols=["BTC"],
+        market_data={"BTC": first_md},
+        contexts={"BTC": ctx},
+    )
+    selector.refresh(
+        now=102.0,
+        symbols=["BTC"],
+        market_data={"BTC": second_md},
+        contexts={"BTC": ctx},
+    )
+
+    event_types = {event.event_type for event in selector.signal_events}
+    assert "SCORE_JUMP" in event_types
+    assert "ENTRY_READY" in event_types
 
 
 @pytest.mark.asyncio

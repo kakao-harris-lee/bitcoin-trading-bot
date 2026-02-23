@@ -17,6 +17,7 @@ def _selector_event(
     dq_blocked_count: int = 0,
     universe_size: int = 64,
     top_scores: list[dict] | None = None,
+    signal_events: list[dict] | None = None,
     rejection_counts: dict | None = None,
 ) -> dict:
     return {
@@ -27,6 +28,7 @@ def _selector_event(
         "dq_blocked_count": str(dq_blocked_count),
         "universe_size": str(universe_size),
         "top_scores": json.dumps(top_scores or []),
+        "signal_events": json.dumps(signal_events or []),
         "rejection_counts": json.dumps(rejection_counts or {}),
     }
 
@@ -114,6 +116,34 @@ async def test_selector_dq_alert_notifies_even_without_rotation(monkeypatch: pyt
             selected=["ADA", "AVAX", "DOT", "XLM"],
             dq_blocked_count=25,
             universe_size=64,
+        )
+    )
+    assert task._send_message.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_selector_entry_ready_notifies_on_new_signal_signature(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task = _build_task(monkeypatch)
+
+    await task._handle_selector_event(
+        _selector_event(
+            strategy="mlp_direction_bnb",
+            changed=False,
+            selected=["SNX", "ADA", "AVAX", "DOT"],
+            signal_events=[{"type": "ENTRY_READY", "symbol": "SNX", "score": 0.44}],
+        )
+    )
+    assert task._send_message.await_count == 1
+
+    # Same signature should be suppressed.
+    await task._handle_selector_event(
+        _selector_event(
+            strategy="mlp_direction_bnb",
+            changed=False,
+            selected=["SNX", "ADA", "AVAX", "DOT"],
+            signal_events=[{"type": "ENTRY_READY", "symbol": "SNX", "score": 0.46}],
         )
     )
     assert task._send_message.await_count == 1

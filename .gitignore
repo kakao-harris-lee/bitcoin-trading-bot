@@ -95,6 +95,7 @@ data/mlp_datasets/validation_v2_*.npz
 
 # Model artifacts (regenerate locally)
 models/mlp_direction/
+models/bull_follow/
 
 # Generated per-symbol parquet additions (local)
 data/multi_asset_4h/train/*.parquet

@@ -670,6 +670,7 @@ function renderAssetCards(assets) {
         const regimeLabel = getRegimeLabel(data.regime || 'UNKNOWN');
         const exchange = (data.exchange || 'binance').toLowerCase();
         const exchangeClass = `exchange-${exchange}`;
+        const assetChartUrl = getBinanceChartUrl(symbol, data.market || 'spot');
 
         // Update price history for sparkline
         updatePriceHistory(symbol, data.price);
@@ -724,7 +725,7 @@ function renderAssetCards(assets) {
         html += `
             <div class="asset-card ${regimeClass} ${positionClass} ${exchangeClass}">
                 <div class="asset-header">
-                    <span class="asset-symbol">${escapeHtml(symbol)}</span>
+                    <a href="${escapeHtml(assetChartUrl)}" class="asset-symbol asset-symbol-link" target="_blank" rel="noopener noreferrer" title="Open Binance chart">${escapeHtml(symbol)}</a>
                     <span class="asset-exchange">${escapeHtml(exchange.toUpperCase())}</span>
                     <span class="asset-regime ${regimeClass}">${escapeHtml(regimeLabel)}</span>
                 </div>

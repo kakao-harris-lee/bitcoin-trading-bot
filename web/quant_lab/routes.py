@@ -86,6 +86,21 @@ _REGIME_OBJECTIVE_NAMES = ["win_rate", "total_return", "max_drawdown"]
 _REGIME_OBJECTIVE_LABELS = ["Win Rate", "Total Return", "Max Drawdown"]
 _MLP_OBJECTIVE_NAMES = ["alpha_vs_bh", "total_return", "max_drawdown"]
 _MLP_OBJECTIVE_LABELS = ["Alpha vs B&H", "Total Return", "Max Drawdown"]
+_QUANT_LAB_JOB_INDEX_KEY = "quant_lab:jobs"
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+RQ_RESULT_TTL_SEC = _env_int("QUANTLAB_RQ_RESULT_TTL_SEC", 7 * 24 * 3600)
+RQ_FAILURE_TTL_SEC = _env_int("QUANTLAB_RQ_FAILURE_TTL_SEC", 14 * 24 * 3600)
+QUANTLAB_ACTIVE_JOB_TTL_SEC = _env_int("QUANTLAB_ACTIVE_JOB_TTL_SEC", 3 * 24 * 3600)
+QUANTLAB_FINISHED_JOB_TTL_SEC = _env_int("QUANTLAB_FINISHED_JOB_TTL_SEC", 14 * 24 * 3600)
+QUANTLAB_JOB_INDEX_TTL_SEC = _env_int("QUANTLAB_JOB_INDEX_TTL_SEC", 30 * 24 * 3600)
 
 
 def sanitize_strategy_name(name: str) -> str:
@@ -210,6 +225,27 @@ def _decode_redis_hash(data: Dict[Any, Any]) -> Dict[str, Any]:
         except Exception:
             decoded[key] = raw
     return decoded
+
+
+def _quantlab_job_ttl_for_status(status: str | None) -> int:
+    if str(status or "").lower() in {"completed", "failed", "cancelled"}:
+        return max(60, QUANTLAB_FINISHED_JOB_TTL_SEC)
+    return max(60, QUANTLAB_ACTIVE_JOB_TTL_SEC)
+
+
+def _track_quantlab_job(redis_conn, job_id: str, status: str | None = None) -> None:
+    """Record job id in index and refresh per-job TTL."""
+    key = f"quant_lab:job:{job_id}"
+    ttl_sec = _quantlab_job_ttl_for_status(status)
+    try:
+        redis_conn.sadd(_QUANT_LAB_JOB_INDEX_KEY, job_id)
+        redis_conn.expire(_QUANT_LAB_JOB_INDEX_KEY, max(300, QUANTLAB_JOB_INDEX_TTL_SEC))
+    except Exception:
+        pass
+    try:
+        redis_conn.expire(key, ttl_sec)
+    except Exception:
+        pass
 
 
 # Experiment templates
@@ -368,7 +404,13 @@ def create_experiment():
         q = Queue('quant_lab', connection=redis_conn)
 
         from .worker.tasks import run_optimization
-        rq_job = q.enqueue(run_optimization, job, job_timeout='12h')
+        rq_job = q.enqueue(
+            run_optimization,
+            job,
+            job_timeout='12h',
+            result_ttl=max(60, RQ_RESULT_TTL_SEC),
+            failure_ttl=max(60, RQ_FAILURE_TTL_SEC),
+        )
 
         # Persist queued status immediately so Active Jobs can show pending work
         redis_conn.hset(
@@ -385,6 +427,7 @@ def create_experiment():
                 "rq_job_id": json.dumps(rq_job.id),
             },
         )
+        _track_quantlab_job(redis_conn, job_id, status="queued")
         _EXPERIMENTS_CACHE["ts"] = 0.0
         _EXPERIMENTS_CACHE["data"] = None
 
@@ -459,8 +502,17 @@ def list_active_jobs():
         redis_conn = Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379'))
         queue = Queue('quant_lab', connection=redis_conn)
 
-        # Find all quant_lab:job:* keys
-        job_keys = redis_conn.keys('quant_lab:job:*')
+        # Prefer indexed job list to avoid wildcard key scans.
+        indexed_job_ids = sorted(redis_conn.smembers(_QUANT_LAB_JOB_INDEX_KEY) or [])
+        job_keys = []
+        for raw_job_id in indexed_job_ids:
+            job_id = raw_job_id.decode() if isinstance(raw_job_id, bytes) else str(raw_job_id)
+            if not job_id:
+                continue
+            job_keys.append(f"quant_lab:job:{job_id}")
+        if not job_keys:
+            # Legacy fallback for old data before indexing.
+            job_keys = list(redis_conn.scan_iter('quant_lab:job:*', count=1000))
         active_jobs = []
         completed_jobs = []
         known_job_ids = set()
@@ -474,12 +526,20 @@ def list_active_jobs():
                 job_id = key_str.split(':')[-1]
                 job_data['job_id'] = job_id
                 known_job_ids.add(job_id)
+                _track_quantlab_job(redis_conn, job_id, status=job_data.get("status"))
 
                 status = job_data.get('status')
                 if status in ['running', 'pending', 'queued']:
                     active_jobs.append(job_data)
                 elif status in ['failed', 'completed', 'cancelled']:
                     completed_jobs.append(job_data)
+            else:
+                key_str = key.decode() if isinstance(key, bytes) else key
+                stale_job_id = key_str.split(':')[-1]
+                try:
+                    redis_conn.srem(_QUANT_LAB_JOB_INDEX_KEY, stale_job_id)
+                except Exception:
+                    pass
 
         # Backfill queued jobs that haven't written quant_lab:job:* yet
         for rq_job_id in queue.job_ids:

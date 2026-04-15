@@ -24,6 +24,7 @@ def _make_context(
     adx: float = 25.0,
     close: float = 100000.0,
     high: float = 101000.0,
+    low: float = 0.0,
     atr: float = 1000.0,
     timestamp: int = 1000,
     mlp_prediction: int | None = None,
@@ -40,6 +41,7 @@ def _make_context(
         symbol="BTC",
         close=close,
         high=high,
+        low=low,
         mfi=mfi,
         adx=adx,
         rsi=50.0,
@@ -167,6 +169,64 @@ class TestMLPDirectionExitStrategy:
         assert signal is not None
         assert "Stop loss" in signal.reason
 
+    def test_intrabar_stop_ignored_on_entry_candle(self):
+        params = MLPDirectionExitParams(
+            stop_loss_pct=2.0,
+            fwin_exit_enabled=False,
+            intrabar_stop_requires_post_entry_candle=True,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = Position(
+            symbol="BTC",
+            entry_price=100000.0,
+            quantity=0.1,
+            strategy="mlp_direction",
+            market="futures",
+            timestamp=1000,
+            side="buy",
+            entry_time=2000,
+        )
+
+        # Same candle as entry. Low breaches stop, but close does not.
+        ctx = _make_context(
+            close=99000.0,
+            high=100500.0,
+            low=97000.0,
+            timestamp=2000,
+            atr=0.0,
+        )
+        signal = strategy.check_exit(ctx, position)
+        assert signal is None
+
+    def test_intrabar_stop_triggers_after_entry_candle(self):
+        params = MLPDirectionExitParams(
+            stop_loss_pct=2.0,
+            fwin_exit_enabled=False,
+            intrabar_stop_requires_post_entry_candle=True,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = Position(
+            symbol="BTC",
+            entry_price=100000.0,
+            quantity=0.1,
+            strategy="mlp_direction",
+            market="futures",
+            timestamp=1000,
+            side="buy",
+            entry_time=2000,
+        )
+
+        ctx = _make_context(
+            close=99500.0,
+            high=100500.0,
+            low=97000.0,
+            timestamp=2001,
+            atr=0.0,
+        )
+        signal = strategy.check_exit(ctx, position)
+        assert signal is not None
+        assert "Stop loss intrabar" in signal.reason
+
     def test_take_profit_triggered(self):
         """Exit triggers at take profit when enabled."""
         params = MLPDirectionExitParams(
@@ -288,6 +348,29 @@ class TestMLPDirectionExitStrategy:
             ema_5=99500.0,
             ema_10=100000.0,
             ema_20=100200.0,
+        )
+
+        signal = strategy.check_exit(ctx, position)
+        assert signal is None
+
+    def test_ema_deadcross_can_be_disabled_for_specific_regimes(self):
+        params = MLPDirectionExitParams(
+            stop_loss_pct=50.0,
+            fwin_exit_enabled=False,
+            ema_deadcross_exit_enabled=True,
+            ema_deadcross_consecutive_bars=1,
+            ema_deadcross_require_below_ema20=True,
+            ema_deadcross_blocked_regimes=["BULL_STRONG", "SIDEWAYS_UP"],
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+        ctx = _make_context(
+            mfi=60.0,
+            adx=30.0,
+            close=98000.0,
+            ema_5=97500.0,
+            ema_10=98500.0,
+            ema_20=99500.0,
         )
 
         signal = strategy.check_exit(ctx, position)

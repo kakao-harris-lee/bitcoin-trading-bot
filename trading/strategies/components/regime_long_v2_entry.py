@@ -42,10 +42,14 @@ class RegimeLongV2EntryParams:
     risk_on_score_min: int = 3
     adx_trend_threshold: float = 18.0
     require_close_above_ema20: bool = True
+    require_close_above_ema120: bool = False
+    require_ema5_above_ema20: bool = False
     require_ema20_above_ema120: bool = True
     require_rsi_above_50: bool = True
     require_mfi_above_50: bool = True
     require_adx_trend: bool = True
+    min_volume_ratio: float = 0.0
+    min_breakout_ratio: float = -1.0
 
 
 @entry_strategy(params_class=RegimeLongV2EntryParams)
@@ -55,6 +59,16 @@ class RegimeLongV2EntryStrategy:
     def __init__(self, params: RegimeLongV2EntryParams | None = None):
         self.params = params or RegimeLongV2EntryParams()
         self._risk_on_history: dict[str, deque[int]] = {}
+        self._last_rejection_reason: dict[str, str] = {}
+
+    def get_last_rejection_reason(self, symbol: str) -> str | None:
+        return self._last_rejection_reason.get(symbol)
+
+    def _set_rejection_reason(self, symbol: str, reason: str) -> None:
+        self._last_rejection_reason[symbol] = reason
+
+    def _clear_rejection_reason(self, symbol: str) -> None:
+        self._last_rejection_reason.pop(symbol, None)
 
     def check_entry(self, ctx: TradingContext) -> Signal | None:
         p = self.params
@@ -69,15 +83,19 @@ class RegimeLongV2EntryStrategy:
                 symbol,
                 cooldown_remaining,
             )
+            self._set_rejection_reason(symbol, f"RegimeLongV2 cooldown active ({cooldown_remaining})")
             return None
 
         if p.block_bear_regime and regime.regime in BEAR_REGIMES:
+            self._set_rejection_reason(symbol, f"RegimeLongV2 blocked by bear regime ({regime.regime})")
             return None
 
         if p.allowed_regimes and regime.regime not in set(p.allowed_regimes):
+            self._set_rejection_reason(symbol, f"RegimeLongV2 regime not allowed ({regime.regime})")
             return None
 
         if p.block_extreme_volatility and regime.is_extreme_volatility:
+            self._set_rejection_reason(symbol, "RegimeLongV2 blocked by extreme volatility")
             return None
 
         risk_on, score = self._compute_risk_on_score(ctx)
@@ -88,6 +106,10 @@ class RegimeLongV2EntryStrategy:
         history.append(1 if risk_on else 0)
 
         if len(history) < max(int(p.min_ready_bars), 1):
+            self._set_rejection_reason(
+                symbol,
+                f"RegimeLongV2 waiting for ready bars ({len(history)}/{max(int(p.min_ready_bars), 1)})",
+            )
             return None
 
         hits = sum(history)
@@ -100,6 +122,10 @@ class RegimeLongV2EntryStrategy:
             required_hits = max(required_hits, 1)
 
         if hits < required_hits:
+            self._set_rejection_reason(
+                symbol,
+                f"RegimeLongV2 quorum miss ({hits}/{len(history)} < {required_hits}, score={score})",
+            )
             return None
 
         reason = (
@@ -107,6 +133,7 @@ class RegimeLongV2EntryStrategy:
             f"risk_on_hits={hits}/{len(history)} (need>={required_hits}), score={score}"
         )
         logger.info("%s: %s", symbol, reason)
+        self._clear_rejection_reason(symbol)
         return Signal(
             symbol=symbol,
             side="buy",
@@ -122,6 +149,10 @@ class RegimeLongV2EntryStrategy:
         checks: list[bool] = []
         if p.require_close_above_ema20:
             checks.append(market.ema_20 > 0 and market.close > market.ema_20)
+        if p.require_close_above_ema120:
+            checks.append(market.ema_120 > 0 and market.close > market.ema_120)
+        if p.require_ema5_above_ema20:
+            checks.append(market.ema_5 > 0 and market.ema_20 > 0 and market.ema_5 > market.ema_20)
         if p.require_ema20_above_ema120:
             checks.append(
                 market.ema_20 > 0
@@ -134,6 +165,12 @@ class RegimeLongV2EntryStrategy:
             checks.append(market.mfi >= 50.0)
         if p.require_adx_trend:
             checks.append(market.adx >= p.adx_trend_threshold)
+        if p.min_volume_ratio > 0:
+            volume_ratio = (market.volume / market.avg_volume_20) if market.avg_volume_20 > 0 else 0.0
+            checks.append(volume_ratio >= p.min_volume_ratio)
+        if p.min_breakout_ratio > -1.0 and market.prev_high_20 > 0:
+            breakout_ratio = (market.close / market.prev_high_20) - 1.0
+            checks.append(breakout_ratio >= p.min_breakout_ratio)
 
         score = sum(1 for ok in checks if ok)
         return score >= int(p.risk_on_score_min), score

@@ -343,7 +343,15 @@
           "period_risk_enabled": false,
           "mfi_bull": 42.0,
           "mfi_bear": 40.0,
-          "adx_trend": 4.0
+          "adx_trend": 4.0,
+          "fallback_allowed_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE"
+          ],
+          "fallback_on_mlp_unavailable": true,
+          "fallback_on_mlp_non_buy": false,
+          "fallback_on_mlp_low_confidence": false,
+          "fallback_on_mlp_filter_block": false
         }
       },
       "exit": {
@@ -382,15 +390,22 @@
           ],
           "regime_params": {
             "cooldown_bars": 8,
-            "peak_drawdown_exit_pct": 0.15
+            "peak_drawdown_exit_pct": 0.15,
+            "min_hold_bars": 2,
+            "ema_slow_consecutive_bars": 3
           },
           "trailing_activation": 6.0,
           "trailing_distance": 3.0,
           "take_profit_pct": 32.34815576954866,
           "ema_deadcross_exit_enabled": true,
-          "ema_deadcross_consecutive_bars": 2,
+          "ema_deadcross_consecutive_bars": 3,
           "ema_deadcross_require_below_ema20": true,
-          "ema_deadcross_min_hold_bars": 2
+          "ema_deadcross_min_hold_bars": 4,
+          "ema_deadcross_blocked_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP"
+          ]
         }
       },
       "cash_in_bear": false,
@@ -530,7 +545,9 @@
           "regime_params": {
             "cooldown_bars": 8,
             "entry_lookback_bars": 12,
-            "entry_quorum_ratio": 0.5
+            "entry_quorum_ratio": 0.5,
+            "require_close_above_ema120": true,
+            "require_ema5_above_ema20": true
           },
           "regime_buy_confidence_thresholds": {
             "BULL_STRONG": 0.6,
@@ -540,7 +557,15 @@
           "period_risk_enabled": false,
           "mfi_bull": 42.0,
           "mfi_bear": 40.0,
-          "adx_trend": 4.0
+          "adx_trend": 4.0,
+          "fallback_allowed_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE"
+          ],
+          "fallback_on_mlp_unavailable": true,
+          "fallback_on_mlp_non_buy": false,
+          "fallback_on_mlp_low_confidence": false,
+          "fallback_on_mlp_filter_block": false
         }
       },
       "exit": {
@@ -553,7 +578,7 @@
           "trailing_enabled": true,
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
-          "sell_confidence_threshold": 0.55,
+          "sell_confidence_threshold": 0.58,
           "model_path": "models/mlp_direction/eth_v2_bwin4_fwin2/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36",
@@ -561,9 +586,10 @@
           "switch_mfi_threshold": 49.0,
           "switch_adx_threshold": 10.0,
           "switch_require_above_ema200": false,
-          "risk_on_sell_confidence_threshold": 0.55,
-          "risk_off_sell_confidence_threshold": 0.5,
-          "min_hold_bars_for_sell_exit": 2,
+          "risk_on_sell_confidence_threshold": 0.62,
+          "risk_off_sell_confidence_threshold": 0.52,
+          "min_hold_bars_for_sell_exit": 3,
+          "min_profit_for_sell_exit": 0.8,
           "bull_regime_sell_guard": true,
           "always_apply_regime_protection": true,
           "mlp_route_regimes": [
@@ -576,7 +602,9 @@
           ],
           "regime_params": {
             "cooldown_bars": 8,
-            "peak_drawdown_exit_pct": 0.15
+            "peak_drawdown_exit_pct": 0.15,
+            "min_hold_bars": 3,
+            "ema_slow_consecutive_bars": 3
           },
           "trailing_activation": 6.0,
           "trailing_distance": 3.0,
@@ -718,42 +746,100 @@
       "symbol_selector": {
         "_comment": "Paper aggressive rotation (long-only) with ignition monitor (breakout/volume/compression).",
         "enabled": true,
-        "top_n": 16,
+        "top_n": 12,
         "refresh_seconds": 60,
         "event_maxlen": 50000,
-        "min_score": 0.0,
+        "min_score": 0.08,
         "min_adx": 3.0,
         "min_volume_ratio": 0.05,
         "volume_burst_ratio": 1.15,
         "compression_bbw_threshold": 0.11,
         "score_jump_threshold": 0.22,
-        "entry_ready_score": 0.35,
+        "entry_ready_score": 0.48,
         "max_signal_events": 8,
-        "max_price_age_seconds": 90.0,
+        "max_price_age_seconds": 150.0,
         "startup_grace_seconds": 180.0,
         "require_above_ema200": false,
         "skip_bear_regime": true,
         "keep_previous_on_empty": false,
+        "blocked_symbols": [
+          "LINK",
+          "TRX",
+          "DOGE",
+          "SOL",
+          "WIF",
+          "BNB"
+        ],
         "score_weights": {
-          "regime": 0.12,
-          "momentum": 0.38,
+          "regime": 0.08,
+          "momentum": 0.2,
           "volume": 0.1,
           "adx": 0.05,
-          "breakout": 0.15,
-          "compression": 0.08,
-          "ema_alignment": 0.07,
-          "mfi": 0.03,
-          "volume_burst": 0.12
-        }
+          "breakout": 0.24,
+          "compression": 0.05,
+          "ema_alignment": 0.18,
+          "mfi": 0.02,
+          "volume_burst": 0.14
+        },
+        "min_consecutive_eligible": 3,
+        "entry_ready_min_consecutive": 3,
+        "symbol_score_multipliers": {
+          "APT": 1.05,
+          "AI": 1.05,
+          "1000SATS": 1.05,
+          "JUP": 1.05,
+          "GRT": 1.05,
+          "MEME": 1.05,
+          "ALGO": 1.05,
+          "ETC": 1.05,
+          "ENA": 1.05,
+          "AR": 1.05,
+          "XLM": 0.7,
+          "AVAX": 0.7,
+          "HBAR": 0.7,
+          "LINK": 0.45,
+          "OP": 0.7,
+          "UNI": 0.7,
+          "SUI": 0.7,
+          "JASMY": 0.7,
+          "INJ": 0.7,
+          "SAND": 0.7,
+          "SNX": 0.7,
+          "STX": 0.7,
+          "TRX": 0.45,
+          "TRB": 0.7,
+          "CRV": 0.55,
+          "THETA": 0.55,
+          "DOT": 0.55,
+          "AAVE": 0.55,
+          "DOGE": 0.45,
+          "ATOM": 0.55,
+          "SOL": 0.45,
+          "FET": 0.55,
+          "WIF": 0.45,
+          "BCH": 0.55,
+          "BNB": 0.45,
+          "AXS": 0.55,
+          "KAVA": 1.1,
+          "WLD": 1.1,
+          "RENDER": 1.1,
+          "NEAR": 1.1,
+          "IMX": 1.1,
+          "TIA": 1.1,
+          "NMR": 1.1,
+          "ICP": 1.1,
+          "SAGA": 1.1
+        },
+        "stale_soft_grace_multiplier": 2.0
       },
       "data_quality": {
         "_comment": "Per-symbol freshness/liquidity guard: block stale/low-tick symbols and scale position by tick-rate tier.",
         "enabled": true,
-        "max_price_age_seconds": 90.0,
-        "min_ticks_per_minute": 2.0,
+        "max_price_age_seconds": 150.0,
+        "min_ticks_per_minute": 1.0,
         "tick_window_seconds": 300,
         "startup_grace_seconds": 180,
-        "eviction_cooldown_seconds": 180,
+        "eviction_cooldown_seconds": 60,
         "cooldown_on_low_tick_rate": false,
         "tier_thresholds": {
           "high": 12.0,
@@ -795,7 +881,7 @@
               "weight": 0.3
             }
           ],
-          "buy_confidence_threshold": 0.42,
+          "buy_confidence_threshold": 0.45,
           "skip_bear_regime": true,
           "adx_min": 0.0,
           "use_ema200_filter": false,
@@ -806,8 +892,8 @@
           "switch_mfi_threshold": 42.0,
           "switch_adx_threshold": 3.0,
           "switch_require_above_ema200": false,
-          "risk_on_buy_confidence_threshold": 0.45,
-          "risk_off_buy_confidence_threshold": 0.52,
+          "risk_on_buy_confidence_threshold": 0.48,
+          "risk_off_buy_confidence_threshold": 0.58,
           "risk_on_position_size": 0.12,
           "risk_off_position_size": 0.1,
           "regime_confidence_gate_enabled": false,
@@ -820,17 +906,21 @@
           ],
           "fallback_to_regime_when_mlp_none": true,
           "regime_params": {
-            "cooldown_bars": 1,
-            "entry_lookback_bars": 3,
-            "entry_quorum_ratio": 0.34,
-            "min_ready_bars": 1,
-            "risk_on_score_min": 2,
-            "adx_trend_threshold": 8.0,
+            "cooldown_bars": 3,
+            "entry_lookback_bars": 5,
+            "entry_quorum_ratio": 0.6,
+            "min_ready_bars": 3,
+            "risk_on_score_min": 5,
+            "adx_trend_threshold": 12.0,
             "require_close_above_ema20": true,
-            "require_ema20_above_ema120": false,
-            "require_rsi_above_50": false,
+            "require_ema20_above_ema120": true,
+            "require_rsi_above_50": true,
             "require_mfi_above_50": false,
-            "require_adx_trend": false
+            "require_adx_trend": true,
+            "require_close_above_ema120": true,
+            "require_ema5_above_ema20": true,
+            "min_volume_ratio": 0.75,
+            "min_breakout_ratio": -0.015
           },
           "regime_buy_confidence_thresholds": {
             "BULL_STRONG": 0.63,
@@ -840,7 +930,39 @@
           "period_risk_enabled": false,
           "mfi_bull": 40.0,
           "mfi_bear": 38.0,
-          "adx_trend": 3.0
+          "adx_trend": 3.0,
+          "fallback_allowed_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP"
+          ],
+          "fallback_quality_allowlist_symbols": [
+            "APT",
+            "JUP",
+            "MEME",
+            "ALGO",
+            "ETC",
+            "ENA",
+            "AR",
+            "WLD",
+            "RENDER",
+            "NEAR",
+            "IMX",
+            "TIA",
+            "NMR"
+          ],
+          "fallback_blocked_symbols": [
+            "LINK",
+            "TRX",
+            "DOGE",
+            "SOL",
+            "WIF",
+            "BNB"
+          ],
+          "fallback_on_mlp_unavailable": true,
+          "fallback_on_mlp_non_buy": true,
+          "fallback_on_mlp_low_confidence": false,
+          "fallback_on_mlp_filter_block": false
         }
       },
       "exit": {
@@ -850,13 +972,13 @@
           "fwin_exit_enabled": false,
           "fwin_periods": 2,
           "atr_stop_enabled": true,
-          "atr_stop_multiplier": 1.4,
-          "atr_stop_min_pct": 2.0,
+          "atr_stop_multiplier": 2.0,
+          "atr_stop_min_pct": 3.0,
           "atr_stop_max_pct": 9.0,
           "trailing_enabled": true,
           "take_profit_enabled": false,
           "use_mlp_sell_exit": true,
-          "sell_confidence_threshold": 0.48,
+          "sell_confidence_threshold": 0.55,
           "model_path": "models/mlp_direction/multi_bwin3_fwin1/model_best.pt",
           "market": "spot",
           "mlp_feature_set": "paper_36",
@@ -864,9 +986,10 @@
           "switch_mfi_threshold": 42.0,
           "switch_adx_threshold": 3.0,
           "switch_require_above_ema200": false,
-          "risk_on_sell_confidence_threshold": 0.5,
-          "risk_off_sell_confidence_threshold": 0.46,
-          "min_hold_bars_for_sell_exit": 1,
+          "risk_on_sell_confidence_threshold": 0.65,
+          "risk_off_sell_confidence_threshold": 0.5,
+          "min_hold_bars_for_sell_exit": 4,
+          "min_profit_for_sell_exit": 1.5,
           "bull_regime_sell_guard": true,
           "always_apply_regime_protection": true,
           "mlp_route_regimes": [
@@ -880,10 +1003,21 @@
           ],
           "regime_params": {
             "cooldown_bars": 2,
-            "peak_drawdown_exit_pct": 0.05
+            "peak_drawdown_exit_pct": 0.05,
+            "min_hold_bars": 3,
+            "ema_slow_consecutive_bars": 3,
+            "ema_fast_field": "ema_20",
+            "ema_slow_grace_bars_after_entry": 6,
+            "ema_slow_grace_seconds_after_entry": 900,
+            "ema_slow_min_drawdown_from_hwm_pct": 0.035,
+            "ema_slow_require_fast_below_slow": true,
+            "ema_slow_blocked_regimes": [
+              "BULL_STRONG",
+              "BULL_MODERATE"
+            ]
           },
-          "trailing_activation": 2.5,
-          "trailing_distance": 1.8,
+          "trailing_activation": 3.5,
+          "trailing_distance": 2.2,
           "ema_deadcross_exit_enabled": false
         }
       },

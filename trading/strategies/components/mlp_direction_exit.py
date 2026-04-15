@@ -83,6 +83,7 @@ class MLPDirectionExitParams:
     ema_deadcross_consecutive_bars: int = 2
     ema_deadcross_require_below_ema20: bool = True
     ema_deadcross_min_hold_bars: int = 0
+    ema_deadcross_blocked_regimes: list[str] | None = None
 
     market: Literal["spot", "futures"] = "spot"
 
@@ -101,6 +102,7 @@ class MLPDirectionExitParams:
     risk_off_sell_confidence_threshold: float = 0.0
     risk_on_stop_loss_pct: float = 0.0
     risk_off_stop_loss_pct: float = 0.0
+    intrabar_stop_requires_post_entry_candle: bool = True
 
 
 @exit_strategy(params_class=MLPDirectionExitParams)
@@ -338,6 +340,9 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         stop_price = position.entry_price * (1.0 - (stop_pct / 100.0))
         low_price = ctx.market.low if ctx.market.low > 0 else ctx.market.close
         intrabar_hit = low_price <= stop_price
+        if intrabar_hit and self.params.intrabar_stop_requires_post_entry_candle:
+            if not self._is_post_entry_candle(ctx, position):
+                intrabar_hit = False
 
         if not intrabar_hit and pnl_pct > -stop_pct:
             return None
@@ -356,6 +361,13 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         logger.info(f"{position.symbol}: {reason}")
         self._clear_all_state(key)
         return self._create_exit_signal(position, reason, trigger_price=trigger_price)
+
+    def _is_post_entry_candle(self, ctx: TradingContext, position: Position) -> bool:
+        entry_ts = int(getattr(position, "entry_time", 0) or 0)
+        current_ts = int(getattr(ctx.market, "timestamp", 0) or 0)
+        if entry_ts <= 0 or current_ts <= 0:
+            return True
+        return current_ts > entry_ts
 
     def _check_fwin_exit_if_enabled(
         self,
@@ -377,6 +389,10 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
     ) -> Signal | None:
         p = self.params
         if not p.ema_deadcross_exit_enabled:
+            return None
+        blocked_regimes = set(p.ema_deadcross_blocked_regimes or [])
+        if blocked_regimes and ctx.regime.regime in blocked_regimes:
+            self._ema_deadcross_streaks[key] = 0
             return None
         if p.ema_deadcross_min_hold_bars > 0 and candles_held < p.ema_deadcross_min_hold_bars:
             return None

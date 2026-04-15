@@ -38,6 +38,13 @@ class MetricsService:
         self._redis: Optional[redis.Redis] = None
         self._last_prices: dict[str, float] = {}
         self._last_price_time: Optional[datetime] = None
+        try:
+            self._position_event_scan_count = max(
+                100,
+                int(os.getenv("POSITION_EVENT_SCAN_COUNT", "600")),
+            )
+        except ValueError:
+            self._position_event_scan_count = 600
 
     def _get_redis(self) -> redis.Redis:
         """Get Redis connection (lazy initialization)."""
@@ -143,7 +150,7 @@ class MetricsService:
         positions: list[dict] = []
         total_position_value = 0.0
         configured_strategies: set[str] = set()
-        for symbol in self._symbols:
+        for symbol in self._discover_position_symbols():
             for market in self.MARKETS:
                 pos = self._get_position(symbol, market)
                 if not pos:
@@ -155,6 +162,39 @@ class MetricsService:
                     positions.append(entry["position"])
                     total_position_value += entry["position"]["value"]
         return positions, total_position_value, configured_strategies
+
+    def _discover_position_symbols(self) -> list[str]:
+        symbols: list[str] = []
+        seen: set[str] = set()
+        for raw in self._symbols:
+            symbol = str(raw or "").strip().upper()
+            if not symbol or symbol in seen:
+                continue
+            seen.add(symbol)
+            symbols.append(symbol)
+
+        try:
+            entries = self._get_redis().xrevrange(
+                "positions:events",
+                count=self._position_event_scan_count,
+            )
+        except Exception:
+            return symbols
+        if not isinstance(entries, (list, tuple)):
+            return symbols
+
+        discovered: set[str] = set()
+        for _msg_id, payload in entries:
+            symbol = str(payload.get("symbol", "")).strip().upper()
+            if symbol:
+                discovered.add(symbol)
+
+        for symbol in sorted(discovered):
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            symbols.append(symbol)
+        return symbols
 
     def _parse_position_entry(
         self,
@@ -526,6 +566,48 @@ class MetricsService:
 
         except Exception as e:
             print(f"Error reading exit events: {e}")
+            return []
+
+    def get_entry_funnel_events(
+        self,
+        hours: int = 24,
+        limit: int = 50,
+        symbol: Optional[str] = None,
+        strategy: Optional[str] = None,
+    ) -> list[dict]:
+        """
+        Get entry funnel attribution events from strategy:entry:funnel stream.
+
+        Args:
+            hours: Number of hours of history to retrieve
+            limit: Maximum number of events to return
+            symbol: Optional filter by symbol
+            strategy: Optional filter by strategy
+
+        Returns:
+            List of entry funnel event dicts
+        """
+        _ = hours
+        try:
+            r = self._get_redis()
+            entries = r.xrevrange("strategy:entry:funnel", count=limit * 2)
+
+            events = []
+            for _msg_id, data in entries:
+                if symbol and data.get("symbol") != symbol:
+                    continue
+                if strategy and data.get("strategy") != strategy:
+                    continue
+
+                events.append(data)
+
+                if len(events) >= limit:
+                    break
+
+            return events
+
+        except Exception as e:
+            print(f"Error reading entry funnel events: {e}")
             return []
 
     def get_hwm_timeline(

@@ -14,6 +14,7 @@ import asyncio
 import pytest
 import pytest_asyncio
 from datetime import datetime
+from types import MappingProxyType
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # Mark all tests as asyncio
@@ -25,6 +26,7 @@ def mock_redis():
     """Create mock RedisStreams."""
     redis = MagicMock()
     redis.publish_event = AsyncMock(return_value="1234567890-0")
+    redis.publish = AsyncMock(return_value=1)
     redis.get_position = AsyncMock(return_value={})
     redis._client = MagicMock()
     redis._client.hgetall = AsyncMock(return_value={})
@@ -208,6 +210,276 @@ class TestCompositeTaskEntryEventEmission:
         calls = mock_redis.publish_event.call_args_list
         entry_calls = [c for c in calls if c[0][0] == "strategy:entry:events"]
         assert len(entry_calls) == 0
+
+    async def test_entry_decision_snapshot_uses_latest_entry_hint(
+        self, mock_redis, mock_entry_strategy, mock_exit_strategy
+    ):
+        """Decision snapshot should use reason from latest real entry evaluation."""
+        from trading.strategies.components.composite_task import CompositeStrategyTask
+        from trading.strategies.components.models import MarketData
+
+        task = CompositeStrategyTask(
+            name="short_v1",
+            symbols=["BTC"],
+            redis=mock_redis,
+            entry_strategy=mock_entry_strategy,
+            exit_strategy=mock_exit_strategy,
+            emit_events=False,
+        )
+
+        market_data = MarketData(
+            symbol="BTC",
+            close=43000.0,
+            mfi=62.0,
+            adx=30.0,
+            rsi=55.0,
+            timestamp=1234567890,
+        )
+        task._update_entry_decision_hint(
+            "BTC",
+            should_enter=False,
+            reason="HybridLong[mlp] blocked: MLP predicted HOLD (not BUY)",
+        )
+
+        decision, reason, _ = task._build_entry_decision_snapshot(
+            market_data=market_data,
+            regime="BULL_STRONG",
+            mfi_bull=52.0,
+            mfi_bear=48.0,
+            adx_trend=20.0,
+        )
+
+        assert decision == "WAIT"
+        assert "MLP predicted HOLD" in reason
+
+    async def test_entry_event_uses_no_signal_reason_hint(
+        self, mock_redis, mock_entry_strategy, mock_exit_strategy
+    ):
+        """Entry evaluation event reason should use strategy rejection reason."""
+        from trading.strategies.components.composite_task import CompositeStrategyTask
+        from trading.strategies.components.models import MarketData, build_market_context
+
+        task = CompositeStrategyTask(
+            name="short_v1",
+            symbols=["BTC"],
+            redis=mock_redis,
+            entry_strategy=mock_entry_strategy,
+            exit_strategy=mock_exit_strategy,
+            emit_events=True,
+        )
+
+        market_data = MarketData(
+            symbol="BTC",
+            close=43000.0,
+            mfi=62.0,
+            adx=30.0,
+            rsi=55.0,
+            timestamp=1234567890,
+            atr=1200.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+        context = build_market_context(mfi=62.0, adx=30.0, atr=1200.0, close=43000.0)
+
+        await task._emit_entry_evaluation(
+            market_data,
+            context,
+            signal=None,
+            no_signal_reason="HybridLong[mlp] blocked: MLP predicted HOLD (not BUY)",
+        )
+        await asyncio.sleep(0)
+
+        calls = mock_redis.publish_event.call_args_list
+        entry_calls = [c for c in calls if c[0][0] == "strategy:entry:events"]
+        assert len(entry_calls) >= 1
+        payload = entry_calls[-1][0][1]
+        assert payload["reason"] == "HybridLong[mlp] blocked: MLP predicted HOLD (not BUY)"
+
+
+class TestCompositeTaskPositionParsing:
+    """Test position dict parsing for exit contexts."""
+
+    async def test_dict_to_position_maps_entry_time(
+        self, mock_redis, mock_entry_strategy, mock_exit_strategy
+    ):
+        from trading.strategies.components.composite_task import CompositeStrategyTask
+
+        task = CompositeStrategyTask(
+            name="short_v1",
+            symbols=["BTC"],
+            redis=mock_redis,
+            entry_strategy=mock_entry_strategy,
+            exit_strategy=mock_exit_strategy,
+            emit_events=False,
+        )
+
+        position = task._dict_to_position(
+            {
+                "symbol": "BTC",
+                "entry_price": "43000",
+                "quantity": "0.05",
+                "strategy": "short_v1",
+                "market": "spot",
+                "entry_time": "1234567000",
+                "side": "buy",
+                "leverage": "1",
+            }
+        )
+
+        assert position.timestamp == 1234567000
+        assert position.entry_time == 1234567000
+
+
+class TestCompositeTaskEntryFunnelEmission:
+    """Test selector-to-order funnel event emission."""
+
+    async def test_entry_funnel_emits_no_signal_reason(
+        self, mock_redis, mock_entry_strategy, mock_exit_strategy
+    ):
+        """No-signal evaluations should emit a funnel event with rejection detail."""
+        from trading.strategies.components.composite_task import CompositeStrategyTask
+        from trading.strategies.components.models import MarketData, build_market_context, TradingContext
+
+        task = CompositeStrategyTask(
+            name="mlp_direction_bnb",
+            symbols=["BTC"],
+            redis=mock_redis,
+            entry_strategy=mock_entry_strategy,
+            exit_strategy=mock_exit_strategy,
+            emit_events=True,
+        )
+
+        market_data = MarketData(
+            symbol="BTC",
+            close=43000.0,
+            mfi=62.0,
+            adx=30.0,
+            rsi=55.0,
+            timestamp=1234567890,
+            atr=900.0,
+            volume=100.0,
+            avg_volume_20=80.0,
+        )
+        context = build_market_context(mfi=62.0, adx=30.0, atr=900.0, close=43000.0)
+        ctx = TradingContext(
+            symbol="BTC",
+            timestamp=market_data.timestamp,
+            market=market_data,
+            regime=context,
+            positions=MappingProxyType({}),
+        )
+
+        task._refresh_indicator_history = AsyncMock()
+        task._build_market_data = MagicMock(return_value=market_data)
+        task._build_entry_context = MagicMock(return_value=(context, ctx))
+        task._update_regime_snapshot = AsyncMock()
+        task._check_and_record_decision = AsyncMock()
+        task._passes_entry_gates = MagicMock(return_value=True)
+        task._dq_entry_assessment["BTC"] = {
+            "allowed": True,
+            "reason": "ok",
+            "tier": "high",
+            "price_age_seconds": 1.5,
+            "ticks_per_minute": 12.0,
+        }
+        task._resolve_entry_leverage = AsyncMock(return_value=1.0)
+        task.entry_strategy.check_entry.return_value = None
+        task.entry_strategy.get_last_rejection_reason = MagicMock(
+            return_value="HybridLong[mlp] blocked: MLP predicted HOLD (not BUY)"
+        )
+
+        await task.evaluate("BTC")
+        await asyncio.sleep(0)
+
+        calls = mock_redis.publish_event.call_args_list
+        funnel_calls = [c for c in calls if c[0][0] == "strategy:entry:funnel"]
+        assert len(funnel_calls) >= 1
+        payload = funnel_calls[-1][0][1]
+        assert payload["entry_signal_generated"] == "false"
+        assert payload["entry_rejection_category"] == "mlp_non_buy"
+        assert payload["order_build_result"] == "not_attempted"
+
+    async def test_entry_funnel_emits_built_and_published_order(
+        self, mock_redis, mock_entry_strategy, mock_exit_strategy
+    ):
+        """Built orders should emit a funnel event after publish."""
+        from trading.strategies.components.composite_task import CompositeStrategyTask
+        from trading.strategies.components.models import MarketData, Signal, TradingContext, build_market_context
+
+        task = CompositeStrategyTask(
+            name="mlp_direction_bnb",
+            symbols=["BTC"],
+            redis=mock_redis,
+            entry_strategy=mock_entry_strategy,
+            exit_strategy=mock_exit_strategy,
+            emit_events=True,
+        )
+
+        market_data = MarketData(
+            symbol="BTC",
+            close=43000.0,
+            mfi=65.0,
+            adx=32.0,
+            rsi=57.0,
+            timestamp=1234567890,
+            atr=800.0,
+            volume=120.0,
+            avg_volume_20=80.0,
+        )
+        context = build_market_context(mfi=65.0, adx=32.0, atr=800.0, close=43000.0)
+        ctx = TradingContext(
+            symbol="BTC",
+            timestamp=market_data.timestamp,
+            market=market_data,
+            regime=context,
+            positions=MappingProxyType({}),
+        )
+        signal = Signal(
+            symbol="BTC",
+            side="buy",
+            market="spot",
+            quantity=0.1,
+            reason="HybridLong[mlp] MLPDirection: pred=BUY, conf=0.65, thr=0.48",
+        )
+        order = {
+            "symbol": "BTC",
+            "side": "buy",
+            "market": "spot",
+            "quantity": "0.1",
+            "reason": signal.reason,
+        }
+
+        task._refresh_indicator_history = AsyncMock()
+        task._build_market_data = MagicMock(return_value=market_data)
+        task._build_entry_context = MagicMock(return_value=(context, ctx))
+        task._update_regime_snapshot = AsyncMock()
+        task._check_and_record_decision = AsyncMock()
+        task._passes_entry_gates = MagicMock(return_value=True)
+        task._dq_entry_assessment["BTC"] = {
+            "allowed": True,
+            "reason": "ok",
+            "tier": "high",
+            "price_age_seconds": 0.8,
+            "ticks_per_minute": 18.0,
+        }
+        task._resolve_entry_leverage = AsyncMock(return_value=1.0)
+        task.entry_strategy.check_entry.return_value = signal
+        task._build_entry_order = AsyncMock(return_value=order)
+
+        built = await task.evaluate("BTC")
+        assert built == order
+
+        await task._publish_order(order)
+        await asyncio.sleep(0)
+
+        calls = mock_redis.publish_event.call_args_list
+        funnel_calls = [c for c in calls if c[0][0] == "strategy:entry:funnel"]
+        assert len(funnel_calls) >= 1
+        payload = funnel_calls[-1][0][1]
+        assert payload["entry_signal_generated"] == "true"
+        assert payload["entry_route"] == "mlp"
+        assert payload["order_build_result"] == "built"
+        assert payload["order_published"] == "true"
 
 
 class TestCompositeTaskExitEventEmission:

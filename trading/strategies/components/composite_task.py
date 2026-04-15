@@ -160,6 +160,14 @@ class CompositeStrategyTask(BaseStrategyTask):
             self.config.get("entry_evaluation_interval_seconds", self.evaluation_interval)
         )
         self._last_entry_candle_ts: dict[str, int] = {}
+        self._last_entry_gate_reason: dict[str, str] = {}
+        self._entry_decision_hint: dict[str, dict[str, Any]] = {}
+        self._last_entry_order_build_reason: dict[str, str] = {}
+        self._pending_entry_funnel_payload: dict[str, dict[str, Any]] = {}
+        self._entry_decision_hint_ttl_seconds = max(
+            120.0,
+            self._entry_eval_fallback_seconds * 2.0,
+        )
         self._regime_snapshot_interval_seconds = float(
             self.config.get("regime_snapshot_interval_seconds", 60)
         )
@@ -488,6 +496,29 @@ class CompositeStrategyTask(BaseStrategyTask):
         await super()._handle_message(msg)
         await self._post_message_monitoring_refresh(msg)
 
+    async def _publish_order(self, signal: dict[str, Any]) -> None:
+        """Publish order and mirror selector-to-order funnel attribution."""
+        await super()._publish_order(signal)
+        symbol = str(signal.get("symbol", ""))
+        payload = self._pending_entry_funnel_payload.pop(symbol, None)
+        if not payload:
+            return
+        await self._emit_entry_funnel_event(
+            symbol=symbol,
+            context=payload["context"],
+            dq_assessment=payload.get("dq_assessment"),
+            gate_passed=True,
+            gate_reason="passed",
+            leverage_allowed=True,
+            leverage_reason="passed",
+            entry_signal_generated=True,
+            entry_route=str(payload.get("entry_route", "")),
+            entry_rejection_reason="",
+            order_build_result="built",
+            order_drop_reason="",
+            order_published=True,
+        )
+
     def _is_regime_snapshot_due(self, symbol: str, now: float | None = None) -> bool:
         interval = self._regime_snapshot_interval_seconds
         if interval <= 0:
@@ -563,7 +594,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._decrement_entry_blocks(symbol)
 
         if self.context_builder is not None:
-            await self.context_builder.refresh_positions()
+            await self.context_builder.refresh_positions(symbols=self.symbols)
 
         await self._refresh_indicator_history(symbol)
 
@@ -579,31 +610,129 @@ class CompositeStrategyTask(BaseStrategyTask):
         # Keep dashboard regime status fresh even between hourly decision records.
         await self._update_regime_snapshot(symbol, market_data, context)
 
-        # Record decision at candle close for dashboard visibility
-        await self._check_and_record_decision(symbol, market_data, context)
+        dq_assessment = self._dq_entry_assessment.get(symbol)
 
         if not self._passes_entry_gates(symbol, market_data, context):
+            dq_assessment = self._dq_entry_assessment.get(symbol) or dq_assessment
+            gate_reason = self._last_entry_gate_reason.get(symbol, "Entry blocked by gates")
+            self._update_entry_decision_hint(symbol, should_enter=False, reason=gate_reason)
+            await self._check_and_record_decision(symbol, market_data, context)
+            await self._emit_entry_funnel_event(
+                symbol=symbol,
+                context=context,
+                dq_assessment=dq_assessment,
+                gate_passed=False,
+                gate_reason=gate_reason,
+                leverage_allowed=False,
+                leverage_reason="not_evaluated",
+                entry_signal_generated=False,
+                entry_route="",
+                entry_rejection_reason=gate_reason,
+                order_build_result="not_attempted",
+                order_drop_reason="",
+                order_published=False,
+            )
             return None
 
         leverage = await self._resolve_entry_leverage(context, market_data)
         if leverage is None:
+            dq_assessment = self._dq_entry_assessment.get(symbol) or dq_assessment
+            leverage_reason = "Entry blocked: leverage or regime leverage policy"
+            self._update_entry_decision_hint(
+                symbol,
+                should_enter=False,
+                reason=leverage_reason,
+            )
+            await self._check_and_record_decision(symbol, market_data, context)
+            await self._emit_entry_funnel_event(
+                symbol=symbol,
+                context=context,
+                dq_assessment=dq_assessment,
+                gate_passed=True,
+                gate_reason="passed",
+                leverage_allowed=False,
+                leverage_reason=leverage_reason,
+                entry_signal_generated=False,
+                entry_route="",
+                entry_rejection_reason=leverage_reason,
+                order_build_result="not_attempted",
+                order_drop_reason="",
+                order_published=False,
+            )
             return None
 
         signal = self.entry_strategy.check_entry(ctx)
+        no_signal_reason = ""
+        if signal is None:
+            no_signal_reason = self._resolve_entry_rejection_reason(symbol)
+            self._update_entry_decision_hint(symbol, should_enter=False, reason=no_signal_reason)
+        else:
+            self._update_entry_decision_hint(symbol, should_enter=True, reason=signal.reason)
 
         # Emit entry evaluation event for observability
-        await self._emit_entry_evaluation(market_data, context, signal)
+        await self._emit_entry_evaluation(
+            market_data,
+            context,
+            signal,
+            no_signal_reason=no_signal_reason,
+        )
+
+        # Record decision at candle close for dashboard visibility
+        await self._check_and_record_decision(symbol, market_data, context)
 
         if not signal:
+            dq_assessment = self._dq_entry_assessment.get(symbol) or dq_assessment
+            await self._emit_entry_funnel_event(
+                symbol=symbol,
+                context=context,
+                dq_assessment=dq_assessment,
+                gate_passed=True,
+                gate_reason="passed",
+                leverage_allowed=True,
+                leverage_reason="passed",
+                entry_signal_generated=False,
+                entry_route="",
+                entry_rejection_reason=no_signal_reason or "No entry signal",
+                order_build_result="not_attempted",
+                order_drop_reason="",
+                order_published=False,
+            )
             return None
 
-        return await self._build_entry_order(
+        self._last_entry_order_build_reason.pop(symbol, None)
+        order = await self._build_entry_order(
             symbol=symbol,
             signal=signal,
             market_data=market_data,
             context=context,
             leverage=leverage,
         )
+        dq_assessment = self._dq_entry_assessment.get(symbol) or dq_assessment
+        if order is None:
+            order_drop_reason = self._last_entry_order_build_reason.pop(symbol, "unknown")
+            await self._emit_entry_funnel_event(
+                symbol=symbol,
+                context=context,
+                dq_assessment=dq_assessment,
+                gate_passed=True,
+                gate_reason="passed",
+                leverage_allowed=True,
+                leverage_reason="passed",
+                entry_signal_generated=True,
+                entry_route=self._entry_route_from_reason(signal.reason),
+                entry_rejection_reason="",
+                order_build_result="dropped",
+                order_drop_reason=order_drop_reason,
+                order_published=False,
+            )
+            return None
+
+        self._pending_entry_funnel_payload[symbol] = {
+            "context": context,
+            "dq_assessment": dq_assessment or {},
+            "entry_route": self._entry_route_from_reason(signal.reason),
+        }
+        return order
 
     async def evaluate_exit(self, symbol: str, position: dict) -> dict[str, Any] | None:
         """Evaluate exit conditions by delegating to exit component.
@@ -621,7 +750,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         await self._refresh_indicator_history(symbol)
 
         if self.context_builder is not None:
-            await self.context_builder.refresh_positions()
+            await self.context_builder.refresh_positions(symbols=self.symbols)
 
         # Build MarketData from indicators
         market_data = self._build_market_data(symbol)
@@ -830,10 +959,7 @@ class CompositeStrategyTask(BaseStrategyTask):
                 payload,
                 maxlen=self._selector_event_maxlen,
             )
-            await self.redis._client.hset(
-                f"strategy:selector:latest:{self.name}",
-                mapping=payload,
-            )
+            await self.redis.set_selector_snapshot(self.name, payload)
         except Exception as e:
             logger.debug("%s: failed to persist symbol selector state: %s", self.name, e)
 
@@ -898,20 +1024,31 @@ class CompositeStrategyTask(BaseStrategyTask):
                 "startup_grace_remaining_seconds": round(startup_grace_remaining, 2),
             }
 
-        blocked_until = self._dq_blocked_until.get(symbol, 0.0)
-        if blocked_until > now:
-            return {
-                "allowed": False,
-                "reason": "cooldown_block",
-                "price_age_seconds": 0.0,
-                "ticks_per_minute": self._ticks_per_minute(symbol, now),
-                "tier": "low",
-                "position_scale": self._dq_position_scales["low"],
-                "blocked_for_seconds": round(blocked_until - now, 2),
-            }
-
         price_age_seconds = self._price_age_seconds(market_data.timestamp, now)
         ticks_per_minute = self._ticks_per_minute(symbol, now)
+        blocked_until = self._dq_blocked_until.get(symbol, 0.0)
+        if blocked_until > now:
+            stale_ok = (
+                self._dq_max_price_age_seconds <= 0
+                or price_age_seconds <= self._dq_max_price_age_seconds
+            )
+            ticks_ok = (
+                self._dq_min_ticks_per_minute <= 0
+                or ticks_per_minute >= self._dq_min_ticks_per_minute
+            )
+            if stale_ok and ticks_ok:
+                if mutate:
+                    self._dq_blocked_until.pop(symbol, None)
+            else:
+                return {
+                    "allowed": False,
+                    "reason": "cooldown_block",
+                    "price_age_seconds": round(price_age_seconds, 3),
+                    "ticks_per_minute": round(ticks_per_minute, 3),
+                    "tier": "low",
+                    "position_scale": self._dq_position_scales["low"],
+                    "blocked_for_seconds": round(blocked_until - now, 2),
+                }
 
         if (
             self._dq_max_price_age_seconds > 0
@@ -1075,27 +1212,222 @@ class CompositeStrategyTask(BaseStrategyTask):
         dq_assessment = self._assess_data_quality(symbol, market_data, mutate=True)
         self._dq_entry_assessment[symbol] = dq_assessment
         if not dq_assessment["allowed"]:
+            dq_reason = str(dq_assessment.get("reason", "unknown"))
+            self._last_entry_gate_reason[symbol] = f"Entry blocked by data quality: {dq_reason}"
             logger.debug(
                 "%s: entry blocked by data_quality (%s, age=%.2fs, tpm=%.2f)",
                 symbol,
-                dq_assessment.get("reason", "unknown"),
+                dq_reason,
                 float(dq_assessment.get("price_age_seconds", 0.0)),
                 float(dq_assessment.get("ticks_per_minute", 0.0)),
             )
             return False
         if not self._symbol_selector.is_symbol_allowed(symbol):
+            self._last_entry_gate_reason[symbol] = "Entry blocked by selector: symbol not selected"
             return False
         if self._cash_in_bear and context.regime in BEAR_REGIMES:
+            self._last_entry_gate_reason[symbol] = (
+                f"Entry blocked by cash_in_bear: regime={context.regime}"
+            )
             return False
         if self._cash_below_ema200 and market_data.ema_200 > 0 and market_data.close < market_data.ema_200:
+            self._last_entry_gate_reason[symbol] = (
+                f"Entry blocked by EMA200 cash guard: close={market_data.close:.4f} < ema200={market_data.ema_200:.4f}"
+            )
             return False
         if self._loss_pause_remaining.get(symbol, 0) > 0:
+            self._last_entry_gate_reason[symbol] = (
+                f"Entry blocked by loss pause: remaining={self._loss_pause_remaining[symbol]}"
+            )
             return False
         if self._cooldown_remaining.get(symbol, 0) > 0:
+            self._last_entry_gate_reason[symbol] = (
+                f"Entry blocked by cooldown: remaining={self._cooldown_remaining[symbol]}"
+            )
             return False
         if self._bull_prob_enabled and (market_data.mfi / 100.0) < self._bull_prob_threshold:
+            self._last_entry_gate_reason[symbol] = (
+                f"Entry blocked by bull_prob gate: mfi_prob={market_data.mfi/100.0:.2f} "
+                f"< threshold={self._bull_prob_threshold:.2f}"
+            )
             return False
+        self._last_entry_gate_reason.pop(symbol, None)
         return True
+
+    def _update_entry_decision_hint(self, symbol: str, should_enter: bool, reason: str) -> None:
+        self._entry_decision_hint[symbol] = {
+            "timestamp": time.time(),
+            "should_enter": should_enter,
+            "reason": reason,
+        }
+
+    def _get_entry_decision_hint(self, symbol: str) -> dict[str, Any] | None:
+        hint = self._entry_decision_hint.get(symbol)
+        if not hint:
+            return None
+        hint_ts = float(hint.get("timestamp", 0.0))
+        if (time.time() - hint_ts) > self._entry_decision_hint_ttl_seconds:
+            return None
+        return hint
+
+    def _selector_funnel_snapshot(self, symbol: str) -> dict[str, Any]:
+        selected = symbol in self._symbol_selector.selected_symbols
+        selector_reason = ""
+        selector_rank = 0
+        selector_score = 0.0
+        for index, row in enumerate(self._symbol_selector.ranking, start=1):
+            if row.symbol != symbol:
+                continue
+            selector_rank = index
+            selector_score = float(row.score)
+            selector_reason = str(row.reason)
+            break
+
+        if not selector_reason:
+            for row in self._symbol_selector.evaluations:
+                if row.symbol == symbol:
+                    selector_reason = str(row.reason)
+                    if selector_score == 0.0 and row.score > -999:
+                        selector_score = float(row.score)
+                    break
+
+        event_types = [
+            str(item.event_type)
+            for item in self._symbol_selector.signal_events
+            if item.symbol == symbol and item.event_type
+        ]
+        return {
+            "selector_selected": selected,
+            "selector_rank": selector_rank,
+            "selector_score": round(selector_score, 6),
+            "selector_reason": selector_reason,
+            "selector_event_types": "|".join(event_types),
+        }
+
+    @staticmethod
+    def _entry_route_from_reason(reason: str) -> str:
+        text = str(reason or "")
+        if text.startswith("HybridLong["):
+            closing = text.find("]")
+            if closing > len("HybridLong["):
+                return text[len("HybridLong["):closing]
+        if text.startswith("MLPDirection"):
+            return "mlp"
+        if text.startswith("RegimeLongV2"):
+            return "regime"
+        return ""
+
+    @staticmethod
+    def _categorize_entry_rejection_reason(reason: str) -> str:
+        text = str(reason or "").lower()
+        if not text or text == "no entry signal":
+            return "no_signal"
+        if "data quality" in text:
+            return "gate_data_quality"
+        if "selector" in text and "not selected" in text:
+            return "gate_selector"
+        if "cash_in_bear" in text or "bear regime" in text:
+            return "gate_regime"
+        if "ema200 cash guard" in text:
+            return "gate_ema200_cash_guard"
+        if "loss pause" in text:
+            return "gate_loss_pause"
+        if "cooldown" in text:
+            return "gate_cooldown"
+        if "bull_prob gate" in text:
+            return "gate_bull_prob"
+        if "leverage" in text:
+            return "leverage_blocked"
+        if "model unavailable" in text or "prediction unavailable" in text or "warmup" in text:
+            return "mlp_unavailable"
+        if "not buy" in text or "predicted hold" in text or "predicted sell" in text:
+            return "mlp_non_buy"
+        if "low mlp confidence" in text or "low confidence" in text:
+            return "mlp_low_confidence"
+        if "filter" in text or "blocked by regime" in text or "weak adx" in text or "below ema200" in text:
+            return "mlp_filter_block"
+        if "risk cap" in text:
+            return "order_risk_cap"
+        if "quantity too small" in text or "volatility sizing" in text:
+            return "order_quantity_zero"
+        if "portfolio risk" in text:
+            return "order_portfolio_risk"
+        return "other"
+
+    async def _emit_entry_funnel_event(
+        self,
+        *,
+        symbol: str,
+        context: MarketContext,
+        dq_assessment: dict[str, Any] | None,
+        gate_passed: bool,
+        gate_reason: str,
+        leverage_allowed: bool,
+        leverage_reason: str,
+        entry_signal_generated: bool,
+        entry_route: str,
+        entry_rejection_reason: str,
+        order_build_result: str,
+        order_drop_reason: str,
+        order_published: bool,
+    ) -> None:
+        if not self.emit_events or self.event_emitter is None:
+            return
+
+        from trading.core.event_emitter import EntryFunnelEvent
+
+        selector = self._selector_funnel_snapshot(symbol)
+        dq = dq_assessment or {}
+        event = EntryFunnelEvent(
+            timestamp=datetime.now().isoformat(),
+            strategy=self.name,
+            symbol=symbol,
+            market=self.market,
+            regime=context.regime,
+            selector_selected=bool(selector.get("selector_selected", False)),
+            selector_rank=int(selector.get("selector_rank", 0) or 0),
+            selector_score=float(selector.get("selector_score", 0.0) or 0.0),
+            selector_reason=str(selector.get("selector_reason", "")),
+            selector_event_types=str(selector.get("selector_event_types", "")),
+            dq_allowed=bool(dq.get("allowed", False)) if dq else False,
+            dq_reason=str(dq.get("reason", "")) if dq else "",
+            dq_tier=str(dq.get("tier", "")) if dq else "",
+            dq_price_age_seconds=float(dq.get("price_age_seconds", 0.0) or 0.0) if dq else 0.0,
+            dq_ticks_per_minute=float(dq.get("ticks_per_minute", 0.0) or 0.0) if dq else 0.0,
+            gate_passed=gate_passed,
+            gate_reason=gate_reason,
+            leverage_allowed=leverage_allowed,
+            leverage_reason=leverage_reason,
+            entry_signal_generated=entry_signal_generated,
+            entry_route=entry_route,
+            entry_rejection_category=self._categorize_entry_rejection_reason(entry_rejection_reason),
+            entry_rejection_reason=entry_rejection_reason,
+            order_build_result=order_build_result,
+            order_drop_reason=order_drop_reason,
+            order_published=order_published,
+        )
+        await self.event_emitter.emit_entry_funnel(event)
+
+    def _resolve_entry_rejection_reason(self, symbol: str) -> str:
+        get_reason = getattr(self.entry_strategy, "get_last_rejection_reason", None)
+        reason: str | None = None
+
+        if callable(get_reason):
+            try:
+                reason = get_reason(symbol)
+            except TypeError:
+                reason = get_reason()
+            except Exception:
+                reason = None
+
+        if not reason:
+            fallback_reason = getattr(self.entry_strategy, "last_rejection_reason", None)
+            if isinstance(fallback_reason, str) and fallback_reason.strip():
+                reason = fallback_reason.strip()
+
+        if not reason:
+            return "No entry signal"
+        return str(reason)
 
     async def _resolve_entry_leverage(
         self,
@@ -1168,6 +1500,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         scale = float(dq_assessment.get("position_scale", 1.0))
         if scale <= 0:
             logger.info("%s: entry blocked by data_quality scale <= 0", symbol)
+            self._last_entry_order_build_reason[symbol] = "dq_scale_zero"
             return None
         if scale < 0.999:
             quantity *= scale
@@ -1188,11 +1521,13 @@ class CompositeStrategyTask(BaseStrategyTask):
         )
         if not allowed:
             logger.info(f"{symbol}: Context risk cap blocked entry - {reason}")
+            self._last_entry_order_build_reason[symbol] = f"risk_cap:{reason}"
             return None
 
         quantity = await self._apply_volatility_sizing(symbol, quantity, market_data)
         if quantity <= 0:
             logger.debug(f"{symbol}: Quantity too small, skipping entry")
+            self._last_entry_order_build_reason[symbol] = "volatility_sizing_zero"
             return None
 
         if self._portfolio_risk_mgr and self._risk_based_sizing:
@@ -1203,9 +1538,11 @@ class CompositeStrategyTask(BaseStrategyTask):
                 stop_price=stop_price,
             )
             if quantity <= 0:
+                self._last_entry_order_build_reason[symbol] = "portfolio_risk_zero"
                 return None
 
         order = self._signal_to_dict(signal, quantity, leverage=leverage)
+        self._last_entry_order_build_reason.pop(symbol, None)
         order["data_quality_tier"] = str(dq_assessment.get("tier", "unknown"))
         order["data_quality_age_seconds"] = str(
             round(float(dq_assessment.get("price_age_seconds", 0.0)), 3)
@@ -2207,13 +2544,21 @@ class CompositeStrategyTask(BaseStrategyTask):
         Returns:
             Position instance.
         """
+        entry_time = int(position_dict.get("entry_time", 0) or 0)
+        timestamp = int(position_dict.get("timestamp", 0) or 0)
+        if timestamp <= 0:
+            timestamp = entry_time
         return Position(
             symbol=position_dict.get("symbol", ""),
             entry_price=float(position_dict.get("entry_price", 0)),
             quantity=float(position_dict.get("quantity", 0)),
             strategy=position_dict.get("strategy", self.name),
             market=position_dict.get("market", self.market),
-            timestamp=position_dict.get("timestamp", 0),
+            timestamp=timestamp,
+            side=position_dict.get("side", "buy"),
+            leverage=int(position_dict.get("leverage", 1) or 1),
+            liquidation_price=float(position_dict.get("liquidation_price", 0) or 0),
+            entry_time=entry_time if entry_time > 0 else None,
         )
 
     def _spot_adjusted_qty(self, symbol: str, qty: float) -> float:
@@ -2639,7 +2984,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         }
 
         try:
-            await self.redis._client.hset("regime:latest", symbol, json.dumps(payload))
+            await self.redis.set_regime_snapshot(symbol, payload)
         except Exception as exc:
             logger.debug("%s: failed to update regime snapshot: %s", symbol, exc)
 
@@ -2715,6 +3060,13 @@ class CompositeStrategyTask(BaseStrategyTask):
         mfi_bear: float,
         adx_trend: float,
     ) -> tuple[str, str, dict[str, Any]]:
+        hint = self._get_entry_decision_hint(market_data.symbol)
+        if hint:
+            hint_reason = str(hint.get("reason", "")).strip()
+            if hint_reason:
+                decision = "BUY" if bool(hint.get("should_enter", False)) else "WAIT"
+                return decision, hint_reason, {"active": False}
+
         should_enter = hasattr(self.entry_strategy, "_should_enter") and self.entry_strategy._should_enter(regime)
 
         if should_enter:
@@ -2832,6 +3184,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         market_data: MarketData,
         context: MarketContext,
         signal: Signal | None,
+        no_signal_reason: str = "",
     ) -> None:
         """Emit entry evaluation event for observability.
 
@@ -2839,6 +3192,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             market_data: Current market state.
             context: Market context with trend/volatility.
             signal: Entry signal or None.
+            no_signal_reason: Detailed reason when signal is None.
         """
         if not self.emit_events or self.event_emitter is None:
             return
@@ -2869,7 +3223,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             macd_crossed=checks["macd_crossed"],
             rsi=market_data.rsi,
             signal_generated=signal is not None,
-            reason=signal.reason if signal else "No entry signal",
+            reason=signal.reason if signal else (no_signal_reason or "No entry signal"),
         )
 
         await self.event_emitter.emit_entry_evaluation(event)
@@ -3039,6 +3393,7 @@ async def create_composite_task(
     config: dict | None = None,
     market: str = "futures",
     use_smart_exit: bool = False,
+    emit_events: bool = False,
     indicator_service: IndicatorService | None = None,
     context_builder: TradingContextBuilder | None = None,
     regime_version: str = "v2",
@@ -3056,6 +3411,7 @@ async def create_composite_task(
         config: Configuration.
         market: Market type.
         use_smart_exit: Use smart exit.
+        emit_events: Whether to emit observability events to Redis streams.
         indicator_service: Shared indicator service for CPU optimization.
         context_builder: Shared context builder for TradingContext.
         regime_version: Regime detection version ("v2" enhanced).
@@ -3072,6 +3428,7 @@ async def create_composite_task(
         market=market,
         config=config,
         use_smart_exit=use_smart_exit,
+        emit_events=emit_events,
         indicator_service=indicator_service,
         context_builder=context_builder,
         regime_version=regime_version,

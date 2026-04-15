@@ -4,6 +4,7 @@ EventEmitter for component-specific observability events.
 
 Provides fire-and-forget async event emission to Redis streams for:
 - Entry condition evaluations
+- Entry funnel attribution
 - Exit condition evaluations
 - High Water Mark (HWM) updates
 - Safety filter rejections
@@ -77,6 +78,69 @@ class EntryEvaluationEvent:
             "rsi": str(self.rsi),
             "signal_generated": "true" if self.signal_generated else "false",
             "reason": self.reason,
+        }
+
+
+@dataclass
+class EntryFunnelEvent:
+    """Event capturing selector-to-order attribution for entry flow."""
+
+    timestamp: str
+    strategy: str
+    symbol: str
+    market: str
+    regime: str
+    selector_selected: bool
+    selector_rank: int
+    selector_score: float
+    selector_reason: str
+    selector_event_types: str
+    dq_allowed: bool
+    dq_reason: str
+    dq_tier: str
+    dq_price_age_seconds: float
+    dq_ticks_per_minute: float
+    gate_passed: bool
+    gate_reason: str
+    leverage_allowed: bool
+    leverage_reason: str
+    entry_signal_generated: bool
+    entry_route: str
+    entry_rejection_category: str
+    entry_rejection_reason: str
+    order_build_result: str
+    order_drop_reason: str
+    order_published: bool
+
+    def to_dict(self) -> dict[str, str]:
+        """Convert to Redis-compatible dict (all values as strings)."""
+        return {
+            "timestamp": self.timestamp,
+            "strategy": self.strategy,
+            "symbol": self.symbol,
+            "market": self.market,
+            "regime": self.regime,
+            "selector_selected": "true" if self.selector_selected else "false",
+            "selector_rank": str(self.selector_rank),
+            "selector_score": str(self.selector_score),
+            "selector_reason": self.selector_reason,
+            "selector_event_types": self.selector_event_types,
+            "dq_allowed": "true" if self.dq_allowed else "false",
+            "dq_reason": self.dq_reason,
+            "dq_tier": self.dq_tier,
+            "dq_price_age_seconds": str(self.dq_price_age_seconds),
+            "dq_ticks_per_minute": str(self.dq_ticks_per_minute),
+            "gate_passed": "true" if self.gate_passed else "false",
+            "gate_reason": self.gate_reason,
+            "leverage_allowed": "true" if self.leverage_allowed else "false",
+            "leverage_reason": self.leverage_reason,
+            "entry_signal_generated": "true" if self.entry_signal_generated else "false",
+            "entry_route": self.entry_route,
+            "entry_rejection_category": self.entry_rejection_category,
+            "entry_rejection_reason": self.entry_rejection_reason,
+            "order_build_result": self.order_build_result,
+            "order_drop_reason": self.order_drop_reason,
+            "order_published": "true" if self.order_published else "false",
         }
 
 
@@ -215,6 +279,7 @@ class EventEmitter:
 
     # Stream names
     ENTRY_EVENTS_STREAM = "strategy:entry:events"
+    ENTRY_FUNNEL_STREAM = "strategy:entry:funnel"
     EXIT_EVENTS_STREAM = "strategy:exit:events"
     HWM_UPDATES_STREAM = "strategy:hwm:updates"
     SAFETY_EVENTS_STREAM = "strategy:safety:events"
@@ -257,6 +322,13 @@ class EventEmitter:
             return
 
         await self._emit(self.EXIT_EVENTS_STREAM, event.to_dict())
+
+    async def emit_entry_funnel(self, event: EntryFunnelEvent) -> None:
+        """Emit entry funnel attribution event (fire-and-forget)."""
+        if not self.enabled:
+            return
+
+        await self._emit(self.ENTRY_FUNNEL_STREAM, event.to_dict())
 
     async def emit_hwm_update(self, event: HWMUpdateEvent) -> None:
         """Emit HWM update event (fire-and-forget).

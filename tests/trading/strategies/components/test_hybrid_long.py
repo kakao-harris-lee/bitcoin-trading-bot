@@ -81,6 +81,7 @@ def test_hybrid_entry_mlp_primary_with_regime_fallback():
     )
     strategy = HybridLongEntryStrategy(params=params)
     strategy._mlp.check_entry = Mock(return_value=None)
+    strategy._mlp.get_last_rejection_reason = Mock(return_value="MLP warmup (10/120 bars)")
     strategy._regime.check_entry = Mock(return_value=_buy_signal("regime entry"))
 
     signal = strategy.check_entry(_ctx(ts=1, regime_mfi=70.0, regime_adx=30.0))
@@ -107,6 +108,104 @@ def test_hybrid_entry_regime_primary_with_mlp_fallback():
     assert "HybridLong[mlp_fallback]" in signal.reason
     strategy._regime.check_entry.assert_called_once()
     strategy._mlp.check_entry.assert_called_once()
+
+
+def test_hybrid_entry_rejection_reason_tracks_primary_and_fallback():
+    params = HybridLongEntryParams(
+        mlp_route_regimes=["BULL_STRONG", "BULL_MODERATE"],
+        fallback_to_regime_when_mlp_none=True,
+        fallback_on_mlp_non_buy=True,
+    )
+    strategy = HybridLongEntryStrategy(params=params)
+    strategy._mlp.check_entry = Mock(return_value=None)
+    strategy._regime.check_entry = Mock(return_value=None)
+    strategy._mlp.get_last_rejection_reason = Mock(return_value="MLP predicted HOLD (not BUY)")
+    strategy._regime.get_last_rejection_reason = Mock(return_value="RegimeLongV2 quorum miss (2/3 < 3)")
+
+    signal = strategy.check_entry(_ctx(ts=1, regime_mfi=70.0, regime_adx=30.0))
+
+    assert signal is None
+    reason = strategy.get_last_rejection_reason("BTC")
+    assert reason is not None
+    assert "HybridLong[mlp] blocked" in reason
+    assert "MLP predicted HOLD" in reason
+    assert "fallback[regime] blocked" in reason
+
+
+def test_hybrid_entry_skips_regime_fallback_for_non_buy_by_default():
+    params = HybridLongEntryParams(
+        mlp_route_regimes=["BULL_STRONG", "BULL_MODERATE"],
+        fallback_to_regime_when_mlp_none=True,
+    )
+    strategy = HybridLongEntryStrategy(params=params)
+    strategy._mlp.check_entry = Mock(return_value=None)
+    strategy._mlp.get_last_rejection_reason = Mock(return_value="MLP predicted HOLD (not BUY)")
+    strategy._regime.check_entry = Mock(return_value=_buy_signal("regime entry"))
+
+    signal = strategy.check_entry(_ctx(ts=1, regime_mfi=70.0, regime_adx=30.0))
+
+    assert signal is None
+    strategy._regime.check_entry.assert_not_called()
+    reason = strategy.get_last_rejection_reason("BTC")
+    assert reason is not None
+    assert "skipped by policy" in reason
+
+
+def test_hybrid_entry_rejection_reason_cleared_on_signal():
+    params = HybridLongEntryParams(
+        mlp_route_regimes=["BULL_STRONG", "BULL_MODERATE"],
+        fallback_to_regime_when_mlp_none=True,
+    )
+    strategy = HybridLongEntryStrategy(params=params)
+    strategy._mlp.check_entry = Mock(return_value=None)
+    strategy._regime.check_entry = Mock(return_value=None)
+    strategy._mlp.get_last_rejection_reason = Mock(return_value="MLP warmup (10/120 bars)")
+    strategy._regime.get_last_rejection_reason = Mock(return_value="RegimeLongV2 waiting")
+
+    assert strategy.check_entry(_ctx(ts=1, regime_mfi=70.0, regime_adx=30.0)) is None
+    assert strategy.get_last_rejection_reason("BTC") is not None
+
+    strategy._mlp.check_entry = Mock(return_value=_buy_signal("mlp entry"))
+    signal = strategy.check_entry(_ctx(ts=2, regime_mfi=70.0, regime_adx=30.0))
+
+    assert signal is not None
+    assert strategy.get_last_rejection_reason("BTC") is None
+
+
+def test_hybrid_entry_non_buy_fallback_can_be_restricted_to_quality_allowlist():
+    params = HybridLongEntryParams(
+        mlp_route_regimes=["BULL_STRONG", "BULL_MODERATE"],
+        fallback_to_regime_when_mlp_none=True,
+        fallback_on_mlp_non_buy=True,
+        fallback_quality_allowlist_symbols=["ETH"],
+    )
+    strategy = HybridLongEntryStrategy(params=params)
+    strategy._mlp.check_entry = Mock(return_value=None)
+    strategy._mlp.get_last_rejection_reason = Mock(return_value="MLP predicted HOLD (not BUY)")
+    strategy._regime.check_entry = Mock(return_value=_buy_signal("regime entry"))
+
+    signal = strategy.check_entry(_ctx(ts=1, regime_mfi=70.0, regime_adx=30.0))
+
+    assert signal is None
+    strategy._regime.check_entry.assert_not_called()
+
+
+def test_hybrid_entry_blocked_symbol_skips_even_unavailable_fallback():
+    params = HybridLongEntryParams(
+        mlp_route_regimes=["BULL_STRONG", "BULL_MODERATE"],
+        fallback_to_regime_when_mlp_none=True,
+        fallback_on_mlp_unavailable=True,
+        fallback_blocked_symbols=["BTC"],
+    )
+    strategy = HybridLongEntryStrategy(params=params)
+    strategy._mlp.check_entry = Mock(return_value=None)
+    strategy._mlp.get_last_rejection_reason = Mock(return_value="MLP warmup (10/120 bars)")
+    strategy._regime.check_entry = Mock(return_value=_buy_signal("regime entry"))
+
+    signal = strategy.check_entry(_ctx(ts=1, regime_mfi=70.0, regime_adx=30.0))
+
+    assert signal is None
+    strategy._regime.check_entry.assert_not_called()
 
 
 def test_hybrid_exit_regime_protection_preempts_mlp():

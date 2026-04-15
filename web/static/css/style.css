@@ -775,6 +775,16 @@ section h2 {
     color: var(--text-primary);
 }
 
+.asset-symbol-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.asset-symbol-link:hover {
+    color: var(--accent-cyan);
+    text-decoration: underline;
+}
+
 .asset-regime {
     margin-left: auto;
     padding: 4px 12px;

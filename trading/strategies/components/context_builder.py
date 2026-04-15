@@ -8,6 +8,7 @@ to avoid redundant computation across multiple strategies.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import replace
 from types import MappingProxyType
@@ -38,6 +39,13 @@ class PositionManager:
         self._cache_ts: float = 0.0
         self._positions_by_symbol: dict[str, dict[str, Position]] = {}
         self._portfolio_positions: dict[str, Position] = {}
+        try:
+            self._stream_symbol_scan_count = max(
+                50,
+                int(os.getenv("POSITION_EVENT_SCAN_COUNT", "512")),
+            )
+        except ValueError:
+            self._stream_symbol_scan_count = 512
 
     @staticmethod
     def _parse_position(
@@ -49,7 +57,10 @@ class PositionManager:
         try:
             quantity = float(raw.get("quantity", 0.0))
             entry_price = float(raw.get("entry_price", 0.0))
-            timestamp = int(raw.get("entry_time", raw.get("timestamp", 0)) or 0)
+            entry_time = int(raw.get("entry_time", 0) or 0)
+            timestamp = int(raw.get("timestamp", 0) or 0)
+            if timestamp <= 0:
+                timestamp = entry_time
             strategy = raw.get("strategy", f"{symbol}_{market}")
             side = raw.get("side", "buy")
             leverage = int(raw.get("leverage", 1))
@@ -70,6 +81,7 @@ class PositionManager:
             side=side,
             leverage=leverage,
             liquidation_price=liquidation_price,
+            entry_time=entry_time if entry_time > 0 else None,
         )
 
     async def refresh(
@@ -98,15 +110,24 @@ class PositionManager:
         self._cache_ts = now
 
     async def _discover_symbols(self) -> list[str]:
-        keys = await self._redis.keys("positions:*:*")
-        return sorted(
-            {
-                parts[1]
-                for key in keys
-                for parts in [key.split(":")]
-                if len(parts) >= 3
-            }
-        )
+        return await self._discover_symbols_from_events()
+
+    async def _discover_symbols_from_events(self) -> list[str]:
+        """Discover recently active symbols from position event stream first."""
+        try:
+            events = await self._redis.xrevrange(
+                "positions:events",
+                count=self._stream_symbol_scan_count,
+            )
+        except Exception:
+            return []
+
+        symbols: set[str] = set()
+        for _msg_id, payload in events:
+            symbol = str(payload.get("symbol", "")).strip().upper()
+            if symbol:
+                symbols.add(symbol)
+        return sorted(symbols)
 
     async def _load_symbol_positions(self, symbol: str) -> dict[str, Position]:
         symbol_positions: dict[str, Position] = {}

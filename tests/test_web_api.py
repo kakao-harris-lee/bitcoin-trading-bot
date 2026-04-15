@@ -215,9 +215,85 @@ class TestStatusAPI:
         symbols = web_app._load_selector_fallback_symbols(mock_get_redis.return_value, limit=5)
         assert symbols == ['ADA', 'XRP', 'DOGE']
 
+    def test_load_selector_symbols_from_stream_uses_latest_snapshot_per_strategy(self):
+        """Stream fallback should ignore stale symbols from older snapshots."""
+        mock_redis = MagicMock()
+        mock_redis.xrevrange.return_value = [
+            (
+                '3-0',
+                {
+                    'strategy': 'mlp_direction_a',
+                    'fields': json.dumps({
+                        'strategy': 'mlp_direction_a',
+                        'selected_symbols': '["ADA","XRP"]',
+                    }),
+                },
+            ),
+            (
+                '2-0',
+                {
+                    'strategy': 'mlp_direction_a',
+                    'fields': json.dumps({
+                        'strategy': 'mlp_direction_a',
+                        'selected_symbols': '["BTC","ETH"]',
+                    }),
+                },
+            ),
+            (
+                '1-0',
+                {
+                    'strategy': 'mlp_direction_b',
+                    'fields': json.dumps({
+                        'strategy': 'mlp_direction_b',
+                        'selected_symbols': '["SOL"]',
+                    }),
+                },
+            ),
+        ]
+
+        symbols = web_app._load_selector_symbols_from_stream(mock_redis, limit=5)
+
+        assert symbols == ['ADA', 'XRP', 'SOL']
+
+    def test_load_strategy_live_state_prefers_index_over_event_mirror(self):
+        """Indexed Redis state should override stale best-effort stream values."""
+        mock_redis = MagicMock()
+        mock_redis.xrevrange.return_value = [
+            (
+                '1-0',
+                {
+                    'strategy': 'mlp_direction',
+                    'symbol': 'BTC',
+                    'variable': 'hwm',
+                    'value': '100.0',
+                },
+            ),
+        ]
+        mock_redis.smembers.return_value = {'hwm'}
+        mock_redis.get.return_value = '125.0'
+
+        live_state = web_app._load_strategy_live_state(mock_redis, 'mlp_direction', ['BTC'])
+
+        assert live_state == {'BTC': {'hwm': 125.0}}
+
 
 class TestPositionsAPI:
     """Test /api/positions endpoint."""
+
+    @patch('web.app._load_dashboard_symbols')
+    def test_discover_position_symbols_scans_hashes_when_stream_misses_symbol(self, mock_dashboard_symbols):
+        """Active position hashes should still surface symbols after stream loss/trim."""
+        mock_dashboard_symbols.return_value = ['BTC']
+        mock_redis = MagicMock()
+        mock_redis.xrevrange.return_value = []
+        mock_redis.scan_iter.side_effect = lambda match: [b'positions:GRT:spot'] if match == 'positions:*:spot' else []
+        mock_redis.hgetall.side_effect = lambda key: {
+            'positions:GRT:spot': {'quantity': '3.5'},
+        }.get(key, {})
+
+        symbols = web_app._discover_position_symbols(mock_redis)
+
+        assert symbols == ['BTC', 'GRT']
 
     @patch('web.app.get_latest_prices')
     @patch('web.app.get_redis')

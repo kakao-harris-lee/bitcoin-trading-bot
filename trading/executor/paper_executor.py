@@ -82,6 +82,31 @@ class PaperExecutor:
         # Store reference to background task to prevent garbage collection
         self._price_tracker_task: Optional[asyncio.Task] = None
 
+    @staticmethod
+    def _supports_redis_method(redis_client: Any, method_name: str) -> bool:
+        """Return True if Redis client explicitly supports a method."""
+        if callable(getattr(type(redis_client), method_name, None)):
+            return True
+        return method_name in getattr(redis_client, "__dict__", {})
+
+    async def _persist_account_state(self, data: dict[str, Any]) -> None:
+        """Persist account state with stream-mirror support and legacy fallback."""
+        if self._supports_redis_method(self.redis, "set_account"):
+            maybe_coro = self.redis.set_account("account:paper", data)
+            if asyncio.iscoroutine(maybe_coro):
+                await maybe_coro
+            return
+        await self.redis.hset("account:paper", data)
+
+    async def _persist_risk_state(self, data: dict[str, Any]) -> None:
+        """Persist risk state with stream-mirror support and legacy fallback."""
+        if self._supports_redis_method(self.redis, "set_risk"):
+            maybe_coro = self.redis.set_risk(data)
+            if asyncio.iscoroutine(maybe_coro):
+                await maybe_coro
+            return
+        await self.redis.hset("risk", data)
+
     async def run(self) -> None:
         """Main loop: consume and simulate orders."""
         self._running = True
@@ -197,7 +222,7 @@ class PaperExecutor:
     async def _sync_balance_to_redis(self) -> None:
         """Sync paper trading balance to Redis for dashboard display."""
         try:
-            await self.redis.hset("account:paper", {
+            await self._persist_account_state({
                 "futures_balance": str(self.balance),
                 "spot_balance": str(self.spot_balance),
                 "last_sync": str(int(time.time())),
@@ -549,7 +574,7 @@ class PaperExecutor:
                     # Update daily P&L
                     risk = await self.redis.get_risk()
                     daily_pnl = float(risk.get("daily_pnl", 0)) + pnl
-                    await self.redis.hset("risk", {"daily_pnl": str(daily_pnl)})
+                    await self._persist_risk_state({"daily_pnl": str(daily_pnl)})
 
                     logger.info(f"Spot P&L: {symbol} {pnl:+.2f} USDT ({pnl_pct:+.2f}%)")
 
@@ -818,7 +843,7 @@ class PaperExecutor:
         # Update daily P&L
         risk = await self.redis.get_risk()
         daily_pnl = float(risk.get("daily_pnl", 0)) + pnl_with_leverage
-        await self.redis.hset("risk", {"daily_pnl": str(daily_pnl)})
+        await self._persist_risk_state({"daily_pnl": str(daily_pnl)})
 
         direction = "Long" if pos_side == "buy" else "Short"
         logger.info(f"Paper P&L ({direction}): {symbol} {pnl_with_leverage:+.2f} USDT ({pnl_pct:+.2f}%)")

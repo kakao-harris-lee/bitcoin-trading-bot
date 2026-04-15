@@ -442,6 +442,7 @@ class TradingEngine:
                     config=effective_config,
                     market=factory.get_market(name, effective_config),
                     use_smart_exit=effective_config.get("use_smart_exit", False),
+                    emit_events=bool((self.config.get("observability") or {}).get("emit_events", False)),
                     indicator_service=indicator_service,
                     context_builder=context_builder,
                     regime_version=effective_config.get("regime_version", "v2"),

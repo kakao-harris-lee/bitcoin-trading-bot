@@ -95,6 +95,42 @@ class TestEventEmitterDataclasses:
         assert event.entry_price == 43000.0
         assert event.signal_generated is False
 
+    async def test_entry_funnel_event_creation(self):
+        """Test EntryFunnelEvent can be created with all fields."""
+        from trading.core.event_emitter import EntryFunnelEvent
+
+        event = EntryFunnelEvent(
+            timestamp=datetime.now().isoformat(),
+            strategy="mlp_direction_bnb",
+            symbol="BTC",
+            market="spot",
+            regime="BULL_STRONG",
+            selector_selected=True,
+            selector_rank=2,
+            selector_score=0.42,
+            selector_reason="eligible",
+            selector_event_types="NEW_CANDIDATE|ENTRY_READY",
+            dq_allowed=True,
+            dq_reason="ok",
+            dq_tier="high",
+            dq_price_age_seconds=4.2,
+            dq_ticks_per_minute=18.0,
+            gate_passed=True,
+            gate_reason="passed",
+            leverage_allowed=True,
+            leverage_reason="passed",
+            entry_signal_generated=True,
+            entry_route="mlp",
+            entry_rejection_category="",
+            entry_rejection_reason="",
+            order_build_result="built",
+            order_drop_reason="",
+            order_published=True,
+        )
+
+        assert event.selector_selected is True
+        assert event.order_published is True
+
     async def test_hwm_update_event_creation(self):
         """Test HWMUpdateEvent can be created with all fields."""
         from trading.core.event_emitter import HWMUpdateEvent
@@ -288,6 +324,52 @@ class TestEventEmitterUnit:
         call_args = mock_redis.publish_event.call_args
         assert call_args[0][0] == "strategy:exit:events"
 
+    async def test_emit_entry_funnel_when_enabled(self):
+        """Test emitting entry funnel event when enabled."""
+        import asyncio
+        from trading.core.event_emitter import EventEmitter, EntryFunnelEvent
+
+        mock_redis = MagicMock()
+        mock_redis.publish_event = AsyncMock(return_value="1234567890-0")
+
+        emitter = EventEmitter(redis=mock_redis, enabled=True)
+
+        event = EntryFunnelEvent(
+            timestamp="2026-01-20T12:00:00",
+            strategy="mlp_direction_bnb",
+            symbol="BTC",
+            market="spot",
+            regime="BULL_STRONG",
+            selector_selected=True,
+            selector_rank=1,
+            selector_score=0.55,
+            selector_reason="eligible",
+            selector_event_types="ENTRY_READY",
+            dq_allowed=True,
+            dq_reason="ok",
+            dq_tier="high",
+            dq_price_age_seconds=2.0,
+            dq_ticks_per_minute=24.0,
+            gate_passed=True,
+            gate_reason="passed",
+            leverage_allowed=True,
+            leverage_reason="passed",
+            entry_signal_generated=True,
+            entry_route="mlp",
+            entry_rejection_category="",
+            entry_rejection_reason="",
+            order_build_result="built",
+            order_drop_reason="",
+            order_published=True,
+        )
+
+        await emitter.emit_entry_funnel(event)
+        await asyncio.sleep(0)
+
+        mock_redis.publish_event.assert_called_once()
+        call_args = mock_redis.publish_event.call_args
+        assert call_args[0][0] == "strategy:entry:funnel"
+
     async def test_emit_hwm_update_when_enabled(self):
         """Test emitting HWM update event when enabled."""
         import asyncio
@@ -450,3 +532,9 @@ class TestEventEmitterStreams:
         from trading.core.event_emitter import EventEmitter
 
         assert EventEmitter.SAFETY_EVENTS_STREAM == "strategy:safety:events"
+
+    async def test_entry_funnel_stream_name(self):
+        """Test entry funnel events go to correct stream."""
+        from trading.core.event_emitter import EventEmitter
+
+        assert EventEmitter.ENTRY_FUNNEL_STREAM == "strategy:entry:funnel"

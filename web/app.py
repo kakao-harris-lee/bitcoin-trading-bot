@@ -524,6 +524,41 @@ def _read_regime_snapshots(r: redis.Redis) -> dict:
 
     return snapshots
 
+
+def _read_regime_snapshots_stream(r: redis.Redis, limit: int = 500) -> dict:
+    """Read latest per-symbol regime snapshots from stream storage."""
+    snapshots: dict[str, dict] = {}
+    try:
+        messages = r.xrevrange("regime:snapshots", count=limit)
+    except Exception as e:
+        print(f"Error reading regime snapshot stream from Redis: {e}")
+        return snapshots
+
+    for msg_id, data in messages:
+        symbol = _normalize_symbol(data.get("symbol", ""))
+        if not symbol or symbol in snapshots:
+            continue
+
+        ts_raw = data.get("timestamp_ms", data.get("timestamp", msg_id.split("-")[0]))
+        ts_ms = _parse_regime_timestamp_ms(ts_raw)
+        if ts_ms <= 0:
+            ts_ms = _parse_regime_timestamp_ms(msg_id.split("-")[0])
+        ts_iso = datetime.fromtimestamp(ts_ms / 1000).isoformat() if ts_ms > 0 else str(ts_raw)
+
+        snapshots[symbol] = {
+            "symbol": symbol,
+            "regime": data.get("regime", "UNKNOWN"),
+            "trend": data.get("trend", "UNKNOWN"),
+            "decision": data.get("decision", "WAIT"),
+            "strategy": data.get("strategy"),
+            "market": data.get("market"),
+            "source": "regime:snapshots",
+            "timestamp": ts_iso,
+            "timestamp_ms": ts_ms,
+        }
+
+    return snapshots
+
 def read_redis_orders(limit: int = 200) -> list:
     """
     Read order intents/signals from Redis 'orders' stream.
@@ -599,7 +634,21 @@ def _get_redis_kill_switch() -> bool | None:
 def _set_redis_kill_switch(active: bool) -> bool:
     """Set Redis kill-switch flag. Returns True on success."""
     try:
-        get_redis().hset("risk", "kill_switch", "true" if active else "false")
+        r = get_redis()
+        raw_value = "true" if active else "false"
+        r.hset("risk", "kill_switch", raw_value)
+        now = datetime.now()
+        r.xadd(
+            "risk:events",
+            {
+                "event": "kill_switch_update",
+                "key": "risk",
+                "kill_switch": raw_value,
+                "timestamp": now.isoformat(),
+                "timestamp_ms": str(int(now.timestamp() * 1000)),
+            },
+            maxlen=int(os.getenv("REDIS_STATE_EVENT_MAXLEN", "50000")),
+        )
         return True
     except Exception as e:
         print(f"Error writing kill_switch to Redis: {e}")
@@ -706,13 +755,15 @@ def _load_status_prices_and_regimes() -> tuple[dict, dict]:
         r = get_redis()
         prices = _read_status_prices(r)
         regime_status = _read_latest_regime_status(r)
-        live_snapshots = _read_regime_snapshots(r)
-        for symbol, snapshot in live_snapshots.items():
-            existing = regime_status.get(symbol, {})
-            existing_ms = _parse_regime_timestamp_ms(existing.get("timestamp_ms", existing.get("timestamp")))
-            snapshot_ms = _parse_regime_timestamp_ms(snapshot.get("timestamp_ms", snapshot.get("timestamp")))
-            if snapshot_ms >= existing_ms:
-                regime_status[symbol] = snapshot
+        hash_snapshots = _read_regime_snapshots(r)
+        stream_snapshots = _read_regime_snapshots_stream(r)
+        for source_snapshots in (hash_snapshots, stream_snapshots):
+            for symbol, snapshot in source_snapshots.items():
+                existing = regime_status.get(symbol, {})
+                existing_ms = _parse_regime_timestamp_ms(existing.get("timestamp_ms", existing.get("timestamp")))
+                snapshot_ms = _parse_regime_timestamp_ms(snapshot.get("timestamp_ms", snapshot.get("timestamp")))
+                if snapshot_ms >= existing_ms:
+                    regime_status[symbol] = snapshot
         return prices, regime_status
     except Exception as e:
         print(f"Error reading prices from Redis: {e}")
@@ -796,18 +847,82 @@ def _parse_selector_top_scores(payload: str | None) -> list[str]:
     return symbols
 
 
-def _load_selector_fallback_symbols(r: redis.Redis, limit: int = _STATUS_FALLBACK_MAX_ASSETS) -> list[str]:
+def _load_selector_symbols_from_stream(r: redis.Redis, limit: int = _STATUS_FALLBACK_MAX_ASSETS) -> list[str]:
     symbols: list[str] = []
     seen: set[str] = set()
+    handled_strategies: set[str] = set()
     try:
-        keys = sorted(r.keys("strategy:selector:latest:*") or [])
+        entries = r.xrevrange("strategy:selector:snapshots", count=max(limit * 3, 60))
     except Exception:
         return symbols
+    if not isinstance(entries, (list, tuple)):
+        return symbols
 
-    for key in keys:
+    for _msg_id, data in entries:
+        state = data
+        fields_payload = data.get("fields")
+        if fields_payload:
+            try:
+                parsed = json.loads(fields_payload)
+                if isinstance(parsed, dict):
+                    state = parsed
+            except (TypeError, json.JSONDecodeError):
+                pass
+
+        strategy = str(state.get("strategy") or data.get("strategy") or "").strip()
+        if strategy and strategy in handled_strategies:
+            continue
+
+        candidates = _parse_selector_symbol_list(state.get("selected_symbols"))
+        if not candidates:
+            candidates = _parse_selector_top_scores(state.get("top_scores"))
+        if not candidates:
+            continue
+
+        if strategy:
+            handled_strategies.add(strategy)
+
+        for symbol in candidates:
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            symbols.append(symbol)
+            if len(symbols) >= limit:
+                return symbols
+    return symbols
+
+
+def _load_selector_strategy_names(config: dict | None = None) -> list[str]:
+    if config is None:
+        config = load_allocation_config()
+    strategies_cfg = config.get("strategies", {}) if isinstance(config, dict) else {}
+    if not isinstance(strategies_cfg, dict):
+        return []
+    names: list[str] = []
+    for name, cfg in strategies_cfg.items():
+        if not isinstance(name, str) or not name.strip():
+            continue
+        if not isinstance(cfg, dict):
+            continue
+        selector_cfg = cfg.get("symbol_selector")
+        if isinstance(selector_cfg, dict):
+            names.append(name.strip())
+    return sorted(set(names))
+
+
+def _load_selector_fallback_symbols(r: redis.Redis, limit: int = _STATUS_FALLBACK_MAX_ASSETS) -> list[str]:
+    stream_symbols = _load_selector_symbols_from_stream(r, limit=limit)
+    if stream_symbols:
+        return stream_symbols[:limit]
+
+    symbols: list[str] = []
+    seen: set[str] = set()
+    for strategy_name in _load_selector_strategy_names():
         try:
-            state = r.hgetall(key) or {}
+            state = r.hgetall(f"strategy:selector:latest:{strategy_name}") or {}
         except Exception:
+            continue
+        if not state:
             continue
 
         candidates = _parse_selector_symbol_list(state.get("selected_symbols"))
@@ -2321,24 +2436,100 @@ def _build_regime_routing_payload(cfg: dict) -> tuple[dict | None, bool]:
 
 
 def _load_strategy_live_state(r, strategy_name: str, symbols: list[str]) -> dict:
-    live_state: dict = {}
+    live_state = _load_strategy_live_state_from_events(r, strategy_name, symbols)
     for symbol in symbols:
-        state_keys = r.keys(f"state:{strategy_name}:{symbol}:*")
-        if not state_keys:
+        indexed_state = _load_strategy_live_state_from_index(r, strategy_name, symbol)
+        if not indexed_state and symbol not in live_state:
             continue
-        symbol_state: dict = {}
-        for key in state_keys:
-            var_name = key.split(':')[-1]
-            value = r.get(key)
-            if not value:
-                continue
-            try:
-                symbol_state[var_name] = float(value)
-            except (TypeError, ValueError):
-                symbol_state[var_name] = value
-        if symbol_state:
-            live_state[symbol] = symbol_state
+        merged = dict(live_state.get(symbol, {}))
+        merged.update(indexed_state)
+        if merged:
+            live_state[symbol] = merged
     return live_state
+
+
+def _load_strategy_live_state_from_events(r, strategy_name: str, symbols: list[str]) -> dict:
+    live_state: dict[str, dict] = {}
+    symbol_set = {_normalize_symbol(sym) for sym in symbols if _normalize_symbol(sym)}
+    if not symbol_set:
+        return live_state
+    try:
+        scan_count = max(500, int(os.getenv("STATE_EVENT_SCAN_COUNT", "3000")))
+    except ValueError:
+        scan_count = 3000
+
+    try:
+        entries = r.xrevrange("state:events", count=scan_count)
+    except Exception:
+        return live_state
+    if not isinstance(entries, (list, tuple)):
+        return live_state
+
+    seen_vars: dict[str, set[str]] = {}
+    for _msg_id, payload in entries:
+        if payload.get("strategy") != strategy_name:
+            continue
+        symbol = _normalize_symbol(payload.get("symbol", ""))
+        if not symbol or symbol not in symbol_set:
+            continue
+        variable = str(payload.get("variable", "")).strip()
+        if not variable:
+            continue
+
+        handled = seen_vars.setdefault(symbol, set())
+        if variable in handled:
+            continue
+        handled.add(variable)
+
+        if payload.get("event") == "state_delete":
+            continue
+        parsed = _parse_state_value(payload.get("value"))
+        if parsed is None:
+            continue
+        symbol_state = live_state.setdefault(symbol, {})
+        symbol_state[variable] = parsed
+
+    return live_state
+
+
+def _load_strategy_live_state_from_index(r, strategy_name: str, symbol: str) -> dict:
+    index_key = f"state:index:{strategy_name}:{symbol}"
+    try:
+        variables = r.smembers(index_key) or []
+    except Exception:
+        return {}
+    if not isinstance(variables, (set, list, tuple)):
+        return {}
+
+    symbol_state: dict = {}
+    for variable in variables:
+        var_name = str(variable).strip()
+        if not var_name:
+            continue
+        value = r.get(f"state:{strategy_name}:{symbol}:{var_name}")
+        parsed = _parse_state_value(value)
+        if parsed is None:
+            continue
+        symbol_state[var_name] = parsed
+    return symbol_state
+
+
+def _parse_state_value(raw):
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    try:
+        parsed = json.loads(text)
+    except (TypeError, json.JSONDecodeError):
+        parsed = text
+    if isinstance(parsed, str):
+        try:
+            return float(parsed)
+        except (TypeError, ValueError):
+            return parsed
+    return parsed
 
 
 def _load_strategy_active_positions(r, strategy_name: str, symbols: list[str]) -> list[dict]:
@@ -2806,33 +2997,99 @@ def get_backtest_history():
 
 
 def _discover_position_symbols(r) -> list[str]:
-    """Return tracked symbols plus any symbols currently persisted in Redis positions keys."""
+    """Return tracked symbols plus symbols with active Redis positions."""
     base = _load_dashboard_symbols()
     seen = set(base)
-    try:
-        raw_keys = r.keys("positions:*:*") or []
-    except Exception:
-        return base
-
-    if not isinstance(raw_keys, (list, tuple, set)):
-        return base
-
     discovered: set[str] = set()
-    for raw_key in raw_keys:
-        key = str(raw_key or "")
-        parts = key.split(":")
-        if len(parts) != 3:
-            continue
-        if parts[0] != "positions":
-            continue
-        if parts[2] not in ("spot", "futures"):
-            continue
-        symbol = _normalize_symbol(parts[1])
-        if not symbol or symbol in seen:
-            continue
+
+    stream_candidates = _discover_position_symbols_from_stream(r)
+    for symbol in stream_candidates:
+        for market in ("spot", "futures"):
+            try:
+                pos = r.hgetall(f"positions:{symbol}:{market}") or {}
+            except Exception:
+                continue
+            qty = _safe_float(pos.get("quantity", 0))
+            if qty > 0:
+                discovered.add(symbol)
+                break
+
+    for symbol in _discover_position_symbols_from_hashes(r):
         discovered.add(symbol)
 
-    return base + sorted(discovered)
+    return base + sorted(sym for sym in discovered if sym not in seen)
+
+
+def _discover_position_symbols_from_stream(r, count: int | None = None) -> list[str]:
+    if count is None:
+        try:
+            count = max(100, int(os.getenv("POSITION_EVENT_SCAN_COUNT", "600")))
+        except ValueError:
+            count = 600
+    symbols: list[str] = []
+    seen: set[str] = set()
+    try:
+        entries = r.xrevrange("positions:events", count=count)
+    except Exception:
+        return symbols
+    if not isinstance(entries, (list, tuple)):
+        return symbols
+
+    for _msg_id, payload in entries:
+        symbol = _normalize_symbol(payload.get("symbol", ""))
+        if not symbol or symbol in seen:
+            continue
+        seen.add(symbol)
+        symbols.append(symbol)
+    return symbols
+
+
+def _discover_position_symbols_from_hashes(r) -> list[str]:
+    symbols: list[str] = []
+    seen: set[str] = set()
+
+    for pattern in ("positions:*:spot", "positions:*:futures"):
+        for key in _iter_position_hash_keys(r, pattern):
+            parts = key.split(":")
+            if len(parts) != 3:
+                continue
+            _, raw_symbol, _market = parts
+            symbol = _normalize_symbol(raw_symbol)
+            if not symbol or symbol in seen:
+                continue
+            try:
+                pos = r.hgetall(key) or {}
+            except Exception:
+                continue
+            qty = _safe_float(pos.get("quantity", 0))
+            if qty <= 0:
+                continue
+            seen.add(symbol)
+            symbols.append(symbol)
+    return symbols
+
+
+def _iter_position_hash_keys(r, pattern: str):
+    iterator = None
+    try:
+        iterator = r.scan_iter(match=pattern)
+    except Exception:
+        iterator = None
+
+    if iterator is None:
+        try:
+            iterator = r.keys(pattern)
+        except Exception:
+            return
+
+    for raw_key in iterator or []:
+        if isinstance(raw_key, bytes):
+            try:
+                yield raw_key.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
+            continue
+        yield str(raw_key)
 
 
 def _safe_float(value, default=0.0) -> float:
@@ -3303,6 +3560,44 @@ def get_exit_events():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route("/api/events/entry-funnel")
+@requires_auth
+def get_entry_funnel_events():
+    """
+    Get entry funnel attribution events with optional filters.
+
+    Query parameters:
+    - hours: Hours of history (default 24, max 72)
+    - limit: Maximum events (default 50, max 200)
+    - symbol: Filter by symbol
+    - strategy: Filter by strategy
+    """
+    if not metrics_service:
+        return jsonify({'error': 'Metrics service not available'}), 500
+
+    try:
+        hours = max(1, min(int(request.args.get('hours', 24)), 72))
+        limit = max(1, min(int(request.args.get('limit', 50)), 200))
+        symbol = request.args.get('symbol')
+        strategy = request.args.get('strategy')
+
+        events = metrics_service.get_entry_funnel_events(
+            hours=hours,
+            limit=limit,
+            symbol=symbol,
+            strategy=strategy,
+        )
+
+        return jsonify({
+            'events': events,
+            'total_count': len(events),
+        })
+    except ValueError:
+        return jsonify({'error': 'Invalid parameter values'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route("/api/events/hwm/<symbol>/<strategy>")
 @requires_auth
 def get_hwm_timeline(symbol: str, strategy: str):
@@ -3429,6 +3724,7 @@ def get_events_summary():
         hours = max(1, min(int(request.args.get('hours', 24)), 72))
 
         entry_events = metrics_service.get_entry_events(hours=hours, limit=1000)
+        entry_funnel_events = metrics_service.get_entry_funnel_events(hours=hours, limit=1000)
         exit_events = metrics_service.get_exit_events(hours=hours, limit=1000)
         safety_rejections = metrics_service.get_safety_rejections(hours=hours, limit=1000)
         selector_events = metrics_service.get_selector_events(hours=hours, limit=1000, changed_only=True)
@@ -3436,6 +3732,8 @@ def get_events_summary():
         # Calculate summary stats
         entry_signals = sum(1 for e in entry_events if e.get('signal_generated') == 'true')
         exit_signals = sum(1 for e in exit_events if e.get('signal_generated') == 'true')
+        built_orders = sum(1 for e in entry_funnel_events if e.get('order_build_result') == 'built')
+        published_orders = sum(1 for e in entry_funnel_events if e.get('order_published') == 'true')
 
         # Group rejections by type
         rejection_by_type = {}
@@ -3446,7 +3744,10 @@ def get_events_summary():
         return jsonify({
             'hours': hours,
             'entry_events_count': len(entry_events),
+            'entry_funnel_events_count': len(entry_funnel_events),
             'entry_signals_count': entry_signals,
+            'entry_orders_built_count': built_orders,
+            'entry_orders_published_count': published_orders,
             'exit_events_count': len(exit_events),
             'exit_signals_count': exit_signals,
             'safety_rejections_count': len(safety_rejections),

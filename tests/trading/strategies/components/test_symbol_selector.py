@@ -142,6 +142,73 @@ def test_symbol_selector_keeps_previous_selection_on_empty_cycle() -> None:
     assert selector.selected_symbols == {"BTC"}
 
 
+def test_symbol_selector_applies_symbol_score_multipliers() -> None:
+    selector = DynamicSymbolSelector(
+        SymbolSelectorConfig(
+            enabled=True,
+            top_n=1,
+            refresh_seconds=5.0,
+            min_score=-1.0,
+            min_adx=1.0,
+            min_volume_ratio=0.0,
+            require_above_ema200=False,
+            skip_bear_regime=False,
+            symbol_score_multipliers={"ETH": 1.4, "BTC": 0.8},
+        ),
+        fallback_symbols=["BTC", "ETH"],
+    )
+
+    market_data = {
+        "BTC": _market_data(
+            symbol="BTC", close=108.0, ema_20=100.0, ema_200=95.0, adx=26.0, volume_ratio=1.1
+        ),
+        "ETH": _market_data(
+            symbol="ETH", close=106.0, ema_20=100.0, ema_200=95.0, adx=24.0, volume_ratio=1.05
+        ),
+    }
+    contexts = {
+        "BTC": _context("BULL_STRONG"),
+        "ETH": _context("BULL_MODERATE"),
+    }
+
+    selector.refresh(now=100.0, symbols=["BTC", "ETH"], market_data=market_data, contexts=contexts)
+
+    assert selector.selected_symbols == {"ETH"}
+
+
+def test_symbol_selector_requires_candidate_persistence() -> None:
+    selector = DynamicSymbolSelector(
+        SymbolSelectorConfig(
+            enabled=True,
+            top_n=1,
+            refresh_seconds=1.0,
+            min_score=-1.0,
+            min_adx=1.0,
+            min_volume_ratio=0.0,
+            require_above_ema200=False,
+            skip_bear_regime=False,
+            keep_previous_on_empty=False,
+            min_consecutive_eligible=2,
+        ),
+        fallback_symbols=["BTC"],
+    )
+
+    market_data = {
+        "BTC": _market_data(
+            symbol="BTC", close=110.0, ema_20=100.0, ema_200=90.0, adx=30.0, volume_ratio=1.2
+        ),
+    }
+    contexts = {"BTC": _context("BULL_STRONG")}
+
+    selector.refresh(now=100.0, symbols=["BTC"], market_data=market_data, contexts=contexts)
+    assert selector.selected_symbols == set()
+    first_eval = next(row for row in selector.evaluations if row.symbol == "BTC")
+    assert first_eval.reason == "candidate_persistence"
+
+    selector.refresh(now=101.0, symbols=["BTC"], market_data=market_data, contexts=contexts)
+    assert selector.selected_symbols == {"BTC"}
+
+
 def test_symbol_selector_rejects_stale_price_data() -> None:
     selector = DynamicSymbolSelector(
         SymbolSelectorConfig(
@@ -249,6 +316,46 @@ def test_symbol_selector_stale_uses_refresh_cadence_guard() -> None:
     assert selector.selected_symbols == {"BTC"}
     ev = next(x for x in selector.evaluations if x.symbol == "BTC")
     assert ev.eligible is True
+
+
+def test_symbol_selector_softens_stale_rejection_with_grace_window() -> None:
+    selector = DynamicSymbolSelector(
+        SymbolSelectorConfig(
+            enabled=True,
+            top_n=1,
+            refresh_seconds=60.0,
+            min_score=-1.0,
+            min_adx=1.0,
+            min_volume_ratio=0.0,
+            require_above_ema200=False,
+            skip_bear_regime=False,
+            max_price_age_seconds=30.0,
+            stale_soft_grace_multiplier=2.0,
+        ),
+        fallback_symbols=["BTC"],
+    )
+
+    now_ms = int(time.time() * 1000)
+    mildly_stale = _market_data(
+        symbol="BTC",
+        close=110.0,
+        ema_20=100.0,
+        ema_200=90.0,
+        adx=30.0,
+        volume_ratio=1.2,
+    )
+    mildly_stale = MarketData(**{**mildly_stale.__dict__, "timestamp": now_ms - 45_000})
+
+    selector.refresh(
+        now=100.0,
+        symbols=["BTC"],
+        market_data={"BTC": mildly_stale},
+        contexts={"BTC": _context("BULL_STRONG")},
+    )
+
+    ev = next(x for x in selector.evaluations if x.symbol == "BTC")
+    assert ev.eligible is True
+    assert ev.score < 1.0
 
 
 def test_symbol_selector_startup_grace_skips_stale_then_restores() -> None:
@@ -363,6 +470,7 @@ def test_symbol_selector_generates_score_jump_and_entry_ready_events() -> None:
 async def test_composite_task_symbol_selector_blocks_non_selected_entries() -> None:
     redis = MagicMock()
     redis.publish_event = AsyncMock()
+    redis.set_selector_snapshot = AsyncMock()
     redis._client = MagicMock()
     redis._client.hset = AsyncMock()
 
@@ -415,6 +523,7 @@ async def test_composite_task_symbol_selector_blocks_non_selected_entries() -> N
 async def test_composite_task_refreshes_selector_when_entry_eval_is_skipped() -> None:
     redis = MagicMock()
     redis.publish_event = AsyncMock()
+    redis.set_selector_snapshot = AsyncMock()
     redis._client = MagicMock()
     redis._client.hset = AsyncMock()
 
@@ -470,7 +579,7 @@ async def test_composite_task_refreshes_selector_when_entry_eval_is_skipped() ->
     assert task._symbol_selector.selected_symbols == {"BTC"}
     entry.check_entry.assert_not_called()
     redis.publish_event.assert_awaited()
-    redis._client.hset.assert_awaited()
+    redis.set_selector_snapshot.assert_awaited()
 
 
 def test_data_quality_low_tick_rate_does_not_apply_cooldown_by_default() -> None:
@@ -560,6 +669,53 @@ def test_data_quality_low_tick_rate_applies_cooldown_when_enabled() -> None:
     assert assessment["allowed"] is False
     assert assessment["reason"] == "low_tick_rate"
     assert task._dq_blocked_until["BTC"] > time.time()
+
+
+def test_data_quality_recovers_immediately_when_fresh_data_returns() -> None:
+    redis = MagicMock()
+    redis.publish_event = AsyncMock()
+    redis._client = MagicMock()
+    redis._client.hset = AsyncMock()
+
+    entry = MagicMock()
+    entry.params = MagicMock()
+    entry.params.mfi_bull = 52.0
+    entry.params.mfi_bear = 48.0
+    entry.params.adx_trend = 20.0
+
+    exit_strat = MagicMock()
+    exit_strat.params = MagicMock()
+
+    task = CompositeStrategyTask(
+        name="dq_recovery",
+        symbols=["BTC"],
+        redis=redis,
+        entry_strategy=entry,
+        exit_strategy=exit_strat,
+        market="spot",
+        config={
+            "data_quality": {
+                "enabled": True,
+                "max_price_age_seconds": 1.0,
+                "min_ticks_per_minute": 0.0,
+                "tick_window_seconds": 60,
+                "eviction_cooldown_seconds": 120,
+            }
+        },
+    )
+
+    stale_md = _market_data(
+        symbol="BTC", close=110.0, ema_20=100.0, ema_200=90.0, adx=30.0, volume_ratio=1.2
+    )
+    stale_md = MarketData(**{**stale_md.__dict__, "timestamp": int((time.time() - 30) * 1000)})
+    stale_assessment = task._assess_data_quality("BTC", stale_md, mutate=True)
+    assert stale_assessment["reason"] == "stale_price"
+    assert task._dq_blocked_until["BTC"] > time.time()
+
+    fresh_md = MarketData(**{**stale_md.__dict__, "timestamp": int(time.time() * 1000)})
+    fresh_assessment = task._assess_data_quality("BTC", fresh_md, mutate=True)
+    assert fresh_assessment["allowed"] is True
+    assert "BTC" not in task._dq_blocked_until
 
 
 @pytest.mark.asyncio

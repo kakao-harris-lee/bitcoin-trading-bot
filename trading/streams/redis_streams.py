@@ -2,8 +2,10 @@
 """Redis Streams wrapper for async publish/consume."""
 from __future__ import annotations
 
+import json
 import os
 import redis.asyncio as redis
+from datetime import datetime
 from typing import Any
 
 
@@ -37,6 +39,70 @@ class RedisStreams:
         """
         self.url = url
         self._client: redis.Redis | None = None
+        self._state_event_maxlen = int(os.getenv("REDIS_STATE_EVENT_MAXLEN", "50000"))
+        self._regime_snapshot_maxlen = int(os.getenv("REDIS_REGIME_SNAPSHOT_MAXLEN", "200000"))
+        self._regime_snapshot_ttl_sec = int(os.getenv("REGIME_SNAPSHOT_TTL_SEC", "172800"))
+        self._selector_snapshot_ttl_sec = int(os.getenv("SELECTOR_SNAPSHOT_TTL_SEC", "1209600"))
+        self._default_stream_maxlen = self._load_default_stream_maxlen()
+
+    @staticmethod
+    def _load_default_stream_maxlen() -> dict[str, int]:
+        defaults = {
+            "alerts": 20000,
+            "orders": 10000,
+            "trades": 20000,
+            "exit_signals": 10000,
+            "market:prices": 50000,
+            "strategy:decisions": 10000,
+            "strategy:selector:events": 5000,
+            "strategy:entry:funnel": 10000,
+            "observability:system:state": 2000,
+            # Legacy streams that can otherwise accumulate for months.
+            "system:universe": 5000,
+            "system:universe_updates": 2000,
+            "market:quotes": 50000,
+            "market:ticks": 100000,
+            "signals:detected": 10000,
+        }
+        loaded: dict[str, int] = {}
+        for stream, default in defaults.items():
+            env_key = f"REDIS_STREAM_MAXLEN_{stream.upper().replace(':', '_')}"
+            try:
+                loaded[stream] = int(os.getenv(env_key, str(default)))
+            except ValueError:
+                loaded[stream] = default
+        return loaded
+
+    def _resolve_stream_maxlen(self, stream: str, maxlen: int | None = None) -> int | None:
+        if maxlen is not None:
+            return maxlen
+        return self._default_stream_maxlen.get(stream)
+
+    @staticmethod
+    def _stringify_mapping(mapping: dict[str, Any]) -> dict[str, str]:
+        flat: dict[str, str] = {}
+        for key, value in mapping.items():
+            if isinstance(value, (dict, list)):
+                flat[str(key)] = json.dumps(value, ensure_ascii=False)
+            else:
+                flat[str(key)] = str(value)
+        return flat
+
+    async def _safe_publish_state_event(
+        self,
+        stream: str,
+        event: dict[str, Any],
+        maxlen: int | None = None,
+    ) -> None:
+        try:
+            await self.publish_event(
+                stream,
+                self._stringify_mapping(event),
+                maxlen=maxlen if maxlen is not None else self._state_event_maxlen,
+            )
+        except Exception:
+            # Never fail critical state writes because event mirror failed.
+            return
 
     async def connect(self) -> None:
         """Connect to Redis."""
@@ -210,16 +276,27 @@ class RedisStreams:
         )
         return {"reclaimed": reclaimed, "pruned_consumers": pruned}
 
-    async def publish(self, stream: str, data: dict[str, Any]) -> str:
+    async def publish(
+        self,
+        stream: str,
+        data: dict[str, Any],
+        maxlen: int | None = None,
+    ) -> str:
         """Publish message to stream.
 
         Args:
             stream: Stream name
             data: Message data (flat dict with string values)
 
+        Args:
+            maxlen: Optional stream max length for auto-trimming.
+
         Returns:
             Message ID assigned by Redis
         """
+        resolved_maxlen = self._resolve_stream_maxlen(stream, maxlen=maxlen)
+        if resolved_maxlen is not None:
+            return await self._client.xadd(stream, data, maxlen=resolved_maxlen)
         return await self._client.xadd(stream, data)
 
     async def publish_event(
@@ -235,7 +312,18 @@ class RedisStreams:
         Returns:
             Message ID assigned by Redis
         """
-        return await self._client.xadd(stream, data, maxlen=maxlen)
+        resolved_maxlen = self._resolve_stream_maxlen(stream, maxlen=maxlen)
+        return await self._client.xadd(stream, data, maxlen=resolved_maxlen)
+
+    async def read_latest(self, stream: str, count: int = 100) -> list[dict[str, Any]]:
+        """Read latest stream entries in reverse-chronological order."""
+        entries = await self._client.xrevrange(stream, count=count)
+        messages: list[dict[str, Any]] = []
+        for msg_id, payload in entries:
+            item = dict(payload)
+            item["_id"] = msg_id
+            messages.append(item)
+        return messages
 
     async def consume(
         self,
@@ -295,6 +383,21 @@ class RedisStreams:
         """
         await self._client.hset(key, mapping=mapping)
 
+    async def set_account(self, key: str, data: dict[str, Any]) -> None:
+        """Set account hash and mirror change as stream event."""
+        payload = self._stringify_mapping(data)
+        await self._client.hset(key, mapping=payload)
+        await self._safe_publish_state_event(
+            "account:events",
+            {
+                "event": "account_update",
+                "key": key,
+                "timestamp": datetime.now().isoformat(),
+                "timestamp_ms": int(datetime.now().timestamp() * 1000),
+                "fields": json.dumps(payload, ensure_ascii=False),
+            },
+        )
+
     async def hgetall(self, key: str) -> dict[str, str]:
         """Get all hash fields.
 
@@ -328,7 +431,38 @@ class RedisStreams:
             data: Position data (flat dict with string values)
         """
         key = f"positions:{symbol}:{market}"
-        await self._client.hset(key, mapping=data)
+        payload = self._stringify_mapping(data)
+        await self._client.hset(key, mapping=payload)
+        await self._safe_publish_state_event(
+            "positions:events",
+            {
+                "event": "position_upsert",
+                "key": key,
+                "symbol": symbol,
+                "market": market,
+                "timestamp": datetime.now().isoformat(),
+                "timestamp_ms": int(datetime.now().timestamp() * 1000),
+                "fields": json.dumps(payload, ensure_ascii=False),
+            },
+        )
+
+    async def patch_position(self, symbol: str, market: str, data: dict[str, Any]) -> None:
+        """Patch existing position hash fields and mirror as a state event."""
+        key = f"positions:{symbol}:{market}"
+        payload = self._stringify_mapping(data)
+        await self._client.hset(key, mapping=payload)
+        await self._safe_publish_state_event(
+            "positions:events",
+            {
+                "event": "position_patch",
+                "key": key,
+                "symbol": symbol,
+                "market": market,
+                "timestamp": datetime.now().isoformat(),
+                "timestamp_ms": int(datetime.now().timestamp() * 1000),
+                "fields": json.dumps(payload, ensure_ascii=False),
+            },
+        )
 
     async def get_position(self, symbol: str, market: str) -> dict[str, str]:
         """Get position data.
@@ -370,6 +504,17 @@ class RedisStreams:
         """
         key = f"positions:{symbol}:{market}"
         await self._client.delete(key)
+        await self._safe_publish_state_event(
+            "positions:events",
+            {
+                "event": "position_clear",
+                "key": key,
+                "symbol": symbol,
+                "market": market,
+                "timestamp": datetime.now().isoformat(),
+                "timestamp_ms": int(datetime.now().timestamp() * 1000),
+            },
+        )
 
     # Risk helpers
     async def set_risk(self, data: dict[str, Any]) -> None:
@@ -378,7 +523,59 @@ class RedisStreams:
         Args:
             data: Risk data (flat dict with string values)
         """
-        await self._client.hset("risk", mapping=data)
+        payload = self._stringify_mapping(data)
+        await self._client.hset("risk", mapping=payload)
+        await self._safe_publish_state_event(
+            "risk:events",
+            {
+                "event": "risk_update",
+                "key": "risk",
+                "timestamp": datetime.now().isoformat(),
+                "timestamp_ms": int(datetime.now().timestamp() * 1000),
+                "fields": json.dumps(payload, ensure_ascii=False),
+            },
+        )
+
+    async def set_regime_snapshot(self, symbol: str, payload: dict[str, Any]) -> None:
+        """Persist latest regime snapshot and mirror it to stream."""
+        serialized = self._stringify_mapping(payload)
+        await self._client.hset("regime:latest", symbol, json.dumps(serialized, ensure_ascii=False))
+        if self._regime_snapshot_ttl_sec > 0:
+            await self._client.expire("regime:latest", self._regime_snapshot_ttl_sec)
+        await self._safe_publish_state_event(
+            "regime:snapshots",
+            {
+                "event": "regime_snapshot",
+                "symbol": symbol,
+                "market": serialized.get("market", ""),
+                "strategy": serialized.get("strategy", ""),
+                "regime": serialized.get("regime", ""),
+                "trend": serialized.get("trend", ""),
+                "price": serialized.get("price", ""),
+                "timestamp": serialized.get("timestamp", datetime.now().isoformat()),
+                "timestamp_ms": serialized.get("timestamp_ms", int(datetime.now().timestamp() * 1000)),
+            },
+            maxlen=self._regime_snapshot_maxlen,
+        )
+
+    async def set_selector_snapshot(self, strategy: str, payload: dict[str, Any]) -> None:
+        """Persist latest selector snapshot and mirror it to stream."""
+        serialized = self._stringify_mapping(payload)
+        key = f"strategy:selector:latest:{strategy}"
+        await self._client.hset(key, mapping=serialized)
+        if self._selector_snapshot_ttl_sec > 0:
+            await self._client.expire(key, self._selector_snapshot_ttl_sec)
+        await self._safe_publish_state_event(
+            "strategy:selector:snapshots",
+            {
+                "event": "selector_snapshot",
+                "strategy": strategy,
+                "key": key,
+                "timestamp": serialized.get("timestamp", datetime.now().isoformat()),
+                "timestamp_ms": int(datetime.now().timestamp() * 1000),
+                "fields": json.dumps(serialized, ensure_ascii=False),
+            },
+        )
 
     async def get_risk(self) -> dict[str, str]:
         """Get risk data.

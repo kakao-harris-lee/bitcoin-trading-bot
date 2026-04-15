@@ -128,6 +128,62 @@ class TestMetricsServiceEventMethods:
         assert isinstance(events, list)
         assert len(events) == 1
 
+    def test_get_entry_funnel_events_returns_list(self):
+        """Test get_entry_funnel_events returns a list of funnel events."""
+        from web.services.metrics_service import MetricsService
+
+        service = MetricsService()
+
+        mock_redis = MagicMock()
+        mock_redis.xrevrange = MagicMock(return_value=[
+            ("1234567890-0", {
+                "timestamp": "2026-04-15T12:00:00",
+                "strategy": "mlp_direction_bnb",
+                "symbol": "BTC",
+                "selector_selected": "true",
+                "entry_signal_generated": "true",
+                "order_build_result": "built",
+                "order_published": "true",
+            }),
+        ])
+        service._redis = mock_redis
+
+        events = service.get_entry_funnel_events(hours=24, limit=50)
+
+        assert isinstance(events, list)
+        assert len(events) == 1
+        assert events[0]["strategy"] == "mlp_direction_bnb"
+
+    def test_get_entry_funnel_events_filters_by_symbol_and_strategy(self):
+        """Test get_entry_funnel_events filters by symbol and strategy."""
+        from web.services.metrics_service import MetricsService
+
+        service = MetricsService()
+
+        mock_redis = MagicMock()
+        mock_redis.xrevrange = MagicMock(return_value=[
+            ("1234567890-0", {
+                "strategy": "mlp_direction_bnb",
+                "symbol": "BTC",
+            }),
+            ("1234567891-0", {
+                "strategy": "regime_long_v2",
+                "symbol": "ETH",
+            }),
+        ])
+        service._redis = mock_redis
+
+        events = service.get_entry_funnel_events(
+            hours=24,
+            limit=50,
+            symbol="BTC",
+            strategy="mlp_direction_bnb",
+        )
+
+        assert len(events) == 1
+        assert events[0]["symbol"] == "BTC"
+        assert events[0]["strategy"] == "mlp_direction_bnb"
+
     def test_get_hwm_timeline_returns_ordered_list(self):
         """Test get_hwm_timeline returns chronologically ordered HWM updates."""
         from web.services.metrics_service import MetricsService
@@ -315,6 +371,35 @@ class TestEventsAPIEndpoints:
             data = json.loads(response.data)
             assert "events" in data
 
+    def test_get_entry_funnel_events_endpoint(self, client):
+        """Test GET /api/events/entry-funnel endpoint."""
+        with patch('web.app.metrics_service') as mock_service:
+            mock_service.get_entry_funnel_events.return_value = [
+                {
+                    "timestamp": "2026-04-15T12:00:00",
+                    "strategy": "mlp_direction_bnb",
+                    "symbol": "BTC",
+                    "order_build_result": "built",
+                    "order_published": "true",
+                }
+            ]
+
+            response = client.get(
+                '/api/events/entry-funnel?symbol=BTC&strategy=mlp_direction_bnb&hours=12&limit=100',
+                headers=client.auth_header,
+            )
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert "events" in data
+            assert len(data["events"]) == 1
+            mock_service.get_entry_funnel_events.assert_called_once_with(
+                hours=12,
+                limit=100,
+                symbol="BTC",
+                strategy="mlp_direction_bnb",
+            )
+
     def test_get_hwm_timeline_endpoint(self, client):
         """Test GET /api/events/hwm/<symbol>/<strategy> endpoint."""
         with patch('web.app.metrics_service') as mock_service:
@@ -376,13 +461,21 @@ class TestEventsAPIEndpoints:
         """Test GET /api/events/summary endpoint."""
         with patch('web.app.metrics_service') as mock_service:
             mock_service.get_entry_events.return_value = [{"id": 1}, {"id": 2}]
+            mock_service.get_entry_funnel_events.return_value = [
+                {"order_build_result": "built", "order_published": "true"},
+                {"order_build_result": "not_attempted", "order_published": "false"},
+            ]
             mock_service.get_exit_events.return_value = [{"id": 1}]
             mock_service.get_safety_rejections.return_value = [{"id": 1}, {"id": 2}, {"id": 3}]
+            mock_service.get_selector_events.return_value = [{"id": 1}]
 
             response = client.get('/api/events/summary', headers=client.auth_header)
 
             assert response.status_code == 200
             data = json.loads(response.data)
             assert "entry_events_count" in data
+            assert "entry_funnel_events_count" in data
+            assert data["entry_orders_built_count"] == 1
+            assert data["entry_orders_published_count"] == 1
             assert "exit_events_count" in data
             assert "safety_rejections_count" in data

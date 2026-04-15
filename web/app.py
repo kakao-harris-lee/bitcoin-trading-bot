@@ -850,6 +850,7 @@ def _parse_selector_top_scores(payload: str | None) -> list[str]:
 def _load_selector_symbols_from_stream(r: redis.Redis, limit: int = _STATUS_FALLBACK_MAX_ASSETS) -> list[str]:
     symbols: list[str] = []
     seen: set[str] = set()
+    handled_strategies: set[str] = set()
     try:
         entries = r.xrevrange("strategy:selector:snapshots", count=max(limit * 3, 60))
     except Exception:
@@ -868,9 +869,18 @@ def _load_selector_symbols_from_stream(r: redis.Redis, limit: int = _STATUS_FALL
             except (TypeError, json.JSONDecodeError):
                 pass
 
+        strategy = str(state.get("strategy") or data.get("strategy") or "").strip()
+        if strategy and strategy in handled_strategies:
+            continue
+
         candidates = _parse_selector_symbol_list(state.get("selected_symbols"))
         if not candidates:
             candidates = _parse_selector_top_scores(state.get("top_scores"))
+        if not candidates:
+            continue
+
+        if strategy:
+            handled_strategies.add(strategy)
 
         for symbol in candidates:
             if symbol in seen:
@@ -2431,8 +2441,8 @@ def _load_strategy_live_state(r, strategy_name: str, symbols: list[str]) -> dict
         indexed_state = _load_strategy_live_state_from_index(r, strategy_name, symbol)
         if not indexed_state and symbol not in live_state:
             continue
-        merged = dict(indexed_state)
-        merged.update(live_state.get(symbol, {}))
+        merged = dict(live_state.get(symbol, {}))
+        merged.update(indexed_state)
         if merged:
             live_state[symbol] = merged
     return live_state
@@ -3004,6 +3014,9 @@ def _discover_position_symbols(r) -> list[str]:
                 discovered.add(symbol)
                 break
 
+    for symbol in _discover_position_symbols_from_hashes(r):
+        discovered.add(symbol)
+
     return base + sorted(sym for sym in discovered if sym not in seen)
 
 
@@ -3029,6 +3042,54 @@ def _discover_position_symbols_from_stream(r, count: int | None = None) -> list[
         seen.add(symbol)
         symbols.append(symbol)
     return symbols
+
+
+def _discover_position_symbols_from_hashes(r) -> list[str]:
+    symbols: list[str] = []
+    seen: set[str] = set()
+
+    for pattern in ("positions:*:spot", "positions:*:futures"):
+        for key in _iter_position_hash_keys(r, pattern):
+            parts = key.split(":")
+            if len(parts) != 3:
+                continue
+            _, raw_symbol, _market = parts
+            symbol = _normalize_symbol(raw_symbol)
+            if not symbol or symbol in seen:
+                continue
+            try:
+                pos = r.hgetall(key) or {}
+            except Exception:
+                continue
+            qty = _safe_float(pos.get("quantity", 0))
+            if qty <= 0:
+                continue
+            seen.add(symbol)
+            symbols.append(symbol)
+    return symbols
+
+
+def _iter_position_hash_keys(r, pattern: str):
+    iterator = None
+    try:
+        iterator = r.scan_iter(match=pattern)
+    except Exception:
+        iterator = None
+
+    if iterator is None:
+        try:
+            iterator = r.keys(pattern)
+        except Exception:
+            return
+
+    for raw_key in iterator or []:
+        if isinstance(raw_key, bytes):
+            try:
+                yield raw_key.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
+            continue
+        yield str(raw_key)
 
 
 def _safe_float(value, default=0.0) -> float:

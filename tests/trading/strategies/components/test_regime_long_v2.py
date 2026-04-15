@@ -60,7 +60,7 @@ def _ctx(
     )
 
 
-def _position(entry_price: float = 100.0) -> Position:
+def _position(entry_price: float = 100.0, entry_time: int | None = None) -> Position:
     return Position(
         symbol="BTC",
         entry_price=entry_price,
@@ -68,6 +68,7 @@ def _position(entry_price: float = 100.0) -> Position:
         strategy="regime_long_v2",
         market="spot",
         timestamp=1,
+        entry_time=entry_time,
     )
 
 
@@ -112,10 +113,61 @@ def test_entry_blocks_in_bear_regime():
     strategy = RegimeLongV2EntryStrategy(params=params)
     signal = strategy.check_entry(_ctx(ts=1000, mfi=25.0, adx=35.0))
     assert signal is None
+    reason = strategy.get_last_rejection_reason("BTC")
+    assert reason is not None
+    assert "bear regime" in reason
+
+
+def test_entry_can_require_bullish_transition_checks():
+    params = RegimeLongV2EntryParams(
+        cooldown_tag="test_regime",
+        entry_lookback_bars=1,
+        min_ready_bars=1,
+        entry_quorum_ratio=1.0,
+        risk_on_score_min=4,
+        require_close_above_ema20=True,
+        require_close_above_ema120=True,
+        require_ema5_above_ema20=True,
+        require_ema20_above_ema120=True,
+        require_rsi_above_50=False,
+        require_mfi_above_50=False,
+        require_adx_trend=False,
+        min_volume_ratio=0.8,
+        min_breakout_ratio=-0.02,
+    )
+    strategy = RegimeLongV2EntryStrategy(params=params)
+    market = MarketData(
+        symbol="BTC",
+        open=100.0,
+        close=100.0,
+        high=101.0,
+        low=99.0,
+        mfi=60.0,
+        adx=25.0,
+        rsi=58.0,
+        ema_5=101.0,
+        ema_20=99.0,
+        ema_120=95.0,
+        volume=120.0,
+        avg_volume_20=100.0,
+        prev_high_20=101.0,
+        timestamp=1000,
+    )
+    regime = build_market_context(mfi=60.0, adx=25.0, atr=1.0, close=100.0)
+    ctx = TradingContext(symbol="BTC", timestamp=1000, market=market, regime=regime, positions={})
+
+    signal = strategy.check_entry(ctx)
+
+    assert signal is not None
+    assert "RegimeLongV2 entry" in signal.reason
 
 
 def test_exit_on_bear_regime_activates_cooldown():
-    params = RegimeLongV2ExitParams(cooldown_tag="test_regime", cooldown_bars=3)
+    params = RegimeLongV2ExitParams(
+        cooldown_tag="test_regime",
+        cooldown_bars=3,
+        min_hold_bars=0,
+    )
     strategy = RegimeLongV2ExitStrategy(params=params)
     pos = _position()
     signal = strategy.check_exit(
@@ -163,3 +215,118 @@ def test_exit_on_shock_return():
 
     assert signal is not None
     assert "1d shock" in signal.reason
+
+
+def test_exit_on_ema_streak_skips_in_blocked_bull_regime() -> None:
+    params = RegimeLongV2ExitParams(
+        exit_on_bear_regime=False,
+        peak_drawdown_exit_pct=0.9,
+        drop_1d_lookback_bars=99,
+        drop_3d_lookback_bars=199,
+        ema_slow_consecutive_bars=1,
+        ema_slow_blocked_regimes=["BULL_STRONG"],
+    )
+    strategy = RegimeLongV2ExitStrategy(params=params)
+    pos = _position(entry_price=100.0)
+    strategy.on_position_opened(pos)
+
+    signal = strategy.check_exit(
+        _ctx(ts=1, close=89.0, high=89.5, mfi=70.0, adx=30.0, ema_20=92.0, ema_120=90.0),
+        pos,
+    )
+
+    assert signal is None
+
+
+def test_exit_on_ema_streak_requires_fast_below_slow_when_enabled() -> None:
+    params = RegimeLongV2ExitParams(
+        exit_on_bear_regime=False,
+        peak_drawdown_exit_pct=0.9,
+        drop_1d_lookback_bars=99,
+        drop_3d_lookback_bars=199,
+        ema_slow_consecutive_bars=1,
+        ema_slow_require_fast_below_slow=True,
+    )
+    strategy = RegimeLongV2ExitStrategy(params=params)
+    pos = _position(entry_price=100.0)
+    strategy.on_position_opened(pos)
+
+    no_signal = strategy.check_exit(
+        _ctx(ts=1, close=89.0, high=89.5, mfi=55.0, adx=25.0, ema_20=95.0, ema_120=90.0),
+        pos,
+    )
+    yes_signal = strategy.check_exit(
+        _ctx(ts=2, close=88.0, high=88.5, mfi=55.0, adx=25.0, ema_20=87.0, ema_120=90.0),
+        pos,
+    )
+
+    assert no_signal is None
+    assert yes_signal is not None
+    assert "below ema_120 streak" in yes_signal.reason
+
+
+def test_exit_on_ema_streak_honors_drawdown_and_time_grace() -> None:
+    params = RegimeLongV2ExitParams(
+        exit_on_bear_regime=False,
+        peak_drawdown_exit_pct=0.9,
+        drop_1d_lookback_bars=99,
+        drop_3d_lookback_bars=199,
+        ema_slow_consecutive_bars=1,
+        ema_slow_min_drawdown_from_hwm_pct=0.05,
+        ema_slow_grace_seconds_after_entry=3600,
+    )
+    strategy = RegimeLongV2ExitStrategy(params=params)
+    entry_time = 1_000_000
+    pos = _position(entry_price=100.0, entry_time=entry_time)
+    strategy.on_position_opened(pos)
+
+    # Establish a high-water mark first.
+    assert strategy.check_exit(
+        _ctx(ts=entry_time + 1_000, close=110.0, high=111.0, ema_20=108.0, ema_120=100.0),
+        pos,
+    ) is None
+
+    # Below EMA120 but still inside grace window -> suppressed.
+    early_signal = strategy.check_exit(
+        _ctx(
+            ts=entry_time + 1_800_000,
+            close=99.0,
+            high=99.0,
+            mfi=55.0,
+            adx=25.0,
+            ema_20=98.0,
+            ema_120=100.0,
+        ),
+        pos,
+    )
+    # Grace passed, but drawdown from HWM is too small -> still suppressed.
+    shallow_signal = strategy.check_exit(
+        _ctx(
+            ts=entry_time + 7_200_000,
+            close=107.0,
+            high=107.0,
+            mfi=55.0,
+            adx=25.0,
+            ema_20=98.0,
+            ema_120=108.0,
+        ),
+        pos,
+    )
+    # Grace passed and drawdown is meaningful -> exit.
+    final_signal = strategy.check_exit(
+        _ctx(
+            ts=entry_time + 10_800_000,
+            close=99.0,
+            high=99.0,
+            mfi=55.0,
+            adx=25.0,
+            ema_20=98.0,
+            ema_120=100.0,
+        ),
+        pos,
+    )
+
+    assert early_signal is None
+    assert shallow_signal is None
+    assert final_signal is not None
+    assert "below ema_120 streak" in final_signal.reason

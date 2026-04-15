@@ -44,11 +44,20 @@ class TelegramTask:
     ALERT_COOLDOWN = 60  # Cooldown for same alert type (seconds)
     SELECTOR_NORMAL_COOLDOWN = 900  # 15m for normal selector changes
     SELECTOR_ANOMALY_COOLDOWN = 180  # 3m for selector anomalies
+    SELECTOR_NEW_CANDIDATE_COOLDOWN = 1800  # 30m for repeated NEW_CANDIDATE updates
+    SELECTOR_DQ_ALERT_COOLDOWN = 900  # 15m for persistent dq/liquidity degradation
     SELECTOR_MIN_CHURN = 4
     SELECTOR_MIN_CHURN_RATIO = 0.25
     SELECTOR_DQ_WARN_RATIO = 0.30
     SELECTOR_DQ_CRIT_RATIO = 0.60
     SELECTOR_LOW_SELECTED_RATIO = 0.40
+    SYSTEM_ALERT_LEVELS = {
+        "INFO": 10,
+        "WARNING": 20,
+        "ERROR": 30,
+        "CRITICAL": 40,
+        "NONE": 100,
+    }
 
     def __init__(self, redis: RedisStreams):
         """Initialize Telegram task.
@@ -90,6 +99,16 @@ class TelegramTask:
             self.SELECTOR_ANOMALY_COOLDOWN,
             minimum=0,
         )
+        self._selector_new_candidate_cooldown = self._env_int(
+            "TELEGRAM_SELECTOR_NEW_CANDIDATE_COOLDOWN_SEC",
+            self.SELECTOR_NEW_CANDIDATE_COOLDOWN,
+            minimum=0,
+        )
+        self._selector_dq_alert_cooldown = self._env_int(
+            "TELEGRAM_SELECTOR_DQ_ALERT_COOLDOWN_SEC",
+            self.SELECTOR_DQ_ALERT_COOLDOWN,
+            minimum=0,
+        )
         self._selector_min_churn = self._env_int(
             "TELEGRAM_SELECTOR_MIN_CHURN",
             self.SELECTOR_MIN_CHURN,
@@ -118,6 +137,27 @@ class TelegramTask:
             self.SELECTOR_LOW_SELECTED_RATIO,
             minimum=0.0,
             maximum=1.0,
+        )
+        self._notify_selector_events = self._env_bool(
+            "TELEGRAM_NOTIFY_SELECTOR_EVENTS",
+            False,
+        )
+        self._notify_order_rejected = self._env_bool(
+            "TELEGRAM_NOTIFY_ORDER_REJECTED",
+            True,
+        )
+        self._notify_unknown_executor_alerts = self._env_bool(
+            "TELEGRAM_NOTIFY_UNKNOWN_EXECUTOR_ALERTS",
+            False,
+        )
+        self._notify_startup = self._env_bool(
+            "TELEGRAM_NOTIFY_STARTUP",
+            True,
+        )
+        self._system_alert_min_level = self._env_choice(
+            "TELEGRAM_SYSTEM_ALERT_MIN_LEVEL",
+            "CRITICAL",
+            set(self.SYSTEM_ALERT_LEVELS.keys()),
         )
 
     async def run(self) -> None:
@@ -471,33 +511,34 @@ _Code valid for ~30 seconds_
         quantity = float(trade.get("quantity", 0))
         price = float(trade.get("price", 0))
         strategy = trade.get("strategy", "?")
-        pnl = trade.get("pnl")
-
-        if side.lower() == "buy":
-            emoji = ""
-            action = "BOUGHT"
-        else:
-            emoji = ""
-            action = "SOLD"
-
-        message = f"""{emoji} *Trade Executed*
-
-*{action}* {quantity:.4f} {symbol}
-*Market:* {market.upper()}
-*Price:* ${price:,.2f}
-*Value:* ${quantity * price:,.2f}
-*Strategy:* {strategy}
-"""
-
+        pnl = trade.get("profit", trade.get("pnl"))
+        pnl_pct = trade.get("profit_pct", trade.get("pnl_pct"))
+        reason = self._summarize_reason(trade.get("reason", ""))
+        action = "ENTRY" if side.lower() == "buy" else "EXIT"
+        lines = [
+            f"*Trade {action}*",
+            f"*Symbol:* {symbol}",
+            f"*Qty:* {quantity:.4f}",
+            f"*Market:* {market.upper()}",
+            f"*Price:* {self._format_price(price)}",
+            f"*Value:* ${quantity * price:,.2f}",
+            f"*Strategy:* {strategy}",
+        ]
         if pnl is not None:
             pnl_val = float(pnl)
-            pnl_emoji = "" if pnl_val >= 0 else ""
-            message += f"\n{pnl_emoji} *P&L:* ${pnl_val:+,.2f}"
-
+            pnl_text = f"*P&L:* ${pnl_val:+,.2f}"
+            if pnl_pct is not None:
+                pnl_text += f" ({float(pnl_pct):+.2f}%)"
+            lines.append(pnl_text)
+        if reason:
+            lines.append(f"*Reason:* {reason}")
+        message = "\n".join(lines)
         await self._send_message(message)
 
     async def _handle_selector_event(self, event: dict) -> None:
         """Handle symbol selector event notifications."""
+        if not self._notify_selector_events:
+            return
         strategy = event.get("strategy", "?")
         changed = event.get("changed", "false") == "true"
         selected = [str(x) for x in self._parse_json_array(event.get("selected_symbols", "[]"))]
@@ -540,6 +581,7 @@ _Code valid for ~30 seconds_
         dq_recovered = prev_dq_ratio >= self._selector_dq_warn_ratio and dq_ratio < self._selector_dq_warn_ratio
         selected_drop = (
             prev_selected_count > 0
+            and selected_count < prev_selected_count
             and selected_count <= max(2, int(prev_selected_count * self._selector_low_selected_ratio))
         )
         parsed_signal_events: list[dict] = [
@@ -570,7 +612,7 @@ _Code valid for ~30 seconds_
             anomaly_mode = True
         elif has_new_signal_event and has_entry_ready:
             reason = "entry_ready"
-        elif has_new_signal_event and has_new_candidate:
+        elif has_new_signal_event and has_new_candidate and changed:
             reason = "new_candidate"
         elif significant_churn:
             reason = "significant_rotation"
@@ -597,6 +639,10 @@ _Code valid for ~30 seconds_
         now = time.time()
         last_sent = self._selector_last_sent.get(strategy, 0.0)
         cooldown = self._selector_anomaly_cooldown if (anomaly_mode or anomaly) else self._selector_normal_cooldown
+        if reason == "new_candidate":
+            cooldown = max(cooldown, self._selector_new_candidate_cooldown)
+        elif reason == "dq_or_liquidity_alert":
+            cooldown = max(cooldown, self._selector_dq_alert_cooldown)
         force_send = reason in {"dq_critical", "dq_recovered"}
         if not force_send and (now - last_sent) < cooldown:
             logger.debug(
@@ -671,6 +717,8 @@ _Code valid for ~30 seconds_
                 return
 
             if alert_type == "order_rejected":
+                if not self._notify_order_rejected:
+                    return
                 symbol = alert.get("symbol", "?")
                 reason = alert.get("reason", "Unknown reason")
                 message = f"""⚠️ *Order Rejected*
@@ -681,6 +729,8 @@ _Code valid for ~30 seconds_
 _Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
 """
             else:
+                if not self._notify_unknown_executor_alerts:
+                    return
                 # Unknown executor alert type
                 message = f"""ℹ️ *Alert: {alert_type}*
 
@@ -693,6 +743,8 @@ _Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
             level = alert.get("level", "info").upper()
             component = alert.get("component", "system")
             message_text = alert.get("message", "No message")
+            if not self._should_notify_system_level(level):
+                return
 
             # Rate limit by level + component
             alert_key = f"{level}:{component}"
@@ -735,6 +787,15 @@ _Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
 
         self._last_alert_times[alert_key] = now
         return True
+
+    def _should_notify_system_level(self, level: str) -> bool:
+        normalized = str(level or "INFO").upper()
+        current_rank = self.SYSTEM_ALERT_LEVELS.get(normalized, self.SYSTEM_ALERT_LEVELS["INFO"])
+        min_rank = self.SYSTEM_ALERT_LEVELS.get(
+            self._system_alert_min_level,
+            self.SYSTEM_ALERT_LEVELS["CRITICAL"],
+        )
+        return current_rank >= min_rank
 
     async def _send_message(self, message: str, bypass_rate_limit: bool = False) -> bool:
         """Send message to Telegram with rate limiting.
@@ -818,6 +879,28 @@ _Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
         return max(minimum, min(maximum, value))
 
     @staticmethod
+    def _env_bool(name: str, default: bool) -> bool:
+        raw = os.getenv(name)
+        if raw is None:
+            return default
+        value = raw.strip().lower()
+        if value in {"1", "true", "yes", "on"}:
+            return True
+        if value in {"0", "false", "no", "off"}:
+            return False
+        return default
+
+    @staticmethod
+    def _env_choice(name: str, default: str, allowed: set[str]) -> str:
+        raw = os.getenv(name)
+        if raw is None:
+            return default
+        value = raw.strip().upper()
+        if value in allowed:
+            return value
+        return default
+
+    @staticmethod
     def _to_int(value, default: int = 0) -> int:
         try:
             return int(value)
@@ -831,6 +914,23 @@ _Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
         except (TypeError, ValueError):
             return default
 
+    @staticmethod
+    def _format_price(price: float) -> str:
+        if price >= 1000:
+            return f"${price:,.2f}"
+        if price >= 1:
+            return f"${price:,.4f}"
+        if price > 0:
+            return f"${price:,.6f}"
+        return "$0.0000"
+
+    @staticmethod
+    def _summarize_reason(reason: str, max_len: int = 140) -> str:
+        text = " ".join(str(reason or "").split())
+        if len(text) <= max_len:
+            return text
+        return f"{text[: max_len - 3]}..."
+
     async def send_start_notification(self, mode: str, symbols: list[str]) -> None:
         """Send bot start notification.
 
@@ -838,6 +938,8 @@ _Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
             mode: Trading mode (paper/live)
             symbols: List of enabled symbols
         """
+        if not self._notify_startup:
+            return
         mode_emoji = "" if mode == "paper" else ""
         symbols_text = ", ".join(symbols)
 

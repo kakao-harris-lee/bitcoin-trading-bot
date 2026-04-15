@@ -31,6 +31,7 @@ async def test_refresh_loads_positions_from_redis():
     btc_positions = manager.get_positions_for_symbol("BTC")
     assert "mlp_direction_btc" in btc_positions
     assert btc_positions["mlp_direction_btc"].entry_price == 100000.0
+    assert btc_positions["mlp_direction_btc"].entry_time == 1700000000000
 
     portfolio = manager.get_portfolio_positions()
     assert len(portfolio) == 1

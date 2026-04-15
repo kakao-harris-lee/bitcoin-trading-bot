@@ -44,6 +44,58 @@ class AsyncExecutor:
         self._balance_cache = {"spot": 0.0, "futures": 0.0, "last_update": 0}
         self.liquidation_guard = LiquidationGuard()
 
+    @staticmethod
+    def _supports_redis_method(redis_client: Any, method_name: str) -> bool:
+        """Return True if Redis client explicitly supports a method."""
+        if callable(getattr(type(redis_client), method_name, None)):
+            return True
+        return method_name in getattr(redis_client, "__dict__", {})
+
+    async def _persist_account_state(self, data: dict[str, Any]) -> None:
+        """Persist account state with stream-mirror support and legacy fallback."""
+        if self._supports_redis_method(self.redis, "set_account"):
+            maybe_coro = self.redis.set_account("account:live", data)
+            if asyncio.iscoroutine(maybe_coro):
+                await maybe_coro
+            return
+        await self.redis.hset("account:live", data)
+
+    async def _persist_risk_state(self, data: dict[str, Any]) -> None:
+        """Persist risk state with stream-mirror support and legacy fallback."""
+        if self._supports_redis_method(self.redis, "set_risk"):
+            maybe_coro = self.redis.set_risk(data)
+            if asyncio.iscoroutine(maybe_coro):
+                await maybe_coro
+            return
+        await self.redis.hset("risk", data)
+
+    async def _patch_position_state(
+        self,
+        symbol: str,
+        market: str,
+        updates: dict[str, Any],
+    ) -> None:
+        """Patch position metadata with stream-mirror support and legacy fallback."""
+        if self._supports_redis_method(self.redis, "patch_position"):
+            maybe_coro = self.redis.patch_position(symbol, market, updates)
+            if asyncio.iscoroutine(maybe_coro):
+                await maybe_coro
+            return
+
+        # Legacy fallback for tests/older adapters with nested raw redis client.
+        raw_client = getattr(self.redis, "redis", None)
+        raw_hset = getattr(raw_client, "hset", None) if raw_client is not None else None
+        if callable(raw_hset):
+            maybe_coro = raw_hset(
+                f"positions:{symbol}:{market}",
+                mapping=updates,
+            )
+            if asyncio.iscoroutine(maybe_coro):
+                await maybe_coro
+            return
+
+        await self.redis.hset(f"positions:{symbol}:{market}", updates)
+
     async def run(self) -> None:
         """Main loop: consume and execute orders."""
         self._running = True
@@ -144,7 +196,7 @@ class AsyncExecutor:
                 logger.info(f"Synced {synced} external positions from Binance")
 
             # Store balance in Redis for strategies to access
-            await self.redis.hset("account:live", {
+            await self._persist_account_state({
                 "spot_balance": str(spot_balance),
                 "futures_balance": str(futures_balance),
                 "total_equity": str(total_equity),
@@ -178,7 +230,7 @@ class AsyncExecutor:
                     "last_update": time.time(),
                 }
                 # Update Redis
-                await self.redis.hset("account:live", {
+                await self._persist_account_state({
                     "spot_balance": str(spot_balance),
                     "futures_balance": str(futures_balance),
                     "total_equity": str(spot_balance + futures_balance),
@@ -477,7 +529,7 @@ class AsyncExecutor:
         # Update daily P&L
         risk = await self.redis.get_risk()
         daily_pnl = float(risk.get("daily_pnl", 0)) + pnl_with_leverage
-        await self.redis.hset("risk", {"daily_pnl": str(daily_pnl)})
+        await self._persist_risk_state({"daily_pnl": str(daily_pnl)})
 
         direction = "Long" if side == "buy" else "Short"
         logger.info(f"Recorded P&L ({direction}): {symbol} {pnl_with_leverage:+.2f} USDT ({pnl_pct:+.2f}%) (daily total: {daily_pnl:+.2f})")
@@ -675,10 +727,11 @@ class AsyncExecutor:
                     order_id = str(
                         getattr(result, "orderId", getattr(result, "order_id", ""))
                     )
-                # Store in Redis position hash
-                await self.redis.redis.hset(
-                    f"positions:{symbol}:{market}",
-                    mapping={
+                # Patch stop-loss metadata onto the current position snapshot.
+                await self._patch_position_state(
+                    symbol,
+                    market,
+                    {
                         "stop_order_id": order_id,
                         "stop_price": str(stop_price),
                     },

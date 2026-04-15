@@ -126,6 +126,9 @@ class TestMLPDirectionEntryStrategy:
         signal = strategy.check_entry(ctx)
 
         assert signal is None
+        reason = strategy.get_last_rejection_reason("BTC")
+        assert reason is not None
+        assert "Weak ADX" in reason
 
     def test_no_signal_below_ema200(self):
         """Entry returns None when price is below EMA200."""
@@ -196,6 +199,26 @@ class TestMLPDirectionEntryStrategy:
 
         assert signal is None
         strategy._ensure_model.assert_called_once()
+
+    def test_rejection_reason_cleared_after_signal(self):
+        """Stored no-entry reason is cleared once entry signal is produced."""
+        params = MLPDirectionEntryParams(adx_min=18.0)
+        strategy = MLPDirectionEntryStrategy(params=params)
+        strategy._ensure_model = Mock(return_value=True)
+
+        blocked_ctx = _make_context(mfi=55.0, adx=15.0)
+        assert strategy.check_entry(blocked_ctx) is None
+        assert strategy.get_last_rejection_reason("BTC") is not None
+
+        enter_ctx = _make_context(
+            mfi=55.0,
+            adx=25.0,
+            mlp_prediction=1,
+            mlp_confidence=0.95,
+        )
+        signal = strategy.check_entry(enter_ctx)
+        assert signal is not None
+        assert strategy.get_last_rejection_reason("BTC") is None
 
 
 class TestMLPDirectionEntryWithMockedModel:

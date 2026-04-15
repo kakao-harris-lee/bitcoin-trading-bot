@@ -108,9 +108,20 @@ class MLPDirectionEntryStrategy:
         self._model_available: bool | None = None
         self._feature_extractor = None
         self._ensemble = None  # MLPEnsemblePredictor if configured
+        self._last_rejection_reason: dict[str, str] = {}
         # History buffer for paper_36 live feature computation
         self._history: list[dict] = []
         self._last_timestamp: int = 0
+
+    def get_last_rejection_reason(self, symbol: str) -> str | None:
+        """Return the latest no-entry reason for a symbol."""
+        return self._last_rejection_reason.get(symbol)
+
+    def _set_rejection_reason(self, symbol: str, reason: str) -> None:
+        self._last_rejection_reason[symbol] = reason
+
+    def _clear_rejection_reason(self, symbol: str) -> None:
+        self._last_rejection_reason.pop(symbol, None)
 
     def set_model(self, model, ensemble=None):
         """Inject a pre-loaded model to avoid duplicate loading.
@@ -287,6 +298,7 @@ class MLPDirectionEntryStrategy:
         """
         market_data = ctx.market
         context = ctx.regime
+        symbol = market_data.symbol
         active_buy_threshold, active_position_size, switch_mode = self._resolve_runtime_profile(
             market_data
         )
@@ -300,11 +312,14 @@ class MLPDirectionEntryStrategy:
 
         if not self._ensure_model():
             logger.debug(f"{market_data.symbol}: Skip - MLP model not available")
+            self._set_rejection_reason(symbol, "MLP model unavailable")
             return None
 
         self._update_history(market_data)
         prediction_result = self._get_prediction_and_confidence(ctx, market_data)
         if prediction_result is None:
+            if not self.get_last_rejection_reason(symbol):
+                self._set_rejection_reason(symbol, "MLP prediction unavailable")
             return None
         mlp_prediction, mlp_confidence = prediction_result
 
@@ -313,6 +328,10 @@ class MLPDirectionEntryStrategy:
                 f"{market_data.symbol}: Skip - MLP prediction is "
                 f"{self._label_name(mlp_prediction)}, not BUY"
             )
+            self._set_rejection_reason(
+                symbol,
+                f"MLP predicted {self._label_name(mlp_prediction)} (not BUY)",
+            )
             return None
 
         if mlp_confidence < active_buy_threshold:
@@ -320,8 +339,13 @@ class MLPDirectionEntryStrategy:
                 f"{market_data.symbol}: Skip - low MLP confidence "
                 f"({mlp_confidence:.2f} < {active_buy_threshold:.2f})"
             )
+            self._set_rejection_reason(
+                symbol,
+                f"Low MLP confidence ({mlp_confidence:.2f} < {active_buy_threshold:.2f})",
+            )
             return None
 
+        self._clear_rejection_reason(symbol)
         return self._build_entry_signal(
             market_data=market_data,
             context=context,
@@ -379,14 +403,21 @@ class MLPDirectionEntryStrategy:
         context,
     ) -> bool:
         p = self.params
+        symbol = market_data.symbol
         if p.regime_bypass:
+            self._clear_rejection_reason(symbol)
             return True
         if p.skip_bear_regime and context.regime in BEAR_REGIMES:
             logger.debug(f"{market_data.symbol}: Skip - BEAR regime ({context.regime})")
+            self._set_rejection_reason(symbol, f"Blocked by regime: {context.regime}")
             return False
         if context.adx < p.adx_min:
             logger.debug(
                 f"{market_data.symbol}: Skip - weak ADX ({context.adx:.1f} < {p.adx_min})"
+            )
+            self._set_rejection_reason(
+                symbol,
+                f"Weak ADX ({context.adx:.1f} < {p.adx_min:.1f})",
             )
             return False
         if p.use_ema200_filter and market_data.ema_200 > 0 and market_data.close < market_data.ema_200:
@@ -394,23 +425,34 @@ class MLPDirectionEntryStrategy:
                 f"{market_data.symbol}: Skip - below EMA200 "
                 f"({market_data.close:.0f} < {market_data.ema_200:.0f})"
             )
+            self._set_rejection_reason(
+                symbol,
+                f"Below EMA200 ({market_data.close:.4f} < {market_data.ema_200:.4f})",
+            )
             return False
         if p.trix_gate_enabled and not self._passes_trix_gate(market_data):
             return False
+        self._clear_rejection_reason(symbol)
         return True
 
     def _passes_trix_gate(self, market_data: MarketData) -> bool:
         p = self.params
+        symbol = market_data.symbol
         trix = float(getattr(market_data, "trix", 0.0))
         trix_signal = float(getattr(market_data, "trix_signal", 0.0))
 
         if not np.isfinite(trix) or not np.isfinite(trix_signal):
             logger.debug(f"{market_data.symbol}: Skip - TRIX gate unavailable")
+            self._set_rejection_reason(symbol, "TRIX gate unavailable")
             return False
 
         if trix <= trix_signal:
             logger.debug(
                 f"{market_data.symbol}: Skip - TRIX gate fail (trix={trix:.5f} <= signal={trix_signal:.5f})"
+            )
+            self._set_rejection_reason(
+                symbol,
+                f"TRIX gate fail (trix={trix:.5f} <= signal={trix_signal:.5f})",
             )
             return False
 
@@ -418,8 +460,10 @@ class MLPDirectionEntryStrategy:
             logger.debug(
                 f"{market_data.symbol}: Skip - TRIX <= 0 (trix={trix:.5f})"
             )
+            self._set_rejection_reason(symbol, f"TRIX <= 0 (trix={trix:.5f})")
             return False
 
+        self._clear_rejection_reason(symbol)
         return True
 
     def _get_prediction_and_confidence(
@@ -440,6 +484,7 @@ class MLPDirectionEntryStrategy:
         features = self._extract_features(market_data, {})
         if features is None:
             logger.debug(f"{market_data.symbol}: Skip - feature extraction failed")
+            self._set_rejection_reason(market_data.symbol, "Feature extraction failed")
             return None
         return self._predict(features)
 
@@ -559,6 +604,10 @@ class MLPDirectionEntryStrategy:
                     f"{market_data.symbol}: MLP {feature_set} warming up "
                     f"({len(self._history)}/{self.MIN_HISTORY_BARS} bars)"
                 )
+            self._set_rejection_reason(
+                market_data.symbol,
+                f"MLP warmup ({len(self._history)}/{self.MIN_HISTORY_BARS} bars)",
+            )
             return None
 
         try:
@@ -573,6 +622,7 @@ class MLPDirectionEntryStrategy:
 
             if np.isnan(last_features).any():
                 logger.debug(f"{market_data.symbol}: Features contain NaN, skipping")
+                self._set_rejection_reason(market_data.symbol, "Feature vector contains NaN")
                 return None
 
             pred, conf = self._predict(last_features)
@@ -584,6 +634,10 @@ class MLPDirectionEntryStrategy:
 
         except Exception as e:
             logger.warning(f"{market_data.symbol}: {feature_set} feature computation failed: {e}")
+            self._set_rejection_reason(
+                market_data.symbol,
+                f"{feature_set} feature computation failed",
+            )
             return None
 
     def _compute_paper36_features(self, market_data: MarketData) -> tuple[int, float] | None:

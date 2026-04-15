@@ -311,6 +311,12 @@ class IndicatorService:
                 self._cache_hits += 1
                 # Update close, high, low with current price for accurate real-time data
                 # Note: Indicators (RSI, MFI, etc.) remain from cache - only price fields update
+                buffer = self._price_buffers.get(symbol)
+                latest_ts = (
+                    int(buffer[-1].get("timestamp", cached_data.timestamp))
+                    if buffer
+                    else cached_data.timestamp
+                )
                 updated_high = max(cached_data.high, current_price)
                 updated_low = min(cached_data.low, current_price)
                 return replace(
@@ -318,6 +324,7 @@ class IndicatorService:
                     close=current_price,
                     high=updated_high,
                     low=updated_low,
+                    timestamp=latest_ts,
                 )
 
         # Cache miss - need to recalculate

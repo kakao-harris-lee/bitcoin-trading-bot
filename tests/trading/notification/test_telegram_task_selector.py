@@ -33,11 +33,21 @@ def _selector_event(
     }
 
 
-def _build_task(monkeypatch: pytest.MonkeyPatch) -> TelegramTask:
+def _build_task(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    normal_cooldown: int = 0,
+    anomaly_cooldown: int = 0,
+    new_candidate_cooldown: int = 0,
+    dq_alert_cooldown: int = 0,
+) -> TelegramTask:
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "123")
-    monkeypatch.setenv("TELEGRAM_SELECTOR_NORMAL_COOLDOWN_SEC", "0")
-    monkeypatch.setenv("TELEGRAM_SELECTOR_ANOMALY_COOLDOWN_SEC", "0")
+    monkeypatch.setenv("TELEGRAM_NOTIFY_SELECTOR_EVENTS", "true")
+    monkeypatch.setenv("TELEGRAM_SELECTOR_NORMAL_COOLDOWN_SEC", str(normal_cooldown))
+    monkeypatch.setenv("TELEGRAM_SELECTOR_ANOMALY_COOLDOWN_SEC", str(anomaly_cooldown))
+    monkeypatch.setenv("TELEGRAM_SELECTOR_NEW_CANDIDATE_COOLDOWN_SEC", str(new_candidate_cooldown))
+    monkeypatch.setenv("TELEGRAM_SELECTOR_DQ_ALERT_COOLDOWN_SEC", str(dq_alert_cooldown))
     redis = AsyncMock()
     task = TelegramTask(redis=redis)
     task._send_message = AsyncMock(return_value=True)  # type: ignore[method-assign]
@@ -122,6 +132,35 @@ async def test_selector_dq_alert_notifies_even_without_rotation(monkeypatch: pyt
 
 
 @pytest.mark.asyncio
+async def test_selector_low_selected_count_without_drop_is_suppressed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task = _build_task(monkeypatch)
+
+    await task._handle_selector_event(
+        _selector_event(
+            strategy="mlp_direction_bnb",
+            changed=False,
+            selected=["LINK"],
+            dq_blocked_count=0,
+            universe_size=64,
+        )
+    )
+
+    # selected_count remains 1 -> no drop event, should stay suppressed.
+    await task._handle_selector_event(
+        _selector_event(
+            strategy="mlp_direction_bnb",
+            changed=True,
+            selected=["LTC"],
+            dq_blocked_count=0,
+            universe_size=64,
+        )
+    )
+    assert task._send_message.await_count == 0
+
+
+@pytest.mark.asyncio
 async def test_selector_entry_ready_notifies_on_new_signal_signature(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -144,6 +183,91 @@ async def test_selector_entry_ready_notifies_on_new_signal_signature(
             changed=False,
             selected=["SNX", "ADA", "AVAX", "DOT"],
             signal_events=[{"type": "ENTRY_READY", "symbol": "SNX", "score": 0.46}],
+        )
+    )
+    assert task._send_message.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_selector_new_candidate_reason_cooldown_suppresses_repeats(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task = _build_task(monkeypatch, new_candidate_cooldown=600)
+    clock = iter([1_000.0, 1_100.0])
+    monkeypatch.setattr("trading.notification.telegram_task.time.time", lambda: next(clock))
+
+    # Seed snapshot without triggering dq/liquidity alert.
+    await task._handle_selector_event(
+        _selector_event(
+            strategy="mlp_direction_bnb",
+            changed=False,
+            selected=["ADA", "AVAX", "DOT", "LINK"],
+            dq_blocked_count=0,
+            universe_size=64,
+        )
+    )
+
+    await task._handle_selector_event(
+        _selector_event(
+            strategy="mlp_direction_bnb",
+            changed=True,
+            selected=["ADA", "AVAX", "DOT", "LTC"],
+            dq_blocked_count=0,
+            universe_size=64,
+            signal_events=[{"type": "NEW_CANDIDATE", "symbol": "LTC", "score": 0.011}],
+        )
+    )
+    assert task._send_message.await_count == 1
+
+    await task._handle_selector_event(
+        _selector_event(
+            strategy="mlp_direction_bnb",
+            changed=True,
+            selected=["ADA", "AVAX", "DOT", "SUI"],
+            dq_blocked_count=0,
+            universe_size=64,
+            signal_events=[{"type": "NEW_CANDIDATE", "symbol": "SUI", "score": 0.059}],
+        )
+    )
+    assert task._send_message.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_selector_dq_alert_reason_cooldown_suppresses_repeats(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task = _build_task(monkeypatch, dq_alert_cooldown=600)
+    clock = iter([2_000.0, 2_060.0])
+    monkeypatch.setattr("trading.notification.telegram_task.time.time", lambda: next(clock))
+
+    await task._handle_selector_event(
+        _selector_event(
+            strategy="mlp_direction_bnb",
+            changed=False,
+            selected=["ADA", "AVAX", "DOT", "XLM"],
+            dq_blocked_count=0,
+            universe_size=64,
+        )
+    )
+
+    await task._handle_selector_event(
+        _selector_event(
+            strategy="mlp_direction_bnb",
+            changed=False,
+            selected=["ADA", "AVAX", "DOT", "XLM"],
+            dq_blocked_count=25,
+            universe_size=64,
+        )
+    )
+    assert task._send_message.await_count == 1
+
+    await task._handle_selector_event(
+        _selector_event(
+            strategy="mlp_direction_bnb",
+            changed=False,
+            selected=["ADA", "AVAX", "DOT", "XLM"],
+            dq_blocked_count=35,
+            universe_size=64,
         )
     )
     assert task._send_message.await_count == 1

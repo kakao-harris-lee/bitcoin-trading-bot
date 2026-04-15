@@ -26,6 +26,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import inspect
+from datetime import datetime
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -61,6 +64,14 @@ class StateManager:
         self._key_prefix = key_prefix
         # Local cache for fast reads
         self._cache: dict[str, Any] = {}
+        try:
+            self._event_maxlen = max(1000, int(os.getenv("STATE_EVENT_MAXLEN", "200000")))
+        except ValueError:
+            self._event_maxlen = 200000
+        try:
+            self._state_ttl_sec = max(0, int(os.getenv("STATE_KEY_TTL_SEC", str(90 * 24 * 3600))))
+        except ValueError:
+            self._state_ttl_sec = 90 * 24 * 3600
 
     def _make_key(self, symbol: str, variable: str) -> str:
         """Generate Redis key for a state variable.
@@ -79,6 +90,63 @@ class StateManager:
     def _cache_key(self, symbol: str, variable: str) -> str:
         """Generate local cache key."""
         return f"{symbol}:{variable}"
+
+    def _index_key(self, symbol: str) -> str:
+        """Generate Redis key for state variable index."""
+        return f"{self._key_prefix}:index:{self._strategy_name}:{symbol}"
+
+    async def _safe_record_event(
+        self,
+        symbol: str,
+        variable: str,
+        event_type: str,
+        value: Any = None,
+    ) -> None:
+        """Best-effort state event emission (never fails main state write)."""
+        try:
+            payload = {
+                "event": event_type,
+                "strategy": self._strategy_name,
+                "symbol": symbol,
+                "variable": variable,
+                "timestamp": datetime.now().isoformat(),
+                "timestamp_ms": str(int(datetime.now().timestamp() * 1000)),
+            }
+            if value is not None:
+                payload["value"] = json.dumps(value)
+            await self._redis.xadd("state:events", payload, maxlen=self._event_maxlen)
+        except Exception:
+            return
+
+    async def _safe_index_add(self, symbol: str, variable: str) -> None:
+        """Best-effort add variable to per-symbol state index."""
+        try:
+            result = self._redis.sadd(self._index_key(symbol), variable)
+            if inspect.isawaitable(result):
+                await result
+            await self._safe_refresh_index_ttl(symbol)
+        except Exception:
+            return
+
+    async def _safe_index_remove(self, symbol: str, variable: str) -> None:
+        """Best-effort remove variable from per-symbol state index."""
+        try:
+            result = self._redis.srem(self._index_key(symbol), variable)
+            if inspect.isawaitable(result):
+                await result
+            await self._safe_refresh_index_ttl(symbol)
+        except Exception:
+            return
+
+    async def _safe_refresh_index_ttl(self, symbol: str) -> None:
+        if self._state_ttl_sec <= 0:
+            return
+        try:
+            result = self._redis.expire(self._index_key(symbol), self._state_ttl_sec)
+            if inspect.isawaitable(result):
+                await result
+        except Exception:
+            return
 
     async def load(
         self,
@@ -169,7 +237,12 @@ class StateManager:
         try:
             # Write to Redis first to ensure persistence
             serialized = json.dumps(value)
-            await self._redis.set(key, serialized)
+            if self._state_ttl_sec > 0:
+                await self._redis.set(key, serialized, ex=self._state_ttl_sec)
+            else:
+                await self._redis.set(key, serialized)
+            await self._safe_index_add(symbol, variable)
+            await self._safe_record_event(symbol, variable, "state_set", value)
 
             # Only update cache after successful Redis write
             self._cache[cache_key] = value
@@ -206,6 +279,8 @@ class StateManager:
 
         try:
             await self._redis.delete(key)
+            await self._safe_index_remove(symbol, variable)
+            await self._safe_record_event(symbol, variable, "state_delete")
             logger.debug("StateManager: Deleted %s", key)
         except Exception as e:
             logger.warning("StateManager: Failed to delete %s: %s", key, e)

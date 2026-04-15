@@ -21,6 +21,25 @@ class JobStatus(Enum):
     CANCELLED = "cancelled"
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+QUANTLAB_ACTIVE_JOB_TTL_SEC = _env_int("QUANTLAB_ACTIVE_JOB_TTL_SEC", 3 * 24 * 3600)
+QUANTLAB_FINISHED_JOB_TTL_SEC = _env_int("QUANTLAB_FINISHED_JOB_TTL_SEC", 14 * 24 * 3600)
+QUANTLAB_JOB_INDEX_TTL_SEC = _env_int("QUANTLAB_JOB_INDEX_TTL_SEC", 30 * 24 * 3600)
+QUANTLAB_JOB_INDEX_KEY = "quant_lab:jobs"
+
+
+def _job_ttl_for_status(status: JobStatus) -> int:
+    if status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED):
+        return max(60, QUANTLAB_FINISHED_JOB_TTL_SEC)
+    return max(60, QUANTLAB_ACTIVE_JOB_TTL_SEC)
+
+
 @dataclass
 class OptimizationJob:
     """Configuration for an optimization job."""
@@ -183,7 +202,11 @@ def _update_job_status(
         }
         if extra:
             data.update(extra)
-        r.hset(f"quant_lab:job:{job_id}", mapping={k: json.dumps(v) for k, v in data.items()})
+        key = f"quant_lab:job:{job_id}"
+        r.hset(key, mapping={k: json.dumps(v) for k, v in data.items()})
+        r.sadd(QUANTLAB_JOB_INDEX_KEY, job_id)
+        r.expire(QUANTLAB_JOB_INDEX_KEY, max(300, QUANTLAB_JOB_INDEX_TTL_SEC))
+        r.expire(key, _job_ttl_for_status(status))
     except Exception:  # pylint: disable=broad-exception-caught
         pass  # Don't fail optimization if Redis update fails
 
@@ -193,9 +216,13 @@ def _on_trial_complete(job_id: str, study, trial) -> None:
     try:
         r = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379"))
         # trial.number is 0-indexed, so add 1 for display (trial 0 = "1 of N")
-        r.hset(f"quant_lab:job:{job_id}", mapping={
+        key = f"quant_lab:job:{job_id}"
+        r.hset(key, mapping={
             "current_trial": json.dumps(trial.number + 1),
             "best_values": json.dumps(study.best_trials[0].values if study.best_trials else None),
         })
+        r.sadd(QUANTLAB_JOB_INDEX_KEY, job_id)
+        r.expire(QUANTLAB_JOB_INDEX_KEY, max(300, QUANTLAB_JOB_INDEX_TTL_SEC))
+        r.expire(key, _job_ttl_for_status(JobStatus.RUNNING))
     except Exception:  # pylint: disable=broad-exception-caught
         pass

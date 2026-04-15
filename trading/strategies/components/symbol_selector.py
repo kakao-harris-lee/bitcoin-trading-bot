@@ -38,13 +38,18 @@ class SymbolSelectorConfig:
     skip_bear_regime: bool = True
     keep_previous_on_empty: bool = True
     max_price_age_seconds: float = 0.0
+    stale_soft_grace_multiplier: float = 1.0
     startup_grace_seconds: float = 0.0
     volume_burst_ratio: float = 1.2
     compression_bbw_threshold: float = 0.12
     score_jump_threshold: float = 0.18
     entry_ready_score: float = 0.42
+    min_consecutive_eligible: int = 1
+    entry_ready_min_consecutive: int = 1
     max_signal_events: int = 6
     score_weights: Mapping[str, float] | None = None
+    blocked_symbols: list[str] | None = None
+    symbol_score_multipliers: Mapping[str, float] | None = None
 
     @classmethod
     def from_dict(cls, raw: dict | None) -> "SymbolSelectorConfig":
@@ -62,6 +67,10 @@ class SymbolSelectorConfig:
             max_price_age_seconds=max(
                 0.0,
                 _safe_float(data.get("max_price_age_seconds", 0.0), 0.0),
+            ),
+            stale_soft_grace_multiplier=max(
+                1.0,
+                _safe_float(data.get("stale_soft_grace_multiplier", 1.0), 1.0),
             ),
             startup_grace_seconds=max(
                 0.0,
@@ -83,8 +92,18 @@ class SymbolSelectorConfig:
                 0.0,
                 _safe_float(data.get("entry_ready_score", 0.42), 0.42),
             ),
+            min_consecutive_eligible=max(
+                1,
+                int(data.get("min_consecutive_eligible", 1)),
+            ),
+            entry_ready_min_consecutive=max(
+                1,
+                int(data.get("entry_ready_min_consecutive", 1)),
+            ),
             max_signal_events=max(1, int(data.get("max_signal_events", 6))),
             score_weights=data.get("score_weights"),
+            blocked_symbols=data.get("blocked_symbols"),
+            symbol_score_multipliers=data.get("symbol_score_multipliers"),
         )
 
 
@@ -155,6 +174,8 @@ class DynamicSymbolSelector:
         self._last_ranking: list[SymbolScore] = []
         self._last_evaluations: list[SymbolScore] = []
         self._last_signal_events: list[SymbolSignalEvent] = []
+        self._eligible_streaks: dict[str, int] = {}
+        self._entry_ready_streaks: dict[str, int] = {}
 
     @property
     def enabled(self) -> bool:
@@ -253,10 +274,17 @@ class DynamicSymbolSelector:
                 weights[str(key)] = _safe_float(value, weights.get(str(key), 0.0))
 
         rows: list[SymbolScore] = []
+        blocked_symbols = {str(symbol) for symbol in (self.config.blocked_symbols or []) if str(symbol)}
+        multipliers = {
+            str(symbol): _safe_float(value, 1.0)
+            for symbol, value in (self.config.symbol_score_multipliers or {}).items()
+        }
         for symbol in universe:
             md = market_data.get(symbol)
             ctx = contexts.get(symbol)
             if md is None or ctx is None:
+                self._eligible_streaks[symbol] = 0
+                self._entry_ready_streaks[symbol] = 0
                 rows.append(
                     SymbolScore(
                         symbol=symbol,
@@ -281,6 +309,29 @@ class DynamicSymbolSelector:
                     )
                 )
                 continue
+            if symbol in blocked_symbols:
+                self._eligible_streaks[symbol] = 0
+                self._entry_ready_streaks[symbol] = 0
+                rows.append(
+                    SymbolScore(
+                        symbol=symbol,
+                        score=-999.0,
+                        regime=ctx.regime,
+                        adx=float(md.adx),
+                        volume_ratio=(md.volume / md.avg_volume_20) if md.avg_volume_20 > 0 else 1.0,
+                        momentum=((md.close / md.ema_20) - 1.0) if md.ema_20 > 0 else 0.0,
+                        price_age_seconds=max(0.0, now - (float(md.timestamp) / 1000.0)) if md.timestamp > 0 else 0.0,
+                        ignition_score=0.0,
+                        breakout_ratio=0.0,
+                        volume_burst=0.0,
+                        compression_score=0.0,
+                        ema_alignment=0.0,
+                        mfi_bias=0.0,
+                        eligible=False,
+                        reason="blocked_symbol",
+                    )
+                )
+                continue
             price_age_seconds = max(0.0, now - (float(md.timestamp) / 1000.0)) if md.timestamp > 0 else 0.0
             score, reason, details = self._score_symbol(
                 md,
@@ -289,7 +340,22 @@ class DynamicSymbolSelector:
                 price_age_seconds,
                 now,
             )
+            if score is not None:
+                score *= max(multipliers.get(symbol, 1.0), 0.0)
             eligible = score is not None
+            if eligible:
+                streak = self._eligible_streaks.get(symbol, 0) + 1
+                self._eligible_streaks[symbol] = streak
+                if streak < self.config.min_consecutive_eligible:
+                    eligible = False
+                    reason = "candidate_persistence"
+            else:
+                self._eligible_streaks[symbol] = 0
+                self._entry_ready_streaks[symbol] = 0
+            if eligible and score is not None and score >= self.config.entry_ready_score:
+                self._entry_ready_streaks[symbol] = self._entry_ready_streaks.get(symbol, 0) + 1
+            else:
+                self._entry_ready_streaks[symbol] = 0
             rows.append(
                 SymbolScore(
                     symbol=symbol,
@@ -329,6 +395,7 @@ class DynamicSymbolSelector:
     ) -> tuple[float | None, str, dict[str, float]]:
         details = self._compute_components(md, ctx)
         effective_max_price_age = self._effective_max_price_age_seconds()
+        stale_penalty_multiplier = 1.0
         if (
             not self._is_startup_grace_active(now)
             and
@@ -336,7 +403,16 @@ class DynamicSymbolSelector:
             and md.timestamp > 0
             and price_age_seconds > effective_max_price_age
         ):
-            return None, "stale_price", details
+            soft_limit = effective_max_price_age * max(self.config.stale_soft_grace_multiplier, 1.0)
+            if soft_limit <= effective_max_price_age or price_age_seconds > soft_limit:
+                return None, "stale_price", details
+            grace_span = max(soft_limit - effective_max_price_age, 1e-9)
+            stale_penalty_multiplier = _clamp(
+                1.0 - ((price_age_seconds - effective_max_price_age) / grace_span),
+                0.0,
+                1.0,
+            )
+            details["stale_penalty_multiplier"] = stale_penalty_multiplier
         if self.config.skip_bear_regime and ctx.regime in BEAR_REGIMES:
             return None, "bear_regime", details
         if self.config.require_above_ema200 and md.ema_200 > 0 and md.close < md.ema_200:
@@ -359,6 +435,7 @@ class DynamicSymbolSelector:
             + details["mfi_component"] * weights.get("mfi", 0.0)
             + details["volume_burst_component"] * weights.get("volume_burst", 0.0)
         )
+        score *= stale_penalty_multiplier
         details["ignition"] = score
 
         if score < self.config.min_score:
@@ -492,7 +569,11 @@ class DynamicSymbolSelector:
         for row in ranked[: self.config.top_n]:
             if row.symbol not in selected:
                 continue
-            if row.score >= self.config.entry_ready_score:
+            ready_streak = self._entry_ready_streaks.get(row.symbol, 0)
+            if (
+                row.score >= self.config.entry_ready_score
+                and ready_streak >= self.config.entry_ready_min_consecutive
+            ):
                 events.append(
                     SymbolSignalEvent(
                         event_type="ENTRY_READY",

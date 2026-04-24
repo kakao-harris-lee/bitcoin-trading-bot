@@ -193,8 +193,6 @@ def main() -> int:
     all_classes = sorted(CLASS_TO_REGIME.keys())
     rf_val_proba = predict_proba_all_classes(rf, X_val, all_classes)
     rf_test_proba = predict_proba_all_classes(rf, X_test, all_classes)
-    rf_test_pred_raw = rf_test_proba.argmax(axis=1)
-
     calibration_grid = _parse_float_grid(args.rf_calibration_grid, low=0.05, high=5.0)
     best_multipliers, best_calibration = tune_class_multipliers(
         rf_val_proba,
@@ -202,7 +200,6 @@ def main() -> int:
         grid_values=calibration_grid,
     )
     rf_test_proba_cal = apply_class_multipliers(rf_test_proba, best_multipliers)
-    rf_test_pred_cal = rf_test_proba_cal.argmax(axis=1)
 
     # HMM train/test
     include_atr, include_adx, include_volume = _parse_hmm_extra_features(args.hmm_extra_features)
@@ -233,7 +230,6 @@ def main() -> int:
 
     hmm_test_states = hmm.predict(hmm_test[hmm_feature_cols].to_numpy(dtype=float))
     hmm_test_proba = states_to_class_proba(hmm_test_states, state_dist, n_classes=len(all_classes))
-    hmm_test_pred = hmm_test_proba.argmax(axis=1)
 
     # Fair OOS comparison on common index subset
     rf_test_df = pd.DataFrame(rf_test_proba, index=X_test.index, columns=all_classes)

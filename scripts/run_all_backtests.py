@@ -48,14 +48,6 @@ def run_router_live_backtest(period: str = "all", by_year: bool = False):
     return run_command(cmd, f"Router Live (Regime-based) Backtest (period={period})")
 
 
-def run_sideways_v2_backtest(period: str = "all", by_year: bool = False):
-    """Run Sideways V2 strategy backtest."""
-    cmd = ["python", "scripts/backtest_strategies.py", "--strategy", "sideways_v2", "--period", period]
-    if by_year:
-        cmd.append("--by-year")
-    return run_command(cmd, f"Sideways V2 Strategy Backtest (period={period})")
-
-
 def run_portfolio_backtest(by_year: bool = False):
     """Run combined portfolio backtest."""
     cmd = ["python", "scripts/backtest.py"]
@@ -76,7 +68,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run all backtests")
     parser.add_argument("--quick", action="store_true", help="Quick sanity check (2024 only)")
     parser.add_argument("--yearly", action="store_true", help="Include year-by-year breakdown")
-    parser.add_argument("--strategy", choices=["all", "router", "sideways", "portfolio", "unified"],
+    parser.add_argument("--strategy", choices=["all", "router", "portfolio", "unified"],
                         default="all", help="Which strategy to backtest")
     parser.add_argument("--period", choices=["train", "test", "all"], default="all",
                         help="Backtest period")
@@ -97,15 +89,11 @@ def main():
     if args.strategy in ["all", "router"]:
         results["Router Live"] = run_router_live_backtest(period, by_year)
 
-    # 2. Sideways V2 Strategy
-    if args.strategy in ["all", "sideways"]:
-        results["Sideways V2"] = run_sideways_v2_backtest(period, by_year)
-
-    # 3. Combined Portfolio
+    # 2. Combined Portfolio
     if args.strategy in ["all", "portfolio"]:
         results["Portfolio"] = run_portfolio_backtest(by_year)
 
-    # 4. Unified Backtester
+    # 3. Unified Backtester
     if args.strategy in ["all", "unified"]:
         mode = "quick" if args.quick else "full"
         results["Unified"] = run_unified_backtest(mode)

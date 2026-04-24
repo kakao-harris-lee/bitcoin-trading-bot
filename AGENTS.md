@@ -33,8 +33,8 @@
 - PRs should summarize behavior changes, list test/backtest commands, and call out config modifications (especially `allocation.json` or tuned params).
 - Include screenshots/GIFs for dashboard/UI updates when relevant.
 
-## Recent Updates (2026-02-12)
-- Hybrid mode remains standard: MLP Direction strategies run on Spot; Short/Sideways run on Futures.
+## Recent Updates (2026-04-23)
+- Spot-only mode is standard: active trading, backtesting, dashboard, and executors operate on spot only.
 - Component engine is the default (`use_component_strategies=true`), and every strategy in `allocation.json` must resolve to valid `entry`/`exit` components (or registry aliases).
 - Legacy premium/arbitrage (Kimchi premium) subsystem is retired and should stay removed/disabled in configs.
 - Latest planning docs:

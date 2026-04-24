@@ -14,7 +14,6 @@ def test_get_available_strategies_only_includes_enabled_allocation_and_wf(monkey
         backtest_runner,
         "STRATEGY_REGISTRY",
         {
-            "sideways_v2": _mock_spec("futures"),
             "mlp_direction": _mock_spec("spot"),
             "regime_long_v2": _mock_spec("spot"),
             "hybrid_long_v2": _mock_spec("spot"),
@@ -45,7 +44,6 @@ def test_get_available_strategies_only_includes_enabled_allocation_and_wf(monkey
     ids = [s["id"] for s in strategies]
 
     assert ids == ["mlp_direction_btc", "wf_tree60_btc"]
-    assert "sideways_v2" not in ids
     assert "mlp_direction" not in ids
     assert "regime_long_v2" not in ids
 

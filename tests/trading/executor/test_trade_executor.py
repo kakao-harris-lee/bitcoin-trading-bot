@@ -1,8 +1,8 @@
-# tests/trading/executor/test_trade_executor.py
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from trading.executor.trade_executor import TradeExecutor
+
 from trading.executor.risk_controls import RiskControls
+from trading.executor.trade_executor import TradeExecutor
 
 
 class TestRiskControls:
@@ -19,27 +19,16 @@ class TestRiskControls:
 
     def test_kill_switch_blocks_trade(self, risk):
         risk.set_kill_switch(True)
-        assert not risk.allow_trade("short_v1", {"action": "buy", "size": 0.1})
+        assert not risk.allow_trade("h4", {"action": "buy", "size": 0.1})
 
     def test_normal_trade_allowed(self, risk):
-        assert risk.allow_trade("short_v1", {"action": "buy", "size": 0.1})
-
-    def test_daily_loss_blocks_trade(self, risk):
-        # Record losses exceeding limit
-        risk.record_pnl("short_v1", -3.0)
-        risk.record_pnl("short_v1", -3.0)
-
-        assert not risk.allow_trade("short_v1", {"action": "buy", "size": 0.1})
-
-    def test_position_size_blocks_trade(self, risk):
-        # Size exceeds max
-        assert not risk.allow_trade("short_v1", {"action": "buy", "size": 1.5})
+        assert risk.allow_trade("h4", {"action": "buy", "size": 0.1})
 
     def test_record_pnl_accumulates(self, risk):
-        risk.record_pnl("short_v1", 2.0)
-        risk.record_pnl("short_v1", -1.0)
+        risk.record_pnl("h4", 2.0)
+        risk.record_pnl("h4", -1.0)
         pnl = risk.get_daily_pnl()
-        assert pnl["short_v1"] == 1.0
+        assert pnl["h4"] == 1.0
 
 
 class TestTradeExecutor:
@@ -61,46 +50,41 @@ class TestTradeExecutor:
         return TradeExecutor(mock_redis, binance, config)
 
     def test_strategy_exchange_mapping(self, executor):
-        # All strategies now map to binance
-        assert executor.STRATEGY_EXCHANGE["short_v1"] == "binance"
-        assert executor.STRATEGY_EXCHANGE["short_v1"] == "binance"
-        assert executor.STRATEGY_EXCHANGE["sideways_v2"] == "binance"
-        assert executor.STRATEGY_EXCHANGE["h4"] == "binance"
+        assert executor.STRATEGY_EXCHANGE == {"h4": "binance"}
+        assert executor.SIGNAL_STREAMS == ["signals:h4"]
 
     @pytest.mark.asyncio
     async def test_process_signal_paper_mode(self, executor):
         msg = {
-            "stream": "signals:short_v1",
+            "stream": "signals:h4",
             "data": {
-                "action": "short",
+                "action": "buy",
                 "price": 50000.0,
                 "size": 0.1,
-                "reason": "TEST"
-            }
+                "reason": "TEST",
+            },
         }
 
         await executor.process_signal(msg)
 
-        # Should have recorded paper position
-        assert "short_v1" in executor._positions
-        assert executor._positions["short_v1"]["active"] is True
-        assert executor._positions["short_v1"]["entry_price"] == 50000.0
+        assert "h4" in executor._positions
+        assert executor._positions["h4"]["active"] is True
+        assert executor._positions["h4"]["entry_price"] == 50000.0
 
     @pytest.mark.asyncio
     async def test_process_signal_blocked_by_kill_switch(self, executor):
         executor.risk.set_kill_switch(True)
 
         msg = {
-            "stream": "signals:short",
+            "stream": "signals:h4",
             "data": {
                 "action": "buy",
                 "price": 50000.0,
                 "size": 0.1,
-                "reason": "TEST"
-            }
+                "reason": "TEST",
+            },
         }
 
         await executor.process_signal(msg)
 
-        # Should NOT have recorded position
-        assert "short_v1" not in executor._positions
+        assert "h4" not in executor._positions

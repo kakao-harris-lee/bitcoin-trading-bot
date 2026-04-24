@@ -351,7 +351,6 @@ def calculate_mlp_features_v2(
     Returns:
         DataFrame with 36 feature columns (v2 feature order)
     """
-    _open = np.asarray(df["open"].values, dtype=np.float64)
     high = np.asarray(df["high"].values, dtype=np.float64)
     low = np.asarray(df["low"].values, dtype=np.float64)
     close = np.asarray(df["close"].values, dtype=np.float64)
@@ -359,7 +358,6 @@ def calculate_mlp_features_v2(
 
     features = pd.DataFrame(index=df.index)
     close_series = pd.Series(close, index=df.index)
-    _volume_series = pd.Series(volume, index=df.index)
 
     # === 13 KEPT features (same calculation as paper_36) ===
 

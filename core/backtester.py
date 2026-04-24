@@ -25,7 +25,6 @@ from core.backtest_logger import BacktestLogger, build_candle_state
 
 if TYPE_CHECKING:
     from trading.strategies.components.interfaces import IEntryStrategy, IExitStrategy
-    from trading.strategies.components.models import MarketData, Position, Signal
 
 # Lazy-loaded model classes to avoid circular imports
 # These are cached on first use for performance in hot loops
@@ -99,7 +98,7 @@ class BacktestAdapter:
         from trading.strategies.components import StrategyFactory
 
         factory = StrategyFactory()
-        entry, exit_strat = factory.create_components("short_v1", config)
+        entry, exit_strat = factory.create_components("regime_long_v2", config)
 
         adapter = BacktestAdapter(
             entry_strategy=entry,
@@ -115,7 +114,7 @@ class BacktestAdapter:
         entry_strategy: "IEntryStrategy",
         exit_strategy: "IExitStrategy",
         symbol: str = "BTC",
-        market: str = "futures",
+        market: str = "spot",
         position_size: float = 0.01,
     ):
         """Initialize the adapter.
@@ -124,13 +123,15 @@ class BacktestAdapter:
             entry_strategy: Entry component implementing IEntryStrategy.
             exit_strategy: Exit component implementing IExitStrategy.
             symbol: Trading symbol for MarketData.
-            market: Market type (must be "futures").
+            market: Market type (spot-only).
             position_size: Default position size as fraction of capital.
         """
         self.entry_strategy = entry_strategy
         self.exit_strategy = exit_strategy
         self.symbol = symbol
         self.market = market
+        if self.market != "spot":
+            raise ValueError("BacktestAdapter is spot-only.")
         self.position_size = position_size
 
         # Position state for exit evaluation
@@ -360,30 +361,31 @@ class Backtester:
         fee_rate: float = None,  # Auto-detect from market if None
         slippage: float = 0.0004,   # 0.04%
         min_order_amount: float = 10,
-        market: str = "futures",
+        market: str = "spot",
     ):
         """
         Args:
             initial_capital: Initial capital in USD (default $10,000).
-            fee_rate: Fee rate (None = auto-detect: spot=0.1%, futures=0.05%).
+            fee_rate: Fee rate (None = auto-detect: spot=0.1%).
             slippage: Slippage rate (default 0.04%).
             min_order_amount: Minimum order amount in USD (default $10).
-            market: Market type ("spot" or "futures").
+            market: Market type ("spot" only).
         """
+        if market != "spot":
+            raise ValueError("Backtester is spot-only.")
         self.initial_capital = initial_capital
         self.market = market
 
-        # Auto-detect fee rate based on market
+        # Spot-only fee rate
         if fee_rate is None:
-            self.fee_rate = 0.001 if market == "spot" else 0.0005
+            self.fee_rate = 0.001
         else:
             self.fee_rate = fee_rate
 
         self.slippage = slippage
         self.min_order_amount = min_order_amount
 
-        # Spot has no leverage
-        self.leverage = 1 if market == "spot" else 3
+        self.leverage = 1
 
         # 상태 변수
         self.cash = initial_capital
@@ -500,28 +502,20 @@ class Backtester:
         fraction: float,
         signal_reason: str = "",
     ) -> None:
-        """Execute buy/sell/short action for the current candle."""
+        """Execute buy/sell action for the current candle."""
         if action == 'buy':
             self._execute_buy(timestamp, price, fraction, signal_reason=signal_reason)
             return
         if action == 'sell':
             self._execute_sell(timestamp, price, fraction, signal_reason=signal_reason)
             return
-        if action == 'open_short':
-            self._execute_open_short(timestamp, price, fraction, signal_reason=signal_reason)
-            return
-        if action == 'close_short':
-            self._execute_close_short(timestamp, price, fraction, signal_reason=signal_reason)
+        if action in {'open_short', 'close_short'}:
+            raise ValueError("Unsupported non-spot backtest action.")
 
     def _record_equity_snapshot(self, timestamp: Any, price: float) -> float:
         """Update position value and append equity curve snapshot."""
         if self.position > 0:
-            # Long: position value is qty * price
             self.position_value = self.position * price
-        elif self.position < 0:
-            # Short: unrealized PnL = (entry_price - current_price) * abs(qty)
-            # Cash already includes collateral; position_value is the unrealized PnL
-            self.position_value = self.position * price  # negative qty * price = negative
         else:
             self.position_value = 0.0
         total_equity = self.cash + self.position_value
@@ -582,24 +576,20 @@ class Backtester:
         if self.position == 0:
             return "none", 0.0
         if not self.trades:
-            return ("long" if self.position > 0 else "short"), 0.0
+            return "long", 0.0
         open_trade = None
         for trade in reversed(self.trades):
             if trade.exit_time is None:
                 open_trade = trade
                 break
         if open_trade is None:
-            return ("long" if self.position > 0 else "short"), 0.0
-        side = "long" if self.position > 0 else "short"
-        return side, float(open_trade.entry_price)
+            return "long", 0.0
+        return "long", float(open_trade.entry_price)
 
     def _compute_unrealized_pnl(self, price: float, entry_price: float) -> float:
         if self.position == 0 or entry_price <= 0:
             return 0.0
-        if self.position > 0:
-            return (price - entry_price) * self.position
-        # Short: profit when price drops
-        return (entry_price - price) * abs(self.position)
+        return (price - entry_price) * self.position
 
     def _compute_cumulative_pnl(self) -> float:
         return sum(t.profit_loss for t in self.trades if t.profit_loss is not None)
@@ -640,7 +630,7 @@ class Backtester:
 
         Args:
             df: Price DataFrame (timestamp, open, high, low, close, volume).
-            strategy_name: Strategy name (e.g., "short_v1", "sideways_v2").
+            strategy_name: Strategy name.
             config: Configuration parameters for the strategy.
             symbol: Trading symbol for MarketData.
             return_backtest_result: If True, return BacktestResult dataclass
@@ -661,14 +651,14 @@ class Backtester:
             # Legacy dict return
             results = backtester.run_strategy(
                 df,
-                strategy_name="short_v1",
+                strategy_name="regime_long_v2",
                 config={"stop_loss_pct": 2.0, "take_profit_pct": 4.0},
             )
 
             # New BacktestResult return with benchmark
             result = backtester.run_strategy(
                 df,
-                strategy_name="short_v1",
+                strategy_name="regime_long_v2",
                 config={"stop_loss_pct": 2.0},
                 return_backtest_result=True,
             )
@@ -678,7 +668,7 @@ class Backtester:
             from core.mlflow_config import MLflowConfig
             result = backtester.run_strategy(
                 df,
-                strategy_name="short_v1",
+                strategy_name="regime_long_v2",
                 config={"stop_loss_pct": 2.0},
                 return_backtest_result=True,
                 mlflow_config=MLflowConfig(),
@@ -755,7 +745,7 @@ class Backtester:
         entry_strategy: "IEntryStrategy",
         exit_strategy: "IExitStrategy",
         symbol: str = "BTC",
-        market: str = "futures",
+        market: str = "spot",
         position_size: float = 0.01,
     ) -> Dict:
         """Run backtest with pre-created entry/exit components.
@@ -768,7 +758,7 @@ class Backtester:
             entry_strategy: Entry component implementing IEntryStrategy.
             exit_strategy: Exit component implementing IExitStrategy.
             symbol: Trading symbol for MarketData.
-            market: Market type ("spot" or "futures").
+            market: Market type ("spot" only).
             position_size: Position size as fraction of capital.
 
         Returns:
@@ -776,12 +766,12 @@ class Backtester:
 
         Example:
             from trading.strategies.components import (
-                ShortEntryStrategy,
-                ShortExitStrategy,
+                RegimeLongV2EntryStrategy,
+                RegimeLongV2ExitStrategy,
             )
 
-            entry = ShortEntryStrategy()
-            exit_strat = ShortExitStrategy()
+            entry = RegimeLongV2EntryStrategy()
+            exit_strat = RegimeLongV2ExitStrategy()
 
             results = backtester.run_components(
                 df, entry, exit_strat, symbol="ETH"
@@ -880,88 +870,6 @@ class Backtester:
             signal_reason=signal_reason,
         )
 
-    def _execute_open_short(
-        self,
-        timestamp: datetime,
-        price: float,
-        fraction: float,
-        signal_reason: str = "",
-    ):
-        """Open a short position (futures margin model).
-
-        Margin model: selling borrowed asset.
-        cash += proceeds from short sale (qty * price)
-        position = -qty (we owe shares)
-        equity = cash + position * price (stays ~constant at open, moves with price)
-        When price drops: position * price becomes less negative → equity rises (profit).
-        """
-        if self.position != 0:
-            return  # Already in a position
-
-        available_cash = self.cash * fraction
-
-        if available_cash < self.min_order_amount:
-            return
-
-        # Slippage: unfavorable for shorts (we sell lower)
-        execution_price = price * (1 - self.slippage)
-
-        # Quantity we can short with available margin (leverage applied)
-        effective_cash = available_cash * self.leverage
-        quantity = effective_cash / (execution_price * (1 + self.fee_rate))
-
-        # Receive proceeds from short sale, minus fee
-        proceeds = quantity * execution_price * (1 - self.fee_rate)
-        self.cash += proceeds
-
-        # Track negative position
-        self.position = -quantity
-
-        trade = Trade(
-            entry_time=timestamp,
-            entry_price=execution_price,
-            quantity=quantity,
-            side='short',
-            reason=signal_reason or f'Short {fraction*100:.1f}% (leverage={self.leverage}x)',
-        )
-        self.trades.append(trade)
-
-    def _execute_close_short(
-        self,
-        timestamp: datetime,
-        price: float,
-        fraction: float,
-        signal_reason: str = "",
-    ):
-        """Close (cover) a short position."""
-        if self.position >= 0:
-            return  # No short position
-
-        quantity = abs(self.position) * fraction
-
-        # Slippage: unfavorable for covering (price rises)
-        execution_price = price * (1 + self.slippage)
-
-        # Cost to buy back + fees
-        cover_cost = quantity * execution_price * (1 + self.fee_rate)
-
-        if cover_cost < self.min_order_amount:
-            return
-
-        self.cash -= cover_cost
-        self.position += quantity  # Moves toward 0
-        if abs(self.position) < 1e-12:
-            self.position = 0.0
-            self.position_value = 0.0
-
-        self._close_short_fifo(
-            timestamp,
-            execution_price,
-            quantity,
-            fraction,
-            signal_reason=signal_reason,
-        )
-
     def _close_long_fifo(
         self,
         timestamp: Any,
@@ -987,58 +895,6 @@ class Backtester:
             pnl = (execution_price - trade.entry_price) * close_qty
             pnl_pct = ((execution_price - trade.entry_price) / trade.entry_price) * 100 if trade.entry_price > 0 else 0.0
             reason = f"{trade.reason} -> Sell {fraction*100:.1f}%"
-            if signal_reason:
-                reason = f"{reason} [{signal_reason}]"
-
-            if close_qty + 1e-12 >= trade.quantity:
-                trade.exit_time = timestamp
-                trade.exit_price = execution_price
-                trade.profit_loss = pnl
-                trade.profit_loss_pct = pnl_pct
-                trade.reason = reason
-            else:
-                trade.quantity -= close_qty
-                self.trades.append(
-                    Trade(
-                        entry_time=trade.entry_time,
-                        entry_price=trade.entry_price,
-                        quantity=close_qty,
-                        side=trade.side,
-                        exit_time=timestamp,
-                        exit_price=execution_price,
-                        profit_loss=pnl,
-                        profit_loss_pct=pnl_pct,
-                        reason=reason,
-                    )
-                )
-
-            remaining -= close_qty
-
-    def _close_short_fifo(
-        self,
-        timestamp: Any,
-        execution_price: float,
-        target_qty: float,
-        fraction: float,
-        signal_reason: str = "",
-    ) -> None:
-        """Close short trades in FIFO order, preserving partial-close accounting."""
-        remaining = target_qty
-        if remaining <= 0:
-            return
-        for trade in self.trades:
-            if remaining <= 1e-12:
-                break
-            if trade.side != "short" or trade.exit_time is not None or trade.quantity <= 0:
-                continue
-
-            close_qty = min(trade.quantity, remaining)
-            if close_qty <= 0:
-                continue
-
-            pnl = (trade.entry_price - execution_price) * close_qty
-            pnl_pct = ((trade.entry_price - execution_price) / trade.entry_price) * 100 if trade.entry_price > 0 else 0.0
-            reason = f"{trade.reason} -> Cover {fraction*100:.1f}%"
             if signal_reason:
                 reason = f"{reason} [{signal_reason}]"
 
@@ -1225,7 +1081,7 @@ if __name__ == "__main__":
     try:
         results2 = backtester.run_strategy(
             df,
-            strategy_name="short_v1",
+            strategy_name="regime_long_v2",
             config={
                 "stop_loss_pct": 2.0,
                 "take_profit_pct": 4.0,

@@ -36,7 +36,7 @@ pytest tests/test_unified_backtester.py -v  # Specific test
 
 # Backtesting
 python scripts/backtest.py --by-year
-python scripts/optimize.py --strategy short_v1 --trials 100
+python scripts/optimize.py --strategy mlp_direction_btc --trials 100
 ```
 
 ## Strategy Development Pattern

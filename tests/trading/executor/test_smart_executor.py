@@ -112,7 +112,7 @@ async def test_calculate_ladder_prices(mock_redis, mock_binance, config, mock_ex
     base_price = 100000.0
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
-        prices = executor._calculate_ladder_prices(base_price, "BTC", "futures")
+        prices = executor._calculate_ladder_prices(base_price, "BTC", "spot")
 
     # Should have 3 tiers at +0.05%, +0.12%, +0.20%
     assert len(prices) == 3
@@ -133,7 +133,7 @@ async def test_calculate_ladder_quantities(mock_redis, mock_binance, config, moc
     total_qty = 0.10
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
-        quantities = executor._calculate_ladder_quantities(total_qty, "BTC", "futures")
+        quantities = executor._calculate_ladder_quantities(total_qty, "BTC", "spot")
 
     # Should split by weights: 40%, 35%, 25%
     assert len(quantities) == 3
@@ -405,15 +405,15 @@ async def test_check_active_exits_clears_position_on_complete(mock_redis, mock_b
     # Create an exit plan with all orders filled
     plan = ExitPlan(
         symbol="BTC",
-        market="futures",
+        market="spot",
         total_quantity=0.10,
         trigger_price=100000.0,
-        strategy="short_v1",
+        strategy="mlp_direction_btc",
         start_time=time.time() - 10,  # Started 10 seconds ago
     )
     plan.ladder_orders = [{"order_id": 12345}]
 
-    executor.active_exits["BTC:futures"] = plan
+    executor.active_exits["BTC:spot"] = plan
 
     # Mock get_order to return fully filled
     mock_binance.get_order = AsyncMock(return_value={
@@ -425,10 +425,10 @@ async def test_check_active_exits_clears_position_on_complete(mock_redis, mock_b
     await executor._check_active_exits()
 
     # Verify position was cleared
-    mock_redis.clear_position.assert_called_once_with("BTC", "futures")
+    mock_redis.clear_position.assert_called_once_with("BTC", "spot")
 
     # Verify exit was removed from active exits
-    assert "BTC:futures" not in executor.active_exits
+    assert "BTC:spot" not in executor.active_exits
 
 
 @pytest.mark.asyncio
@@ -449,16 +449,16 @@ async def test_check_active_exits_phase1_timeout_triggers_sweep(mock_redis, mock
     # Create an exit plan that has exceeded phase1_timeout (60s) but not max_execution_time (90s)
     plan = ExitPlan(
         symbol="BTC",
-        market="futures",
+        market="spot",
         total_quantity=0.10,
         trigger_price=100000.0,
-        strategy="short_v1",
+        strategy="mlp_direction_btc",
         start_time=time.time() - 65,  # Started 65 seconds ago (past phase1 timeout)
         phase="ladder",  # Still in ladder phase
     )
     plan.ladder_orders = [{"order_id": 12345}, {"order_id": 12346}]
 
-    executor.active_exits["BTC:futures"] = plan
+    executor.active_exits["BTC:spot"] = plan
 
     # Mock get_order to return partially filled
     mock_binance.get_order = AsyncMock(return_value={
@@ -479,10 +479,10 @@ async def test_check_active_exits_phase1_timeout_triggers_sweep(mock_redis, mock
     assert call_args.kwargs["side"] == "sell"
 
     # Verify position was cleared
-    mock_redis.clear_position.assert_called_once_with("BTC", "futures")
+    mock_redis.clear_position.assert_called_once_with("BTC", "spot")
 
     # Verify exit was removed from active exits
-    assert "BTC:futures" not in executor.active_exits
+    assert "BTC:spot" not in executor.active_exits
 
 
 @pytest.mark.asyncio
@@ -504,16 +504,16 @@ async def test_check_active_exits_max_timeout_triggers_sweep(mock_redis, mock_bi
     # Set phase to "sweep" so phase1 check is skipped
     plan = ExitPlan(
         symbol="BTC",
-        market="futures",
+        market="spot",
         total_quantity=0.10,
         trigger_price=100000.0,
-        strategy="short_v1",
+        strategy="mlp_direction_btc",
         start_time=time.time() - 95,  # Started 95 seconds ago (past max timeout)
         phase="sweep",  # Already past phase1
     )
     plan.ladder_orders = [{"order_id": 12345}]
 
-    executor.active_exits["BTC:futures"] = plan
+    executor.active_exits["BTC:spot"] = plan
 
     # Mock get_order to return unfilled
     mock_binance.get_order = AsyncMock(return_value={
@@ -528,7 +528,7 @@ async def test_check_active_exits_max_timeout_triggers_sweep(mock_redis, mock_bi
     mock_binance.market_order.assert_called_once()
 
     # Verify position was cleared
-    mock_redis.clear_position.assert_called_once_with("BTC", "futures")
+    mock_redis.clear_position.assert_called_once_with("BTC", "spot")
 
     # Verify exit was removed from active exits
-    assert "BTC:futures" not in executor.active_exits
+    assert "BTC:spot" not in executor.active_exits

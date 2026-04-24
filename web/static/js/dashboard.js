@@ -127,14 +127,6 @@ function getBinanceChartUrl(symbol, market = 'spot') {
     if (!base) {
         return 'https://www.binance.com/en/markets';
     }
-    const isFutures = String(market || '').toLowerCase() === 'futures';
-
-    if (isFutures) {
-        if (quote === 'USD' && base) {
-            return `https://www.binance.com/en/futures/${base}USD_PERP`;
-        }
-        return `https://www.binance.com/en/futures/${pair}`;
-    }
 
     const spotQuote = quote === 'USD' ? 'USDT' : quote;
     return `https://www.binance.com/en/trade/${base}_${spotQuote}?type=spot`;
@@ -864,8 +856,8 @@ async function fetchKillSwitch() {
 // Update exchange balances display
 function updateExchangeBalances(data) {
     if (!data.binance) {
-        document.getElementById('futures-status').textContent = 'Error';
-        document.getElementById('futures-status').className = 'exchange-status error';
+        document.getElementById('spot-status').textContent = 'Error';
+        document.getElementById('spot-status').className = 'exchange-status error';
         return;
     }
 
@@ -877,33 +869,10 @@ function updateExchangeBalances(data) {
     document.getElementById('spot-balance').textContent = formatUSD(spot.usdt_balance || 0);
     document.getElementById('spot-positions-count').textContent = (spot.positions || []).length;
 
-    const futures = binance.futures || {};
-    document.getElementById('futures-status').textContent = 'Connected';
-    document.getElementById('futures-status').className = 'exchange-status connected';
-    document.getElementById('futures-usdt').textContent = formatUSD(futures.usdt_balance || 0);
-
-    // Unrealized PnL with color
-    const unrealizedPnlEl = document.getElementById('futures-unrealized-pnl');
-    const unrealizedPnl = futures.unrealized_pnl || 0;
-    unrealizedPnlEl.textContent = formatUSD(unrealizedPnl);
-    unrealizedPnlEl.className = `value ${unrealizedPnl >= 0 ? 'positive' : 'negative'}`;
-
-    document.getElementById('futures-positions-count').textContent = (futures.positions || []).length;
-    document.getElementById('futures-total').textContent = formatUSD(futures.total || 0);
-
-    // Hedge mode badge
-    const hedgeBadge = document.getElementById('hedge-mode-badge');
-    if (futures.hedge_mode) {
-        hedgeBadge.style.display = 'inline-block';
-    } else {
-        hedgeBadge.style.display = 'none';
-    }
-
     const totalEquity = binance.total_equity || 0;
-    const totalUnrealizedPnl = futures.unrealized_pnl || 0;
+    const totalUnrealizedPnl = 0;
     const spotPositionValue = spot.position_value || 0;
-    const futuresPositionValue = futures.position_value || 0;
-    const totalPositionValue = spotPositionValue + futuresPositionValue;
+    const totalPositionValue = spotPositionValue;
     const exposurePct = totalEquity > 0 ? (totalPositionValue / totalEquity * 100) : 0;
 
     document.getElementById('total-equity').textContent = formatUSD(totalEquity);
@@ -921,7 +890,7 @@ function updateExchangeBalances(data) {
     }
 }
 
-// Fetch exchange balances (hybrid: spot + futures)
+// Fetch exchange balances (spot-only)
 async function fetchExchangeBalances() {
     try {
         const data = await apiFetch('/api/summary');
@@ -934,13 +903,13 @@ async function fetchExchangeBalances() {
             updateExchangeBalances(data);
         } catch (fallbackErr) {
             console.error('Fallback exchange balances fetch error:', fallbackErr);
-            document.getElementById('futures-status').textContent = 'Error';
-            document.getElementById('futures-status').className = 'exchange-status error';
+            document.getElementById('spot-status').textContent = 'Error';
+            document.getElementById('spot-status').className = 'exchange-status error';
         }
     }
 }
 
-// Update hybrid summary (spot + futures)
+// Update spot summary
 function updateHybridSummary(data) {
     // Total equity
     document.getElementById('total-equity').textContent = formatUSD(data.total_equity || 0);
@@ -952,31 +921,12 @@ function updateHybridSummary(data) {
     document.getElementById('spot-balance').textContent = formatUSD(spot.balance || 0);
     document.getElementById('spot-positions-count').textContent = spot.positions || 0;
 
-    // Futures card
-    const futures = data.futures || {};
-    document.getElementById('futures-status').textContent = 'Connected';
-    document.getElementById('futures-status').className = 'exchange-status connected';
-    document.getElementById('futures-usdt').textContent = formatUSD(futures.balance || 0);
-
-    const unrealizedPnlEl = document.getElementById('futures-unrealized-pnl');
-    const unrealizedPnl = futures.unrealized_pnl || 0;
-    unrealizedPnlEl.textContent = formatUSD(unrealizedPnl);
-    unrealizedPnlEl.className = `value ${unrealizedPnl >= 0 ? 'positive' : 'negative'}`;
-
-    document.getElementById('futures-positions-count').textContent = futures.positions || 0;
-    document.getElementById('futures-total').textContent = formatUSD(futures.total || 0);
-
-    // Hedge mode badge (futures)
-    const hedgeBadge = document.getElementById('hedge-mode-badge');
-    if (futures.hedge_mode) {
-        hedgeBadge.style.display = 'inline-block';
-    } else {
-        hedgeBadge.style.display = 'none';
-    }
-
     // Update portfolio summary
     const totalEquity = data.total_equity || 0;
-    const totalUnrealizedPnl = unrealizedPnl; // Currently only futures has unrealized PnL
+    const totalUnrealizedPnl = (data.positions || []).reduce(
+        (acc, pos) => acc + (pos.unrealized_pnl || 0),
+        0,
+    );
 
     document.getElementById('total-capital').textContent = formatUSD(totalEquity);
     document.getElementById('total-value').textContent = formatUSD(totalEquity);
@@ -986,13 +936,7 @@ function updateHybridSummary(data) {
     portfolioPnlEl.className = `value ${totalUnrealizedPnl >= 0 ? 'positive' : 'negative'}`;
 
     const spotPositionValue = spot.position_value || 0;
-    let futuresPositionValue = futures.position_value;
-    if (futuresPositionValue === undefined || futuresPositionValue === null) {
-        futuresPositionValue = (data.positions || [])
-            .filter((pos) => pos.market === 'futures')
-            .reduce((acc, pos) => acc + (Math.abs(pos.quantity || 0) * (pos.current_price || 0)), 0);
-    }
-    const totalPositionValue = spotPositionValue + (futuresPositionValue || 0);
+    const totalPositionValue = spotPositionValue;
     const exposurePct = totalEquity > 0 ? (totalPositionValue / totalEquity * 100) : 0;
     document.getElementById('exposure-pct').textContent = `${exposurePct.toFixed(1)}%`;
 }
@@ -1352,7 +1296,7 @@ async function fetchPositions() {
             const market = String(pos.market || fallbackMarket || '').toLowerCase();
             return {
                 ...pos,
-                market: market === 'spot' ? 'spot' : 'futures',
+                market: 'spot',
                 exchange: pos.exchange || 'binance',
             };
         };
@@ -1417,8 +1361,8 @@ function renderPositions(data) {
         const pnlClass = getPnLClass(pos.unrealized_pnl);
         const sideRaw = String(pos.side || 'LONG');
         const sideClass = sideRaw.toLowerCase();
-        const market = pos.market || 'spot';
-        const marketBadge = market === 'spot' ? '<span class="market-badge spot">SPOT</span>' : '<span class="market-badge futures">FUTURES</span>';
+        const market = 'spot';
+        const marketBadge = '<span class="market-badge spot">SPOT</span>';
         const symbolLabel = escapeHtml(pos.symbol || '-');
         const symbolChartUrl = getBinanceChartUrl(pos.symbol, market);
         const sideLabel = escapeHtml(sideRaw);
@@ -1456,18 +1400,6 @@ function renderPositions(data) {
                         <span class="label">Value</span>
                         <span class="value">${formatUSD(pos.value)}</span>
                     </div>
-                    ${pos.leverage ? `
-                    <div class="stat-row">
-                        <span class="label">Leverage</span>
-                        <span class="value">${pos.leverage}x</span>
-                    </div>
-                    ` : ''}
-                    ${pos.liquidation_price ? `
-                    <div class="stat-row">
-                        <span class="label">Liquidation</span>
-                        <span class="value">$${formatPrice(pos.liquidation_price, false)}</span>
-                    </div>
-                    ` : ''}
                     ${pos.unrealized_pnl !== undefined && pos.unrealized_pnl !== null ? `
                     <div class="stat-row pnl-row">
                         <span class="label">Unrealized P&L</span>
@@ -1602,7 +1534,7 @@ function renderHistorySummary(data) {
 
     if (totalTradesEl) totalTradesEl.textContent = String(data.total_count ?? 0);
     if (buySellEl) buySellEl.textContent = `${summary.buy_count ?? 0} / ${summary.sell_count ?? 0}`;
-    if (marketSplitEl) marketSplitEl.textContent = `${summary.spot_count ?? 0} / ${summary.futures_count ?? 0}`;
+    if (marketSplitEl) marketSplitEl.textContent = `${summary.spot_count ?? 0}`;
 
     if (realizedPnlEl) {
         const pnl = summary.realized_pnl ?? 0;
@@ -1651,12 +1583,10 @@ function renderTradeTable(data) {
         const actionClass = trade.action.toLowerCase();
         const pnlClass = getPnLClass(trade.profit);
         const symbolDisplay = trade.symbol || '-';
-        const marketBadge = trade.market === 'futures' ? ' <span class="market-badge futures">F</span>' : '';
-
         html += `
             <tr>
                 <td>${formatDateTime(trade.timestamp)}</td>
-                <td><span class="symbol-badge">${escapeHtml(symbolDisplay)}</span>${marketBadge}</td>
+                <td><span class="symbol-badge">${escapeHtml(symbolDisplay)}</span></td>
                 <td><span class="action-badge ${actionClass}">${trade.action}</span></td>
                 <td class="text-right">$${formatPrice(trade.price, false)}</td>
                 <td class="text-right">${formatQuantity(trade.volume, 4)}</td>
@@ -1772,7 +1702,7 @@ function renderSignals(data) {
             const actionClass = decisionLabel.toLowerCase();
             const indicators = signal.indicators || {};
             const symbolDisplay = signal.symbol || '-';
-            const marketDisplay = signal.market === 'futures' ? 'Futures' : 'Spot';
+            const marketDisplay = 'Spot';
             const entryImpact = String(signal.entry_impact || '').toLowerCase();
             const impactDetail = signal.impact_detail || '-';
             const impactFactors = Array.isArray(signal.impact_factors) ? signal.impact_factors : [];
@@ -1907,7 +1837,7 @@ function renderDecisions(decisions) {
         const decisionClass = decisionType.toLowerCase();
         const indicators = decision.indicators || {};
         const symbolDisplay = decision.symbol || decision.asset || '-';
-        const marketDisplay = decision.market === 'futures' ? 'Futures' : 'Spot';
+        const marketDisplay = 'Spot';
         const regime = decision.regime || '-';
         const position = decision.position || {};
 
@@ -3656,9 +3586,9 @@ function showNotification(message, type = 'info') {
 
 function renderStrategyCard(strategy, symbols) {
     const name = strategy.name;
-    const market = strategy.market || 'futures';
-    const isSpot = market === 'spot';
-    const leverage = isSpot ? 1 : (strategy.leverage || 1);
+    const market = strategy.market || 'spot';
+    const isSpot = true;
+    const leverage = 1;
     const positionPct = strategy.position_pct || 0;
     const isTuned = strategy.is_tuned;
     const activePositions = strategy.active_positions || [];

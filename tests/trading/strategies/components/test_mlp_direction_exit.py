@@ -33,6 +33,7 @@ def _make_context(
     ema_5: float = 0.0,
     ema_10: float = 0.0,
     ema_20: float = 0.0,
+    ema_120: float = 0.0,
     trix: float = 0.0,
     trix_signal: float = 0.0,
 ) -> TradingContext:
@@ -53,6 +54,7 @@ def _make_context(
         ema_5=ema_5,
         ema_10=ema_10,
         ema_20=ema_20,
+        ema_120=ema_120,
         trix=trix,
         trix_signal=trix_signal,
     )
@@ -80,7 +82,7 @@ def _make_position(
         entry_price=entry_price,
         quantity=quantity,
         strategy=strategy,
-        market="futures",
+        market="spot",
         timestamp=1000,
         side="buy",
     )
@@ -181,7 +183,7 @@ class TestMLPDirectionExitStrategy:
             entry_price=100000.0,
             quantity=0.1,
             strategy="mlp_direction",
-            market="futures",
+            market="spot",
             timestamp=1000,
             side="buy",
             entry_time=2000,
@@ -210,7 +212,7 @@ class TestMLPDirectionExitStrategy:
             entry_price=100000.0,
             quantity=0.1,
             strategy="mlp_direction",
-            market="futures",
+            market="spot",
             timestamp=1000,
             side="buy",
             entry_time=2000,
@@ -220,8 +222,112 @@ class TestMLPDirectionExitStrategy:
             close=99500.0,
             high=100500.0,
             low=97000.0,
-            timestamp=2001,
+            timestamp=2000 + (4 * 60 * 60 * 1000) + 1,
             atr=0.0,
+        )
+        signal = strategy.check_exit(ctx, position)
+        assert signal is not None
+        assert "Stop loss intrabar" in signal.reason
+
+    def test_intrabar_stop_suppressed_in_blocked_bull_regime_when_close_recovers(self):
+        params = MLPDirectionExitParams(
+            stop_loss_pct=3.0,
+            fwin_exit_enabled=False,
+            intrabar_stop_requires_post_entry_candle=True,
+            intrabar_stop_blocked_regimes=["BULL_STRONG"],
+            intrabar_stop_require_close_below_stop_in_blocked_regimes=True,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = Position(
+            symbol="BTC",
+            entry_price=100000.0,
+            quantity=0.1,
+            strategy="mlp_direction",
+            market="spot",
+            timestamp=1000,
+            side="buy",
+            entry_time=2000,
+        )
+
+        ctx = _make_context(
+            mfi=70.0,
+            adx=30.0,
+            close=99750.0,
+            high=100500.0,
+            low=96000.0,
+            timestamp=2000 + (4 * 60 * 60 * 1000) + 1,
+            atr=0.0,
+        )
+        signal = strategy.check_exit(ctx, position)
+        assert signal is None
+
+    def test_intrabar_stop_hard_exit_overrides_blocked_bull_regime(self):
+        params = MLPDirectionExitParams(
+            stop_loss_pct=3.0,
+            fwin_exit_enabled=False,
+            intrabar_stop_requires_post_entry_candle=True,
+            intrabar_stop_blocked_regimes=["BULL_STRONG"],
+            intrabar_stop_require_close_below_stop_in_blocked_regimes=True,
+            intrabar_stop_hard_exit_pct=7.0,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = Position(
+            symbol="BTC",
+            entry_price=100000.0,
+            quantity=0.1,
+            strategy="mlp_direction",
+            market="spot",
+            timestamp=1000,
+            side="buy",
+            entry_time=2000,
+        )
+
+        ctx = _make_context(
+            mfi=70.0,
+            adx=30.0,
+            close=99800.0,
+            high=100500.0,
+            low=92000.0,
+            timestamp=2000 + (4 * 60 * 60 * 1000) + 1,
+            atr=0.0,
+        )
+        signal = strategy.check_exit(ctx, position)
+        assert signal is not None
+        assert "Stop loss intrabar" in signal.reason
+
+    def test_intrabar_stop_can_use_fast_below_slow_confirmation_in_blocked_bull_regime(self):
+        params = MLPDirectionExitParams(
+            stop_loss_pct=3.0,
+            fwin_exit_enabled=False,
+            intrabar_stop_requires_post_entry_candle=True,
+            intrabar_stop_blocked_regimes=["BULL_STRONG"],
+            intrabar_stop_require_close_below_stop_in_blocked_regimes=True,
+            intrabar_stop_require_fast_below_slow_in_blocked_regimes=True,
+            intrabar_stop_fast_field="ema_20",
+            intrabar_stop_slow_field="ema_120",
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = Position(
+            symbol="BTC",
+            entry_price=100000.0,
+            quantity=0.1,
+            strategy="mlp_direction",
+            market="spot",
+            timestamp=1000,
+            side="buy",
+            entry_time=2000,
+        )
+
+        ctx = _make_context(
+            mfi=70.0,
+            adx=30.0,
+            close=99750.0,
+            high=100500.0,
+            low=96000.0,
+            timestamp=2000 + (4 * 60 * 60 * 1000) + 1,
+            atr=0.0,
+            ema_20=98000.0,
+            ema_120=99000.0,
         )
         signal = strategy.check_exit(ctx, position)
         assert signal is not None
@@ -531,6 +637,33 @@ class TestMLPDirectionExitATRStop:
         assert signal is not None
         assert "Stop loss" in signal.reason
 
+    def test_atr_stop_applies_risk_on_floor_when_enabled(self):
+        params = MLPDirectionExitParams(
+            atr_stop_enabled=True,
+            atr_stop_multiplier=2.0,
+            atr_stop_min_pct=3.0,
+            atr_stop_max_pct=8.0,
+            runtime_switch_enabled=True,
+            switch_mfi_threshold=50.0,
+            switch_adx_threshold=20.0,
+            switch_require_above_ema200=False,
+            risk_on_stop_loss_pct=4.5,
+        )
+        strategy = MLPDirectionExitStrategy(params=params)
+        position = _make_position(entry_price=100000.0)
+
+        ctx = _make_context(
+            close=95600.0,
+            high=100500.0,
+            low=95500.0,
+            atr=1000.0,  # dynamic stop would be 3%, but risk-on floor widens to 4.5%
+            mfi=70.0,
+            adx=30.0,
+        )
+
+        signal = strategy.check_exit(ctx, position)
+        assert signal is None
+
 
 class TestMLPDirectionExitFWin:
     """Test Forward Window (FWin) exit - paper methodology."""
@@ -550,7 +683,7 @@ class TestMLPDirectionExitFWin:
             entry_price=100000.0,
             quantity=0.1,
             strategy="mlp_direction",
-            market="futures",
+            market="spot",
             timestamp=1000,
             side="buy",
             entry_time=entry_ts,  # Set entry_time in Position
@@ -598,7 +731,7 @@ class TestMLPDirectionExitFWin:
             entry_price=100000.0,
             quantity=0.1,
             strategy="mlp_direction",
-            market="futures",
+            market="spot",
             timestamp=1000,
             side="buy",
             entry_time=entry_ts,
@@ -713,7 +846,7 @@ class TestMLPDirectionExitFWin:
             entry_price=100000.0,
             quantity=0.1,
             strategy="mlp_direction",
-            market="futures",
+            market="spot",
             timestamp=1000,
             side="buy",
             entry_time=1000000,

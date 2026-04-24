@@ -10,7 +10,7 @@ Usage:
     candles = await warmup.fetch_recent_candles("BTC", limit=200, interval="1h")
 
     # Convert to price messages for Redis
-    messages = warmup.candles_to_price_messages(candles, symbol="BTC", market="futures")
+    messages = warmup.candles_to_price_messages(candles, symbol="BTC", market="spot")
 """
 # pylint: disable=broad-exception-caught
 
@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 # Binance REST API endpoints
 BINANCE_SPOT_API = "https://api.binance.com"
-BINANCE_FUTURES_API = "https://fapi.binance.com"
 
 
 class DataWarmup:
@@ -59,7 +58,7 @@ class DataWarmup:
         symbol: str,
         limit: int = 200,
         interval: str = "1h",
-        market: str = "futures",
+        market: str = "spot",
     ) -> list[dict[str, Any]]:
         """Fetch recent candles from Binance REST API.
 
@@ -67,7 +66,7 @@ class DataWarmup:
             symbol: Trading symbol (e.g., "BTC", "ETH").
             limit: Number of candles to fetch (max 1000).
             interval: Candle interval (1m, 5m, 15m, 1h, 4h, 1d).
-            market: Market type ("spot" or "futures").
+            market: Market type ("spot").
 
         Returns:
             List of candle dicts with keys:
@@ -77,15 +76,7 @@ class DataWarmup:
         """
         pair = f"{symbol.upper()}USDT"
 
-        # Select API endpoint
-        if market == "futures":
-            base_url = BINANCE_FUTURES_API
-            endpoint = "/fapi/v1/klines"
-        else:
-            base_url = BINANCE_SPOT_API
-            endpoint = "/api/v3/klines"
-
-        url = f"{base_url}{endpoint}"
+        url = f"{BINANCE_SPOT_API}/api/v3/klines"
         params = {
             "symbol": pair,
             "interval": interval,
@@ -135,7 +126,7 @@ class DataWarmup:
         self,
         candles: list[dict[str, Any]],
         symbol: str,
-        market: str = "futures",
+        market: str = "spot",
     ) -> list[dict[str, Any]]:
         """Convert candles to price message format for Redis.
 
@@ -170,7 +161,7 @@ class DataWarmup:
     async def warmup_symbol(
         self,
         symbol: str,
-        market: str = "futures",
+        market: str = "spot",
         limit: int = 200,
         interval: str = "1h",
     ) -> list[dict[str, Any]]:
@@ -196,7 +187,7 @@ class DataWarmup:
 
 async def fetch_warmup_data(
     symbols: list[str],
-    market: str = "futures",
+    market: str = "spot",
     limit: int = 200,
     interval: str = "1h",
 ) -> dict[str, list[dict[str, Any]]]:

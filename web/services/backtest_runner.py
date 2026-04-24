@@ -44,7 +44,7 @@ from trading.core.runtime_defaults import default_backtest_date_range
 
 logger = logging.getLogger(__name__)
 
-DEPRECATED_BACKTEST_STRATEGIES = {"sideways_v2", "mlp_direction"}
+INTERNAL_ONLY_BACKTEST_STRATEGIES = {"mlp_direction"}
 BACKTEST_ONLY_STRATEGIES = (
     {
         "id": "wf_tree60_btc",
@@ -486,7 +486,9 @@ def _append_factory_strategies(
 ) -> None:
     try:
         for name, spec in STRATEGY_REGISTRY.items():
-            if name in DEPRECATED_BACKTEST_STRATEGIES:
+            if name in INTERNAL_ONLY_BACKTEST_STRATEGIES:
+                continue
+            if getattr(spec, "market", "spot") != "spot":
                 continue
             # Dashboard backtest list should mirror operational strategy management:
             # only include registry bases when they are explicitly configured and enabled.
@@ -498,7 +500,7 @@ def _append_factory_strategies(
                 {
                     "id": name,
                     "name": name.replace("_", " ").title(),
-                    "description": f"{spec.market.title()} strategy ({name})",
+                    "description": f"Spot strategy ({name})",
                     "exchange": "binance",
                     "default_params": {},
                 }
@@ -513,9 +515,11 @@ def _append_allocation_only_strategies(
 ) -> None:
     try:
         for name, config in allocation_strategies.items():
-            if name in DEPRECATED_BACKTEST_STRATEGIES:
+            if name in INTERNAL_ONLY_BACKTEST_STRATEGIES:
                 continue
             if not config.get("enabled", True) or name in existing_ids:
+                continue
+            if config.get("market", "spot") != "spot":
                 continue
             is_tuned = "tuned_config" in config or "regime_routing" in config
             strategy_kind = "Tuned" if is_tuned else "Custom"
@@ -523,7 +527,7 @@ def _append_allocation_only_strategies(
                 {
                     "id": name,
                     "name": name.replace("_", " ").title(),
-                    "description": f"{strategy_kind} {config.get('market', 'futures').title()} strategy",
+                    "description": f"{strategy_kind} Spot strategy",
                     "exchange": "binance",
                     "default_params": {},
                     "is_tuned": is_tuned,
@@ -918,7 +922,7 @@ def _handle_tuned_open_position(
         entry_price=state["entry_price"],
         quantity=state["position_data"]["quantity"],
         strategy=strategy_id,
-        market="futures",
+        market="spot",
         timestamp=state["position_data"]["timestamp"],
     )
     exit_ctx = TradingContext(
@@ -1202,26 +1206,22 @@ def _resolve_generic_strategy_context(strategy_id: str, allocation: dict) -> dic
 
 def _resolve_generic_market_settings(context: dict) -> dict:
     if context["is_tuned_strategy"]:
-        market_type = context["tuned_config"].get("market", "futures")
-        leverage = float(context["tuned_config"].get("leverage", 3))
+        market_type = "spot"
+        leverage = 1.0
         timeframe = "minute60"
     elif context["is_new_config"]:
         config = context["strategy_config"]
-        market_type = config.get("market", "futures")
-        leverage = float(config.get("leverage", 3))
+        market_type = "spot"
+        leverage = 1.0
         timeframe = config.get("timeframe", "minute240")
     else:
         spec = STRATEGY_REGISTRY[context["base_strategy_id"]]
-        market_type = spec.market
-        leverage = 3.0 if market_type == "futures" else 1.0
+        market_type = "spot"
+        leverage = 1.0
         timeframe = spec.timeframe
 
-    if market_type == "futures":
-        fee_rate = FeeRates.FUTURES
-        slippage = FeeRates.FUTURES_SLIPPAGE
-    else:
-        fee_rate = FeeRates.SPOT
-        slippage = FeeRates.SPOT_SLIPPAGE
+    fee_rate = FeeRates.SPOT
+    slippage = FeeRates.SPOT_SLIPPAGE
 
     timeframe_map = {
         "hour1": "minute60",

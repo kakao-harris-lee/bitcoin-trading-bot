@@ -24,7 +24,7 @@ from core.component_adapter import ComponentStrategyAdapter
 from core.data_loader import DataLoader
 from trading.indicators import add_all_indicators
 from trading.strategies.components.strategy_factory import StrategyFactory
-from scripts.backtest._common import compute_metrics, ShortMarginBacktester
+from scripts.backtest._common import compute_metrics
 
 
 def load_data(db_path: Path, timeframe: str, start: str, end: str) -> pd.DataFrame:
@@ -51,30 +51,6 @@ def run_long_backtest(
     )
     results = backtester.run(df, adapter, {})
     return results
-
-
-def run_short_backtest(
-    df: pd.DataFrame,
-    name: str,
-    config: dict,
-    initial_capital: float,
-    fee_rate: float,
-    slippage: float,
-    min_order_amount: float,
-) -> dict:
-    factory = StrategyFactory()
-    adapter = ComponentStrategyAdapter(factory, strategy_name=name, config=config)
-    backtester = ShortMarginBacktester(
-        initial_capital=initial_capital,
-        fee_rate=fee_rate,
-        slippage=slippage,
-        min_order_amount=min_order_amount,
-        action_open="open_short",
-        action_close="close_short",
-    )
-    results = backtester.run(df, adapter, {})
-    return results
-
 
 def print_table(rows: list[dict]) -> None:
     headers = (
@@ -129,37 +105,38 @@ def main() -> None:
     min_order_amount = 10
 
     combos = [
-        ("Short Entry + Short Exit (death cross)", "short", "short_v1", {
-            "mfi_bear": 50.0,
-            "mfi_bull": 52.0,
-            "adx_trend": 12.0,
-            "rsi_overbought": 68.0,
-            "use_param_regime": True,
+        ("Regime Long V2", "long", "regime_long_v2", {
+            "position_size": 0.3,
+            "market": "spot",
+            "entry": {
+                "params": {
+                    "entry_lookback_bars": 24,
+                    "entry_quorum_ratio": 0.75,
+                    "min_ready_bars": 12,
+                    "risk_on_score_min": 3,
+                }
+            },
+            "exit": {
+                "params": {
+                    "peak_drawdown_exit_pct": 0.10,
+                    "drop_1d_threshold_pct": -0.07,
+                    "drop_3d_threshold_pct": -0.10,
+                }
+            },
         }),
     ]
 
     rows = []
     for name, kind, strategy_name, config in combos:
-        if kind == "short":
-            results = run_short_backtest(
-                df,
-                strategy_name,
-                config,
-                args.capital,
-                fee_rate,
-                slippage,
-                min_order_amount,
-            )
-        else:
-            results = run_long_backtest(
-                df,
-                strategy_name,
-                config,
-                args.capital,
-                fee_rate,
-                slippage,
-                min_order_amount,
-            )
+        results = run_long_backtest(
+            df,
+            strategy_name,
+            config,
+            args.capital,
+            fee_rate,
+            slippage,
+            min_order_amount,
+        )
 
         metrics = compute_metrics(results.get("equity_curve"), args.timeframe)
         rows.append({

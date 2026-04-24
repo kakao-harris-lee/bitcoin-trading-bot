@@ -119,6 +119,8 @@ def _classify_exit(reason: str) -> str:
         return "regime_drawdown"
     if "stop loss intrabar" in text:
         return "stop_loss_intrabar"
+    if "mlpdirection exit: stop loss" in text or text.startswith("stop loss"):
+        return "stop_loss"
     if "trailing stop" in text:
         return "trailing_stop"
     if "bear_regime_exit" in text:
@@ -133,6 +135,7 @@ def _is_risk_exit(category: str) -> bool:
         "regime_ema120",
         "regime_drawdown",
         "stop_loss_intrabar",
+        "stop_loss",
         "bear_regime_exit",
         "ema_deadcross",
     }
@@ -512,7 +515,22 @@ def _write_outputs(
         for row in rows:
             writer.writerow({key: row.get(key) for key in fieldnames})
 
-    severe_blocks = [row["symbol"] for row in rows if row["severe_suppress"]]
+    severe_blocks = [
+        row["symbol"]
+        for row in rows
+        if row["severe_suppress"]
+        or (
+            row["recommendation"] == "suppress"
+            and (
+                row.get("routing_score", 0.0) <= -0.35
+                or (
+                    row.get("live_trades", 0) >= 1
+                    and row.get("live_realized_pnl", 0.0) < 0.0
+                    and row.get("live_risk_exit_share", 0.0) >= 1.0
+                )
+            )
+        )
+    ]
     fallback_allow = [
         row["symbol"]
         for row in rows
@@ -608,7 +626,6 @@ def main() -> int:
     args = parse_args()
     as_of = datetime.fromisoformat(args.as_of_date)
     live_start = as_of - timedelta(days=args.live_lookback_days)
-    backtest_start = as_of - timedelta(days=args.backtest_days)
 
     config_path = PROJECT_ROOT / args.config
     output_dir = PROJECT_ROOT / args.output_dir

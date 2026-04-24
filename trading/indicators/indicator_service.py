@@ -499,7 +499,7 @@ class IndicatorService:
         """
         return symbol in self._pending_refresh
 
-    async def refresh_history(self, symbol: str, market: str = "futures") -> None:
+    async def refresh_history(self, symbol: str, market: str = "spot") -> None:
         """Refresh recent candle history with real OHLCV data from Binance REST API.
 
         Replaces estimated candles (with fake volume) with real data from Binance.
@@ -507,7 +507,7 @@ class IndicatorService:
 
         Args:
             symbol: Trading symbol.
-            market: Market type ("spot" or "futures").
+            market: Market type ("spot").
         """
         from trading.streams.data_warmup import DataWarmup
 

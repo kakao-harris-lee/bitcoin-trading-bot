@@ -13,12 +13,20 @@ import pytest
 from trading.strategies.components.tree_model_wrapper import TreeModelWrapper
 
 
+def _require_xgboost():
+    return pytest.importorskip("xgboost")
+
+
+def _require_lightgbm():
+    return pytest.importorskip("lightgbm")
+
+
 class TestTreeModelWrapperLoad:
     """Test model loading and type detection."""
 
     def test_load_xgboost_from_json(self, tmp_path):
         """Loading .json file should use XGBoost Booster."""
-        import xgboost as xgb
+        xgb = _require_xgboost()
 
         # Create a minimal XGBoost model
         X = np.random.randn(100, 36).astype(np.float32)
@@ -40,7 +48,7 @@ class TestTreeModelWrapperLoad:
 
     def test_load_lightgbm_from_txt(self, tmp_path):
         """Loading .txt file should use LightGBM Booster."""
-        import lightgbm as lgb
+        lgb = _require_lightgbm()
 
         # Create a minimal LightGBM model
         X = np.random.randn(100, 36).astype(np.float32)
@@ -87,7 +95,7 @@ class TestTreeModelWrapperPredict:
     @pytest.fixture
     def xgb_wrapper(self, tmp_path):
         """Create a real XGBoost wrapper for testing."""
-        import xgboost as xgb
+        xgb = _require_xgboost()
 
         X = np.random.randn(200, 36).astype(np.float32)
         y = np.random.randint(0, 3, 200)
@@ -106,7 +114,7 @@ class TestTreeModelWrapperPredict:
     @pytest.fixture
     def lgb_wrapper(self, tmp_path):
         """Create a real LightGBM wrapper for testing."""
-        import lightgbm as lgb
+        lgb = _require_lightgbm()
 
         X = np.random.randn(200, 36).astype(np.float32)
         y = np.random.randint(0, 3, 200)
@@ -186,7 +194,7 @@ class TestTreeModelWrapperEnsembleCompatibility:
         """Ensemble should handle mix of MLP mock + real tree model."""
         import torch
         from trading.strategies.components.mlp_ensemble import MLPEnsemblePredictor
-        import xgboost as xgb
+        xgb = _require_xgboost()
 
         # Create a real XGBoost model
         X = np.random.randn(100, 36).astype(np.float32)
@@ -225,7 +233,7 @@ class TestTreeModelWrapperEnsembleCompatibility:
 
     def test_mixed_ensemble_batch_predict(self, tmp_path):
         """Batch prediction should work with mixed model types."""
-        import lightgbm as lgb
+        lgb = _require_lightgbm()
         from trading.strategies.components.mlp_ensemble import MLPEnsemblePredictor
 
         # Create a real LightGBM model

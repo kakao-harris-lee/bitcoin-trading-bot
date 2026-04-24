@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 class RegimeLongV2ExitParams:
     """Parameters for regime-long v2 exit."""
 
-    market: Literal["spot", "futures"] = "spot"
+    market: Literal["spot"] = "spot"
     cooldown_tag: str = "regime_long_v2"
     cooldown_bars: int = 30
 
@@ -38,6 +38,12 @@ class RegimeLongV2ExitParams:
     )
 
     peak_drawdown_exit_pct: float = 0.15  # 15% drawdown from post-entry peak
+    peak_drawdown_hard_exit_pct: float = 0.0
+    peak_drawdown_grace_bars_after_entry: int = 0
+    peak_drawdown_grace_seconds_after_entry: int = 0
+    peak_drawdown_min_hwm_gain_pct: float = 0.0
+    peak_drawdown_require_fast_below_slow: bool = False
+    peak_drawdown_blocked_regimes: list[str] = field(default_factory=list)
 
     drop_1d_lookback_bars: int = 6
     drop_1d_threshold_pct: float = -0.07
@@ -96,6 +102,7 @@ class RegimeLongV2ExitStrategy(BaseExitStrategy):
 
         hwm = self._update_hwm(key, high, position.entry_price)
         dd_from_hwm = (close / hwm) - 1.0 if hwm > 0 else 0.0
+        hwm_gain_pct = (hwm / position.entry_price) - 1.0 if position.entry_price > 0 and hwm > 0 else 0.0
 
         if p.min_hold_bars > 0 and candles_held < p.min_hold_bars:
             return None
@@ -107,13 +114,40 @@ class RegimeLongV2ExitStrategy(BaseExitStrategy):
                 reason=f"RegimeLongV2 risk exit: bear regime ({ctx.regime.regime})",
             )
 
-        if dd_from_hwm <= -abs(p.peak_drawdown_exit_pct):
+        peak_drawdown_threshold = abs(float(p.peak_drawdown_exit_pct))
+        hard_drawdown_threshold = abs(float(p.peak_drawdown_hard_exit_pct))
+        hard_drawdown_triggered = (
+            hard_drawdown_threshold > 0 and dd_from_hwm <= -hard_drawdown_threshold
+        )
+        if peak_drawdown_threshold > 0 and dd_from_hwm <= -peak_drawdown_threshold:
+            if not hard_drawdown_triggered:
+                if (
+                    int(p.peak_drawdown_grace_bars_after_entry) > 0
+                    and candles_held < int(p.peak_drawdown_grace_bars_after_entry)
+                ):
+                    return None
+                if (
+                    int(p.peak_drawdown_grace_seconds_after_entry) > 0
+                    and position_age_seconds < int(p.peak_drawdown_grace_seconds_after_entry)
+                ):
+                    return None
+                if ctx.regime.regime in set(p.peak_drawdown_blocked_regimes or []):
+                    if (
+                        abs(float(p.peak_drawdown_min_hwm_gain_pct)) > 0
+                        and hwm_gain_pct < abs(float(p.peak_drawdown_min_hwm_gain_pct))
+                    ):
+                        return None
+                    if p.peak_drawdown_require_fast_below_slow:
+                        ema_fast = float(getattr(ctx.market, p.ema_fast_field, 0.0) or 0.0)
+                        ema_slow = float(getattr(ctx.market, p.ema_slow_field, 0.0) or 0.0)
+                        if ema_fast > 0 and ema_slow > 0 and ema_fast >= ema_slow:
+                            return None
             return self._make_exit(
                 position=position,
                 key=key,
                 reason=(
                     "RegimeLongV2 risk exit: peak drawdown "
-                    f"{dd_from_hwm*100:.2f}% <= -{abs(p.peak_drawdown_exit_pct)*100:.2f}%"
+                    f"{dd_from_hwm*100:.2f}% <= -{peak_drawdown_threshold*100:.2f}%"
                 ),
             )
 

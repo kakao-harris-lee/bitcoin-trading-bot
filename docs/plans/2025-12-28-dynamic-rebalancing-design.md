@@ -61,7 +61,7 @@ Threshold varies by premium volatility (σ from PremiumController):
 
 ## New Component: PositionManager
 
-**File:** `trading/execution/position_manager.py`
+**File:** `trading/strategies/components/context_builder.py` (current snapshot-based `PositionManager`)
 
 ```python
 @dataclass
@@ -401,7 +401,7 @@ Default values in `config/strategies/allocation.json`:
 
 ## Files Modified
 
-- `trading/execution/position_manager.py` — New file
+- `trading/strategies/components/context_builder.py` — current home of the snapshot-based `PositionManager`
 - `trading/execution/hedge_manager.py` — Add adjust_position()
 - `trading/execution/alpha_manager.py` — Add position_manager notification
 - `trading/engine.py` — Initialize and integrate PositionManager

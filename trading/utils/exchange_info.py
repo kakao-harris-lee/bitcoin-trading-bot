@@ -29,8 +29,6 @@ from .precision import SymbolInfo, get_default_symbol_info
 logger = logging.getLogger(__name__)
 
 BINANCE_SPOT_API = "https://api.binance.com"
-BINANCE_FUTURES_API = "https://fapi.binance.com"
-
 # Cache TTL in seconds (1 hour)
 CACHE_TTL = 3600
 
@@ -42,14 +40,14 @@ class ExchangeInfoCache:
     from the exchange. Falls back to defaults if fetch fails.
     """
 
-    def __init__(self, market: str = "futures", ttl: int = CACHE_TTL):
+    def __init__(self, market: str = "spot", ttl: int = CACHE_TTL):
         """Initialize cache.
 
         Args:
-            market: Market type ("spot" or "futures").
+            market: Market type ("spot" only).
             ttl: Cache time-to-live in seconds.
         """
-        self._market = market
+        self._market = "spot"
         self._ttl = ttl
         self._cache: dict[str, SymbolInfo] = {}
         self._last_refresh: float = 0
@@ -78,10 +76,7 @@ class ExchangeInfoCache:
 
     async def _fetch_exchange_info(self) -> dict[str, Any] | None:
         """Fetch exchangeInfo from Binance API."""
-        if self._market == "futures":
-            url = f"{BINANCE_FUTURES_API}/fapi/v1/exchangeInfo"
-        else:
-            url = f"{BINANCE_SPOT_API}/api/v3/exchangeInfo"
+        url = f"{BINANCE_SPOT_API}/api/v3/exchangeInfo"
 
         timeout = aiohttp.ClientTimeout(total=30)
 
@@ -190,38 +185,35 @@ class ExchangeInfoCache:
 
 
 # Global cache instances
-_CACHE_BY_MARKET: dict[str, ExchangeInfoCache | None] = {
-    "spot": None,
-    "futures": None,
-}
+_CACHE_BY_MARKET: dict[str, ExchangeInfoCache | None] = {"spot": None}
 
 
-def get_exchange_cache(market: str = "futures") -> ExchangeInfoCache:
+def get_exchange_cache(market: str = "spot") -> ExchangeInfoCache:
     """Get the global exchange info cache.
 
     Args:
-        market: Market type ("spot" or "futures").
+        market: Market type ("spot" only).
 
     Returns:
         ExchangeInfoCache instance.
     """
-    resolved_market = "futures" if market == "futures" else "spot"
-    cache = _CACHE_BY_MARKET[resolved_market]
+    del market
+    cache = _CACHE_BY_MARKET["spot"]
     if cache is None:
-        cache = ExchangeInfoCache(market=resolved_market)
-        _CACHE_BY_MARKET[resolved_market] = cache
+        cache = ExchangeInfoCache(market="spot")
+        _CACHE_BY_MARKET["spot"] = cache
     return cache
 
 
 async def get_symbol_info_live(
     symbol: str,
-    market: str = "futures",
+    market: str = "spot",
 ) -> SymbolInfo:
     """Get symbol info, fetching from exchange if needed.
 
     Args:
         symbol: Trading symbol.
-        market: Market type.
+        market: Market type ("spot" only).
 
     Returns:
         SymbolInfo for the symbol.

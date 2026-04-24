@@ -427,7 +427,7 @@ class RedisStreams:
 
         Args:
             symbol: Trading symbol (e.g., "BTC")
-            market: Market type (e.g., "spot", "futures")
+            market: Market type (spot-only runtime uses "spot")
             data: Position data (flat dict with string values)
         """
         key = f"positions:{symbol}:{market}"
@@ -469,7 +469,7 @@ class RedisStreams:
 
         Args:
             symbol: Trading symbol (e.g., "BTC")
-            market: Market type (e.g., "spot", "futures")
+            market: Market type (spot-only runtime uses "spot")
 
         Returns:
             Dict of position data including symbol and market
@@ -487,7 +487,7 @@ class RedisStreams:
 
         Args:
             symbol: Trading symbol (e.g., "BTC")
-            market: Market type (e.g., "spot", "futures")
+            market: Market type (spot-only runtime uses "spot")
 
         Returns:
             True if position exists
@@ -500,7 +500,7 @@ class RedisStreams:
 
         Args:
             symbol: Trading symbol (e.g., "BTC")
-            market: Market type (e.g., "spot", "futures")
+            market: Market type (spot-only runtime uses "spot")
         """
         key = f"positions:{symbol}:{market}"
         await self._client.delete(key)

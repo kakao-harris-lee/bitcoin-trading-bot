@@ -21,19 +21,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 BINANCE_SPOT_WS = "wss://stream.binance.com:9443/ws"
-BINANCE_FUTURES_WS = "wss://fstream.binance.com/ws"
 BINANCE_SPOT_REST = "https://api.binance.com/api/v3/ticker/price"
-BINANCE_FUTURES_REST = "https://fapi.binance.com/fapi/v1/ticker/price"
-
 
 class BinanceFeedTask(SymbolFeedTask):
-    """Feed task for Binance spot or futures."""
+    """Feed task for Binance spot market."""
 
     def __init__(
         self,
         symbol: str,
         redis: RedisStreams,
-        market: str = "futures",
+        market: str = "spot",
         stream_type: str | None = None,
         warmup_enabled: bool = True,
         warmup_limit: int = 200,
@@ -41,7 +38,7 @@ class BinanceFeedTask(SymbolFeedTask):
         **kwargs,
     ):
         super().__init__(symbol=symbol, redis=redis, **kwargs)
-        self.market = market
+        self.market = "spot"
         self._warmup_enabled = warmup_enabled
         self._warmup_limit = warmup_limit
         self._warmup_interval = warmup_interval
@@ -138,8 +135,6 @@ class BinanceFeedTask(SymbolFeedTask):
         pair = f"{self.symbol.lower()}usdt"
         stream = f"{pair}@{self._stream_type}"
 
-        if self.market == "futures":
-            return f"{BINANCE_FUTURES_WS}/{stream}"
         return f"{BINANCE_SPOT_WS}/{stream}"
 
     def _parse_ticker_message(self, msg: dict[str, Any]) -> dict[str, Any]:
@@ -184,7 +179,7 @@ class BinanceFeedTask(SymbolFeedTask):
         return ("b" in data) or ("a" in data)
 
     def _rest_ticker_url(self) -> str:
-        return BINANCE_FUTURES_REST if self.market == "futures" else BINANCE_SPOT_REST
+        return BINANCE_SPOT_REST
 
     def _rest_ticker_symbol(self) -> str:
         return f"{self.symbol.upper()}USDT"

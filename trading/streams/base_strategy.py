@@ -29,10 +29,10 @@ def get_position_key(symbol: str, market: str) -> str:
 
     Args:
         symbol: Trading symbol (e.g., "BTC")
-        market: Market type ("spot" or "futures")
+        market: Market type ("spot")
 
     Returns:
-        Redis key like "positions:BTC:spot" or "positions:BTC:futures"
+        Redis key like "positions:BTC:spot"
     """
     return f"positions:{symbol}:{market}"
 
@@ -224,11 +224,9 @@ class BaseStrategyTask(ABC):
         if symbol not in self.symbols:
             return
 
-        # NOTE: Market filter removed for hybrid mode.
-        # Engine uses futures price feeds for ALL strategies (spot and futures).
-        # Spot and futures prices are nearly identical (~0.1% difference).
-        # The strategy's "market" determines WHERE orders execute, not which
-        # price data to consume. See engine.py hybrid mode comment.
+        # NOTE: Market filter remains intentionally permissive because the
+        # current system uses a single shared spot price stream for all
+        # strategies.
 
         # Update buffer (always, for indicator calculation)
         self._update_buffer(symbol, msg)
@@ -498,7 +496,7 @@ class BaseStrategyTask(ABC):
                 logger.warning(f"No account balance found in {account_key}, using minimum size")
                 return effective_min
 
-            balance = float(account.get("futures_balance", 0))
+            balance = float(account.get("spot_balance") or account.get("balance", 0))
 
             if balance <= 0:
                 return effective_min

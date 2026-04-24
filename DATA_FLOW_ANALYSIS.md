@@ -126,7 +126,7 @@ Immutable output from entry/exit components:
 class Signal:
     symbol: str
     side: Literal["buy", "sell"]
-    market: Literal["futures"]
+    market: Literal["spot"]
     quantity: float
     reason: str
     trigger_price: float | None = None  # Optional for limit orders
@@ -146,12 +146,11 @@ class Position:
     entry_price: float
     quantity: float
     strategy: str
-    market: Literal["futures"]
+    market: Literal["spot"]
     timestamp: int
     side: str = "buy"
     leverage: int = 1
-    liquidation_price: float = 0.0
-```
+    ```
 
 ---
 
@@ -464,7 +463,7 @@ def __init__(self, ..., entry_strategy: IEntryStrategy, exit_strategy: IExitStra
 
 **Example**:
 ```python
-positions:{symbol}:futures  # Hash with entry_price, quantity, strategy
+positions:{symbol}:spot  # Hash with entry_price, quantity, strategy
 state:{strategy}:{symbol}   # Hash with strategy-specific state
 risk                        # Hash with kill_switch, daily_pnl, etc.
 ```

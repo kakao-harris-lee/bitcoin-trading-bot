@@ -136,6 +136,8 @@ def classify_reason(reason: str) -> str:
         return "regime_protect"
     if "stop loss intrabar" in lowered:
         return "stop_loss_intrabar"
+    if "mlpdirection exit: stop loss" in lowered or lowered.startswith("stop loss"):
+        return "stop_loss"
     if "bear_regime_exit" in lowered:
         return "bear_regime_exit"
     if "trailing stop" in lowered:
@@ -161,8 +163,16 @@ def summarize(rows: list[ExitRow]) -> dict:
         by_strategy[row.strategy]["count"] += 1
         by_strategy[row.strategy]["pnl"] += row.pnl
 
-    risky_count = int(by_reason["regime_protect"]["count"] + by_reason["stop_loss_intrabar"]["count"])
-    risky_pnl = float(by_reason["regime_protect"]["pnl"] + by_reason["stop_loss_intrabar"]["pnl"])
+    risky_count = int(
+        by_reason["regime_protect"]["count"]
+        + by_reason["stop_loss_intrabar"]["count"]
+        + by_reason["stop_loss"]["count"]
+    )
+    risky_pnl = float(
+        by_reason["regime_protect"]["pnl"]
+        + by_reason["stop_loss_intrabar"]["pnl"]
+        + by_reason["stop_loss"]["pnl"]
+    )
 
     return {
         "rows": rows,

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 app.py
-Flask 웹 대시보드 - Dual Exchange Paper Trading 모니터링
+Flask 웹 대시보드 - Spot Trading 모니터링
 """
 
 # pylint: disable=broad-exception-caught
@@ -327,7 +327,7 @@ def read_redis_trades(limit: int = 1000) -> list:
                 'symbol': symbol,
                 'price': price,
                 'volume': volume,
-                'market': data.get('market', 'futures'),
+                'market': data.get('market', 'spot'),
                 'exchange': 'binance',
                 'strategy': strategy,
                 'paper': data.get('paper', 'true') == 'true',
@@ -582,7 +582,7 @@ def read_redis_orders(limit: int = 200) -> list:
                 'timestamp': ts_dt.isoformat(),
                 'action': data.get('side', '').upper(),
                 'symbol': data.get('symbol', ''),
-                'market': data.get('market', 'futures'),
+                'market': data.get('market', 'spot'),
                 'strategy': data.get('strategy', ''),
                 'reason': data.get('reason', ''),
                 'exchange': 'binance',
@@ -593,18 +593,6 @@ def read_redis_orders(limit: int = 200) -> list:
     except Exception as e:
         print(f"Error reading Redis orders: {e}")
         return []
-
-
-def load_multi_asset_status() -> dict:
-    """Load multi-asset engine status."""
-    status_file = LOG_DIR / "multi_asset_engine_status.json"
-    if status_file.exists():
-        try:
-            with open(status_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Multi-asset status load failed: {e}")
-    return None
 
 
 def _require_admin_token() -> bool:
@@ -780,7 +768,7 @@ def _load_status_risk() -> dict:
 
 def _build_status_asset_from_position(pos: dict, regime_status: dict) -> tuple[str, dict]:
     symbol = _normalize_symbol(pos.get('asset', 'BTC'))
-    market = pos.get('market', 'futures')
+    market = pos.get('market', 'spot')
     key = f"{symbol}_{market}"
     regime_info = regime_status.get(symbol, {})
     payload = {
@@ -968,10 +956,10 @@ def _build_status_fallback_assets(
     assets: dict = {}
     for symbol in fallback_symbols:
         regime_info = regime_status.get(symbol, {})
-        assets[f"{symbol}_futures"] = {
+        assets[f"{symbol}_spot"] = {
             'symbol': symbol,
             'exchange': 'binance',
-            'market': 'futures',
+            'market': 'spot',
             'enabled': True,
             'price': prices.get(symbol, prices.get(f'{symbol}USDT', 0)),
             'position_active': False,
@@ -1039,21 +1027,6 @@ def _load_stream_status(prices: dict, regime_status: dict, risk: dict) -> dict |
         return None
 
 
-def _build_legacy_status(ma_status: dict, prices: dict, regime_status: dict, risk: dict) -> dict:
-    return {
-        'timestamp': ma_status.get('timestamp', datetime.now().isoformat()),
-        'mode': risk.get('mode', 'paper'),
-        'engine': 'legacy',
-        'engine_status': 'running',
-        'trading_mode': risk.get('mode', 'paper'),
-        'assets': ma_status.get('assets', {}),
-        'portfolio': ma_status.get('portfolio', {}),
-        'prices': prices,
-        'regime_status': regime_status,
-        'risk': risk,
-    }
-
-
 def _build_minimal_status(prices: dict, regime_status: dict, risk: dict) -> dict:
     return {
         'timestamp': datetime.now().isoformat(),
@@ -1076,11 +1049,39 @@ def get_status():
     if stream_status:
         return jsonify(stream_status)
 
-    ma_status = load_multi_asset_status()
-    if ma_status:
-        return jsonify(_build_legacy_status(ma_status, prices, regime_status, risk))
-
     return jsonify(_build_minimal_status(prices, regime_status, risk))
+
+
+def _load_dashboard_state_snapshot() -> dict | None:
+    """Load dashboard state from MetricsService when available."""
+    if not metrics_service:
+        return None
+    try:
+        dashboard_state = metrics_service.get_dashboard_state()
+    except Exception as e:
+        print(f"Error loading dashboard state for health: {e}")
+        return None
+    return dashboard_state if isinstance(dashboard_state, dict) else None
+
+
+def _build_engine_health(dashboard_state: dict | None) -> tuple[dict, bool]:
+    """Return engine health component and overall-health contribution."""
+    if not dashboard_state or not dashboard_state.get("binance"):
+        return {"status": "not_running"}, False
+
+    last_update = str(dashboard_state.get("timestamp", "")).strip()
+    if not last_update:
+        return {"status": "unknown"}, True
+
+    try:
+        last_dt = datetime.fromisoformat(last_update.replace("Z", "+00:00"))
+        age_seconds = (datetime.now() - last_dt.replace(tzinfo=None)).total_seconds()
+    except Exception:
+        return {"status": "unknown", "last_update": last_update}, True
+
+    if age_seconds < 300:
+        return {"status": "healthy", "age_seconds": age_seconds}, True
+    return {"status": "stale", "age_seconds": age_seconds}, True
 
 
 @app.route("/health")
@@ -1111,24 +1112,9 @@ def health_check():
         components["redis"] = {"status": "unhealthy", "error": str(e)[:100]}
         # Redis not critical, don't mark overall unhealthy
 
-    # Check engine status file
-    ma_status = load_multi_asset_status()
-    if ma_status:
-        last_update = ma_status.get("timestamp", "")
-        try:
-            if last_update:
-                last_dt = datetime.fromisoformat(last_update.replace("Z", "+00:00"))
-                age_seconds = (datetime.now() - last_dt.replace(tzinfo=None)).total_seconds()
-                if age_seconds < 300:  # Updated within 5 minutes
-                    components["engine"] = {"status": "healthy", "age_seconds": age_seconds}
-                else:
-                    components["engine"] = {"status": "stale", "age_seconds": age_seconds}
-            else:
-                components["engine"] = {"status": "unknown"}
-        except Exception:
-            components["engine"] = {"status": "unknown", "last_update": last_update}
-    else:
-        components["engine"] = {"status": "not_running"}
+    dashboard_state = _load_dashboard_state_snapshot()
+    components["engine"], engine_healthy = _build_engine_health(dashboard_state)
+    if not engine_healthy:
         overall_healthy = False
 
     # Check kill switch
@@ -1136,19 +1122,7 @@ def health_check():
         "status": "active" if KILL_SWITCH_FILE.exists() else "inactive",
     }
 
-    # Get asset health if available from engine status
     assets_health = {}
-    if ma_status:
-        health_data = ma_status.get("health", {})
-        assets_data = health_data.get("assets", {})
-        for symbol, asset_info in assets_data.items():
-            if isinstance(asset_info, dict):
-                assets_health[symbol] = {
-                    "enabled": asset_info.get("enabled", True),
-                    "consecutive_failures": asset_info.get("consecutive_failures", 0),
-                }
-            else:
-                assets_health[symbol] = {"enabled": asset_info}
 
     # Get metrics summary if available
     metrics_summary = {}
@@ -1299,7 +1273,6 @@ def _summarize_filtered_trades(filtered_trades: list[dict]) -> dict:
     buy_count = 0
     sell_count = 0
     spot_count = 0
-    futures_count = 0
     realized_count = 0
     realized_pnl = 0.0
     winning = 0
@@ -1315,9 +1288,6 @@ def _summarize_filtered_trades(filtered_trades: list[dict]) -> dict:
         market = trade.get('market')
         if market == 'spot':
             spot_count += 1
-        elif market == 'futures':
-            futures_count += 1
-
         symbol = trade.get('symbol')
         if symbol:
             symbols.add(symbol)
@@ -1336,7 +1306,6 @@ def _summarize_filtered_trades(filtered_trades: list[dict]) -> dict:
         'buy_count': buy_count,
         'sell_count': sell_count,
         'spot_count': spot_count,
-        'futures_count': futures_count,
         'realized_trade_count': realized_count,
         'realized_pnl': realized_pnl,
         'win_rate': win_rate,
@@ -1482,7 +1451,7 @@ def get_recent_trades():
             'timestamp': t.get('timestamp', ''),
             'symbol': t.get('symbol', ''),
             'side': t.get('action', '').lower(),
-            'market': t.get('market', 'futures'),
+            'market': t.get('market', 'spot'),
             'quantity': t.get('volume', 0),
             'price': t.get('price', 0),
             'strategy': t.get('strategy', ''),
@@ -1631,7 +1600,7 @@ def get_signals():
                 'action': decision.lower(),
                 'decision': decision,
                 'symbol': d.get('symbol', ''),
-                'market': d.get('market', 'futures'),
+                'market': d.get('market', 'spot'),
                 'price': (d.get('indicators') or {}).get('price', 0),
                 'reason': d.get('reason', ''),
                 'regime': regime,
@@ -1900,46 +1869,6 @@ def _get_paper_positions(r, prices: dict) -> dict:
             result['total_value'] += value
             result['total_unrealized_pnl'] += unrealized_pnl
 
-        # Check futures position
-        futures_pos = r.hgetall(f"positions:{symbol}:futures")
-        if futures_pos and float(futures_pos.get('quantity', 0)) != 0:
-            qty = float(futures_pos.get('quantity', 0))
-            entry_price = float(futures_pos.get('entry_price', 0))
-            current_price = prices.get(f'{symbol}USDT', entry_price)
-            side = futures_pos.get('side', 'buy').upper()
-            if side == 'BUY':
-                side = 'LONG'
-            elif side == 'SELL':
-                side = 'SHORT'
-
-            abs_qty = abs(qty)
-            value = abs_qty * current_price
-
-            if side == 'LONG':
-                unrealized_pnl = (current_price - entry_price) * abs_qty
-            else:
-                unrealized_pnl = (entry_price - current_price) * abs_qty
-
-            unrealized_pnl_pct = (unrealized_pnl / (entry_price * abs_qty) * 100) if entry_price > 0 else 0
-
-            result['positions'].append({
-                'symbol': f'{symbol}USDT',
-                'exchange': 'binance',
-                'market': 'futures',
-                'side': side,
-                'quantity': abs_qty,
-                'entry_price': entry_price,
-                'current_price': current_price,
-                'value': value,
-                'unrealized_pnl': unrealized_pnl,
-                'unrealized_pnl_pct': unrealized_pnl_pct,
-                'strategy': futures_pos.get('strategy', 'unknown'),
-                'leverage': int(futures_pos.get('leverage', 1)),
-                'entry_time': int(futures_pos.get('entry_time', 0))
-            })
-            result['total_value'] += value
-            result['total_unrealized_pnl'] += unrealized_pnl
-
     return result
 
 
@@ -1951,14 +1880,6 @@ def _new_live_positions_result() -> dict:
         'positions': [],
         'errors': [],
     }
-
-
-def _calculate_unrealized_pct(side: str, entry_price: float, current_price: float, leverage: int) -> float:
-    if entry_price <= 0:
-        return 0.0
-    if side == 'LONG':
-        return ((current_price / entry_price) - 1) * 100 * leverage
-    return ((entry_price / current_price) - 1) * 100 * leverage
 
 
 def _append_live_spot_positions(result: dict, r, spot_account: dict, prices: dict) -> None:
@@ -1993,49 +1914,10 @@ def _append_live_spot_positions(result: dict, r, spot_account: dict, prices: dic
         })
         result['total_value'] += value
         result['total_unrealized_pnl'] += unrealized_pnl
-
-
-def _append_live_futures_positions(result: dict, r, futures_account: dict) -> None:
-    for pos in futures_account['positions']:
-        size = _safe_float(pos['positionAmt'])
-        if size == 0:
-            continue
-        entry_price = _safe_float(pos['entryPrice'])
-        unrealized_pnl = _safe_float(pos['unrealizedProfit'])
-        mark_price = _safe_float(pos.get('markPrice', entry_price), entry_price)
-        liquidation_price = _safe_float(pos.get('liquidationPrice', 0))
-        leverage = _safe_int(pos.get('leverage', 1), 1)
-        side = 'LONG' if size > 0 else 'SHORT'
-        abs_size = abs(size)
-        value = abs_size * mark_price
-        asset = pos['symbol'].replace('USDT', '')
-        redis_pos = r.hgetall(f"positions:{asset}:futures")
-        strategy = (redis_pos or {}).get('strategy', 'manual')
-        result['positions'].append({
-            'symbol': pos['symbol'],
-            'exchange': 'binance',
-            'market': 'futures',
-            'side': side,
-            'quantity': abs_size,
-            'entry_price': entry_price,
-            'current_price': mark_price,
-            'value': value,
-            'unrealized_pnl': unrealized_pnl,
-            'unrealized_pnl_pct': _calculate_unrealized_pct(side, entry_price, mark_price, leverage),
-            'liquidation_price': liquidation_price if liquidation_price > 0 else None,
-            'strategy': strategy,
-            'leverage': leverage,
-        })
-        result['total_value'] += value
-        result['total_unrealized_pnl'] += unrealized_pnl
-
-
 @app.route("/api/positions")
 def get_positions():
     """
-    Get all Binance positions (Spot + Futures) with unrealized P&L.
-    Also includes positions tracked in Redis by the trading bot.
-    In paper mode, returns positions from Redis only.
+    Get all tracked spot positions with unrealized P&L.
     """
     r = get_redis()
     risk_data = r.hgetall('risk') or {}
@@ -2051,8 +1933,6 @@ def get_positions():
         prices = _load_live_price_map(client)
         spot_account = client.get_account(recvWindow=60000)
         _append_live_spot_positions(result, r, spot_account, prices)
-        futures_account = client.futures_account(recvWindow=60000)
-        _append_live_futures_positions(result, r, futures_account)
     except Exception as exc:
         result['errors'].append(f'Binance: {str(exc)}')
 
@@ -2074,13 +1954,6 @@ def _new_summary(mode: str) -> dict:
             'total': 0.0,
             'positions': 0,
         },
-        'futures': {
-            'balance': 0.0,
-            'unrealized_pnl': 0.0,
-            'position_value': 0.0,
-            'total': 0.0,
-            'positions': 0,
-        },
         'total_equity': 0.0,
         'positions': [],
     }
@@ -2089,13 +1962,10 @@ def _new_summary(mode: str) -> dict:
 def _build_paper_summary_positions(
     r,
     prices: dict,
-) -> tuple[list[dict], float, int, float, float, int]:
+) -> tuple[list[dict], float, int]:
     positions: list[dict] = []
     spot_value = 0.0
     spot_count = 0
-    futures_pnl = 0.0
-    futures_position_value = 0.0
-    futures_count = 0
     for symbol in _discover_position_symbols(r):
         spot_pos = r.hgetall(f"positions:{symbol}:spot")
         spot_qty = _safe_float((spot_pos or {}).get('quantity', 0))
@@ -2117,49 +1987,16 @@ def _build_paper_summary_positions(
                 'unrealized_pnl': pnl,
                 'strategy': spot_pos.get('strategy', 'unknown'),
             })
-
-        futures_pos = r.hgetall(f"positions:{symbol}:futures")
-        futures_qty = _safe_float((futures_pos or {}).get('quantity', 0))
-        if not futures_pos or futures_qty == 0:
-            continue
-        entry_price = _safe_float(futures_pos.get('entry_price', 0))
-        current_price = _safe_float(prices.get(f'{symbol}USDT', entry_price), entry_price)
-        side = _normalize_futures_side(futures_pos.get('side', 'buy'))
-        abs_qty = abs(futures_qty)
-        notional_value = abs_qty * current_price
-        pnl = (current_price - entry_price) * abs_qty if side == 'LONG' else (entry_price - current_price) * abs_qty
-        futures_pnl += pnl
-        futures_position_value += notional_value
-        futures_count += 1
-        positions.append({
-            'symbol': f'{symbol}USDT',
-            'market': 'futures',
-            'side': side,
-            'quantity': abs_qty,
-            'entry_price': entry_price,
-            'current_price': current_price,
-            'value': notional_value,
-            'unrealized_pnl': pnl,
-            'leverage': _safe_int(futures_pos.get('leverage', 1), 1),
-            'strategy': futures_pos.get('strategy', 'unknown'),
-        })
-    return positions, spot_value, spot_count, futures_pnl, futures_position_value, futures_count
+    return positions, spot_value, spot_count
 
 
 def _populate_paper_summary(summary: dict, r, prices: dict) -> dict:
     account = r.hgetall('account:paper') or {}
     spot_balance = _safe_float(account.get('spot_balance', 10000), 10000)
-    futures_balance = _safe_float(account.get('futures_balance', 10000), 10000)
-    positions, spot_value, spot_count, futures_pnl, futures_position_value, futures_count = _build_paper_summary_positions(
-        r, prices
-    )
+    positions, spot_value, spot_count = _build_paper_summary_positions(r, prices)
     summary['spot']['balance'] = spot_balance
     summary['spot']['position_value'] = spot_value
     summary['spot']['positions'] = spot_count
-    summary['futures']['balance'] = futures_balance
-    summary['futures']['unrealized_pnl'] = futures_pnl
-    summary['futures']['position_value'] = futures_position_value
-    summary['futures']['positions'] = futures_count
     summary['positions'] = positions
     return summary
 
@@ -2199,72 +2036,20 @@ def _build_live_summary_spot_positions(r, spot_account: dict, prices: dict) -> t
         spot_position_value += value
         spot_count += 1
     return spot_usdt, spot_position_value, spot_count, positions
-
-
-def _build_live_summary_futures_positions(r, futures_account: dict) -> tuple[float, float, float, int, list[dict]]:
-    futures_usdt = 0.0
-    futures_unrealized_pnl = 0.0
-    for asset in futures_account['assets']:
-        if asset['asset'] == 'USDT':
-            futures_usdt = _safe_float(asset['walletBalance'])
-            futures_unrealized_pnl = _safe_float(asset['unrealizedProfit'])
-            break
-
-    futures_count = 0
-    futures_position_value = 0.0
-    positions: list[dict] = []
-    for pos in futures_account['positions']:
-        size = _safe_float(pos['positionAmt'])
-        if size == 0:
-            continue
-        position_side = pos.get('positionSide', 'BOTH')
-        side = 'LONG' if position_side == 'BOTH' and size > 0 else 'SHORT' if position_side == 'BOTH' else position_side
-        asset = pos['symbol'].replace('USDT', '')
-        redis_pos = r.hgetall(f"positions:{asset}:futures")
-        current_price = _safe_float(pos['markPrice'])
-        abs_size = abs(size)
-        positions.append({
-            'symbol': pos['symbol'],
-            'market': 'futures',
-            'side': side,
-            'quantity': abs_size,
-            'entry_price': _safe_float(pos['entryPrice']),
-            'current_price': current_price,
-            'value': abs_size * current_price,
-            'unrealized_pnl': _safe_float(pos['unrealizedProfit']),
-            'leverage': _safe_int(pos['leverage']),
-            'strategy': (redis_pos or {}).get('strategy', 'manual'),
-        })
-        futures_position_value += abs_size * current_price
-        futures_count += 1
-    return futures_usdt, futures_unrealized_pnl, futures_position_value, futures_count, positions
-
-
 def _populate_live_summary(summary: dict, r, prices: dict) -> dict:
     client = _build_binance_client()
     spot_account = client.get_account(recvWindow=60000)
-    futures_account = client.futures_account(recvWindow=60000)
-
     spot_usdt, spot_position_value, spot_count, spot_positions = _build_live_summary_spot_positions(r, spot_account, prices)
-    futures_usdt, futures_unrealized_pnl, futures_position_value, futures_count, futures_positions = (
-        _build_live_summary_futures_positions(r, futures_account)
-    )
-
     summary['spot']['balance'] = spot_usdt
     summary['spot']['position_value'] = spot_position_value
     summary['spot']['positions'] = spot_count
-    summary['futures']['balance'] = futures_usdt
-    summary['futures']['unrealized_pnl'] = futures_unrealized_pnl
-    summary['futures']['position_value'] = futures_position_value
-    summary['futures']['positions'] = futures_count
-    summary['positions'] = spot_positions + futures_positions
+    summary['positions'] = spot_positions
     return summary
 
 
 def _finalize_summary(summary: dict) -> dict:
     summary['spot']['total'] = summary['spot']['balance'] + summary['spot']['position_value']
-    summary['futures']['total'] = summary['futures']['balance'] + summary['futures']['unrealized_pnl']
-    summary['total_equity'] = summary['spot']['total'] + summary['futures']['total']
+    summary['total_equity'] = summary['spot']['total']
     return summary
 
 
@@ -2272,8 +2057,8 @@ def _finalize_summary(summary: dict) -> dict:
 @requires_auth
 def get_summary():
     """
-    Get combined spot + futures summary.
-    Returns total equity, balances, and position counts for both markets.
+    Get spot summary.
+    Returns total equity, balances, and position counts for the spot account.
     """
     try:
         r = get_redis()
@@ -2400,8 +2185,8 @@ try:
 except ImportError:
     STRATEGY_REGISTRY = {}
 
-# Hide legacy/deprecated strategies from dashboard enable list.
-DEPRECATED_STRATEGY_NAMES = {"sideways_v2", "mlp_direction"}
+# Internal base-strategy aliases should not be exposed in dashboard controls.
+INTERNAL_ONLY_STRATEGY_NAMES = {"mlp_direction"}
 
 
 def _strategy_class_name(strategy_name: str, cfg: dict, class_key: str, registry_attr: str, default=None):
@@ -2535,12 +2320,12 @@ def _parse_state_value(raw):
 def _load_strategy_active_positions(r, strategy_name: str, symbols: list[str]) -> list[dict]:
     active_positions: list[dict] = []
     for symbol in symbols:
-        pos_data = r.hgetall(f"positions:{symbol}:futures")
+        pos_data = r.hgetall(f"positions:{symbol}:spot")
         if not pos_data or pos_data.get('strategy') != strategy_name:
             continue
         active_positions.append({
             'symbol': symbol,
-            'qty': _safe_float(pos_data.get('qty', 0)),
+            'qty': _safe_float(pos_data.get('quantity', pos_data.get('qty', 0))),
             'entry_price': _safe_float(pos_data.get('entry_price', 0)),
             'side': pos_data.get('side', 'long'),
         })
@@ -2581,8 +2366,8 @@ def _build_strategy_info(strategy_name: str, cfg: dict, r, symbols: list[str]) -
     strategy_info = {
         'name': strategy_name,
         'enabled': True,
-        'market': cfg.get('market', 'futures'),
-        'leverage': 1 if cfg.get('market') == 'spot' else cfg.get('leverage', 3),
+        'market': cfg.get('market', 'spot'),
+        'leverage': 1,
         'position_pct': cfg.get('position_pct', 0.1),
         'position_size': cfg.get('position_size', 0.01),
         'dynamic_sizing': cfg.get('dynamic_sizing', False),
@@ -2617,9 +2402,9 @@ def _build_strategy_info(strategy_name: str, cfg: dict, r, symbols: list[str]) -
 def _build_available_strategies(enabled_names: set[str], disabled_names: set[str]) -> list[str]:
     available_in_registry = {
         name for name in STRATEGY_REGISTRY.keys()
-        if name not in DEPRECATED_STRATEGY_NAMES
+        if name not in INTERNAL_ONLY_STRATEGY_NAMES
     } - enabled_names
-    return sorted((available_in_registry | disabled_names) - DEPRECATED_STRATEGY_NAMES)
+    return sorted((available_in_registry | disabled_names) - INTERNAL_ONLY_STRATEGY_NAMES)
 
 
 @app.route("/api/strategies")
@@ -2645,7 +2430,7 @@ def get_strategies():
         disabled_strategy_names = set()
 
         for name, cfg in strategies_config.items():
-            if name in DEPRECATED_STRATEGY_NAMES:
+            if name in INTERNAL_ONLY_STRATEGY_NAMES:
                 disabled_strategy_names.add(name)
                 continue
             if not bool(cfg.get('enabled', True)):
@@ -2680,8 +2465,8 @@ def enable_strategy(strategy_name: str):
     try:
         if strategy_name not in STRATEGY_REGISTRY:
             return jsonify({'error': f'Unknown strategy: {strategy_name}'}), 400
-        if strategy_name in DEPRECATED_STRATEGY_NAMES:
-            return jsonify({'error': f'Strategy {strategy_name} is deprecated and cannot be enabled'}), 400
+        if strategy_name in INTERNAL_ONLY_STRATEGY_NAMES:
+            return jsonify({'error': f'Strategy {strategy_name} is internal-only and cannot be enabled'}), 400
 
         # Load current config
         config = load_allocation_config()
@@ -2778,7 +2563,7 @@ def disable_strategy(strategy_name: str):
         symbols = _load_dashboard_symbols(config)
 
         for symbol in symbols:
-            pos_key = f"positions:{symbol}:futures"
+            pos_key = f"positions:{symbol}:spot"
             pos_data = r.hgetall(pos_key)
             if pos_data and pos_data.get('strategy') == strategy_name:
                 return jsonify({
@@ -3004,15 +2789,13 @@ def _discover_position_symbols(r) -> list[str]:
 
     stream_candidates = _discover_position_symbols_from_stream(r)
     for symbol in stream_candidates:
-        for market in ("spot", "futures"):
-            try:
-                pos = r.hgetall(f"positions:{symbol}:{market}") or {}
-            except Exception:
-                continue
-            qty = _safe_float(pos.get("quantity", 0))
-            if qty > 0:
-                discovered.add(symbol)
-                break
+        try:
+            pos = r.hgetall(f"positions:{symbol}:spot") or {}
+        except Exception:
+            continue
+        qty = _safe_float(pos.get("quantity", 0))
+        if qty > 0:
+            discovered.add(symbol)
 
     for symbol in _discover_position_symbols_from_hashes(r):
         discovered.add(symbol)
@@ -3048,24 +2831,23 @@ def _discover_position_symbols_from_hashes(r) -> list[str]:
     symbols: list[str] = []
     seen: set[str] = set()
 
-    for pattern in ("positions:*:spot", "positions:*:futures"):
-        for key in _iter_position_hash_keys(r, pattern):
-            parts = key.split(":")
-            if len(parts) != 3:
-                continue
-            _, raw_symbol, _market = parts
-            symbol = _normalize_symbol(raw_symbol)
-            if not symbol or symbol in seen:
-                continue
-            try:
-                pos = r.hgetall(key) or {}
-            except Exception:
-                continue
-            qty = _safe_float(pos.get("quantity", 0))
-            if qty <= 0:
-                continue
-            seen.add(symbol)
-            symbols.append(symbol)
+    for key in _iter_position_hash_keys(r, "positions:*:spot"):
+        parts = key.split(":")
+        if len(parts) != 3:
+            continue
+        _, raw_symbol, _market = parts
+        symbol = _normalize_symbol(raw_symbol)
+        if not symbol or symbol in seen:
+            continue
+        try:
+            pos = r.hgetall(key) or {}
+        except Exception:
+            continue
+        qty = _safe_float(pos.get("quantity", 0))
+        if qty <= 0:
+            continue
+        seen.add(symbol)
+        symbols.append(symbol)
     return symbols
 
 
@@ -3112,17 +2894,6 @@ def _new_exchange_balance_result() -> dict:
         'binance': None,
         'errors': [],
     }
-
-
-def _normalize_futures_side(side: str) -> str:
-    normalized = str(side or '').upper()
-    if normalized == 'BUY':
-        return 'LONG'
-    if normalized == 'SELL':
-        return 'SHORT'
-    return normalized or 'LONG'
-
-
 def _build_spot_paper_positions(r, prices: dict) -> tuple[list[dict], float]:
     positions: list[dict] = []
     position_value = 0.0
@@ -3143,67 +2914,18 @@ def _build_spot_paper_positions(r, prices: dict) -> tuple[list[dict], float]:
         })
         position_value += value
     return positions, position_value
-
-
-def _build_futures_paper_positions(r, prices: dict) -> tuple[list[dict], float, float]:
-    positions: list[dict] = []
-    unrealized_pnl = 0.0
-    position_value = 0.0
-    for symbol in _discover_position_symbols(r):
-        futures_pos = r.hgetall(f"positions:{symbol}:futures")
-        qty = _safe_float((futures_pos or {}).get('quantity', 0))
-        if not futures_pos or qty == 0:
-            continue
-        entry_price = _safe_float(futures_pos.get('entry_price', 0))
-        current_price = _safe_float(prices.get(f'{symbol}USDT', entry_price), entry_price)
-        side = _normalize_futures_side(futures_pos.get('side', 'buy'))
-        abs_qty = abs(qty)
-        pnl = (current_price - entry_price) * abs_qty if side == 'LONG' else (entry_price - current_price) * abs_qty
-        notional_value = abs_qty * current_price
-        positions.append({
-            'symbol': symbol,
-            'market': 'futures',
-            'size': qty,
-            'side': side,
-            'entry_price': entry_price,
-            'mark_price': current_price,
-            'value': notional_value,
-            'unrealized_pnl': pnl,
-            'leverage': _safe_int(futures_pos.get('leverage', 1), 1),
-            'liquidation_price': 0,
-            'entry_time': _safe_int(futures_pos.get('entry_time', 0)),
-            'strategy': futures_pos.get('strategy', 'unknown'),
-        })
-        unrealized_pnl += pnl
-        position_value += notional_value
-    return positions, unrealized_pnl, position_value
-
-
 def _compose_exchange_balance_payload(
     spot_usdt: float,
     spot_position_value: float,
     spot_positions: list[dict],
-    futures_usdt: float,
-    futures_unrealized_pnl: float,
-    futures_position_value: float,
-    futures_positions: list[dict],
-    hedge_mode_enabled: bool,
 ) -> dict:
-    total_equity = spot_usdt + spot_position_value + futures_usdt + futures_unrealized_pnl
+    total_equity = spot_usdt + spot_position_value
     return {
         'spot': {
             'usdt_balance': spot_usdt,
             'position_value': spot_position_value,
             'total': spot_usdt + spot_position_value,
             'positions': spot_positions,
-        },
-        'futures': {
-            'usdt_balance': futures_usdt,
-            'unrealized_pnl': futures_unrealized_pnl,
-            'position_value': futures_position_value,
-            'total': futures_usdt + futures_unrealized_pnl,
-            'positions': futures_positions,
-            'hedge_mode': hedge_mode_enabled,
         },
         'total_equity': total_equity,
     }
@@ -3212,18 +2934,11 @@ def _compose_exchange_balance_payload(
 def _build_paper_exchange_balances(r, prices: dict) -> dict:
     account = r.hgetall('account:paper') or {}
     spot_balance = _safe_float(account.get('spot_balance', 10000), 10000)
-    futures_balance = _safe_float(account.get('futures_balance', 10000), 10000)
     spot_positions, spot_position_value = _build_spot_paper_positions(r, prices)
-    futures_positions, futures_unrealized_pnl, futures_position_value = _build_futures_paper_positions(r, prices)
     return _compose_exchange_balance_payload(
         spot_usdt=spot_balance,
         spot_position_value=spot_position_value,
         spot_positions=spot_positions,
-        futures_usdt=futures_balance,
-        futures_unrealized_pnl=futures_unrealized_pnl,
-        futures_position_value=futures_position_value,
-        futures_positions=futures_positions,
-        hedge_mode_enabled=False,
     )
 
 
@@ -3274,60 +2989,9 @@ def _build_spot_live_positions(spot_account: dict, prices: dict) -> tuple[float,
         })
     position_value = sum(p['value'] for p in positions)
     return spot_usdt, positions, position_value
-
-
-def _resolve_hedge_mode(client) -> bool:
-    try:
-        position_mode = client.futures_get_position_mode(recvWindow=60000)
-        return bool(position_mode.get('dualSidePosition', False))
-    except Exception:
-        return False
-
-
-def _build_futures_live_positions(futures_account: dict, r) -> tuple[float, float, float, list[dict]]:
-    futures_usdt = 0.0
-    futures_unrealized_pnl = 0.0
-    for asset in futures_account['assets']:
-        if asset['asset'] == 'USDT':
-            futures_usdt = _safe_float(asset['walletBalance'])
-            futures_unrealized_pnl = _safe_float(asset['unrealizedProfit'])
-            break
-
-    positions: list[dict] = []
-    position_value = 0.0
-    for pos in futures_account['positions']:
-        size = _safe_float(pos['positionAmt'])
-        if size == 0:
-            continue
-        position_side = pos.get('positionSide', 'BOTH')
-        side = 'LONG' if position_side == 'BOTH' and size > 0 else 'SHORT' if position_side == 'BOTH' else position_side
-        asset = pos['symbol'].replace('USDT', '')
-        redis_pos = r.hgetall(f"positions:{asset}:futures")
-        entry_time = _safe_int((redis_pos or {}).get('entry_time', 0))
-        strategy = (redis_pos or {}).get('strategy', 'unknown')
-        mark_price = _safe_float(pos['markPrice'])
-        notional_value = abs(size) * mark_price
-        positions.append({
-            'symbol': asset,
-            'market': 'futures',
-            'size': size,
-            'side': side,
-            'entry_price': _safe_float(pos['entryPrice']),
-            'mark_price': mark_price,
-            'value': notional_value,
-            'unrealized_pnl': _safe_float(pos['unrealizedProfit']),
-            'leverage': _safe_int(pos['leverage']),
-            'liquidation_price': _safe_float(pos.get('liquidationPrice', 0)),
-            'entry_time': entry_time,
-            'strategy': strategy,
-        })
-        position_value += notional_value
-    return futures_usdt, futures_unrealized_pnl, position_value, positions
-
-
 @app.route("/api/exchange_balances")
 def get_exchange_balances():
-    """Fetch balances from Binance (both Spot and Futures).
+    """Fetch balances from Binance spot account.
     In paper mode, returns simulated balances from Redis.
     """
     r = get_redis()
@@ -3349,19 +3013,10 @@ def get_exchange_balances():
         spot_account = client.get_account(recvWindow=60000)
         prices = _load_live_price_map(client)
         spot_usdt, spot_positions, spot_position_value = _build_spot_live_positions(spot_account, prices)
-        futures_account = client.futures_account(recvWindow=60000)
-        futures_usdt, futures_unrealized_pnl, futures_position_value, futures_positions = _build_futures_live_positions(
-            futures_account, r
-        )
         result['binance'] = _compose_exchange_balance_payload(
             spot_usdt=spot_usdt,
             spot_position_value=spot_position_value,
             spot_positions=spot_positions,
-            futures_usdt=futures_usdt,
-            futures_unrealized_pnl=futures_unrealized_pnl,
-            futures_position_value=futures_position_value,
-            futures_positions=futures_positions,
-            hedge_mode_enabled=_resolve_hedge_mode(client),
         )
     except Exception as exc:
         result['errors'].append(f'Binance: {str(exc)}')
@@ -3494,7 +3149,7 @@ def get_entry_events():
     - hours: Hours of history (default 24, max 72)
     - limit: Maximum events (default 50, max 200)
     - symbol: Filter by symbol (e.g., "BTC")
-    - strategy: Filter by strategy (e.g., "short_v1")
+    - strategy: Filter by strategy (e.g., "mlp_direction_btc")
     """
     if not metrics_service:
         return jsonify({'error': 'Metrics service not available'}), 500
@@ -3606,7 +3261,7 @@ def get_hwm_timeline(symbol: str, strategy: str):
 
     URL parameters:
     - symbol: Trading symbol (e.g., "BTC")
-    - strategy: Strategy name (e.g., "short_v1")
+    - strategy: Strategy name (e.g., "mlp_direction_btc")
 
     Query parameters:
     - hours: Hours of history (default 24, max 72)

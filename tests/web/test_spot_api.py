@@ -63,9 +63,8 @@ class TestSummaryAPI:
         # Mock Redis responses
         mock_redis.hgetall.side_effect = lambda key: {
             'risk': {'mode': 'paper'},
-            'account:paper': {'spot_balance': '10000', 'futures_balance': '10000'},
+            'account:paper': {'spot_balance': '10000'},
             'positions:BTC:spot': {'quantity': '0.1', 'entry_price': '100000', 'strategy': 'mlp_spot'},
-            'positions:BTC:futures': {'quantity': '0.05', 'entry_price': '101000', 'side': 'buy', 'leverage': '3', 'strategy': 'short_v1'},
         }.get(key, {})
 
         # Mock price stream
@@ -82,7 +81,6 @@ class TestSummaryAPI:
             data = response.get_json()
             assert data['mode'] == 'paper'
             assert data['spot']['balance'] == 10000
-            assert data['futures']['balance'] == 10000
             assert data['total_equity'] > 0
             assert isinstance(data['positions'], list)
 
@@ -90,7 +88,7 @@ class TestSummaryAPI:
         """Test summary with no positions."""
         mock_redis.hgetall.side_effect = lambda key: {
             'risk': {'mode': 'paper'},
-            'account:paper': {'spot_balance': '10000', 'futures_balance': '10000'},
+            'account:paper': {'spot_balance': '10000'},
         }.get(key, {})
 
         with patch('web.app.get_latest_prices') as mock_prices:
@@ -101,7 +99,6 @@ class TestSummaryAPI:
 
             data = response.get_json()
             assert data['spot']['positions'] == 0
-            assert data['futures']['positions'] == 0
             assert len(data['positions']) == 0
 
     def test_get_summary_includes_dynamic_spot_symbol(self, client, auth_headers, mock_redis):
@@ -109,7 +106,7 @@ class TestSummaryAPI:
         mock_redis.keys.return_value = ['positions:GRT:spot']
         mock_redis.hgetall.side_effect = lambda key: {
             'risk': {'mode': 'paper'},
-            'account:paper': {'spot_balance': '191.09', 'futures_balance': '10000'},
+            'account:paper': {'spot_balance': '191.09'},
             'positions:GRT:spot': {
                 'quantity': '26935.24799083962',
                 'entry_price': '0.028271304',
@@ -230,7 +227,7 @@ class TestSpotBalanceAPI:
         """Test getting spot balance in paper mode."""
         mock_redis.hgetall.side_effect = lambda key: {
             'risk': {'mode': 'paper'},
-            'account:paper': {'spot_balance': '12345.67', 'futures_balance': '10000'},
+            'account:paper': {'spot_balance': '12345.67'},
         }.get(key, {})
 
         response = client.get('/api/spot/balance', headers=auth_headers)

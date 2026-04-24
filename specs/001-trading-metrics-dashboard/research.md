@@ -61,7 +61,7 @@ All technical unknowns have been resolved through codebase analysis.
 
 **Analysis of `web/app.py`**:
 - Existing endpoints: `/api/status`, `/api/signals`, `/api/trades`, `/api/positions`
-- Data loading: `load_multi_asset_status()` reads from `logs/async_engine_status.json`
+- Data loading: `metrics_service.get_dashboard_state()` reads the Redis-backed dashboard snapshot
 - Response format: JSON with nested objects
 - Error handling: Returns 404 with `{'error': 'message'}` when data unavailable
 - TOTP protection: Some endpoints use `@requires_totp` decorator

@@ -167,9 +167,7 @@ class SmartExecutor:
         # Initialize exchange info cache for LOT_SIZE/PRICE_FILTER compliance
         symbols = self.config.get("symbols", ["BTC", "ETH", "SOL"])
         spot_cache = get_exchange_cache("spot")
-        futures_cache = get_exchange_cache("futures")
         await spot_cache.refresh(symbols)
-        await futures_cache.refresh(symbols)
         logger.info(f"ExchangeInfo loaded for {symbols}")
 
         logger.info("SmartExecutor started")
@@ -293,7 +291,10 @@ class SmartExecutor:
     async def _handle_exit_signal(self, signal: dict) -> None:
         """Handle incoming exit signal from strategy."""
         symbol = signal.get("symbol")
-        market = signal.get("market", "futures")
+        market = str(signal.get("market", "spot") or "spot").lower()
+        if market != "spot":
+            logger.warning("Ignoring non-spot smart exit signal: %s", signal)
+            return
         quantity = float(signal.get("quantity", 0))
         trigger_price = float(signal.get("trigger_price", 0))
         strategy = signal.get("strategy", "unknown")

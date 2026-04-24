@@ -57,13 +57,13 @@ def validate_strategy_config(
     """
     warnings: list[str] = []
 
-    # Validate market if specified (hybrid mode: spot for MLP, futures for Short/Sideways)
+    # Validate market if specified (spot-only system)
     if "market" in config:
         market = config["market"]
-        if market not in ("spot", "futures"):
+        if market != "spot":
             raise ConfigValidationError(
                 f"Strategy '{strategy_name}': Invalid market '{market}'. "
-                f"Must be 'spot' or 'futures'."
+                f"Must be 'spot'."
             )
 
     # Validate leverage if specified

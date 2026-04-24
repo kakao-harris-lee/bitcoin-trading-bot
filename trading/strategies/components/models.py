@@ -111,7 +111,7 @@ class Signal:
 
     symbol: str
     side: Literal["buy", "sell"]
-    market: Literal["futures"]
+    market: Literal["spot"]
     quantity: float
     reason: str
     # Optional exit-specific fields
@@ -387,11 +387,10 @@ class Position:
     entry_price: float
     quantity: float
     strategy: str
-    market: Literal["futures"]
+    market: Literal["spot"]
     timestamp: int  # Unix timestamp in milliseconds
     side: str = "buy"  # "buy" for long, "sell" for short
-    leverage: int = 1  # leverage multiplier
-    liquidation_price: float = 0.0  # for futures
+    leverage: int = 1  # fixed at 1 in spot-only mode
     entry_time: int | None = None  # Entry bar timestamp for FWin exit (milliseconds)
 
 

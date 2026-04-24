@@ -3,7 +3,7 @@
   "version": "v1",
   "timeframe": "minute60",
   "description": "Combo entry that trades based on EMA cross only.",
-  "market": "futures",
+  "market": "spot",
   "position_size": 0.01,
   "entry": {
     "class": "CombinedEntryStrategy",

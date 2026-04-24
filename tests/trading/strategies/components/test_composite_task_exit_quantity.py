@@ -68,19 +68,19 @@ def test_resolve_exit_quantity_full_fraction_uses_position_size():
 
 
 def test_resolve_exit_quantity_partial_fraction_scales_position():
-    task = _make_task(market="futures")
+    task = _make_task(market="spot")
     position = Position(
         symbol="BTC",
         entry_price=100000.0,
         quantity=4.0,
         strategy="mlp_direction",
-        market="futures",
+        market="spot",
         timestamp=1,
     )
     signal = Signal(
         symbol="BTC",
         side="sell",
-        market="futures",
+        market="spot",
         quantity=0.5,
         reason="tp1",
     )
@@ -90,19 +90,19 @@ def test_resolve_exit_quantity_partial_fraction_scales_position():
 
 
 def test_resolve_exit_quantity_clamps_oversized_absolute_signal():
-    task = _make_task(market="futures")
+    task = _make_task(market="spot")
     position = Position(
         symbol="BTC",
         entry_price=100000.0,
         quantity=0.7363,
         strategy="mlp_direction",
-        market="futures",
+        market="spot",
         timestamp=1,
     )
     signal = Signal(
         symbol="BTC",
         side="sell",
-        market="futures",
+        market="spot",
         quantity=2.0,
         reason="stop",
     )

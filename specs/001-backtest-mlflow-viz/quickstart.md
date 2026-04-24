@@ -85,7 +85,7 @@ mlflow ui --backend-store-uri ./mlruns
 ## Parameter Sweep
 
 ```python
-from core.parameter_sweep import ParameterSweep, ParameterSweepRunner
+Use `scripts/optimize_mlflow.py` for optimizer sweeps in the current repository state.
 
 # Define parameter grid
 sweep = ParameterSweep(

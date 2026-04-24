@@ -8,7 +8,7 @@ Log format:
 
 Usage:
     from trading.observability.structured_logger import trade_logger
-    trade_logger.entry(symbol="BTC", price=100000, qty=0.01, strategy="short_v1")
+    trade_logger.entry(symbol="BTC", price=100000, qty=0.01, strategy="mlp_direction_btc")
     trade_logger.exit(symbol="BTC", price=101500, qty=0.01, pnl=15.0, pnl_pct=1.5)
 """
 from __future__ import annotations
@@ -202,7 +202,7 @@ class StructuredTradeLogger:
         qty: float,
         strategy: str,
         order_id: str = "",
-        market: str = "futures",
+        market: str = "spot",
         mode: str = "paper",
         **extra: Any,
     ) -> None:
@@ -215,7 +215,7 @@ class StructuredTradeLogger:
             qty: Fill quantity
             strategy: Strategy name
             order_id: Order ID
-            market: Market type (futures)
+            market: Market type (spot)
             mode: Trading mode (paper, live)
         """
         _log_event(

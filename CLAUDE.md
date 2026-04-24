@@ -48,7 +48,7 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - [x] **Factory Integration**: `Engine` uses `StrategyFactory`.
 - [x] **Cleanup**: Legacy monolithic tasks deleted.
 - [x] **Persistence**: `StateManager` implemented.
-- [x] **Hybrid Mode**: MLP strategies on spot, Short/Sideways on futures.
+- [x] **Spot-Only Mode**: Active strategies run on Binance spot only.
 - [x] **Observability**: Enhance `MetricsService` for component-specific events.
 
 ## 4. Coding Standards
@@ -63,8 +63,8 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 
 **Always add important documentation here!** When you create or discover:
 
-- Futures Trading Architecture → `docs/plans/2026-01-18-futures-trading-overhaul-design.md`
-- Futures Implementation Guide → `docs/plans/2026-01-18-futures-trading-overhaul-implementation.md`
+- Spot Trading Restoration Design → `docs/plans/2026-01-31-spot-trading-restoration-design.md`
+- Spot Trading Restoration Implementation → `docs/plans/2026-01-31-spot-trading-restoration-implementation.md`
 - Quant Lab Design → `docs/plans/2026-01-20-quant-lab-design.md`
 - Quant Lab Implementation → `docs/plans/2026-01-20-quant-lab-implementation.md`
 - Trading Context Centralization → `docs/plans/2026-01-20-trading-context-centralization-design.md`
@@ -252,9 +252,9 @@ bitcoin-trading-bot/
 ### Hashes
 
 - `positions:{symbol}:spot`: Spot position state (qty, entry_price, strategy).
-- `positions:{symbol}:futures`: Futures position state (qty, entry_price, leverage, liquidation_price).
+- `positions:{symbol}:spot`: Spot position state (qty, entry_price, strategy, side).
 - `balance:spot:usdt`: Spot USDT balance.
-- `balance:futures:usdt`: Futures USDT balance.
+- `account:{mode}`: Spot account state (`spot_balance`, `total_equity`, `last_sync`).
 - `risk`: Risk state (kill_switch, blocked, daily_pnl).
 - `state:{strategy}:{symbol}`: Persistent strategy state (high_water_mark, etc).
 
@@ -272,11 +272,9 @@ bitcoin-trading-bot/
     "market_context": { "mfi_bull": 52.0, "mfi_bear": 48.0, "adx_trend": 20.0 }
   },
   "spot": { "enabled": true, "fee_rate": 0.001 },
-  "futures": { "enabled": true, "default_leverage": 3 },
   "strategies": {
-    "short_v1": {
-      "market": "futures",
-      "leverage": 3,
+    "mlp_direction_btc": {
+      "market": "spot",
       "position_pct": 0.2
     }
   },
@@ -465,7 +463,7 @@ python scripts/analyze_trades.py --event EXIT       # Filter by event
 - 2026-02-03: Fixed position_size bug - Entry strategy's regime-based sizing now takes priority over config fallback
 - 2026-02-03: Added backtest CSV logging for strategy analysis (--csv-log CLI option, dashboard download API)
 - 2026-01-31: Added Quant Lab security hardening (auth, input validation, path traversal protection)
-- 2026-01-31: Added hybrid dashboard view with spot/futures separation
+- 2026-04-23: Removed legacy derivative paths and aligned dashboard to spot-only mode
 - 2026-01-31: Added enhanced backtest judgment charts and metrics
 - 2026-01-30: Added risk-based position sizing (1% risk per trade, 5% total risk cap)
 - 2026-01-25: Added structured one-line JSON trade logging for analysis

@@ -5,11 +5,11 @@ stream-based task system. It extends BaseStrategyTask and delegates entry/exit
 logic to IEntryStrategy and IExitStrategy components.
 
 Usage:
-    entry = ShortEntryStrategy(params)
-    exit_strat = ShortExitStrategy(params)
+    entry = MLPDirectionEntryStrategy(params)
+    exit_strat = MLPDirectionExitStrategy(params)
 
     task = CompositeStrategyTask(
-        name="short_v1",
+        name="mlp_direction_btc",
         symbols=["BTC", "ETH"],
         redis=redis,
         entry_strategy=entry,
@@ -58,7 +58,6 @@ from trading.utils.precision import PriceUtils, get_symbol_info
 
 if TYPE_CHECKING:
     from trading.streams.redis_streams import RedisStreams
-    from trading.core.event_emitter import EventEmitter
     from trading.indicators.indicator_service import IndicatorService
     from .context_builder import TradingContextBuilder
 
@@ -79,7 +78,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         redis: RedisStreams,
         entry_strategy: IEntryStrategy,
         exit_strategy: IExitStrategy,
-        market: str = "futures",
+        market: str = "spot",
         buffer_size: int = 500,
         use_smart_exit: bool = False,
         config: dict | None = None,
@@ -91,12 +90,12 @@ class CompositeStrategyTask(BaseStrategyTask):
         """Initialize composite strategy task.
 
         Args:
-            name: Strategy name (e.g., "short_v1").
+            name: Strategy name (e.g., "mlp_direction_btc").
             symbols: List of symbols to trade.
             redis: Redis streams client.
             entry_strategy: Entry component implementing IEntryStrategy.
             exit_strategy: Exit component implementing IExitStrategy.
-            market: Market type ("spot" or "futures").
+            market: Market type ("spot").
             buffer_size: Price buffer size.
             use_smart_exit: Use smart exit stream.
             config: Additional configuration.
@@ -822,7 +821,7 @@ class CompositeStrategyTask(BaseStrategyTask):
     async def _refresh_indicator_history(self, symbol: str) -> None:
         if self.indicator_service and self.indicator_service.needs_refresh(symbol):
             try:
-                market = self.config.get("market", "futures") if self.config else "futures"
+                market = self.config.get("market", "spot") if self.config else "spot"
                 await self.indicator_service.refresh_history(symbol, market=market)
             except Exception as e:
                 logger.warning(f"Candle refresh failed for {symbol}: {e}")
@@ -2557,7 +2556,6 @@ class CompositeStrategyTask(BaseStrategyTask):
             timestamp=timestamp,
             side=position_dict.get("side", "buy"),
             leverage=int(position_dict.get("leverage", 1) or 1),
-            liquidation_price=float(position_dict.get("liquidation_price", 0) or 0),
             entry_time=entry_time if entry_time > 0 else None,
         )
 
@@ -2748,16 +2746,14 @@ class CompositeStrategyTask(BaseStrategyTask):
                 if total > 0:
                     return total
                 spot = float(live.get("spot_balance", 0))
-                futures = float(live.get("futures_balance", 0))
-                if spot + futures > 0:
-                    return spot + futures
+                if spot > 0:
+                    return spot
 
             paper = await self.redis._client.hgetall("account:paper")
             if paper:
                 spot = float(paper.get("spot_balance", 0))
-                futures = float(paper.get("futures_balance", 0))
-                if spot + futures > 0:
-                    return spot + futures
+                if spot > 0:
+                    return spot
 
             # Last fallback for paper mode cold start
             return float(self.config.get("paper", {}).get("initial_balance", 0))
@@ -3391,7 +3387,7 @@ async def create_composite_task(
     entry_strategy: IEntryStrategy,
     exit_strategy: IExitStrategy,
     config: dict | None = None,
-    market: str = "futures",
+    market: str = "spot",
     use_smart_exit: bool = False,
     emit_events: bool = False,
     indicator_service: IndicatorService | None = None,

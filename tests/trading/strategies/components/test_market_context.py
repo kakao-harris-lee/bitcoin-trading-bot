@@ -11,7 +11,6 @@ from trading.strategies.components.models import (
     TradingContext,
     build_market_context,
 )
-from trading.strategies.components.sideways_entry import SidewaysEntryStrategy
 
 
 class TestBuildMarketContext:
@@ -169,90 +168,6 @@ class TestRegimeClassification:
         assert ctx.regime == "SIDEWAYS_UP"  # MFI=50 is >= 49
 
 
-class TestSidewaysContextFiltering:
-    """Test Sideways entry context-based filtering."""
-
-    @pytest.fixture
-    def entry(self):
-        """Create Sideways entry strategy."""
-        return SidewaysEntryStrategy()
-
-    @pytest.fixture
-    def sideways_market_data(self):
-        """Market data with sideways/neutral indicators."""
-        return MarketData(
-            symbol="ETH",
-            close=3200.0,
-            mfi=50.0,  # Neutral MFI
-            adx=15.0,  # Low trend strength
-            rsi=30.0,  # Oversold - good for mean reversion
-            timestamp=1000000,
-        )
-
-    def test_allows_neutral_trend(self, entry, sideways_market_data):
-        """Sideways should allow entry in NEUTRAL trend."""
-        context = MarketContext(
-            trend="NEUTRAL",
-            regime="SIDEWAYS_FLAT",  # MFI=50, ADX=15 -> SIDEWAYS_FLAT
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=15.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
-        assert signal is not None
-        assert signal.side == "buy"
-
-    def test_allows_bull_trend(self, entry, sideways_market_data):
-        """Sideways should allow entry in BULL trend (all trends allowed)."""
-        context = MarketContext(
-            trend="BULL",
-            regime="SIDEWAYS_UP",  # Sideways regime for this test
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=15.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
-        assert signal is not None
-
-    def test_allows_bear_trend(self, entry, sideways_market_data):
-        """Sideways should allow entry in BEAR trend (all trends allowed)."""
-        context = MarketContext(
-            trend="BEAR",
-            regime="SIDEWAYS_DOWN",  # Sideways regime for this test
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=15.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
-        assert signal is not None
-
-    def test_skips_extreme_volatility(self, entry, sideways_market_data):
-        """Sideways should skip entry during extreme volatility."""
-        context = MarketContext(
-            trend="NEUTRAL",
-            regime="SIDEWAYS_FLAT",
-            volatility_score=0.035,
-            is_extreme_volatility=True,
-            adx=15.0,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
-        assert signal is None
-
-    def test_skips_extreme_volatility_any_trend(self, entry, sideways_market_data):
-        """Sideways should skip extreme volatility regardless of trend."""
-        regimes = {"BULL": "SIDEWAYS_UP", "BEAR": "SIDEWAYS_DOWN", "NEUTRAL": "SIDEWAYS_FLAT"}
-        for trend, regime in regimes.items():
-            context = MarketContext(
-                trend=trend,
-                regime=regime,
-                volatility_score=0.04,
-                is_extreme_volatility=True,
-                adx=15.0,
-            )
-            signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
-            assert signal is None, f"Should skip entry in {trend} with extreme volatility"
-
-
 class TestVolumeAnalysis:
     """Test volume analysis in build_market_context."""
 
@@ -316,55 +231,6 @@ class TestVolumeAnalysis:
             high_volume_threshold=1.5
         )
         assert ctx.is_high_volume is False
-
-
-class TestSidewaysHighVolumeFilter:
-    """Test Sideways entry high volume filter (breakout detection)."""
-
-    @pytest.fixture
-    def entry(self):
-        """Create Sideways entry strategy."""
-        return SidewaysEntryStrategy()
-
-    @pytest.fixture
-    def sideways_market_data(self):
-        """Market data with sideways/neutral indicators."""
-        return MarketData(
-            symbol="ETH",
-            close=3200.0,
-            mfi=50.0,
-            adx=15.0,
-            rsi=30.0,  # Oversold
-            timestamp=1000000,
-        )
-
-    def test_skips_entry_when_high_volume(self, entry, sideways_market_data):
-        """Sideways should skip entry when high volume (potential breakout)."""
-        context = MarketContext(
-            trend="NEUTRAL",
-            regime="SIDEWAYS_FLAT",
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=15.0,
-            volume_ratio=2.0,  # High volume
-            is_high_volume=True,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
-        assert signal is None
-
-    def test_allows_entry_normal_volume(self, entry, sideways_market_data):
-        """Sideways should allow entry when volume is normal."""
-        context = MarketContext(
-            trend="NEUTRAL",
-            regime="SIDEWAYS_FLAT",
-            volatility_score=0.01,
-            is_extreme_volatility=False,
-            adx=15.0,
-            volume_ratio=1.2,  # Normal volume
-            is_high_volume=False,
-        )
-        signal = entry.check_entry(TradingContext(symbol="BTC", timestamp=1000, market=sideways_market_data, regime=context, positions={}))
-        assert signal is not None
 
 
 class TestRegimeTypeAndCaching:

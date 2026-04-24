@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Asset Trading Bot - Live Dashboard</title>
+    <title>Spot Trading Bot - Live Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ css_version or 1 }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <style>
-        /* Hybrid View Styles */
+        /* Spot account summary styles */
         .total-equity-banner {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
@@ -44,10 +44,6 @@
             border-left: 4px solid #10b981;
         }
 
-        .position-card[data-market="futures"] {
-            border-left: 4px solid #3b82f6;
-        }
-
         /* Market badge in position cards */
         .market-badge {
             display: inline-block;
@@ -62,17 +58,12 @@
             background-color: #d1fae5;
             color: #065f46;
         }
-
-        .market-badge.futures {
-            background-color: #dbeafe;
-            color: #1e40af;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Multi-Asset Trading Bot</h1>
+            <h1>Spot Trading Bot</h1>
             <div class="header-info">
                 <span class="engine-mode" id="engine-mode">-</span>
                 <span class="last-update">Last update: <span id="last-update-time">-</span></span>
@@ -83,19 +74,18 @@
             </div>
         </header>
 
-        <!-- Exchange Balances Section (Hybrid: Spot + Futures) -->
+        <!-- Exchange Balances Section -->
         <section class="exchange-section">
             <h2>Account Summary</h2>
 
             <!-- Total Equity -->
             <div class="total-equity-banner">
-                <span class="label">Total Equity (Spot + Futures)</span>
+                <span class="label">Total Equity (Spot)</span>
                 <span class="value" id="total-equity">-</span>
             </div>
 
-            <!-- Spot & Futures Cards -->
+            <!-- Spot Card -->
             <div class="exchange-grid hybrid-view">
-                <!-- Spot Card -->
                 <div class="exchange-card spot-card">
                     <div class="exchange-header">
                         <span class="exchange-name">Spot</span>
@@ -109,33 +99,6 @@
                         <div class="balance-row">
                             <span class="label">Positions</span>
                             <span class="value" id="spot-positions-count">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Binance Futures Card -->
-                <div class="exchange-card binance-futures">
-                    <div class="exchange-header">
-                        <span class="exchange-name">Futures</span>
-                        <span class="hedge-mode-badge" id="hedge-mode-badge" style="display: none;">HEDGE</span>
-                        <span class="exchange-status" id="futures-status">Loading...</span>
-                    </div>
-                    <div class="exchange-balances">
-                        <div class="balance-row">
-                            <span class="label">USDT Wallet</span>
-                            <span class="value" id="futures-usdt">-</span>
-                        </div>
-                        <div class="balance-row">
-                            <span class="label">Unrealized P&L</span>
-                            <span class="value" id="futures-unrealized-pnl">-</span>
-                        </div>
-                        <div class="balance-row">
-                            <span class="label">Positions</span>
-                            <span class="value" id="futures-positions-count">-</span>
-                        </div>
-                        <div class="balance-row total">
-                            <span class="label">Total Equity</span>
-                            <span class="value" id="futures-total">-</span>
                         </div>
                     </div>
                 </div>
@@ -258,7 +221,7 @@
                         <span id="history-buy-sell" class="value">-</span>
                     </div>
                     <div class="summary-stat">
-                        <span class="label">Spot / Futures</span>
+                        <span class="label">Spot Trades</span>
                         <span id="history-market-split" class="value">-</span>
                     </div>
                     <div class="summary-stat">

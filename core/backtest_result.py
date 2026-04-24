@@ -30,7 +30,7 @@ class BacktestResult:
     including comparison against a buy-and-hold benchmark.
 
     Attributes:
-        strategy_name: Strategy identifier (e.g., "short_v1")
+        strategy_name: Strategy identifier (e.g., "mlp_direction_btc")
         symbol: Trading symbol (e.g., "BTC", "ETH")
         start_date: Backtest start timestamp
         end_date: Backtest end timestamp

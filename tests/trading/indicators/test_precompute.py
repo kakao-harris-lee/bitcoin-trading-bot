@@ -110,8 +110,8 @@ class TestAddAllIndicators:
 class TestIndicatorColumns:
     def test_indicator_columns_count(self):
         """Keep indicator contract stable (used by add_all_indicators tests)."""
-        # 19 base + 2 breakout indicators (breakout_signal, target_price)
-        assert len(INDICATOR_COLUMNS) == 21
+        # 24 base/trend indicators + 2 breakout indicators.
+        assert len(INDICATOR_COLUMNS) == 26
 
     def test_indicator_columns_unique(self):
         """All column names should be unique."""

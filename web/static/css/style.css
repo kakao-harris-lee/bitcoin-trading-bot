@@ -179,11 +179,6 @@ section h2 {
     gap: 20px;
 }
 
-/* Futures-only layout - full width single card */
-.exchange-grid.futures-only {
-    grid-template-columns: 1fr;
-}
-
 .exchange-card {
     background: var(--bg-card);
     border-radius: 8px;
@@ -537,10 +532,6 @@ section h2 {
     border-left-color: #3fb950;
 }
 
-.exchange-card.binance-futures {
-    border-left-color: #f0b90b;
-}
-
 .hedge-mode-badge {
     padding: 2px 8px;
     border-radius: 3px;
@@ -564,18 +555,6 @@ section h2 {
     color: #f0b90b;
     border: 1px solid rgba(240, 185, 11, 0.3);
     margin-left: auto;
-}
-
-.position-item.futures.long {
-    border-left: 3px solid var(--profit);
-}
-
-.position-item.futures.short {
-    border-left: 3px solid var(--loss);
-}
-
-.detail-row.liquidation .value {
-    color: #f0b90b;
 }
 
 .detail-row.pnl {
@@ -1548,11 +1527,6 @@ footer kbd {
 .market-badge.spot {
     background: rgba(63, 185, 80, 0.15);
     color: var(--profit);
-}
-
-.market-badge.futures {
-    background: rgba(163, 113, 247, 0.15);
-    color: var(--accent-purple);
 }
 
 /* Signals Tab Styles */

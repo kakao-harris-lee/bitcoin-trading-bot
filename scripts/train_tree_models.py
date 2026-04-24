@@ -23,6 +23,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -121,7 +122,7 @@ def train_xgboost(
     learning_rate: float = 0.05,
     early_stopping_rounds: int = 50,
     use_sample_weights: bool = False,
-) -> "xgb.Booster":
+) -> Any:
     """Train XGBoost multi-class classifier."""
     _ = feature_names
     import xgboost as xgb
@@ -175,7 +176,7 @@ def train_lightgbm(
     learning_rate: float = 0.05,
     early_stopping_rounds: int = 50,
     use_sample_weights: bool = False,
-) -> "lgb.Booster":
+) -> Any:
     """Train LightGBM multi-class classifier."""
     _ = feature_names
     import lightgbm as lgb

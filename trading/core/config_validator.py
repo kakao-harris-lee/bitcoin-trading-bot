@@ -145,9 +145,9 @@ class ConfigValidator:
 
         # Required fields for enabled assets
         required_fields = ["binance_symbol"]
-        for field in required_fields:
-            if not config.get(field):
-                result.add_error(f"{symbol}: missing required field '{field}'")
+        for field_name in required_fields:
+            if not config.get(field_name):
+                result.add_error(f"{symbol}: missing required field '{field_name}'")
 
         # Check database path
         db_path = config.get("db_path")

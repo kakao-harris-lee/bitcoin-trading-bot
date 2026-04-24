@@ -125,10 +125,10 @@ async def test_full_exit_flow(mock_redis, mock_binance, integration_config, mock
     # Simulate exit signal
     signal = {
         "symbol": "BTC",
-        "market": "futures",
+        "market": "spot",
         "quantity": "0.1",
         "trigger_price": "95000",
-        "strategy": "short_v1",
+        "strategy": "mlp_direction_btc",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -136,15 +136,15 @@ async def test_full_exit_flow(mock_redis, mock_binance, integration_config, mock
 
     # Verify ladder orders placed
     assert mock_binance.limit_order.call_count == 2
-    assert "BTC:futures" in executor.active_exits
+    assert "BTC:spot" in executor.active_exits
 
     # Verify exit plan created correctly
-    plan = executor.active_exits["BTC:futures"]
+    plan = executor.active_exits["BTC:spot"]
     assert plan.symbol == "BTC"
-    assert plan.market == "futures"
+    assert plan.market == "spot"
     assert plan.total_quantity == 0.1
     assert plan.trigger_price == 95000.0
-    assert plan.strategy == "short_v1"
+    assert plan.strategy == "mlp_direction_btc"
     assert plan.phase == "ladder"
     assert len(plan.ladder_orders) == 2
 
@@ -156,10 +156,10 @@ async def test_exit_flow_ladder_prices(mock_redis, mock_binance, integration_con
 
     signal = {
         "symbol": "ETH",
-        "market": "futures",
+        "market": "spot",
         "quantity": "1.0",
         "trigger_price": "3000",
-        "strategy": "sideways_v2",
+        "strategy": "mlp_direction_eth",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -181,10 +181,10 @@ async def test_exit_flow_ladder_quantities(mock_redis, mock_binance, integration
 
     signal = {
         "symbol": "SOL",
-        "market": "futures",
+        "market": "spot",
         "quantity": "10.0",
         "trigger_price": "150",
-        "strategy": "short_v1",
+        "strategy": "mlp_direction_btc",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -205,10 +205,10 @@ async def test_exit_flow_order_parameters(mock_redis, mock_binance, integration_
 
     signal = {
         "symbol": "BTC",
-        "market": "futures",
+        "market": "spot",
         "quantity": "0.05",
         "trigger_price": "100000",
-        "strategy": "short_v1",
+        "strategy": "mlp_direction_btc",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -218,7 +218,7 @@ async def test_exit_flow_order_parameters(mock_redis, mock_binance, integration_
     for call in mock_binance.limit_order.call_args_list:
         assert call.kwargs["symbol"] == "BTC"
         assert call.kwargs["side"] == "sell"
-        assert call.kwargs["market"] == "futures"
+        assert call.kwargs["market"] == "spot"
 
 
 @pytest.mark.asyncio
@@ -229,19 +229,19 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
     # Exit BTC position
     btc_signal = {
         "symbol": "BTC",
-        "market": "futures",
+        "market": "spot",
         "quantity": "0.1",
         "trigger_price": "95000",
-        "strategy": "short_v1",
+        "strategy": "mlp_direction_btc",
     }
 
     # Exit ETH position
     eth_signal = {
         "symbol": "ETH",
-        "market": "futures",
+        "market": "spot",
         "quantity": "2.0",
         "trigger_price": "3500",
-        "strategy": "short_v1",
+        "strategy": "mlp_direction_btc",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -249,8 +249,8 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
         await executor._handle_exit_signal(eth_signal)
 
     # Both exits tracked
-    assert "BTC:futures" in executor.active_exits
-    assert "ETH:futures" in executor.active_exits
+    assert "BTC:spot" in executor.active_exits
+    assert "ETH:spot" in executor.active_exits
 
     # 4 total orders (2 per symbol)
     assert mock_binance.limit_order.call_count == 4
@@ -273,16 +273,16 @@ async def test_exit_flow_stores_order_results(mock_redis, mock_binance, integrat
 
     signal = {
         "symbol": "BTC",
-        "market": "futures",
+        "market": "spot",
         "quantity": "0.1",
         "trigger_price": "95000",
-        "strategy": "short_v1",
+        "strategy": "mlp_direction_btc",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
         await executor._handle_exit_signal(signal)
 
-    plan = executor.active_exits["BTC:futures"]
+    plan = executor.active_exits["BTC:spot"]
     assert len(plan.ladder_orders) == 2
     assert plan.ladder_orders[0]["order_id"] == 11111
     assert plan.ladder_orders[1]["order_id"] == 22222

@@ -285,7 +285,7 @@ class TestRedisStreamsUnit:
         mock_client.hgetall = AsyncMock(return_value={
             "quantity": "0.05",
             "entry_price": "43000",
-            "strategy": "short_v1",
+            "strategy": "mlp_direction_btc",
         })
         mock_client.exists = AsyncMock(return_value=1)
         mock_client.delete = AsyncMock()
@@ -295,11 +295,11 @@ class TestRedisStreamsUnit:
         await redis_streams.set_position("BTC", "spot", {
             "quantity": "0.05",
             "entry_price": "43000",
-            "strategy": "short_v1",
+            "strategy": "mlp_direction_btc",
         })
         mock_client.hset.assert_called_once_with(
             "positions:BTC:spot",
-            mapping={"quantity": "0.05", "entry_price": "43000", "strategy": "short_v1"}
+            mapping={"quantity": "0.05", "entry_price": "43000", "strategy": "mlp_direction_btc"}
         )
 
         # Check exists
@@ -314,7 +314,7 @@ class TestRedisStreamsUnit:
         mock_client.exists.return_value = 1
         pos = await redis_streams.get_position("BTC", "spot")
         assert pos["quantity"] == "0.05"
-        assert pos["strategy"] == "short_v1"
+        assert pos["strategy"] == "mlp_direction_btc"
         mock_client.hgetall.assert_called_with("positions:BTC:spot")
 
         # Clear position
@@ -367,7 +367,7 @@ class TestRedisStreamsUnit:
         # Test with exit_signals stream
         msg_id = await redis_streams.publish("exit_signals", {
             "symbol": "BTC",
-            "market": "futures",
+            "market": "spot",
             "quantity": "0.05",
             "trigger_price": "43000"
         })
@@ -454,10 +454,10 @@ class TestRedisStreamsIntegration:
         # Publish exit signal
         msg_id = await connected_streams.publish(stream, {
             "symbol": "BTC",
-            "market": "futures",
+            "market": "spot",
             "quantity": "0.05",
             "trigger_price": "43000",
-            "strategy": "short_v1"
+            "strategy": "mlp_direction_btc"
         })
         assert msg_id is not None
 
@@ -465,10 +465,10 @@ class TestRedisStreamsIntegration:
         messages = await connected_streams.consume(stream, group, consumer, count=1)
         assert len(messages) == 1
         assert messages[0]["symbol"] == "BTC"
-        assert messages[0]["market"] == "futures"
+        assert messages[0]["market"] == "spot"
         assert messages[0]["quantity"] == "0.05"
         assert messages[0]["trigger_price"] == "43000"
-        assert messages[0]["strategy"] == "short_v1"
+        assert messages[0]["strategy"] == "mlp_direction_btc"
 
         # Acknowledge message
         await connected_streams.ack(stream, group, messages[0]["_id"])

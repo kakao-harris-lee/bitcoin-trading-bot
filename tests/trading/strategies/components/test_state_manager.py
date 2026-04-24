@@ -12,7 +12,7 @@ async def test_load_uses_redis_and_caches_value():
     redis_client = MagicMock()
     redis_client.get = AsyncMock(return_value='{"count": 2}')
 
-    manager = StateManager(redis=redis_client, strategy_name="short_v1_exit")
+    manager = StateManager(redis=redis_client, strategy_name="mlp_direction_btc_exit")
     value = await manager.load(symbol="BTC", variable="entry_count", default=0)
 
     assert value == {"count": 2}
@@ -28,7 +28,7 @@ async def test_load_missing_returns_default_and_caches():
     redis_client = MagicMock()
     redis_client.get = AsyncMock(return_value=None)
 
-    manager = StateManager(redis=redis_client, strategy_name="short_v1_exit")
+    manager = StateManager(redis=redis_client, strategy_name="mlp_direction_btc_exit")
     value = await manager.load(symbol="ETH", variable="high_water_mark", default=0.0)
 
     assert value == 0.0
@@ -40,7 +40,7 @@ async def test_set_updates_cache_only_on_success():
     redis_client = MagicMock()
     redis_client.set = AsyncMock()
 
-    manager = StateManager(redis=redis_client, strategy_name="short_v1_exit")
+    manager = StateManager(redis=redis_client, strategy_name="mlp_direction_btc_exit")
     manager.set_cached("BTC", "entry_count", 1)
 
     await manager.set("BTC", "entry_count", 2)

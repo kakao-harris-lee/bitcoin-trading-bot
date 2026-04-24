@@ -25,16 +25,12 @@ class TradeExecutor:
     """Consumes signals from all strategies and executes trades."""
 
     SIGNAL_STREAMS = [
-        "signals:short_v1",
-        "signals:sideways_v2",
         "signals:h4",
     ]
 
     # Strategy to exchange mapping (Binance only)
     STRATEGY_EXCHANGE = {
-        "sideways_v2": "binance",
         "h4": "binance",
-        "short_v1": "binance",
     }
 
     def __init__(
@@ -131,11 +127,9 @@ class TradeExecutor:
 
     def _has_active_binance_position(self, exclude_strategy: str) -> bool:
         """Check if any other strategy has an active Binance position."""
-        binance_strategies = ["short_v1"]
-        for strat in binance_strategies:
+        for strat, pos in self._positions.items():
             if strat == exclude_strategy:
                 continue
-            pos = self._positions.get(strat, {})
             if pos.get("active"):
                 return True
         return False
@@ -146,12 +140,13 @@ class TradeExecutor:
         price = signal.get("price", 0)
         size = signal.get("size", 0)
 
-        # Guard: Prevent conflicting positions
-        # Only check for entry actions (short), not exits (close/cover)
-        if action in ["short", "buy"]:
+        # Guard: Prevent conflicting positions on spot entries.
+        if action == "buy":
             if self._has_active_binance_position(exclude_strategy=strategy):
-                conflicting = [s for s in ["short_v1"]
-                              if s != strategy and self._positions.get(s, {}).get("active")]
+                conflicting = [
+                    s for s, pos in self._positions.items()
+                    if s != strategy and pos.get("active")
+                ]
                 self.logger.warning(
                     f"[GUARD] {strategy} entry blocked: {conflicting} has active Binance position"
                 )
@@ -161,28 +156,22 @@ class TradeExecutor:
             self.logger.info(f"[PAPER] Binance {action}: {size} @ {price}")
             self._update_paper_position(strategy, action, price, size)
         else:
-            # Live execution (short strategy)
-            if action == "short":
-                await self.binance.open_short(size=size, price=price)
-            elif action in ["close", "cover"]:
-                await self.binance.close_short(size=size, price=price)
+            raise NotImplementedError("Legacy TradeExecutor is paper-only in spot mode.")
 
     def _update_paper_position(self, strategy: str, action: str, price: float, size: float):
         """Update paper trading position."""
-        if action in ["buy", "short"]:
+        if action == "buy":
             self._positions[strategy] = {
                 "active": True,
                 "entry_price": price,
                 "size": size,
                 "entry_time": datetime.now(),
             }
-        elif action in ["sell", "close", "cover"]:
+        elif action == "sell":
             pos = self._positions.get(strategy, {})
             if pos.get("active"):
                 entry = pos.get("entry_price", price)
                 pnl_pct = ((price - entry) / entry) * 100
-                if action in ["cover"]:  # Short position
-                    pnl_pct = -pnl_pct
                 self.risk.record_pnl(strategy, pnl_pct)
             self._positions[strategy] = {"active": False}
 

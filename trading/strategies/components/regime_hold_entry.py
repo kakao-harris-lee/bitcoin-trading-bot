@@ -26,7 +26,7 @@ class RegimeHoldEntryParams:
     min_adx: float = 0.0
     allow_extreme_volatility: bool = False
     position_size: float = 0.01
-    market: Literal["spot", "futures"] = "spot"
+    market: Literal["spot"] = "spot"
 
 
 @entry_strategy(params_class=RegimeHoldEntryParams)

@@ -163,7 +163,7 @@ class DataCache:
 #### PortfolioManager (New Component)
 
 ```python
-# trading/execution/portfolio_manager.py
+# removed in 2026-04 cleanup (design-only portfolio manager component)
 
 class PortfolioManager:
     """Manages capital allocation across multiple assets."""
@@ -398,14 +398,14 @@ class AsyncTradingEngine:
 ## Files to Create/Modify
 
 ### New Files
-- `trading/execution/portfolio_manager.py`
+- `trading/strategies/components/context_builder.py` / runtime sizing modules (current replacement path)
 - `config/strategies/allocation.json` (update schema)
 
 ### Modified Files
 - `trading/core/price_hub.py`
 - `trading/core/data_cache.py`
 - `trading/core/types.py`
-- `trading/data/simple_feed_handler.py`
+- `trading/streams/binance_feed.py`
 - `trading/execution/alpha_manager.py`
 - `trading/execution/hedge_manager.py`
 - `trading/execution/delta_rebalancer.py`

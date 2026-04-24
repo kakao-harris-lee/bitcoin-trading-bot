@@ -64,7 +64,6 @@ class PositionManager:
             strategy = raw.get("strategy", f"{symbol}_{market}")
             side = raw.get("side", "buy")
             leverage = int(raw.get("leverage", 1))
-            liquidation_price = float(raw.get("liquidation_price", 0.0))
         except (TypeError, ValueError):
             return None
 
@@ -80,7 +79,6 @@ class PositionManager:
             timestamp=timestamp,
             side=side,
             leverage=leverage,
-            liquidation_price=liquidation_price,
             entry_time=entry_time if entry_time > 0 else None,
         )
 
@@ -131,12 +129,11 @@ class PositionManager:
 
     async def _load_symbol_positions(self, symbol: str) -> dict[str, Position]:
         symbol_positions: dict[str, Position] = {}
-        for market in ("spot", "futures"):
-            key = f"positions:{symbol}:{market}"
-            raw = await self._redis.hgetall(key)
-            parsed = self._parse_position(symbol, market, raw) if raw else None
-            if parsed is None:
-                continue
+        market = "spot"
+        key = f"positions:{symbol}:{market}"
+        raw = await self._redis.hgetall(key)
+        parsed = self._parse_position(symbol, market, raw) if raw else None
+        if parsed is not None:
             symbol_positions[parsed.strategy] = parsed
         return symbol_positions
 

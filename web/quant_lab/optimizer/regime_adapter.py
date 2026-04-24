@@ -4,13 +4,10 @@ from typing import Dict, Any, Optional
 
 # Component class mappings (name -> module path)
 ENTRY_CLASS_MAP = {
-    "SidewaysEntry": "trading.strategies.components.sideways_entry.SidewaysEntryStrategy",
     "None": None,
 }
 
-EXIT_CLASS_MAP = {
-    "SidewaysExit": "trading.strategies.components.sideways_exit.SidewaysExitStrategy",
-}
+EXIT_CLASS_MAP = {}
 
 
 class RegimeAwareAdapter:

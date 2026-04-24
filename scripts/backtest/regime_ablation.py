@@ -237,19 +237,19 @@ def run_mlp_backtest(
     adapter.symbol = asset
     adapter.precompute_mlp_predictions(df)
 
-        # Trim warmup
-        if "timestamp" in df.columns:
-            start_ts = pd.Timestamp(start_date)
-            mask = pd.to_datetime(df["timestamp"]) >= start_ts
-            eval_start = mask.idxmax() if mask.any() else 0
-            if eval_start > 0:
-                mlp_cache = getattr(adapter, "_mlp_cache", None)
-                if mlp_cache:
-                    remapped = {}
-                    for old_idx, val in mlp_cache.items():
-                        new_idx = old_idx - eval_start
-                        if new_idx >= 0:
-                            remapped[new_idx] = val
+    # Trim warmup
+    if "timestamp" in df.columns:
+        start_ts = pd.Timestamp(start_date)
+        mask = pd.to_datetime(df["timestamp"]) >= start_ts
+        eval_start = mask.idxmax() if mask.any() else 0
+        if eval_start > 0:
+            mlp_cache = getattr(adapter, "_mlp_cache", None)
+            if mlp_cache:
+                remapped = {}
+                for old_idx, val in mlp_cache.items():
+                    new_idx = old_idx - eval_start
+                    if new_idx >= 0:
+                        remapped[new_idx] = val
                     setattr(adapter, "_mlp_cache", remapped)
                 df = df.iloc[eval_start:].reset_index(drop=True)
 
@@ -295,7 +295,7 @@ def run_component_backtest(
     adapter.symbol = asset
 
     # Short uses margin backtester, but ComponentStrategyAdapter works with Backtester
-    fee_rate = 0.0005 if strategy_name == "short_v1" else 0.001
+    fee_rate = 0.001
 
     bt = Backtester(
         initial_capital=capital,
@@ -314,45 +314,6 @@ def run_component_backtest(
         "win_rate": round(trade_stats.get("win_rate", 0) * 100, 1),
         "pf": round(trade_stats.get("profit_factor", 0), 2),
     }
-
-
-def _default_short_config() -> dict:
-    """Default Short V1 config for ablation."""
-    return {
-        "regime_version": "v2",
-        "position_pct": 0.3,
-        "position_size": 0.01,
-        "market": "spot",
-        "bbw_block_threshold": 25,
-        "bbw_confirm_threshold": 50,
-        "volume_block_ratio": 0.8,
-        "volume_boost_ratio": 1.2,
-        "mtf_enabled": True,
-        "bbw_enabled": True,
-        "volume_filter_enabled": True,
-        "drawdown_bear_threshold": 1.0,
-        "stop_loss_cooldown": 0,
-    }
-
-
-def _default_sideways_config() -> dict:
-    """Default Sideways V2 config for ablation."""
-    return {
-        "regime_version": "v2",
-        "position_pct": 0.3,
-        "position_size": 0.01,
-        "market": "spot",
-        "bbw_block_threshold": 25,
-        "bbw_confirm_threshold": 50,
-        "volume_block_ratio": 0.8,
-        "volume_boost_ratio": 1.2,
-        "mtf_enabled": True,
-        "bbw_enabled": True,
-        "volume_filter_enabled": True,
-        "drawdown_bear_threshold": 1.0,
-        "stop_loss_cooldown": 0,
-    }
-
 
 def run_ablation(
     assets: list[str],
@@ -393,19 +354,6 @@ def run_ablation(
                         merged = _apply_ablation_config(base_config, ablation, strategy_type)
                         result = run_mlp_backtest(asset, merged, start_date, end_date, capital)
 
-                    elif strategy_type == "short":
-                        base_config = _default_short_config()
-                        merged = _apply_ablation_config(base_config, ablation, strategy_type)
-                        result = run_component_backtest(
-                            asset, "short_v1", merged, start_date, end_date, capital
-                        )
-
-                    elif strategy_type == "sideways":
-                        base_config = _default_sideways_config()
-                        merged = _apply_ablation_config(base_config, ablation, strategy_type)
-                        result = run_component_backtest(
-                            asset, "sideways_v2", merged, start_date, end_date, capital
-                        )
                     else:
                         print(f"SKIP (unknown strategy: {strategy_type})")
                         continue
@@ -505,8 +453,8 @@ def main():
         help="Assets to test (default: BTC ETH SOL)",
     )
     parser.add_argument(
-        "--strategies", nargs="+", default=["mlp", "short", "sideways"],
-        help="Strategy types (default: mlp short sideways)",
+        "--strategies", nargs="+", default=["mlp"],
+        help="Strategy types (default: mlp)",
     )
     parser.add_argument("--start-date", default="2020-01-01")
     parser.add_argument("--end-date", default="2026-02-01")

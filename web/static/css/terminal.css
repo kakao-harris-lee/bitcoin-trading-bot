@@ -359,10 +359,6 @@ body::before {
     border-top: 3px solid var(--accent-cyan);
 }
 
-.balance-card.futures {
-    border-top: 3px solid var(--accent-purple);
-}
-
 .card-header {
     display: flex;
     align-items: center;
@@ -375,10 +371,6 @@ body::before {
 .card-icon {
     font-size: 1rem;
     color: var(--accent-cyan);
-}
-
-.balance-card.futures .card-icon {
-    color: var(--accent-purple);
 }
 
 .card-header h3 {
@@ -433,10 +425,6 @@ body::before {
     font-size: 1.2rem;
     font-weight: 700;
     color: var(--accent-cyan);
-}
-
-.balance-card.futures .balance-row.total .value {
-    color: var(--accent-purple);
 }
 
 /* Card Positions */
@@ -627,11 +615,6 @@ body::before {
 .market-badge.spot {
     background: rgba(0, 212, 255, 0.15);
     color: var(--accent-cyan);
-}
-
-.market-badge.futures {
-    background: rgba(188, 140, 255, 0.15);
-    color: var(--accent-purple);
 }
 
 .asset-price {

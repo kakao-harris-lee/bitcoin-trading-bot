@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import socket
 import time
 from datetime import datetime
 from pathlib import Path
@@ -21,6 +22,10 @@ from trading.core.runtime_defaults import load_allocation_symbols
 from trading.streams import RedisStreams
 
 logger = logging.getLogger(__name__)
+
+
+class _TransientTelegramError(Exception):
+    """Retryable Telegram transport error."""
 
 
 class TelegramTask:
@@ -159,6 +164,27 @@ class TelegramTask:
             "CRITICAL",
             set(self.SYSTEM_ALERT_LEVELS.keys()),
         )
+        self._http_request_retries = self._env_int(
+            "TELEGRAM_HTTP_REQUEST_RETRIES",
+            3,
+            minimum=1,
+        )
+        self._http_retry_backoff_sec = self._env_float(
+            "TELEGRAM_HTTP_RETRY_BACKOFF_SEC",
+            1.0,
+            minimum=0.0,
+            maximum=30.0,
+        )
+        self._http_timeout_sec = self._env_float(
+            "TELEGRAM_HTTP_TIMEOUT_SEC",
+            10.0,
+            minimum=1.0,
+            maximum=120.0,
+        )
+        self._force_ipv4 = self._env_bool(
+            "TELEGRAM_FORCE_IPV4",
+            True,
+        )
 
     async def run(self) -> None:
         """Main loop: consume streams and poll for commands."""
@@ -279,15 +305,50 @@ class TelegramTask:
             "allowed_updates": ["message"],
         }
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=timeout + 5)) as resp:
-                    if resp.status != 200:
-                        return []
-                    data = await resp.json()
-                    return data.get("result", []) if data.get("ok") else []
-        except asyncio.TimeoutError:
-            return []
+        for attempt in range(1, self._http_request_retries + 1):
+            try:
+                async with aiohttp.ClientSession(**self._build_session_kwargs()) as session:
+                    async with session.get(
+                        url,
+                        params=params,
+                        timeout=aiohttp.ClientTimeout(total=timeout + self._http_timeout_sec),
+                    ) as resp:
+                        if resp.status != 200:
+                            body = await resp.text()
+                            if self._should_retry_status(resp.status) and attempt < self._http_request_retries:
+                                await self._sleep_before_retry(
+                                    attempt,
+                                    f"getUpdates status={resp.status}",
+                                )
+                                continue
+                            logger.warning(
+                                "Telegram getUpdates returned status=%s body=%r",
+                                resp.status,
+                                self._trim_response_body(body),
+                            )
+                            return []
+
+                        data = await resp.json()
+                        return data.get("result", []) if data.get("ok") else []
+            except asyncio.TimeoutError:
+                if attempt >= self._http_request_retries:
+                    return []
+                await self._sleep_before_retry(attempt, "getUpdates timeout")
+            except (aiohttp.ClientError, OSError) as exc:
+                if attempt >= self._http_request_retries:
+                    logger.warning(
+                        "Telegram getUpdates failed after %s attempts: %s %r",
+                        attempt,
+                        exc.__class__.__name__,
+                        exc,
+                    )
+                    return []
+                await self._sleep_before_retry(
+                    attempt,
+                    f"getUpdates {exc.__class__.__name__}",
+                )
+
+        return []
 
     async def _handle_update(self, update: dict) -> None:
         """Handle a Telegram update.
@@ -411,13 +472,12 @@ _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
     async def _get_positions_text(self) -> str:
         text = ""
         for symbol in self.symbols:
-            for market in ("spot", "futures"):
-                pos = await self.redis.get_position(symbol, market)
-                if pos and pos.get("quantity"):
-                    qty = float(pos.get("quantity", 0))
-                    entry = float(pos.get("entry_price", 0))
-                    strategy = pos.get("strategy", "unknown")
-                    text += f"\n  {symbol} {market}: {qty:.4f} @ ${entry:,.2f} ({strategy})"
+            pos = await self.redis.get_position(symbol, "spot")
+            if pos and pos.get("quantity"):
+                qty = float(pos.get("quantity", 0))
+                entry = float(pos.get("entry_price", 0))
+                strategy = pos.get("strategy", "unknown")
+                text += f"\n  {symbol} spot: {qty:.4f} @ ${entry:,.2f} ({strategy})"
         return text or "\n  None"
 
     def _format_prices_text(self, prices: dict[str, float]) -> str:
@@ -571,7 +631,6 @@ _Code valid for ~30 seconds_
         significant_churn = changed and churn >= churn_threshold
 
         dq_warn = dq_ratio >= self._selector_dq_warn_ratio
-        dq_crit = dq_ratio >= self._selector_dq_crit_ratio
         dq_jump = abs(dq_blocked_count - prev_dq_blocked) >= max(
             8,
             int(universe_size * 0.10),
@@ -813,7 +872,6 @@ _Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
             if now - self._last_message_time < self.MIN_MESSAGE_INTERVAL:
                 logger.debug("Message rate limited (global)")
                 return False
-            self._last_message_time = now
 
         url = f"{self.api_url}/sendMessage"
         payload = {
@@ -822,18 +880,142 @@ _Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
             "parse_mode": "Markdown",
         }
 
+        for attempt in range(1, self._http_request_retries + 1):
+            try:
+                async with aiohttp.ClientSession(**self._build_session_kwargs()) as session:
+                    sent = await self._post_message_with_fallback(session, url, payload)
+                    if sent:
+                        if not bypass_rate_limit:
+                            self._last_message_time = time.time()
+                        return True
+            except asyncio.TimeoutError as exc:
+                if attempt >= self._http_request_retries:
+                    logger.error(
+                        "Failed to send Telegram message after %s attempts: %s %r",
+                        attempt,
+                        exc.__class__.__name__,
+                        exc,
+                    )
+                    return False
+                await self._sleep_before_retry(attempt, "sendMessage timeout")
+            except (_TransientTelegramError, aiohttp.ClientError, OSError) as exc:
+                if attempt >= self._http_request_retries:
+                    logger.error(
+                        "Failed to send Telegram message after %s attempts: %s %r",
+                        attempt,
+                        exc.__class__.__name__,
+                        exc,
+                    )
+                    return False
+                await self._sleep_before_retry(
+                    attempt,
+                    f"sendMessage {exc.__class__.__name__}",
+                )
+
+        return False
+
+    def _build_session_kwargs(self) -> dict[str, object]:
+        if not self._force_ipv4:
+            return {}
+        return {
+            "connector": aiohttp.TCPConnector(family=socket.AF_INET),
+        }
+
+    async def _post_message_with_fallback(
+        self,
+        session: aiohttp.ClientSession,
+        url: str,
+        payload: dict[str, str],
+    ) -> bool:
+        response = await self._post_json(session, url, payload)
+        if response["success"]:
+            return True
+
+        status = response["status"]
+        body = response["body"]
+        if status == 400 and "parse_mode" in payload:
+            fallback_payload = dict(payload)
+            fallback_payload.pop("parse_mode", None)
+            fallback_response = await self._post_json(session, url, fallback_payload)
+            if fallback_response["success"]:
+                logger.warning("Telegram Markdown parse failed; resent message without parse_mode")
+                return True
+            status = fallback_response["status"]
+            body = fallback_response["body"]
+
+        if self._should_retry_status(status):
+            retry_after = self._extract_retry_after_seconds(body)
+            if retry_after is not None:
+                await asyncio.sleep(retry_after)
+            raise _TransientTelegramError(
+                f"status={status} body={self._trim_response_body(body)!r}"
+            )
+
+        logger.warning(
+            "Telegram sendMessage returned status=%s body=%r",
+            status,
+            self._trim_response_body(body),
+        )
+        return False
+
+    async def _post_json(
+        self,
+        session: aiohttp.ClientSession,
+        url: str,
+        payload: dict[str, str],
+    ) -> dict[str, object]:
+        async with session.post(
+            url,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=self._http_timeout_sec),
+        ) as resp:
+            body = await resp.text()
+            return {
+                "success": 200 <= resp.status < 300,
+                "status": resp.status,
+                "body": body,
+            }
+
+    async def _sleep_before_retry(self, attempt: int, reason: str) -> None:
+        delay = self._http_retry_backoff_sec * attempt
+        if delay > 0:
+            logger.warning(
+                "Telegram request retry in %.1fs (%s, attempt=%s/%s)",
+                delay,
+                reason,
+                attempt,
+                self._http_request_retries,
+            )
+            await asyncio.sleep(delay)
+
+    @staticmethod
+    def _should_retry_status(status: int) -> bool:
+        return status == 429 or status >= 500
+
+    @staticmethod
+    def _trim_response_body(body: str, limit: int = 240) -> str:
+        text = str(body or "").strip()
+        if len(text) <= limit:
+            return text
+        return f"{text[: limit - 3]}..."
+
+    @staticmethod
+    def _extract_retry_after_seconds(body: str) -> int | None:
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status == 400:
-                        # Retry without markdown on parse error
-                        payload.pop("parse_mode", None)
-                        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as retry_resp:
-                            return 200 <= retry_resp.status < 300
-                    return 200 <= resp.status < 300
-        except Exception as e:
-            logger.error(f"Failed to send Telegram message: {e}")
-            return False
+            data = json.loads(body)
+        except (TypeError, json.JSONDecodeError):
+            return None
+
+        parameters = data.get("parameters")
+        if not isinstance(parameters, dict):
+            return None
+
+        retry_after = parameters.get("retry_after")
+        try:
+            retry_after_int = int(retry_after)
+        except (TypeError, ValueError):
+            return None
+        return max(retry_after_int, 0)
 
     @staticmethod
     def _parse_json_array(payload: str) -> list:

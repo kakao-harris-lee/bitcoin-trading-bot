@@ -24,7 +24,7 @@ class MetricsService:
     """Service for reading and transforming trading metrics data from Redis."""
 
     DEFAULT_SYMBOLS = ["BTC", "ETH", "SOL", "BNB"]
-    MARKETS = ["spot", "futures"]
+    MARKETS = ["spot"]
     STALE_THRESHOLD_SECONDS = 30
 
     def __init__(self, redis_url: str = None):
@@ -57,7 +57,7 @@ class MetricsService:
 
         Args:
             symbol: Trading symbol (e.g., "BTC")
-            market: Market type ("spot" or "futures")
+            market: Market type ("spot")
 
         Returns:
             Position data dict
@@ -99,7 +99,7 @@ class MetricsService:
             for _, data in entries:
                 symbol = data.get("symbol")
                 price_str = data.get("price")
-                market = data.get("market", "futures")
+                market = data.get("market", "spot")
 
                 if symbol and price_str and symbol not in prices:
                     key = f"{symbol}:{market}"
@@ -375,7 +375,7 @@ class MetricsService:
             "timestamp": data.get("timestamp", ""),
             "exchange": "binance",
             "symbol": data.get("symbol", ""),
-            "market": data.get("market", "futures"),
+            "market": data.get("market", "spot"),
             "strategy": data.get("strategy", ""),
             "decision": data.get("decision", ""),
             "reason": data.get("reason", ""),

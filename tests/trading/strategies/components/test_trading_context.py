@@ -22,12 +22,12 @@ def test_trading_context_creation():
     )
     regime = build_market_context(mfi=55.0, adx=25.0, atr=1000.0, close=100000.0)
     positions = {
-        "short_v1": Position(
+        "mlp_direction_btc": Position(
             symbol="BTC",
             entry_price=99000.0,
             quantity=0.01,
-            strategy="short_v1",
-            market="futures",
+            strategy="mlp_direction_btc",
+            market="spot",
             timestamp=900,
         )
     }
@@ -43,31 +43,31 @@ def test_trading_context_creation():
     assert ctx.symbol == "BTC"
     assert ctx.market.close == 100000.0
     assert ctx.regime.regime == "BULL_STRONG"
-    assert "short_v1" in ctx.positions
+    assert "mlp_direction_btc" in ctx.positions
 
 
 def test_trading_context_has_position():
     """TradingContext.has_position returns correct boolean."""
     market = MarketData(symbol="BTC", close=100000.0, mfi=50.0, adx=20.0, rsi=50.0, timestamp=1000)
     regime = build_market_context(mfi=50.0, adx=20.0, atr=1000.0, close=100000.0)
-    positions = {"short_v1": Position(symbol="BTC", entry_price=99000.0, quantity=0.01, strategy="short_v1", market="futures", timestamp=900)}
+    positions = {"mlp_direction_btc": Position(symbol="BTC", entry_price=99000.0, quantity=0.01, strategy="mlp_direction_btc", market="spot", timestamp=900)}
 
     ctx = TradingContext(symbol="BTC", timestamp=1000, market=market, regime=regime, positions=positions)
 
-    assert ctx.has_position("short_v1") is True
-    assert ctx.has_position("sideways_v2") is False
+    assert ctx.has_position("mlp_direction_btc") is True
+    assert ctx.has_position("mlp_direction_eth") is False
 
 
 def test_trading_context_get_position():
     """TradingContext.get_position returns position or None."""
     market = MarketData(symbol="BTC", close=100000.0, mfi=50.0, adx=20.0, rsi=50.0, timestamp=1000)
     regime = build_market_context(mfi=50.0, adx=20.0, atr=1000.0, close=100000.0)
-    pos = Position(symbol="BTC", entry_price=99000.0, quantity=0.01, strategy="short_v1", market="futures", timestamp=900)
-    positions = {"short_v1": pos}
+    pos = Position(symbol="BTC", entry_price=99000.0, quantity=0.01, strategy="mlp_direction_btc", market="spot", timestamp=900)
+    positions = {"mlp_direction_btc": pos}
 
     ctx = TradingContext(symbol="BTC", timestamp=1000, market=market, regime=regime, positions=positions)
 
-    assert ctx.get_position("short_v1") == pos
+    assert ctx.get_position("mlp_direction_btc") == pos
     assert ctx.get_position("nonexistent") is None
 
 
@@ -76,15 +76,15 @@ def test_trading_context_other_strategies_positioned():
     market = MarketData(symbol="BTC", close=100000.0, mfi=50.0, adx=20.0, rsi=50.0, timestamp=1000)
     regime = build_market_context(mfi=50.0, adx=20.0, atr=1000.0, close=100000.0)
     positions = {
-        "short_v1": Position(symbol="BTC", entry_price=99000.0, quantity=0.01, strategy="short_v1", market="futures", timestamp=900),
-        "sideways": Position(symbol="BTC", entry_price=98000.0, quantity=0.02, strategy="sideways", market="futures", timestamp=800),
+        "mlp_direction_btc": Position(symbol="BTC", entry_price=99000.0, quantity=0.01, strategy="mlp_direction_btc", market="spot", timestamp=900),
+        "sideways": Position(symbol="BTC", entry_price=98000.0, quantity=0.02, strategy="sideways", market="spot", timestamp=800),
     }
 
     ctx = TradingContext(symbol="BTC", timestamp=1000, market=market, regime=regime, positions=positions)
 
-    others = ctx.other_strategies_positioned("short_v1")
+    others = ctx.other_strategies_positioned("mlp_direction_btc")
     assert "sideways" in others
-    assert "short_v1" not in others
+    assert "mlp_direction_btc" not in others
 
 
 def test_trading_context_immutable():

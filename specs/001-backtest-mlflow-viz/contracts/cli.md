@@ -258,8 +258,8 @@ python -m core.backtest \
     --end 2024-12-31 \
     --mlflow
 
-# Run parameter sweep
-python -m core.parameter_sweep \
+# Run optimizer sweep
+python scripts/optimize_mlflow.py \
     --strategy v35_classic_wide \
     --symbol BTC \
     --param stop_loss_pct 1.0 1.5 2.0 \

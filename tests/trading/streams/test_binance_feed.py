@@ -20,7 +20,7 @@ def test_binance_feed_builds_ws_url():
 
     url = task._build_ws_url()
     assert "btcusdt@miniTicker" in url
-    assert "wss://fstream.binance.com" in url
+    assert "wss://stream.binance.com:9443/ws" in url
 
 
 def test_binance_feed_builds_book_ticker_ws_url():
@@ -29,7 +29,7 @@ def test_binance_feed_builds_book_ticker_ws_url():
 
     url = task._build_ws_url()
     assert "btcusdt@bookTicker" in url
-    assert "wss://fstream.binance.com" in url
+    assert "wss://stream.binance.com:9443/ws" in url
 
 
 def test_binance_feed_parses_ticker_message():
@@ -49,14 +49,14 @@ def test_binance_feed_parses_ticker_message():
 
     parsed = task._parse_ticker_message(raw_msg)
     assert parsed["price"] == "43250.50"
-    assert parsed["market"] == "futures"
+    assert parsed["market"] == "spot"
     assert parsed["exchange_ts"] == 1700000000000
     assert parsed["source"] == "binance"
 
 
-def test_binance_futures_feed_parses_message():
-    """Test parsing Binance futures miniTicker message."""
-    task = BinanceFeedTask(symbol="BTC", redis=AsyncMock(), market="futures")
+def test_binance_feed_coerces_market_to_spot():
+    """Explicit market overrides should still produce spot payloads."""
+    task = BinanceFeedTask(symbol="BTC", redis=AsyncMock(), market="margin")
 
     raw_msg = {
         "e": "24hrMiniTicker",
@@ -67,7 +67,7 @@ def test_binance_futures_feed_parses_message():
 
     parsed = task._parse_ticker_message(raw_msg)
     assert parsed["price"] == "43255.00"
-    assert parsed["market"] == "futures"
+    assert parsed["market"] == "spot"
     assert parsed["exchange_ts"] == 1700000000100
     assert parsed["source"] == "binance"
 
@@ -85,7 +85,7 @@ def test_binance_feed_parses_book_ticker_message():
 
     parsed = task._parse_ticker_message(raw_msg)
     assert parsed["price"] == "43250.0"
-    assert parsed["market"] == "futures"
+    assert parsed["market"] == "spot"
     assert parsed["exchange_ts"] == 1700000000200
     assert parsed["source"] == "binance"
 
@@ -93,7 +93,7 @@ def test_binance_feed_parses_book_ticker_message():
 @pytest.mark.asyncio
 async def test_binance_feed_rest_heartbeat_payload():
     """REST heartbeat should produce a publishable ticker payload."""
-    task = BinanceFeedTask(symbol="BTC", redis=AsyncMock(), market="futures")
+    task = BinanceFeedTask(symbol="BTC", redis=AsyncMock(), market="margin")
 
     mock_resp = AsyncMock()
     mock_resp.status = 200
@@ -112,6 +112,6 @@ async def test_binance_feed_rest_heartbeat_payload():
     payload = await task._fetch_rest_heartbeat(mock_session)
     assert payload is not None
     assert payload["price"] == "43210.1"
-    assert payload["market"] == "futures"
+    assert payload["market"] == "spot"
     assert payload["source"] == "binance_rest"
     assert payload["heartbeat"] == "true"

@@ -30,49 +30,6 @@ def client():
 
 
 @pytest.fixture
-def mock_multi_asset_status():
-    """Sample multi-asset engine status."""
-    return {
-        'timestamp': '2025-01-03T10:00:00',
-        'mode': 'paper',
-        'engine': 'multi-asset',
-        'iteration_count': 100,
-        'signal_count': 5,
-        'assets': {
-            'BTC': {
-                'regime': 'BULL',
-                'binance_price': 100000,
-                'position_active': True,
-                'position_qty': 0.1,
-            },
-            'ETH': {
-                'regime': 'SIDEWAYS',
-                'binance_price': 3500,
-                'position_active': False,
-                'position_qty': 0,
-            },
-        },
-        'portfolio': {
-            'total_capital_usdt': 10000,
-            'total_value_usdt': 10500,
-            'cash_usdt': 5000,
-            'exposure_pct': 50,
-            'total_unrealized_pnl': 500,
-            'assets': {
-                'BTC': {
-                    'allocated_usdt': 4000,
-                    'position_value_usdt': 4200,
-                },
-                'ETH': {
-                    'allocated_usdt': 1000,
-                    'position_value_usdt': 0,
-                },
-            },
-        },
-    }
-
-
-@pytest.fixture
 def mock_trading_log():
     """Sample trading log."""
     return {
@@ -127,12 +84,8 @@ class TestStatusAPI:
     """Test /api/status endpoint."""
 
     @patch('web.app.metrics_service', None)
-    @patch('web.app.load_multi_asset_status')
-    @patch('web.app.load_allocation_config')
-    def test_status_no_data(self, mock_alloc, mock_status, client):
-        """Status should return minimal data when no engine status."""
-        mock_status.return_value = None
-        mock_alloc.return_value = {}
+    def test_status_no_data(self, client):
+        """Status should return minimal data when dashboard state is unavailable."""
 
         response = client.get('/api/status')
         # API returns 200 with minimal status (prices/risk from Redis)
@@ -140,30 +93,40 @@ class TestStatusAPI:
         data = json.loads(response.data)
         assert 'timestamp' in data
 
-    @patch('web.app.metrics_service', None)
-    @patch('web.app.load_multi_asset_status')
-    @patch('web.app.load_allocation_config')
-    def test_status_with_data(self, mock_alloc, mock_status, client, mock_multi_asset_status):
-        """Status should return proper data when available (legacy path)."""
-        mock_status.return_value = mock_multi_asset_status
-        mock_alloc.return_value = {
-            'assets': {
-                'BTC': {'enabled': True, 'alpha_ratio': 0.7},
-                'ETH': {'enabled': True, 'alpha_ratio': 0.3},
-            }
+    def test_status_with_data(self, client):
+        """Status should return stream-backed data when metrics service is available."""
+        dashboard_state = {
+            "timestamp": "2025-01-03T10:00:00",
+            "binance": {
+                "daily_pnl": 12.5,
+                "positions": [
+                    {
+                        "asset": "BTC",
+                        "market": "spot",
+                        "qty": 0.1,
+                        "entry_price": 100000.0,
+                        "current_price": 101000.0,
+                        "strategy": "mlp_direction_btc",
+                        "unrealized_pnl": 100.0,
+                        "unrealized_pnl_pct": 1.0,
+                    }
+                ],
+            },
+            "portfolio": {"total_equity": 10100.0},
         }
 
-        response = client.get('/api/status')
-        assert response.status_code == 200
-        data = json.loads(response.data)
+        with patch('web.app.metrics_service') as mock_service:
+            mock_service.get_dashboard_state.return_value = dashboard_state
+            response = client.get('/api/status')
+            assert response.status_code == 200
+            data = json.loads(response.data)
 
         # Check structure
         assert 'timestamp' in data
         assert 'mode' in data
         assert 'assets' in data
-
-        # Legacy path uses symbol as key
-        assert 'BTC' in data['assets']
+        assert data['engine'] == 'stream'
+        assert 'BTC_spot' in data['assets']
 
     def test_fallback_assets_use_selector_symbols_only(self):
         """Fallback assets should prioritize selector symbols, not full regime universe."""
@@ -191,13 +154,13 @@ class TestStatusAPI:
             selector_symbols=['ADA', 'XRP'],
         )
 
-        assert 'BTC_futures' in assets
-        assert 'ETH_futures' in assets
-        assert 'SOL_futures' in assets
-        assert 'ADA_futures' in assets
-        assert 'XRP_futures' in assets
-        assert 'DOGE_futures' not in assets
-        assert 'AVAX_futures' not in assets
+        assert 'BTC_spot' in assets
+        assert 'ETH_spot' in assets
+        assert 'SOL_spot' in assets
+        assert 'ADA_spot' in assets
+        assert 'XRP_spot' in assets
+        assert 'DOGE_spot' not in assets
+        assert 'AVAX_spot' not in assets
         assert all(a.get('strategy') == '-' for a in assets.values())
 
     @patch('web.app.get_redis')
@@ -460,7 +423,7 @@ class TestTradesHistoryAPI:
                 'symbol': 'BTC',
                 'price': 101000,
                 'volume': 0.01,
-                'market': 'futures',
+                'market': 'spot',
                 'exchange': 'binance',
                 'strategy': 's1',
                 'paper': True,
@@ -478,8 +441,7 @@ class TestTradesHistoryAPI:
         assert 'summary' in data
         assert data['summary']['buy_count'] == 1
         assert data['summary']['sell_count'] == 1
-        assert data['summary']['spot_count'] == 1
-        assert data['summary']['futures_count'] == 1
+        assert data['summary']['spot_count'] == 2
         assert data['summary']['realized_trade_count'] == 1
         assert data['summary']['realized_pnl'] == 10.0
         assert data['summary']['win_rate'] == 100.0

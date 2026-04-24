@@ -7,7 +7,7 @@ different strategy parameter combinations.
 
 Usage:
     python scripts/optimize_mlflow.py
-    python scripts/optimize_mlflow.py --strategy sideways_v2 --experiment my-experiment
+    python scripts/optimize_mlflow.py --strategy regime_long_v2 --experiment my-experiment
     python scripts/optimize_mlflow.py --dry-run  # Show param combinations without running
 
 View results:
@@ -160,14 +160,13 @@ class OptimizationResult:
 
 # Parameter grids for different strategies
 PARAM_GRIDS = {
-    "sideways_v2": {
-        # Entry params
-        "rsi_oversold": [30.0, 35.0, 40.0],
-        "adx_weak": [12.0, 15.0, 18.0],
+    "regime_long_v2": {
         "position_size": [0.3, 0.5],
-        # Exit params
-        "stop_loss_pct": [1.0, 1.5, 2.0],
-        "take_profit_pct": [1.5, 2.0, 2.5],
+        "entry_quorum_ratio": [0.65, 0.75, 0.85],
+        "min_ready_bars": [8, 12],
+        "risk_on_score_min": [2, 3, 4],
+        "peak_drawdown_exit_pct": [0.08, 0.10, 0.12],
+        "drop_1d_threshold_pct": [-0.05, -0.07],
     },
 }
 
@@ -224,7 +223,7 @@ def run_backtest(
     """Run a single backtest with given parameters.
 
     Args:
-        strategy_name: Name of the strategy (e.g., "sideways_v2").
+        strategy_name: Name of the strategy (e.g., "regime_long_v2").
         entry_params: Entry strategy parameter overrides.
         exit_params: Exit strategy parameter overrides.
         df: Price data DataFrame.
@@ -349,6 +348,7 @@ def split_params(
         "breakout_threshold", "breakout_volume_mult",
         "range_support_zone", "range_rsi_oversold",
         "conservative_rsi_threshold", "conservative_stoch_threshold",
+        "entry_quorum_ratio", "min_ready_bars", "risk_on_score_min",
         "position_size", "market",
     }
 
@@ -361,6 +361,7 @@ def split_params(
         "exit_fraction_1", "exit_fraction_2", "exit_fraction_3",
         "trailing_enabled", "trailing_activation", "trailing_distance",
         "macd_exit_enabled", "min_profit_for_macd_exit",
+        "peak_drawdown_exit_pct", "drop_1d_threshold_pct",
     }
 
     entry_params = {k: v for k, v in params.items() if k in entry_keys}
@@ -371,10 +372,10 @@ def split_params(
 
 # Quick parameter grids for faster testing
 PARAM_GRIDS_QUICK = {
-    "sideways_v2": {
-        "rsi_oversold": [30.0, 35.0],
-        "stop_loss_pct": [1.5, 2.0],
+    "regime_long_v2": {
         "position_size": [0.5],
+        "entry_quorum_ratio": [0.7, 0.8],
+        "peak_drawdown_exit_pct": [0.08, 0.10],
     },
 }
 
@@ -568,7 +569,7 @@ def main():
     )
     parser.add_argument(
         "--strategy",
-        default="sideways_v2",
+        default="regime_long_v2",
         choices=list(PARAM_GRIDS.keys()),
         help="Strategy to optimize",
     )

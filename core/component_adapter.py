@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 from trading.strategies.components.strategy_factory import StrategyFactory
 from trading.strategies.volatility_tracker import VolatilityTracker
 from trading.strategies.components.regime_filter import EnhancedRegimeRouter, MTFCandle
-from trading.config.constants import LeverageDefaults
 
 class ComponentStrategyAdapter:
     """Adapts a StrategyFactory strategy into a Backtester-compatible function.
@@ -45,7 +44,7 @@ class ComponentStrategyAdapter:
         """
         Args:
             factory: Initialized StrategyFactory
-            strategy_name: Name of the strategy to run (e.g., "short_v1")
+            strategy_name: Name of the strategy to run (e.g., "mlp_direction_btc")
             config: Configuration dictionary for the strategy
             entry_overrides: Parameter overrides for entry strategy
             exit_overrides: Parameter overrides for exit strategy
@@ -103,8 +102,8 @@ class ComponentStrategyAdapter:
         self._cash_in_bear: bool = config.get('cash_in_bear', False)  # No entry in BEAR
         self._cash_below_ema200: bool = config.get('cash_below_ema200', False)  # No entry below EMA200
         self._exit_on_bear_regime: bool = bool(_cfg_value("exit_on_bear_regime", False))
-        # Default leverage: 1.0 for spot (no leverage), 3.0 for futures
-        self._default_leverage: float = 1.0 if self.market == "spot" else LeverageDefaults.MAX
+        # Spot-only default leverage.
+        self._default_leverage: float = 1.0
         self._current_leverage: float = self._default_leverage
 
         # === NEW: Consecutive Loss Prevention ===

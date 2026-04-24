@@ -10,9 +10,6 @@
     "api_secret": "YOUR_BINANCE_API_SECRET"
   },
   "strategies": {
-    "sideways_v2": {
-      "position_size": 0.01
-    },
     "mlp_direction_btc": {
       "position_size": 0.01
     }

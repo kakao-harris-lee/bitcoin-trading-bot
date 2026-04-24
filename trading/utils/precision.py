@@ -545,7 +545,6 @@ def get_symbol_info(symbol: str) -> SymbolInfo:
         return defaults[symbol]
 
     # Use generic fallback from config or hardcoded
-    global _generic_fallback
     if _generic_fallback:
         return SymbolInfo(
             symbol=symbol,

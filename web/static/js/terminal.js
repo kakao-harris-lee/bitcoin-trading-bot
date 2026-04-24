@@ -116,10 +116,9 @@ class TradingTerminal {
     }
 
     updateBalances(balances) {
-        // API returns { binance: { spot: {...}, futures: {...}, total_equity: ... } }
+        // API returns { binance: { spot: {...}, total_equity: ... } }
         const binance = balances.binance || {};
         const spot = binance.spot || {};
-        const futures = binance.futures || {};
 
         // Spot balances
         const spotUsdt = document.getElementById('spot-usdt');
@@ -132,22 +131,6 @@ class TradingTerminal {
 
         // Spot positions
         this.renderPositions('spot-positions', spot.positions || [], 'spot');
-
-        // Futures balances
-        const futuresUsdt = document.getElementById('futures-usdt');
-        const futuresUnrealized = document.getElementById('futures-unrealized');
-        const futuresTotal = document.getElementById('futures-total');
-
-        if (futuresUsdt) futuresUsdt.textContent = this.formatCurrency(futures.usdt_balance || 0);
-        if (futuresUnrealized) {
-            const unrealized = futures.unrealized_pnl || 0;
-            futuresUnrealized.textContent = this.formatCurrency(unrealized, true);
-            futuresUnrealized.className = `value ${unrealized >= 0 ? 'profit' : 'loss'}`;
-        }
-        if (futuresTotal) futuresTotal.textContent = this.formatCurrency(futures.total || 0);
-
-        // Futures positions
-        this.renderPositions('futures-positions', futures.positions || [], 'futures');
 
         // Total equity
         const totalEquity = document.getElementById('total-equity');
@@ -183,12 +166,11 @@ class TradingTerminal {
         const grid = document.getElementById('assets-grid');
         if (!grid) return;
 
-        // API returns { binance: { spot: {...}, futures: {...} } }
+        // API returns { binance: { spot: {...} } }
         const binance = balances.binance || {};
         const spot = binance.spot || {};
-        const futures = binance.futures || {};
 
-        // Collect all unique assets from both spot and futures
+        // Collect all unique assets from spot positions
         const assets = new Map();
 
         // Add spot positions
@@ -197,7 +179,7 @@ class TradingTerminal {
                 const symbol = pos.asset || pos.symbol?.replace('USDT', '');
                 if (!symbol) return;
                 if (!assets.has(symbol)) {
-                    assets.set(symbol, { symbol, spot: null, futures: null });
+                    assets.set(symbol, { symbol, spot: null });
                 }
                 assets.get(symbol).spot = {
                     symbol: symbol,
@@ -208,36 +190,18 @@ class TradingTerminal {
             });
         }
 
-        // Add futures positions
-        if (futures.positions) {
-            futures.positions.forEach(pos => {
-                const symbol = pos.asset || pos.symbol?.replace('USDT', '');
-                if (!symbol) return;
-                if (!assets.has(symbol)) {
-                    assets.set(symbol, { symbol, spot: null, futures: null });
-                }
-                assets.get(symbol).futures = {
-                    symbol: symbol,
-                    quantity: pos.quantity || 0,
-                    value: Math.abs(pos.quantity || 0) * (pos.mark_price || 0),
-                    unrealized_pnl: pos.unrealized_pnl || 0,
-                    leverage: pos.leverage || 1,
-                };
-            });
-        }
-
         // Default assets if none
         const defaultSymbols = ['BTC', 'ETH', 'SOL'];
         defaultSymbols.forEach(symbol => {
             if (!assets.has(symbol)) {
-                assets.set(symbol, { symbol, spot: null, futures: null });
+                assets.set(symbol, { symbol, spot: null });
             }
         });
 
         // Filter assets
         let filteredAssets = Array.from(assets.values());
         if (this.currentFilter === 'holding') {
-            filteredAssets = filteredAssets.filter(a => a.spot || a.futures);
+            filteredAssets = filteredAssets.filter(a => a.spot);
         }
 
         if (filteredAssets.length === 0) {
@@ -258,9 +222,7 @@ class TradingTerminal {
     }
 
     renderAssetCard(asset) {
-        const hasPosition = asset.spot || asset.futures;
-        const totalValue = (asset.spot?.value || 0) + (asset.futures?.value || 0);
-        const totalQty = (asset.spot?.quantity || 0) + (asset.futures?.quantity || 0);
+        const hasPosition = Boolean(asset.spot);
 
         // Get current price from history
         const history = this.priceHistory[asset.symbol] || [];
@@ -293,13 +255,6 @@ class TradingTerminal {
                             <span class="holding-label">SPOT</span>
                             <span class="holding-qty">${this.formatNumber(asset.spot.quantity, 6)}</span>
                             <span class="holding-value">${this.formatCurrency(asset.spot.value || 0)}</span>
-                        </div>
-                    ` : ''}
-                    ${asset.futures ? `
-                        <div class="holding-row futures">
-                            <span class="holding-label">FUTURES</span>
-                            <span class="holding-qty">${this.formatNumber(asset.futures.quantity, 6)}</span>
-                            <span class="holding-value">${this.formatCurrency(asset.futures.value || 0)}</span>
                         </div>
                     ` : ''}
                     ${!hasPosition ? `

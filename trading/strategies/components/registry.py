@@ -196,16 +196,16 @@ def build_params_from_config(
 
     Example:
         @dataclass
-        class ShortEntryParams:
+        class SpotEntryParams:
             adx_threshold: float = 25.0
             position_size: float = 0.01
-            market: str = "futures"
+            market: str = "spot"
 
         params = build_params_from_config(
-            ShortEntryParams,
-            {"adx_threshold": 30.0, "market": "futures"},
+            SpotEntryParams,
+            {"adx_threshold": 30.0, "market": "spot"},
         )
-        # Results in ShortEntryParams(adx_threshold=30.0, position_size=0.01, market="futures")
+        # Results in SpotEntryParams(adx_threshold=30.0, position_size=0.01, market="spot")
     """
     if params_class is None:
         return None

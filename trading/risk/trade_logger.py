@@ -149,7 +149,7 @@ class TradeLogger:
     def log_trade(self, action: str, price: float, volume: float,
                   profit: Optional[float] = None, profit_pct: Optional[float] = None,
                   exchange: str = 'binance', symbol: str = 'BTC',
-                  market: str = 'futures', paper: bool = True):
+                  market: str = 'spot', paper: bool = True):
         """
         거래 내역 기록
 
@@ -161,7 +161,7 @@ class TradeLogger:
             profit_pct: Profit percentage (for exits)
             exchange: Exchange name ('binance')
             symbol: Trading symbol ('BTC', 'ETH', etc.)
-            market: Market type ('spot' or 'futures')
+            market: Market type ('spot')
             paper: Whether this is paper trading
         """
         try:

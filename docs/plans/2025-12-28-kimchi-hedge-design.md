@@ -222,7 +222,7 @@ class DualPaperTradingEngine:
 
 ### 5. Async FeedHandler & DataCache
 
-**File:** `trading/data/feed_handler.py`
+**File:** `trading/streams/binance_feed.py` (current spot-only stream path)
 
 ```python
 class FeedHandler:

@@ -23,7 +23,7 @@ class RegimeLongV2EntryParams:
     """Parameters for regime-long v2 entry."""
 
     position_size: float = 1.0
-    market: Literal["spot", "futures"] = "spot"
+    market: Literal["spot"] = "spot"
 
     cooldown_tag: str = "regime_long_v2"
     cooldown_bars: int = 30

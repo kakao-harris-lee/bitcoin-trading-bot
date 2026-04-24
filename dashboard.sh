@@ -26,6 +26,16 @@ DASHBOARD_PATH="${DASHBOARD_PATH%/}"
 # Ensure logs directory exists
 mkdir -p "$SCRIPT_DIR/logs"
 
+find_python_bin() {
+    if [ -x "$SCRIPT_DIR/.venv/bin/python3" ]; then
+        echo "$SCRIPT_DIR/.venv/bin/python3"
+    elif [ -x "$SCRIPT_DIR/venv/bin/python3" ]; then
+        echo "$SCRIPT_DIR/venv/bin/python3"
+    else
+        command -v python3
+    fi
+}
+
 get_pid() {
     if [ -f "$PIDFILE" ]; then
         cat "$PIDFILE"
@@ -57,24 +67,38 @@ start() {
     fi
 
     echo "Starting dashboard on port $PORT..."
-
-    # Activate virtual environment if exists
-    if [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
-        source "$SCRIPT_DIR/.venv/bin/activate"
+    local python_bin
+    python_bin="$(find_python_bin)"
+    if [ -z "$python_bin" ]; then
+        echo "Failed to find python3 executable"
+        exit 1
     fi
 
-    # Start dashboard
-    PYTHONPATH="$SCRIPT_DIR" nohup python "$SCRIPT_DIR/web/app.py" >> "$LOGFILE" 2>&1 &
+    # Fully detach from the invoking shell when possible.
+    if command -v setsid >/dev/null 2>&1; then
+        PYTHONPATH="$SCRIPT_DIR" setsid "$python_bin" "$SCRIPT_DIR/web/app.py" < /dev/null >> "$LOGFILE" 2>&1 &
+    else
+        PYTHONPATH="$SCRIPT_DIR" nohup "$python_bin" "$SCRIPT_DIR/web/app.py" < /dev/null >> "$LOGFILE" 2>&1 &
+    fi
     local pid=$!
+    disown "$pid" 2>/dev/null || true
     echo $pid > "$PIDFILE"
 
-    sleep 2
+    local count=0
+    while [ $count -lt 10 ]; do
+        if is_running; then
+            break
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
 
     if is_running; then
         echo "Dashboard started successfully (PID: $pid)"
         echo "Access at: http://localhost:$PORT/$DASHBOARD_PATH"
     else
         echo "Failed to start dashboard. Check logs: $LOGFILE"
+        rm -f "$PIDFILE"
         exit 1
     fi
 }

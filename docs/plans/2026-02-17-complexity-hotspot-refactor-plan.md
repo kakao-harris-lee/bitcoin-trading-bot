@@ -207,7 +207,6 @@
     - `_build_status_fallback_assets`
     - `_build_stream_status`
     - `_load_stream_status`
-    - `_build_legacy_status`
     - `_build_minimal_status`
 - Result:
   - `get_status`: `CCN 19 -> 3`

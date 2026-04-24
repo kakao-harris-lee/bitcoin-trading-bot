@@ -266,51 +266,49 @@ class PortfolioRiskManager:
         self._risk_cache = {}
 
         for symbol in self._symbols:
-            for market in ["spot", "futures"]:
-                try:
-                    pos = await self.redis.get_position(symbol, market)
-                    if not pos:
-                        continue
+            market = "spot"
+            try:
+                pos = await self.redis.get_position(symbol, market)
+                if not pos:
+                    continue
 
-                    qty = float(pos.get("quantity", 0))
-                    if qty <= 0:
-                        continue
+                qty = float(pos.get("quantity", 0))
+                if qty <= 0:
+                    continue
 
-                    entry_price = float(pos.get("entry_price", 0))
-                    stop_price = float(pos.get("stop_price", 0))
-                    leverage = int(pos.get("leverage", 1))
+                entry_price = float(pos.get("entry_price", 0))
+                stop_price = float(pos.get("stop_price", 0))
+                leverage = int(pos.get("leverage", 1))
 
-                    # Calculate risk if stop_price is set
-                    if stop_price > 0 and entry_price > 0:
-                        side = pos.get("side", "buy")
-                        if side == "buy":  # Long
-                            stop_distance = (entry_price - stop_price) / entry_price
-                        else:  # Short
-                            stop_distance = (stop_price - entry_price) / entry_price
-
-                        risk_amount = qty * entry_price * max(0, stop_distance)
+                # Calculate risk if stop_price is set
+                if stop_price > 0 and entry_price > 0:
+                    side = pos.get("side", "buy")
+                    if side == "buy":
+                        stop_distance = (entry_price - stop_price) / entry_price
                     else:
-                        # Default to 3% stop if not set
-                        risk_amount = qty * entry_price * 0.03
+                        stop_distance = (stop_price - entry_price) / entry_price
 
-                    # Use composite key: symbol_market
-                    cache_key = f"{symbol}_{market}"
-                    self._risk_cache[cache_key] = OpenPositionRisk(
-                        symbol=symbol,
-                        entry_price=entry_price,
-                        quantity=qty,
-                        stop_price=stop_price,
-                        risk_amount=risk_amount,
-                        leverage=leverage,
-                    )
+                    risk_amount = qty * entry_price * max(0, stop_distance)
+                else:
+                    risk_amount = qty * entry_price * 0.03
 
-                except Exception as e:
-                    logger.warning(
-                        "Failed to get position risk for %s %s: %s",
-                        symbol,
-                        market,
-                        e,
-                    )
+                cache_key = f"{symbol}_{market}"
+                self._risk_cache[cache_key] = OpenPositionRisk(
+                    symbol=symbol,
+                    entry_price=entry_price,
+                    quantity=qty,
+                    stop_price=stop_price,
+                    risk_amount=risk_amount,
+                    leverage=leverage,
+                )
+
+            except Exception as e:
+                logger.warning(
+                    "Failed to get position risk for %s %s: %s",
+                    symbol,
+                    market,
+                    e,
+                )
 
         self._cache_ts = now
 

@@ -53,7 +53,7 @@ class MLPDirectionEntryParams:
 
     # Position sizing
     position_size: float = 0.01
-    market: Literal["spot", "futures"] = "spot"
+    market: Literal["spot"] = "spot"
 
     # Model path
     model_path: str = DEFAULT_MODEL_PATH

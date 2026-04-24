@@ -41,10 +41,6 @@
     "api_key": "${BINANCE_API_KEY}",
     "api_secret": "${BINANCE_API_SECRET}"
   },
-  "futures": {
-    "enabled": false,
-    "default_leverage": 3
-  },
   "spot": {
     "enabled": true,
     "fee_rate": 0.001

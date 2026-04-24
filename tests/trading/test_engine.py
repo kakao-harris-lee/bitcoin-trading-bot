@@ -1,5 +1,7 @@
 # tests/trading/test_engine.py
+import asyncio
 import pytest
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, patch
 from trading.engine import TradingEngine
 
@@ -71,7 +73,11 @@ async def test_initialize_risk_state_resets_daily_pnl_on_mode_change(mock_config
 
     mock_redis._client.hset.assert_called_once_with(
         "risk",
-        mapping={"mode": "live", "daily_pnl": "0"},
+        mapping={
+            "mode": "live",
+            "daily_pnl": "0",
+            "daily_pnl_date": date.today().isoformat(),
+        },
     )
 
 
@@ -83,7 +89,12 @@ async def test_initialize_risk_state_preserves_daily_pnl_in_same_mode(mock_confi
 
     mock_redis = AsyncMock()
     mock_redis.get_risk = AsyncMock(
-        return_value={"mode": "live", "daily_pnl": "-50.0", "kill_switch": "false"}
+        return_value={
+            "mode": "live",
+            "daily_pnl": "-50.0",
+            "daily_pnl_date": date.today().isoformat(),
+            "kill_switch": "false",
+        }
     )
     mock_redis._client = AsyncMock()
     mock_redis._client.hset = AsyncMock()
@@ -97,6 +108,38 @@ async def test_initialize_risk_state_preserves_daily_pnl_in_same_mode(mock_confi
     )
 
 
+@pytest.mark.asyncio
+async def test_initialize_risk_state_resets_daily_pnl_when_date_missing_or_stale(mock_config):
+    """Same-mode restarts should reset stale daily_pnl values at day boundaries."""
+    with patch('trading.engine.load_config', return_value=mock_config):
+        engine = TradingEngine(config_path="test.json")
+
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    mock_redis = AsyncMock()
+    mock_redis.get_risk = AsyncMock(
+        return_value={
+            "mode": "paper",
+            "daily_pnl": "-286.8",
+            "daily_pnl_date": yesterday,
+            "kill_switch": "false",
+        }
+    )
+    mock_redis._client = AsyncMock()
+    mock_redis._client.hset = AsyncMock()
+    engine.redis = mock_redis
+
+    await engine._initialize_risk_state("paper")
+
+    mock_redis._client.hset.assert_called_once_with(
+        "risk",
+        mapping={
+            "mode": "paper",
+            "daily_pnl": "0",
+            "daily_pnl_date": date.today().isoformat(),
+        },
+    )
+
+
 def test_resolve_feed_market_uses_explicit_override(mock_config):
     """Top-level feed_market should override strategy-derived market."""
     cfg = dict(mock_config)
@@ -105,23 +148,23 @@ def test_resolve_feed_market_uses_explicit_override(mock_config):
         engine = TradingEngine(config_path="test.json")
 
     market = engine._resolve_feed_market(
-        {"some_futures_strat": {"enabled": True, "market": "futures"}}
+        {"legacy_margin_strat": {"enabled": True, "market": "margin"}}
     )
     assert market == "spot"
 
 
-def test_resolve_feed_market_prefers_futures_in_mixed_mode(mock_config):
-    """When both markets are enabled, choose futures for a single shared feed."""
+def test_resolve_feed_market_coerces_mixed_mode_to_spot(mock_config):
+    """Even mixed legacy configs should resolve to the shared spot feed."""
     with patch("trading.engine.load_config", return_value=mock_config):
         engine = TradingEngine(config_path="test.json")
 
     market = engine._resolve_feed_market(
         {
             "spot_strat": {"enabled": True, "market": "spot"},
-            "futures_strat": {"enabled": True, "market": "futures"},
+            "legacy_margin_strat": {"enabled": True, "market": "margin"},
         }
     )
-    assert market == "futures"
+    assert market == "spot"
 
 
 def test_resolve_feed_market_uses_spot_for_spot_only(mock_config):
@@ -158,3 +201,37 @@ def test_resolve_feed_stream_type_accepts_bookticker(mock_config):
     with patch("trading.engine.load_config", return_value=cfg):
         engine = TradingEngine(config_path="test.json")
     assert engine._resolve_feed_stream_type() == "bookTicker"
+
+
+@pytest.mark.asyncio
+async def test_start_telegram_notifications_is_non_blocking(mock_config):
+    with patch("trading.engine.load_config", return_value=mock_config):
+        engine = TradingEngine(config_path="test.json")
+
+    engine.redis = AsyncMock()
+    run_gate = asyncio.Event()
+    startup_gate = asyncio.Event()
+
+    async def _run() -> None:
+        await run_gate.wait()
+
+    async def _send_start_notification(*args, **kwargs) -> None:
+        await startup_gate.wait()
+
+    telegram = AsyncMock()
+    telegram.run.side_effect = _run
+    telegram.send_start_notification.side_effect = _send_start_notification
+
+    with patch("trading.engine.TelegramTask", return_value=telegram):
+        await engine._start_telegram_notifications(mode="paper", symbols=["BTC", "ETH"])
+        await asyncio.sleep(0)
+
+    assert len(engine.tasks) == 2
+    assert engine.tasks[0].done() is False
+    assert engine.tasks[1].done() is False
+    assert telegram.run.await_count == 1
+    assert telegram.send_start_notification.await_count == 1
+
+    run_gate.set()
+    startup_gate.set()
+    await asyncio.gather(*engine.tasks, return_exceptions=True)

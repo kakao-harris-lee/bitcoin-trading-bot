@@ -118,10 +118,10 @@
 
 ### Implementation for User Story 4
 
-- [ ] T029 [US4] Create ParameterSweep dataclass in core/parameter_sweep.py with fields from data-model.md
+- [ ] T029 [US4] Add sweep configuration support in scripts/optimize_mlflow.py with fields from data-model.md
 - [ ] T030 [US4] Implement ParameterSweep.generate_combinations() using itertools.product
 - [ ] T031 [US4] Implement ParameterSweep.total_combinations property
-- [ ] T032 [US4] Create ParameterSweepRunner class in core/parameter_sweep.py
+- [ ] T032 [US4] Add sweep runner orchestration in scripts/optimize_mlflow.py
 - [ ] T033 [US4] Implement ParameterSweepRunner.__init__() accepting Backtester, MLflowTracker, BacktestVisualizer
 - [ ] T034 [US4] Implement ParameterSweepRunner.run() to iterate combinations, run backtests, log to MLflow
 - [ ] T035 [US4] Add progress_callback support to ParameterSweepRunner.run()

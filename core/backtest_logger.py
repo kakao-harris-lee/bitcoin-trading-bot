@@ -18,7 +18,7 @@ class BacktestLogger:
     Creates one CSV file per backtest run with all state recorded at each candle.
 
     Usage:
-        logger = BacktestLogger("short_v1", "BTC")
+        logger = BacktestLogger("mlp_direction_btc", "BTC")
         for candle in candles:
             logger.log_candle(state_dict)
         filepath = logger.flush()

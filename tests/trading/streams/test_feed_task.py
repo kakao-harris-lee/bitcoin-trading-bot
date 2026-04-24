@@ -19,7 +19,7 @@ async def test_feed_task_publishes_price(mock_redis):
     # Simulate receiving a price update
     await task._publish_price({
         "price": "43250.50",
-        "market": "futures",
+        "market": "spot",
     })
 
     mock_redis.publish_event.assert_called_once()
@@ -27,7 +27,7 @@ async def test_feed_task_publishes_price(mock_redis):
     assert call_args[0][0] == "market:prices"
     assert call_args[0][1]["symbol"] == "BTC"
     assert call_args[0][1]["price"] == "43250.50"
-    assert call_args[0][1]["market"] == "futures"
+    assert call_args[0][1]["market"] == "spot"
     assert call_args[0][1]["source"] == "binance"
 
 
@@ -38,7 +38,7 @@ async def test_feed_task_publishes_exchange_latency(mock_redis):
 
     await task._publish_price({
         "price": "43250.50",
-        "market": "futures",
+        "market": "spot",
         "exchange_ts": 1700000000000,
     })
 
@@ -56,7 +56,7 @@ async def test_feed_task_preserves_source_and_heartbeat(mock_redis):
     await task._publish_price(
         {
             "price": "43000.00",
-            "market": "futures",
+            "market": "spot",
             "source": "binance_rest",
             "heartbeat": "true",
         }

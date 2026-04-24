@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import signal
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -62,31 +63,11 @@ class TradingEngine:
         return getattr(self.redis, "_client", None)
 
     def _resolve_feed_market(self, strategy_config: dict[str, Any]) -> str:
-        """Resolve feed market from config and enabled strategy mix.
+        """Resolve feed market.
 
-        Priority:
-        1) Explicit top-level `feed_market` ("spot" | "futures")
-        2) Enabled strategy markets (prefer futures in mixed mode)
-        3) Safe default: spot
+        The system is spot-only. Keep the top-level override for compatibility,
+        but coerce everything back to spot to avoid mixed-market drift.
         """
-        explicit = str(self.config.get("feed_market", "")).strip().lower()
-        if explicit in {"spot", "futures"}:
-            return explicit
-
-        markets: set[str] = set()
-        for raw in strategy_config.values():
-            if not isinstance(raw, dict):
-                continue
-            if raw.get("enabled") is False:
-                continue
-            market = str(raw.get("market", "")).strip().lower()
-            if market in {"spot", "futures"}:
-                markets.add(market)
-
-        if "futures" in markets:
-            return "futures"
-        if "spot" in markets:
-            return "spot"
         return "spot"
 
     def _resolve_feed_warmup_enabled(self) -> bool:
@@ -188,21 +169,11 @@ class TradingEngine:
                 leverage_manager=leverage_manager,
             )
         else:
-            # Get futures config for leverage
-            futures_config = self.config.get("futures", {})
-            default_leverage = futures_config.get("default_leverage", 1)
-
             client = BinanceClient(
                 api_key=self.config["binance"]["api_key"],
                 api_secret=self.config["binance"]["api_secret"],
-                default_leverage=default_leverage,
             )
             await client.connect()
-
-            # Initialize leverage for all trading symbols
-            if futures_config.get("enabled", False) and symbols:
-                await client.initialize_leverage(symbols, leverage=default_leverage)
-                logger.info(f"Initialized {default_leverage}x leverage for {symbols}")
 
             # Create LeverageManager for risk-adjusted leverage
             leverage_manager = None
@@ -257,13 +228,7 @@ class TradingEngine:
         logger.info(f"Started periodic logger (interval={periodic_logger_interval}s)")
 
         # 5. Start Telegram notification task
-        try:
-            telegram = TelegramTask(redis=self.redis)
-            self.tasks.append(asyncio.create_task(telegram.run()))
-            await telegram.send_start_notification(mode=mode, symbols=symbols)
-            logger.info("Started Telegram notification task")
-        except ValueError as e:
-            logger.warning(f"Telegram notifications disabled: {e}")
+        await self._start_telegram_notifications(mode=mode, symbols=symbols)
 
         # 6. Set up signal handlers
         loop = asyncio.get_running_loop()
@@ -283,23 +248,35 @@ class TradingEngine:
         assert self.redis is not None
 
         current_risk = await self.redis.get_risk()
+        current_day = date.today().isoformat()
         if not current_risk:
             await self.redis.set_risk({
                 "kill_switch": "false",
                 "blocked": "false",
                 "daily_pnl": "0",
+                "daily_pnl_date": current_day,
                 "mode": mode,
             })
             return
 
         previous_mode = current_risk.get("mode")
         updates: dict[str, str] = {"mode": mode}
+        stored_day = str(current_risk.get("daily_pnl_date", "")).strip()
 
         # Avoid carrying paper PnL into live risk gates (and vice versa).
         if previous_mode and previous_mode != mode:
             updates["daily_pnl"] = "0"
+            updates["daily_pnl_date"] = current_day
             logger.warning(
                 f"Mode changed ({previous_mode} -> {mode}); resetting daily_pnl to 0."
+            )
+        elif stored_day != current_day:
+            updates["daily_pnl"] = "0"
+            updates["daily_pnl_date"] = current_day
+            logger.info(
+                "New trading day detected (%s -> %s); resetting daily_pnl to 0.",
+                stored_day or "missing",
+                current_day,
             )
 
         redis_client = self._get_redis_client()
@@ -328,6 +305,24 @@ class TradingEngine:
             await self.redis.disconnect()
 
         logger.info("Shutdown complete")
+
+    async def _start_telegram_notifications(self, mode: str, symbols: list[str]) -> None:
+        """Start Telegram notification background tasks without blocking startup."""
+        assert self.redis is not None
+
+        try:
+            telegram = TelegramTask(redis=self.redis)
+        except ValueError as exc:
+            logger.warning(f"Telegram notifications disabled: {exc}")
+            return
+
+        self.tasks.append(asyncio.create_task(telegram.run()))
+        self.tasks.append(
+            asyncio.create_task(
+                telegram.send_start_notification(mode=mode, symbols=symbols)
+            )
+        )
+        logger.info("Started Telegram notification task")
 
     async def _start_component_strategies(
         self,

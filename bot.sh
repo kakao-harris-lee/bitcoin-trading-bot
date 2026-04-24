@@ -65,6 +65,7 @@ start() {
             echo "    종료하려면: ./bot.sh stop"
             exit 1
         fi
+        rm -f "$PID_FILE"
     fi
 
     echo "🚀 MultiAssetTradingEngine 시작"
@@ -102,11 +103,18 @@ start() {
         start_line=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
     fi
 
-    # nohup으로 백그라운드 실행 (-u: 버퍼링 비활성화)
+    # Fully detach from the invoking shell when possible.
+    # In some non-interactive environments `nohup cmd &` is not sufficient and
+    # the child can still die with the parent shell/session.
     # Python handles log file rotation (logs/bot.log, daily, 30-day retention)
-    nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" > /dev/null 2>&1 &
+    if command -v setsid >/dev/null 2>&1; then
+        setsid "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" < /dev/null > /dev/null 2>&1 &
+    else
+        nohup "$PYTHON_BIN" -u run.py --trend "$TREND_MODE" < /dev/null > /dev/null 2>&1 &
+    fi
 
     PID=$!
+    disown "$PID" 2>/dev/null || true
     echo $PID > "$PID_FILE"
 
     # Wait for successful startup marker, process exit, or startup-time fatal logs.
@@ -140,6 +148,12 @@ start() {
     done
 
     if [ "$startup_ok" -eq 1 ]; then
+        local discovered
+        discovered=$(find_running_bot_pid)
+        if [ -n "$discovered" ] && ps -p "$discovered" > /dev/null 2>&1; then
+            PID="$discovered"
+            echo "$PID" > "$PID_FILE"
+        fi
         echo "✅ 시작됨 (PID: $PID)"
         return 0
     fi

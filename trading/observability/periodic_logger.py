@@ -5,6 +5,7 @@ from __future__ import annotations
 # pylint: disable=logging-fstring-interpolation,broad-exception-caught,protected-access
 
 import asyncio
+import json
 import logging
 from datetime import datetime
 from typing import Any
@@ -131,24 +132,33 @@ class PeriodicLoggerTask:
         lines.append("  POSITIONS:")
         has_positions = False
         for symbol in self.symbols:
-            pos = positions.get(symbol, {})
-            if pos and pos.get("quantity") and float(pos.get("quantity", 0)) != 0:
+            symbol_positions = positions.get(symbol, [])
+            current_price = float(prices.get(symbol, {}).get("price", 0))
+
+            for pos in symbol_positions:
+                try:
+                    qty = float(pos.get("quantity", 0))
+                except (TypeError, ValueError):
+                    qty = 0.0
+                if qty == 0:
+                    continue
+
                 has_positions = True
-                qty = float(pos.get("quantity", 0))
                 entry_price = float(pos.get("entry_price", 0))
-                current_price = float(prices.get(symbol, {}).get("price", entry_price))
                 strategy = pos.get("strategy", "unknown")
+                market = pos.get("market", "unknown")
+                reference_price = current_price or entry_price
 
                 # Calculate P&L
                 if entry_price > 0:
-                    pnl = (current_price - entry_price) * qty
-                    pnl_pct = ((current_price / entry_price) - 1) * 100
+                    pnl = (reference_price - entry_price) * qty
+                    pnl_pct = ((reference_price / entry_price) - 1) * 100
                 else:
                     pnl = 0
                     pnl_pct = 0
 
                 lines.append(
-                    f"    {symbol}: {qty:.6f} @ ${entry_price:,.2f} | "
+                    f"    {symbol} [{market}]: {qty:.6f} @ ${entry_price:,.2f} | "
                     f"P&L: ${pnl:,.2f} ({pnl_pct:+.2f}%) | "
                     f"Strategy: {strategy}"
                 )
@@ -194,12 +204,13 @@ class PeriodicLoggerTask:
 
         # Keep console logs compact; full snapshot remains available at DEBUG.
         active_positions = 0
-        for pos in positions.values():
-            try:
-                if float(pos.get("quantity", 0)) != 0:
-                    active_positions += 1
-            except (TypeError, ValueError):
-                continue
+        for symbol_positions in positions.values():
+            for pos in symbol_positions:
+                try:
+                    if float(pos.get("quantity", 0)) != 0:
+                        active_positions += 1
+                except (TypeError, ValueError):
+                    continue
         logger.info(
             "SYSTEM SNAPSHOT mode=%s blocked=%s daily_pnl=%.2f positions=%d decisions=%d",
             mode.upper(),
@@ -253,15 +264,22 @@ class PeriodicLoggerTask:
 
         return prices
 
-    async def _get_positions(self) -> dict[str, dict[str, str]]:
-        """Get current positions for all symbols."""
-        positions: dict[str, dict[str, str]] = {}
+    async def _get_positions(self) -> dict[str, list[dict[str, str]]]:
+        """Get current spot positions for all symbols."""
+        positions: dict[str, list[dict[str, str]]] = {}
 
         for symbol in self.symbols:
             try:
-                pos = await self.redis.get_position(symbol, "futures")
+                symbol_positions: list[dict[str, str]] = []
+                pos = await self.redis.get_position(symbol, "spot")
                 if pos:
-                    positions[symbol] = pos
+                    try:
+                        if float(pos.get("quantity", 0)) != 0:
+                            symbol_positions.append(pos)
+                    except (TypeError, ValueError):
+                        pass
+                if symbol_positions:
+                    positions[symbol] = symbol_positions
             except Exception as e:
                 logger.error(f"Error getting position for {symbol}: {e}")
 
@@ -280,7 +298,7 @@ class PeriodicLoggerTask:
         self,
         timestamp: str,
         prices: dict[str, dict[str, Any]],
-        positions: dict[str, dict[str, str]],
+        positions: dict[str, list[dict[str, str]]],
         risk: dict[str, str],
     ) -> None:
         """Publish state summary to Redis stream for dashboard access."""
@@ -288,7 +306,8 @@ class PeriodicLoggerTask:
             # Build summary for each symbol
             for symbol in self.symbols:
                 price_data = prices.get(symbol, {})
-                pos_data = positions.get(symbol, {})
+                symbol_positions = positions.get(symbol, [])
+                primary_position = symbol_positions[0] if symbol_positions else {}
 
                 event_data = {
                     "timestamp": timestamp,
@@ -298,13 +317,20 @@ class PeriodicLoggerTask:
                     "low": price_data.get("low", "0"),
                     "volume": price_data.get("volume", "0"),
                     "ingest_latency_ms": price_data.get("ingest_latency_ms", ""),
-                    "position_qty": pos_data.get("quantity", "0"),
-                    "position_entry": pos_data.get("entry_price", "0"),
-                    "position_strategy": pos_data.get("strategy", ""),
+                    "position_qty": primary_position.get("quantity", "0"),
+                    "position_entry": primary_position.get("entry_price", "0"),
+                    "position_strategy": primary_position.get("strategy", ""),
+                    "position_market": primary_position.get("market", ""),
+                    "position_count": str(len(symbol_positions)),
                     "mode": risk.get("mode", "unknown"),
                     "kill_switch": risk.get("kill_switch", "false"),
                     "daily_pnl": risk.get("daily_pnl", "0"),
                 }
+                if len(symbol_positions) > 1:
+                    event_data["positions_json"] = json.dumps(
+                        symbol_positions,
+                        ensure_ascii=False,
+                    )
 
                 await self.redis._client.xadd(
                     self.STREAM_NAME,

@@ -85,7 +85,7 @@ class MLPDirectionExitParams:
     ema_deadcross_min_hold_bars: int = 0
     ema_deadcross_blocked_regimes: list[str] | None = None
 
-    market: Literal["spot", "futures"] = "spot"
+    market: Literal["spot"] = "spot"
 
     # Model path (for MLP SELL exit)
     model_path: str = DEFAULT_MODEL_PATH
@@ -103,6 +103,14 @@ class MLPDirectionExitParams:
     risk_on_stop_loss_pct: float = 0.0
     risk_off_stop_loss_pct: float = 0.0
     intrabar_stop_requires_post_entry_candle: bool = True
+    intrabar_stop_grace_bars_after_entry: int = 0
+    intrabar_stop_grace_seconds_after_entry: int = 0
+    intrabar_stop_hard_exit_pct: float = 0.0
+    intrabar_stop_blocked_regimes: list[str] | None = None
+    intrabar_stop_require_close_below_stop_in_blocked_regimes: bool = False
+    intrabar_stop_require_fast_below_slow_in_blocked_regimes: bool = False
+    intrabar_stop_fast_field: str = "ema_20"
+    intrabar_stop_slow_field: str = "ema_120"
 
 
 @exit_strategy(params_class=MLPDirectionExitParams)
@@ -338,16 +346,34 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
     ) -> Signal | None:
         stop_pct = self._calculate_stop_loss(ctx, ctx.market, position.entry_price)
         stop_price = position.entry_price * (1.0 - (stop_pct / 100.0))
-        low_price = ctx.market.low if ctx.market.low > 0 else ctx.market.close
+        close_price = ctx.market.close
+        low_price = ctx.market.low if ctx.market.low > 0 else close_price
         intrabar_hit = low_price <= stop_price
-        if intrabar_hit and self.params.intrabar_stop_requires_post_entry_candle:
-            if not self._is_post_entry_candle(ctx, position):
+        close_below_stop = close_price <= stop_price or pnl_pct <= -stop_pct
+        position_age_seconds, elapsed_candles = self._entry_elapsed_metrics(ctx, position)
+        hard_intrabar_allowed = self._is_hard_intrabar_hit(position.entry_price, low_price)
+        if intrabar_hit and not close_below_stop:
+            if (
+                self.params.intrabar_stop_requires_post_entry_candle
+                and elapsed_candles < 1.0
+                and not hard_intrabar_allowed
+            ):
+                intrabar_hit = False
+            elif not self._allow_intrabar_stop(
+                ctx=ctx,
+                position=position,
+                stop_price=stop_price,
+                low_price=low_price,
+                close_price=close_price,
+                position_age_seconds=position_age_seconds,
+                elapsed_candles=elapsed_candles,
+            ):
                 intrabar_hit = False
 
-        if not intrabar_hit and pnl_pct > -stop_pct:
+        if not intrabar_hit and not close_below_stop:
             return None
 
-        if intrabar_hit:
+        if intrabar_hit and not close_below_stop:
             trigger_pnl_pct = ((stop_price - position.entry_price) / position.entry_price) * 100.0
             reason = (
                 f"MLPDirection exit: Stop loss intrabar {trigger_pnl_pct:.2f}% "
@@ -362,12 +388,60 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         self._clear_all_state(key)
         return self._create_exit_signal(position, reason, trigger_price=trigger_price)
 
-    def _is_post_entry_candle(self, ctx: TradingContext, position: Position) -> bool:
+    def _is_hard_intrabar_hit(self, entry_price: float, low_price: float) -> bool:
+        hard_exit_pct = abs(float(self.params.intrabar_stop_hard_exit_pct))
+        if hard_exit_pct <= 0 or entry_price <= 0:
+            return False
+        hard_stop_price = entry_price * (1.0 - (hard_exit_pct / 100.0))
+        return low_price <= hard_stop_price
+
+    def _entry_elapsed_metrics(self, ctx: TradingContext, position: Position) -> tuple[int, float]:
         entry_ts = int(getattr(position, "entry_time", 0) or 0)
-        current_ts = int(getattr(ctx.market, "timestamp", 0) or 0)
-        if entry_ts <= 0 or current_ts <= 0:
+        current_ts = int(getattr(ctx.market, "timestamp", 0) or getattr(ctx, "timestamp", 0) or 0)
+        if entry_ts <= 0 or current_ts <= 0 or current_ts <= entry_ts:
+            return 0, 0.0
+        elapsed_ms = current_ts - entry_ts
+        candle_ms = int(getattr(ctx, "candle_ms", 4 * 60 * 60 * 1000) or (4 * 60 * 60 * 1000))
+        elapsed_candles = (elapsed_ms / candle_ms) if candle_ms > 0 else 0.0
+        return int(elapsed_ms / 1000), elapsed_candles
+
+    def _allow_intrabar_stop(
+        self,
+        *,
+        ctx: TradingContext,
+        position: Position,
+        stop_price: float,
+        low_price: float,
+        close_price: float,
+        position_age_seconds: int,
+        elapsed_candles: float,
+    ) -> bool:
+        p = self.params
+        if self._is_hard_intrabar_hit(position.entry_price, low_price):
             return True
-        return current_ts > entry_ts
+
+        if (
+            int(p.intrabar_stop_grace_bars_after_entry) > 0
+            and elapsed_candles < int(p.intrabar_stop_grace_bars_after_entry)
+        ):
+            return False
+        if (
+            int(p.intrabar_stop_grace_seconds_after_entry) > 0
+            and position_age_seconds < int(p.intrabar_stop_grace_seconds_after_entry)
+        ):
+            return False
+
+        blocked_regimes = set(p.intrabar_stop_blocked_regimes or [])
+        if blocked_regimes and ctx.regime.regime in blocked_regimes:
+            if p.intrabar_stop_require_close_below_stop_in_blocked_regimes and close_price > stop_price:
+                if p.intrabar_stop_require_fast_below_slow_in_blocked_regimes:
+                    ema_fast = float(getattr(ctx.market, p.intrabar_stop_fast_field, 0.0) or 0.0)
+                    ema_slow = float(getattr(ctx.market, p.intrabar_stop_slow_field, 0.0) or 0.0)
+                    if ema_fast > 0 and ema_slow > 0 and ema_fast < ema_slow:
+                        return True
+                return False
+
+        return True
 
     def _check_fwin_exit_if_enabled(
         self,
@@ -552,8 +626,10 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
         """
         p = self.params
         base_stop_pct = p.stop_loss_pct
+        risk_on = False
         if p.runtime_switch_enabled:
-            if self._is_risk_on(ctx.market, p):
+            risk_on = self._is_risk_on(ctx.market, p)
+            if risk_on:
                 if p.risk_on_stop_loss_pct > 0:
                     base_stop_pct = p.risk_on_stop_loss_pct
             else:
@@ -565,7 +641,13 @@ class MLPDirectionExitStrategy(BaseExitStrategy):
             atr_pct = (market_data.atr / entry_price) * 100
             dynamic_stop_pct = p.atr_stop_multiplier * atr_pct
             # Clamp to min/max bounds
-            return max(p.atr_stop_min_pct, min(p.atr_stop_max_pct, dynamic_stop_pct))
+            effective_stop_pct = max(p.atr_stop_min_pct, min(p.atr_stop_max_pct, dynamic_stop_pct))
+            if p.runtime_switch_enabled:
+                if risk_on and p.risk_on_stop_loss_pct > 0:
+                    effective_stop_pct = max(effective_stop_pct, p.risk_on_stop_loss_pct)
+                elif (not risk_on) and p.risk_off_stop_loss_pct > 0:
+                    effective_stop_pct = min(effective_stop_pct, p.risk_off_stop_loss_pct)
+            return effective_stop_pct
 
         return base_stop_pct
 

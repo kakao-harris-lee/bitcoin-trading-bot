@@ -32,9 +32,9 @@ class TestEventEmitterDataclasses:
 
         event = EntryEvaluationEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             # Filter conditions
             adx=25.5,
             adx_threshold=20.0,
@@ -57,7 +57,7 @@ class TestEventEmitterDataclasses:
             reason="entry: BULL_STRONG, MFI=55.0, ADX=25.5",
         )
 
-        assert event.strategy == "short_v1"
+        assert event.strategy == "mlp_direction_btc"
         assert event.adx_passed is True
         assert event.signal_generated is True
 
@@ -67,9 +67,9 @@ class TestEventEmitterDataclasses:
 
         event = ExitEvaluationEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             # Position data
             entry_price=43000.0,
             current_price=44000.0,
@@ -137,9 +137,9 @@ class TestEventEmitterDataclasses:
 
         event = HWMUpdateEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             old_hwm=44000.0,
             new_hwm=44500.0,
             current_price=44500.0,
@@ -156,9 +156,9 @@ class TestEventEmitterDataclasses:
 
         event = SafetyRejectionEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             rejection_type="weak_trend",
             reason="ADX=15.0 < 20.0 threshold",
             adx=15.0,
@@ -214,9 +214,9 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             adx=25.5,
             adx_threshold=20.0,
             adx_passed=True,
@@ -257,9 +257,9 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             adx=25.5,
             adx_threshold=20.0,
             adx_passed=True,
@@ -296,9 +296,9 @@ class TestEventEmitterUnit:
 
         event = ExitEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             entry_price=43000.0,
             current_price=44000.0,
             quantity=0.05,
@@ -382,9 +382,9 @@ class TestEventEmitterUnit:
 
         event = HWMUpdateEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             old_hwm=44000.0,
             new_hwm=44500.0,
             current_price=44500.0,
@@ -411,9 +411,9 @@ class TestEventEmitterUnit:
 
         event = SafetyRejectionEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             rejection_type="weak_trend",
             reason="ADX=15.0 < 20.0 threshold",
             adx=15.0,
@@ -442,9 +442,9 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             adx=25.5,
             adx_threshold=20.0,
             adx_passed=True,
@@ -475,9 +475,9 @@ class TestEventEmitterUnit:
 
         event = EntryEvaluationEvent(
             timestamp="2026-01-20T12:00:00",
-            strategy="short_v1",
+            strategy="mlp_direction_btc",
             symbol="BTC",
-            market="futures",
+            market="spot",
             adx=25.5,
             adx_threshold=20.0,
             adx_passed=True,
@@ -501,7 +501,7 @@ class TestEventEmitterUnit:
         data = event.to_dict()
 
         assert isinstance(data, dict)
-        assert data["strategy"] == "short_v1"
+        assert data["strategy"] == "mlp_direction_btc"
         assert data["adx"] == "25.5"  # Serialized as string for Redis
         assert data["adx_passed"] == "true"  # Boolean as string
 

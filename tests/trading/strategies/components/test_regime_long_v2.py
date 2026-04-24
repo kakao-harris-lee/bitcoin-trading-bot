@@ -198,6 +198,98 @@ def test_exit_on_peak_drawdown():
     assert "peak drawdown" in signal.reason
 
 
+def test_exit_on_peak_drawdown_skips_in_blocked_bull_regime_without_gain_or_fast_confirmation():
+    params = RegimeLongV2ExitParams(
+        peak_drawdown_exit_pct=0.05,
+        exit_on_bear_regime=False,
+        drop_1d_lookback_bars=99,
+        drop_3d_lookback_bars=199,
+        peak_drawdown_blocked_regimes=["BULL_STRONG"],
+        peak_drawdown_min_hwm_gain_pct=0.04,
+        peak_drawdown_require_fast_below_slow=True,
+    )
+    strategy = RegimeLongV2ExitStrategy(params=params)
+    pos = _position(entry_price=100.0)
+    strategy.on_position_opened(pos)
+
+    # HWM gain is only 2.5%, below the bull-guard minimum.
+    assert strategy.check_exit(
+        _ctx(ts=1, close=102.0, high=102.5, mfi=70.0, adx=30.0, ema_20=101.0, ema_120=95.0),
+        pos,
+    ) is None
+
+    signal = strategy.check_exit(
+        _ctx(ts=2, close=97.0, high=97.0, mfi=70.0, adx=30.0, ema_20=99.0, ema_120=95.0),
+        pos,
+    )
+
+    assert signal is None
+
+
+def test_exit_on_peak_drawdown_hard_exit_overrides_bull_guard():
+    params = RegimeLongV2ExitParams(
+        peak_drawdown_exit_pct=0.05,
+        peak_drawdown_hard_exit_pct=0.09,
+        exit_on_bear_regime=False,
+        drop_1d_lookback_bars=99,
+        drop_3d_lookback_bars=199,
+        peak_drawdown_blocked_regimes=["BULL_STRONG"],
+        peak_drawdown_min_hwm_gain_pct=0.04,
+        peak_drawdown_require_fast_below_slow=True,
+    )
+    strategy = RegimeLongV2ExitStrategy(params=params)
+    pos = _position(entry_price=100.0)
+    strategy.on_position_opened(pos)
+
+    assert strategy.check_exit(
+        _ctx(ts=1, close=102.0, high=102.5, mfi=70.0, adx=30.0, ema_20=101.0, ema_120=95.0),
+        pos,
+    ) is None
+
+    signal = strategy.check_exit(
+        _ctx(ts=2, close=93.0, high=93.0, mfi=70.0, adx=30.0, ema_20=99.0, ema_120=95.0),
+        pos,
+    )
+
+    assert signal is not None
+    assert "peak drawdown" in signal.reason
+
+
+def test_exit_on_peak_drawdown_honors_bar_and_time_grace_in_bull_regime():
+    params = RegimeLongV2ExitParams(
+        peak_drawdown_exit_pct=0.05,
+        exit_on_bear_regime=False,
+        drop_1d_lookback_bars=99,
+        drop_3d_lookback_bars=199,
+        peak_drawdown_grace_bars_after_entry=2,
+        peak_drawdown_grace_seconds_after_entry=3600,
+        peak_drawdown_blocked_regimes=["BULL_STRONG"],
+        peak_drawdown_min_hwm_gain_pct=0.04,
+    )
+    strategy = RegimeLongV2ExitStrategy(params=params)
+    entry_time = 1_000_000
+    pos = _position(entry_price=100.0, entry_time=entry_time)
+    strategy.on_position_opened(pos)
+
+    assert strategy.check_exit(
+        _ctx(ts=entry_time + 1_000, close=105.0, high=106.0, mfi=70.0, adx=30.0, ema_20=104.0, ema_120=95.0),
+        pos,
+    ) is None
+
+    early_signal = strategy.check_exit(
+        _ctx(ts=entry_time + 1_800_000, close=100.0, high=100.0, mfi=70.0, adx=30.0, ema_20=99.0, ema_120=95.0),
+        pos,
+    )
+    mature_signal = strategy.check_exit(
+        _ctx(ts=entry_time + 7_200_000, close=100.0, high=100.0, mfi=70.0, adx=30.0, ema_20=94.0, ema_120=95.0),
+        pos,
+    )
+
+    assert early_signal is None
+    assert mature_signal is not None
+    assert "peak drawdown" in mature_signal.reason
+
+
 def test_exit_on_shock_return():
     params = RegimeLongV2ExitParams(
         exit_on_bear_regime=False,
@@ -330,3 +422,82 @@ def test_exit_on_ema_streak_honors_drawdown_and_time_grace() -> None:
     assert shallow_signal is None
     assert final_signal is not None
     assert "below ema_120 streak" in final_signal.reason
+
+
+def test_exit_on_ema_streak_requires_all_eth_btc_guards_before_exit() -> None:
+    params = RegimeLongV2ExitParams(
+        exit_on_bear_regime=False,
+        peak_drawdown_exit_pct=0.9,
+        drop_1d_lookback_bars=99,
+        drop_3d_lookback_bars=199,
+        ema_slow_consecutive_bars=3,
+        ema_slow_grace_seconds_after_entry=43200,
+        ema_slow_min_drawdown_from_hwm_pct=0.025,
+        ema_slow_require_fast_below_slow=True,
+    )
+    strategy = RegimeLongV2ExitStrategy(params=params)
+    entry_time = 1_000_000
+    pos = _position(entry_price=100.0, entry_time=entry_time)
+    strategy.on_position_opened(pos)
+
+    # Establish a post-entry HWM first.
+    assert strategy.check_exit(
+        _ctx(ts=entry_time + 1_000, close=104.0, high=105.0, ema_20=103.0, ema_120=99.0),
+        pos,
+    ) is None
+
+    # Three candles below EMA120 after grace, but EMA20 is still above EMA120 -> suppressed.
+    assert strategy.check_exit(
+        _ctx(
+            ts=entry_time + 50_000_000,
+            close=99.0,
+            high=99.0,
+            mfi=55.0,
+            adx=25.0,
+            ema_20=101.0,
+            ema_120=100.0,
+        ),
+        pos,
+    ) is None
+    assert strategy.check_exit(
+        _ctx(
+            ts=entry_time + 53_600_000,
+            close=98.0,
+            high=98.0,
+            mfi=55.0,
+            adx=25.0,
+            ema_20=100.5,
+            ema_120=100.0,
+        ),
+        pos,
+    ) is None
+    blocked_signal = strategy.check_exit(
+        _ctx(
+            ts=entry_time + 57_200_000,
+            close=97.0,
+            high=97.0,
+            mfi=55.0,
+            adx=25.0,
+            ema_20=100.2,
+            ema_120=100.0,
+        ),
+        pos,
+    )
+
+    # Same drawdown regime, but now fast EMA confirms deterioration -> exit.
+    allowed_signal = strategy.check_exit(
+        _ctx(
+            ts=entry_time + 60_800_000,
+            close=96.0,
+            high=96.0,
+            mfi=55.0,
+            adx=25.0,
+            ema_20=99.0,
+            ema_120=100.0,
+        ),
+        pos,
+    )
+
+    assert blocked_signal is None
+    assert allowed_signal is not None
+    assert "below ema_120 streak" in allowed_signal.reason

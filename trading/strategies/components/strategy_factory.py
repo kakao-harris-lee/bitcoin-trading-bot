@@ -1,15 +1,15 @@
 """Strategy Factory - assembles Entry/Exit components from configuration.
 
 Implements the Factory Pattern for dynamic strategy assembly based on
-allocation.json configuration. Supports both legacy and new config formats.
+allocation.json configuration.
 
-Legacy format (backward compatible):
-    "mlp_direction": {
+Registry-default format:
+    "mlp_direction_btc": {
         "position_size": 0.2,
         "market": "spot"
     }
 
-New format (explicit class names, fully configurable):
+Explicit component format:
     "mlp_direction_btc": {
         "market": "spot",
         "entry": {
@@ -31,12 +31,12 @@ Usage:
     factory = StrategyFactory(redis_client)
 
     # Create individual components
-    entry = factory.create_entry("mlp_direction", params)
-    exit_strat = factory.create_exit("mlp_direction", params)
+    entry = factory.create_entry("mlp_direction_btc", params)
+    exit_strat = factory.create_exit("mlp_direction_btc", params)
 
     # Create full strategy task
     task = await factory.create_strategy_task(
-        name="mlp_direction",
+        name="mlp_direction_btc",
         symbols=["BTC", "ETH"],
         config={"position_size": 0.2},
     )
@@ -53,13 +53,11 @@ from typing import Any, TYPE_CHECKING
 from .interfaces import IEntryStrategy, IExitStrategy
 
 # Entry strategies (imports trigger registration via decorators)
-from .sideways_entry import SidewaysEntryStrategy, SidewaysEntryParams
 from .mlp_direction_entry import MLPDirectionEntryStrategy, MLPDirectionEntryParams
 from .regime_long_v2_entry import RegimeLongV2EntryStrategy, RegimeLongV2EntryParams
 from .hybrid_long_entry import HybridLongEntryStrategy, HybridLongEntryParams
 
 # Exit strategies (imports trigger registration via decorators)
-from .sideways_exit import SidewaysExitStrategy, SidewaysExitParams
 from .mlp_direction_exit import MLPDirectionExitStrategy, MLPDirectionExitParams
 from .regime_long_v2_exit import RegimeLongV2ExitStrategy, RegimeLongV2ExitParams
 from .hybrid_long_exit import HybridLongExitStrategy, HybridLongExitParams
@@ -94,22 +92,12 @@ class StrategySpec:
     exit_class: type
     exit_params_class: type
     persistent_exit_class: type | None = None
-    market: str = "futures"
+    market: str = "spot"
     timeframe: str = "day"
 
 
-# Registry of available strategies (legacy format support)
+# Registry of available base strategy specs.
 STRATEGY_REGISTRY: dict[str, StrategySpec] = {
-    "sideways_v2": StrategySpec(
-        name="sideways_v2",
-        entry_class=SidewaysEntryStrategy,
-        entry_params_class=SidewaysEntryParams,
-        exit_class=SidewaysExitStrategy,
-        exit_params_class=SidewaysExitParams,
-        persistent_exit_class=None,  # Stateless, no persistence needed
-        market="futures",
-        timeframe="minute60",  # Hourly - volatility filter calibrated for this
-    ),
     # MLP Direction Classifier strategy (Parente & Rizzuti 2025)
     # 3-class prediction (Hold/Buy/Sell) with 10% stop loss
     "mlp_direction": StrategySpec(
@@ -151,9 +139,9 @@ class StrategyFactory:
     Creates and assembles Entry/Exit strategy components based on
     strategy names and configuration parameters.
 
-    Supports two config formats:
-    1. Legacy format: Strategy name maps to predefined components
-    2. New format: Explicit entry/exit class names with custom params
+    Supports two config styles:
+    1. Registry-default: Strategy name maps to predefined components
+    2. Explicit component blocks: config declares entry/exit classes directly
     """
 
     def __init__(self, redis: Redis | None = None):
@@ -186,9 +174,9 @@ class StrategyFactory:
     ) -> IEntryStrategy:
         """Create an entry strategy component.
 
-        Supports both legacy and new config formats:
-        - Legacy: Uses predefined class from STRATEGY_REGISTRY
-        - New: Uses explicit "entry.class" from config
+        Supports both registry-default and explicit component config:
+        - Registry-default: Uses predefined class from STRATEGY_REGISTRY
+        - Explicit component config: Uses "entry.class" from config
 
         Args:
             strategy_name: Name of the strategy (e.g., "mlp_direction_btc").
@@ -209,12 +197,11 @@ class StrategyFactory:
         if param_overrides:
             config = self._apply_param_overrides(config, param_overrides)
 
-        # Check for new config format with explicit class name
+        # Explicit component config overrides registry defaults.
         if has_new_config_format(config) and "entry" in config:
             return self._create_entry_from_config(strategy_name, config)
 
-        # Legacy format: use STRATEGY_REGISTRY
-        return self._create_entry_legacy(strategy_name, config)
+        return self._create_entry_from_spec(strategy_name, config)
 
     def create_exit(
         self,
@@ -225,9 +212,9 @@ class StrategyFactory:
     ) -> IExitStrategy:
         """Create an exit strategy component.
 
-        Supports both legacy and new config formats:
-        - Legacy: Uses predefined class from STRATEGY_REGISTRY
-        - New: Uses explicit "exit.class" from config
+        Supports both registry-default and explicit component config:
+        - Registry-default: Uses predefined class from STRATEGY_REGISTRY
+        - Explicit component config: Uses "exit.class" from config
 
         Args:
             strategy_name: Name of the strategy (e.g., "mlp_direction_btc").
@@ -249,12 +236,11 @@ class StrategyFactory:
         if param_overrides:
             config = self._apply_param_overrides(config, param_overrides)
 
-        # Check for new config format with explicit class name
+        # Explicit component config overrides registry defaults.
         if has_new_config_format(config) and "exit" in config:
             return self._create_exit_from_config(strategy_name, config, persistent)
 
-        # Legacy format: use STRATEGY_REGISTRY
-        return self._create_exit_legacy(strategy_name, config, persistent)
+        return self._create_exit_from_spec(strategy_name, config, persistent)
 
     def create_components(
         self,
@@ -297,7 +283,7 @@ class StrategyFactory:
             config: Optional config that may override the default market.
 
         Returns:
-            Market type ("spot" or "futures").
+            Market type ("spot").
         """
         config = config or {}
 
@@ -305,21 +291,20 @@ class StrategyFactory:
         if "market" in config:
             return config["market"]
 
-        # Check legacy registry
         if strategy_name in self._registry:
             return self._registry[strategy_name].market
 
         # Default to spot
         return "spot"
 
-    # --- New config format methods ---
+    # --- Explicit component config methods ---
 
     def _create_entry_from_config(
         self,
         strategy_name: str,
         config: dict[str, Any],
     ) -> IEntryStrategy:
-        """Create entry strategy using new config format.
+        """Create entry strategy using explicit component config.
 
         Args:
             strategy_name: Strategy name for logging.
@@ -358,7 +343,7 @@ class StrategyFactory:
             params = None
 
         entry = entry_class(params=params)
-        logger.debug(f"Created entry strategy: {class_name} (new format)")
+        logger.debug(f"Created entry strategy: {class_name} (explicit component config)")
         return entry
 
     def _create_exit_from_config(
@@ -367,7 +352,7 @@ class StrategyFactory:
         config: dict[str, Any],
         persistent: bool,
     ) -> IExitStrategy:
-        """Create exit strategy using new config format.
+        """Create exit strategy using explicit component config.
 
         Args:
             strategy_name: Strategy name for logging.
@@ -417,10 +402,10 @@ class StrategyFactory:
                 params=params,
                 strategy_name=f"{strategy_name}_exit",
             )
-            logger.debug(f"Created persistent exit strategy: {class_name} (new format)")
+            logger.debug(f"Created persistent exit strategy: {class_name} (explicit component config)")
         else:
             exit_strat = exit_class(params=params)
-            logger.debug(f"Created exit strategy: {class_name} (new format)")
+            logger.debug(f"Created exit strategy: {class_name} (explicit component config)")
 
         return exit_strat
 
@@ -461,8 +446,8 @@ class StrategyFactory:
         """Apply parameter overrides to config for MLflow optimization.
 
         Creates a new config dict with param_overrides merged in.
-        Overrides are applied at the top level for legacy format,
-        or into entry/exit.params for new format.
+        Overrides are applied at the top level for registry-default configs,
+        or into entry/exit.params for explicit component configs.
 
         Optimized to minimize dict copies for MLflow hyperparameter sweeps.
 
@@ -478,7 +463,7 @@ class StrategyFactory:
             return config
 
         if has_new_config_format(config):
-            # New format: merge into entry.params or exit.params
+            # Explicit component config: merge into entry.params or exit.params
             # Use single dict comprehension to reduce copies
             result = {k: v for k, v in config.items() if k not in ("entry", "exit")}
 
@@ -498,17 +483,17 @@ class StrategyFactory:
 
             return result
         else:
-            # Legacy format: single merged dict
+            # Registry-default config: single merged dict
             return {**config, **param_overrides}
 
-    # --- Legacy format methods ---
+    # --- Registry-default methods ---
 
-    def _create_entry_legacy(
+    def _create_entry_from_spec(
         self,
         strategy_name: str,
         config: dict[str, Any],
     ) -> IEntryStrategy:
-        """Create entry strategy using legacy format.
+        """Create entry strategy using the registered base spec.
 
         Args:
             strategy_name: Strategy name from STRATEGY_REGISTRY.
@@ -533,16 +518,16 @@ class StrategyFactory:
 
         # Create entry strategy
         entry = spec.entry_class(params=params)
-        logger.debug(f"Created entry strategy: {strategy_name} (legacy format)")
+        logger.debug(f"Created entry strategy: {strategy_name} (registry default)")
         return entry
 
-    def _create_exit_legacy(
+    def _create_exit_from_spec(
         self,
         strategy_name: str,
         config: dict[str, Any],
         persistent: bool,
     ) -> IExitStrategy:
-        """Create exit strategy using legacy format.
+        """Create exit strategy using the registered base spec.
 
         Args:
             strategy_name: Strategy name from STRATEGY_REGISTRY.
@@ -574,11 +559,11 @@ class StrategyFactory:
                 strategy_name=f"{strategy_name}_exit",
             )
             logger.debug(
-                f"Created persistent exit strategy: {strategy_name} (legacy format)"
+                f"Created persistent exit strategy: {strategy_name} (registry default)"
             )
         else:
             exit_strat = spec.exit_class(params=params)
-            logger.debug(f"Created exit strategy: {strategy_name} (legacy format)")
+            logger.debug(f"Created exit strategy: {strategy_name} (registry default)")
 
         return exit_strat
 
@@ -594,7 +579,7 @@ class StrategyFactory:
             config: Configuration parameters.
 
         Returns:
-            Market type ("spot" or "futures").
+            Market type ("spot").
         """
         # Config market overrides spec default
         return config.get("market", spec.market)
@@ -604,7 +589,7 @@ class StrategyFactory:
         spec: StrategySpec,
         config: dict[str, Any],
     ) -> Any:
-        """Build entry params from config (legacy format).
+        """Build entry params from registry-default config.
 
         Uses registry-based param building for full flexibility.
         All params defined in the dataclass can be overridden via config.
@@ -621,7 +606,7 @@ class StrategyFactory:
         spec: StrategySpec,
         config: dict[str, Any],
     ) -> Any:
-        """Build exit params from config (legacy format).
+        """Build exit params from registry-default config.
 
         Uses registry-based param building for full flexibility.
         All params defined in the dataclass can be overridden via config.

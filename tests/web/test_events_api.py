@@ -32,9 +32,9 @@ class TestMetricsServiceEventMethods:
         mock_redis.xrevrange = MagicMock(return_value=[
             ("1234567890-0", {
                 "timestamp": "2026-01-20T12:00:00",
-                "strategy": "short_v1",
+                "strategy": "mlp_direction_btc",
                 "symbol": "BTC",
-                "market": "futures",
+                "market": "spot",
                 "adx": "25.5",
                 "mfi": "55.0",
                 "regime": "BULL_STRONG",
@@ -47,7 +47,7 @@ class TestMetricsServiceEventMethods:
 
         assert isinstance(events, list)
         assert len(events) == 1
-        assert events[0]["strategy"] == "short_v1"
+        assert events[0]["strategy"] == "mlp_direction_btc"
 
     def test_get_entry_events_filters_by_symbol(self):
         """Test get_entry_events filters by symbol."""
@@ -59,15 +59,15 @@ class TestMetricsServiceEventMethods:
         mock_redis.xrevrange = MagicMock(return_value=[
             ("1234567890-0", {
                 "timestamp": "2026-01-20T12:00:00",
-                "strategy": "short_v1",
+                "strategy": "mlp_direction_btc",
                 "symbol": "BTC",
-                "market": "futures",
+                "market": "spot",
             }),
             ("1234567891-0", {
                 "timestamp": "2026-01-20T12:01:00",
-                "strategy": "short_v1",
+                "strategy": "mlp_direction_btc",
                 "symbol": "ETH",
-                "market": "futures",
+                "market": "spot",
             }),
         ])
         service._redis = mock_redis
@@ -87,21 +87,21 @@ class TestMetricsServiceEventMethods:
         mock_redis.xrevrange = MagicMock(return_value=[
             ("1234567890-0", {
                 "timestamp": "2026-01-20T12:00:00",
-                "strategy": "short_v1",
+                "strategy": "mlp_direction_btc",
                 "symbol": "BTC",
             }),
             ("1234567891-0", {
                 "timestamp": "2026-01-20T12:01:00",
-                "strategy": "sideways_v2",
+                "strategy": "mlp_direction_eth",
                 "symbol": "BTC",
             }),
         ])
         service._redis = mock_redis
 
-        events = service.get_entry_events(hours=24, limit=50, strategy="short_v1")
+        events = service.get_entry_events(hours=24, limit=50, strategy="mlp_direction_btc")
 
         assert len(events) == 1
-        assert events[0]["strategy"] == "short_v1"
+        assert events[0]["strategy"] == "mlp_direction_btc"
 
     def test_get_exit_events_returns_list(self):
         """Test get_exit_events returns a list of events."""
@@ -113,7 +113,7 @@ class TestMetricsServiceEventMethods:
         mock_redis.xrevrange = MagicMock(return_value=[
             ("1234567890-0", {
                 "timestamp": "2026-01-20T12:00:00",
-                "strategy": "short_v1",
+                "strategy": "mlp_direction_btc",
                 "symbol": "BTC",
                 "entry_price": "43000.0",
                 "current_price": "44000.0",
@@ -194,14 +194,14 @@ class TestMetricsServiceEventMethods:
         mock_redis.xrange = MagicMock(return_value=[
             ("1234567890-0", {
                 "timestamp": "2026-01-20T12:00:00",
-                "strategy": "short_v1",
+                "strategy": "mlp_direction_btc",
                 "symbol": "BTC",
                 "old_hwm": "43000.0",
                 "new_hwm": "43500.0",
             }),
             ("1234567891-0", {
                 "timestamp": "2026-01-20T12:30:00",
-                "strategy": "short_v1",
+                "strategy": "mlp_direction_btc",
                 "symbol": "BTC",
                 "old_hwm": "43500.0",
                 "new_hwm": "44000.0",
@@ -209,7 +209,7 @@ class TestMetricsServiceEventMethods:
         ])
         service._redis = mock_redis
 
-        timeline = service.get_hwm_timeline(symbol="BTC", strategy="short_v1", hours=24)
+        timeline = service.get_hwm_timeline(symbol="BTC", strategy="mlp_direction_btc", hours=24)
 
         assert isinstance(timeline, list)
         assert len(timeline) == 2
@@ -227,7 +227,7 @@ class TestMetricsServiceEventMethods:
         mock_redis.xrevrange = MagicMock(return_value=[
             ("1234567890-0", {
                 "timestamp": "2026-01-20T12:00:00",
-                "strategy": "short_v1",
+                "strategy": "mlp_direction_btc",
                 "symbol": "BTC",
                 "rejection_type": "weak_trend",
                 "reason": "ADX=15.0 < 20.0 threshold",
@@ -251,12 +251,12 @@ class TestMetricsServiceEventMethods:
         mock_redis.xrevrange = MagicMock(return_value=[
             ("1234567890-0", {
                 "rejection_type": "weak_trend",
-                "strategy": "short_v1",
+                "strategy": "mlp_direction_btc",
                 "symbol": "BTC",
             }),
             ("1234567891-0", {
                 "rejection_type": "wrong_regime",
-                "strategy": "short_v1",
+                "strategy": "mlp_direction_btc",
                 "symbol": "ETH",
             }),
         ])
@@ -329,7 +329,7 @@ class TestEventsAPIEndpoints:
             mock_service.get_entry_events.return_value = [
                 {
                     "timestamp": "2026-01-20T12:00:00",
-                    "strategy": "short_v1",
+                    "strategy": "mlp_direction_btc",
                     "symbol": "BTC",
                 }
             ]
@@ -346,11 +346,11 @@ class TestEventsAPIEndpoints:
         with patch('web.app.metrics_service') as mock_service:
             mock_service.get_entry_events.return_value = []
 
-            response = client.get('/api/events/entry?symbol=BTC&strategy=short_v1&hours=12&limit=100', headers=client.auth_header)
+            response = client.get('/api/events/entry?symbol=BTC&strategy=mlp_direction_btc&hours=12&limit=100', headers=client.auth_header)
 
             assert response.status_code == 200
             mock_service.get_entry_events.assert_called_once_with(
-                hours=12, limit=100, symbol="BTC", strategy="short_v1"
+                hours=12, limit=100, symbol="BTC", strategy="mlp_direction_btc"
             )
 
     def test_get_exit_events_endpoint(self, client):
@@ -359,7 +359,7 @@ class TestEventsAPIEndpoints:
             mock_service.get_exit_events.return_value = [
                 {
                     "timestamp": "2026-01-20T12:00:00",
-                    "strategy": "short_v1",
+                    "strategy": "mlp_direction_btc",
                     "symbol": "BTC",
                     "unrealized_pnl_pct": "2.33",
                 }
@@ -411,7 +411,7 @@ class TestEventsAPIEndpoints:
                 }
             ]
 
-            response = client.get('/api/events/hwm/BTC/short_v1', headers=client.auth_header)
+            response = client.get('/api/events/hwm/BTC/mlp_direction_btc', headers=client.auth_header)
 
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -425,7 +425,7 @@ class TestEventsAPIEndpoints:
                 {
                     "timestamp": "2026-01-20T12:00:00",
                     "rejection_type": "weak_trend",
-                    "strategy": "short_v1",
+                    "strategy": "mlp_direction_btc",
                 }
             ]
 

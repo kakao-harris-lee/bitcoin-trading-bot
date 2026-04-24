@@ -34,14 +34,6 @@ Usage:
         ConfigValidationError,
     )
 
-    # Sideways (spot, mean reversion)
-    from trading.strategies.components import (
-        SidewaysEntryStrategy,
-        SidewaysEntryParams,
-        SidewaysExitStrategy,
-        SidewaysExitParams,
-    )
-
 """
 
 from .interfaces import IEntryStrategy, IExitStrategy
@@ -75,10 +67,6 @@ from .config_schema import (
     has_new_config_format,
     ConfigValidationError,
 )
-
-# Sideways strategy components
-from .sideways_entry import SidewaysEntryParams, SidewaysEntryStrategy
-from .sideways_exit import SidewaysExitParams, SidewaysExitStrategy
 
 # MLP Direction strategy components (Parente & Rizzuti 2025)
 from .mlp_direction_entry import MLPDirectionEntryParams, MLPDirectionEntryStrategy
@@ -121,11 +109,6 @@ __all__ = [
     "validate_strategy_config",
     "has_new_config_format",
     "ConfigValidationError",
-    # Sideways implementations
-    "SidewaysEntryStrategy",
-    "SidewaysEntryParams",
-    "SidewaysExitStrategy",
-    "SidewaysExitParams",
     # MLP Direction implementations (Parente & Rizzuti 2025)
     "MLPDirectionEntryStrategy",
     "MLPDirectionEntryParams",

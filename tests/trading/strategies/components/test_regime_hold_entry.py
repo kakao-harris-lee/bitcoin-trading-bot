@@ -86,7 +86,7 @@ def test_entry_allowed_when_adx_equals_min_adx():
 def test_entry_signal_in_allowed_regime():
     params = RegimeHoldEntryParams(
         allowed_regimes=["BEAR_MODERATE"],
-        market="futures",
+        market="spot",
         position_size=0.02,
     )
     strategy = RegimeHoldEntryStrategy(params=params)
@@ -96,7 +96,7 @@ def test_entry_signal_in_allowed_regime():
     assert signal is not None
     assert signal.symbol == "BTC"
     assert signal.side == "buy"
-    assert signal.market == "futures"
+    assert signal.market == "spot"
     assert signal.quantity == 0.02
     assert "RegimeHold entry" in signal.reason
 

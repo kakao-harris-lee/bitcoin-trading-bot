@@ -83,13 +83,13 @@ core/
 ├── backtester.py           # MODIFY: Add benchmark tracking, MLflow integration
 ├── backtest_visualizer.py  # NEW: Dual-axis chart generation
 ├── mlflow_tracker.py       # NEW: MLflow integration wrapper
-└── parameter_sweep.py      # NEW: Grid search with MLflow logging
+└── optimize_mlflow.py      # Existing optimizer entry point with MLflow logging
 
 tests/
 ├── unit/
 │   ├── test_backtest_visualizer.py  # NEW
 │   ├── test_mlflow_tracker.py       # NEW
-│   └── test_parameter_sweep.py      # NEW
+│   └── test_optimize_mlflow.py      # Optimizer tests
 └── integration/
     └── test_backtest_mlflow.py      # NEW: End-to-end tests
 

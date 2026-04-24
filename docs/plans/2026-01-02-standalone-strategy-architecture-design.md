@@ -1,5 +1,8 @@
 # Standalone Strategy Architecture Design
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 ## Problem Statement
 
 Current system has **double regime filtering** causing reduced trade opportunities:

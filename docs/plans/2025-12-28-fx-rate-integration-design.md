@@ -1,5 +1,8 @@
 # FX Rate Integration Design
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 **Date:** 2025-12-28
 **Status:** Deprecated
 **Scope:** Historical plan for integrating USD/KRW exchange rates into Kimchi Premium calculation

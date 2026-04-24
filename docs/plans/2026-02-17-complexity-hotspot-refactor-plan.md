@@ -1,5 +1,8 @@
 # Complexity Hotspot Refactor Plan (2026-02-17)
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 ## Baseline (lizard/radon)
 - Scope: `trading`, `core`, `scripts`, `web` (deprecated upbit refs excluded)
 - `CCN > 15`: 42 functions

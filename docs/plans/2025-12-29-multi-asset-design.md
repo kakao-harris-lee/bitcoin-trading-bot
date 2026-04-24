@@ -1,5 +1,8 @@
 # Multi-Asset Portfolio Expansion Design
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 **Version**: v0.0.6
 **Date**: 2025-12-29
 **Status**: Approved

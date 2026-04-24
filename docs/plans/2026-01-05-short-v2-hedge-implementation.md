@@ -1,5 +1,8 @@
 # SHORT_V2 Hedge Strategy Implementation Plan
 
+> Archived note (2026-04-24): this document describes a retired futures/short/hedge path. The active runtime is now Binance spot-only. Keep this file only as historical reference, not as an implementation guide.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement SHORT_V2, a defensive hedge strategy that opens short positions matching long exposure during BEAR_STRONG regime.

@@ -1,383 +1,104 @@
 # Trading Strategies Reference
 
-This document describes all trading strategies, their data sources, indicators, and entry/exit conditions.
+> Current scope note (2026-04-24): this document covers the active Binance spot-only runtime. Removed futures, short, hedge, and sideways paths are listed only as archived families at the bottom for clarity.
 
-## Quick Reference
+This document describes the strategies that are active in the current runtime.
 
-| Strategy | Exchange | Direction | Timeframe | Primary Indicators | Entry Method |
-|----------|----------|-----------|-----------|-------------------|--------------|
-| Short_V1 | Binance | SHORT | 4H | EMA, ADX, DI, ATR | EMA Death Cross + ADX |
-| Sideways_V2 | Binance | LONG | Daily | RSI, BB, Stoch, OBV | Multi-method (3 entries) |
-| MLP_Direction | Binance | LONG | 4H | MLP Classifier | 3-class prediction |
+## Current Runtime
 
-## Multi-Coin Rotation (Long-Only)
+- Trading, paper execution, backtesting, and dashboard views are spot-only.
+- The runtime does not open futures, short, hedge, or sideways-only positions.
+- Strategy wiring is driven by `config/strategies/allocation.json` through the component engine.
 
-`CompositeStrategyTask` now supports `symbol_selector` for dynamic entry gating.
+## Active Strategy Catalog
 
-- `enabled`: turn on dynamic rotation
-- `top_n`: keep only top-N symbols tradable for new entries
-- `refresh_seconds`: ranking refresh interval
-- `require_above_ema200`, `skip_bear_regime`: long-only safety filters
-- `score_weights`: scoring mix (`regime`, `momentum`, `volume`, `adx`)
+| Strategy | Symbols | Direction | Entry Source | Exit Source | Notes |
+|---|---|---|---|---|---|
+| `mlp_direction_btc` | `BTC` | Long | MLP + regime-aware fallback | Hybrid long exit | Conservative major-asset sleeve |
+| `mlp_direction_eth` | `ETH` | Long | MLP + regime-aware fallback | Hybrid long exit | Conservative major-asset sleeve |
+| `mlp_direction_bnb` | Dynamic universe | Long | Selector + MLP + regime-aware fallback | Hybrid long exit | Rotates into strong spot symbols |
 
-Example:
+## Shared Architecture
 
-```json
-"symbol_selector": {
-  "enabled": true,
-  "top_n": 2,
-  "refresh_seconds": 900,
-  "min_adx": 16.0,
-  "min_volume_ratio": 0.9,
-  "require_above_ema200": true,
-  "skip_bear_regime": true
-}
-```
+All active strategies use the component engine:
 
-Monitoring:
+- `CompositeTask`: owns stream I/O, state, persistence, and orchestration.
+- `StrategyFactory`: resolves entry/exit components from config.
+- `TradingContextBuilder`: builds the shared indicator and regime context.
+- `StateManager`: persists component state in Redis.
 
-- Dashboard: `Strategies` tab shows selected symbols, top scores, and rejection reasons.
-- API: `GET /api/events/selector?hours=24&limit=50&changed_only=true`
-- Telegram: `/selector` for latest snapshot, plus auto-alert on selector change.
+## Entry Logic
 
----
+### `mlp_direction_btc` / `mlp_direction_eth`
 
-## 1. Short_V1 Strategy
+- Primary signal is the MLP ensemble classification.
+- Regime-aware fallback is allowed only under the configured guard rails.
+- Entry filters can block trades on regime, volume, freshness, or risk conditions.
 
-**Components:** `trading/strategies/components/short_entry.py`, `short_exit.py`
-**Config:** `config/strategies/short_v1.json`
+### `mlp_direction_bnb`
 
-### Overview
+- Uses `symbol_selector` to rank the tracked spot universe.
+- Selector persistence, DQ checks, and per-symbol routing control which symbols are eligible.
+- Only selected symbols are allowed to pass through to entry evaluation.
+- Fallback entry is stricter than before and is now limited to curated symbols and contexts.
 
-- **Exchange:** Binance Futures (BTCUSDT)
-- **Direction:** SHORT
-- **Timeframe:** 4H
-- **Leverage:** 2x
+## Exit Logic
 
-### Data Sources
+All active sleeves use `HybridLong`-style exit control with spot-only semantics.
 
-| Source | Description |
-|--------|-------------|
-| OHLCV | 4H candles from Binance Futures |
-| Swing High | Recent price highs for stop placement |
+Common behaviors:
 
-### Indicators
+- MLP sell confidence thresholds
+- trailing stop and ATR-based stop logic
+- regime protection (`EMA120`, bear regime guards)
+- drawdown protection with bull-continuation grace rules
+- intrabar stop protection with same-candle and bull-wick guards
 
-| Indicator | Period | Purpose |
-|-----------|--------|---------|
-| EMA Fast | 68 | Short-term trend |
-| EMA Slow | 128 | Long-term trend |
-| ADX | 14 | Trend strength |
-| +DI / -DI | 14 | Directional movement |
-| ATR | 14 | Volatility for stop loss |
-| ADX Slope | 3-bar | Trend weakening detection |
+Recent runtime tuning focuses on:
 
-### Entry Conditions
+- letting strong uptrends stay open longer
+- reducing premature `regime_protect` exits
+- reducing false `intrabar stop` exits from wick noise
+- shifting realized exits from risk cuts toward trailing-stop profit capture
 
-All conditions must be met:
+## Selector and Rotation
 
-| Condition | Requirement | Strength |
-|-----------|-------------|----------|
-| Death Cross | EMA_fast < EMA_slow | +0.4 |
-| Strong ADX | ADX >= 25 | +0.3 |
-| Bearish DI | -DI > +DI | +0.2 |
-| ADX Not Declining | ADX >= ADX[3 bars ago] | Required |
-| No Extreme Volatility | Daily range <= 10% | Required |
-| Minimum Confidence | Sum >= 0.7 | Required |
+The dynamic universe sleeve is configured in `allocation.json`.
 
-### Exit Conditions
+Important selector controls:
 
-**Two-Tier Exit System:**
+- `top_n`
+- `entry_ready_score`
+- `min_consecutive_eligible`
+- `entry_ready_min_consecutive`
+- `symbol_score_multipliers`
+- `stale` / `data quality` gating
 
-| Tier | Trigger | Action |
-|------|---------|--------|
-| Gap Exit | Open >= Stop Loss | Close 100% at market |
-| Stop Loss | High >= Stop Loss | Close 100% |
-| First Tier (1R) | Low <= Entry - Risk | Close 50%, activate trailing |
-| Trailing Stop | High >= Lowest + ATR×1.5 | Close remaining |
-| Second Tier (2R) | Low <= Entry - 2×Risk | Close remaining |
-| Golden Cross | EMA_fast > EMA_slow | Close 100% |
+Operational intent:
 
-**Stop Loss Calculation:**
+- suppress noisy or persistently weak symbols
+- boost symbols with stronger forward and paper evidence
+- avoid churn from one-refresh candidates
+- bias toward symbols entering bullish continuation phases
 
-```
-ATR Buffer = ATR × 1.5
-Raw Stop = Swing High + ATR Buffer
-Max Stop = Entry × 1.05 (5% cap)
-Stop Loss = min(Raw Stop, Max Stop)
-```
+## Data and Regime Dependencies
 
----
+The active runtime depends on:
 
-## 3. Short_V2 Strategy (Hedge)
+- Binance spot book ticker / mini ticker feeds
+- shared OHLCV indicator context
+- regime classification from the component context
+- Redis-backed state and event streams
+- paper/live trade logs in `logs/` and `data/`
 
-**File:** `trading/strategy/short_v2.py`
-**Config:** `config/strategies/short_v2.json`
+## Archived Strategy Families
 
-### Overview
+The following are not part of the active runtime anymore:
 
-- **Exchange:** Binance Futures (BTCUSDT)
-- **Direction:** SHORT
-- **Timeframe:** 4H
-- **Purpose:** Defensive hedge for BEAR_STRONG regime
+- futures execution
+- `short_v1`
+- `sideways_v2`
+- hedge / premium / kimchi subsystems
+- liquidation and funding-driven futures controls
 
-### Data Sources
-
-| Source | Description |
-|--------|-------------|
-| OHLCV | 4H candles from Binance |
-| Long Exposure | KRW value of long positions |
-| Regime | Current market regime from RegimeRouter |
-
-### Indicators
-
-| Indicator | Period | Purpose |
-|-----------|--------|---------|
-| EMA Fast | 30 | Short-term trend |
-| EMA Slow | 100 | Long-term trend |
-| ADX | 14 | Trend strength |
-| +DI / -DI | 14 | Directional movement |
-
-### Entry Conditions
-
-| Condition | Requirement |
-|-----------|-------------|
-| Regime | BEAR_STRONG only |
-| Long Exposure | long_exposure_krw > 0 |
-| No Re-entry | Not stopped out this regime |
-| Bearish EMA | EMA_fast < EMA_slow |
-| Strong ADX | ADX >= 20 |
-| Bearish Momentum | -DI > +DI |
-
-### Exit Conditions
-
-| Exit Type | Trigger | Action |
-|-----------|---------|--------|
-| Stop Loss | Price rises 5% | Close 100% |
-| Regime Change | Regime != BEAR_STRONG | Close 100% |
-
-### Position Sizing
-
-- Matches long exposure: `long_exposure_krw / fx_rate`
-- Leverage: 2x
-
----
-
-## 4. Sideways_V2 Strategy
-
-**Components:** `trading/strategies/components/sideways_entry.py`, `sideways_exit.py`
-**Config:** `config/strategies/sideways_v2.json`
-
-### Overview
-
-- **Exchange:** Upbit (KRW-BTC)
-- **Direction:** LONG
-- **Timeframe:** Daily
-
-### Data Sources
-
-| Source | Description |
-|--------|-------------|
-| OHLCV | Daily candles from Upbit |
-| Volume | For breakout detection |
-| OBV | On-Balance Volume for trend |
-
-### Indicators
-
-| Indicator | Period | Purpose |
-|-----------|--------|---------|
-| RSI | 14 | Oversold detection |
-| Bollinger Bands | 20, 2σ | Price range |
-| BB Position | - | Normalized position (0-1) |
-| Stochastic | 14K, 3D | Oversold/overbought |
-| OBV | - | Volume trend |
-| OBV MA | 14 | OBV smoothing |
-| OBV Slope | 7-bar | Volume trend direction |
-| Volume MA | 20 | Average volume |
-
-### Entry Conditions (3 Independent Methods)
-
-| Method | Conditions | Position |
-|--------|------------|----------|
-| RSI + BB | RSI < 24 AND BB_position < 0.2 | 40% |
-| Stochastic | Stoch_K crosses above Stoch_D, K < 30 | 40% |
-| Volume Breakout | Volume >= Avg × 1.68 | 40% |
-
-**Entry Filter:**
-
-- OBV Slope >= -0.04 (blocks entries during declining volume)
-
-### Exit Conditions
-
-| Exit Type | Trigger | Action |
-|-----------|---------|--------|
-| TP1 | +1.125%, hold >= 5 bars | Sell 30% |
-| TP2 | +3.327% | Sell 50% of remaining |
-| TP3 | +5.519% | Sell remaining |
-| Stop Loss | -1.079% | Sell 100% |
-| Time Exit | 20 bars, profit > 0 | Sell 100% |
-
----
-
-## 5. H4_Conservative Strategy
-
-**File:** `trading/strategy/h4_conservative.py`
-**Config:** `config/strategies/h4_conservative.json`
-
-### Overview
-
-- **Exchange:** Upbit (KRW-BTC)
-- **Direction:** LONG
-- **Timeframe:** 4H
-
-### Data Sources
-
-| Source | Description |
-|--------|-------------|
-| OHLCV | 4H candles from Upbit |
-| Recent High | 24-bar (4-day) lookback |
-
-### Indicators
-
-| Indicator | Period | Purpose |
-|-----------|--------|---------|
-| RSI | 14 | Oversold detection |
-| Bollinger Bands | 20, 2σ | Price range |
-| EMA Short | 50 | Trend direction |
-| EMA Long | 200 | Long-term trend |
-| Volume MA | 20 | Average volume |
-| % from High | 24-bar | Pullback depth |
-
-### Entry Conditions
-
-All conditions required:
-
-| Condition | Requirement |
-|-----------|-------------|
-| Uptrend | EMA50 > EMA200 |
-| Oversold | RSI < 30 |
-| BB Lower Zone | BB_position < 0.2 |
-| Drop from High | Price 5%+ below 4-day high |
-| Volume Surge | Volume > Avg × 1.5 |
-
-### Exit Conditions
-
-| Exit Type | Trigger | Action |
-|-----------|---------|--------|
-| Take Profit | +4.0% | Sell 100% |
-| Stop Loss | -2.0% | Sell 100% |
-| Time Exit | 18 bars, profit > 0 | Sell 100% |
-| RSI Overbought | RSI > 70 | Sell 100% |
-
----
-
-## 6. H4_Short Strategy
-
-**File:** `trading/strategy/h4_short.py`
-**Config:** `config/strategies/h4_short.json`
-
-### Overview
-
-- **Exchange:** Binance Futures (BTCUSDT)
-- **Direction:** SHORT
-- **Timeframe:** 4H
-
-### Data Sources
-
-| Source | Description |
-|--------|-------------|
-| OHLCV | 4H candles from Binance |
-| Recent Low | 24-bar (4-day) lookback |
-
-### Indicators
-
-| Indicator | Period | Purpose |
-|-----------|--------|---------|
-| RSI | 14 | Overbought detection |
-| Bollinger Bands | 20, 2σ | Price range |
-| EMA Short | 50 | Trend direction |
-| EMA Long | 200 | Long-term trend |
-| Volume MA | 20 | Average volume |
-| % from Low | 24-bar | Bounce height |
-
-### Entry Conditions
-
-All conditions required:
-
-| Condition | Requirement |
-|-----------|-------------|
-| Downtrend | EMA50 < EMA200 |
-| Overbought | RSI > 72 |
-| BB Upper Zone | BB_position > 0.82 |
-| Rise from Low | Price 6%+ above 4-day low |
-| Volume Surge | Volume > Avg × 1.5 |
-
-### Exit Conditions
-
-| Exit Type | Trigger | Action |
-|-----------|---------|--------|
-| Take Profit | +5.0% (price drops) | Close 100% |
-| Stop Loss | -2.0% (price rises) | Close 100% |
-| Time Exit | 18 bars, profit > 0 | Close 100% |
-| RSI Oversold | RSI < 30 | Close 100% |
-
----
-
-## Regime Router Integration
-
-The `RegimeRouter` classifies market conditions and provides context to strategies:
-
-### Market States (7)
-
-| State | MFI | ADX | Regime |
-|-------|-----|-----|--------|
-| BULL_STRONG | >= 52 | >= 25 | BULL |
-| BULL_MODERATE | >= 52 | >= 20 | BULL |
-| SIDEWAYS_BULL | >= 52 | < 20 | SIDEWAYS |
-| SIDEWAYS_NEUTRAL | 48-52 | - | SIDEWAYS |
-| SIDEWAYS_BEAR | <= 48 | < 15 | SIDEWAYS |
-| BEAR_MODERATE | <= 48 | 15-20 | BEAR |
-| BEAR_STRONG | <= 48 | >= 20 | BEAR |
-
-### RegimeContext Output
-
-```python
-@dataclass
-class RegimeContext:
-    market_state: MarketState  # e.g., "BEAR_STRONG"
-    regime: Regime             # "BULL", "SIDEWAYS", or "BEAR"
-    mfi: float                 # Raw MFI value
-    adx: float                 # Raw ADX value
-```
-
-### Strategy Activation by Regime
-
-| Regime | Strategy |
-|--------|----------|
-| BULL | MLP_Direction |
-| SIDEWAYS | Sideways_V2 |
-| BEAR | Short_V1 |
-
----
-
-## Backtesting Standards
-
-From `CLAUDE.md`:
-
-| Metric | Requirement |
-|--------|-------------|
-| Training Period | 2020-01-01 ~ 2024-12-31 |
-| Validation Period | 2025-01-01 ~ present |
-| OOS Return | >= 15% |
-| Sharpe Ratio | >= 1.5 |
-| Max Drawdown | <= 20% |
-
-### Fee Calculation
-
-```
-Entry Fee:    0.05%
-Exit Fee:     0.05%
-Slippage:     0.04%
-Total:        0.14% per trade
-Min Target:   1.4% (10x fees)
-```
+Older docs or specs may still mention those designs. Treat them as archived historical references unless they explicitly say they are current.

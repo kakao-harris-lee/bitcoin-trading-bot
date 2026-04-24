@@ -1,5 +1,8 @@
 # Implementation Plan: Improve Short V1 Strategy
 
+> Archived spec note (2026-04-24): the retired short_v1 futures path has been removed from the active runtime. This spec remains only as historical reference and should not be used for current implementation planning.
+
+
 **Branch**: `001-improve-short-v1` | **Date**: 2026-01-09 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/001-improve-short-v1/spec.md`
 

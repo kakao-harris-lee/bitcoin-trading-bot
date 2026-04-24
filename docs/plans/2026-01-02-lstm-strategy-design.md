@@ -1,5 +1,8 @@
 # LSTM Trend Prediction Strategy Design
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Build an LSTM model for H4 trend prediction (UP/DOWN/SIDEWAYS) to filter trading signals.

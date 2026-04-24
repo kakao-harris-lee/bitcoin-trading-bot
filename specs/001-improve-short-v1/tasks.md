@@ -1,5 +1,8 @@
 # Tasks: Improve Short V1 Strategy
 
+> Archived spec note (2026-04-24): the retired short_v1 futures path has been removed from the active runtime. This spec remains only as historical reference and should not be used for current implementation planning.
+
+
 **Input**: Design documents from `/specs/001-improve-short-v1/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/
 

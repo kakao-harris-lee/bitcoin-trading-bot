@@ -1,5 +1,8 @@
 # Spot Trading Restoration Implementation Plan
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Restore spot trading functionality for V35 strategies while maintaining futures for Short/Sideways strategies.

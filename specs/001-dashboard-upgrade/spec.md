@@ -5,6 +5,8 @@
 **Status**: Draft
 **Input**: User description: "upgrade dashboard for show position, history, analytics, signal, backtesting of long term or daily"
 
+> Current scope note (2026-04-24): the implemented dashboard is Binance spot-only. Futures, Upbit, leverage, and liquidation workflows referenced in the original draft are obsolete.
+
 ## Clarifications
 
 ### Session 2026-01-09
@@ -21,14 +23,14 @@ As a trader, I want to see all my current open positions in one consolidated vie
 
 **Why this priority**: Core trading function - knowing current positions is essential for risk management and decision-making. Without this, traders cannot effectively manage their portfolio.
 
-**Independent Test**: Can be fully tested by opening a position on either exchange and verifying it appears in the dashboard with correct entry price, current price, quantity, and P&L. Delivers immediate value for position monitoring.
+**Independent Test**: Can be fully tested by opening a Binance spot position and verifying it appears in the dashboard with correct entry price, current price, quantity, and P&L. Delivers immediate value for position monitoring.
 
 **Acceptance Scenarios**:
 
-1. **Given** I have an open position on Upbit, **When** I view the Positions section, **Then** I see the position with symbol, quantity, entry price, current price, unrealized P&L (amount and percentage), and position age
-2. **Given** I have an open position on Binance Futures, **When** I view the Positions section, **Then** I see the position with symbol, size, entry price, liquidation price, unrealized P&L, and leverage
+1. **Given** I have an open Binance spot position, **When** I view the Positions section, **Then** I see the position with symbol, quantity, entry price, current price, unrealized P&L (amount and percentage), and position age
+2. **Given** I have multiple Binance spot positions, **When** I view the Positions section, **Then** I see each position with symbol, quantity, entry price, current price, and unrealized P&L
 3. **Given** I have no open positions, **When** I view the Positions section, **Then** I see a clear message indicating no active positions
-4. **Given** I have positions on both exchanges, **When** I view the dashboard, **Then** I see a combined portfolio view with total exposure and aggregate P&L
+4. **Given** I have active positions and cash, **When** I view the dashboard, **Then** I see a combined portfolio view with total exposure and aggregate P&L
 
 ---
 
@@ -43,7 +45,7 @@ As a trader, I want to review my past trades so that I can analyze my trading pe
 **Acceptance Scenarios**:
 
 1. **Given** trades exist in the system, **When** I view the History section, **Then** I see a list of trades sorted by date (newest first) with timestamp, symbol, side (buy/sell), quantity, price, fees, and realized P&L
-2. **Given** I want to filter trades, **When** I select filter criteria (date range, exchange, symbol), **Then** the list updates to show only matching trades
+2. **Given** I want to filter trades, **When** I select filter criteria (date range, strategy, symbol), **Then** the list updates to show only matching trades
 3. **Given** many trades exist, **When** I scroll the trade list, **Then** I can paginate through all historical trades (not limited to 50)
 4. **Given** I view a trade, **When** I want more details, **Then** I can expand the row to see strategy name, signal reason, and market conditions at entry/exit
 
@@ -129,7 +131,7 @@ As a trader, I want to toggle between long-term and daily performance views so t
 
 ### Functional Requirements
 
-- **FR-001**: System MUST display all open positions from both Upbit and Binance exchanges with real-time price updates
+- **FR-001**: System MUST display all open Binance spot positions with real-time price updates
 - **FR-002**: System MUST show unrealized P&L for each position in both absolute and percentage terms
 - **FR-003**: System MUST maintain a searchable, filterable trade history with all executed trades
 - **FR-004**: System MUST display trading signals with generation timestamp, strategy source, and action taken

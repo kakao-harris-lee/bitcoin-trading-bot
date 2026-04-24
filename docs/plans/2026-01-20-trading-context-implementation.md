@@ -1,5 +1,8 @@
 # TradingContext Centralization Implementation Plan
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Centralize trading decision information into a single `TradingContext` object computed once per symbol per tick, improving performance and giving all strategies (including exit) access to regime and cross-strategy position data.

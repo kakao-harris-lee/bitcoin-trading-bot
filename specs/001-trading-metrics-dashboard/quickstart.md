@@ -1,5 +1,8 @@
 # Quickstart: Real-Time Trading Metrics Dashboard
 
+> Current scope note (2026-04-24): apply this spec to the Binance spot-only runtime. Any remaining references to Upbit, futures, short_v1, or sideways_v2 are historical draft context, not current implementation guidance.
+
+
 ## Overview
 
 This feature adds a real-time metrics page to the existing Flask dashboard that displays current strategy decisions, market regime, positions, and P&L.

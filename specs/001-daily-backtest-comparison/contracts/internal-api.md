@@ -1,5 +1,8 @@
 # Internal API Contracts: Daily Backtest Comparison Report
 
+> Current scope note (2026-04-24): apply this spec to the Binance spot-only runtime. Any remaining references to Upbit, futures, short_v1, or sideways_v2 are historical draft context, not current implementation guidance.
+
+
 **Date**: 2025-01-09
 **Feature**: 001-daily-backtest-comparison
 
@@ -40,7 +43,7 @@ class ComparisonReportGenerator:
 
         Args:
             report_date: Date to generate report for (YYYY-MM-DD)
-            strategy_name: Strategy identifier (e.g., "v35_classic_wide", "short_v1")
+            strategy_name: Strategy identifier (e.g., "mlp_direction_btc", "mlp_direction_eth")
 
         Returns:
             DailyComparisonReport with all metrics and discrepancies

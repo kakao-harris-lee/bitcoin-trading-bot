@@ -1,5 +1,8 @@
 # Quickstart: Daily Backtest Comparison Report
 
+> Current scope note (2026-04-24): apply this spec to the Binance spot-only runtime. Any remaining references to Upbit, futures, short_v1, or sideways_v2 are historical draft context, not current implementation guidance.
+
+
 **Date**: 2025-01-09
 **Feature**: 001-daily-backtest-comparison
 
@@ -22,8 +25,8 @@ python scripts/daily_comparison.py
 Expected output:
 ```
 📊 Generating comparison reports for 2025-01-08...
-✅ v35_classic_wide: 2 trades actual, 2 backtest, 0 discrepancies
-✅ short_v1: 0 trades actual, 0 backtest, 0 discrepancies
+✅ mlp_direction_btc: 2 trades actual, 2 backtest, 0 discrepancies
+✅ mlp_direction_eth: 0 trades actual, 0 backtest, 0 discrepancies
 📤 Reports sent via Telegram
 ```
 
@@ -42,7 +45,7 @@ python scripts/daily_comparison.py --dry-run
 ### 4. Single Strategy Only
 
 ```bash
-python scripts/daily_comparison.py --strategies v35_classic_wide
+python scripts/daily_comparison.py --strategies mlp_direction_btc
 ```
 
 ## Cron Setup
@@ -94,7 +97,7 @@ You should receive a Telegram message like:
 📅 Date: 2025-01-08
 ⏰ Generated: 2025-01-09 00:05:23
 
-v35_classic_wide
+mlp_direction_btc
 ├ Actual: 2 trades, +1.45%
 ├ Backtest: 2 trades, +1.52%
 └ Discrepancies: 0 (Low)

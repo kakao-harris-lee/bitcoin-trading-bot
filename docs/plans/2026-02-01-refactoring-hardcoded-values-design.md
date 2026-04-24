@@ -1,5 +1,8 @@
 # Refactoring: Hardcoded Values and Duplicate Code
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 **Date:** 2026-02-01
 **Status:** Approved
 **Approach:** Bottom-Up (Utilities → Constants → Base Classes)

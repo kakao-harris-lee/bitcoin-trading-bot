@@ -1,5 +1,8 @@
 # Feature Specification: Improve Short V1 Strategy for Binance Bear Market
 
+> Archived spec note (2026-04-24): the retired short_v1 futures path has been removed from the active runtime. This spec remains only as historical reference and should not be used for current implementation planning.
+
+
 **Feature Branch**: `001-improve-short-v1`
 **Created**: 2026-01-09
 **Status**: Draft

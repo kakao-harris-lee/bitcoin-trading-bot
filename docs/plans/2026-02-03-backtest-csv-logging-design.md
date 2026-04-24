@@ -1,5 +1,8 @@
 # Backtest CSV Logging Design
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 ## Overview
 
 백테스팅 실행 시 전략의 전체 상태를 CSV 파일로 기록하여 분석할 수 있는 기능.

@@ -1,5 +1,8 @@
 # LSTM Trend Prediction Strategy - Implementation Plan
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Build a PyTorch LSTM model for H4 trend prediction (UP/DOWN/SIDEWAYS) with Docker-based GPU training and CPU production inference.

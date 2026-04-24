@@ -1,5 +1,8 @@
 # Enhanced Regime Detection v2 Implementation Plan
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add BBW, MTF, and Volume filters to reduce regime transition noise by 50%+

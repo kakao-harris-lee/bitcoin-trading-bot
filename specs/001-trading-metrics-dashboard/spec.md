@@ -5,6 +5,8 @@
 **Status**: Draft
 **Input**: User description: "Create a dashboard for real-time trading metrics, what strategies decisions now."
 
+> Current scope note (2026-04-24): the active dashboard monitors a Binance spot runtime. Multi-exchange and futures references in the original draft are historical only.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - View Current Strategy Decisions (Priority: P1)
@@ -57,7 +59,7 @@ As a trader, I want to see a history of recent strategy decisions with their out
 ### Edge Cases
 
 - What happens when the trading bot loses connection to the exchange? Dashboard shows a "connection lost" warning with last known data timestamp
-- How does the dashboard handle when multiple strategies are active simultaneously (Upbit + Binance)? Display both in separate sections with clear labels
+- How does the dashboard handle when multiple sleeves are active simultaneously within the Binance spot runtime? Display each sleeve with clear labels and aggregate runtime health
 - What happens when the dashboard loads but no trading data exists yet? Display an empty state with guidance message
 - How are stale data handled if the bot freezes? Show data freshness indicator; mark data as "stale" if not updated for more than 30 seconds
 
@@ -73,13 +75,13 @@ As a trader, I want to see a history of recent strategy decisions with their out
 - **FR-006**: System MUST clearly indicate when no active trading session exists
 - **FR-007**: System MUST display connection status to exchanges (connected/disconnected)
 - **FR-008**: System MUST show data freshness indicator (time since last update)
-- **FR-009**: System MUST support viewing both Upbit (spot) and Binance (futures) trading data when both are active
+- **FR-009**: System MUST support viewing all active Binance spot sleeves when multiple sleeves are active
 - **FR-010**: System MUST display recent decision history (last 24 hours) with expandable details
 
 ### Key Entities
 
 - **Strategy Decision**: Represents a trading decision made by a strategy - includes timestamp, decision type (buy/sell/hold), strategy name, market conditions at decision time, and reasoning/indicators that triggered it
-- **Trading Position**: Current open position - includes entry price, size, direction (long/short), unrealized P&L, exchange
+- **Trading Position**: Current open spot position - includes entry price, size, unrealized P&L, and exchange
 - **Market Regime**: Current market classification - includes regime type (BULL/SIDEWAYS/BEAR/BEAR_STRONG), confidence level, and contributing indicators (MFI, ADX values)
 - **Trading Session**: Active bot session - includes mode (paper/live), start time, active strategies, exchange connections
 
@@ -91,7 +93,7 @@ As a trader, I want to see a history of recent strategy decisions with their out
 - **SC-002**: Dashboard data updates within 5 seconds of any strategy decision or position change
 - **SC-003**: 95% of dashboard page loads complete within 3 seconds
 - **SC-004**: Traders can view decision history for the past 24 hours and understand why each decision was made
-- **SC-005**: Dashboard correctly displays both Upbit and Binance trading data when both exchanges are active
+- **SC-005**: Dashboard correctly displays all active Binance spot sleeves when multiple sleeves are active
 - **SC-006**: Stale data (>30 seconds old) is clearly indicated to prevent traders from acting on outdated information
 
 ## Clarifications

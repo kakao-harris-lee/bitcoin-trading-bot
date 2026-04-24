@@ -1,3 +1,5 @@
+# Current scope note (2026-04-24): this contract should be read as Binance spot-only.
+# Historical futures or multi-exchange fields from the original draft are obsolete.
 openapi: 3.0.3
 info:
   title: Bitcoin Trading Bot Dashboard API
@@ -322,13 +324,6 @@ components:
         unrealized_pnl_pct:
           type: number
           format: float
-        liquidation_price:
-          type: number
-          format: float
-          nullable: true
-        leverage:
-          type: integer
-          nullable: true
 
     PositionsResponse:
       type: object

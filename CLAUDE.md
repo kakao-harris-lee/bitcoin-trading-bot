@@ -2,12 +2,13 @@
 
 ## Trading Mode
 
-**Hybrid trading mode.** MLP Direction strategies execute on Binance Spot, Short/Sideways strategies execute on Binance Futures.
+**Spot-only trading mode.** Active strategies execute on Binance Spot only.
+
+> Current runtime note (2026-04-24): any references below to futures, short, sideways, hedge, liquidation, or funding paths are historical notes from retired designs. They are not part of the active system.
 
 | Market | Strategies | Characteristics |
 |--------|------------|-----------------|
-| **Spot** | MLP Direction (multi-asset classifier) | No leverage (1x), 0.1% fee, no liquidation risk |
-| **Futures** | Short, Sideways | Leverage (1-3x), 0.05% fee, hedging capability |
+| **Spot** | MLP Direction sleeves (`btc`, `eth`, `bnb`) | Long-only execution, no leverage, selector-driven rotation on the BNB sleeve |
 
 ## 1. System Architecture
 
@@ -79,7 +80,7 @@ The system uses a **Component-based Architecture**, utilizing the Factory patter
 - Spot Trading Restoration Implementation → `docs/plans/2026-01-31-spot-trading-restoration-implementation.md`
 - MLP Direction Strategy Design → `docs/plans/2026-02-01-mlp-direction-strategy-design.md`
 - MLP Direction Strategy Implementation → `docs/plans/2026-02-01-mlp-direction-strategy-implementation.md`
-- Bear Short Strategy Design → `docs/plans/2026-02-06-bear-short-strategy-design.md`
+- Bullish Phase Discovery Improvement Plan → `docs/plans/2026-03-09-bullish-phase-discovery-improvement-plan.md`
 - MLP Model Improvement Plan → `docs/plans/2026-02-08-mlp-model-improvement-plan.md`
 - Regime Improvement Design → `docs/plans/2026-02-12-regime-improvement-design.md`
 

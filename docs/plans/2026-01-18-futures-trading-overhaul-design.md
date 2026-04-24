@@ -1,5 +1,8 @@
 # Futures Trading Overhaul Design
 
+> Archived note (2026-04-24): this document describes a retired futures/short/hedge path. The active runtime is now Binance spot-only. Keep this file only as historical reference, not as an implementation guide.
+
+
 **Date:** 2026-01-18
 **Status:** Approved
 **Goal:** Complete futures trading redesign with proper short support, live funding rates, isolated margin, and liquidation protection.

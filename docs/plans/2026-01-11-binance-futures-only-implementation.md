@@ -1,5 +1,8 @@
 # Binance Futures-Only Refactor Implementation Plan
 
+> Archived note (2026-04-24): this document describes a retired futures/short/hedge path. The active runtime is now Binance spot-only. Keep this file only as historical reference, not as an implementation guide.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Remove all Upbit code and consolidate to Binance Futures-only trading with separate capital pools for V35 Long and Short_V1 strategies.

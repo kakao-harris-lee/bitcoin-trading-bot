@@ -1,5 +1,8 @@
 # v-a-02 Concurrent Strategy Design
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 **Status:** Implemented (v0.0.4)
 **Last Updated:** 2025-12-27
 

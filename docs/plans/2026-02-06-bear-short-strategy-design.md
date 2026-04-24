@@ -1,5 +1,8 @@
 # Bear Short Strategy Design
 
+> Archived note (2026-04-24): this document describes a retired futures/short/hedge path. The active runtime is now Binance spot-only. Keep this file only as historical reference, not as an implementation guide.
+
+
 **Date**: 2026-02-06
 **Status**: Draft
 **Author**: Claude + User collaborative brainstorm

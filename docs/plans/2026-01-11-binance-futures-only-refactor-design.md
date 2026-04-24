@@ -1,5 +1,8 @@
 # Binance Futures-Only Architecture Refactor
 
+> Archived note (2026-04-24): this document describes a retired futures/short/hedge path. The active runtime is now Binance spot-only. Keep this file only as historical reference, not as an implementation guide.
+
+
 **Date:** 2026-01-11
 **Status:** Approved
 **Goal:** Remove all Upbit code, consolidate to Binance Futures-only trading

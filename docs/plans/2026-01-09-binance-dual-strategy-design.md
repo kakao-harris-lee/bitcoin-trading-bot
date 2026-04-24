@@ -1,5 +1,8 @@
 # Binance Dual Strategy Integration
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 ## Overview
 
 Add Binance long/short strategies alongside existing Upbit strategies, displayed as separate cards in the dashboard.

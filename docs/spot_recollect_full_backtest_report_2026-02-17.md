@@ -1,5 +1,8 @@
 # Spot Recollect + Full Backtest Report (2026-02-17)
 
+> Archived note (2026-04-24): this document was written for an older architecture that included removed futures, short, hedge, or multi-exchange paths. The active runtime is Binance spot-only, so use this file only as historical reference.
+
+
 ## 1) Scope
 - Requested workflow executed end-to-end:
   - Spot-only data recollection (all trading assets)

@@ -1,3 +1,5 @@
+# Current scope note (2026-04-24): this contract should be interpreted for the Binance spot-only runtime.
+# Remaining multi-exchange or futures wording is historical draft context.
 openapi: 3.0.3
 info:
   title: Trading Metrics Dashboard API

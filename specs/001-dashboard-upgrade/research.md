@@ -3,6 +3,8 @@
 **Date**: 2026-01-09
 **Branch**: `001-dashboard-upgrade`
 
+> Current scope note (2026-04-24): dashboard runtime is Binance spot-only. Any mentions below of Upbit or Binance futures describe the original draft, not the current implementation target.
+
 ## Data Sources Analysis
 
 ### 1. Trade History Data
@@ -35,12 +37,11 @@
 
 ### 3. Position Data
 
-**Decision**: Use existing `/api/exchange_balances` endpoint which fetches live from exchanges
+**Decision**: Use the existing spot-focused balance and position endpoints exposed by the dashboard runtime
 
 **Rationale**:
-- Already implemented with Upbit positions (symbol, quantity, avg_price, current_price, value, pnl)
-- Already implemented with Binance Futures positions (symbol, size, entry_price, unrealized_pnl)
-- Real-time data via exchange APIs (pyupbit, binance.client)
+- Implemented with Binance spot positions (symbol, quantity, avg_price, current_price, value, pnl)
+- Real-time data via the active Binance spot runtime and dashboard APIs
 
 **Alternatives considered**:
 - Cache positions locally: Not needed - direct API calls fast enough for 1-3 users

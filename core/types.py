@@ -88,7 +88,7 @@ class SignalMessage(BaseModel):
 
     id: str = Field(description="신호 고유 ID")
     timestamp: int
-    strategy: str = Field(description="전략 이름 (예: mlp-direction, short-v1)")
+    strategy: str = Field(description="전략 이름 (예: llm-direction, short-v1)")
     exchange: Exchange
     symbol: str
     action: Action

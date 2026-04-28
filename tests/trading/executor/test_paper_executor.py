@@ -34,7 +34,7 @@ async def test_paper_executor_simulates_spot_buy(mock_redis):
         "side": "buy",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
     }
 
     result = await executor._process_order(order)

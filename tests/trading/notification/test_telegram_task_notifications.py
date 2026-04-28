@@ -86,7 +86,7 @@ async def test_selector_notifications_are_disabled_by_default(monkeypatch: pytes
 
     await task._handle_selector_event(
         {
-            "strategy": "mlp_direction_bnb",
+            "strategy": "llm_direction_eth",
             "changed": "true",
             "selected_symbols": "[\"NEAR\"]",
             "selected_count": "1",
@@ -145,10 +145,10 @@ async def test_trade_notification_uses_profit_fields_and_reason(monkeypatch: pyt
             "market": "spot",
             "quantity": "136.1123",
             "price": "1.41",
-            "strategy": "mlp_direction_bnb",
+            "strategy": "llm_direction_eth",
             "profit": "12.26",
             "profit_pct": "6.41",
-            "reason": "HybridLong[mlp] MLPDirection exit: Trailing stop 2.95% (HWM=5.26%)",
+            "reason": "LLMDirection exit: Trailing stop 2.95% (HWM=5.26%)",
         }
     )
 

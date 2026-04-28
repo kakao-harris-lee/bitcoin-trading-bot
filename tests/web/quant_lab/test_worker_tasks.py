@@ -57,21 +57,21 @@ class TestOptimizationJob:
         assert job.study_name == "from_dict_study"
 
 
-    def test_job_mlp_fields(self):
-        """Job should support MLP-specific fields."""
+    def test_job_llm_fields(self):
+        """Job should support compatibility fields."""
         job = OptimizationJob(
-            job_id="mlp-001",
-            study_name="mlp_tune_btc",
+            job_id="llm-001",
+            study_name="llm_tune_btc",
             data_path="data/binance_bitcoin.db",
             start_date="2024-01-01",
             end_date="2024-12-31",
             symbols=["BTC"],
-            strategy_type="mlp_direction",
+            strategy_type="llm_direction",
             asset="BTC",
             config_path="config/strategies/allocation.json",
         )
 
-        assert job.strategy_type == "mlp_direction"
+        assert job.strategy_type == "llm_direction"
         assert job.asset == "BTC"
         assert job.config_path == "config/strategies/allocation.json"
 
@@ -90,41 +90,41 @@ class TestOptimizationJob:
         assert job.asset is None
         assert job.config_path is None
 
-    def test_job_to_dict_includes_mlp_fields(self):
+    def test_job_to_dict_includes_llm_fields(self):
         """to_dict should include strategy_type, asset, config_path."""
         job = OptimizationJob(
-            job_id="mlp-dict",
-            study_name="mlp_tune",
+            job_id="llm-dict",
+            study_name="llm_tune",
             data_path="data.db",
             start_date="2024-01-01",
             end_date="2024-12-31",
             symbols=["ETH"],
-            strategy_type="mlp_direction",
+            strategy_type="llm_direction",
             asset="ETH",
             config_path="config/strategies/allocation.json",
         )
 
         data = job.to_dict()
-        assert data["strategy_type"] == "mlp_direction"
+        assert data["strategy_type"] == "llm_direction"
         assert data["asset"] == "ETH"
         assert data["config_path"] == "config/strategies/allocation.json"
 
-    def test_job_from_dict_with_mlp_fields(self):
-        """from_dict should handle MLP fields."""
+    def test_job_from_dict_with_llm_fields(self):
+        """from_dict should handle compatibility fields."""
         data = {
-            "job_id": "mlp-from",
-            "study_name": "mlp_test",
+            "job_id": "llm-from",
+            "study_name": "llm_test",
             "data_path": "data.db",
             "start_date": "2024-01-01",
             "end_date": "2024-12-31",
             "symbols": ["SOL"],
-            "strategy_type": "mlp_direction",
+            "strategy_type": "llm_direction",
             "asset": "SOL",
             "config_path": "config/strategies/allocation.json",
         }
 
         job = OptimizationJob.from_dict(data)
-        assert job.strategy_type == "mlp_direction"
+        assert job.strategy_type == "llm_direction"
         assert job.asset == "SOL"
 
 

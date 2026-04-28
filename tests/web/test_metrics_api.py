@@ -34,7 +34,7 @@ def mock_metrics_service():
         'binance': {
             'exchange': 'binance',
             'mode': 'paper',
-            'strategy': 'mlp_direction_btc',
+            'strategy': 'llm_direction_btc',
             'regime': 'BULL',
             'market_state': 'BULL_STRONG',
             'current_price': 95000.0,
@@ -47,7 +47,7 @@ def mock_metrics_service():
             'last_updated': datetime.now().isoformat(),
             'last_decision': {
                 'timestamp': datetime.now().isoformat(),
-                'strategy': 'mlp_direction_btc',
+                'strategy': 'llm_direction_btc',
                 'action': 'hold',
                 'reason': 'HOLDING',
                 'regime': 'BULL',
@@ -65,7 +65,7 @@ def mock_metrics_service():
         'recent_decisions': [
             {
                 'timestamp': datetime.now().isoformat(),
-                'strategy': 'mlp_direction_btc',
+                'strategy': 'llm_direction_btc',
                 'action': 'hold',
                 'reason': 'HOLDING',
                 'exchange': 'binance'
@@ -168,7 +168,7 @@ class TestDecisionHistoryEndpoint:
         sample_decisions = [
             {
                 'timestamp': datetime.now().isoformat(),
-                'strategy': 'mlp_direction_btc',
+                'strategy': 'llm_direction_btc',
                 'action': 'hold',
                 'reason': 'HOLDING',
                 'exchange': 'binance'
@@ -244,7 +244,7 @@ class TestSignalsEndpoint:
                 'exchange': 'binance',
                 'symbol': 'BTC',
                 'market': 'spot',
-                'strategy': 'mlp_direction_btc',
+                'strategy': 'llm_direction_btc',
                 'decision': 'BUY',
                 'reason': 'Entry signal',
                 'regime': 'BULL_STRONG',

@@ -62,7 +62,7 @@ async def test_executor_processes_spot_buy_order(mock_redis, mock_client):
         "side": "buy",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
     }
 
     result = await executor._process_order(order)
@@ -111,7 +111,7 @@ async def test_executor_blocks_on_kill_switch(mock_redis, mock_client):
         "side": "buy",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
     }
 
     result = await executor._process_order(order)
@@ -131,7 +131,7 @@ async def test_executor_places_stop_loss_after_entry(mock_redis, mock_client):
         "side": "buy",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
         "stop_loss_pct": 0.09,
     }
 
@@ -153,7 +153,7 @@ async def test_executor_cancels_stop_loss_on_exit(mock_redis, mock_client):
             "entry_price": "43000.0",
             "entry_time": "1000",
             "side": "buy",
-            "strategy": "mlp_direction_btc",
+            "strategy": "llm_direction_btc",
             "stop_order_id": "77777",
             "stop_price": "39130.0",
         }
@@ -179,7 +179,7 @@ async def test_executor_cancels_stop_loss_on_exit(mock_redis, mock_client):
         "side": "sell",
         "market": "spot",
         "quantity": "0.01",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
     }
 
     result = await executor._process_order(order)

@@ -128,7 +128,7 @@ async def test_full_exit_flow(mock_redis, mock_binance, integration_config, mock
         "market": "spot",
         "quantity": "0.1",
         "trigger_price": "95000",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -144,7 +144,7 @@ async def test_full_exit_flow(mock_redis, mock_binance, integration_config, mock
     assert plan.market == "spot"
     assert plan.total_quantity == 0.1
     assert plan.trigger_price == 95000.0
-    assert plan.strategy == "mlp_direction_btc"
+    assert plan.strategy == "llm_direction_btc"
     assert plan.phase == "ladder"
     assert len(plan.ladder_orders) == 2
 
@@ -159,7 +159,7 @@ async def test_exit_flow_ladder_prices(mock_redis, mock_binance, integration_con
         "market": "spot",
         "quantity": "1.0",
         "trigger_price": "3000",
-        "strategy": "mlp_direction_eth",
+        "strategy": "llm_direction_eth",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -184,7 +184,7 @@ async def test_exit_flow_ladder_quantities(mock_redis, mock_binance, integration
         "market": "spot",
         "quantity": "10.0",
         "trigger_price": "150",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -208,7 +208,7 @@ async def test_exit_flow_order_parameters(mock_redis, mock_binance, integration_
         "market": "spot",
         "quantity": "0.05",
         "trigger_price": "100000",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -232,7 +232,7 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
         "market": "spot",
         "quantity": "0.1",
         "trigger_price": "95000",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
     }
 
     # Exit ETH position
@@ -241,7 +241,7 @@ async def test_exit_flow_multiple_symbols(mock_redis, mock_binance, integration_
         "market": "spot",
         "quantity": "2.0",
         "trigger_price": "3500",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):
@@ -276,7 +276,7 @@ async def test_exit_flow_stores_order_results(mock_redis, mock_binance, integrat
         "market": "spot",
         "quantity": "0.1",
         "trigger_price": "95000",
-        "strategy": "mlp_direction_btc",
+        "strategy": "llm_direction_btc",
     }
 
     with patch("trading.executor.smart_executor.get_exchange_cache", return_value=mock_exchange_cache):

@@ -43,10 +43,10 @@ class LLMClientConfig:
     model: str = "llama3.1:8b"
     api_base_url: str = "http://127.0.0.1:11434"
     api_key_env: str = "OPENAI_API_KEY"
-    timeout_seconds: float = 15.0
+    timeout_seconds: float = 90.0
     max_retries: int = 1
     temperature: float = 0.0
-    max_output_tokens: int = 256
+    max_output_tokens: int = 96
 
 
 class LLMDecisionClient(Protocol):
@@ -303,12 +303,12 @@ class LLMDecisionEntryParams:
     model: str = "llama3.1:8b"
     api_base_url: str = "http://127.0.0.1:11434"
     api_key_env: str = "OPENAI_API_KEY"
-    request_timeout_seconds: float = 15.0
+    request_timeout_seconds: float = 90.0
     max_retries: int = 1
     temperature: float = 0.0
-    max_output_tokens: int = 256
+    max_output_tokens: int = 96
     prompt_version: str = "v1"
-    context_window_bars: int = 48
+    context_window_bars: int = 4
 
     confidence_threshold: float = 0.60
     allowed_regimes: list[str] | None = None
@@ -566,8 +566,9 @@ class LLMDecisionEntryStrategy:
         system_prompt = (
             "You are a conservative long-only crypto swing trading analyst. "
             "Use only the supplied market data. Do not assume any external news, sentiment, or hidden data. "
-            "Return a JSON object with keys action, confidence, reason, risk_flags. "
+            "Return JSON only with keys action, confidence, reason, risk_flags. "
             "Valid actions are BUY or HOLD. Confidence must be between 0 and 1. "
+            "Keep reason under 20 words. Keep risk_flags to at most 2 short uppercase identifiers. "
             "Use HOLD when evidence is mixed, weak, or conditions are bearish."
         )
         history_payload = self._build_history_payload(history_df)
@@ -614,9 +615,8 @@ class LLMDecisionEntryStrategy:
         history = history_df.tail(max(1, int(self.params.context_window_bars))).copy()
         records: list[dict[str, Any]] = []
         columns = [
-            "timestamp", "open", "high", "low", "close", "volume",
-            "mfi", "adx", "rsi", "atr", "ema_20", "ema_120", "ema_200",
-            "macd", "macd_signal", "trix", "trix_signal",
+            "timestamp", "close", "volume", "mfi", "adx", "rsi",
+            "atr", "ema_20", "ema_120", "ema_200",
         ]
         for _, row in history.iterrows():
             record: dict[str, Any] = {}

@@ -296,7 +296,7 @@ def _compute_transition_metrics(records: list[DecisionRecord]) -> dict[str, Any]
     }
 
 
-def _compute_shadow_bull_follow(records: list[DecisionRecord]) -> dict[str, Any]:
+def _compute_shadow_trend_follow(records: list[DecisionRecord]) -> dict[str, Any]:
     """Simple shadow strategy on decision candles.
 
     Entry: first decision in bull regime when flat.
@@ -450,7 +450,7 @@ def main() -> int:
             threshold_pct=args.blocked_threshold_pct,
         )
         transition_analysis[sym] = _compute_transition_metrics(recs)
-        shadow_analysis[sym] = _compute_shadow_bull_follow(recs)
+        shadow_analysis[sym] = _compute_shadow_trend_follow(recs)
 
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -587,7 +587,7 @@ def main() -> int:
                 "regime_validation": regime_analysis[row.symbol],
                 "blocked_opportunity": blocked_analysis[row.symbol],
                 "transition_metrics": transition_analysis[row.symbol],
-                "shadow_bull_follow": shadow_analysis[row.symbol],
+                "shadow_trend_follow": shadow_analysis[row.symbol],
             }
             for row in rows
         ],

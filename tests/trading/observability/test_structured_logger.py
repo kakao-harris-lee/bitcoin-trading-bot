@@ -30,7 +30,7 @@ def test_structured_logger_can_write_with_test_override(monkeypatch, tmp_path: P
         symbol="BTC",
         price=100000.0,
         qty=0.01,
-        strategy="mlp_direction_btc",
+        strategy="llm_direction_btc",
         mode="paper",
     )
 
@@ -39,7 +39,7 @@ def test_structured_logger_can_write_with_test_override(monkeypatch, tmp_path: P
     assert len(lines) == 1
     payload = json.loads(lines[0])
     assert payload["event"] == "ENTRY"
-    assert payload["strategy"] == "mlp_direction_btc"
+    assert payload["strategy"] == "llm_direction_btc"
 
 
 def test_structured_logger_filters_non_actionable_decisions_by_default(
@@ -55,14 +55,14 @@ def test_structured_logger_filters_non_actionable_decisions_by_default(
 
     mod.trade_logger.decision(
         symbol="BTC",
-        strategy="mlp_direction_btc",
+        strategy="llm_direction_btc",
         decision="HOLD",
         price=100000.0,
         reason="no edge",
     )
     mod.trade_logger.decision(
         symbol="BTC",
-        strategy="mlp_direction_btc",
+        strategy="llm_direction_btc",
         decision="BUY",
         price=100500.0,
         reason="edge",
@@ -85,7 +85,7 @@ def test_structured_logger_keeps_all_decisions_when_overridden(monkeypatch, tmp_
 
     mod.trade_logger.decision(
         symbol="ETH",
-        strategy="mlp_direction_eth",
+        strategy="llm_direction_eth",
         decision="WAIT",
         price=2000.0,
         reason="filters",

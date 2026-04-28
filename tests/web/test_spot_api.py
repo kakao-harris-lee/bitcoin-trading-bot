@@ -64,7 +64,7 @@ class TestSummaryAPI:
         mock_redis.hgetall.side_effect = lambda key: {
             'risk': {'mode': 'paper'},
             'account:paper': {'spot_balance': '10000'},
-            'positions:BTC:spot': {'quantity': '0.1', 'entry_price': '100000', 'strategy': 'mlp_spot'},
+            'positions:BTC:spot': {'quantity': '0.1', 'entry_price': '100000', 'strategy': 'llm_spot'},
         }.get(key, {})
 
         # Mock price stream
@@ -110,7 +110,7 @@ class TestSummaryAPI:
             'positions:GRT:spot': {
                 'quantity': '26935.24799083962',
                 'entry_price': '0.028271304',
-                'strategy': 'mlp_direction_bnb',
+                'strategy': 'llm_direction_btc',
             },
         }.get(key, {})
 
@@ -153,7 +153,7 @@ class TestSpotPositionsAPI:
             'positions:BTC:spot': {
                 'quantity': '0.1',
                 'entry_price': '100000',
-                'strategy': 'mlp_spot',
+                'strategy': 'llm_spot',
                 'entry_time': '1700000000',
             },
             'positions:ETH:spot': {
@@ -186,7 +186,7 @@ class TestSpotPositionsAPI:
             assert btc_pos['entry_price'] == 100000
             assert btc_pos['current_price'] == 102000
             assert btc_pos['unrealized_pnl'] > 0  # Profit
-            assert btc_pos['strategy'] == 'mlp_spot'
+            assert btc_pos['strategy'] == 'llm_spot'
 
             # Check ETH position
             eth_pos = next((p for p in data['positions'] if p['symbol'] == 'ETHUSDT'), None)
@@ -201,7 +201,7 @@ class TestSpotPositionsAPI:
             'positions:GRT:spot': {
                 'quantity': '26935.24799083962',
                 'entry_price': '0.028271304',
-                'strategy': 'mlp_direction_bnb',
+                'strategy': 'llm_direction_btc',
                 'entry_time': '1771696808878',
             },
         }.get(key, {})

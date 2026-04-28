@@ -106,7 +106,7 @@ class TestStatusAPI:
                         "qty": 0.1,
                         "entry_price": 100000.0,
                         "current_price": 101000.0,
-                        "strategy": "mlp_direction_btc",
+                        "strategy": "llm_direction_btc",
                         "unrealized_pnl": 100.0,
                         "unrealized_pnl_pct": 1.0,
                     }
@@ -168,7 +168,7 @@ class TestStatusAPI:
         """Selector fallback symbol loader should parse latest selector state."""
         mock_redis = MagicMock()
         mock_redis.keys.return_value = [
-            'strategy:selector:latest:mlp_direction_bnb',
+            'strategy:selector:latest:llm_direction_btc',
         ]
         mock_redis.hgetall.return_value = {
             'selected_symbols': '["ADA","XRP","DOGE"]',
@@ -185,9 +185,9 @@ class TestStatusAPI:
             (
                 '3-0',
                 {
-                    'strategy': 'mlp_direction_a',
+                    'strategy': 'llm_direction_a',
                     'fields': json.dumps({
-                        'strategy': 'mlp_direction_a',
+                        'strategy': 'llm_direction_a',
                         'selected_symbols': '["ADA","XRP"]',
                     }),
                 },
@@ -195,9 +195,9 @@ class TestStatusAPI:
             (
                 '2-0',
                 {
-                    'strategy': 'mlp_direction_a',
+                    'strategy': 'llm_direction_a',
                     'fields': json.dumps({
-                        'strategy': 'mlp_direction_a',
+                        'strategy': 'llm_direction_a',
                         'selected_symbols': '["BTC","ETH"]',
                     }),
                 },
@@ -205,9 +205,9 @@ class TestStatusAPI:
             (
                 '1-0',
                 {
-                    'strategy': 'mlp_direction_b',
+                    'strategy': 'llm_direction_b',
                     'fields': json.dumps({
-                        'strategy': 'mlp_direction_b',
+                        'strategy': 'llm_direction_b',
                         'selected_symbols': '["SOL"]',
                     }),
                 },
@@ -225,7 +225,7 @@ class TestStatusAPI:
             (
                 '1-0',
                 {
-                    'strategy': 'mlp_direction',
+                    'strategy': 'llm_direction',
                     'symbol': 'BTC',
                     'variable': 'hwm',
                     'value': '100.0',
@@ -235,7 +235,7 @@ class TestStatusAPI:
         mock_redis.smembers.return_value = {'hwm'}
         mock_redis.get.return_value = '125.0'
 
-        live_state = web_app._load_strategy_live_state(mock_redis, 'mlp_direction', ['BTC'])
+        live_state = web_app._load_strategy_live_state(mock_redis, 'llm_direction', ['BTC'])
 
         assert live_state == {'BTC': {'hwm': 125.0}}
 
@@ -269,7 +269,7 @@ class TestPositionsAPI:
             'positions:GRT:spot': {
                 'quantity': '26935.24799083962',
                 'entry_price': '0.028271304',
-                'strategy': 'mlp_direction_bnb',
+                'strategy': 'llm_direction_btc',
                 'entry_time': '1771696808878',
             },
         }.get(key, {})

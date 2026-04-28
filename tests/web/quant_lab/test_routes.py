@@ -98,13 +98,13 @@ class TestQuantLabRoutes:
         data = response.get_json()
         assert data['strategy_types'] == ['regime']
         assert data['llm_optimization_supported'] is False
-        assert 'mlp_direction' not in data
+        assert 'llm_direction' not in data
 
     def test_create_non_regime_experiment_rejected(self, client, auth_headers):
         """POST /quant-lab/api/experiments rejects removed strategy types."""
         response = client.post('/quant-lab/api/experiments', json={
-            "study_name": "mlp_btc_tune",
-            "strategy_type": "mlp_direction",
+            "study_name": "llm_btc_tune",
+            "strategy_type": "llm_direction",
             "symbols": ["BTC"],
             "data_path": "data/binance_bitcoin.db",
             "start_date": "2024-01-01",
@@ -156,7 +156,7 @@ class TestQuantLabRoutes:
 
     def test_build_suggested_study_name_ignores_removed_strategy_type(self):
         """Study name suggestions should now normalize to regime-only naming."""
-        study_name = build_suggested_study_name("mlp_direction", "ETH")
+        study_name = build_suggested_study_name("llm_direction", "ETH")
         assert re.match(r"^regime_\d{8}_\d{6}$", study_name)
 
     def test_build_suggested_study_name_regime(self):

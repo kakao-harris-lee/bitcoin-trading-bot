@@ -285,7 +285,7 @@ class TestRedisStreamsUnit:
         mock_client.hgetall = AsyncMock(return_value={
             "quantity": "0.05",
             "entry_price": "43000",
-            "strategy": "mlp_direction_btc",
+            "strategy": "llm_direction_btc",
         })
         mock_client.exists = AsyncMock(return_value=1)
         mock_client.delete = AsyncMock()
@@ -295,11 +295,11 @@ class TestRedisStreamsUnit:
         await redis_streams.set_position("BTC", "spot", {
             "quantity": "0.05",
             "entry_price": "43000",
-            "strategy": "mlp_direction_btc",
+            "strategy": "llm_direction_btc",
         })
         mock_client.hset.assert_called_once_with(
             "positions:BTC:spot",
-            mapping={"quantity": "0.05", "entry_price": "43000", "strategy": "mlp_direction_btc"}
+            mapping={"quantity": "0.05", "entry_price": "43000", "strategy": "llm_direction_btc"}
         )
 
         # Check exists
@@ -314,7 +314,7 @@ class TestRedisStreamsUnit:
         mock_client.exists.return_value = 1
         pos = await redis_streams.get_position("BTC", "spot")
         assert pos["quantity"] == "0.05"
-        assert pos["strategy"] == "mlp_direction_btc"
+        assert pos["strategy"] == "llm_direction_btc"
         mock_client.hgetall.assert_called_with("positions:BTC:spot")
 
         # Clear position
@@ -457,7 +457,7 @@ class TestRedisStreamsIntegration:
             "market": "spot",
             "quantity": "0.05",
             "trigger_price": "43000",
-            "strategy": "mlp_direction_btc"
+            "strategy": "llm_direction_btc"
         })
         assert msg_id is not None
 
@@ -468,7 +468,7 @@ class TestRedisStreamsIntegration:
         assert messages[0]["market"] == "spot"
         assert messages[0]["quantity"] == "0.05"
         assert messages[0]["trigger_price"] == "43000"
-        assert messages[0]["strategy"] == "mlp_direction_btc"
+        assert messages[0]["strategy"] == "llm_direction_btc"
 
         # Acknowledge message
         await connected_streams.ack(stream, group, messages[0]["_id"])

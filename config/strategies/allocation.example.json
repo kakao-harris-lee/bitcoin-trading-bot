@@ -23,7 +23,10 @@
           "model": "llama3.1:8b",
           "api_base_url": "http://127.0.0.1:11434",
           "prompt_version": "btc_eth_v1",
-          "confidence_threshold": 0.6
+          "confidence_threshold": 0.6,
+          "request_timeout_seconds": 90.0,
+          "max_output_tokens": 96,
+          "context_window_bars": 4
         }
       },
       "exit": {

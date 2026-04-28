@@ -32,7 +32,7 @@ def _make_task(market: str = "spot") -> CompositeStrategyTask:
     exit_strategy.params.take_profit_pct = 5.0
 
     return CompositeStrategyTask(
-        name="mlp_direction_bnb",
+        name="llm_direction_btc",
         symbols=["BCH"],
         redis=redis,
         entry_strategy=entry,
@@ -47,7 +47,7 @@ def test_resolve_exit_quantity_full_fraction_uses_position_size():
         symbol="BTC",
         entry_price=577.68,
         quantity=0.7363438363899231,
-        strategy="mlp_direction_bnb",
+        strategy="llm_direction_btc",
         market="spot",
         timestamp=1,
     )
@@ -73,7 +73,7 @@ def test_resolve_exit_quantity_partial_fraction_scales_position():
         symbol="BTC",
         entry_price=100000.0,
         quantity=4.0,
-        strategy="mlp_direction",
+        strategy="llm_direction",
         market="spot",
         timestamp=1,
     )
@@ -95,7 +95,7 @@ def test_resolve_exit_quantity_clamps_oversized_absolute_signal():
         symbol="BTC",
         entry_price=100000.0,
         quantity=0.7363,
-        strategy="mlp_direction",
+        strategy="llm_direction",
         market="spot",
         timestamp=1,
     )

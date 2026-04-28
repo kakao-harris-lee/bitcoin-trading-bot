@@ -60,7 +60,7 @@ async def test_periodic_logger_counts_spot_positions(caplog: pytest.LogCaptureFi
             ("BTC", "spot"): {
                 "quantity": "0.25",
                 "entry_price": "100000",
-                "strategy": "mlp_direction_btc",
+                "strategy": "llm_direction_btc",
             }
         },
         prices=[{"symbol": "BTC", "price": "101000"}],
@@ -90,12 +90,12 @@ async def test_periodic_logger_ignores_non_spot_positions(
             ("BTC", "spot"): {
                 "quantity": "0.10",
                 "entry_price": "100000",
-                "strategy": "mlp_direction_btc",
+                "strategy": "llm_direction_btc",
             },
             ("BTC", "margin"): {
                 "quantity": "0.05",
                 "entry_price": "99000",
-                "strategy": "mlp_direction_btc",
+                "strategy": "llm_direction_btc",
             },
         },
         prices=[{"symbol": "BTC", "price": "101000"}],

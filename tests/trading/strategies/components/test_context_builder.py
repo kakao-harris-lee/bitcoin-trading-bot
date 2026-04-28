@@ -29,11 +29,11 @@ def mock_position_manager():
     """Create mock PositionManager."""
     manager = MagicMock()
     manager.get_positions_for_symbol.return_value = {
-        "mlp_direction_btc": Position(
+        "llm_direction_btc": Position(
             symbol="BTC",
             entry_price=99000.0,
             quantity=0.01,
-            strategy="mlp_direction_btc",
+            strategy="llm_direction_btc",
             market="spot",
             timestamp=900,
         )
@@ -54,7 +54,7 @@ def test_builder_creates_context(mock_indicator_service, mock_position_manager):
     assert ctx.timestamp == 1000
     assert ctx.market.close == 100000.0
     assert ctx.regime.regime == "BULL_STRONG"
-    assert ctx.has_position("mlp_direction_btc")
+    assert ctx.has_position("llm_direction_btc")
 
 
 def test_builder_caches_same_tick(mock_indicator_service, mock_position_manager):
@@ -109,23 +109,23 @@ def test_update_position_adds_new_position(mock_indicator_service):
 
     # First get context (no positions initially)
     ctx1 = builder.get_context("BTC", timestamp=1000)
-    assert not ctx1.has_position("mlp_direction_btc")
+    assert not ctx1.has_position("llm_direction_btc")
 
     # Add a position
     new_pos = Position(
         symbol="BTC",
         entry_price=99000.0,
         quantity=0.01,
-        strategy="mlp_direction_btc",
+        strategy="llm_direction_btc",
         market="spot",
         timestamp=1000,
     )
-    builder.update_position("BTC", "mlp_direction_btc", new_pos)
+    builder.update_position("BTC", "llm_direction_btc", new_pos)
 
     # Check position is now visible
     ctx2 = builder.get_context("BTC", timestamp=1000)
-    assert ctx2.has_position("mlp_direction_btc")
-    assert ctx2.positions["mlp_direction_btc"].entry_price == 99000.0
+    assert ctx2.has_position("llm_direction_btc")
+    assert ctx2.positions["llm_direction_btc"].entry_price == 99000.0
 
 
 def test_update_position_removes_position(mock_indicator_service, mock_position_manager):
@@ -137,14 +137,14 @@ def test_update_position_removes_position(mock_indicator_service, mock_position_
 
     # Get context with position
     ctx1 = builder.get_context("BTC", timestamp=1000)
-    assert ctx1.has_position("mlp_direction_btc")
+    assert ctx1.has_position("llm_direction_btc")
 
     # Remove the position
-    builder.update_position("BTC", "mlp_direction_btc", None)
+    builder.update_position("BTC", "llm_direction_btc", None)
 
     # Check position is removed
     ctx2 = builder.get_context("BTC", timestamp=1000)
-    assert not ctx2.has_position("mlp_direction_btc")
+    assert not ctx2.has_position("llm_direction_btc")
 
 
 def test_update_position_no_op_when_not_cached(mock_indicator_service):
@@ -159,17 +159,17 @@ def test_update_position_no_op_when_not_cached(mock_indicator_service):
         symbol="BTC",
         entry_price=99000.0,
         quantity=0.01,
-        strategy="mlp_direction_btc",
+        strategy="llm_direction_btc",
         market="spot",
         timestamp=1000,
     )
 
     # This should not raise
-    builder.update_position("BTC", "mlp_direction_btc", new_pos)
+    builder.update_position("BTC", "llm_direction_btc", new_pos)
 
     # Now get context - position manager is None so no positions
     ctx = builder.get_context("BTC", timestamp=1000)
-    assert not ctx.has_position("mlp_direction_btc")
+    assert not ctx.has_position("llm_direction_btc")
 
 
 def test_invalidate_single_symbol(mock_indicator_service, mock_position_manager):

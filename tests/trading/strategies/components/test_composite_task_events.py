@@ -71,7 +71,7 @@ class TestCompositeTaskEmitEventsFlag:
         from trading.strategies.components.composite_task import CompositeStrategyTask
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -88,7 +88,7 @@ class TestCompositeTaskEmitEventsFlag:
         from trading.strategies.components.composite_task import CompositeStrategyTask
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -107,7 +107,7 @@ class TestCompositeTaskEmitEventsFlag:
         from trading.core.event_emitter import EventEmitter
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -132,7 +132,7 @@ class TestCompositeTaskEntryEventEmission:
         from trading.strategies.components.models import MarketData
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -177,7 +177,7 @@ class TestCompositeTaskEntryEventEmission:
         from trading.strategies.components.models import MarketData
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -219,7 +219,7 @@ class TestCompositeTaskEntryEventEmission:
         from trading.strategies.components.models import MarketData
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -238,7 +238,7 @@ class TestCompositeTaskEntryEventEmission:
         task._update_entry_decision_hint(
             "BTC",
             should_enter=False,
-            reason="HybridLong[mlp] blocked: MLP predicted HOLD (not BUY)",
+            reason="LLM predicted HOLD (conf=0.00): policy hold",
         )
 
         decision, reason, _ = task._build_entry_decision_snapshot(
@@ -250,7 +250,7 @@ class TestCompositeTaskEntryEventEmission:
         )
 
         assert decision == "WAIT"
-        assert "MLP predicted HOLD" in reason
+        assert "LLM predicted HOLD" in reason
 
     async def test_entry_event_uses_no_signal_reason_hint(
         self, mock_redis, mock_entry_strategy, mock_exit_strategy
@@ -260,7 +260,7 @@ class TestCompositeTaskEntryEventEmission:
         from trading.strategies.components.models import MarketData, build_market_context
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -285,7 +285,7 @@ class TestCompositeTaskEntryEventEmission:
             market_data,
             context,
             signal=None,
-            no_signal_reason="HybridLong[mlp] blocked: MLP predicted HOLD (not BUY)",
+            no_signal_reason="LLM predicted HOLD (conf=0.00): policy hold",
         )
         await asyncio.sleep(0)
 
@@ -293,7 +293,7 @@ class TestCompositeTaskEntryEventEmission:
         entry_calls = [c for c in calls if c[0][0] == "strategy:entry:events"]
         assert len(entry_calls) >= 1
         payload = entry_calls[-1][0][1]
-        assert payload["reason"] == "HybridLong[mlp] blocked: MLP predicted HOLD (not BUY)"
+        assert payload["reason"] == "LLM predicted HOLD (conf=0.00): policy hold"
 
 
 class TestCompositeTaskPositionParsing:
@@ -305,7 +305,7 @@ class TestCompositeTaskPositionParsing:
         from trading.strategies.components.composite_task import CompositeStrategyTask
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -318,7 +318,7 @@ class TestCompositeTaskPositionParsing:
                 "symbol": "BTC",
                 "entry_price": "43000",
                 "quantity": "0.05",
-                "strategy": "mlp_direction_btc",
+                "strategy": "llm_direction_btc",
                 "market": "spot",
                 "entry_time": "1234567000",
                 "side": "buy",
@@ -341,7 +341,7 @@ class TestCompositeTaskEntryFunnelEmission:
         from trading.strategies.components.models import MarketData, build_market_context, TradingContext
 
         task = CompositeStrategyTask(
-            name="mlp_direction_bnb",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -385,7 +385,7 @@ class TestCompositeTaskEntryFunnelEmission:
         task._resolve_entry_leverage = AsyncMock(return_value=1.0)
         task.entry_strategy.check_entry.return_value = None
         task.entry_strategy.get_last_rejection_reason = MagicMock(
-            return_value="HybridLong[mlp] blocked: MLP predicted HOLD (not BUY)"
+            return_value="LLM predicted HOLD (conf=0.00): policy hold"
         )
 
         await task.evaluate("BTC")
@@ -396,7 +396,7 @@ class TestCompositeTaskEntryFunnelEmission:
         assert len(funnel_calls) >= 1
         payload = funnel_calls[-1][0][1]
         assert payload["entry_signal_generated"] == "false"
-        assert payload["entry_rejection_category"] == "mlp_non_buy"
+        assert payload["entry_rejection_category"] == "model_non_buy"
         assert payload["order_build_result"] == "not_attempted"
 
     async def test_entry_funnel_emits_built_and_published_order(
@@ -407,7 +407,7 @@ class TestCompositeTaskEntryFunnelEmission:
         from trading.strategies.components.models import MarketData, Signal, TradingContext, build_market_context
 
         task = CompositeStrategyTask(
-            name="mlp_direction_bnb",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -439,7 +439,7 @@ class TestCompositeTaskEntryFunnelEmission:
             side="buy",
             market="spot",
             quantity=0.1,
-            reason="HybridLong[mlp] MLPDirection: pred=BUY, conf=0.65, thr=0.48",
+            reason="LLMDirection entry: BUY conf=0.65 provider=ollama model=test prompt=v1 reason=trend aligned",
         )
         order = {
             "symbol": "BTC",
@@ -477,7 +477,7 @@ class TestCompositeTaskEntryFunnelEmission:
         assert len(funnel_calls) >= 1
         payload = funnel_calls[-1][0][1]
         assert payload["entry_signal_generated"] == "true"
-        assert payload["entry_route"] == "mlp"
+        assert payload["entry_route"] == "llm"
         assert payload["order_build_result"] == "built"
         assert payload["order_published"] == "true"
 
@@ -493,7 +493,7 @@ class TestCompositeTaskExitEventEmission:
         from trading.strategies.components.models import MarketData
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -523,7 +523,7 @@ class TestCompositeTaskExitEventEmission:
             "symbol": "BTC",
             "entry_price": "43000",
             "quantity": "0.05",
-            "strategy": "mlp_direction_btc",
+            "strategy": "llm_direction_btc",
             "market": "spot",
             "timestamp": 1234567000,
         }
@@ -550,7 +550,7 @@ class TestCompositeTaskSafetyEventEmission:
         from trading.strategies.components.models import MarketData, MarketContext
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -610,7 +610,7 @@ class TestCompositeTaskHWMEventEmission:
         from trading.core.event_emitter import HWMUpdateEvent
 
         task = CompositeStrategyTask(
-            name="mlp_direction_btc",
+            name="llm_direction_btc",
             symbols=["BTC"],
             redis=mock_redis,
             entry_strategy=mock_entry_strategy,
@@ -621,7 +621,7 @@ class TestCompositeTaskHWMEventEmission:
         # Directly call the HWM emit method
         event = HWMUpdateEvent(
             timestamp=datetime.now().isoformat(),
-            strategy="mlp_direction_btc",
+            strategy="llm_direction_btc",
             symbol="BTC",
             market="spot",
             old_hwm=44000.0,

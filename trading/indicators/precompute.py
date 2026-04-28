@@ -202,9 +202,6 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # Larry Williams volatility breakout signal
     df['breakout_signal'], df['target_price'] = calculate_breakout_signal(df)
 
-    # MLP Direction features (Parente & Rizzuti 2025)
-    # Only compute if requested via include_mlp_features flag
-    # These are computed lazily in ComponentStrategyAdapter for efficiency
 
     return df
 

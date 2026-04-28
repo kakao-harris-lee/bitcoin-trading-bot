@@ -60,7 +60,7 @@ async def test_selector_minor_rotation_is_suppressed(monkeypatch: pytest.MonkeyP
 
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=True,
             selected=["ADA", "AVAX", "DOT", "XLM"],
         )
@@ -70,7 +70,7 @@ async def test_selector_minor_rotation_is_suppressed(monkeypatch: pytest.MonkeyP
     # Churn=2 (< min churn threshold=4) should not notify.
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=True,
             selected=["ADA", "AVAX", "DOT", "TRX"],
         )
@@ -84,7 +84,7 @@ async def test_selector_significant_rotation_notifies(monkeypatch: pytest.Monkey
 
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=True,
             selected=["ADA", "AVAX", "DOT", "XLM", "TRX", "UNI", "NEAR", "ARB"],
         )
@@ -94,7 +94,7 @@ async def test_selector_significant_rotation_notifies(monkeypatch: pytest.Monkey
     # Churn=8 should notify.
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=True,
             selected=["FIL", "FLOW", "RUNE", "SEI", "TIA", "WLD", "MEME", "GRT"],
         )
@@ -109,7 +109,7 @@ async def test_selector_dq_alert_notifies_even_without_rotation(monkeypatch: pyt
     # Healthy baseline (no selector change).
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=False,
             selected=["ADA", "AVAX", "DOT", "XLM"],
             dq_blocked_count=0,
@@ -121,7 +121,7 @@ async def test_selector_dq_alert_notifies_even_without_rotation(monkeypatch: pyt
     # DQ blocked ratio 25/64 ~= 39% crosses warning threshold and should notify.
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=False,
             selected=["ADA", "AVAX", "DOT", "XLM"],
             dq_blocked_count=25,
@@ -139,7 +139,7 @@ async def test_selector_low_selected_count_without_drop_is_suppressed(
 
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=False,
             selected=["LINK"],
             dq_blocked_count=0,
@@ -150,7 +150,7 @@ async def test_selector_low_selected_count_without_drop_is_suppressed(
     # selected_count remains 1 -> no drop event, should stay suppressed.
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=True,
             selected=["LTC"],
             dq_blocked_count=0,
@@ -168,7 +168,7 @@ async def test_selector_entry_ready_notifies_on_new_signal_signature(
 
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=False,
             selected=["SNX", "ADA", "AVAX", "DOT"],
             signal_events=[{"type": "ENTRY_READY", "symbol": "SNX", "score": 0.44}],
@@ -179,7 +179,7 @@ async def test_selector_entry_ready_notifies_on_new_signal_signature(
     # Same signature should be suppressed.
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=False,
             selected=["SNX", "ADA", "AVAX", "DOT"],
             signal_events=[{"type": "ENTRY_READY", "symbol": "SNX", "score": 0.46}],
@@ -199,7 +199,7 @@ async def test_selector_new_candidate_reason_cooldown_suppresses_repeats(
     # Seed snapshot without triggering dq/liquidity alert.
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=False,
             selected=["ADA", "AVAX", "DOT", "LINK"],
             dq_blocked_count=0,
@@ -209,7 +209,7 @@ async def test_selector_new_candidate_reason_cooldown_suppresses_repeats(
 
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=True,
             selected=["ADA", "AVAX", "DOT", "LTC"],
             dq_blocked_count=0,
@@ -221,7 +221,7 @@ async def test_selector_new_candidate_reason_cooldown_suppresses_repeats(
 
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=True,
             selected=["ADA", "AVAX", "DOT", "SUI"],
             dq_blocked_count=0,
@@ -242,7 +242,7 @@ async def test_selector_dq_alert_reason_cooldown_suppresses_repeats(
 
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=False,
             selected=["ADA", "AVAX", "DOT", "XLM"],
             dq_blocked_count=0,
@@ -252,7 +252,7 @@ async def test_selector_dq_alert_reason_cooldown_suppresses_repeats(
 
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=False,
             selected=["ADA", "AVAX", "DOT", "XLM"],
             dq_blocked_count=25,
@@ -263,7 +263,7 @@ async def test_selector_dq_alert_reason_cooldown_suppresses_repeats(
 
     await task._handle_selector_event(
         _selector_event(
-            strategy="mlp_direction_bnb",
+            strategy="llm_direction_btc",
             changed=False,
             selected=["ADA", "AVAX", "DOT", "XLM"],
             dq_blocked_count=35,

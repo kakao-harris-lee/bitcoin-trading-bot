@@ -1302,8 +1302,6 @@ class CompositeStrategyTask(BaseStrategyTask):
                 return text[len("HybridLong["):closing]
         if text.startswith("LLMDirection"):
             return "llm"
-        if text.startswith("MLPDirection"):
-            return "legacy_mlp"
         if text.startswith("RegimeLongV2"):
             return "regime"
         return ""
@@ -1333,7 +1331,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             return "model_unavailable"
         if "not buy" in text or "predicted hold" in text or "predicted sell" in text:
             return "model_non_buy"
-        if "low llm confidence" in text or "low mlp confidence" in text or "low confidence" in text:
+        if "low llm confidence" in text or "low model confidence" in text or "low confidence" in text:
             return "model_low_confidence"
         if "filter" in text or "blocked by regime" in text or "weak adx" in text or "below ema200" in text:
             return "model_filter_block"
@@ -2154,9 +2152,6 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
         return df
 
-    def _get_mlp_history_df(self, symbol: str) -> pd.DataFrame | None:
-        """Backward-compatible alias for legacy runtime helpers."""
-        return self._get_history_df(symbol)
 
     def _get_latest_candle_timestamp(
         self,

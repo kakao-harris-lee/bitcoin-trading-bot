@@ -820,7 +820,7 @@ def main():
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to backtest')
     parser.add_argument('--capital', type=float, default=10000.0, help='Initial capital')
     parser.add_argument('--output', type=str, default='outputs', help='Output directory')
-    parser.add_argument('--strategy', type=str, default='mlp_direction_btc', help='Strategy name from allocation.json')
+    parser.add_argument('--strategy', type=str, default='llm_direction_btc', help='Strategy name from allocation.json')
     args = parser.parse_args()
 
     # Create output directory

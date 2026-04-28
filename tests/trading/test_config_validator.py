@@ -69,7 +69,7 @@ class TestConfigValidator:
             strategies_dir.mkdir(parents=True)
 
             # Create a valid strategy file
-            with open(strategies_dir / "mlp_direction_btc.json", "w") as f:
+            with open(strategies_dir / "llm_direction_btc.json", "w") as f:
                 json.dump({"entry": {}, "exit": {}}, f)
 
             yield config_dir
@@ -103,7 +103,7 @@ class TestConfigValidator:
                     "binance_symbol": "BTCUSDT",
                     "db_path": str(temp_data_dir / "btc_data.db"),
                     "capital_krw": 100000,
-                    "strategy": "mlp_direction_btc",
+                    "strategy": "llm_direction_btc",
                 }
             },
             "risk": {},

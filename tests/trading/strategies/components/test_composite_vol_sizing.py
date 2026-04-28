@@ -172,7 +172,7 @@ class TestCompositeTaskVolSizingConfig:
         exit_strat.params = MagicMock()
 
         task = CompositeStrategyTask(
-            name="test_mlp",
+            name="test_llm",
             symbols=["BTC"],
             redis=redis,
             entry_strategy=entry,

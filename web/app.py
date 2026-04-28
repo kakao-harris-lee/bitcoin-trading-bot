@@ -2186,7 +2186,7 @@ except ImportError:
     STRATEGY_REGISTRY = {}
 
 # Internal base-strategy aliases should not be exposed in dashboard controls.
-INTERNAL_ONLY_STRATEGY_NAMES = {"mlp_direction"}
+INTERNAL_ONLY_STRATEGY_NAMES = {"llm_direction"}
 
 
 def _strategy_class_name(strategy_name: str, cfg: dict, class_key: str, registry_attr: str, default=None):
@@ -3149,7 +3149,7 @@ def get_entry_events():
     - hours: Hours of history (default 24, max 72)
     - limit: Maximum events (default 50, max 200)
     - symbol: Filter by symbol (e.g., "BTC")
-    - strategy: Filter by strategy (e.g., "mlp_direction_btc")
+    - strategy: Filter by strategy (e.g., "llm_direction_btc")
     """
     if not metrics_service:
         return jsonify({'error': 'Metrics service not available'}), 500
@@ -3261,7 +3261,7 @@ def get_hwm_timeline(symbol: str, strategy: str):
 
     URL parameters:
     - symbol: Trading symbol (e.g., "BTC")
-    - strategy: Strategy name (e.g., "mlp_direction_btc")
+    - strategy: Strategy name (e.g., "llm_direction_btc")
 
     Query parameters:
     - hours: Hours of history (default 24, max 72)

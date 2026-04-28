@@ -174,8 +174,8 @@ def test_resolve_feed_market_uses_spot_for_spot_only(mock_config):
 
     market = engine._resolve_feed_market(
         {
-            "mlp_direction_btc": {"enabled": True, "market": "spot"},
-            "mlp_direction_eth": {"enabled": True, "market": "spot"},
+            "llm_direction_btc": {"enabled": True, "market": "spot"},
+            "llm_direction_eth": {"enabled": True, "market": "spot"},
         }
     )
     assert market == "spot"

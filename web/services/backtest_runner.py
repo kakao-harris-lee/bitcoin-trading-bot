@@ -44,7 +44,7 @@ from trading.core.runtime_defaults import default_backtest_date_range
 
 logger = logging.getLogger(__name__)
 
-INTERNAL_ONLY_BACKTEST_STRATEGIES = {"mlp_direction"}
+INTERNAL_ONLY_BACKTEST_STRATEGIES = {"llm_direction"}
 BACKTEST_ONLY_STRATEGIES = (
     {
         "id": "wf_tree60_btc",
@@ -659,7 +659,7 @@ def run_backtest(job: BacktestJob) -> None:
 
             config = job.config
             strategy_id = config.get("strategy_id") or config.get(
-                "strategy", "mlp_direction_btc"
+                "strategy", "llm_direction_btc"
             )
             default_start_date, default_end_date = default_backtest_date_range()
             start_date = config.get("start_date") or default_start_date
@@ -1726,10 +1726,6 @@ def _run_generic_backtest(
         StrategyFactory(redis=None), context["base_strategy_id"], config
     )
     adapter.symbol = strategy_symbol
-
-    if getattr(adapter, "_uses_mlp_direction", False):
-        adapter.precompute_mlp_predictions(df)
-        job.progress = 45
 
     core_state = _build_core_state(
         config,

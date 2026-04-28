@@ -208,31 +208,3 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
-def add_mlp_features(df: pd.DataFrame, bwin: int = 5, feature_set: str = "paper_36") -> pd.DataFrame:
-    """Add MLP Direction strategy features to DataFrame.
-
-    Based on Parente & Rizzuti (2025) methodology.
-    13 SHAP-validated features for direction prediction.
-
-    Args:
-        df: DataFrame with OHLCV and basic indicators.
-        bwin: Backward window for feature calculation.
-
-    Returns:
-        DataFrame with MLP features added.
-    """
-    from .mlp_features import calculate_mlp_features
-
-    mlp_features = calculate_mlp_features(
-        df,
-        bwin=bwin,
-        include_temporal=True,
-        feature_set=feature_set,
-    )
-
-    # Merge features into main DataFrame
-    for col in mlp_features.columns:
-        df[f"mlp_{col}"] = mlp_features[col]
-
-    return df

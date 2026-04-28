@@ -4,23 +4,23 @@ Implements the Factory Pattern for dynamic strategy assembly based on
 allocation.json configuration.
 
 Registry-default format:
-    "mlp_direction_btc": {
+    "llm_direction_btc": {
         "position_size": 0.2,
         "market": "spot"
     }
 
 Explicit component format:
-    "mlp_direction_btc": {
+    "llm_direction_btc": {
         "market": "spot",
         "entry": {
-            "class": "MLPDirectionEntryStrategy",
+            "class": "LLMDecisionEntryStrategy",
             "params": {
-                "model_path": "models/mlp_direction/btc/model_final.pt",
+                "model": "llama3.1:8b",
                 "position_size": 0.9
             }
         },
         "exit": {
-            "class": "MLPDirectionExitStrategy",
+            "class": "LLMDirectionExitStrategy",
             "params": {
                 "stop_loss_pct": 10.0
             }
@@ -31,12 +31,12 @@ Usage:
     factory = StrategyFactory(redis_client)
 
     # Create individual components
-    entry = factory.create_entry("mlp_direction_btc", params)
-    exit_strat = factory.create_exit("mlp_direction_btc", params)
+    entry = factory.create_entry("llm_direction_btc", params)
+    exit_strat = factory.create_exit("llm_direction_btc", params)
 
     # Create full strategy task
     task = await factory.create_strategy_task(
-        name="mlp_direction_btc",
+        name="llm_direction_btc",
         symbols=["BTC", "ETH"],
         config={"position_size": 0.2},
     )
@@ -53,14 +53,12 @@ from typing import Any, TYPE_CHECKING
 from .interfaces import IEntryStrategy, IExitStrategy
 
 # Entry strategies (imports trigger registration via decorators)
-from .mlp_direction_entry import MLPDirectionEntryStrategy, MLPDirectionEntryParams
+from .llm_direction_entry import LLMDecisionEntryStrategy, LLMDecisionEntryParams
 from .regime_long_v2_entry import RegimeLongV2EntryStrategy, RegimeLongV2EntryParams
-from .hybrid_long_entry import HybridLongEntryStrategy, HybridLongEntryParams
 
 # Exit strategies (imports trigger registration via decorators)
-from .mlp_direction_exit import MLPDirectionExitStrategy, MLPDirectionExitParams
+from .llm_hybrid_exit import LLMHybridExitStrategy, LLMHybridExitParams
 from .regime_long_v2_exit import RegimeLongV2ExitStrategy, RegimeLongV2ExitParams
-from .hybrid_long_exit import HybridLongExitStrategy, HybridLongExitParams
 
 # Registry and config validation
 from .registry import (
@@ -98,17 +96,15 @@ class StrategySpec:
 
 # Registry of available base strategy specs.
 STRATEGY_REGISTRY: dict[str, StrategySpec] = {
-    # MLP Direction Classifier strategy (Parente & Rizzuti 2025)
-    # 3-class prediction (Hold/Buy/Sell) with 10% stop loss
-    "mlp_direction": StrategySpec(
-        name="mlp_direction",
-        entry_class=MLPDirectionEntryStrategy,
-        entry_params_class=MLPDirectionEntryParams,
-        exit_class=MLPDirectionExitStrategy,
-        exit_params_class=MLPDirectionExitParams,
+    "llm_direction": StrategySpec(
+        name="llm_direction",
+        entry_class=LLMDecisionEntryStrategy,
+        entry_params_class=LLMDecisionEntryParams,
+        exit_class=LLMHybridExitStrategy,
+        exit_params_class=LLMHybridExitParams,
         persistent_exit_class=None,
-        market="spot",  # Multi-asset trained, uses 4h timeframe
-        timeframe="hour4",  # Paper uses 4-hour candles
+        market="spot",
+        timeframe="hour4",
     ),
     "regime_long_v2": StrategySpec(
         name="regime_long_v2",
@@ -116,16 +112,6 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         entry_params_class=RegimeLongV2EntryParams,
         exit_class=RegimeLongV2ExitStrategy,
         exit_params_class=RegimeLongV2ExitParams,
-        persistent_exit_class=None,
-        market="spot",
-        timeframe="hour4",
-    ),
-    "hybrid_long_v2": StrategySpec(
-        name="hybrid_long_v2",
-        entry_class=HybridLongEntryStrategy,
-        entry_params_class=HybridLongEntryParams,
-        exit_class=HybridLongExitStrategy,
-        exit_params_class=HybridLongExitParams,
         persistent_exit_class=None,
         market="spot",
         timeframe="hour4",
@@ -179,7 +165,7 @@ class StrategyFactory:
         - Explicit component config: Uses "entry.class" from config
 
         Args:
-            strategy_name: Name of the strategy (e.g., "mlp_direction_btc").
+            strategy_name: Name of the strategy (e.g., "llm_direction_btc").
             config: Configuration parameters.
             param_overrides: Parameter overrides for MLflow optimization.
                 These override values from config and dataclass defaults.
@@ -217,7 +203,7 @@ class StrategyFactory:
         - Explicit component config: Uses "exit.class" from config
 
         Args:
-            strategy_name: Name of the strategy (e.g., "mlp_direction_btc").
+            strategy_name: Name of the strategy (e.g., "llm_direction_btc").
             config: Configuration parameters.
             persistent: Use Redis-backed persistence if available.
             param_overrides: Parameter overrides for MLflow optimization.
@@ -263,7 +249,7 @@ class StrategyFactory:
             Tuple of (entry_strategy, exit_strategy).
 
         Example:
-            entry, exit_strat = factory.create_components("mlp_direction_btc")
+            entry, exit_strat = factory.create_components("llm_direction_btc")
         """
         entry = self.create_entry(
             strategy_name, config, param_overrides=entry_overrides

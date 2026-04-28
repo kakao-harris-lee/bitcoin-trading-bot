@@ -5,12 +5,12 @@ stream-based task system. It extends BaseStrategyTask and delegates entry/exit
 logic to IEntryStrategy and IExitStrategy components.
 
 Usage:
-    entry = MLPDirectionEntryStrategy(params)
-    exit_strat = MLPDirectionExitStrategy(params)
+    entry = LLMDecisionEntryStrategy(params)
+    exit_strat = LLMHybridExitStrategy(params)
 
     task = CompositeStrategyTask(
-        name="mlp_direction_btc",
-        symbols=["BTC", "ETH"],
+        name="llm_direction_btc",
+        symbols=["BTC"],
         redis=redis,
         entry_strategy=entry,
         exit_strategy=exit_strat,
@@ -90,7 +90,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         """Initialize composite strategy task.
 
         Args:
-            name: Strategy name (e.g., "mlp_direction_btc").
+            name: Strategy name (e.g., "llm_direction_btc").
             symbols: List of symbols to trade.
             redis: Redis streams client.
             entry_strategy: Entry component implementing IEntryStrategy.
@@ -125,7 +125,6 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._init_evaluation_config()
         self._init_regime_detectors(symbols, regime_version)
         self._init_runtime_regime_overlay()
-        self._init_mlp_settings()
         self._init_entry_and_leverage_controls()
         self._init_drawdown_and_breakout_controls()
         self._init_risk_controls(redis)
@@ -211,24 +210,6 @@ class CompositeStrategyTask(BaseStrategyTask):
                 volume_filter_enabled=volume_filter_enabled,
                 mtf_candles_per_period=mtf_candles_per_period,
             )
-
-    def _init_mlp_settings(self) -> None:
-        self._use_mlp_direction = self._detect_mlp_direction()
-        self._mlp_feature_set = self._resolve_config_param("mlp_feature_set", "paper_36")
-        self._mlp_bwin = self._resolve_config_param("bwin", 5)
-        self._mlp_model_path = self._resolve_config_param(
-            "model_path",
-            "models/mlp_direction/model_final.pt",
-        )
-        self._mlp_model = None
-        self._mlp_ensemble = None
-        self._mlp_ensemble_configs = self._resolve_config_param(
-            "ensemble_models",
-            None,
-            include_exit=False,
-        )
-        self._mlp_available: bool | None = None
-        self._mlp_cache: dict[str, dict[str, float | int]] = {}
 
     def _resolve_config_param(
         self,
@@ -473,7 +454,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             return "1d"
 
         name_lower = self.name.lower()
-        if name_lower.startswith("mlp_direction") or "short" in name_lower or "h4" in name_lower:
+        if name_lower.startswith("llm_direction") or "short" in name_lower or "h4" in name_lower:
             return "4h"
         return "1d"
 
@@ -603,6 +584,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
 
         context, ctx = self._build_entry_context(symbol, market_data)
+        await self._prepare_entry_strategy(ctx)
         self._update_symbol_selector_inputs(symbol, market_data, context)
         await self._refresh_symbol_selector_if_due()
 
@@ -838,21 +820,29 @@ class CompositeStrategyTask(BaseStrategyTask):
             if cached_ctx is not None:
                 positions = cached_ctx.positions
 
-        mlp_prediction = None
-        mlp_confidence = None
-        if self._use_mlp_direction:
-            mlp_prediction, mlp_confidence = self._get_mlp_prediction(symbol, market_data)
-
         ctx = TradingContext(
             symbol=symbol,
             timestamp=market_data.timestamp,
             market=market_data,
             regime=context,
             positions=positions,
-            mlp_prediction=mlp_prediction,
-            mlp_confidence=mlp_confidence,
         )
         return context, ctx
+
+    async def _prepare_entry_strategy(self, ctx: TradingContext) -> None:
+        prepare_async = getattr(self.entry_strategy, "prepare_entry_decision_async", None)
+        if not callable(prepare_async):
+            return
+
+        history_df = self._get_history_df(ctx.market.symbol)
+        if history_df is not None:
+            history_df = history_df.copy()
+            self._update_latest_history_candle(history_df, ctx.market)
+
+        try:
+            await prepare_async(ctx, history_df)
+        except Exception as e:
+            logger.warning("%s: entry decision preparation failed: %s", self.name, e)
 
     def _update_symbol_selector_inputs(
         self,
@@ -1310,8 +1300,10 @@ class CompositeStrategyTask(BaseStrategyTask):
             closing = text.find("]")
             if closing > len("HybridLong["):
                 return text[len("HybridLong["):closing]
+        if text.startswith("LLMDirection"):
+            return "llm"
         if text.startswith("MLPDirection"):
-            return "mlp"
+            return "legacy_mlp"
         if text.startswith("RegimeLongV2"):
             return "regime"
         return ""
@@ -1338,13 +1330,13 @@ class CompositeStrategyTask(BaseStrategyTask):
         if "leverage" in text:
             return "leverage_blocked"
         if "model unavailable" in text or "prediction unavailable" in text or "warmup" in text:
-            return "mlp_unavailable"
+            return "model_unavailable"
         if "not buy" in text or "predicted hold" in text or "predicted sell" in text:
-            return "mlp_non_buy"
-        if "low mlp confidence" in text or "low confidence" in text:
-            return "mlp_low_confidence"
+            return "model_non_buy"
+        if "low llm confidence" in text or "low mlp confidence" in text or "low confidence" in text:
+            return "model_low_confidence"
         if "filter" in text or "blocked by regime" in text or "weak adx" in text or "below ema200" in text:
-            return "mlp_filter_block"
+            return "model_filter_block"
         if "risk cap" in text:
             return "order_risk_cap"
         if "quantity too small" in text or "volatility sizing" in text:
@@ -1643,19 +1635,12 @@ class CompositeStrategyTask(BaseStrategyTask):
             if cached_ctx is not None:
                 positions = {**cached_ctx.positions, self.name: position}
 
-        mlp_prediction = None
-        mlp_confidence = None
-        if self._use_mlp_direction:
-            mlp_prediction, mlp_confidence = self._get_mlp_prediction(symbol, market_data)
-
         ctx = TradingContext(
             symbol=symbol,
             timestamp=market_data.timestamp,
             market=market_data,
             regime=context,
             positions=MappingProxyType(positions),
-            mlp_prediction=mlp_prediction,
-            mlp_confidence=mlp_confidence,
         )
         return context, ctx
 
@@ -2155,72 +2140,8 @@ class CompositeStrategyTask(BaseStrategyTask):
             else:
                 self._loss_pause_remaining[symbol] = pause
 
-    def _detect_mlp_direction(self) -> bool:
-        """Detect whether this strategy uses the MLP Direction components."""
-        if self.name.startswith("mlp_direction"):
-            return True
-        entry_class = self.config.get("entry", {}).get("class")
-        exit_class = self.config.get("exit", {}).get("class")
-        if entry_class == "MLPDirectionEntryStrategy" or exit_class == "MLPDirectionExitStrategy":
-            return True
-        if self.entry_strategy.__class__.__name__ == "MLPDirectionEntryStrategy":
-            return True
-        if self.exit_strategy.__class__.__name__ == "MLPDirectionExitStrategy":
-            return True
-        return False
-
-    def _ensure_mlp_model(self) -> bool:
-        """Lazy-load MLP Direction model (single or ensemble)."""
-        if not self._use_mlp_direction:
-            return False
-        if self._mlp_available is not None:
-            return self._mlp_available
-
-        # Try ensemble first
-        if self._mlp_ensemble_configs:
-            try:
-                from trading.strategies.components.mlp_ensemble import MLPEnsemblePredictor
-
-                self._mlp_ensemble = MLPEnsemblePredictor(self._mlp_ensemble_configs)
-                if self._mlp_ensemble.load():
-                    self._mlp_available = True
-                    logger.info(
-                        f"{self.name}: MLP ensemble loaded ({self._mlp_ensemble.num_models} models)"
-                    )
-                    return True
-                else:
-                    logger.warning(f"{self.name}: MLP ensemble load failed, falling back to single model")
-                    self._mlp_ensemble = None
-            except Exception as e:
-                logger.warning(f"{self.name}: MLP ensemble init failed: {e}, falling back to single model")
-                self._mlp_ensemble = None
-
-        # Fall back to single model
-        try:
-            from pathlib import Path
-            from mlp_trainer.src.mlp_model import MLPDirectionClassifier
-
-            model_path = Path(self._mlp_model_path)
-            if not model_path.exists():
-                logger.warning(f"{self.name}: MLP model not found at {model_path}")
-                self._mlp_available = False
-                return False
-
-            self._mlp_model = MLPDirectionClassifier.load(
-                str(model_path), device="cpu", validate_path=True
-            )
-            self._mlp_model.eval()
-            self._mlp_available = True
-            logger.info(f"{self.name}: MLP model loaded from {model_path}")
-
-        except Exception as e:
-            logger.warning(f"{self.name}: MLP model load failed: {e}")
-            self._mlp_available = False
-
-        return self._mlp_available
-
-    def _get_mlp_history_df(self, symbol: str) -> pd.DataFrame | None:
-        """Get recent candle history for MLP prediction."""
+    def _get_history_df(self, symbol: str) -> pd.DataFrame | None:
+        """Get recent indicator/candle history for model-backed entry logic."""
         if self.indicator_service is not None:
             df = self.indicator_service.get_history_df(symbol)
         else:
@@ -2233,6 +2154,10 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
         return df
 
+    def _get_mlp_history_df(self, symbol: str) -> pd.DataFrame | None:
+        """Backward-compatible alias for legacy runtime helpers."""
+        return self._get_history_df(symbol)
+
     def _get_latest_candle_timestamp(
         self,
         symbol: str,
@@ -2244,52 +2169,6 @@ class CompositeStrategyTask(BaseStrategyTask):
             if ts is not None and ts > 0:
                 return int(ts)
         return int(market_data.timestamp)
-
-    def _get_mlp_prediction(
-        self,
-        symbol: str,
-        market_data: MarketData,
-    ) -> tuple[int | None, float | None]:
-        """Compute or fetch cached MLP prediction for current tick."""
-        if not self._use_mlp_direction:
-            return None, None
-
-        candle_ts = self._get_latest_candle_timestamp(symbol, market_data)
-        cached_prediction = self._get_cached_mlp_prediction(symbol, candle_ts)
-        if cached_prediction is not None:
-            return cached_prediction
-
-        if not self._ensure_mlp_model():
-            logger.debug(f"{self.name}: MLP model not available")
-            return None, None
-
-        df = self._get_mlp_history_df(symbol)
-        if df is None:
-            logger.debug(f"{self.name}: No history df for {symbol}")
-            return None, None
-
-        self._update_latest_history_candle(df, market_data)
-
-        try:
-            features = self._extract_latest_mlp_features(df)
-            if features is None:
-                return None, None
-            pred_class, confidence = self._predict_mlp_from_features(features)
-            self._log_mlp_prediction(pred_class, confidence)
-        except Exception as e:
-            logger.warning(f"{self.name}: MLP prediction failed: {e}")
-            return None, None
-
-        self._cache_mlp_prediction(symbol, candle_ts, pred_class, confidence)
-        return pred_class, confidence
-
-    def _get_cached_mlp_prediction(
-        self, symbol: str, candle_ts: int
-    ) -> tuple[int | None, float | None] | None:
-        cached = self._mlp_cache.get(symbol)
-        if not cached or cached.get("candle_timestamp") != candle_ts:
-            return None
-        return cached.get("prediction"), cached.get("confidence")
 
     def _update_latest_history_candle(self, df: pd.DataFrame, market_data: MarketData) -> None:
         try:
@@ -2305,58 +2184,6 @@ class CompositeStrategyTask(BaseStrategyTask):
         except Exception:
             # Non-fatal if we can't update last candle
             pass
-
-    def _extract_latest_mlp_features(self, df: pd.DataFrame):
-        from trading.indicators.mlp_features import calculate_mlp_features
-        import numpy as np
-
-        logger.debug(
-            f"{self.name}: Computing MLP features (df={len(df)} rows, feature_set={self._mlp_feature_set})"
-        )
-        mlp_features = calculate_mlp_features(
-            df,
-            bwin=int(self._mlp_bwin),
-            include_temporal=True,
-            feature_set=self._mlp_feature_set,
-        )
-        if mlp_features is None or mlp_features.empty:
-            logger.debug(f"{self.name}: MLP features empty, skipping prediction")
-            return None
-
-        row = mlp_features.iloc[-1]
-        if row.isna().any():
-            valid = mlp_features.dropna()
-            if valid.empty:
-                return None
-            row = valid.iloc[-1]
-        return np.array(row.values, dtype=np.float32)
-
-    def _predict_mlp_from_features(self, features) -> tuple[int, float]:
-        if self._mlp_ensemble is not None:
-            pred_class, confidence, _ = self._mlp_ensemble.predict(features)
-            return int(pred_class), float(confidence)
-
-        import torch
-
-        x = torch.FloatTensor(features).unsqueeze(0)
-        with torch.no_grad():
-            probs = self._mlp_model.predict_proba(x).cpu().numpy()[0]
-        pred_class = int(probs.argmax())
-        confidence = float(probs[pred_class])
-        return pred_class, confidence
-
-    def _log_mlp_prediction(self, pred_class: int, confidence: float) -> None:
-        labels = {0: "HOLD", 1: "BUY", 2: "SELL"}
-        logger.debug(f"{self.name}: MLP prediction: {labels.get(pred_class, 'UNK')} (conf={confidence:.2f})")
-
-    def _cache_mlp_prediction(
-        self, symbol: str, candle_ts: int, prediction: int, confidence: float
-    ) -> None:
-        self._mlp_cache[symbol] = {
-            "candle_timestamp": candle_ts,
-            "prediction": prediction,
-            "confidence": confidence,
-        }
 
     async def _get_drawdown_pct(self) -> float:
         """Fetch portfolio drawdown percentage from Redis (cached)."""
@@ -2437,7 +2264,7 @@ class CompositeStrategyTask(BaseStrategyTask):
             if isinstance(pred, RuntimeRegimePrediction):
                 return pred
 
-        history_df = self._get_mlp_history_df(symbol)
+        history_df = self._get_history_df(symbol)
         prediction = overlay.predict(
             symbol=symbol,
             market_data=market_data,

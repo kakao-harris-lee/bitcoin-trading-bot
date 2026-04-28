@@ -34,13 +34,6 @@ BULLISH_NO_SHORT_REGIMES: frozenset[Regime] = frozenset({"BULL_STRONG", "BULL_MO
 # Sideways regimes that may allow shorting with extreme volatility
 SIDEWAYS_VOLATILE_REGIMES: frozenset[Regime] = frozenset({"SIDEWAYS_FLAT", "SIDEWAYS_DOWN"})
 
-# MLP Direction Classifier label constants (Parente & Rizzuti 2025)
-# 3-class classification: Hold(0), Buy(1), Sell(2)
-MLP_LABEL_HOLD: int = 0
-MLP_LABEL_BUY: int = 1
-MLP_LABEL_SELL: int = 2
-
-
 @dataclass(frozen=True)
 class MarketData:
     """Current market state with pre-calculated indicators.
@@ -416,13 +409,8 @@ class TradingContext:
 
     # All open positions for this symbol across strategies (read-only)
     # Key: strategy_name, Value: Position
-    # Use Mapping type to signal immutability intent
+    # Use Mapping type to signal immutability intent.
     positions: Mapping[str, Position]
-
-    # MLP Direction predictions (optional, for mlp_direction strategy)
-    # Pre-computed by ComponentStrategyAdapter.precompute_mlp_predictions()
-    mlp_prediction: int | None = None  # 0=HOLD, 1=BUY, 2=SELL
-    mlp_confidence: float | None = None  # Confidence score (0.0-1.0)
 
     def has_position(self, strategy: str) -> bool:
         """Check if a strategy has an open position."""

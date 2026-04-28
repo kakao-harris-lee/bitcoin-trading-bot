@@ -12,7 +12,6 @@ from dataclasses import replace
 import logging
 from types import MappingProxyType
 from typing import Dict, Any, Optional
-import numpy as np
 import pandas as pd
 from trading.strategies.components.models import MarketData, Position, Signal, MarketContext, TradingContext, build_market_context
 
@@ -44,7 +43,7 @@ class ComponentStrategyAdapter:
         """
         Args:
             factory: Initialized StrategyFactory
-            strategy_name: Name of the strategy to run (e.g., "mlp_direction_btc")
+            strategy_name: Name of the strategy to run (e.g., "llm_direction_btc")
             config: Configuration dictionary for the strategy
             entry_overrides: Parameter overrides for entry strategy
             exit_overrides: Parameter overrides for exit strategy
@@ -154,20 +153,6 @@ class ComponentStrategyAdapter:
         self._bull_prob_threshold: float = config.get('bull_prob_threshold', 0.0)  # 0 = disabled
         self._bull_prob_enabled: bool = self._bull_prob_threshold > 0
 
-        # MLP Direction prediction cache for backtesting
-        # Populated by precompute_mlp_predictions()
-        self._mlp_cache: dict[int, dict] | None = None
-        self._mlp_model = None
-        self._mlp_ensemble = None  # MLPEnsemblePredictor if configured
-        self._mlp_available: bool | None = None
-        self._uses_mlp_direction = (
-            self.strategy_name.startswith("mlp_direction")
-            or self.config.get("entry", {}).get("class") == "MLPDirectionEntryStrategy"
-            or self.config.get("exit", {}).get("class") == "MLPDirectionExitStrategy"
-            or self.entry_strategy.__class__.__name__ == "MLPDirectionEntryStrategy"
-            or self.exit_strategy.__class__.__name__ == "MLPDirectionExitStrategy"
-        )
-
         # === NEW: Dynamic Position Sizing based on RF Confidence ===
         # Scale position size based on model confidence:
         # High confidence (>70%) → large position, Low confidence (<50%) → small position
@@ -243,103 +228,6 @@ class ComponentStrategyAdapter:
         else:
             self._current_drawdown_pct = 0.0
 
-    def precompute_mlp_predictions(self, df: pd.DataFrame) -> None:
-        """Pre-compute MLP Direction predictions for entire DataFrame (backtest optimization).
-
-        Call this BEFORE running backtest loop to cache all MLP predictions.
-        Supports both single model and ensemble prediction.
-
-        Args:
-            df: Full DataFrame with OHLCV and indicators for backtest.
-        """
-        # Only precompute for MLP Direction strategies
-        if not self._uses_mlp_direction:
-            return
-
-        try:
-            if not self._ensure_mlp_predictor():
-                return
-            valid_indices, features, use_ensemble = self._prepare_mlp_features(df)
-            if len(valid_indices) == 0:
-                return
-            predictions, confidences, probs = self._predict_mlp_batch(features, use_ensemble)
-            self._store_mlp_cache(df, valid_indices, predictions, confidences, probs)
-        except Exception as e:
-            logger.warning("MLP precompute failed: %s", e)
-            self._mlp_available = False
-
-    def _ensure_mlp_predictor(self) -> bool:
-        from pathlib import Path
-
-        ensemble_configs = self.config.get("ensemble_models", None)
-        use_ensemble = bool(ensemble_configs and len(ensemble_configs) > 0)
-        if use_ensemble:
-            from trading.strategies.components.mlp_ensemble import MLPEnsemblePredictor
-
-            if self._mlp_ensemble is None:
-                self._mlp_ensemble = MLPEnsemblePredictor(ensemble_configs)
-                self._mlp_available = self._mlp_ensemble.load(device="cpu")
-            return self._mlp_available
-
-        from mlp_trainer.src.mlp_model import MLPDirectionClassifier
-
-        model_path = Path(self.config.get("model_path", "models/mlp_direction/model_final.pt"))
-        if not model_path.exists():
-            return False
-        if self._mlp_model is None:
-            self._mlp_model = MLPDirectionClassifier.load(str(model_path), device="cpu")
-            self._mlp_model.eval()
-            self._mlp_available = True
-        return self._mlp_available
-
-    def _prepare_mlp_features(self, df: pd.DataFrame) -> tuple[pd.Index, Any, bool]:
-        from trading.indicators.mlp_features import FEATURE_SET_PAPER, calculate_mlp_features
-
-        feature_set = self.config.get("mlp_feature_set", FEATURE_SET_PAPER)
-        mlp_features = calculate_mlp_features(
-            df,
-            bwin=self.config.get("bwin", 5),
-            include_temporal=True,
-            feature_set=feature_set,
-        )
-        valid_indices = mlp_features.dropna().index
-        features = mlp_features.loc[valid_indices].values if len(valid_indices) > 0 else mlp_features.iloc[0:0].values
-        ensemble_configs = self.config.get("ensemble_models", None)
-        use_ensemble = bool(ensemble_configs and len(ensemble_configs) > 0)
-        return valid_indices, features, use_ensemble
-
-    def _predict_mlp_batch(self, features: Any, use_ensemble: bool):
-        if use_ensemble and self._mlp_ensemble is not None:
-            return self._mlp_ensemble.predict_batch(features)
-        probs = self._predict_single_model_probs(features)
-        predictions = probs.argmax(axis=1)
-        confidences = probs[np.arange(len(probs)), predictions]
-        return predictions, confidences, probs
-
-    def _predict_single_model_probs(self, features: Any):
-        import torch
-
-        X_tensor = torch.FloatTensor(features)
-        with torch.no_grad():
-            return self._mlp_model.predict_proba(X_tensor).cpu().numpy()
-
-    def _store_mlp_cache(
-        self,
-        df: pd.DataFrame,
-        valid_indices: pd.Index,
-        predictions: Any,
-        confidences: Any,
-        probs: Any,
-    ) -> None:
-        self._mlp_cache = {}
-        for df_idx, pred, conf, prob in zip(valid_indices, predictions, confidences, probs):
-            iloc_pos = df.index.get_loc(df_idx)
-            self._mlp_cache[iloc_pos] = {
-                "prediction": int(pred),
-                "confidence": float(conf),
-                "probs": prob.tolist() if hasattr(prob, 'tolist') else list(prob),
-            }
-
     def _determine_regime(self, mfi: float, adx: float) -> str:
         """Determine market regime using strategy-specific logic if available."""
         # Try to use the component's internal classification logic
@@ -355,7 +243,6 @@ class ComponentStrategyAdapter:
         self._decrement_timers()
         self._update_period_risk_state(row)
         values = self._extract_row_values(row)
-        mlp_prediction, mlp_confidence = self._get_cached_mlp_prediction(i)
         context = self._build_context(row, values)
         indicators = self._extract_indicators(row)
         market_data = self._build_market_data(row, values, indicators)
@@ -365,19 +252,43 @@ class ComponentStrategyAdapter:
                 row=row,
                 market_data=market_data,
                 context=context,
-                mlp_prediction=mlp_prediction,
-                mlp_confidence=mlp_confidence,
                 values=values,
             )
 
+        self._prepare_entry_strategy(
+            df=df,
+            i=i,
+            market_data=market_data,
+            context=context,
+        )
         return self._evaluate_entry(
             row=row,
             market_data=market_data,
             context=context,
-            mlp_prediction=mlp_prediction,
-            mlp_confidence=mlp_confidence,
             values=values,
         )
+
+    def _prepare_entry_strategy(
+        self,
+        df: pd.DataFrame,
+        i: int,
+        market_data: MarketData,
+        context: MarketContext,
+    ) -> None:
+        prepare_sync = getattr(self.entry_strategy, "prepare_entry_decision", None)
+        if not callable(prepare_sync):
+            return
+        window = int(getattr(getattr(self.entry_strategy, "params", None), "context_window_bars", 48) or 48)
+        history_df = df.iloc[max(0, i + 1 - max(window, 1)): i + 1].copy()
+        ctx = self._build_trading_context(
+            market_data,
+            context,
+            with_position=False,
+        )
+        try:
+            prepare_sync(ctx, history_df)
+        except Exception as e:
+            logger.warning("Entry decision preparation failed for %s: %s", self.symbol, e)
 
     def _decrement_timers(self) -> None:
         if self._cooldown_remaining > 0:
@@ -444,12 +355,6 @@ class ComponentStrategyAdapter:
             "avg_volume": avg_volume,
             "candle_ts": candle_ts,
         }
-
-    def _get_cached_mlp_prediction(self, i: int) -> tuple[int | None, float | None]:
-        if not self._uses_mlp_direction or self._mlp_cache is None or i not in self._mlp_cache:
-            return None, None
-        cached = self._mlp_cache[i]
-        return cached.get("prediction"), cached.get("confidence")
 
     def _build_context(self, row: pd.Series, values: Dict[str, Any]) -> MarketContext:
         context = build_market_context(
@@ -602,8 +507,6 @@ class ComponentStrategyAdapter:
         self,
         market_data: MarketData,
         context: MarketContext,
-        mlp_prediction: int | None,
-        mlp_confidence: float | None,
         with_position: bool,
     ) -> TradingContext:
         positions = MappingProxyType(
@@ -615,8 +518,6 @@ class ComponentStrategyAdapter:
             market=market_data,
             regime=context,
             positions=positions,
-            mlp_prediction=mlp_prediction,
-            mlp_confidence=mlp_confidence,
         )
 
     def _close_position(self) -> None:
@@ -634,8 +535,6 @@ class ComponentStrategyAdapter:
         row: pd.Series,
         market_data: MarketData,
         context: MarketContext,
-        mlp_prediction: int | None,
-        mlp_confidence: float | None,
         values: Dict[str, Any],
     ) -> Dict[str, Any]:
         close = values["close"]
@@ -654,7 +553,7 @@ class ComponentStrategyAdapter:
         if protective_action is not None:
             return protective_action
 
-        signal = self._run_exit_signal(market_data, context, mlp_prediction, mlp_confidence)
+        signal = self._run_exit_signal(market_data, context)
         if not signal:
             return {"action": "hold"}
         return self._finalize_exit_signal(signal, is_long)
@@ -735,12 +634,8 @@ class ComponentStrategyAdapter:
         self,
         market_data: MarketData,
         context: MarketContext,
-        mlp_prediction: int | None,
-        mlp_confidence: float | None,
     ) -> Signal | None:
-        ctx = self._build_trading_context(
-            market_data, context, mlp_prediction, mlp_confidence, with_position=True
-        )
+        ctx = self._build_trading_context(market_data, context, with_position=True)
         return self.exit_strategy.check_exit(ctx, self.current_position)
 
     def _finalize_exit_signal(self, signal: Signal, is_long: bool) -> Dict[str, Any]:
@@ -882,8 +777,6 @@ class ComponentStrategyAdapter:
         row: pd.Series,
         market_data: MarketData,
         context: MarketContext,
-        mlp_prediction: int | None,
-        mlp_confidence: float | None,
         values: Dict[str, Any],
     ) -> Dict[str, Any]:
         hold_reason = self._entry_hold_reason(row, context, values)
@@ -895,7 +788,7 @@ class ComponentStrategyAdapter:
             return {"action": "hold", "reason": "dynamic_lev_zero"}
         self._current_leverage = leverage
 
-        ctx = self._build_trading_context(market_data, context, mlp_prediction, mlp_confidence, with_position=False)
+        ctx = self._build_trading_context(market_data, context, with_position=False)
         signal = self.entry_strategy.check_entry(ctx)
         if not signal:
             return {"action": "hold"}

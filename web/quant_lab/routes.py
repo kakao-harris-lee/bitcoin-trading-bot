@@ -16,7 +16,6 @@ from .worker.tasks import OptimizationJob
 from .optimizer.study_manager import StudyManager
 from .optimizer.search_space import (
     REGIMES, ENTRY_COMPONENTS, EXIT_COMPONENTS, COMPONENT_PARAMS,
-    MLP_ENTRY_PARAMS, MLP_EXIT_PARAMS, MLP_ENSEMBLE_PARAMS, MLP_ADAPTER_PARAMS,
     REGIME_THRESHOLD_PARAMS,
 )
 from trading.core.runtime_defaults import (
@@ -84,8 +83,6 @@ _EXPERIMENTS_CACHE: Dict[str, Any] = {"ts": 0.0, "data": None}
 _EXPERIMENTS_CACHE_TTL_SECONDS = 30.0
 _REGIME_OBJECTIVE_NAMES = ["win_rate", "total_return", "max_drawdown"]
 _REGIME_OBJECTIVE_LABELS = ["Win Rate", "Total Return", "Max Drawdown"]
-_MLP_OBJECTIVE_NAMES = ["alpha_vs_bh", "total_return", "max_drawdown"]
-_MLP_OBJECTIVE_LABELS = ["Alpha vs B&H", "Total Return", "Max Drawdown"]
 _QUANT_LAB_JOB_INDEX_KEY = "quant_lab:jobs"
 
 
@@ -189,13 +186,13 @@ def build_suggested_study_name(
     """Build a timestamp-suffixed study name suggestion."""
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     default_asset = VALID_ASSETS[0] if VALID_ASSETS else "BTC"
-    if strategy_type == "mlp_direction":
-        return f"mlp_{(asset or default_asset).lower()}_{ts}"
+    _ = strategy_type
+    _ = asset or default_asset
     return f"regime_{ts}"
 
 
 def _infer_study_objectives(study) -> Tuple[List[str], List[str]]:
-    """Resolve objective names/labels for a study with backward-compatible fallback."""
+    """Resolve objective names/labels for a study."""
     attrs = getattr(study, "user_attrs", {}) or {}
     names = attrs.get("objective_names")
     labels = attrs.get("objective_labels")
@@ -204,12 +201,6 @@ def _infer_study_objectives(study) -> Tuple[List[str], List[str]]:
         and isinstance(labels, list) and len(labels) == 3
     ):
         return names, labels
-
-    # Backward compatibility for older studies without attrs.
-    for trial in getattr(study, "trials", []):
-        params = getattr(trial, "params", {}) or {}
-        if any(k.startswith(("entry_", "exit_", "ensemble_", "adapter_")) for k in params):
-            return _MLP_OBJECTIVE_NAMES, _MLP_OBJECTIVE_LABELS
 
     return _REGIME_OBJECTIVE_NAMES, _REGIME_OBJECTIVE_LABELS
 
@@ -308,16 +299,12 @@ def get_templates():
 def get_search_space():
     """Get search space configuration options."""
     return jsonify({
+        "strategy_types": ["regime"],
         "regimes": REGIMES,
         "entry_components": ENTRY_COMPONENTS,
         "exit_components": EXIT_COMPONENTS,
         "component_params": COMPONENT_PARAMS,
-        "mlp_direction": {
-            "entry_params": MLP_ENTRY_PARAMS,
-            "exit_params": MLP_EXIT_PARAMS,
-            "ensemble_params": MLP_ENSEMBLE_PARAMS,
-            "adapter_params": MLP_ADAPTER_PARAMS,
-        },
+        "llm_optimization_supported": False,
     })
 
 
@@ -331,17 +318,13 @@ def create_experiment():
     job_id = str(uuid.uuid4())
 
     # Determine strategy type first (needed for study name suggestion)
-    strategy_type = data.get('strategy_type', 'mlp_direction')
-    if strategy_type not in ('regime', 'mlp_direction'):
-        return jsonify({"error": f"Invalid strategy_type: '{strategy_type}'"}), 400
+    strategy_type = data.get('strategy_type', 'regime')
+    if strategy_type != 'regime':
+        return jsonify({"error": "Only regime optimization is currently supported."}), 400
 
     symbols = data.get('symbols', [])
     asset = normalize_asset(data.get('asset'))
     valid_assets_text = ", ".join(VALID_ASSETS)
-    if strategy_type == 'mlp_direction' and not asset and symbols:
-        asset = normalize_asset(symbols[0])
-    if strategy_type == 'mlp_direction' and not asset:
-        return jsonify({"error": f"MLP optimization requires 'asset' or symbol ({valid_assets_text})"}), 400
     if data.get('asset') and not asset:
         return jsonify({"error": f"Invalid asset: '{data.get('asset')}'. Must be {valid_assets_text}"}), 400
 
@@ -382,9 +365,7 @@ def create_experiment():
         data_path=validated_data_path,
         start_date=start_date,
         end_date=end_date,
-        symbols=[asset] if strategy_type == 'mlp_direction' and asset else (
-            symbols or [VALID_ASSETS[0] if VALID_ASSETS else "BTC"]
-        ),
+        symbols=symbols or [VALID_ASSETS[0] if VALID_ASSETS else "BTC"],
         max_trials=max_trials,
         max_hours=max_hours,
         search_config=data.get('search_config'),
@@ -650,14 +631,7 @@ def apply_trial_config(study_name: str, trial_number: int):
         if not trial:
             return jsonify({"error": f"Trial {trial_number} not found in study {study_name}"}), 404
 
-        # Detect strategy type from trial params
-        is_mlp = any(k.startswith(('entry_', 'exit_', 'ensemble_', 'adapter_'))
-                      for k in trial.params)
-
-        if is_mlp:
-            tuned_config = _transform_mlp_trial_to_config(trial.params, trial.values)
-        else:
-            tuned_config = _transform_trial_to_config(trial.params, trial.values)
+        tuned_config = _transform_trial_to_config(trial.params, trial.values)
 
         tuned_config['study_name'] = study_name
         tuned_config['trial_number'] = trial_number
@@ -681,52 +655,14 @@ def apply_trial_config(study_name: str, trial_number: int):
         backup_path = allocation_path + f'.backup.{datetime.now().strftime("%Y%m%d_%H%M%S")}'
         shutil.copy(allocation_path, backup_path)
 
-        if is_mlp:
-            # MLP: update existing strategy config with tuned params
-            target_strategy = data.get('target_strategy', strategy_name)
-            if target_strategy in allocation['strategies']:
-                strat = allocation['strategies'][target_strategy]
-            else:
-                strat = allocation['strategies'].setdefault(target_strategy, {
-                    'market': 'spot',
-                    'entry': {'class': 'MLPDirectionEntryStrategy', 'params': {}},
-                    'exit': {'class': 'MLPDirectionExitStrategy', 'params': {}},
-                })
-
-            # Apply entry params
-            entry_params = strat.get('entry', {}).get('params', {})
-            entry_params.update(tuned_config.get('entry_params', {}))
-            strat.setdefault('entry', {})['params'] = entry_params
-
-            # Apply exit params
-            exit_params = strat.get('exit', {}).get('params', {})
-            exit_params.update(tuned_config.get('exit_params', {}))
-            strat.setdefault('exit', {})['params'] = exit_params
-
-            # Apply ensemble weights
-            if 'ensemble_weights' in tuned_config:
-                ensemble = strat.get('ensemble_models', [])
-                weights = tuned_config['ensemble_weights']
-                weight_keys = ['weight_bwin3', 'weight_bwin4', 'weight_bwin5', 'weight_bwin7']
-                for i, key in enumerate(weight_keys):
-                    if i < len(ensemble) and key in weights:
-                        ensemble[i]['weight'] = weights[key]
-
-            # Apply adapter params
-            for key, val in tuned_config.get('adapter_params', {}).items():
-                strat[key] = val
-
-            strat['tuned_config'] = f'config/tuned/{strategy_name}.json'
-        else:
-            # Regime: add as new strategy
-            allocation['strategies'][strategy_name] = {
-                'market': 'spot',
-                'position_pct': 0.10,
-                'position_size': 0.01,
-                'use_smart_exit': True,
-                'tuned_config': f'config/tuned/{strategy_name}.json',
-                'regime_routing': tuned_config.get('regime_routing', {}),
-            }
+        allocation['strategies'][strategy_name] = {
+            'market': 'spot',
+            'position_pct': 0.10,
+            'position_size': 0.01,
+            'use_smart_exit': True,
+            'tuned_config': f'config/tuned/{strategy_name}.json',
+            'regime_routing': tuned_config.get('regime_routing', {}),
+        }
 
         # Save updated allocation.json
         with open(allocation_path, 'w', encoding='utf-8') as f:
@@ -802,50 +738,6 @@ def _transform_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[st
     for key, value in params.items():
         if key.startswith('regime_') and key[len('regime_'):] in REGIME_THRESHOLD_PARAMS:
             regime_thresholds[key[len('regime_'):]] = value
-    if regime_thresholds:
-        config['regime_thresholds'] = regime_thresholds
-
-    return config
-
-
-def _transform_mlp_trial_to_config(params: Dict[str, Any], values: tuple) -> Dict[str, Any]:
-    """Transform MLP Optuna trial params to structured config format.
-
-    Converts flat params like:
-        entry_buy_confidence_threshold: 0.3
-        exit_stop_loss_pct: 10.0
-        ensemble_weight_bwin3: 0.15
-        adapter_cash_in_bear: True
-
-    To structured format with entry_params, exit_params, ensemble_weights, adapter_params.
-    """
-    config: Dict[str, Any] = {
-        'strategy_type': 'mlp_direction',
-        'metrics': {
-            'alpha_vs_bh': values[0] if len(values) > 0 else None,
-            'objective_1': values[0] if len(values) > 0 else None,
-            'total_return': values[1] if len(values) > 1 else None,
-            'max_drawdown': values[2] if len(values) > 2 else None,
-        },
-        'entry_params': {},
-        'exit_params': {},
-        'ensemble_weights': {},
-        'adapter_params': {},
-    }
-
-    regime_thresholds = {}
-    for key, value in params.items():
-        if key.startswith('entry_'):
-            config['entry_params'][key[len('entry_'):]] = value
-        elif key.startswith('exit_'):
-            config['exit_params'][key[len('exit_'):]] = value
-        elif key.startswith('ensemble_'):
-            config['ensemble_weights'][key[len('ensemble_'):]] = value
-        elif key.startswith('adapter_'):
-            config['adapter_params'][key[len('adapter_'):]] = value
-        elif key.startswith('regime_') and key[len('regime_'):] in REGIME_THRESHOLD_PARAMS:
-            regime_thresholds[key[len('regime_'):]] = value
-
     if regime_thresholds:
         config['regime_thresholds'] = regime_thresholds
 

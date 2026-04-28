@@ -68,13 +68,18 @@ from .config_schema import (
     ConfigValidationError,
 )
 
-# MLP Direction strategy components (Parente & Rizzuti 2025)
-from .mlp_direction_entry import MLPDirectionEntryParams, MLPDirectionEntryStrategy
-from .mlp_direction_exit import MLPDirectionExitParams, MLPDirectionExitStrategy
+# LLM Direction strategy components
+from .llm_direction_entry import (
+    LLMDecisionEntryParams,
+    LLMDecisionEntryStrategy,
+    LLMTradeDecision,
+    LLMClientConfig,
+    create_llm_decision_client,
+)
+from .llm_direction_exit import LLMDirectionExitParams, LLMDirectionExitStrategy
+from .llm_hybrid_exit import LLMHybridExitParams, LLMHybridExitStrategy
 from .regime_long_v2_entry import RegimeLongV2EntryParams, RegimeLongV2EntryStrategy
 from .regime_long_v2_exit import RegimeLongV2ExitParams, RegimeLongV2ExitStrategy
-from .hybrid_long_entry import HybridLongEntryParams, HybridLongEntryStrategy
-from .hybrid_long_exit import HybridLongExitParams, HybridLongExitStrategy
 from .symbol_selector import SymbolSelectorConfig, SymbolScore, DynamicSymbolSelector
 
 __all__ = [
@@ -109,21 +114,21 @@ __all__ = [
     "validate_strategy_config",
     "has_new_config_format",
     "ConfigValidationError",
-    # MLP Direction implementations (Parente & Rizzuti 2025)
-    "MLPDirectionEntryStrategy",
-    "MLPDirectionEntryParams",
-    "MLPDirectionExitStrategy",
-    "MLPDirectionExitParams",
+    # LLM Direction implementations
+    "LLMDecisionEntryStrategy",
+    "LLMDecisionEntryParams",
+    "LLMTradeDecision",
+    "LLMClientConfig",
+    "create_llm_decision_client",
+    "LLMDirectionExitStrategy",
+    "LLMDirectionExitParams",
+    "LLMHybridExitStrategy",
+    "LLMHybridExitParams",
     # Regime long v2
     "RegimeLongV2EntryStrategy",
     "RegimeLongV2EntryParams",
     "RegimeLongV2ExitStrategy",
     "RegimeLongV2ExitParams",
-    # Hybrid long v2
-    "HybridLongEntryStrategy",
-    "HybridLongEntryParams",
-    "HybridLongExitStrategy",
-    "HybridLongExitParams",
     # Symbol selector
     "SymbolSelectorConfig",
     "SymbolScore",

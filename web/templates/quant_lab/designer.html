@@ -164,7 +164,7 @@
                     study_name: '',
                     start_date: '{{ default_start_date }}',
                     end_date: '{{ default_end_date }}',
-                    strategy_type: 'mlp_direction',
+                    strategy_type: 'regime',
                     asset: '{{ default_asset }}',
                     max_trials: 500,
                     max_hours: null,
@@ -213,10 +213,6 @@
 
                 buildSuggestedStudyName() {
                     const ts = this.formatTimestamp();
-                    if (this.config.strategy_type === 'mlp_direction') {
-                        const asset = (this.config.asset || 'BTC').toLowerCase();
-                        return `mlp_${asset}_${ts}`;
-                    }
                     return `regime_${ts}`;
                 },
 

@@ -101,7 +101,7 @@ class ComparisonReportGenerator:
 
         Args:
             report_date: Date to generate report for (YYYY-MM-DD)
-            strategy_name: Strategy identifier (e.g., "mlp_direction_btc")
+            strategy_name: Strategy identifier (e.g., "llm_direction_btc")
 
         Returns:
             DailyComparisonReport with all metrics and discrepancies

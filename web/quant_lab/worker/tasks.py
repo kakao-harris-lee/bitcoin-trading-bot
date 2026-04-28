@@ -8,7 +8,7 @@ import os
 from datetime import datetime
 
 from ..optimizer.study_manager import StudyManager
-from ..optimizer.objective import RegimeBacktestObjective, MLPDirectionObjective
+from ..optimizer.objective import RegimeBacktestObjective
 from ..optimizer.search_space import SearchSpaceConfig
 
 
@@ -63,13 +63,11 @@ class OptimizationJob:
     # MLflow tracking
     mlflow_experiment: Optional[str] = None
 
-    # Strategy type: "regime" or "mlp_direction"
+    # Strategy type: regime-only (LLM optimization not implemented here)
     strategy_type: str = "regime"
 
-    # Asset for MLP optimization (BTC, ETH, SOL)
+    # Optional compatibility fields retained for persisted jobs.
     asset: Optional[str] = None
-
-    # Config path for MLP (allocation.json)
     config_path: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -111,44 +109,26 @@ def run_optimization(job: OptimizationJob) -> Dict[str, Any]:
     manager = StudyManager()
     study = manager.create_study(job.study_name)
 
-    # Build objective based on strategy_type
-    if job.strategy_type == "mlp_direction":
-        study.set_user_attr("strategy_type", "mlp_direction")
-        study.set_user_attr(
-            "objective_names",
-            ["alpha_vs_bh", "total_return", "max_drawdown"],
-        )
-        study.set_user_attr(
-            "objective_labels",
-            ["Alpha vs B&H", "Total Return", "Max Drawdown"],
-        )
-        objective = MLPDirectionObjective(
-            asset=job.asset or (job.symbols[0] if job.symbols else "BTC"),
-            config_path=job.config_path or "config/strategies/allocation.json",
-            start_date=job.start_date,
-            end_date=job.end_date,
-        )
-    else:
-        study.set_user_attr("strategy_type", "regime")
-        study.set_user_attr(
-            "objective_names",
-            ["win_rate", "total_return", "max_drawdown"],
-        )
-        study.set_user_attr(
-            "objective_labels",
-            ["Win Rate", "Total Return", "Max Drawdown"],
-        )
-        # Default: regime-based optimization
-        search_config = SearchSpaceConfig()
-        if job.search_config:
-            search_config.regime_configs = job.search_config
-        objective = RegimeBacktestObjective(
-            data_path=job.data_path,
-            start_date=job.start_date,
-            end_date=job.end_date,
-            symbols=job.symbols,
-            search_config=search_config,
-        )
+    # Build objective (Quant Lab currently supports regime optimization only)
+    study.set_user_attr("strategy_type", "regime")
+    study.set_user_attr(
+        "objective_names",
+        ["win_rate", "total_return", "max_drawdown"],
+    )
+    study.set_user_attr(
+        "objective_labels",
+        ["Win Rate", "Total Return", "Max Drawdown"],
+    )
+    search_config = SearchSpaceConfig()
+    if job.search_config:
+        search_config.regime_configs = job.search_config
+    objective = RegimeBacktestObjective(
+        data_path=job.data_path,
+        start_date=job.start_date,
+        end_date=job.end_date,
+        symbols=job.symbols,
+        search_config=search_config,
+    )
 
     # Update job status with initial metadata
     _update_job_status(job.job_id, JobStatus.RUNNING, {

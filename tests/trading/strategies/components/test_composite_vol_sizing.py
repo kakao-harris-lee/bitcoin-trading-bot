@@ -25,24 +25,18 @@ class TestComponentAdapterVolSizing:
             "stop_loss_cooldown": 0,
             "drawdown_bear_threshold": 1.0,
             "entry": {
-                "class": "MLPDirectionEntryStrategy",
+                "class": "LLMDecisionEntryStrategy",
                 "params": {
-                    "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
-                    "buy_confidence_threshold": 0.0,
+                    "confidence_threshold": 0.0,
                     "position_size": 0.9,
                     "market": "spot",
-                    "mlp_feature_set": "paper_36",
                 },
             },
             "exit": {
-                "class": "MLPDirectionExitStrategy",
+                "class": "LLMHybridExitStrategy",
                 "params": {
                     "stop_loss_pct": 10.0,
-                    "use_mlp_sell_exit": True,
-                    "sell_confidence_threshold": 0.0,
-                    "model_path": "models/mlp_direction/btc_bwin5_fwin2/model_final.pt",
                     "market": "spot",
-                    "mlp_feature_set": "paper_36",
                 },
             },
         }
@@ -54,7 +48,7 @@ class TestComponentAdapterVolSizing:
         factory = StrategyFactory(redis=None)
         adapter = ComponentStrategyAdapter(
             factory=factory,
-            strategy_name="mlp_direction",
+            strategy_name="llm_direction",
             config=config,
         )
         adapter.symbol = "BTC"

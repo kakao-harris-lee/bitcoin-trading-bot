@@ -143,7 +143,7 @@ class MetricsCollector:
         metrics = MetricsCollector()
 
         # Record signal
-        metrics.record_signal("BTC", "mlp_direction_btc")
+        metrics.record_signal("BTC", "llm_direction_btc")
 
         # Record trade
         metrics.record_trade("BTC", "buy", 100000)

@@ -758,6 +758,74 @@ def read_redis_orders(limit: int = 200) -> list:
         return []
 
 
+def read_redis_decisions(limit: int = 200) -> list:
+    """Read recent strategy decisions from Redis."""
+    try:
+        r = get_redis()
+        messages = r.xrevrange('strategy:decisions', count=limit)
+        decisions = []
+        for msg_id, data in messages:
+            ts_millis = _trade_timestamp_ms(data.get('timestamp', msg_id.split('-')[0]))
+            ts_dt = datetime.fromtimestamp(ts_millis / 1000)
+            decisions.append(
+                {
+                    'id': msg_id,
+                    'timestamp': ts_dt.isoformat(),
+                    'timestamp_ms': ts_millis,
+                    'symbol': _normalize_symbol(data.get('symbol', '')),
+                    'strategy': data.get('strategy', ''),
+                    'decision': str(data.get('decision', data.get('action', 'WAIT'))).upper(),
+                    'reason': data.get('reason', ''),
+                    'regime': data.get('regime', ''),
+                    'market': data.get('market', 'spot'),
+                    'exchange': 'binance',
+                }
+            )
+        return decisions
+    except Exception as e:
+        print(f"Error reading Redis decisions: {e}")
+        return []
+
+
+def read_redis_position_events(limit: int = 200) -> list:
+    """Read recent position updates from Redis."""
+    try:
+        r = get_redis()
+        messages = r.xrevrange('positions:events', count=limit)
+        events = []
+        for msg_id, data in messages:
+            ts_millis = _trade_timestamp_ms(data.get('timestamp_ms', msg_id.split('-')[0]))
+            ts_dt = datetime.fromtimestamp(ts_millis / 1000)
+            fields = {}
+            raw_fields = data.get('fields')
+            if raw_fields:
+                try:
+                    parsed = json.loads(raw_fields)
+                    if isinstance(parsed, dict):
+                        fields = parsed
+                except (TypeError, json.JSONDecodeError):
+                    fields = {}
+            events.append(
+                {
+                    'id': msg_id,
+                    'timestamp': ts_dt.isoformat(),
+                    'timestamp_ms': ts_millis,
+                    'symbol': _normalize_symbol(data.get('symbol', '')),
+                    'strategy': fields.get('strategy', ''),
+                    'event': data.get('event', ''),
+                    'market': data.get('market', 'spot'),
+                    'exchange': 'binance',
+                    'quantity': float(fields.get('quantity', 0) or 0),
+                    'entry_price': float(fields.get('entry_price', 0) or 0),
+                    'reason': data.get('reason', ''),
+                }
+            )
+        return events
+    except Exception as e:
+        print(f"Error reading Redis position events: {e}")
+        return []
+
+
 def _require_admin_token() -> bool:
     """Very small guard for mutating endpoints."""
     token = os.getenv("WEB_ADMIN_TOKEN")
@@ -1556,6 +1624,204 @@ def _summarize_filtered_trades(filtered_trades: list[dict]) -> dict:
     }
 
 
+def _find_nearest_timeline_event(
+    events: list[dict],
+    *,
+    symbol: str,
+    strategy: str | None,
+    timestamp_ms: int,
+    window_ms: int = 5 * 60 * 1000,
+) -> dict | None:
+    best_match = None
+    best_delta = None
+    strategy_text = str(strategy or '')
+    for event in events:
+        if event.get('symbol') != symbol:
+            continue
+        if strategy_text and event.get('strategy') and event.get('strategy') != strategy_text:
+            continue
+        delta = abs(int(event.get('timestamp_ms', 0) or 0) - timestamp_ms)
+        if delta > window_ms:
+            continue
+        if best_delta is None or delta < best_delta:
+            best_match = event
+            best_delta = delta
+    return best_match
+
+
+def build_execution_timeline(limit: int = 300) -> list[dict]:
+    """Build a mixed decision/order/trade/position timeline for operator review."""
+    tracked_symbols = {'BTC', 'ETH'}
+
+    def _is_tracked(symbol: str | None, strategy: str | None) -> bool:
+        symbol_text = _normalize_symbol(symbol or '')
+        strategy_text = str(strategy or '')
+        return symbol_text in tracked_symbols and strategy_text.startswith('llm_direction_')
+
+    decisions = [item for item in read_redis_decisions(limit=limit) if _is_tracked(item.get('symbol'), item.get('strategy'))]
+    orders = [item for item in read_redis_orders(limit=limit) if _is_tracked(item.get('symbol'), item.get('strategy'))]
+    trades = [item for item in read_redis_trades(limit=limit) if _is_tracked(item.get('symbol'), item.get('strategy'))]
+    position_events = [item for item in read_redis_position_events(limit=limit) if _is_tracked(item.get('symbol'), item.get('strategy'))]
+
+    trades_by_order_id = {str(trade.get('id')): trade for trade in trades}
+    timeline: list[dict] = []
+
+    for decision in decisions:
+        nearest_order = _find_nearest_timeline_event(
+            orders,
+            symbol=decision.get('symbol', ''),
+            strategy=decision.get('strategy'),
+            timestamp_ms=int(decision.get('timestamp_ms', 0) or 0),
+            window_ms=75 * 60 * 1000,
+        )
+        route = _classify_execution_route(decision.get('strategy'), decision.get('reason'))
+        timeline.append(
+            {
+                'id': f"decision:{decision['id']}",
+                'timestamp': decision['timestamp'],
+                'timestamp_ms': decision['timestamp_ms'],
+                'symbol': decision.get('symbol', ''),
+                'strategy': decision.get('strategy', ''),
+                'strategy_label': _format_strategy_label(decision.get('strategy'), decision.get('symbol')),
+                'event_type': 'decision',
+                'title': decision.get('decision', 'WAIT'),
+                'detail': decision.get('regime', '') or decision.get('market', 'spot'),
+                'reason': decision.get('reason', ''),
+                'route': route,
+                'status': 'acted' if nearest_order else 'observed',
+                'correlation': nearest_order.get('id') if nearest_order else None,
+            }
+        )
+
+    for order in orders:
+        order_ts = _trade_timestamp_ms(order.get('timestamp'))
+        order_trade = trades_by_order_id.get(str(order.get('id')))
+        position_event = _find_nearest_timeline_event(
+            position_events,
+            symbol=order.get('symbol', ''),
+            strategy=order.get('strategy'),
+            timestamp_ms=order_ts,
+        )
+        route = _classify_execution_route(order.get('strategy'), order.get('reason'))
+        timeline.append(
+            {
+                'id': f"order:{order['id']}",
+                'timestamp': order.get('timestamp'),
+                'timestamp_ms': order_ts,
+                'symbol': _normalize_symbol(order.get('symbol', '')),
+                'strategy': order.get('strategy', ''),
+                'strategy_label': _format_strategy_label(order.get('strategy'), order.get('symbol')),
+                'event_type': 'order',
+                'title': order.get('action', ''),
+                'detail': order.get('market', 'spot'),
+                'reason': order.get('reason', ''),
+                'route': route,
+                'status': 'filled' if order_trade else 'published',
+                'correlation': order_trade.get('id') if order_trade else position_event.get('id') if position_event else None,
+            }
+        )
+
+    for trade in trades:
+        trade_ts = int(trade.get('timestamp_ms', 0) or _trade_timestamp_ms(trade.get('timestamp')))
+        position_event = _find_nearest_timeline_event(
+            position_events,
+            symbol=trade.get('symbol', ''),
+            strategy=trade.get('strategy'),
+            timestamp_ms=trade_ts,
+        )
+        route = _classify_execution_route(trade.get('strategy'), trade.get('reason'))
+        timeline.append(
+            {
+                'id': f"trade:{trade['id']}",
+                'timestamp': trade.get('timestamp'),
+                'timestamp_ms': trade_ts,
+                'symbol': trade.get('symbol', ''),
+                'strategy': trade.get('strategy', ''),
+                'strategy_label': trade.get('strategy_label') or _format_strategy_label(trade.get('strategy'), trade.get('symbol')),
+                'event_type': 'trade',
+                'title': trade.get('action', ''),
+                'detail': f"${format(trade.get('price', 0), ',.4f')} · {trade.get('volume', 0):.4f}",
+                'reason': trade.get('reason', ''),
+                'route': route,
+                'status': 'recorded',
+                'correlation': position_event.get('id') if position_event else None,
+                'synthetic': trade.get('synthetic', False),
+                'recovered': trade.get('recovered', False),
+            }
+        )
+
+    for event in position_events:
+        route = _classify_execution_route(event.get('strategy'), event.get('reason'))
+        event_kind = str(event.get('event', '')).replace('position_', '').upper() or 'POSITION'
+        detail = 'position opened/updated'
+        if event.get('event') == 'position_clear':
+            detail = 'position cleared'
+        elif event.get('quantity', 0) > 0:
+            detail = f"{event.get('quantity', 0):.4f} @ ${event.get('entry_price', 0):,.4f}"
+        timeline.append(
+            {
+                'id': f"position:{event['id']}",
+                'timestamp': event.get('timestamp'),
+                'timestamp_ms': event.get('timestamp_ms'),
+                'symbol': event.get('symbol', ''),
+                'strategy': event.get('strategy', ''),
+                'strategy_label': _format_strategy_label(event.get('strategy'), event.get('symbol')),
+                'event_type': 'position',
+                'title': event_kind,
+                'detail': detail,
+                'reason': event.get('reason', ''),
+                'route': route,
+                'status': 'applied',
+                'correlation': None,
+            }
+        )
+
+    timeline.sort(key=lambda item: int(item.get('timestamp_ms', 0) or 0), reverse=True)
+    return timeline
+
+
+def _filter_execution_timeline(
+    timeline: list[dict],
+    *,
+    symbol_filter: str | None,
+    start_date: str | None,
+    end_date: str | None,
+) -> list[dict]:
+    filtered = timeline
+    if symbol_filter:
+        symbol_text = symbol_filter.upper()
+        filtered = [item for item in filtered if symbol_text in str(item.get('symbol', '')).upper()]
+    if start_date:
+        filtered = [item for item in filtered if str(item.get('timestamp', '')) >= start_date]
+    if end_date:
+        filtered = [item for item in filtered if str(item.get('timestamp', '')) <= end_date + 'T23:59:59']
+    filtered.sort(key=lambda item: item.get('timestamp', ''), reverse=True)
+    return filtered
+
+
+def _summarize_execution_timeline(timeline: list[dict]) -> dict:
+    event_counts = {'decision': 0, 'order': 0, 'trade': 0, 'position': 0}
+    route_counts = {'llm': 0, 'fallback': 0, 'other': 0}
+    symbols: set[str] = set()
+    recovered_count = 0
+    for item in timeline:
+        event_type = str(item.get('event_type', ''))
+        event_counts[event_type] = event_counts.get(event_type, 0) + 1
+        route = str(item.get('route', 'other'))
+        route_counts[route] = route_counts.get(route, 0) + 1
+        symbol = item.get('symbol')
+        if symbol:
+            symbols.add(str(symbol))
+        if item.get('synthetic') or item.get('recovered'):
+            recovered_count += 1
+    return {
+        'event_counts': event_counts,
+        'route_counts': route_counts,
+        'unique_symbols': sorted(symbols),
+        'recovered_count': recovered_count,
+    }
+
+
 def _parse_iso8601(value: str | None) -> datetime | None:
     """Parse ISO timestamp defensively."""
     if not value:
@@ -1697,6 +1963,34 @@ def get_trades():
         'has_more': end_idx < total_count,
         'summary': summary,
     })
+
+
+@app.route("/api/execution_timeline")
+def get_execution_timeline():
+    """Get a mixed decision/order/trade/position timeline for recent execution flow."""
+    params = _parse_trade_query_params()
+    page = params['page']
+    limit = params['limit']
+    timeline = build_execution_timeline(limit=500)
+    filtered = _filter_execution_timeline(
+        timeline,
+        symbol_filter=params['symbol_filter'],
+        start_date=params['start_date'],
+        end_date=params['end_date'],
+    )
+    paginated, total_count, end_idx = _paginate_trades(filtered, page=page, limit=limit)
+    summary = _summarize_execution_timeline(filtered)
+
+    return jsonify(
+        {
+            'events': paginated,
+            'total_count': total_count,
+            'page': page,
+            'limit': limit,
+            'has_more': end_idx < total_count,
+            'summary': summary,
+        }
+    )
 
 
 @app.route("/api/trades/recover", methods=["POST"])

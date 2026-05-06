@@ -7,38 +7,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ css_version or 1 }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <style>
-        /* Spot account summary styles */
-        .total-equity-banner {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: white;
-        }
-
-        .total-equity-banner .label {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-
-        .total-equity-banner .value {
-            font-size: 28px;
-            font-weight: bold;
-        }
-
-        .exchange-grid.hybrid-view {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        .exchange-card.spot-card {
-            border-left: 4px solid #10b981;
-        }
-
         /* Position card market indicator */
         .position-card[data-market="spot"] {
             border-left: 4px solid #10b981;
@@ -74,87 +42,58 @@
             </div>
         </header>
 
-        <!-- Exchange Balances Section -->
-        <section class="exchange-section">
-            <h2>Account Summary</h2>
-
-            <!-- Total Equity -->
-            <div class="total-equity-banner">
-                <span class="label">Total Equity (Spot)</span>
-                <span class="value" id="total-equity">-</span>
-            </div>
-
-            <!-- Spot Card -->
-            <div class="exchange-grid hybrid-view">
-                <div class="exchange-card spot-card">
-                    <div class="exchange-header">
-                        <span class="exchange-name">Spot</span>
-                        <span class="exchange-status" id="spot-status">Loading...</span>
-                    </div>
-                    <div class="exchange-balances">
-                        <div class="balance-row">
-                            <span class="label">Balance</span>
-                            <span class="value" id="spot-balance">-</span>
-                        </div>
-                        <div class="balance-row">
-                            <span class="label">Positions</span>
-                            <span class="value" id="spot-positions-count">-</span>
-                        </div>
-                    </div>
+        <section class="operations-section">
+            <div class="operations-header">
+                <div>
+                    <h2>Operations Console</h2>
+                    <p class="operations-subtitle">Current runtime, risk, positions, and execution pipeline in one view.</p>
                 </div>
             </div>
-        </section>
-
-        <!-- Portfolio Summary Section -->
-        <section class="portfolio-section">
-            <div class="portfolio-summary">
-                <div class="portfolio-stat">
-                    <span class="label">Total Capital</span>
-                    <span id="total-capital" class="value">-</span>
+            <div class="ops-health-grid">
+                <div class="ops-card">
+                    <span class="ops-label">Engine</span>
+                    <strong id="ops-engine-state" class="ops-value">-</strong>
+                    <span id="ops-engine-detail" class="ops-detail">-</span>
                 </div>
-                <div class="portfolio-stat">
-                    <span class="label">Total Value</span>
-                    <span id="total-value" class="value">-</span>
+                <div class="ops-card">
+                    <span class="ops-label">Kill Switch</span>
+                    <strong id="ops-kill-state" class="ops-value">-</strong>
+                    <span id="ops-kill-detail" class="ops-detail">-</span>
                 </div>
-                <div class="portfolio-stat">
-                    <span class="label">Exposure</span>
-                    <span id="exposure-pct" class="value">-</span>
+                <div class="ops-card">
+                    <span class="ops-label">Open Positions</span>
+                    <strong id="ops-position-state" class="ops-value">-</strong>
+                    <span id="ops-position-detail" class="ops-detail">-</span>
                 </div>
-                <div class="portfolio-stat">
-                    <span class="label">Unrealized P&L</span>
-                    <span id="unrealized-pnl" class="value">-</span>
+                <div class="ops-card">
+                    <span class="ops-label">Total Equity</span>
+                    <strong id="ops-equity-state" class="ops-value">-</strong>
+                    <span id="ops-equity-detail" class="ops-detail">-</span>
                 </div>
-                <div class="portfolio-stat">
-                    <span class="label">Iterations</span>
-                    <span id="iteration-count" class="value">-</span>
+                <div class="ops-card">
+                    <span class="ops-label">Exposure</span>
+                    <strong id="ops-exposure-state" class="ops-value">-</strong>
+                    <span id="ops-exposure-detail" class="ops-detail">-</span>
                 </div>
-            </div>
-        </section>
-
-        <!-- Market Snapshot Section -->
-        <section class="assets-section">
-            <div class="assets-header">
-                <h2>Market Snapshot</h2>
-                <div class="assets-controls">
-                    <span id="asset-card-meta" class="asset-card-meta">-</span>
-                    <button id="asset-card-toggle" class="asset-card-toggle" type="button" style="display:none;">
-                        Show All
-                    </button>
+                <div class="ops-card">
+                    <span class="ops-label">Trade Pipeline</span>
+                    <strong id="ops-pipeline-state" class="ops-value">-</strong>
+                    <span id="ops-pipeline-detail" class="ops-detail">-</span>
                 </div>
             </div>
-            <div id="assets-grid" class="assets-grid">
-                <p class="loading">Loading market snapshot...</p>
+            <div id="ops-warnings" class="ops-warning-rail">
+                <div class="ops-warning-item neutral">Loading runtime warnings...</div>
             </div>
         </section>
 
         <!-- Tab Navigation -->
         <nav class="tab-nav">
             <button class="tab-btn active" data-tab="positions">Positions</button>
-            <button class="tab-btn" data-tab="history">History</button>
-            <button class="tab-btn" data-tab="signals">Signals</button>
+            <button class="tab-btn" data-tab="history">Timeline</button>
+            <button class="tab-btn" data-tab="signals">Runtime</button>
             <button class="tab-btn" data-tab="analytics">Analytics</button>
             <button class="tab-btn" data-tab="backtest">Backtest</button>
-            <button class="tab-btn" data-tab="strategies">Strategies</button>
+            <button class="tab-btn" data-tab="strategies">Controls</button>
             <a href="/quant-lab" class="tab-btn tab-link">Quant Lab</a>
         </nav>
 
@@ -184,7 +123,7 @@
         <!-- Tab Content: History -->
         <div id="history" class="tab-content">
             <div class="tab-panel">
-                <h3>Trade History</h3>
+                <h3>Execution Timeline</h3>
                 <!-- Filters -->
                 <div class="filters-row">
                     <div class="filter-group">
@@ -204,11 +143,11 @@
                 </div>
                 <div id="history-summary" class="positions-summary history-summary">
                     <div class="summary-stat">
-                        <span class="label">Total Trades</span>
+                        <span class="label">Total Events</span>
                         <span id="history-total-trades" class="value">-</span>
                     </div>
                     <div class="summary-stat">
-                        <span class="label">Buy / Sell</span>
+                        <span class="label">Decision / Order</span>
                         <span id="history-buy-sell" class="value">-</span>
                     </div>
                     <div class="summary-stat">
@@ -220,17 +159,17 @@
                         <span id="history-route-split" class="value">-</span>
                     </div>
                     <div class="summary-stat">
-                        <span class="label">Realized P&L</span>
+                        <span class="label">Trade / Position</span>
                         <span id="history-realized-pnl" class="value">-</span>
                     </div>
                     <div class="summary-stat">
-                        <span class="label">Win Rate</span>
+                        <span class="label">Recovered Fills</span>
                         <span id="history-win-rate" class="value">-</span>
                     </div>
                 </div>
                 <!-- Trade Table -->
                 <div id="history-container" class="history-container">
-                    <p class="loading">Loading trade history...</p>
+                    <p class="loading">Loading execution timeline...</p>
                 </div>
                 <!-- Pagination -->
                 <div id="history-pagination" class="pagination-row">
@@ -241,7 +180,7 @@
         <!-- Tab Content: Signals -->
         <div id="signals" class="tab-content">
             <div class="tab-panel">
-                <h3>BTC/ETH LLM Decisions</h3>
+                <h3>BTC/ETH LLM Runtime Console</h3>
                 <div id="signals-summary" class="positions-summary history-summary">
                     <div class="summary-stat">
                         <span class="label">Tracked Symbols</span>
@@ -456,7 +395,8 @@
         <!-- Tab Content: Strategies -->
         <div id="strategies" class="tab-content">
             <div class="tab-panel">
-                <h3>BTC/ETH LLM Strategy State</h3>
+                <h3>Strategy Controls & Internals</h3>
+                <p class="panel-subtitle">Runtime decisions now live in the Runtime tab. Use this tab for strategy toggles, regime routing, and internal state inspection.</p>
                 <!-- Summary Stats -->
                 <div id="strategies-summary" class="strategies-summary">
                     <div class="summary-stat">

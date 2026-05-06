@@ -481,6 +481,51 @@ class TestTradesHistoryAPI:
         assert data['trades'][0]['execution_route'] == 'llm'
         assert data['trades'][0]['strategy_label'] == 'BTC LLM'
 
+    @patch('web.app.build_execution_timeline')
+    def test_execution_timeline_endpoint_returns_events(self, mock_build_timeline, client):
+        """Execution timeline should return mixed event rows and summary."""
+        mock_build_timeline.return_value = [
+            {
+                'id': 'decision:1',
+                'timestamp': '2026-02-08T10:00:00',
+                'timestamp_ms': 1770000000000,
+                'symbol': 'BTC',
+                'strategy': 'llm_direction_btc',
+                'strategy_label': 'BTC LLM',
+                'event_type': 'decision',
+                'title': 'BUY',
+                'detail': 'BULL_STRONG',
+                'reason': 'LLM decision',
+                'route': 'llm',
+                'status': 'acted',
+                'correlation': 'order-1',
+            },
+            {
+                'id': 'order:1',
+                'timestamp': '2026-02-08T10:00:01',
+                'timestamp_ms': 1770000001000,
+                'symbol': 'BTC',
+                'strategy': 'llm_direction_btc',
+                'strategy_label': 'BTC LLM',
+                'event_type': 'order',
+                'title': 'BUY',
+                'detail': 'spot',
+                'reason': 'Order published',
+                'route': 'llm',
+                'status': 'filled',
+                'correlation': 'trade-1',
+            },
+        ]
+
+        response = client.get('/api/execution_timeline?page=1&limit=50')
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['total_count'] == 2
+        assert len(data['events']) == 2
+        assert data['summary']['event_counts']['decision'] == 1
+        assert data['summary']['event_counts']['order'] == 1
+
 
 class TestSignalsAPI:
     """Test /api/signals/<exchange> endpoint."""

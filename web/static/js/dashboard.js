@@ -21,11 +21,12 @@ const PRICE_HISTORY_LENGTH = 60; // Keep last 60 data points
 
 // Entry prices for position indicators (symbol -> entry price)
 const entryPrices = {};
-const MARKET_SNAPSHOT_FOCUS_LIMIT = 16;
+const MARKET_SNAPSHOT_FOCUS_LIMIT = 2;
 
 let marketSnapshotExpanded = false;
-let selectorFocusSymbols = new Set();
 let latestStatusPayload = null;
+let latestSummaryPayload = null;
+let latestStrategiesPayload = null;
 
 function normalizeApiBase(base) {
     const trimmed = String(base || '').trim();
@@ -479,6 +480,30 @@ function buildAssetCardsData(statusData) {
     return cards;
 }
 
+function getLiveSpotPrice(symbol, fallback = 0) {
+    const normalizedSymbol = normalizeSymbol(symbol);
+    const liveAsset = latestStatusPayload?.assets?.[`${normalizedSymbol}_spot`] || null;
+    return Number(
+        liveAsset?.price
+        ?? latestStatusPayload?.prices?.[normalizedSymbol]
+        ?? latestStatusPayload?.prices?.[`${normalizedSymbol}USDT`]
+        ?? fallback
+        ?? 0
+    );
+}
+
+function syncPositionPricesWithStatus(data) {
+    if (!data || !Array.isArray(data.positions)) return data;
+    return {
+        ...data,
+        positions: data.positions.map((pos) => ({
+            ...pos,
+            symbol: normalizeSymbol(pos.symbol),
+            current_price: getLiveSpotPrice(pos.symbol, pos.current_price),
+        })),
+    };
+}
+
 // Update price history for sparklines
 function updatePriceHistory(symbol, price) {
     if (!price || price <= 0) return;
@@ -617,14 +642,14 @@ function initAssetCardToggle() {
 }
 
 function getAssetPriority(asset, symbol) {
+    if (isTrackedExperimentSymbol(symbol)) return -1;
     if (asset.position_active) return 0;
-    if (selectorFocusSymbols.has(symbol)) return 1;
 
     const regime = String(asset.regime || '').toUpperCase();
-    if (regime.startsWith('BULL')) return 2;
-    if (regime.startsWith('SIDEWAYS')) return 3;
-    if (regime.startsWith('BEAR')) return 4;
-    return 5;
+    if (regime.startsWith('BULL')) return 1;
+    if (regime.startsWith('SIDEWAYS')) return 2;
+    if (regime.startsWith('BEAR')) return 3;
+    return 4;
 }
 
 function compareAssetCards(a, b) {
@@ -649,7 +674,7 @@ function updateAssetCardControls(totalCount, visibleCount) {
         if (totalCount <= 0) {
             metaEl.textContent = 'No symbols';
         } else if (totalCount > visibleCount) {
-            metaEl.textContent = `${visibleCount}/${totalCount} shown (focus)`;
+            metaEl.textContent = `${visibleCount}/${totalCount} shown (BTC/ETH focus)`;
         } else {
             metaEl.textContent = `All ${totalCount} shown`;
         }
@@ -661,20 +686,7 @@ function updateAssetCardControls(totalCount, visibleCount) {
         return;
     }
     toggleEl.style.display = '';
-    toggleEl.textContent = marketSnapshotExpanded ? 'Show Focus' : `Show All (${totalCount})`;
-}
-
-function buildSelectorFocusSet(strategies) {
-    const next = new Set();
-    for (const strategy of strategies) {
-        const selectedSymbols = strategy.selector_state?.selected_symbols;
-        if (!Array.isArray(selectedSymbols)) continue;
-        for (const raw of selectedSymbols) {
-            const symbol = normalizeSymbol(raw);
-            if (symbol) next.add(symbol);
-        }
-    }
-    return next;
+    toggleEl.textContent = marketSnapshotExpanded ? 'Show BTC/ETH Focus' : `Show Full Watchlist (${totalCount})`;
 }
 
 // Render asset cards (exchange-aware)
@@ -840,14 +852,152 @@ function renderAssetCards(assets) {
 function updatePortfolio(portfolio) {
     if (!portfolio) return;
 
-    document.getElementById('total-capital').textContent = formatUSDT(portfolio.total_capital_krw);
-    document.getElementById('total-value').textContent = formatUSDT(portfolio.total_value_krw);
-    document.getElementById('exposure-pct').textContent = `${(portfolio.exposure_pct || 0).toFixed(1)}%`;
-
+    const totalCapitalEl = document.getElementById('total-capital');
+    const totalValueEl = document.getElementById('total-value');
+    const exposureEl = document.getElementById('exposure-pct');
     const pnlEl = document.getElementById('unrealized-pnl');
-    const pnl = portfolio.unrealized_pnl || 0;
-    pnlEl.textContent = formatUSDT(pnl);
-    pnlEl.className = `value ${pnl >= 0 ? 'positive' : 'negative'}`;
+
+    if (totalCapitalEl) totalCapitalEl.textContent = formatUSDT(portfolio.total_capital_krw);
+    if (totalValueEl) totalValueEl.textContent = formatUSDT(portfolio.total_value_krw);
+    if (exposureEl) exposureEl.textContent = `${(portfolio.exposure_pct || 0).toFixed(1)}%`;
+
+    if (pnlEl) {
+        const pnl = portfolio.unrealized_pnl || 0;
+        pnlEl.textContent = formatUSDT(pnl);
+        pnlEl.className = `value ${pnl >= 0 ? 'positive' : 'negative'}`;
+    }
+}
+
+function toNumber(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getOpsRegimeTone(regime) {
+    const text = String(regime || '').toUpperCase();
+    if (text.startsWith('BULL')) return 'bull';
+    if (text.startsWith('BEAR')) return 'bear';
+    if (text.startsWith('SIDE')) return 'side';
+    return '';
+}
+
+function renderOpsWarnings(statusData) {
+    const container = document.getElementById('ops-warnings');
+    if (!container) return;
+
+    const warnings = [];
+    const pipeline = statusData?.trade_pipeline || null;
+    const isKilled = Boolean(statusData?.kill_switch);
+    const engineRunning = String(statusData?.engine_status || '').toLowerCase() === 'running';
+    const positionCount = Object.values(statusData?.assets || {}).filter((asset) => asset.position_active).length;
+
+    if (engineRunning) {
+        warnings.push({ tone: 'good', text: 'Engine is running and updating market state.' });
+    } else {
+        warnings.push({ tone: 'bad', text: 'Engine is not reporting as running.' });
+    }
+
+    if (isKilled) {
+        warnings.push({ tone: 'bad', text: 'Kill switch is active. Trading actions are blocked.' });
+    } else {
+        warnings.push({ tone: 'good', text: 'Kill switch is off. Trading can execute.' });
+    }
+
+    if (pipeline?.warning === 'orders_without_trades') {
+        warnings.push({ tone: 'warn', text: 'Orders exist without corresponding fills in the trades stream.' });
+    } else if (pipeline && pipeline.trades_stream_len > 0) {
+        warnings.push({ tone: 'good', text: `Trade stream is healthy with ${pipeline.trades_stream_len} recorded fills.` });
+    }
+
+    if (positionCount === 0) {
+        warnings.push({ tone: 'neutral', text: 'No open positions. Next actionable events will be new BUY signals or pipeline warnings.' });
+    } else {
+        warnings.push({ tone: 'neutral', text: `${positionCount} open position${positionCount > 1 ? 's' : ''} being tracked across the BTC/ETH experiment.` });
+    }
+
+    container.innerHTML = warnings
+        .map((warning) => `<div class="ops-warning-item ${warning.tone}">${escapeHtml(warning.text)}</div>`)
+        .join('');
+}
+
+function renderOperationsConsole(statusData, summaryData = latestSummaryPayload) {
+    const pipeline = statusData?.trade_pipeline || {};
+    const portfolio = statusData?.portfolio || {};
+    const totalEquity = toNumber(summaryData?.total_equity, 0);
+    const exposurePct = totalEquity > 0
+        ? (toNumber(summaryData?.spot?.position_value, 0) / totalEquity) * 100
+        : toNumber(portfolio.exposure_pct, 0);
+    const positionsOpen = Object.values(statusData?.assets || {}).filter((asset) => asset.position_active).length;
+
+    const engineStateEl = document.getElementById('ops-engine-state');
+    const engineDetailEl = document.getElementById('ops-engine-detail');
+    const killStateEl = document.getElementById('ops-kill-state');
+    const killDetailEl = document.getElementById('ops-kill-detail');
+    const positionStateEl = document.getElementById('ops-position-state');
+    const positionDetailEl = document.getElementById('ops-position-detail');
+    const equityStateEl = document.getElementById('ops-equity-state');
+    const equityDetailEl = document.getElementById('ops-equity-detail');
+    const exposureStateEl = document.getElementById('ops-exposure-state');
+    const exposureDetailEl = document.getElementById('ops-exposure-detail');
+    const pipelineStateEl = document.getElementById('ops-pipeline-state');
+    const pipelineDetailEl = document.getElementById('ops-pipeline-detail');
+
+    if (engineStateEl) {
+        const running = String(statusData?.engine_status || '').toLowerCase() === 'running';
+        engineStateEl.textContent = running ? 'RUNNING' : 'STOPPED';
+        engineStateEl.className = `ops-value ${running ? 'good' : 'bad'}`;
+    }
+    if (engineDetailEl) {
+        engineDetailEl.textContent = `Mode ${(statusData?.mode || 'paper').toUpperCase()} · Updated ${formatTime(statusData?.timestamp)}`;
+    }
+
+    if (killStateEl) {
+        const killed = Boolean(statusData?.kill_switch);
+        killStateEl.textContent = killed ? 'ACTIVE' : 'OFF';
+        killStateEl.className = `ops-value ${killed ? 'bad' : 'good'}`;
+    }
+    if (killDetailEl) {
+        killDetailEl.textContent = Boolean(statusData?.kill_switch)
+            ? 'Order execution should be blocked.'
+            : 'Trading path is open for new execution.';
+    }
+
+    if (positionStateEl) {
+        positionStateEl.textContent = String(positionsOpen);
+        positionStateEl.className = `ops-value ${positionsOpen > 0 ? 'warn' : ''}`;
+    }
+    if (positionDetailEl) {
+        positionDetailEl.textContent = positionsOpen > 0
+            ? `${positionsOpen} active position${positionsOpen > 1 ? 's' : ''} across tracked symbols.`
+            : 'No active BTC/ETH positions.';
+    }
+
+    if (equityStateEl) {
+        equityStateEl.textContent = totalEquity > 0 ? formatUSD(totalEquity) : '-';
+        equityStateEl.className = 'ops-value';
+    }
+    if (equityDetailEl) {
+        equityDetailEl.textContent = `Daily PnL ${formatUSD(toNumber(statusData?.daily_pnl, 0))}`;
+    }
+
+    if (exposureStateEl) {
+        exposureStateEl.textContent = `${exposurePct.toFixed(1)}%`;
+        exposureStateEl.className = `ops-value ${exposurePct > 80 ? 'warn' : ''}`;
+    }
+    if (exposureDetailEl) {
+        exposureDetailEl.textContent = `Position value ${formatUSD(toNumber(summaryData?.spot?.position_value, 0))}`;
+    }
+
+    if (pipelineStateEl) {
+        const healthy = !pipeline.warning;
+        pipelineStateEl.textContent = healthy ? 'HEALTHY' : 'ATTENTION';
+        pipelineStateEl.className = `ops-value ${healthy ? 'good' : 'warn'}`;
+    }
+    if (pipelineDetailEl) {
+        pipelineDetailEl.textContent = `Orders ${pipeline.orders_stream_len || 0} · Trades ${pipeline.trades_stream_len || 0} · Recoverable ${pipeline.recoverable_trade_count || 0}`;
+    }
+
+    renderOpsWarnings(statusData);
 }
 
 // Update status display
@@ -858,12 +1008,25 @@ function updateStatus(data) {
     }
     latestStatusPayload = data;
 
-    document.getElementById('last-update-time').textContent = formatTime(data.timestamp);
-    document.getElementById('engine-mode').textContent = (data.mode || 'paper').toUpperCase();
-    document.getElementById('iteration-count').textContent = data.iteration_count || 0;
+    const lastUpdateEl = document.getElementById('last-update-time');
+    const engineModeEl = document.getElementById('engine-mode');
+    const iterationEl = document.getElementById('iteration-count');
+
+    if (lastUpdateEl) lastUpdateEl.textContent = formatTime(data.timestamp);
+    if (engineModeEl) engineModeEl.textContent = (data.mode || 'paper').toUpperCase();
+    if (iterationEl) iterationEl.textContent = data.iteration_count || 0;
 
     // Update portfolio
     updatePortfolio(data.portfolio);
+    renderOperationsConsole(data);
+
+    if (positionsData?.positions?.length) {
+        positionsData = syncPositionPricesWithStatus(positionsData);
+        if (isTabActive('positions')) {
+            renderPositions(positionsData);
+            updatePositionsSummary(positionsData);
+        }
+    }
 
     // Render market snapshot cards using merged assets/prices/regime status
     const assetCardsData = buildAssetCardsData(data);
@@ -908,19 +1071,32 @@ async function fetchKillSwitch() {
 
 // Update exchange balances display
 function updateExchangeBalances(data) {
+    const spotStatusEl = document.getElementById('spot-status');
+    const spotBalanceEl = document.getElementById('spot-balance');
+    const spotPositionsEl = document.getElementById('spot-positions-count');
+    const totalEquityEl = document.getElementById('total-equity');
+    const totalCapitalEl = document.getElementById('total-capital');
+    const totalValueEl = document.getElementById('total-value');
+    const exposureEl = document.getElementById('exposure-pct');
+    const portfolioPnlEl = document.getElementById('unrealized-pnl');
+
     if (!data.binance) {
-        document.getElementById('spot-status').textContent = 'Error';
-        document.getElementById('spot-status').className = 'exchange-status error';
+        if (spotStatusEl) {
+            spotStatusEl.textContent = 'Error';
+            spotStatusEl.className = 'exchange-status error';
+        }
         return;
     }
 
     const binance = data.binance;
     const spot = binance.spot || {};
 
-    document.getElementById('spot-status').textContent = 'Connected';
-    document.getElementById('spot-status').className = 'exchange-status connected';
-    document.getElementById('spot-balance').textContent = formatUSD(spot.usdt_balance || 0);
-    document.getElementById('spot-positions-count').textContent = (spot.positions || []).length;
+    if (spotStatusEl) {
+        spotStatusEl.textContent = 'Connected';
+        spotStatusEl.className = 'exchange-status connected';
+    }
+    if (spotBalanceEl) spotBalanceEl.textContent = formatUSD(spot.usdt_balance || 0);
+    if (spotPositionsEl) spotPositionsEl.textContent = (spot.positions || []).length;
 
     const totalEquity = binance.total_equity || 0;
     const totalUnrealizedPnl = 0;
@@ -928,14 +1104,15 @@ function updateExchangeBalances(data) {
     const totalPositionValue = spotPositionValue;
     const exposurePct = totalEquity > 0 ? (totalPositionValue / totalEquity * 100) : 0;
 
-    document.getElementById('total-equity').textContent = formatUSD(totalEquity);
-    document.getElementById('total-capital').textContent = formatUSD(totalEquity);
-    document.getElementById('total-value').textContent = formatUSD(totalEquity);
-    document.getElementById('exposure-pct').textContent = `${exposurePct.toFixed(1)}%`;
+    if (totalEquityEl) totalEquityEl.textContent = formatUSD(totalEquity);
+    if (totalCapitalEl) totalCapitalEl.textContent = formatUSD(totalEquity);
+    if (totalValueEl) totalValueEl.textContent = formatUSD(totalEquity);
+    if (exposureEl) exposureEl.textContent = `${exposurePct.toFixed(1)}%`;
 
-    const portfolioPnlEl = document.getElementById('unrealized-pnl');
-    portfolioPnlEl.textContent = formatUSD(totalUnrealizedPnl);
-    portfolioPnlEl.className = `value ${totalUnrealizedPnl >= 0 ? 'positive' : 'negative'}`;
+    if (portfolioPnlEl) {
+        portfolioPnlEl.textContent = formatUSD(totalUnrealizedPnl);
+        portfolioPnlEl.className = `value ${totalUnrealizedPnl >= 0 ? 'positive' : 'negative'}`;
+    }
 
     // Show errors if any
     if (data.errors && data.errors.length > 0) {
@@ -956,23 +1133,36 @@ async function fetchExchangeBalances() {
             updateExchangeBalances(data);
         } catch (fallbackErr) {
             console.error('Fallback exchange balances fetch error:', fallbackErr);
-            document.getElementById('spot-status').textContent = 'Error';
-            document.getElementById('spot-status').className = 'exchange-status error';
+            const spotStatusEl = document.getElementById('spot-status');
+            if (spotStatusEl) {
+                spotStatusEl.textContent = 'Error';
+                spotStatusEl.className = 'exchange-status error';
+            }
         }
     }
 }
 
 // Update spot summary
 function updateHybridSummary(data) {
-    // Total equity
-    document.getElementById('total-equity').textContent = formatUSD(data.total_equity || 0);
+    latestSummaryPayload = data;
+    const totalEquityEl = document.getElementById('total-equity');
+    const spotStatusEl = document.getElementById('spot-status');
+    const spotBalanceEl = document.getElementById('spot-balance');
+    const spotPositionsEl = document.getElementById('spot-positions-count');
+    const totalCapitalEl = document.getElementById('total-capital');
+    const totalValueEl = document.getElementById('total-value');
+    const portfolioPnlEl = document.getElementById('unrealized-pnl');
+    const exposureEl = document.getElementById('exposure-pct');
 
-    // Spot card
+    if (totalEquityEl) totalEquityEl.textContent = formatUSD(data.total_equity || 0);
+
     const spot = data.spot || {};
-    document.getElementById('spot-status').textContent = 'Connected';
-    document.getElementById('spot-status').className = 'exchange-status connected';
-    document.getElementById('spot-balance').textContent = formatUSD(spot.balance || 0);
-    document.getElementById('spot-positions-count').textContent = spot.positions || 0;
+    if (spotStatusEl) {
+        spotStatusEl.textContent = 'Connected';
+        spotStatusEl.className = 'exchange-status connected';
+    }
+    if (spotBalanceEl) spotBalanceEl.textContent = formatUSD(spot.balance || 0);
+    if (spotPositionsEl) spotPositionsEl.textContent = spot.positions || 0;
 
     // Update portfolio summary
     const totalEquity = data.total_equity || 0;
@@ -981,17 +1171,21 @@ function updateHybridSummary(data) {
         0,
     );
 
-    document.getElementById('total-capital').textContent = formatUSD(totalEquity);
-    document.getElementById('total-value').textContent = formatUSD(totalEquity);
-
-    const portfolioPnlEl = document.getElementById('unrealized-pnl');
-    portfolioPnlEl.textContent = formatUSD(totalUnrealizedPnl);
-    portfolioPnlEl.className = `value ${totalUnrealizedPnl >= 0 ? 'positive' : 'negative'}`;
+    if (totalCapitalEl) totalCapitalEl.textContent = formatUSD(totalEquity);
+    if (totalValueEl) totalValueEl.textContent = formatUSD(totalEquity);
+    if (portfolioPnlEl) {
+        portfolioPnlEl.textContent = formatUSD(totalUnrealizedPnl);
+        portfolioPnlEl.className = `value ${totalUnrealizedPnl >= 0 ? 'positive' : 'negative'}`;
+    }
 
     const spotPositionValue = spot.position_value || 0;
     const totalPositionValue = spotPositionValue;
     const exposurePct = totalEquity > 0 ? (totalPositionValue / totalEquity * 100) : 0;
-    document.getElementById('exposure-pct').textContent = `${exposurePct.toFixed(1)}%`;
+    if (exposureEl) exposureEl.textContent = `${exposurePct.toFixed(1)}%`;
+
+    if (latestStatusPayload) {
+        renderOperationsConsole(latestStatusPayload, data);
+    }
 }
 
 // Fetch leverage state
@@ -1076,72 +1270,6 @@ function renderLeverageState(data) {
             ${tiersHtml}
         </div>
     `;
-}
-
-async function fetchSelectorSnapshot() {
-    const contentEl = document.getElementById('selector-snapshot-content');
-    const updatedEl = document.getElementById('selector-snapshot-updated');
-    if (!contentEl) return;
-
-    try {
-        const data = await apiFetch('/api/strategies');
-        const strategies = Array.isArray(data.strategies) ? data.strategies : [];
-        const selectorStrategies = strategies.filter(
-            (strategy) => strategy.symbol_selector && strategy.symbol_selector.enabled
-        );
-        selectorFocusSymbols = buildSelectorFocusSet(selectorStrategies);
-        if (latestStatusPayload) {
-            const cards = buildAssetCardsData(latestStatusPayload);
-            renderAssetCards(cards);
-        }
-
-        if (selectorStrategies.length === 0) {
-            contentEl.innerHTML = '<p class="selector-snapshot-empty">No enabled selector strategies.</p>';
-            if (updatedEl) updatedEl.textContent = '-';
-            return;
-        }
-
-        const latestTimestamp = selectorStrategies
-            .map((strategy) => strategy.selector_state?.timestamp)
-            .filter((timestamp) => Boolean(timestamp))
-            .sort()
-            .pop();
-
-        contentEl.innerHTML = selectorStrategies.map((strategy) => {
-            const state = strategy.selector_state || {};
-            const selectedSymbols = Array.isArray(state.selected_symbols) ? state.selected_symbols : [];
-            const topScores = Array.isArray(state.top_scores) ? state.top_scores : [];
-            const scoreText = topScores
-                .slice(0, 3)
-                .map((item) => `${escapeHtml(item.symbol)}:${Number(item.score ?? 0).toFixed(3)}`)
-                .join(', ');
-
-            return `
-                <div class="selector-snapshot-item">
-                    <div class="selector-snapshot-line">
-                        <span class="strategy-name">${escapeHtml(strategy.name)}</span>
-                        <span class="selector-chip ${state.changed ? 'selected' : ''}">${state.changed ? 'changed' : 'stable'}</span>
-                    </div>
-                    <div class="selector-snapshot-line">
-                        <span class="selector-snapshot-label">Selected</span>
-                        <span>${selectedSymbols.length > 0 ? selectedSymbols.map(escapeHtml).join(', ') : '-'}</span>
-                    </div>
-                    <div class="selector-snapshot-line">
-                        <span class="selector-snapshot-label">Top score</span>
-                        <span>${scoreText || '-'}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        if (updatedEl) {
-            updatedEl.textContent = latestTimestamp ? `Updated ${formatDateTime(latestTimestamp)}` : 'Updated -';
-        }
-    } catch (error) {
-        console.error('Selector snapshot fetch error:', error);
-        contentEl.innerHTML = '<p class="error">Failed to load selector snapshot.</p>';
-        if (updatedEl) updatedEl.textContent = '-';
-    }
 }
 
 // Fetch all data
@@ -1240,7 +1368,7 @@ function initKeyboardShortcuts() {
     });
 
     // Log keyboard shortcuts availability
-    console.log('Keyboard shortcuts enabled: 1-5 for tabs, R for refresh');
+    console.log('Keyboard shortcuts enabled: 1-6 for tabs, R for refresh');
 }
 
 // Switch to a specific tab programmatically
@@ -1346,8 +1474,11 @@ async function fetchPositions() {
 
         const normalizePosition = (pos, fallbackMarket = null) => {
             const market = String(pos.market || fallbackMarket || '').toLowerCase();
+            const symbol = normalizeSymbol(pos.symbol);
             return {
                 ...pos,
+                symbol,
+                current_price: getLiveSpotPrice(symbol, pos.current_price),
                 market: 'spot',
                 exchange: pos.exchange || 'binance',
             };
@@ -1389,9 +1520,9 @@ async function fetchPositions() {
             total_unrealized_pnl: totalSpotUnrealizedPnl,
         };
 
-        positionsData = combinedData;
-        renderPositions(combinedData);
-        updatePositionsSummary(combinedData);
+        positionsData = syncPositionPricesWithStatus(combinedData);
+        renderPositions(positionsData);
+        updatePositionsSummary(positionsData);
     } catch (error) {
         console.error('Positions fetch error:', error);
         renderError(containerId, 'Failed to load positions', 'fetchPositions');
@@ -1418,6 +1549,12 @@ function renderPositions(data) {
         const symbolLabel = escapeHtml(pos.symbol || '-');
         const symbolChartUrl = getBinanceChartUrl(pos.symbol, market);
         const sideLabel = escapeHtml(sideRaw);
+        const liveAsset = latestStatusPayload?.assets?.[`${normalizeSymbol(pos.symbol)}_spot`] || null;
+        const regimeTone = getOpsRegimeTone(liveAsset?.regime);
+        const routeLabel = String(liveAsset?.strategy || pos.strategy || '').startsWith('llm_direction_')
+            ? 'LLM Strategy'
+            : 'Other';
+        const regimeLabel = liveAsset?.regime || 'UNKNOWN';
 
         html += `
             <div class="position-card ${pos.exchange}" data-market="${market}">
@@ -1430,6 +1567,10 @@ function renderPositions(data) {
                         ${marketBadge}
                     </div>
                     <span class="exchange-badge ${pos.exchange}">${pos.exchange}</span>
+                </div>
+                <div class="position-context">
+                    <span class="position-context-badge regime ${regimeTone}">${escapeHtml(regimeLabel)}</span>
+                    <span class="position-context-badge route">${escapeHtml(routeLabel)}</span>
                 </div>
                 <div class="card-body">
                     <div class="stat-row">
@@ -1565,14 +1706,14 @@ async function fetchTrades() {
         if (historyState.endDate) params.append('end_date', historyState.endDate);
         if (historyState.symbol) params.append('symbol', historyState.symbol);
 
-        const data = await apiFetch(`/api/trades?${params.toString()}`);
+        const data = await apiFetch(`/api/execution_timeline?${params.toString()}`);
         historyState.totalCount = data.total_count;
 
         renderHistorySummary(data);
-        renderTradeTable(data);
+        renderTimelineTable(data);
         renderPagination(data);
     } catch (error) {
-        renderError(containerId, 'Failed to load trade history', 'fetchTrades');
+        renderError(containerId, 'Failed to load execution timeline', 'fetchTrades');
     }
 }
 
@@ -1586,10 +1727,13 @@ function renderHistorySummary(data) {
     const winRateEl = document.getElementById('history-win-rate');
 
     if (totalTradesEl) totalTradesEl.textContent = String(data.total_count ?? 0);
-    if (buySellEl) buySellEl.textContent = `${summary.buy_count ?? 0} / ${summary.sell_count ?? 0}`;
+    if (buySellEl) {
+        const eventCounts = summary.event_counts || {};
+        buySellEl.textContent = `${eventCounts.decision ?? 0} / ${eventCounts.order ?? 0}`;
+    }
     if (symbolsEl) {
         const symbols = Array.isArray(summary.unique_symbols) ? summary.unique_symbols : [];
-        const syntheticCount = Number(summary.synthetic_count || 0);
+        const syntheticCount = Number(summary.recovered_count || 0);
         const symbolText = symbols.length > 0 ? symbols.join(' / ') : '-';
         symbolsEl.textContent = syntheticCount > 0 ? `${symbolText} (${syntheticCount} recovered)` : symbolText;
     }
@@ -1599,28 +1743,23 @@ function renderHistorySummary(data) {
     }
 
     if (realizedPnlEl) {
-        const pnl = summary.realized_pnl ?? 0;
-        realizedPnlEl.textContent = formatUSD(pnl);
-        realizedPnlEl.className = `value ${getPnLClass(pnl)}`;
+        const eventCounts = summary.event_counts || {};
+        realizedPnlEl.textContent = `${eventCounts.trade ?? 0} / ${eventCounts.position ?? 0}`;
+        realizedPnlEl.className = 'value';
     }
 
     if (winRateEl) {
-        if (summary.win_rate === null || summary.win_rate === undefined) {
-            winRateEl.textContent = '-';
-            winRateEl.className = 'value';
-        } else {
-            const wr = Number(summary.win_rate);
-            winRateEl.textContent = `${wr.toFixed(1)}%`;
-            winRateEl.className = `value ${wr >= 50 ? 'positive' : 'negative'}`;
-        }
+        winRateEl.textContent = String(summary.recovered_count ?? 0);
+        winRateEl.className = 'value';
     }
 }
 
-function renderTradeTable(data) {
+function renderTimelineTable(data) {
     const container = document.getElementById('history-container');
     const tradePipeline = latestStatusPayload?.trade_pipeline || null;
+    const events = Array.isArray(data.events) ? data.events : [];
 
-    if (!data.trades || data.trades.length === 0) {
+    if (events.length === 0) {
         if (
             tradePipeline &&
             tradePipeline.warning === 'orders_without_trades'
@@ -1653,40 +1792,44 @@ function renderTradeTable(data) {
                 <tr>
                     <th>Time</th>
                     <th>Symbol</th>
-                    <th>Action</th>
+                    <th>Title</th>
                     <th>Route</th>
-                    <th class="text-right">Price</th>
-                    <th class="text-right">Volume</th>
-                    <th class="text-right">P&L</th>
+                    <th class="text-right">Event</th>
+                    <th class="text-right">Status</th>
+                    <th class="text-right">Link</th>
                     <th>Strategy</th>
+                    <th>Detail</th>
                     <th>Reason</th>
                 </tr>
             </thead>
             <tbody>
     `;
 
-    for (const trade of data.trades) {
-        const actionClass = trade.action.toLowerCase();
-        const pnlClass = getPnLClass(trade.profit);
-        const symbolDisplay = trade.symbol || '-';
-        const route = classifyExecutionRoute(trade.strategy, trade.reason, trade.execution_route);
-        const recoveredBadge = trade.synthetic || trade.recovered
+    for (const event of events) {
+        const eventType = String(event.event_type || 'event').toLowerCase();
+        const actionClass = eventType === 'trade' && String(event.title || '').toLowerCase() === 'buy'
+            ? 'buy'
+            : eventType === 'trade' && String(event.title || '').toLowerCase() === 'sell'
+                ? 'sell'
+                : 'hold';
+        const symbolDisplay = event.symbol || '-';
+        const route = classifyExecutionRoute(event.strategy, event.reason, event.route);
+        const recoveredBadge = event.synthetic || event.recovered
             ? '<span class="impact-badge">Recovered</span> '
             : '';
+        const correlationText = event.correlation ? String(event.correlation) : '-';
         html += `
             <tr>
-                <td>${formatDateTime(trade.timestamp)}</td>
+                <td>${formatDateTime(event.timestamp)}</td>
                 <td><span class="symbol-badge">${escapeHtml(symbolDisplay)}</span></td>
-                <td><span class="action-badge ${actionClass}">${trade.action}</span></td>
+                <td><span class="action-badge ${actionClass}">${escapeHtml(String(event.title || '-').toUpperCase())}</span></td>
                 <td><span class="impact-badge">${escapeHtml(formatRouteBadge(route))}</span></td>
-                <td class="text-right">$${formatPrice(trade.price, false)}</td>
-                <td class="text-right">${formatQuantity(trade.volume, 4)}</td>
-                <td class="text-right ${pnlClass}">
-                    ${trade.profit !== null ? formatUSD(trade.profit) : '-'}
-                    ${trade.profit_pct !== null ? `(${formatPercent(trade.profit_pct)})` : ''}
-                </td>
-                <td>${escapeHtml(trade.strategy_label || formatStrategyLabel(trade.strategy))}</td>
-                <td>${recoveredBadge}${escapeHtml(summarizeTradeReason(trade.reason))}</td>
+                <td class="text-right">${escapeHtml(event.event_type || '-')}</td>
+                <td class="text-right">${escapeHtml(event.status || '-')}</td>
+                <td class="text-right mono-cell">${escapeHtml(correlationText)}</td>
+                <td>${escapeHtml(event.strategy_label || formatStrategyLabel(event.strategy))}</td>
+                <td>${recoveredBadge}${escapeHtml(event.detail || '-')}</td>
+                <td>${escapeHtml(summarizeTradeReason(event.reason))}</td>
             </tr>
         `;
     }
@@ -1714,7 +1857,7 @@ function renderPagination(data) {
     html = `
         <button class="pagination-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>First</button>
         <button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Prev</button>
-        <span class="pagination-info">Page ${currentPage} of ${totalPages} (${data.total_count} trades)</span>
+        <span class="pagination-info">Page ${currentPage} of ${totalPages} (${data.total_count} events)</span>
         <button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
         <button class="pagination-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>Last</button>
     `;
@@ -1741,22 +1884,38 @@ async function fetchSignals() {
     try {
         renderLoading(containerId);
 
-        // Build query string
         const params = new URLSearchParams({ limit: 50, hours: 24 });
-
-        const data = await apiFetch(`/api/signals?${params.toString()}`);
-        renderSignals(data);
+        const [signalData, strategyData] = await Promise.all([
+            apiFetch(`/api/signals?${params.toString()}`),
+            apiFetch('/api/strategies'),
+        ]);
+        latestStrategiesPayload = strategyData;
+        renderSignals(signalData, strategyData);
     } catch (error) {
         renderError(containerId, 'Failed to load signals', 'fetchSignals');
     }
 }
 
-function renderSignals(data) {
+function buildTrackedStrategyMap(strategyData) {
+    const strategies = Array.isArray(strategyData?.strategies) ? strategyData.strategies : [];
+    return Object.fromEntries(
+        strategies
+            .filter((strategy) => {
+                if (!isTrackedExperimentStrategy(strategy.name)) return false;
+                const inferredSymbol = strategy.symbol || String(strategy.name || '').replace('llm_direction_', '').toUpperCase();
+                return isTrackedExperimentSymbol(inferredSymbol);
+            })
+            .map((strategy) => [strategy.name, strategy])
+    );
+}
+
+function renderSignals(data, strategyData = latestStrategiesPayload) {
     const container = document.getElementById('signals-container');
     const rawSignals = Array.isArray(data.signals) ? data.signals : [];
     const trackedSignals = rawSignals.filter((signal) =>
         isTrackedExperimentSymbol(signal.symbol) && isTrackedExperimentStrategy(signal.strategy)
     );
+    const trackedStrategyMap = buildTrackedStrategyMap(strategyData);
 
     updateSignalsSummary(trackedSignals);
 
@@ -1781,26 +1940,43 @@ function renderSignals(data) {
 
     for (const strategyName of strategyOrder) {
         const signals = strategyGroups[strategyName];
+        const strategy = trackedStrategyMap[strategyName] || {};
+        const liveState = strategy.live_state || {};
+        const activePositions = Array.isArray(strategy.active_positions) ? strategy.active_positions : [];
         const latestTs = signals[0]?.timestamp || '';
         const latestRoute = classifyExecutionRoute(
             strategyName,
             signals[0]?.reason,
             signals[0]?.execution_route,
         );
+        const latestSignal = signals[0];
+        const latestIndicators = latestSignal?.indicators || {};
+        const symbolText = String(strategy.symbol || latestSignal?.symbol || '').toUpperCase();
+        const position = activePositions[0] || null;
+        const signalTrail = signals.slice(0, 4);
+        const liveStateEntries = Object.entries(liveState);
+        const liveStateTagItems = liveStateEntries.flatMap(([stateSymbol, state]) =>
+            Object.entries(state || {}).slice(0, 6).map(([key, value]) =>
+                `<span class="runtime-tag">${escapeHtml(stateSymbol)} · ${escapeHtml(key)}=${escapeHtml(typeof value === 'number' ? formatNumber(value, 3) : String(value))}</span>`
+            )
+        );
 
         html += `
-            <div class="signal-strategy-group">
+            <div class="signal-strategy-group unified-signal-group">
                 <div class="signal-strategy-header">
                     <div class="signal-strategy-title">${escapeHtml(formatStrategyLabel(strategyName))}</div>
                     <div class="signal-strategy-meta">
-                        <span>${signals.length} signals</span>
+                        <span>${signals.length} recent decisions</span>
                         <span>${formatRouteBadge(latestRoute)}</span>
                         <span>Latest: ${formatDateTime(latestTs)}</span>
                     </div>
                 </div>
+                <div class="unified-signal-layout">
+                    <div class="unified-signal-main">
         `;
 
-        for (const signal of signals) {
+        if (latestSignal) {
+            const signal = latestSignal;
             const decisionLabel = (signal.decision || signal.action || 'WAIT').toUpperCase();
             const actionClass = decisionLabel.toLowerCase();
             const indicators = signal.indicators || {};
@@ -1906,7 +2082,81 @@ function renderSignals(data) {
             `;
         }
 
-        html += `</div>`;
+        html += `
+                    </div>
+                    <aside class="unified-signal-sidebar">
+                        <div class="runtime-panel">
+                            <h4>Live State</h4>
+                            <div class="runtime-grid">
+                                <div class="runtime-item">
+                                    <span class="label">Symbol</span>
+                                    <span class="value">${escapeHtml(symbolText || '-')}</span>
+                                </div>
+                                <div class="runtime-item">
+                                    <span class="label">Tuned</span>
+                                    <span class="value">${strategy.is_tuned ? 'Yes' : 'No'}</span>
+                                </div>
+                                <div class="runtime-item">
+                                    <span class="label">Position</span>
+                                    <span class="value">${position ? `${String(position.side || 'long').toUpperCase()} ${formatQuantity(position.qty, 4)}` : 'Flat'}</span>
+                                </div>
+                                <div class="runtime-item">
+                                    <span class="label">Entry</span>
+                                    <span class="value">${position ? `$${formatPrice(position.entry_price, false)}` : '-'}</span>
+                                </div>
+                                <div class="runtime-item">
+                                    <span class="label">Price</span>
+                                    <span class="value">${latestIndicators.price !== undefined ? `$${formatPrice(latestIndicators.price, false)}` : '-'}</span>
+                                </div>
+                                <div class="runtime-item">
+                                    <span class="label">Regime</span>
+                                    <span class="value">${escapeHtml(latestSignal?.regime || '-')}</span>
+                                </div>
+                                <div class="runtime-item">
+                                    <span class="label">Last Decision</span>
+                                    <span class="value">${formatDateTime(latestTs)}</span>
+                                </div>
+                                <div class="runtime-item">
+                                    <span class="label">Execution</span>
+                                    <span class="value">${latestSignal?.acted ? 'Order/Fill Issued' : 'Decision Only'}</span>
+                                </div>
+                                <div class="runtime-item">
+                                    <span class="label">Route</span>
+                                    <span class="value">${escapeHtml(formatRouteBadge(latestRoute))}</span>
+                                </div>
+                                <div class="runtime-item">
+                                    <span class="label">Decision Count</span>
+                                    <span class="value">${signals.length} in 24h</span>
+                                </div>
+                            </div>
+                            ${liveStateTagItems.length > 0 ? `
+                                <div class="runtime-state-tags">
+                                    ${liveStateTagItems.join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="runtime-panel">
+                            <h4>Decision Trail</h4>
+                            <div class="decision-trail-list">
+                                ${signalTrail.map((trail) => {
+                                    const route = classifyExecutionRoute(trail.strategy, trail.reason, trail.execution_route);
+                                    return `
+                                        <div class="decision-trail-item">
+                                            <div>
+                                                <div class="decision-trail-time">${formatDateTime(trail.timestamp)}</div>
+                                                <div class="decision-trail-reason">${escapeHtml(summarizeDecisionReason(trail.reason))}</div>
+                                            </div>
+                                            <span class="decision-trail-badge">${escapeHtml((trail.decision || trail.action || 'WAIT').toUpperCase())}</span>
+                                            <span class="decision-trail-route">${escapeHtml(formatRouteBadge(route))}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+        `;
     }
 
     container.innerHTML = html;
@@ -3356,6 +3606,7 @@ async function fetchStrategiesTab() {
 
     try {
         const data = await apiFetch('/api/strategies');
+        latestStrategiesPayload = data;
         renderStrategiesTab(data);
     } catch (error) {
         console.error('Failed to fetch strategies:', error);

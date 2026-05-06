@@ -135,6 +135,14 @@ class PaperExecutor:
                     "orders", group, consumer, count=1, block_ms=1000
                 )
                 for msg in messages:
+                    logger.info(
+                        "PaperExecutor consume order: stream_id=%s order_id=%s symbol=%s side=%s strategy=%s",
+                        msg.get("_id"),
+                        msg.get("id"),
+                        msg.get("symbol"),
+                        msg.get("side"),
+                        msg.get("strategy"),
+                    )
                     await self._process_order(msg)
                     await self.redis.ack("orders", group, msg["_id"])
             except Exception as exc:
@@ -277,7 +285,12 @@ class PaperExecutor:
 
         price = self.last_prices.get(symbol)
         if price is None:
-            logger.warning("No price available for %s", symbol)
+            logger.warning(
+                "No price available for %s while processing order_id=%s; cached_prices=%s",
+                symbol,
+                order.get("id"),
+                sorted(self.last_prices.keys()),
+            )
             return None
 
         fill_price = self._apply_slippage(price, side)
@@ -428,6 +441,13 @@ class PaperExecutor:
         """Log trade to SQLite database for persistence."""
         try:
             self._log_trade_to_db_sync(order, fill, profit_data)
+            logger.info(
+                "PaperExecutor logged trade to DB: order_id=%s symbol=%s side=%s fill_order_id=%s",
+                order.get("id"),
+                order.get("symbol"),
+                order.get("side"),
+                fill.get("order_id"),
+            )
         except Exception as exc:
             logger.error("Failed to log trade to database: %s", exc)
 
@@ -660,7 +680,15 @@ class PaperExecutor:
         if profit_data:
             trade["profit"] = str(profit_data["profit"])
             trade["profit_pct"] = str(profit_data["profit_pct"])
-        await self.redis.publish("trades", trade)
+        stream_id = await self.redis.publish("trades", trade)
+        logger.info(
+            "PaperExecutor published trade: stream_id=%s fill_order_id=%s symbol=%s side=%s strategy=%s",
+            stream_id,
+            fill.get("order_id"),
+            order.get("symbol"),
+            order.get("side"),
+            order.get("strategy"),
+        )
 
     async def _publish_rejection(self, order: dict[str, Any], reason: str) -> None:
         """Publish order rejection to alerts stream."""

@@ -30,8 +30,6 @@ from core.backtest_visualizer import BacktestVisualizer
 from core.mlflow_tracker import MLflowTracker
 from core.metrics import calculate_benchmark
 
-# Database persistence
-from web.services import backtest_db
 from trading.strategies.components.strategy_factory import (
     StrategyFactory,
     STRATEGY_REGISTRY,
@@ -45,24 +43,6 @@ from trading.core.runtime_defaults import default_backtest_date_range
 logger = logging.getLogger(__name__)
 
 INTERNAL_ONLY_BACKTEST_STRATEGIES = {"llm_direction"}
-BACKTEST_ONLY_STRATEGIES = (
-    {
-        "id": "wf_tree60_btc",
-        "name": "Walk-Forward Tree60 BTC",
-        "description": "Backtest-only walk-forward XGB+LGB ensemble (BTC spot)",
-    },
-    {
-        "id": "wf_tree60_eth",
-        "name": "Walk-Forward Tree60 ETH",
-        "description": "Backtest-only walk-forward XGB+LGB ensemble (ETH spot)",
-    },
-    {
-        "id": "wf_tree60_sol",
-        "name": "Walk-Forward Tree60 SOL",
-        "description": "Backtest-only walk-forward XGB+LGB ensemble (SOL spot)",
-    },
-)
-
 # Symbol to database path mapping
 SYMBOL_DB_MAPPING = {
     "BTC": PROJECT_ROOT / "data" / "binance_bitcoin.db",
@@ -78,14 +58,10 @@ _jobs_lock = threading.Lock()
 
 # Rate limiting
 MAX_CONCURRENT_JOBS = 3
-STALE_DB_JOB_MINUTES = 10
 
 # Chart output directory
 CHART_OUTPUT_DIR = PROJECT_ROOT / "web" / "static" / "charts"
 CHART_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-# Timestamp guard for stale job reconciliation
-_stale_reconcile_state = {"last_at": 0.0}
 
 # Initialize visualization components
 _visualizer = BacktestVisualizer()
@@ -462,7 +438,6 @@ def get_available_strategies() -> list:
     allocation_strategies = _load_allocation_strategies()
     _append_factory_strategies(strategies, existing_ids, allocation_strategies)
     _append_allocation_only_strategies(strategies, existing_ids, allocation_strategies)
-    _append_backtest_only_strategies(strategies, existing_ids)
     return strategies
 
 
@@ -537,25 +512,6 @@ def _append_allocation_only_strategies(
     except Exception as e:
         print(f"Error loading allocation.json strategies: {e}")
 
-
-def _append_backtest_only_strategies(strategies: list, existing_ids: set[str]) -> None:
-    for strategy in BACKTEST_ONLY_STRATEGIES:
-        sid = strategy["id"]
-        if sid in existing_ids:
-            continue
-        strategies.append(
-            {
-                "id": sid,
-                "name": strategy["name"],
-                "description": strategy["description"],
-                "exchange": "binance",
-                "default_params": {},
-                "backtest_only": True,
-            }
-        )
-        existing_ids.add(sid)
-
-
 def create_backtest_job(config: dict) -> BacktestJob:
     """Create a new backtest job."""
     job_id = str(uuid.uuid4())[:8]
@@ -563,11 +519,6 @@ def create_backtest_job(config: dict) -> BacktestJob:
 
     with _jobs_lock:
         _backtest_jobs[job_id] = job
-
-    # Save to database
-    backtest_db.save_backtest(
-        job_id=job_id, config=config, status="pending", created_at=job.created_at
-    )
 
     return job
 
@@ -586,20 +537,6 @@ def cancel_job(job_id: str) -> bool:
             job.cancelled = True
             job.status = "cancelled"
             job.completed_at = datetime.now().isoformat()
-
-            # Persist cancellation so history is accurate even if polling stops.
-            try:
-                backtest_db.save_backtest(
-                    job_id=job.job_id,
-                    config=job.config,
-                    status="cancelled",
-                    created_at=job.created_at,
-                    completed_at=job.completed_at,
-                    result=None,
-                    error=None,
-                )
-            except Exception:
-                traceback.print_exc()
             return True
     return False
 
@@ -610,23 +547,10 @@ def run_backtest(job: BacktestJob) -> None:
     def mark_cancelled() -> None:
         job.status = "cancelled"
         job.completed_at = datetime.now().isoformat()
-        backtest_db.save_backtest(
-            job_id=job.job_id,
-            config=job.config,
-            status="cancelled",
-            created_at=job.created_at,
-            completed_at=job.completed_at,
-            result=None,
-            error=None,
-        )
 
     def run_selected_backtest(
         strategy_id: str, start_date: str, end_date: str, initial_capital: float
     ):
-        if strategy_id.startswith("wf_tree60_"):
-            return _run_walkforward_backtest(
-                strategy_id, start_date, end_date, initial_capital, job
-            )
         is_generic = (
             strategy_id in STRATEGY_REGISTRY
             or _is_tuned_strategy(strategy_id)
@@ -647,15 +571,6 @@ def run_backtest(job: BacktestJob) -> None:
             job.status = "running"
             job.started_at = datetime.now().isoformat()
             job.progress = 0
-            backtest_db.save_backtest(
-                job_id=job.job_id,
-                config=job.config,
-                status="running",
-                created_at=job.created_at,
-                completed_at=None,
-                result=None,
-                error=None,
-            )
 
             config = job.config
             strategy_id = config.get("strategy_id") or config.get(
@@ -697,31 +612,11 @@ def run_backtest(job: BacktestJob) -> None:
             job.progress = 100
             job.completed_at = datetime.now().isoformat()
 
-            # Save to database
-            backtest_db.save_backtest(
-                job_id=job.job_id,
-                config=job.config,
-                status="completed",
-                created_at=job.created_at,
-                completed_at=job.completed_at,
-                result=results,
-            )
-
         except Exception as e:
             job.status = "failed"
             job.error = str(e)
             job.completed_at = datetime.now().isoformat()
             traceback.print_exc()
-
-            # Save to database
-            backtest_db.save_backtest(
-                job_id=job.job_id,
-                config=job.config,
-                status="failed",
-                created_at=job.created_at,
-                completed_at=job.completed_at,
-                error=str(e),
-            )
 
     job.thread = threading.Thread(target=_run, daemon=True)
     job.thread.start()
@@ -1904,15 +1799,6 @@ def _make_walkforward_progress_callback(job: BacktestJob):
         if now - last_heartbeat < 10:
             return
         last_heartbeat = now
-        backtest_db.save_backtest(
-            job_id=job.job_id,
-            config=job.config,
-            status="running",
-            created_at=job.created_at,
-            completed_at=None,
-            result=None,
-            error=None,
-        )
 
     return _progress_callback
 
@@ -2175,26 +2061,10 @@ def cleanup_old_jobs(max_age_hours: int = 24) -> int:
 
 
 def get_all_jobs(limit: int = 50) -> list:
-    """Get all backtest jobs sorted by creation time (newest first).
-
-    Merges in-memory running jobs with database history.
-    In-memory jobs take precedence for active (pending/running) jobs.
-
-    Returns:
-        List of job dictionaries with summary info (excludes large data like trades/equity_curve).
-    """
-    _reconcile_stale_db_jobs()
-    jobs_by_id = {}
-
-    # First, load history from database
-    db_history = backtest_db.get_history(limit=limit)
-    for db_job in db_history:
-        jobs_by_id[db_job["job_id"]] = db_job
-
-    # Then, overlay in-memory jobs (for real-time progress on running jobs)
+    """Get in-memory backtest jobs sorted by creation time (newest first)."""
+    jobs = []
     with _jobs_lock:
         for job in _backtest_jobs.values():
-            # Create summary without large data fields
             summary = {
                 "job_id": job.job_id,
                 "config": job.config,
@@ -2213,59 +2083,7 @@ def get_all_jobs(limit: int = 50) -> list:
                     "sharpe_ratio": job.result.get("sharpe_ratio", 0),
                     "max_drawdown_pct": job.result.get("max_drawdown_pct", 0),
                 }
-            # In-memory jobs override DB entries (for real-time updates)
-            jobs_by_id[job.job_id] = summary
+            jobs.append(summary)
 
-    # Convert to list and sort by created_at descending (newest first)
-    jobs = list(jobs_by_id.values())
     jobs.sort(key=lambda x: x["created_at"], reverse=True)
-    return jobs
-
-
-def _reconcile_stale_db_jobs(scan_limit: int = 200) -> int:
-    """Mark stale persisted pending/running jobs as failed.
-
-    Stale = pending/running in DB, not active in-memory, older than threshold.
-    This avoids indefinitely "stuck" jobs after process restarts/crashes.
-    """
-    now_monotonic = time.monotonic()
-    if now_monotonic - _stale_reconcile_state["last_at"] < 60:
-        return 0
-    _stale_reconcile_state["last_at"] = now_monotonic
-
-    with _jobs_lock:
-        active_ids = {
-            job.job_id
-            for job in _backtest_jobs.values()
-            if job.status in ("pending", "running")
-        }
-
-    stale_cutoff = datetime.now() - timedelta(minutes=STALE_DB_JOB_MINUTES)
-    fixed = 0
-    for db_job in backtest_db.get_history(limit=scan_limit):
-        status = db_job.get("status")
-        job_id = db_job.get("job_id")
-        if status not in ("pending", "running") or not job_id:
-            continue
-        if job_id in active_ids:
-            continue
-        created_at_raw = db_job.get("created_at")
-        if not created_at_raw:
-            continue
-        try:
-            created_at = datetime.fromisoformat(created_at_raw)
-        except Exception:
-            continue
-        if created_at > stale_cutoff:
-            continue
-        backtest_db.save_backtest(
-            job_id=job_id,
-            config=db_job.get("config") or {},
-            status="failed",
-            created_at=created_at_raw,
-            completed_at=datetime.now().isoformat(),
-            error="Marked stale after process restart/crash (no active worker)",
-            result=None,
-        )
-        fixed += 1
-    return fixed
+    return jobs[:limit]

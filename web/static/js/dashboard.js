@@ -334,6 +334,59 @@ function getRegimeClass(regime) {
     return '';
 }
 
+function isTrackedExperimentSymbol(symbol) {
+    return ['BTC', 'ETH'].includes(String(symbol || '').toUpperCase());
+}
+
+function isTrackedExperimentStrategy(strategy) {
+    return String(strategy || '').startsWith('llm_direction_');
+}
+
+function formatStrategyLabel(strategy, fallbackLabel = '-') {
+    const raw = String(strategy || '').trim();
+    if (!raw) return fallbackLabel;
+    if (raw.startsWith('llm_direction_')) {
+        return `${raw.replace('llm_direction_', '').toUpperCase()} LLM`;
+    }
+    return raw;
+}
+
+function classifyExecutionRoute(strategy, reason, explicitRoute = null) {
+    const route = String(explicitRoute || '').toLowerCase();
+    if (route === 'llm' || route === 'fallback') return route;
+
+    const strategyText = String(strategy || '').toLowerCase();
+    const reasonText = String(reason || '').toLowerCase();
+    if (strategyText.includes('fallback') || reasonText.includes('fallback') || reasonText.includes('provider error')) {
+        return 'fallback';
+    }
+    if (strategyText.startsWith('llm_direction')) {
+        return 'llm';
+    }
+    return 'other';
+}
+
+function formatRouteBadge(route) {
+    if (route === 'fallback') return 'Fallback';
+    if (route === 'llm') return 'Primary LLM';
+    return 'Other';
+}
+
+function summarizeDecisionReason(reason, fallbackLabel = '-') {
+    const text = String(reason || '').trim();
+    if (!text) return fallbackLabel;
+    if (text.includes('No entry:')) {
+        const parts = text.split('|');
+        if (parts[1]) return parts[1].trim();
+    }
+    return text.replace(/^LLMDirection entry:\s*/i, '').replace(/^LLMDirection exit:\s*/i, '');
+}
+
+function summarizeTradeReason(reason, fallbackLabel = '-') {
+    const text = summarizeDecisionReason(reason, fallbackLabel);
+    return text.replace(/^HybridLong\[[^\]]+\]\s*/i, '').trim() || fallbackLabel;
+}
+
 // Get regime display label
 function getRegimeLabel(regime) {
     if (!regime) return '?';
@@ -1098,7 +1151,6 @@ async function fetchAll() {
         fetchKillSwitch(),
         fetchExchangeBalances(),
         fetchLeverageState(),
-        fetchSelectorSnapshot(),
     ]);
 }
 
@@ -1528,13 +1580,23 @@ function renderHistorySummary(data) {
     const summary = data.summary || {};
     const totalTradesEl = document.getElementById('history-total-trades');
     const buySellEl = document.getElementById('history-buy-sell');
-    const marketSplitEl = document.getElementById('history-market-split');
+    const symbolsEl = document.getElementById('history-symbols');
+    const routeSplitEl = document.getElementById('history-route-split');
     const realizedPnlEl = document.getElementById('history-realized-pnl');
     const winRateEl = document.getElementById('history-win-rate');
 
     if (totalTradesEl) totalTradesEl.textContent = String(data.total_count ?? 0);
     if (buySellEl) buySellEl.textContent = `${summary.buy_count ?? 0} / ${summary.sell_count ?? 0}`;
-    if (marketSplitEl) marketSplitEl.textContent = `${summary.spot_count ?? 0}`;
+    if (symbolsEl) {
+        const symbols = Array.isArray(summary.unique_symbols) ? summary.unique_symbols : [];
+        const syntheticCount = Number(summary.synthetic_count || 0);
+        const symbolText = symbols.length > 0 ? symbols.join(' / ') : '-';
+        symbolsEl.textContent = syntheticCount > 0 ? `${symbolText} (${syntheticCount} recovered)` : symbolText;
+    }
+    if (routeSplitEl) {
+        const routeCounts = summary.route_counts || {};
+        routeSplitEl.textContent = `${routeCounts.llm ?? 0} / ${routeCounts.fallback ?? 0}`;
+    }
 
     if (realizedPnlEl) {
         const pnl = summary.realized_pnl ?? 0;
@@ -1556,19 +1618,43 @@ function renderHistorySummary(data) {
 
 function renderTradeTable(data) {
     const container = document.getElementById('history-container');
+    const tradePipeline = latestStatusPayload?.trade_pipeline || null;
 
     if (!data.trades || data.trades.length === 0) {
+        if (
+            tradePipeline &&
+            tradePipeline.warning === 'orders_without_trades'
+        ) {
+            container.innerHTML = `
+                <div class="error-state">
+                    <span class="error-icon">!</span>
+                    <span class="error-message">
+                        No fills recorded in \`trades\` stream. Active positions exist and orders were published, so the paper execution pipeline likely missed trade logging.
+                    </span>
+                </div>
+            `;
+            return;
+        }
         renderEmpty('history-container', 'No trades found');
         return;
     }
 
     let html = `
+        ${tradePipeline && Number(tradePipeline.recoverable_trade_count || 0) > 0 ? `
+            <div class="error-state">
+                <span class="error-icon">!</span>
+                <span class="error-message">
+                    Recovered open-position entries are shown below because earlier paper fills were not written to the \`trades\` stream.
+                </span>
+            </div>
+        ` : ''}
         <table class="data-table">
             <thead>
                 <tr>
                     <th>Time</th>
                     <th>Symbol</th>
                     <th>Action</th>
+                    <th>Route</th>
                     <th class="text-right">Price</th>
                     <th class="text-right">Volume</th>
                     <th class="text-right">P&L</th>
@@ -1583,19 +1669,24 @@ function renderTradeTable(data) {
         const actionClass = trade.action.toLowerCase();
         const pnlClass = getPnLClass(trade.profit);
         const symbolDisplay = trade.symbol || '-';
+        const route = classifyExecutionRoute(trade.strategy, trade.reason, trade.execution_route);
+        const recoveredBadge = trade.synthetic || trade.recovered
+            ? '<span class="impact-badge">Recovered</span> '
+            : '';
         html += `
             <tr>
                 <td>${formatDateTime(trade.timestamp)}</td>
                 <td><span class="symbol-badge">${escapeHtml(symbolDisplay)}</span></td>
                 <td><span class="action-badge ${actionClass}">${trade.action}</span></td>
+                <td><span class="impact-badge">${escapeHtml(formatRouteBadge(route))}</span></td>
                 <td class="text-right">$${formatPrice(trade.price, false)}</td>
                 <td class="text-right">${formatQuantity(trade.volume, 4)}</td>
                 <td class="text-right ${pnlClass}">
                     ${trade.profit !== null ? formatUSD(trade.profit) : '-'}
                     ${trade.profit_pct !== null ? `(${formatPercent(trade.profit_pct)})` : ''}
                 </td>
-                <td>${escapeHtml(trade.strategy) || '-'}</td>
-                <td>${escapeHtml(trade.reason) || '-'}</td>
+                <td>${escapeHtml(trade.strategy_label || formatStrategyLabel(trade.strategy))}</td>
+                <td>${recoveredBadge}${escapeHtml(summarizeTradeReason(trade.reason))}</td>
             </tr>
         `;
     }
@@ -1662,16 +1753,22 @@ async function fetchSignals() {
 
 function renderSignals(data) {
     const container = document.getElementById('signals-container');
+    const rawSignals = Array.isArray(data.signals) ? data.signals : [];
+    const trackedSignals = rawSignals.filter((signal) =>
+        isTrackedExperimentSymbol(signal.symbol) && isTrackedExperimentStrategy(signal.strategy)
+    );
 
-    if (!data.signals || data.signals.length === 0) {
-        renderEmpty('signals-container', 'No market-analysis signals found');
+    updateSignalsSummary(trackedSignals);
+
+    if (trackedSignals.length === 0) {
+        renderEmpty('signals-container', 'No BTC/ETH LLM decisions found');
         return;
     }
 
     // Group by strategy while preserving arrival order
     const strategyGroups = {};
     const strategyOrder = [];
-    for (const signal of data.signals) {
+    for (const signal of trackedSignals) {
         const strategyName = signal.strategy || 'unknown';
         if (!strategyGroups[strategyName]) {
             strategyGroups[strategyName] = [];
@@ -1685,13 +1782,19 @@ function renderSignals(data) {
     for (const strategyName of strategyOrder) {
         const signals = strategyGroups[strategyName];
         const latestTs = signals[0]?.timestamp || '';
+        const latestRoute = classifyExecutionRoute(
+            strategyName,
+            signals[0]?.reason,
+            signals[0]?.execution_route,
+        );
 
         html += `
             <div class="signal-strategy-group">
                 <div class="signal-strategy-header">
-                    <div class="signal-strategy-title">${escapeHtml(strategyName)}</div>
+                    <div class="signal-strategy-title">${escapeHtml(formatStrategyLabel(strategyName))}</div>
                     <div class="signal-strategy-meta">
                         <span>${signals.length} signals</span>
+                        <span>${formatRouteBadge(latestRoute)}</span>
                         <span>Latest: ${formatDateTime(latestTs)}</span>
                     </div>
                 </div>
@@ -1706,6 +1809,7 @@ function renderSignals(data) {
             const entryImpact = String(signal.entry_impact || '').toLowerCase();
             const impactDetail = signal.impact_detail || '-';
             const impactFactors = Array.isArray(signal.impact_factors) ? signal.impact_factors : [];
+            const route = classifyExecutionRoute(signal.strategy, signal.reason, signal.execution_route);
             const impactLabel = ({
                 entry_filled: 'ENTRY FILLED',
                 entry_ordered: 'ENTRY ORDERED',
@@ -1722,6 +1826,7 @@ function renderSignals(data) {
                         <div class="signal-badges">
                             <span class="symbol-badge">${escapeHtml(symbolDisplay)}</span>
                             <span class="signal-action ${actionClass}">${decisionLabel}</span>
+                            <span class="impact-badge">${escapeHtml(formatRouteBadge(route))}</span>
                             <span class="impact-badge ${entryImpact}">${escapeHtml(impactLabel)}</span>
                             <span class="acted-badge ${signal.acted ? 'yes' : 'no'}">${signal.acted ? 'Acted' : 'Not Acted'}</span>
                         </div>
@@ -1736,12 +1841,12 @@ function renderSignals(data) {
                             <span class="value">${escapeHtml(signal.regime) || '-'}</span>
                         </div>
                         <div class="signal-info">
-                            <span class="label">Decision</span>
-                            <span class="value">${decisionLabel}</span>
+                            <span class="label">Route</span>
+                            <span class="value">${escapeHtml(formatRouteBadge(route))}</span>
                         </div>
                         <div class="signal-info">
                             <span class="label">Reason</span>
-                            <span class="value">${escapeHtml(signal.reason) || '-'}</span>
+                            <span class="value">${escapeHtml(summarizeDecisionReason(signal.reason))}</span>
                         </div>
                         <div class="signal-info">
                             <span class="label">Market State</span>
@@ -1805,6 +1910,26 @@ function renderSignals(data) {
     }
 
     container.innerHTML = html;
+}
+
+function updateSignalsSummary(signals) {
+    const buyEl = document.getElementById('signals-summary-buy');
+    const waitEl = document.getElementById('signals-summary-wait');
+    const actedEl = document.getElementById('signals-summary-acted');
+    const fallbackEl = document.getElementById('signals-summary-fallback');
+    if (!buyEl || !waitEl || !actedEl || !fallbackEl) return;
+
+    const buyCount = signals.filter((signal) => String(signal.decision || signal.action || '').toUpperCase() === 'BUY').length;
+    const waitCount = signals.filter((signal) => String(signal.decision || signal.action || '').toUpperCase() !== 'BUY').length;
+    const actedCount = signals.filter((signal) => Boolean(signal.acted)).length;
+    const fallbackCount = signals.filter((signal) =>
+        classifyExecutionRoute(signal.strategy, signal.reason, signal.execution_route) === 'fallback'
+    ).length;
+
+    buyEl.textContent = String(buyCount);
+    waitEl.textContent = String(waitCount);
+    actedEl.textContent = String(actedCount);
+    fallbackEl.textContent = String(fallbackCount);
 }
 
 // Decision History (within Signals tab)
@@ -2637,9 +2762,6 @@ function initBacktest() {
     // Load available strategies
     fetchStrategies();
 
-    // Load backtest history
-    loadBacktestHistory();
-
     // Set up form handlers
     const runBtn = document.getElementById('backtest-run-btn');
     const cancelBtn = document.getElementById('backtest-cancel-btn');
@@ -2757,19 +2879,16 @@ function pollBacktestStatus(jobId) {
                 backtestState.pollInterval = null;
                 renderBacktestResults(data.result);
                 resetBacktestUI();
-                loadBacktestHistory();  // Refresh history list
                 setBacktestMessage('Backtest completed.', 'success');
             } else if (data.status === 'failed') {
                 clearInterval(backtestState.pollInterval);
                 backtestState.pollInterval = null;
                 resetBacktestUI();
-                loadBacktestHistory();  // Refresh history list
                 setBacktestMessage('Backtest failed: ' + (data.error || 'Unknown error'), 'error');
             } else if (data.status === 'cancelled') {
                 clearInterval(backtestState.pollInterval);
                 backtestState.pollInterval = null;
                 resetBacktestUI();
-                loadBacktestHistory();  // Refresh history list
                 setBacktestMessage('Backtest cancelled.', 'info');
             }
         } catch (error) {
@@ -2843,7 +2962,6 @@ async function cancelBacktest() {
     }
 
     resetBacktestUI();
-    loadBacktestHistory();
 }
 
 function resetBacktestUI() {
@@ -3226,143 +3344,35 @@ function renderBacktestTrades(trades) {
     container.innerHTML = html;
 }
 
-// Backtest History Functions
-async function loadBacktestHistory() {
-    const container = document.getElementById('backtest-history-list');
-    if (!container) return;
-
-    try {
-        const data = await apiFetch('/api/backtest/history');
-        const jobs = data.jobs || [];
-
-        if (jobs.length === 0) {
-            container.innerHTML = '<p class="no-data">No backtest history</p>';
-            return;
-        }
-
-        let html = '';
-        for (const job of jobs) {
-            const strategy = job.config?.strategy || 'Unknown';
-            const date = job.created_at ? new Date(job.created_at).toLocaleString() : '-';
-            const metrics = job.metrics || {};
-            const returnPct = metrics.total_return_pct || 0;
-            const returnClass = returnPct >= 0 ? 'positive' : 'negative';
-            const statusClass = job.status || 'pending';
-
-            html += `
-                <div class="backtest-history-item" data-job-id="${job.job_id}" onclick="loadBacktestJob('${job.job_id}')">
-                    <div class="history-item-info">
-                        <span class="history-item-strategy">${escapeHtml(strategy)}</span>
-                        <span class="history-item-date">${escapeHtml(date)}</span>
-                    </div>
-                    <div class="history-item-metrics">
-                        ${job.status === 'completed' ? `
-                            <span class="history-item-return ${returnClass}">${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%</span>
-                        ` : ''}
-                        <span class="history-item-status ${statusClass}">${job.status}</span>
-                    </div>
-                </div>
-            `;
-        }
-
-        container.innerHTML = html;
-    } catch (error) {
-        console.error('Failed to load backtest history:', error);
-        container.innerHTML = '<p class="no-data">Failed to load history</p>';
-    }
-}
-
-async function loadBacktestJob(jobId) {
-    try {
-        const data = await apiFetch(`/api/backtest/status/${jobId}`);
-
-        // Highlight active item
-        document.querySelectorAll('.backtest-history-item').forEach(el => {
-            el.classList.remove('active');
-        });
-        const activeItem = document.querySelector(`[data-job-id="${jobId}"]`);
-        if (activeItem) {
-            activeItem.classList.add('active');
-        }
-
-        if (data.status === 'running' || data.status === 'pending') {
-            backtestState.currentJobId = data.job_id;
-            const runBtn = document.getElementById('backtest-run-btn');
-            const cancelBtn = document.getElementById('backtest-cancel-btn');
-            const progressDiv = document.getElementById('backtest-progress');
-            const resultsDiv = document.getElementById('backtest-results');
-
-            if (runBtn) {
-                runBtn.disabled = true;
-                runBtn.textContent = 'Running...';
-            }
-            if (cancelBtn) {
-                cancelBtn.style.display = 'inline-block';
-            }
-            if (progressDiv) {
-                progressDiv.style.display = 'block';
-            }
-            if (resultsDiv) {
-                resultsDiv.style.display = 'none';
-            }
-            setBacktestMessage('Resumed job ' + jobId + ' (' + data.status + ').');
-            pollBacktestStatus(jobId);
-            return;
-        }
-
-        if (data.status === 'completed' && data.result) {
-            renderBacktestResults(data.result);
-            setBacktestMessage(null);
-        } else if (data.status === 'failed') {
-            setBacktestMessage('Backtest failed: ' + (data.error || 'Unknown error'), 'error');
-        } else if (data.status === 'cancelled') {
-            setBacktestMessage('Backtest cancelled.', 'info');
-        }
-    } catch (error) {
-        console.error('Failed to load backtest job:', error);
-        setBacktestMessage('Failed to load backtest job: ' + error.message, 'error');
-    }
-}
-
 // =====================
 // Strategies Tab
 // =====================
 
 async function fetchStrategiesTab() {
     const container = document.getElementById('strategies-container');
-    const selectorOverview = document.getElementById('selector-overview');
-    const selectorEvents = document.getElementById('selector-events');
     if (!container) return;
 
     container.innerHTML = '<p class="loading">Loading strategies...</p>';
-    if (selectorOverview) selectorOverview.innerHTML = '<p class="loading">Loading selector monitor...</p>';
-    if (selectorEvents) selectorEvents.innerHTML = '<p class="loading">Loading selector events...</p>';
 
     try {
-        const [data, selectorData] = await Promise.all([
-            apiFetch('/api/strategies'),
-            apiFetch('/api/events/selector?hours=24&limit=40&changed_only=true')
-                .catch((error) => {
-                    console.warn('Selector events fetch failed:', error);
-                    return { events: [] };
-                })
-        ]);
-        renderStrategiesTab(data, selectorData.events || []);
+        const data = await apiFetch('/api/strategies');
+        renderStrategiesTab(data);
     } catch (error) {
         console.error('Failed to fetch strategies:', error);
         container.innerHTML = `<p class="error">Failed to load strategies: ${error.message}</p>`;
-        if (selectorOverview) selectorOverview.innerHTML = '<p class="error">Failed to load selector monitor</p>';
-        if (selectorEvents) selectorEvents.innerHTML = '<p class="error">Failed to load selector events</p>';
     }
 }
 
-function renderStrategiesTab(data, selectorEvents = []) {
+function renderStrategiesTab(data) {
     const container = document.getElementById('strategies-container');
     if (!container) return;
 
-    const strategies = data.strategies || [];
+    const strategies = (data.strategies || []).filter((strategy) => {
+        if (!isTrackedExperimentStrategy(strategy.name)) return false;
+        const inferredSymbol = strategy.symbol || String(strategy.name || '').replace('llm_direction_', '').toUpperCase();
+        return isTrackedExperimentSymbol(inferredSymbol);
+    });
     const symbols = data.symbols || [];
-    const availableStrategies = data.available_strategies || [];
 
     // Update summary stats
     const countEl = document.getElementById('strategies-count');
@@ -3379,9 +3389,7 @@ function renderStrategiesTab(data, selectorEvents = []) {
         positionsCountEl.textContent = totalPositions;
     }
 
-    renderSelectorMonitor(strategies, selectorEvents);
-
-    if (strategies.length === 0 && availableStrategies.length === 0) {
+    if (strategies.length === 0) {
         container.innerHTML = '<p class="no-data">No strategies configured</p>';
         return;
     }
@@ -3393,139 +3401,10 @@ function renderStrategiesTab(data, selectorEvents = []) {
         html += renderStrategyCard(strategy, symbols);
     }
 
-    // Render available but not enabled strategies
-    if (availableStrategies.length > 0) {
-        html += `
-            <div class="available-strategies-section">
-                <h4>Available (Not Enabled)</h4>
-                <div class="available-strategies-list">
-                    ${availableStrategies.map(name => `
-                        <div class="available-strategy-item">
-                            <span class="strategy-name">${name}</span>
-                            <span class="strategy-badge disabled">Disabled</span>
-                            <button class="btn-enable" data-strategy="${name}" title="Enable strategy">Enable</button>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-
     container.innerHTML = html;
 
     // Attach event handlers
     attachStrategyEventHandlers();
-}
-
-function renderSelectorMonitor(strategies, selectorEvents) {
-    const overviewEl = document.getElementById('selector-overview');
-    const eventsEl = document.getElementById('selector-events');
-    if (!overviewEl || !eventsEl) return;
-
-    const selectorStrategies = (strategies || []).filter(
-        (s) => s.symbol_selector && s.symbol_selector.enabled
-    );
-
-    if (selectorStrategies.length === 0) {
-        overviewEl.innerHTML = '<p class="empty-state">No enabled selector strategies.</p>';
-    } else {
-        const overviewHtml = selectorStrategies.map((strategy) => {
-            const state = strategy.selector_state || {};
-            const selectedSymbols = Array.isArray(state.selected_symbols) ? state.selected_symbols : [];
-            const topScores = Array.isArray(state.top_scores) ? state.top_scores : [];
-            const signalEvents = Array.isArray(state.signal_events) ? state.signal_events : [];
-            const rejectionCounts = state.rejection_counts || {};
-            const topRejections = Object.entries(rejectionCounts)
-                .sort((a, b) => Number(b[1]) - Number(a[1]))
-                .slice(0, 3);
-
-            const selectedHtml = selectedSymbols.length > 0
-                ? selectedSymbols.map((s) => `<span class="selector-chip selected">${escapeHtml(s)}</span>`).join('')
-                : '<span class="selector-empty">No selected symbols</span>';
-
-            const scoreHtml = topScores.length > 0
-                ? topScores.slice(0, 5).map((item) => {
-                    const score = Number(item.score ?? 0).toFixed(3);
-                    const ignition = Number(item.ignition ?? item.score ?? 0).toFixed(3);
-                    return `<span class="selector-chip">${escapeHtml(item.symbol)}:${score} (ign:${ignition})</span>`;
-                }).join('')
-                : '<span class="selector-empty">No score snapshot</span>';
-            const signalHtml = signalEvents.length > 0
-                ? signalEvents.slice(0, 5).map((item) => {
-                    const score = Number(item.score ?? 0).toFixed(3);
-                    return `<span class="selector-chip selected">${escapeHtml(item.type || '?')}:${escapeHtml(item.symbol || '?')}(${score})</span>`;
-                }).join('')
-                : '<span class="selector-empty">No signal events</span>';
-
-            const rejectHtml = topRejections.length > 0
-                ? topRejections.map(([reason, count]) =>
-                    `<span class="selector-chip reject">${escapeHtml(reason)}:${Number(count)}</span>`
-                ).join('')
-                : '<span class="selector-empty">No rejection reasons</span>';
-
-            return `
-                <div class="selector-overview-card">
-                    <div class="selector-overview-title">
-                        <span class="strategy-name">${escapeHtml(strategy.name)}</span>
-                        <span class="selector-flag">${state.changed ? 'Changed' : 'Stable'} · ${state.timestamp ? formatDateTime(state.timestamp) : '-'}</span>
-                    </div>
-                    <div class="selector-overview-row">
-                        <span class="selector-overview-kv">Top N: <b>${strategy.symbol_selector?.top_n ?? '-'}</b></span>
-                        <span class="selector-overview-kv">Selected: <b>${selectedSymbols.length}</b></span>
-                        <span class="selector-overview-kv">Universe: <b>${state.universe_size ?? '-'}</b></span>
-                    </div>
-                    <div class="selector-overview-row">${selectedHtml}</div>
-                    <div class="selector-overview-row">${scoreHtml}</div>
-                    <div class="selector-overview-row">${signalHtml}</div>
-                    <div class="selector-overview-row">${rejectHtml}</div>
-                </div>
-            `;
-        }).join('');
-
-        overviewEl.innerHTML = overviewHtml;
-    }
-
-    const events = Array.isArray(selectorEvents) ? selectorEvents : [];
-    if (events.length === 0) {
-        eventsEl.innerHTML = '<p class="empty-state">No selector change events in the last 24h.</p>';
-        return;
-    }
-
-    const eventsHtml = events.slice(0, 20).map((event) => {
-        const selectedSymbols = Array.isArray(event.selected_symbols) ? event.selected_symbols : [];
-        const topScores = Array.isArray(event.top_scores) ? event.top_scores : [];
-        const signalEvents = Array.isArray(event.signal_events) ? event.signal_events : [];
-        const rejectionCounts = event.rejection_counts || {};
-        const topRejections = Object.entries(rejectionCounts)
-            .sort((a, b) => Number(b[1]) - Number(a[1]))
-            .slice(0, 3)
-            .map(([reason, count]) => `${reason}:${count}`)
-            .join(', ');
-        const scoreText = topScores.slice(0, 3)
-            .map((item) => `${item.symbol}:${Number(item.score ?? 0).toFixed(3)}(ign:${Number(item.ignition ?? item.score ?? 0).toFixed(3)})`)
-            .join(', ');
-        const signalText = signalEvents.slice(0, 4)
-            .map((item) => `${item.type}:${item.symbol}`)
-            .join(', ');
-
-        return `
-            <div class="selector-event-item">
-                <div class="selector-event-head">
-                    <span class="selector-event-strategy">${escapeHtml(event.strategy || '-')}</span>
-                    <span>${formatDateTime(event.timestamp)}</span>
-                </div>
-                <div class="selector-event-body">
-                    <span class="selector-chip ${event.changed ? 'selected' : ''}">${event.changed ? 'changed' : 'stable'}</span>
-                    <span class="selector-chip">selected: ${selectedSymbols.join(', ') || '-'}</span>
-                    <span class="selector-chip">score: ${scoreText || '-'}</span>
-                    <span class="selector-chip selected">signals: ${escapeHtml(signalText || '-')}</span>
-                    <span class="selector-chip reject">reject: ${escapeHtml(topRejections || '-')}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    eventsEl.innerHTML = eventsHtml;
 }
 
 function attachStrategyEventHandlers() {
@@ -3586,6 +3465,7 @@ function showNotification(message, type = 'info') {
 
 function renderStrategyCard(strategy, symbols) {
     const name = strategy.name;
+    const strategyLabel = strategy.strategy_label || formatStrategyLabel(name, name);
     const market = strategy.market || 'spot';
     const isSpot = true;
     const leverage = 1;
@@ -3593,8 +3473,6 @@ function renderStrategyCard(strategy, symbols) {
     const isTuned = strategy.is_tuned;
     const activePositions = strategy.active_positions || [];
     const liveState = strategy.live_state || {};
-    const selectorCfg = strategy.symbol_selector || null;
-    const selectorState = strategy.selector_state || null;
 
     // Status badge
     let statusBadge = '';
@@ -3704,73 +3582,6 @@ function renderStrategyCard(strategy, symbols) {
         positionsHtml += '</div></div>';
     }
 
-    let selectorHtml = '';
-    if (selectorCfg && selectorCfg.enabled) {
-        const selectedSymbols = Array.isArray(selectorState?.selected_symbols)
-            ? selectorState.selected_symbols
-            : [];
-        const topScores = Array.isArray(selectorState?.top_scores)
-            ? selectorState.top_scores
-            : [];
-        const signalEvents = Array.isArray(selectorState?.signal_events)
-            ? selectorState.signal_events
-            : [];
-        const rejected = Array.isArray(selectorState?.rejected)
-            ? selectorState.rejected
-            : [];
-        const rejectionCounts = selectorState?.rejection_counts || {};
-        const topRejectReasons = Object.entries(rejectionCounts)
-            .sort((a, b) => Number(b[1]) - Number(a[1]))
-            .slice(0, 3);
-
-        selectorHtml = `
-            <div class="strategy-selector">
-                <h5>Symbol Selector</h5>
-                <div class="selector-meta">
-                    <span class="selector-kv">Top N: <b>${selectorCfg.top_n || '-'}</b></span>
-                    <span class="selector-kv">Selected: <b>${selectedSymbols.length}</b></span>
-                    <span class="selector-kv">Universe: <b>${selectorState?.universe_size ?? '-'}</b></span>
-                </div>
-                <div class="selector-selected">
-                    ${(selectedSymbols.length > 0)
-                        ? selectedSymbols.map(s => `<span class="selector-chip selected">${escapeHtml(s)}</span>`).join('')
-                        : '<span class="selector-empty">No selected symbols</span>'}
-                </div>
-                <div class="selector-scores">
-                    ${(topScores.length > 0)
-                        ? topScores.slice(0, 5).map(item => {
-                            const score = Number(item.score ?? 0).toFixed(3);
-                            const ignition = Number(item.ignition ?? item.score ?? 0).toFixed(3);
-                            return `<span class="selector-chip">${escapeHtml(item.symbol)}:${score} (ign:${ignition})</span>`;
-                        }).join('')
-                        : '<span class="selector-empty">No score snapshot</span>'}
-                </div>
-                <div class="selector-scores">
-                    ${(signalEvents.length > 0)
-                        ? signalEvents.slice(0, 6).map(item => {
-                            const score = Number(item.score ?? 0).toFixed(3);
-                            return `<span class="selector-chip selected">${escapeHtml(item.type || '?')}:${escapeHtml(item.symbol || '?')}(${score})</span>`;
-                        }).join('')
-                        : '<span class="selector-empty">No signal events</span>'}
-                </div>
-                <div class="selector-rejections">
-                    ${(topRejectReasons.length > 0)
-                        ? topRejectReasons.map(([reason, count]) =>
-                            `<span class="selector-chip reject">${escapeHtml(reason)}:${Number(count)}</span>`
-                        ).join('')
-                        : '<span class="selector-empty">No rejection reasons</span>'}
-                </div>
-                ${rejected.length > 0 ? `
-                    <div class="selector-rejected-list">
-                        ${rejected.slice(0, 5).map(item =>
-                            `<span class="selector-rejected-item">${escapeHtml(item.symbol)}(${escapeHtml(item.reason)})</span>`
-                        ).join('')}
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }
-
     // Disable button (disabled if has active positions)
     const hasPositions = activePositions.length > 0;
     const disableBtn = hasPositions
@@ -3781,7 +3592,7 @@ function renderStrategyCard(strategy, symbols) {
         <div class="strategy-card">
             <div class="strategy-header">
                 <div class="strategy-title">
-                    <h4 class="strategy-name">${name}</h4>
+                    <h4 class="strategy-name">${escapeHtml(strategyLabel)}</h4>
                     ${statusBadge}
                 </div>
                 ${disableBtn}
@@ -3810,7 +3621,6 @@ function renderStrategyCard(strategy, symbols) {
             </div>
             ${regimeHtml}
             ${stateHtml}
-            ${selectorHtml}
             ${positionsHtml}
         </div>
     `;

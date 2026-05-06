@@ -415,6 +415,7 @@ class TestTradesHistoryAPI:
                 'profit': None,
                 'profit_pct': None,
                 'reason': 'entry',
+                'synthetic': True,
             },
             {
                 'id': '2',
@@ -445,6 +446,40 @@ class TestTradesHistoryAPI:
         assert data['summary']['realized_trade_count'] == 1
         assert data['summary']['realized_pnl'] == 10.0
         assert data['summary']['win_rate'] == 100.0
+        assert data['summary']['synthetic_count'] == 1
+
+    @patch('web.app.recover_missing_trades')
+    def test_recover_trades_endpoint_returns_backfilled_entries(self, mock_recover, client):
+        """Recover endpoint should return recovered paper entries."""
+        mock_recover.return_value = [
+            {
+                'id': 'recovered:BTC:1',
+                'timestamp': '2026-02-08T10:00:00',
+                'timestamp_ms': 1770000000000,
+                'action': 'BUY',
+                'symbol': 'BTC',
+                'price': 100000,
+                'volume': 0.01,
+                'market': 'spot',
+                'exchange': 'binance',
+                'strategy': 'llm_direction_btc',
+                'paper': True,
+                'profit': None,
+                'profit_pct': None,
+                'reason': 'Recovered from open position',
+                'synthetic': True,
+                'recovered': True,
+                'trade_source': 'position_backfill',
+            }
+        ]
+
+        response = client.post('/api/trades/recover')
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['recovered_count'] == 1
+        assert data['trades'][0]['execution_route'] == 'llm'
+        assert data['trades'][0]['strategy_label'] == 'BTC LLM'
 
 
 class TestSignalsAPI:

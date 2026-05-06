@@ -9,7 +9,7 @@ def _mock_spec(market: str = "spot") -> SimpleNamespace:
     return SimpleNamespace(market=market)
 
 
-def test_get_available_strategies_only_includes_enabled_allocation_and_wf(monkeypatch):
+def test_get_available_strategies_only_includes_enabled_allocation(monkeypatch):
     monkeypatch.setattr(
         backtest_runner,
         "STRATEGY_REGISTRY",
@@ -17,17 +17,6 @@ def test_get_available_strategies_only_includes_enabled_allocation_and_wf(monkey
             "llm_direction": _mock_spec("spot"),
             "regime_long_v2": _mock_spec("spot"),
         },
-    )
-    monkeypatch.setattr(
-        backtest_runner,
-        "BACKTEST_ONLY_STRATEGIES",
-        (
-            {
-                "id": "wf_tree60_btc",
-                "name": "Walk-Forward Tree60 BTC",
-                "description": "Backtest-only walk-forward XGB+LGB ensemble (BTC spot)",
-            },
-        ),
     )
     monkeypatch.setattr(
         backtest_runner,
@@ -42,9 +31,10 @@ def test_get_available_strategies_only_includes_enabled_allocation_and_wf(monkey
     strategies = backtest_runner.get_available_strategies()
     ids = [s["id"] for s in strategies]
 
-    assert ids == ["llm_direction_btc", "wf_tree60_btc"]
+    assert ids == ["llm_direction_btc"]
     assert "llm_direction" not in ids
     assert "regime_long_v2" not in ids
+    assert not any(strategy["id"].startswith("wf_tree60_") for strategy in strategies)
 
 
 def test_get_available_strategies_keeps_enabled_registry_strategy_once(monkeypatch):
@@ -54,17 +44,6 @@ def test_get_available_strategies_keeps_enabled_registry_strategy_once(monkeypat
         {
             "regime_long_v2": _mock_spec("spot"),
         },
-    )
-    monkeypatch.setattr(
-        backtest_runner,
-        "BACKTEST_ONLY_STRATEGIES",
-        (
-            {
-                "id": "wf_tree60_eth",
-                "name": "Walk-Forward Tree60 ETH",
-                "description": "Backtest-only walk-forward XGB+LGB ensemble (ETH spot)",
-            },
-        ),
     )
     monkeypatch.setattr(
         backtest_runner,
@@ -78,6 +57,6 @@ def test_get_available_strategies_keeps_enabled_registry_strategy_once(monkeypat
     strategies = backtest_runner.get_available_strategies()
     ids = [s["id"] for s in strategies]
 
-    assert ids == ["regime_long_v2", "llm_direction_btc", "wf_tree60_eth"]
+    assert ids == ["regime_long_v2", "llm_direction_btc"]
     assert ids.count("regime_long_v2") == 1
     assert strategies[0]["description"] == "Spot strategy (regime_long_v2)"

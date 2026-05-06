@@ -57,13 +57,6 @@ except Exception as e:
     print(f"Failed to import backtest_runner: {e}")
     backtest_runner = None
 
-# Import backtest DB (for history/details fallback)
-try:
-    from services import backtest_db
-except Exception as e:
-    print(f"Failed to import backtest_db: {e}")
-    backtest_db = None
-
 # Import metrics service for real-time dashboard
 try:
     from services.metrics_service import metrics_service
@@ -306,70 +299,240 @@ def read_redis_trades(limit: int = 1000) -> list:
         messages = r.xrange('trades', count=limit)
 
         trades = []
+        existing_trade_ids: set[str] = set()
         # Track open positions per symbol for profit calculation
         open_positions: dict[str, list] = {}  # symbol -> [(price, qty, strategy)]
 
         for msg_id, data in messages:
-            # Convert timestamp from millis to ISO format
-            ts_millis = int(data.get('timestamp', msg_id.split('-')[0]))
-            ts_dt = datetime.fromtimestamp(ts_millis / 1000)
-
-            symbol = data.get('symbol', '')
-            action = data.get('side', '').upper()
-            price = float(data.get('price', 0))
-            volume = float(data.get('quantity', 0))
-            strategy = data.get('strategy', '')
-
-            trade = {
-                'id': data.get('order_id', msg_id),
-                'timestamp': ts_dt.isoformat(),
-                'action': action,
-                'symbol': symbol,
-                'price': price,
-                'volume': volume,
-                'market': data.get('market', 'spot'),
-                'exchange': 'binance',
-                'strategy': strategy,
-                'paper': data.get('paper', 'true') == 'true',
-                'profit': float(data.get('profit', 0)) if data.get('profit') else None,
-                'profit_pct': float(data.get('profit_pct', 0)) if data.get('profit_pct') else None,
-                'reason': data.get('reason', ''),
-            }
+            trade = _build_trade_record(msg_id, data)
+            existing_trade_ids.add(str(trade['id']))
 
             # Calculate profit for SELL trades without profit data
-            if action == 'BUY':
+            if trade['action'] == 'BUY':
                 # Add to open positions
-                if symbol not in open_positions:
-                    open_positions[symbol] = []
-                open_positions[symbol].append((price, volume, strategy))
+                if trade['symbol'] not in open_positions:
+                    open_positions[trade['symbol']] = []
+                open_positions[trade['symbol']].append((trade['price'], trade['volume'], trade['strategy']))
 
-            elif action == 'SELL' and trade['profit'] is None:
+            elif trade['action'] == 'SELL' and trade['profit'] is None:
                 # Try to match with open position
-                if symbol in open_positions and open_positions[symbol]:
+                if trade['symbol'] in open_positions and open_positions[trade['symbol']]:
                     # Use FIFO - match with oldest BUY
-                    entry_price, entry_qty, _ = open_positions[symbol][0]
+                    entry_price, entry_qty, _ = open_positions[trade['symbol']][0]
                     # Calculate profit
-                    matched_qty = min(volume, entry_qty)
-                    profit = (price - entry_price) * matched_qty
-                    profit_pct = ((price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+                    matched_qty = min(trade['volume'], entry_qty)
+                    profit = (trade['price'] - entry_price) * matched_qty
+                    profit_pct = ((trade['price'] - entry_price) / entry_price * 100) if entry_price > 0 else 0
 
                     trade['profit'] = profit
                     trade['profit_pct'] = profit_pct
 
                     # Update or remove matched position
-                    if volume >= entry_qty:
-                        open_positions[symbol].pop(0)
+                    if trade['volume'] >= entry_qty:
+                        open_positions[trade['symbol']].pop(0)
                     else:
-                        remaining = entry_qty - volume
-                        open_positions[symbol][0] = (entry_price, remaining, strategy)
+                        remaining = entry_qty - trade['volume']
+                        open_positions[trade['symbol']][0] = (entry_price, remaining, trade['strategy'])
 
             trades.append(trade)
 
+        recovered = _recover_missing_trade_entries(r, existing_trade_ids=existing_trade_ids)
+        if recovered:
+            trades.extend(recovered)
+            trades.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+
         # Return in reverse order (newest first)
-        return list(reversed(trades))
+        return list(reversed(trades)) if not recovered else trades
     except Exception as e:
         print(f"Error reading Redis trades: {e}")
         return []
+
+
+def _trade_timestamp_ms(value: object) -> int:
+    """Normalize trade/order timestamps to epoch milliseconds."""
+    return _parse_regime_timestamp_ms(value)
+
+
+def _build_trade_record(msg_id: str, data: dict, *, trade_source: str = 'redis_stream') -> dict:
+    """Build a normalized trade payload for API responses."""
+    ts_millis = _trade_timestamp_ms(data.get('timestamp', msg_id.split('-')[0]))
+    ts_dt = datetime.fromtimestamp(ts_millis / 1000) if ts_millis > 0 else datetime.now()
+    return {
+        'id': data.get('order_id', msg_id),
+        'timestamp': ts_dt.isoformat(),
+        'timestamp_ms': ts_millis,
+        'action': str(data.get('side', '')).upper(),
+        'symbol': _normalize_symbol(data.get('symbol', '')),
+        'price': float(data.get('price', 0) or 0),
+        'volume': float(data.get('quantity', 0) or 0),
+        'market': data.get('market', 'spot'),
+        'exchange': 'binance',
+        'strategy': data.get('strategy', ''),
+        'paper': str(data.get('paper', 'true')).lower() == 'true',
+        'profit': float(data.get('profit', 0)) if data.get('profit') else None,
+        'profit_pct': float(data.get('profit_pct', 0)) if data.get('profit_pct') else None,
+        'reason': data.get('reason', ''),
+        'synthetic': str(data.get('synthetic', 'false')).lower() == 'true',
+        'recovered': str(data.get('recovered', 'false')).lower() == 'true',
+        'trade_source': data.get('trade_source', trade_source),
+    }
+
+
+def _float_equals(left: object, right: object, *, tolerance: float = 1e-9) -> bool:
+    try:
+        return abs(float(left) - float(right)) <= tolerance
+    except (TypeError, ValueError):
+        return False
+
+
+def _find_matching_order_for_position(
+    orders: list[tuple[str, dict]],
+    *,
+    strategy: str,
+    entry_time_ms: int,
+    quantity: float,
+) -> tuple[str, dict] | None:
+    """Find the closest matching published order for an open position snapshot."""
+    best_match: tuple[str, dict] | None = None
+    best_delta: int | None = None
+
+    for msg_id, payload in orders:
+        if str(payload.get('strategy', '')) != str(strategy):
+            continue
+        if str(payload.get('side', '')).lower() != 'buy':
+            continue
+        if not _float_equals(payload.get('quantity', 0), quantity, tolerance=1e-12):
+            continue
+
+        msg_ts = _trade_timestamp_ms(msg_id.split('-')[0])
+        delta = abs(msg_ts - entry_time_ms)
+        if best_delta is None or delta < best_delta:
+            best_match = (msg_id, payload)
+            best_delta = delta
+
+    return best_match
+
+
+def _recover_missing_trade_entries(
+    r: redis.Redis,
+    *,
+    existing_trade_ids: set[str] | None = None,
+) -> list[dict]:
+    """Reconstruct open-position entry fills when trades stream is missing them."""
+    existing_trade_ids = existing_trade_ids or set()
+    recovered: list[dict] = []
+
+    try:
+        raw_orders = r.xrange('orders', count=5000)
+    except Exception:
+        raw_orders = []
+
+    orders_by_symbol: dict[str, list[tuple[str, dict]]] = {}
+    for msg_id, payload in raw_orders:
+        symbol = _normalize_symbol(payload.get('symbol', ''))
+        if not symbol:
+            continue
+        orders_by_symbol.setdefault(symbol, []).append((msg_id, payload))
+
+    for key in sorted(r.keys('positions:*:spot')):
+        payload = r.hgetall(key) or {}
+        quantity = float(payload.get('quantity', 0) or 0)
+        if quantity <= 0:
+            continue
+
+        symbol = _normalize_symbol(payload.get('symbol') or str(key).split(':')[1])
+        strategy = str(payload.get('strategy', '')).strip()
+        if not symbol or not strategy:
+            continue
+
+        entry_time_ms = _trade_timestamp_ms(payload.get('entry_time'))
+        match = _find_matching_order_for_position(
+            orders_by_symbol.get(symbol, []),
+            strategy=strategy,
+            entry_time_ms=entry_time_ms,
+            quantity=quantity,
+        )
+
+        order_id = None
+        reason = payload.get('reason', '')
+        if match:
+            _, order_payload = match
+            order_id = order_payload.get('id')
+            reason = order_payload.get('reason', reason)
+
+        recovered_id = str(order_id or f"recovered:{symbol}:{entry_time_ms or strategy}")
+        if recovered_id in existing_trade_ids:
+            continue
+
+        recovered_trade = _build_trade_record(
+            str(entry_time_ms or int(datetime.now().timestamp() * 1000)),
+            {
+                'order_id': recovered_id,
+                'symbol': symbol,
+                'side': payload.get('side', 'buy'),
+                'market': 'spot',
+                'quantity': str(quantity),
+                'price': payload.get('entry_price', 0),
+                'strategy': strategy,
+                'timestamp': str(entry_time_ms or int(datetime.now().timestamp() * 1000)),
+                'paper': 'true',
+                'reason': reason,
+                'synthetic': 'true',
+                'recovered': 'true',
+                'trade_source': 'position_backfill',
+            },
+            trade_source='position_backfill',
+        )
+        recovered.append(recovered_trade)
+        existing_trade_ids.add(recovered_id)
+
+    return recovered
+
+
+def _read_trade_stream_ids(r: redis.Redis, limit: int = 5000) -> set[str]:
+    """Read existing trade order ids directly from the Redis trades stream."""
+    trade_ids: set[str] = set()
+    try:
+        for msg_id, payload in r.xrange('trades', count=limit):
+            trade_ids.add(str(payload.get('order_id', msg_id)))
+    except Exception:
+        return trade_ids
+    return trade_ids
+
+
+def recover_missing_trades(persist: bool = False) -> list[dict]:
+    """Recover missing trade entries from open positions and optionally persist them."""
+    r = get_redis()
+    existing_ids = _read_trade_stream_ids(r)
+    recovered = _recover_missing_trade_entries(r, existing_trade_ids=existing_ids)
+
+    if not persist:
+        return recovered
+
+    persisted: list[dict] = []
+    for trade in recovered:
+        fields = {
+            'order_id': str(trade['id']),
+            'symbol': trade['symbol'],
+            'side': trade['action'].lower(),
+            'market': trade.get('market', 'spot'),
+            'quantity': str(trade['volume']),
+            'price': str(trade['price']),
+            'strategy': trade.get('strategy', ''),
+            'timestamp': str(trade.get('timestamp_ms') or _trade_timestamp_ms(trade.get('timestamp'))),
+            'paper': 'true' if trade.get('paper', True) else 'false',
+            'reason': trade.get('reason', ''),
+            'synthetic': 'true',
+            'recovered': 'true',
+            'trade_source': 'position_backfill',
+        }
+        try:
+            r.xadd('trades', fields, id=f"{fields['timestamp']}-0")
+        except redis.exceptions.ResponseError:
+            r.xadd('trades', fields)
+        persisted.append(_build_trade_record(fields['timestamp'], fields, trade_source='position_backfill'))
+
+    return persisted
 
 
 def get_latest_prices() -> dict:
@@ -1036,7 +1199,78 @@ def _build_minimal_status(prices: dict, regime_status: dict, risk: dict) -> dict
         'prices': prices,
         'regime_status': regime_status,
         'risk': risk,
+        'trade_pipeline': _load_trade_pipeline_health(risk),
     }
+
+
+def _load_trade_pipeline_health(risk: dict | None = None) -> dict:
+    """Return lightweight diagnostics for order/fill stream consistency."""
+    if risk is None:
+        risk = _load_status_risk()
+
+    diagnostics = {
+        'mode': risk.get('mode', 'paper'),
+        'orders_stream_len': 0,
+        'trades_stream_len': 0,
+        'active_positions': 0,
+        'recoverable_trade_count': 0,
+        'latest_order': None,
+        'latest_trade': None,
+        'warning': None,
+    }
+
+    try:
+        r = get_redis()
+        diagnostics['orders_stream_len'] = int(r.xlen('orders'))
+        diagnostics['trades_stream_len'] = int(r.xlen('trades'))
+        diagnostics['recoverable_trade_count'] = len(
+            _recover_missing_trade_entries(r, existing_trade_ids=_read_trade_stream_ids(r))
+        )
+
+        position_keys = [key for key in r.keys('positions:*:spot') if isinstance(key, str)]
+        active_positions = 0
+        for key in position_keys:
+            payload = r.hgetall(key) or {}
+            try:
+                if float(payload.get('quantity', 0) or 0) > 0:
+                    active_positions += 1
+            except (TypeError, ValueError):
+                continue
+        diagnostics['active_positions'] = active_positions
+
+        latest_order = r.xrevrange('orders', count=1)
+        if latest_order:
+            msg_id, payload = latest_order[0]
+            diagnostics['latest_order'] = {
+                'id': msg_id,
+                'symbol': payload.get('symbol'),
+                'side': payload.get('side'),
+                'strategy': payload.get('strategy'),
+                'reason': payload.get('reason'),
+            }
+
+        latest_trade = r.xrevrange('trades', count=1)
+        if latest_trade:
+            msg_id, payload = latest_trade[0]
+            diagnostics['latest_trade'] = {
+                'id': msg_id,
+                'symbol': payload.get('symbol'),
+                'side': payload.get('side'),
+                'strategy': payload.get('strategy'),
+                'reason': payload.get('reason'),
+            }
+
+        if (
+            diagnostics['mode'] == 'paper'
+            and diagnostics['active_positions'] > 0
+            and diagnostics['orders_stream_len'] > 0
+            and diagnostics['trades_stream_len'] == 0
+        ):
+            diagnostics['warning'] = 'orders_without_trades'
+    except Exception as e:
+        diagnostics['warning'] = f'trade_pipeline_check_failed:{e}'
+
+    return diagnostics
 
 
 @app.route("/api/status")
@@ -1047,6 +1281,7 @@ def get_status():
 
     stream_status = _load_stream_status(prices, regime_status, risk)
     if stream_status:
+        stream_status['trade_pipeline'] = _load_trade_pipeline_health(risk)
         return jsonify(stream_status)
 
     return jsonify(_build_minimal_status(prices, regime_status, risk))
@@ -1277,6 +1512,8 @@ def _summarize_filtered_trades(filtered_trades: list[dict]) -> dict:
     realized_pnl = 0.0
     winning = 0
     symbols: set[str] = set()
+    route_counts = {"llm": 0, "fallback": 0, "other": 0}
+    synthetic_count = 0
 
     for trade in filtered_trades:
         action = trade.get('action')
@@ -1291,6 +1528,10 @@ def _summarize_filtered_trades(filtered_trades: list[dict]) -> dict:
         symbol = trade.get('symbol')
         if symbol:
             symbols.add(symbol)
+        route = _classify_execution_route(trade.get('strategy'), trade.get('reason'))
+        route_counts[route] = route_counts.get(route, 0) + 1
+        if trade.get('synthetic'):
+            synthetic_count += 1
 
         if trade.get('profit') is None:
             continue
@@ -1310,6 +1551,8 @@ def _summarize_filtered_trades(filtered_trades: list[dict]) -> dict:
         'realized_pnl': realized_pnl,
         'win_rate': win_rate,
         'unique_symbols': sorted(symbols),
+        'route_counts': route_counts,
+        'synthetic_count': synthetic_count,
     }
 
 
@@ -1330,6 +1573,31 @@ def _extract_entry_blockers(reason: str | None) -> list[str]:
         return []
     _, tail = text.split("|", 1)
     return [token.strip() for token in tail.split(",") if token.strip()]
+
+
+def _classify_execution_route(strategy: str | None, reason: str | None) -> str:
+    """Classify whether a decision/trade used the primary LLM route or a fallback."""
+    strategy_text = str(strategy or "").lower()
+    reason_text = str(reason or "").lower()
+    if "fallback" in strategy_text or "fallback" in reason_text:
+        return "fallback"
+    if "provider error" in reason_text:
+        return "fallback"
+    if strategy_text.startswith("llm_direction"):
+        return "llm"
+    return "other"
+
+
+def _format_strategy_label(strategy: str | None, symbol: str | None = None) -> str:
+    """Return an operator-friendly strategy label."""
+    strategy_text = str(strategy or "").strip()
+    symbol_text = str(symbol or "").strip().upper()
+    if strategy_text.startswith("llm_direction_"):
+        if symbol_text:
+            return f"{symbol_text} LLM"
+        suffix = strategy_text.removeprefix("llm_direction_").upper()
+        return f"{suffix} LLM"
+    return strategy_text or "-"
 
 
 def _find_first_event_after(
@@ -1415,12 +1683,36 @@ def get_trades():
     summary = _summarize_filtered_trades(filtered_trades)
 
     return jsonify({
-        'trades': paginated_trades,
+        'trades': [
+            {
+                **trade,
+                'strategy_label': _format_strategy_label(trade.get('strategy'), trade.get('symbol')),
+                'execution_route': _classify_execution_route(trade.get('strategy'), trade.get('reason')),
+            }
+            for trade in paginated_trades
+        ],
         'total_count': total_count,
         'page': page,
         'limit': limit,
         'has_more': end_idx < total_count,
         'summary': summary,
+    })
+
+
+@app.route("/api/trades/recover", methods=["POST"])
+def recover_trades_endpoint():
+    """Backfill missing paper trade entries from current open positions."""
+    recovered = recover_missing_trades(persist=True)
+    return jsonify({
+        'recovered_count': len(recovered),
+        'trades': [
+            {
+                **trade,
+                'strategy_label': _format_strategy_label(trade.get('strategy'), trade.get('symbol')),
+                'execution_route': _classify_execution_route(trade.get('strategy'), trade.get('reason')),
+            }
+            for trade in recovered
+        ],
     })
 
 
@@ -1455,6 +1747,8 @@ def get_recent_trades():
             'quantity': t.get('volume', 0),
             'price': t.get('price', 0),
             'strategy': t.get('strategy', ''),
+            'strategy_label': _format_strategy_label(t.get('strategy'), t.get('symbol')),
+            'execution_route': _classify_execution_route(t.get('strategy'), t.get('reason')),
             'profit': t.get('profit'),
             'profit_pct': t.get('profit_pct'),
             'reason': t.get('reason', ''),
@@ -1597,12 +1891,14 @@ def get_signals():
                 'timestamp': d.get('timestamp', ''),
                 'exchange': d.get('exchange', 'binance'),
                 'strategy': d.get('strategy', ''),
+                'strategy_label': _format_strategy_label(d.get('strategy'), d.get('symbol')),
                 'action': decision.lower(),
                 'decision': decision,
                 'symbol': d.get('symbol', ''),
                 'market': d.get('market', 'spot'),
                 'price': (d.get('indicators') or {}).get('price', 0),
                 'reason': d.get('reason', ''),
+                'execution_route': _classify_execution_route(d.get('strategy'), d.get('reason')),
                 'regime': regime,
                 'market_state': market_state,
                 'acted': acted,
@@ -2735,16 +3031,6 @@ def get_backtest_status(job_id: str):
     if job:
         return jsonify(job.to_dict())
 
-    # Fallback to persisted history (supports viewing results after server restart)
-    if backtest_db:
-        persisted = backtest_db.get_backtest(job_id)
-        if persisted:
-            status = persisted.get('status')
-            progress = 100 if status in ('completed', 'failed', 'cancelled') else 0
-            persisted['progress'] = progress
-            persisted.setdefault('started_at', None)
-            return jsonify(persisted)
-
     return jsonify({'error': 'Job not found'}), 404
 
 
@@ -2761,24 +3047,6 @@ def cancel_backtest(job_id: str):
         return jsonify(job.to_dict())
     else:
         return jsonify({'error': 'Job not found or cannot be cancelled'}), 404
-
-
-@app.route("/api/backtest/history")
-@requires_auth
-def get_backtest_history():
-    """Get list of all backtest jobs (history)."""
-    if not backtest_runner:
-        return jsonify({'error': 'Backtest service not available'}), 503
-
-    limit_raw = request.args.get('limit', '50')
-    try:
-        limit = int(limit_raw)
-    except ValueError:
-        return jsonify({'error': 'Invalid limit'}), 400
-    limit = max(1, min(limit, 200))
-
-    jobs = backtest_runner.get_all_jobs(limit=limit)
-    return jsonify({'jobs': jobs})
 
 
 def _discover_position_symbols(r) -> list[str]:

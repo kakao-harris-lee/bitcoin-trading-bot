@@ -154,7 +154,9 @@ async def test_trade_notification_uses_profit_fields_and_reason(monkeypatch: pyt
 
     assert task._send_message.await_count == 1
     message = task._send_message.await_args.args[0]
-    assert "*Trade EXIT*" in message
+    assert "*NEAR LLM EXIT*" in message
+    assert "*Route:* Primary LLM" in message
+    assert "*Fill:* 136.1123 @ $1.4100" in message
     assert "*P&L:* $+12.26 (+6.41%)" in message
     assert "Trailing stop" in message
 

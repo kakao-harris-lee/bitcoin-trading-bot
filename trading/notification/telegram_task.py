@@ -194,15 +194,16 @@ class TelegramTask:
         # Create consumer groups
         await self.redis.create_consumer_group("trades", self.CONSUMER_GROUP, "$")
         await self.redis.create_consumer_group("alerts", self.CONSUMER_GROUP, "$")
-        await self.redis.create_consumer_group("strategy:selector:events", self.CONSUMER_GROUP, "$")
-
-        # Run both loops concurrently
-        await asyncio.gather(
+        tasks = [
             self._consume_trades(),
             self._consume_alerts(),
-            self._consume_selector_events(),
             self._poll_commands(),
-        )
+        ]
+        if self._notify_selector_events:
+            await self.redis.create_consumer_group("strategy:selector:events", self.CONSUMER_GROUP, "$")
+            tasks.append(self._consume_selector_events())
+
+        await asyncio.gather(*tasks)
 
     def stop(self) -> None:
         """Stop the task."""
@@ -388,8 +389,6 @@ class TelegramTask:
             await self._cmd_info()
         elif command == "dashboard":
             await self._cmd_dashboard()
-        elif command == "selector":
-            await self._cmd_selector()
         elif command == "help":
             await self._cmd_help()
         else:
@@ -461,8 +460,15 @@ _Updated: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
                 if symbol in self.symbols and symbol not in signals_by_symbol:
                     decision = (data.get("decision") or "WAIT").upper()
                     regime = data.get("regime", "UNKNOWN")
-                    strategy = data.get("strategy", "unknown")
-                    signals_by_symbol[symbol] = f"{decision} | {regime} ({strategy})"
+                    route = self._classify_execution_route(
+                        data.get("strategy"),
+                        data.get("reason"),
+                    )
+                    reason = self._summarize_reason(data.get("reason", ""), max_len=80)
+                    signals_by_symbol[symbol] = (
+                        f"{decision} | {regime} | {self._format_route_label(route)}"
+                        f"\n    {reason or '-'}"
+                    )
                 if len(signals_by_symbol) == len(self.symbols):
                     break
         except Exception:
@@ -517,42 +523,12 @@ _Code valid for ~30 seconds_
 """
         await self._send_message(message, bypass_rate_limit=True)
 
-    async def _cmd_selector(self) -> None:
-        """Handle /selector command - show latest selector status."""
-        try:
-            entries = await self.redis._client.xrevrange("strategy:selector:events", count=20)
-        except Exception as e:
-            await self._send_message(f"Failed to read selector events: {e}", bypass_rate_limit=True)
-            return
-
-        latest_by_strategy: dict[str, dict] = {}
-        for _, data in entries:
-            strategy = data.get("strategy", "")
-            if not strategy or strategy in latest_by_strategy:
-                continue
-            latest_by_strategy[strategy] = data
-
-        if not latest_by_strategy:
-            await self._send_message("No selector events yet.", bypass_rate_limit=True)
-            return
-
-        lines = ["*Latest Selector Status*"]
-        for strategy, data in sorted(latest_by_strategy.items()):
-            selected = self._parse_json_array(data.get("selected_symbols", "[]"))
-            changed = data.get("changed", "false") == "true"
-            lines.append(
-                f"\n*{strategy}* changed={changed}\n"
-                f"selected: {', '.join(selected) if selected else '-'}"
-            )
-        await self._send_message("\n".join(lines), bypass_rate_limit=True)
-
     async def _cmd_help(self) -> None:
         """Handle /help command."""
         message = """*Available Commands*
 
 /info - Show current status
 /dashboard - Get dashboard TOTP code
-/selector - Show latest symbol selector status
 /kill_on - Enable kill switch (stop trading)
 /kill_off - Disable kill switch (resume trading)
 /help - Show this message
@@ -574,15 +550,15 @@ _Code valid for ~30 seconds_
         pnl = trade.get("profit", trade.get("pnl"))
         pnl_pct = trade.get("profit_pct", trade.get("pnl_pct"))
         reason = self._summarize_reason(trade.get("reason", ""))
+        route = self._classify_execution_route(strategy, reason)
         action = "ENTRY" if side.lower() == "buy" else "EXIT"
+        strategy_label = self._format_strategy_label(strategy, symbol)
         lines = [
-            f"*Trade {action}*",
-            f"*Symbol:* {symbol}",
-            f"*Qty:* {quantity:.4f}",
-            f"*Market:* {market.upper()}",
-            f"*Price:* {self._format_price(price)}",
-            f"*Value:* ${quantity * price:,.2f}",
-            f"*Strategy:* {strategy}",
+            f"*{strategy_label} {action}*",
+            f"*Symbol:* {symbol} ({market.upper()})",
+            f"*Route:* {self._format_route_label(route)}",
+            f"*Fill:* {quantity:.4f} @ {self._format_price(price)}",
+            f"*Notional:* ${quantity * price:,.2f}",
         ]
         if pnl is not None:
             pnl_val = float(pnl)
@@ -1112,6 +1088,34 @@ _Time: {datetime.now(self.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_
         if len(text) <= max_len:
             return text
         return f"{text[: max_len - 3]}..."
+
+    @staticmethod
+    def _classify_execution_route(strategy: str | None, reason: str | None) -> str:
+        strategy_text = str(strategy or "").lower()
+        reason_text = str(reason or "").lower()
+        if "fallback" in strategy_text or "fallback" in reason_text:
+            return "fallback"
+        if "provider error" in reason_text:
+            return "fallback"
+        if strategy_text.startswith("llm_direction"):
+            return "llm"
+        return "other"
+
+    @staticmethod
+    def _format_route_label(route: str) -> str:
+        if route == "fallback":
+            return "Fallback"
+        if route == "llm":
+            return "Primary LLM"
+        return "Other"
+
+    @staticmethod
+    def _format_strategy_label(strategy: str | None, symbol: str | None = None) -> str:
+        strategy_text = str(strategy or "").strip()
+        symbol_text = str(symbol or "").strip().upper()
+        if strategy_text.startswith("llm_direction_"):
+            return f"{(symbol_text or strategy_text.removeprefix('llm_direction_').upper())} LLM"
+        return strategy_text or "Strategy"
 
     async def send_start_notification(self, mode: str, symbols: list[str]) -> None:
         """Send bot start notification.

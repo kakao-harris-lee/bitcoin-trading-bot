@@ -44,6 +44,7 @@ async def test_paper_executor_simulates_spot_buy(mock_redis):
     assert result["market"] == "spot"
     assert executor.spot_balance < 10000
     mock_redis.set_position.assert_called_once()
+    assert any(call.args[0] == "trades" for call in mock_redis.publish.await_args_list)
 
 
 @pytest.mark.asyncio

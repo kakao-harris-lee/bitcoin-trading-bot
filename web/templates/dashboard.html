@@ -174,15 +174,6 @@
                         <span id="positions-total-pnl" class="value">-</span>
                     </div>
                 </div>
-                <div id="selector-snapshot" class="selector-snapshot">
-                    <div class="selector-snapshot-header">
-                        <h4>Coin Selector Snapshot</h4>
-                        <span id="selector-snapshot-updated" class="selector-snapshot-updated">-</span>
-                    </div>
-                    <div id="selector-snapshot-content" class="selector-snapshot-content">
-                        <p class="loading">Loading selector snapshot...</p>
-                    </div>
-                </div>
                 <!-- Positions Grid -->
                 <div id="positions-container" class="positions-grid">
                     <p class="loading">Loading positions...</p>
@@ -221,8 +212,12 @@
                         <span id="history-buy-sell" class="value">-</span>
                     </div>
                     <div class="summary-stat">
-                        <span class="label">Spot Trades</span>
-                        <span id="history-market-split" class="value">-</span>
+                        <span class="label">Tracked Symbols</span>
+                        <span id="history-symbols" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Primary / Fallback</span>
+                        <span id="history-route-split" class="value">-</span>
                     </div>
                     <div class="summary-stat">
                         <span class="label">Realized P&L</span>
@@ -246,7 +241,29 @@
         <!-- Tab Content: Signals -->
         <div id="signals" class="tab-content">
             <div class="tab-panel">
-                <h3>Signals & Decisions (Real-Time Analysis)</h3>
+                <h3>BTC/ETH LLM Decisions</h3>
+                <div id="signals-summary" class="positions-summary history-summary">
+                    <div class="summary-stat">
+                        <span class="label">Tracked Symbols</span>
+                        <span id="signals-summary-symbols" class="value">BTC / ETH</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Buy Decisions</span>
+                        <span id="signals-summary-buy" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Blocked / Wait</span>
+                        <span id="signals-summary-wait" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Executed</span>
+                        <span id="signals-summary-acted" class="value">-</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="label">Fallback Route</span>
+                        <span id="signals-summary-fallback" class="value">-</span>
+                    </div>
+                </div>
                 <!-- Signal List -->
                 <div id="signals-container" class="signals-list">
                     <p class="loading">Loading signals...</p>
@@ -407,14 +424,6 @@
                 <!-- Inline Message / Error -->
                 <div id="backtest-message" class="backtest-message" style="display: none;"></div>
 
-                <!-- History List -->
-                <div id="backtest-history" class="backtest-history-section">
-                    <h4>Backtest History</h4>
-                    <div id="backtest-history-list" class="backtest-history-list">
-                        <p class="no-data">No backtest history</p>
-                    </div>
-                </div>
-
                 <!-- Results Container -->
                 <div id="backtest-results" class="backtest-results" style="display: none;">
                     <h4>Backtest Results</h4>
@@ -447,7 +456,7 @@
         <!-- Tab Content: Strategies -->
         <div id="strategies" class="tab-content">
             <div class="tab-panel">
-                <h3>Active Strategies</h3>
+                <h3>BTC/ETH LLM Strategy State</h3>
                 <!-- Summary Stats -->
                 <div id="strategies-summary" class="strategies-summary">
                     <div class="summary-stat">
@@ -461,19 +470,6 @@
                     <div class="summary-stat">
                         <span class="label">Active Positions</span>
                         <span id="strategies-positions-count" class="value">-</span>
-                    </div>
-                </div>
-                <!-- Selector Monitor -->
-                <div id="selector-monitor" class="selector-monitor">
-                    <div class="selector-monitor-header">
-                        <h4>Coin Selector Monitor</h4>
-                        <span class="selector-monitor-subtitle">Top-N selection, score, rejection reason, change history</span>
-                    </div>
-                    <div id="selector-overview" class="selector-overview-grid">
-                        <p class="loading">Loading selector monitor...</p>
-                    </div>
-                    <div id="selector-events" class="selector-events-list">
-                        <p class="loading">Loading selector events...</p>
                     </div>
                 </div>
                 <!-- Strategies Grid -->

@@ -23,10 +23,34 @@
           "model": "llama3.1:8b",
           "api_base_url": "http://127.0.0.1:11434",
           "prompt_version": "btc_eth_v1",
-          "confidence_threshold": 0.6,
+          "confidence_threshold": 0.55,
           "request_timeout_seconds": 90.0,
           "max_output_tokens": 96,
-          "context_window_bars": 4
+          "context_window_bars": 4,
+          "allowed_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP",
+            "SIDEWAYS_FLAT"
+          ],
+          "require_close_above_ema120": false
+        }
+      },
+      "entry_fallback": {
+        "enabled": true,
+        "class": "RegimeLongV2EntryStrategy",
+        "on_provider_error": true,
+        "on_non_buy": true,
+        "on_low_confidence": true,
+        "max_hold_confidence": 0.6,
+        "params": {
+          "market": "spot",
+          "position_size": 0.1,
+          "entry_lookback_bars": 1,
+          "entry_quorum_ratio": 1.0,
+          "min_ready_bars": 1,
+          "risk_on_score_min": 4,
+          "adx_trend_threshold": 12.0
         }
       },
       "exit": {

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from trading.streams import RedisStreams, BinanceFeedTask
@@ -24,8 +25,15 @@ from trading.notification import TelegramTask
 from trading.risk.leverage_manager import LeverageManager
 from trading.observability import PeriodicLoggerTask
 from trading.indicators.indicator_service import IndicatorService
-from trading.strategies.components.context_builder import TradingContextBuilder, PositionManager
+from trading.strategies.components.context_builder import (
+    TradingContextBuilder,
+    PositionManager,
+)
 from trading.core.runtime_defaults import load_allocation_symbols
+from trading.core.llm_provider import (
+    collect_llm_provider_health,
+    summarize_llm_provider_health,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -89,9 +97,12 @@ class TradingEngine:
             )
 
         logger.info(f"Starting TradingEngine in {mode} mode")
+        self._log_llm_provider_health(mode)
 
         # Connect to Redis
-        self.redis = RedisStreams(url=self.config.get("redis_url", "redis://localhost:6379"))
+        self.redis = RedisStreams(
+            url=self.config.get("redis_url", "redis://localhost:6379")
+        )
         await self.redis.connect()
 
         # Initialize/sync risk state.
@@ -199,6 +210,7 @@ class TradingEngine:
         if self.config.get("smart_executor", {}).get("enabled", False):
             if mode == "live":
                 from trading.executor.smart_executor import SmartExecutor
+
                 smart_executor = SmartExecutor(
                     redis=self.redis,
                     binance_client=client,
@@ -250,13 +262,15 @@ class TradingEngine:
         current_risk = await self.redis.get_risk()
         current_day = date.today().isoformat()
         if not current_risk:
-            await self.redis.set_risk({
-                "kill_switch": "false",
-                "blocked": "false",
-                "daily_pnl": "0",
-                "daily_pnl_date": current_day,
-                "mode": mode,
-            })
+            await self.redis.set_risk(
+                {
+                    "kill_switch": "false",
+                    "blocked": "false",
+                    "daily_pnl": "0",
+                    "daily_pnl_date": current_day,
+                    "mode": mode,
+                }
+            )
             return
 
         previous_mode = current_risk.get("mode")
@@ -282,7 +296,9 @@ class TradingEngine:
         redis_client = self._get_redis_client()
         if redis_client is not None:
             await redis_client.hset("risk", mapping=updates)
-        logger.info(f"Loaded existing risk state: daily_pnl={current_risk.get('daily_pnl')}")
+        logger.info(
+            f"Loaded existing risk state: daily_pnl={current_risk.get('daily_pnl')}"
+        )
 
     def _signal_handler(self) -> None:
         """Handle shutdown signals."""
@@ -306,7 +322,9 @@ class TradingEngine:
 
         logger.info("Shutdown complete")
 
-    async def _start_telegram_notifications(self, mode: str, symbols: list[str]) -> None:
+    async def _start_telegram_notifications(
+        self, mode: str, symbols: list[str]
+    ) -> None:
         """Start Telegram notification background tasks without blocking startup."""
         assert self.redis is not None
 
@@ -356,7 +374,9 @@ class TradingEngine:
         # All strategies share the same indicator calculations
         indicator_cache_ttl = self.config.get("indicator_cache_ttl", 60)
         indicator_service = IndicatorService(cache_ttl=indicator_cache_ttl)
-        logger.info(f"Created shared IndicatorService (cache_ttl={indicator_cache_ttl}s)")
+        logger.info(
+            f"Created shared IndicatorService (cache_ttl={indicator_cache_ttl}s)"
+        )
 
         # Create shared TradingContextBuilder for centralized context
         position_manager = PositionManager(redis_client)
@@ -373,7 +393,9 @@ class TradingEngine:
         strategy_names = list(strategy_config.keys())
         started = 0
         regime_defaults = self.config.get("defaults", {}).get("regime_v2", {})
-        regime_runtime_overlay_defaults = self.config.get("defaults", {}).get("regime_runtime_overlay", {})
+        regime_runtime_overlay_defaults = self.config.get("defaults", {}).get(
+            "regime_runtime_overlay", {}
+        )
         mtf_enabled_by_symbol = regime_defaults.get("mtf_enabled_by_symbol", {})
 
         for name in strategy_names:
@@ -414,11 +436,18 @@ class TradingEngine:
                     if len(strategy_symbols) == 1:
                         symbol_key = strategy_symbols[0]
                         if symbol_key in mtf_enabled_by_symbol:
-                            effective_config["mtf_enabled"] = bool(mtf_enabled_by_symbol[symbol_key])
+                            effective_config["mtf_enabled"] = bool(
+                                mtf_enabled_by_symbol[symbol_key]
+                            )
 
                 # Optional runtime regime overlay defaults (safe-off unless enabled).
-                if "regime_runtime_overlay" not in effective_config and regime_runtime_overlay_defaults:
-                    effective_config["regime_runtime_overlay"] = regime_runtime_overlay_defaults
+                if (
+                    "regime_runtime_overlay" not in effective_config
+                    and regime_runtime_overlay_defaults
+                ):
+                    effective_config["regime_runtime_overlay"] = (
+                        regime_runtime_overlay_defaults
+                    )
 
                 # Create entry and exit components
                 entry, exit_strat = factory.create_components(
@@ -437,7 +466,11 @@ class TradingEngine:
                     config=effective_config,
                     market=factory.get_market(name, effective_config),
                     use_smart_exit=effective_config.get("use_smart_exit", False),
-                    emit_events=bool((self.config.get("observability") or {}).get("emit_events", False)),
+                    emit_events=bool(
+                        (self.config.get("observability") or {}).get(
+                            "emit_events", False
+                        )
+                    ),
                     indicator_service=indicator_service,
                     context_builder=context_builder,
                     regime_version=effective_config.get("regime_version", "v2"),
@@ -445,9 +478,37 @@ class TradingEngine:
 
                 self.tasks.append(asyncio.create_task(task.run()))
                 started += 1
-                logger.info(f"Started component strategy: {name} (persistent={use_persistence})")
+                logger.info(
+                    f"Started component strategy: {name} (persistent={use_persistence})"
+                )
 
             except Exception as e:
                 logger.error(f"Failed to create strategy {name}: {e}")
 
-        logger.info(f"Started {started} component strategy tasks (shared indicator service)")
+        logger.info(
+            f"Started {started} component strategy tasks (shared indicator service)"
+        )
+
+    def _log_llm_provider_health(self, mode: str) -> None:
+        reports = collect_llm_provider_health(self.config)
+        if not reports:
+            return
+
+        warnings, errors = summarize_llm_provider_health(reports, mode=mode)
+        for report in reports:
+            logger.info(
+                "LLM provider readiness %s: provider=%s model=%s healthy=%s fallback=%s reason=%s",
+                report.strategy,
+                report.provider,
+                report.model or "-",
+                "yes" if report.healthy else "no",
+                "enabled" if report.fallback_enabled else "disabled",
+                report.reason,
+            )
+
+        for message in warnings:
+            logger.warning("%s", message)
+        if errors:
+            raise RuntimeError(
+                "LLM provider readiness check failed: " + "; ".join(errors)
+            )

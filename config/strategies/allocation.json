@@ -207,17 +207,48 @@
           "max_output_tokens": 96,
           "prompt_version": "btc_eth_v1",
           "context_window_bars": 4,
-          "confidence_threshold": 0.62,
+          "confidence_threshold": 0.55,
+          "allowed_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP",
+            "SIDEWAYS_FLAT"
+          ],
+          "block_bear_regime": true,
+          "adx_min": 10.0,
+          "use_ema200_filter": false,
+          "require_close_above_ema120": false,
+          "min_volume_ratio": 0.0
+        }
+      },
+      "entry_fallback": {
+        "enabled": true,
+        "class": "RegimeLongV2EntryStrategy",
+        "on_provider_error": true,
+        "on_non_buy": true,
+        "on_low_confidence": true,
+        "max_hold_confidence": 0.6,
+        "params": {
+          "market": "spot",
+          "position_size": 0.25,
           "allowed_regimes": [
             "BULL_STRONG",
             "BULL_MODERATE",
             "SIDEWAYS_UP"
           ],
           "block_bear_regime": true,
-          "adx_min": 10.0,
-          "use_ema200_filter": false,
-          "require_close_above_ema120": true,
-          "min_volume_ratio": 0.0
+          "block_extreme_volatility": true,
+          "entry_lookback_bars": 1,
+          "entry_quorum_ratio": 1.0,
+          "min_ready_bars": 1,
+          "risk_on_score_min": 4,
+          "adx_trend_threshold": 12.0,
+          "require_close_above_ema20": true,
+          "require_close_above_ema120": false,
+          "require_ema20_above_ema120": true,
+          "require_rsi_above_50": true,
+          "require_mfi_above_50": true,
+          "require_adx_trend": true
         }
       },
       "exit": {
@@ -319,17 +350,48 @@
           "max_output_tokens": 96,
           "prompt_version": "btc_eth_v1",
           "context_window_bars": 4,
-          "confidence_threshold": 0.6,
+          "confidence_threshold": 0.55,
+          "allowed_regimes": [
+            "BULL_STRONG",
+            "BULL_MODERATE",
+            "SIDEWAYS_UP",
+            "SIDEWAYS_FLAT"
+          ],
+          "block_bear_regime": true,
+          "adx_min": 8.0,
+          "use_ema200_filter": false,
+          "require_close_above_ema120": false,
+          "min_volume_ratio": 0.0
+        }
+      },
+      "entry_fallback": {
+        "enabled": true,
+        "class": "RegimeLongV2EntryStrategy",
+        "on_provider_error": true,
+        "on_non_buy": true,
+        "on_low_confidence": true,
+        "max_hold_confidence": 0.6,
+        "params": {
+          "market": "spot",
+          "position_size": 0.05,
           "allowed_regimes": [
             "BULL_STRONG",
             "BULL_MODERATE",
             "SIDEWAYS_UP"
           ],
           "block_bear_regime": true,
-          "adx_min": 8.0,
-          "use_ema200_filter": false,
-          "require_close_above_ema120": true,
-          "min_volume_ratio": 0.0
+          "block_extreme_volatility": true,
+          "entry_lookback_bars": 1,
+          "entry_quorum_ratio": 1.0,
+          "min_ready_bars": 1,
+          "risk_on_score_min": 4,
+          "adx_trend_threshold": 10.0,
+          "require_close_above_ema20": true,
+          "require_close_above_ema120": false,
+          "require_ema20_above_ema120": true,
+          "require_rsi_above_50": true,
+          "require_mfi_above_50": true,
+          "require_adx_trend": true
         }
       },
       "exit": {

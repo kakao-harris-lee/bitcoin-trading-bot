@@ -58,8 +58,7 @@ class LLMDecisionClient(Protocol):
         system_prompt: str,
         user_prompt: str,
         prompt_version: str,
-    ) -> LLMTradeDecision:
-        ...
+    ) -> LLMTradeDecision: ...
 
     def generate_decision(
         self,
@@ -67,8 +66,7 @@ class LLMDecisionClient(Protocol):
         system_prompt: str,
         user_prompt: str,
         prompt_version: str,
-    ) -> LLMTradeDecision:
-        ...
+    ) -> LLMTradeDecision: ...
 
 
 class _BaseHTTPDecisionClient:
@@ -101,7 +99,9 @@ class _BaseHTTPDecisionClient:
         risk_flags_raw = payload.get("risk_flags", [])
         if not isinstance(risk_flags_raw, list):
             risk_flags_raw = []
-        risk_flags = tuple(str(flag).strip() for flag in risk_flags_raw if str(flag).strip())
+        risk_flags = tuple(
+            str(flag).strip() for flag in risk_flags_raw if str(flag).strip()
+        )
 
         return LLMTradeDecision(
             action=action,
@@ -135,7 +135,9 @@ class OllamaDecisionClient(_BaseHTTPDecisionClient):
             },
         }
 
-    def _parse_response(self, body: dict[str, Any], prompt_version: str) -> LLMTradeDecision:
+    def _parse_response(
+        self, body: dict[str, Any], prompt_version: str
+    ) -> LLMTradeDecision:
         raw_response = str(body.get("response", "")).strip()
         if not raw_response:
             raise ValueError("Ollama response body missing 'response'")
@@ -167,11 +169,18 @@ class OllamaDecisionClient(_BaseHTTPDecisionClient):
                         response.raise_for_status()
                         body = await response.json()
                         return self._parse_response(body, prompt_version)
-            except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError, ValueError) as exc:
+            except (
+                aiohttp.ClientError,
+                asyncio.TimeoutError,
+                json.JSONDecodeError,
+                ValueError,
+            ) as exc:
                 last_error = exc
                 if attempt + 1 >= attempts:
                     break
-        raise RuntimeError(f"Ollama decision request failed: {last_error}") from last_error
+        raise RuntimeError(
+            f"Ollama decision request failed: {last_error}"
+        ) from last_error
 
     def generate_decision(
         self,
@@ -186,14 +195,18 @@ class OllamaDecisionClient(_BaseHTTPDecisionClient):
         last_error: Exception | None = None
         for attempt in range(attempts):
             try:
-                response = requests.post(url, json=payload, timeout=self.config.timeout_seconds)
+                response = requests.post(
+                    url, json=payload, timeout=self.config.timeout_seconds
+                )
                 response.raise_for_status()
                 return self._parse_response(response.json(), prompt_version)
             except (requests.RequestException, json.JSONDecodeError, ValueError) as exc:
                 last_error = exc
                 if attempt + 1 >= attempts:
                     break
-        raise RuntimeError(f"Ollama decision request failed: {last_error}") from last_error
+        raise RuntimeError(
+            f"Ollama decision request failed: {last_error}"
+        ) from last_error
 
 
 class OpenAIDecisionClient(_BaseHTTPDecisionClient):
@@ -220,7 +233,9 @@ class OpenAIDecisionClient(_BaseHTTPDecisionClient):
             ],
         }
 
-    def _parse_response(self, body: dict[str, Any], prompt_version: str) -> LLMTradeDecision:
+    def _parse_response(
+        self, body: dict[str, Any], prompt_version: str
+    ) -> LLMTradeDecision:
         choices = body.get("choices") or []
         if not choices:
             raise ValueError("OpenAI response missing choices")
@@ -252,16 +267,25 @@ class OpenAIDecisionClient(_BaseHTTPDecisionClient):
         headers = self._headers()
         for attempt in range(attempts):
             try:
-                async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+                async with aiohttp.ClientSession(
+                    timeout=timeout, headers=headers
+                ) as session:
                     async with session.post(url, json=payload) as response:
                         response.raise_for_status()
                         body = await response.json()
                         return self._parse_response(body, prompt_version)
-            except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError, ValueError) as exc:
+            except (
+                aiohttp.ClientError,
+                asyncio.TimeoutError,
+                json.JSONDecodeError,
+                ValueError,
+            ) as exc:
                 last_error = exc
                 if attempt + 1 >= attempts:
                     break
-        raise RuntimeError(f"OpenAI decision request failed: {last_error}") from last_error
+        raise RuntimeError(
+            f"OpenAI decision request failed: {last_error}"
+        ) from last_error
 
     def generate_decision(
         self,
@@ -289,7 +313,9 @@ class OpenAIDecisionClient(_BaseHTTPDecisionClient):
                 last_error = exc
                 if attempt + 1 >= attempts:
                     break
-        raise RuntimeError(f"OpenAI decision request failed: {last_error}") from last_error
+        raise RuntimeError(
+            f"OpenAI decision request failed: {last_error}"
+        ) from last_error
 
 
 @dataclass
@@ -341,6 +367,7 @@ class LLMDecisionEntryStrategy:
         self._client = client
         self._decision_cache: dict[str, dict[str, Any]] = {}
         self._last_rejection_reason: dict[str, str] = {}
+        self._last_decision: dict[str, LLMTradeDecision] = {}
 
     def get_last_rejection_reason(self, symbol: str) -> str | None:
         return self._last_rejection_reason.get(symbol)
@@ -350,6 +377,18 @@ class LLMDecisionEntryStrategy:
 
     def _clear_rejection_reason(self, symbol: str) -> None:
         self._last_rejection_reason.pop(symbol, None)
+
+    def get_last_decision(self, symbol: str) -> LLMTradeDecision | None:
+        return self._last_decision.get(symbol)
+
+    def get_last_provider_error(self, symbol: str) -> str | None:
+        decision = self._last_decision.get(symbol)
+        if decision is None:
+            return None
+        reason = str(decision.reason or "")
+        if "provider error:" not in reason.lower():
+            return None
+        return reason
 
     def _get_client(self) -> LLMDecisionClient:
         if self._client is None:
@@ -513,13 +552,18 @@ class LLMDecisionEntryStrategy:
             reason=reason,
         )
 
-    def _cache_decision(self, symbol: str, candle_ts: int, decision: LLMTradeDecision) -> None:
+    def _cache_decision(
+        self, symbol: str, candle_ts: int, decision: LLMTradeDecision
+    ) -> None:
+        self._last_decision[symbol] = decision
         self._decision_cache[symbol] = {
             "candle_timestamp": int(candle_ts),
             "decision": decision,
         }
 
-    def _get_cached_decision(self, symbol: str, candle_ts: int) -> LLMTradeDecision | None:
+    def _get_cached_decision(
+        self, symbol: str, candle_ts: int
+    ) -> LLMTradeDecision | None:
         cached = self._decision_cache.get(symbol)
         if not cached:
             return None
@@ -536,11 +580,17 @@ class LLMDecisionEntryStrategy:
     ) -> str | None:
         if self.params.block_bear_regime and context.regime in BEAR_REGIMES:
             return f"LLM blocked by bear regime ({context.regime})"
-        if self.params.allowed_regimes and context.regime not in set(self.params.allowed_regimes):
+        if self.params.allowed_regimes and context.regime not in set(
+            self.params.allowed_regimes
+        ):
             return f"LLM regime not allowed ({context.regime})"
         if self.params.adx_min > 0 and market_data.adx < self.params.adx_min:
             return f"LLM blocked by ADX ({market_data.adx:.1f} < {self.params.adx_min:.1f})"
-        if self.params.use_ema200_filter and market_data.ema_200 > 0 and market_data.close < market_data.ema_200:
+        if (
+            self.params.use_ema200_filter
+            and market_data.ema_200 > 0
+            and market_data.close < market_data.ema_200
+        ):
             return f"LLM blocked: below EMA200 ({market_data.close:.4f} < {market_data.ema_200:.4f})"
         if (
             self.params.require_close_above_ema120
@@ -607,16 +657,28 @@ class LLMDecisionEntryStrategy:
                 "Prefer BUY only when trend, momentum, and price structure are aligned."
             ),
         }
-        return system_prompt, json.dumps(user_payload, ensure_ascii=True, separators=(",", ":"))
+        return system_prompt, json.dumps(
+            user_payload, ensure_ascii=True, separators=(",", ":")
+        )
 
-    def _build_history_payload(self, history_df: pd.DataFrame | None) -> list[dict[str, Any]]:
+    def _build_history_payload(
+        self, history_df: pd.DataFrame | None
+    ) -> list[dict[str, Any]]:
         if history_df is None or history_df.empty:
             return []
         history = history_df.tail(max(1, int(self.params.context_window_bars))).copy()
         records: list[dict[str, Any]] = []
         columns = [
-            "timestamp", "close", "volume", "mfi", "adx", "rsi",
-            "atr", "ema_20", "ema_120", "ema_200",
+            "timestamp",
+            "close",
+            "volume",
+            "mfi",
+            "adx",
+            "rsi",
+            "atr",
+            "ema_20",
+            "ema_120",
+            "ema_200",
         ]
         for _, row in history.iterrows():
             record: dict[str, Any] = {}

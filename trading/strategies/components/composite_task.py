@@ -27,6 +27,7 @@ import asyncio
 from collections import deque
 import json
 import logging
+import re
 import time
 from dataclasses import replace
 from datetime import datetime
@@ -49,6 +50,12 @@ from .models import (
 )
 from .regime_filter import EnhancedRegimeRouter, MTFCandle
 from .symbol_selector import DynamicSymbolSelector, SymbolSelectorConfig
+from .registry import (
+    build_params_from_config,
+    get_entry_class,
+    get_entry_params_class,
+    is_entry_registered,
+)
 from trading.observability.structured_logger import trade_logger
 from trading.risk.position_sizer import PositionSizer, RiskSizingConfig
 from trading.risk.portfolio_risk_manager import PortfolioRiskManager, RiskCapConfig
@@ -126,6 +133,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._init_regime_detectors(symbols, regime_version)
         self._init_runtime_regime_overlay()
         self._init_entry_and_leverage_controls()
+        self._init_entry_fallback()
         self._init_drawdown_and_breakout_controls()
         self._init_risk_controls(redis)
         self._init_volatility_sizing()
@@ -155,7 +163,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._market_data_cache: dict[str, MarketData] = {}
         self._entry_on_candle_close = self.config.get("entry_on_candle_close", True)
         self._entry_eval_fallback_seconds = float(
-            self.config.get("entry_evaluation_interval_seconds", self.evaluation_interval)
+            self.config.get(
+                "entry_evaluation_interval_seconds", self.evaluation_interval
+            )
         )
         self._last_entry_candle_ts: dict[str, int] = {}
         self._last_entry_gate_reason: dict[str, str] = {}
@@ -247,11 +257,15 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._loss_pause_remaining: dict[str, int] = {}
         self._v2_exit_on_filter = self.config.get("v2_exit_on_filter", False)
         self._panic_sell_below_ma120 = self.config.get("panic_sell_below_ma120", False)
-        self._drawdown_bear_threshold = float(self.config.get("drawdown_bear_threshold", 0.15))
+        self._drawdown_bear_threshold = float(
+            self.config.get("drawdown_bear_threshold", 0.15)
+        )
 
         self._dynamic_leverage_enabled = self.config.get("dynamic_leverage", False)
         self._leverage_bull_strong = float(self.config.get("leverage_bull_strong", 3.0))
-        self._leverage_bull_moderate = float(self.config.get("leverage_bull_moderate", 2.0))
+        self._leverage_bull_moderate = float(
+            self.config.get("leverage_bull_moderate", 2.0)
+        )
         self._leverage_sideways = float(self.config.get("leverage_sideways", 1.0))
         self._leverage_bear = float(self.config.get("leverage_bear", 0.0))
         self._prob_leverage_enabled = self.config.get("prob_leverage_enabled", False)
@@ -262,6 +276,64 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._prob_leverage_min = float(self.config.get("prob_leverage_min", 0.5))
         self._bull_prob_threshold = float(self.config.get("bull_prob_threshold", 0.0))
         self._bull_prob_enabled = self._bull_prob_threshold > 0
+
+    def _init_entry_fallback(self) -> None:
+        self._entry_fallback_cfg = self.config.get("entry_fallback", {})
+        self._fallback_entry_strategy: IEntryStrategy | None = None
+        self._fallback_last_reason: dict[str, str] = {}
+
+        cfg = (
+            self._entry_fallback_cfg
+            if isinstance(self._entry_fallback_cfg, dict)
+            else {}
+        )
+        self._entry_fallback_enabled = bool(cfg.get("enabled", False))
+        self._entry_fallback_on_provider_error = bool(
+            cfg.get("on_provider_error", True)
+        )
+        self._entry_fallback_on_non_buy = bool(cfg.get("on_non_buy", False))
+        self._entry_fallback_on_low_confidence = bool(
+            cfg.get("on_low_confidence", False)
+        )
+        self._entry_fallback_max_hold_confidence = float(
+            cfg.get("max_hold_confidence", 0.55)
+        )
+
+        if not self._entry_fallback_enabled:
+            return
+
+        class_name = str(
+            cfg.get("class", "RegimeLongV2EntryStrategy") or "RegimeLongV2EntryStrategy"
+        )
+        if not is_entry_registered(class_name):
+            logger.warning(
+                "%s: entry fallback class not registered: %s", self.name, class_name
+            )
+            self._entry_fallback_enabled = False
+            return
+
+        params_class = get_entry_params_class(class_name)
+        params_cfg = cfg.get("params", {})
+        if not isinstance(params_cfg, dict):
+            params_cfg = {}
+        merged_params = self._merge_fallback_params(params_cfg)
+        params = (
+            build_params_from_config(params_class, merged_params)
+            if params_class
+            else None
+        )
+        entry_class = get_entry_class(class_name)
+        self._fallback_entry_strategy = entry_class(params=params)
+
+    def _merge_fallback_params(self, params_cfg: dict[str, Any]) -> dict[str, Any]:
+        merged = {
+            "market": self.config.get("market", "spot"),
+            "position_size": self.config.get(
+                "position_size", self.config.get("position_pct", 0.1)
+            ),
+        }
+        merged.update(params_cfg)
+        return merged
 
     def _load_regime_thresholds(self) -> dict[str, float]:
         thresholds = self.config.get("regime_thresholds", {})
@@ -280,7 +352,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._drawdown_warning_pct = float(self.config.get("drawdown_warning_pct", 8.0))
         self._drawdown_reduce_pct = float(self.config.get("drawdown_reduce_pct", 10.0))
         self._drawdown_exit_pct = float(self.config.get("drawdown_exit_pct", 12.0))
-        self._drawdown_leverage_reduction = float(self.config.get("drawdown_leverage_reduction", 0.5))
+        self._drawdown_leverage_reduction = float(
+            self.config.get("drawdown_leverage_reduction", 0.5)
+        )
         self._drawdown_partial_exit_done: dict[str, bool] = {}
         self._drawdown_cache: tuple[float, float] = (0.0, 0.0)
         self.breakout_k = self.config.get("breakout_k", 0.5)
@@ -293,13 +367,23 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._correlation_filter: CorrelationFilter | None = None
         self._context_risk_enabled = self.config.get("context_risk_enabled", True)
         self._context_max_open_positions = int(
-            self.config.get("context_max_open_positions", self.config.get("max_open_positions", 5))
+            self.config.get(
+                "context_max_open_positions", self.config.get("max_open_positions", 5)
+            )
         )
-        self._context_max_symbol_positions = int(self.config.get("context_max_symbol_positions", 1))
-        self._context_max_total_exposure_pct = float(self.config.get("context_max_total_exposure_pct", 1.0))
-        self._context_max_symbol_exposure_pct = float(self.config.get("context_max_symbol_exposure_pct", 0.5))
+        self._context_max_symbol_positions = int(
+            self.config.get("context_max_symbol_positions", 1)
+        )
+        self._context_max_total_exposure_pct = float(
+            self.config.get("context_max_total_exposure_pct", 1.0)
+        )
+        self._context_max_symbol_exposure_pct = float(
+            self.config.get("context_max_symbol_exposure_pct", 0.5)
+        )
         self._context_corr_enabled = bool(
-            self.config.get("context_corr_enabled", self.config.get("correlation_filter", True))
+            self.config.get(
+                "context_corr_enabled", self.config.get("correlation_filter", True)
+            )
         )
         if self._context_corr_enabled and self.config.get("correlation_filter", True):
             corr_config = CorrelationConfig.from_dict(self.config)
@@ -311,7 +395,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         sizing_config = RiskSizingConfig.from_dict(self.config)
         self._position_sizer = PositionSizer(sizing_config)
         risk_cap_config = RiskCapConfig.from_dict(self.config)
-        global_symbols = self.config.get("_global_symbols", ["BTC", "ETH", "SOL", "BNB"])
+        global_symbols = self.config.get(
+            "_global_symbols", ["BTC", "ETH", "SOL", "BNB"]
+        )
         self._portfolio_risk_mgr = PortfolioRiskManager(
             risk_cap_config,
             redis,
@@ -336,7 +422,12 @@ class CompositeStrategyTask(BaseStrategyTask):
         selector_cfg = SymbolSelectorConfig.from_dict(raw_selector_cfg)
         self._selector_event_maxlen = max(
             2000,
-            int((raw_selector_cfg if isinstance(raw_selector_cfg, dict) else {}).get("event_maxlen", 50000) or 50000),
+            int(
+                (raw_selector_cfg if isinstance(raw_selector_cfg, dict) else {}).get(
+                    "event_maxlen", 50000
+                )
+                or 50000
+            ),
         )
         self._symbol_selector = DynamicSymbolSelector(
             config=selector_cfg,
@@ -375,11 +466,16 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._dq_tier_thresholds = {
             "high": max(
                 0.0,
-                float((dq_cfg.get("tier_thresholds", {}) or {}).get("high", 24.0) or 24.0),
+                float(
+                    (dq_cfg.get("tier_thresholds", {}) or {}).get("high", 24.0) or 24.0
+                ),
             ),
             "medium": max(
                 0.0,
-                float((dq_cfg.get("tier_thresholds", {}) or {}).get("medium", 12.0) or 12.0),
+                float(
+                    (dq_cfg.get("tier_thresholds", {}) or {}).get("medium", 12.0)
+                    or 12.0
+                ),
             ),
         }
         if self._dq_tier_thresholds["high"] < self._dq_tier_thresholds["medium"]:
@@ -420,7 +516,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         interval = self._resolve_warmup_interval()
 
         for symbol in self.symbols:
-            candles = await self.fetch_initial_candles(symbol, interval=interval, limit=200)
+            candles = await self.fetch_initial_candles(
+                symbol, interval=interval, limit=200
+            )
             if candles:
                 self.history[symbol] = candles
                 logger.info(f"Fetched {len(candles)} {interval} candles for {symbol}")
@@ -454,7 +552,11 @@ class CompositeStrategyTask(BaseStrategyTask):
             return "1d"
 
         name_lower = self.name.lower()
-        if name_lower.startswith("llm_direction") or "short" in name_lower or "h4" in name_lower:
+        if (
+            name_lower.startswith("llm_direction")
+            or "short" in name_lower
+            or "h4" in name_lower
+        ):
             return "4h"
         return "1d"
 
@@ -517,7 +619,9 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         now = time.time()
         snapshot_due = self._is_regime_snapshot_due(symbol, now=now)
-        selector_due = self._symbol_selector.enabled and self._symbol_selector.should_refresh(now)
+        selector_due = (
+            self._symbol_selector.enabled and self._symbol_selector.should_refresh(now)
+        )
         if not snapshot_due and not selector_due:
             return
 
@@ -595,8 +699,12 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         if not self._passes_entry_gates(symbol, market_data, context):
             dq_assessment = self._dq_entry_assessment.get(symbol) or dq_assessment
-            gate_reason = self._last_entry_gate_reason.get(symbol, "Entry blocked by gates")
-            self._update_entry_decision_hint(symbol, should_enter=False, reason=gate_reason)
+            gate_reason = self._last_entry_gate_reason.get(
+                symbol, "Entry blocked by gates"
+            )
+            self._update_entry_decision_hint(
+                symbol, should_enter=False, reason=gate_reason
+            )
             await self._check_and_record_decision(symbol, market_data, context)
             await self._emit_entry_funnel_event(
                 symbol=symbol,
@@ -646,9 +754,27 @@ class CompositeStrategyTask(BaseStrategyTask):
         no_signal_reason = ""
         if signal is None:
             no_signal_reason = self._resolve_entry_rejection_reason(symbol)
-            self._update_entry_decision_hint(symbol, should_enter=False, reason=no_signal_reason)
+            fallback_signal = self._maybe_apply_entry_fallback(
+                symbol, ctx, no_signal_reason
+            )
+            if fallback_signal is not None:
+                signal = fallback_signal
+            else:
+                no_signal_reason = self._combine_primary_and_fallback_reason(
+                    symbol, no_signal_reason
+                )
+                self._update_entry_decision_hint(
+                    symbol, should_enter=False, reason=no_signal_reason
+                )
         else:
-            self._update_entry_decision_hint(symbol, should_enter=True, reason=signal.reason)
+            self._update_entry_decision_hint(
+                symbol, should_enter=True, reason=signal.reason
+            )
+
+        if signal is not None:
+            self._update_entry_decision_hint(
+                symbol, should_enter=True, reason=signal.reason
+            )
 
         # Emit entry evaluation event for observability
         await self._emit_entry_evaluation(
@@ -690,7 +816,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         )
         dq_assessment = self._dq_entry_assessment.get(symbol) or dq_assessment
         if order is None:
-            order_drop_reason = self._last_entry_order_build_reason.pop(symbol, "unknown")
+            order_drop_reason = self._last_entry_order_build_reason.pop(
+                symbol, "unknown"
+            )
             await self._emit_entry_funnel_event(
                 symbol=symbol,
                 context=context,
@@ -770,7 +898,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         if not signal:
             return None
 
-        exit_quantity = self._resolve_exit_order_quantity(position=position, signal=signal)
+        exit_quantity = self._resolve_exit_order_quantity(
+            position=position, signal=signal
+        )
         if exit_quantity <= 0:
             logger.warning(
                 "%s: Skip exit order due to non-positive resolved qty "
@@ -830,7 +960,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         return context, ctx
 
     async def _prepare_entry_strategy(self, ctx: TradingContext) -> None:
-        prepare_async = getattr(self.entry_strategy, "prepare_entry_decision_async", None)
+        prepare_async = getattr(
+            self.entry_strategy, "prepare_entry_decision_async", None
+        )
         if not callable(prepare_async):
             return
 
@@ -872,7 +1004,8 @@ class CompositeStrategyTask(BaseStrategyTask):
         if changed:
             selected = sorted(self._symbol_selector.selected_symbols)
             ranking = ", ".join(
-                f"{row.symbol}:{row.score:.3f}" for row in self._symbol_selector.ranking[:5]
+                f"{row.symbol}:{row.score:.3f}"
+                for row in self._symbol_selector.ranking[:5]
             )
             logger.debug(
                 "%s: symbol selector updated selected=%s ranking=[%s]",
@@ -950,7 +1083,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             )
             await self.redis.set_selector_snapshot(self.name, payload)
         except Exception as e:
-            logger.debug("%s: failed to persist symbol selector state: %s", self.name, e)
+            logger.debug(
+                "%s: failed to persist symbol selector state: %s", self.name, e
+            )
 
     def _hydrate_symbol_selector_inputs(self) -> None:
         for symbol in self.symbols:
@@ -1006,7 +1141,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             return {
                 "allowed": False,
                 "reason": "startup_warmup",
-                "price_age_seconds": round(self._price_age_seconds(market_data.timestamp, now), 3),
+                "price_age_seconds": round(
+                    self._price_age_seconds(market_data.timestamp, now), 3
+                ),
                 "ticks_per_minute": round(self._ticks_per_minute(symbol, now), 3),
                 "tier": "low",
                 "position_scale": self._dq_position_scales["low"],
@@ -1044,7 +1181,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             and price_age_seconds > self._dq_max_price_age_seconds
         ):
             if mutate:
-                self._dq_blocked_until[symbol] = now + self._dq_eviction_cooldown_seconds
+                self._dq_blocked_until[symbol] = (
+                    now + self._dq_eviction_cooldown_seconds
+                )
             return {
                 "allowed": False,
                 "reason": "stale_price",
@@ -1059,7 +1198,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             and ticks_per_minute < self._dq_min_ticks_per_minute
         ):
             if mutate and self._dq_cooldown_on_low_tick_rate:
-                self._dq_blocked_until[symbol] = now + self._dq_eviction_cooldown_seconds
+                self._dq_blocked_until[symbol] = (
+                    now + self._dq_eviction_cooldown_seconds
+                )
             return {
                 "allowed": False,
                 "reason": "low_tick_rate",
@@ -1137,7 +1278,9 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         assessments: list[dict[str, Any]] = []
         for symbol in sorted(self.symbols):
-            market_data = self._selector_market_data.get(symbol) or self._market_data_cache.get(symbol)
+            market_data = self._selector_market_data.get(
+                symbol
+            ) or self._market_data_cache.get(symbol)
             if market_data is None:
                 assessments.append(
                     {
@@ -1145,7 +1288,9 @@ class CompositeStrategyTask(BaseStrategyTask):
                         "allowed": False,
                         "reason": "missing_market_data",
                         "price_age_seconds": 0.0,
-                        "ticks_per_minute": round(self._ticks_per_minute(symbol, now), 3),
+                        "ticks_per_minute": round(
+                            self._ticks_per_minute(symbol, now), 3
+                        ),
                         "tier": "low",
                     }
                 )
@@ -1202,7 +1347,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._dq_entry_assessment[symbol] = dq_assessment
         if not dq_assessment["allowed"]:
             dq_reason = str(dq_assessment.get("reason", "unknown"))
-            self._last_entry_gate_reason[symbol] = f"Entry blocked by data quality: {dq_reason}"
+            self._last_entry_gate_reason[symbol] = (
+                f"Entry blocked by data quality: {dq_reason}"
+            )
             logger.debug(
                 "%s: entry blocked by data_quality (%s, age=%.2fs, tpm=%.2f)",
                 symbol,
@@ -1212,14 +1359,20 @@ class CompositeStrategyTask(BaseStrategyTask):
             )
             return False
         if not self._symbol_selector.is_symbol_allowed(symbol):
-            self._last_entry_gate_reason[symbol] = "Entry blocked by selector: symbol not selected"
+            self._last_entry_gate_reason[symbol] = (
+                "Entry blocked by selector: symbol not selected"
+            )
             return False
         if self._cash_in_bear and context.regime in BEAR_REGIMES:
             self._last_entry_gate_reason[symbol] = (
                 f"Entry blocked by cash_in_bear: regime={context.regime}"
             )
             return False
-        if self._cash_below_ema200 and market_data.ema_200 > 0 and market_data.close < market_data.ema_200:
+        if (
+            self._cash_below_ema200
+            and market_data.ema_200 > 0
+            and market_data.close < market_data.ema_200
+        ):
             self._last_entry_gate_reason[symbol] = (
                 f"Entry blocked by EMA200 cash guard: close={market_data.close:.4f} < ema200={market_data.ema_200:.4f}"
             )
@@ -1234,7 +1387,10 @@ class CompositeStrategyTask(BaseStrategyTask):
                 f"Entry blocked by cooldown: remaining={self._cooldown_remaining[symbol]}"
             )
             return False
-        if self._bull_prob_enabled and (market_data.mfi / 100.0) < self._bull_prob_threshold:
+        if (
+            self._bull_prob_enabled
+            and (market_data.mfi / 100.0) < self._bull_prob_threshold
+        ):
             self._last_entry_gate_reason[symbol] = (
                 f"Entry blocked by bull_prob gate: mfi_prob={market_data.mfi/100.0:.2f} "
                 f"< threshold={self._bull_prob_threshold:.2f}"
@@ -1243,7 +1399,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._last_entry_gate_reason.pop(symbol, None)
         return True
 
-    def _update_entry_decision_hint(self, symbol: str, should_enter: bool, reason: str) -> None:
+    def _update_entry_decision_hint(
+        self, symbol: str, should_enter: bool, reason: str
+    ) -> None:
         self._entry_decision_hint[symbol] = {
             "timestamp": time.time(),
             "should_enter": should_enter,
@@ -1299,12 +1457,99 @@ class CompositeStrategyTask(BaseStrategyTask):
         if text.startswith("HybridLong["):
             closing = text.find("]")
             if closing > len("HybridLong["):
-                return text[len("HybridLong["):closing]
+                return text[len("HybridLong[") : closing]
         if text.startswith("LLMDirection"):
             return "llm"
         if text.startswith("RegimeLongV2"):
             return "regime"
         return ""
+
+    def _maybe_apply_entry_fallback(
+        self,
+        symbol: str,
+        ctx: TradingContext,
+        primary_reason: str,
+    ) -> Signal | None:
+        if not self._entry_fallback_enabled or self._fallback_entry_strategy is None:
+            return None
+        if not self._should_apply_entry_fallback(primary_reason):
+            self._fallback_last_reason.pop(symbol, None)
+            return None
+
+        try:
+            signal = self._fallback_entry_strategy.check_entry(ctx)
+        except Exception as exc:
+            reason = f"Fallback entry error: {exc}"
+            self._fallback_last_reason[symbol] = reason
+            logger.warning("%s: fallback entry strategy failed: %s", self.name, exc)
+            return None
+
+        if signal is None:
+            reason = self._resolve_component_rejection_reason(
+                self._fallback_entry_strategy, symbol
+            )
+            self._fallback_last_reason[symbol] = reason
+            return None
+
+        self._fallback_last_reason.pop(symbol, None)
+        fallback_reason = (
+            f"HybridLong[regime_fallback] primary={primary_reason}; {signal.reason}"
+        )
+        logger.info(
+            "%s: %s fallback accepted for %s", self.name, symbol, fallback_reason
+        )
+        return replace(signal, reason=fallback_reason)
+
+    def _should_apply_entry_fallback(self, primary_reason: str) -> bool:
+        text = str(primary_reason or "").lower()
+        if not text:
+            return False
+        if self._entry_fallback_on_provider_error and "provider error" in text:
+            return True
+        if self._entry_fallback_on_low_confidence and "low llm confidence" in text:
+            return True
+        if self._entry_fallback_on_non_buy and "llm predicted hold" in text:
+            confidence = self._extract_confidence(primary_reason)
+            return (
+                confidence is None
+                or confidence <= self._entry_fallback_max_hold_confidence
+            )
+        return False
+
+    @staticmethod
+    def _extract_confidence(reason: str) -> float | None:
+        match = re.search(r"conf=([0-9]+(?:\.[0-9]+)?)", str(reason or ""))
+        if match is None:
+            return None
+        try:
+            return float(match.group(1))
+        except (TypeError, ValueError):
+            return None
+
+    def _combine_primary_and_fallback_reason(
+        self, symbol: str, primary_reason: str
+    ) -> str:
+        fallback_reason = self._fallback_last_reason.get(symbol, "")
+        if not fallback_reason:
+            return primary_reason
+        return f"{primary_reason} | Fallback: {fallback_reason}"
+
+    @staticmethod
+    def _resolve_component_rejection_reason(strategy: Any, symbol: str) -> str:
+        get_reason = getattr(strategy, "get_last_rejection_reason", None)
+        if callable(get_reason):
+            try:
+                reason = get_reason(symbol)
+            except TypeError:
+                reason = get_reason()
+            except Exception:
+                reason = None
+            if reason:
+                return str(reason)
+        fallback_reason = getattr(strategy, "last_rejection_reason", None)
+        if isinstance(fallback_reason, str) and fallback_reason.strip():
+            return fallback_reason.strip()
+        return "Fallback entry produced no signal"
 
     @staticmethod
     def _categorize_entry_rejection_reason(reason: str) -> str:
@@ -1327,13 +1572,28 @@ class CompositeStrategyTask(BaseStrategyTask):
             return "gate_bull_prob"
         if "leverage" in text:
             return "leverage_blocked"
-        if "model unavailable" in text or "prediction unavailable" in text or "warmup" in text:
+        if (
+            "model unavailable" in text
+            or "prediction unavailable" in text
+            or "warmup" in text
+        ):
             return "model_unavailable"
+        if "provider error" in text or "cannot connect to host" in text:
+            return "provider_unavailable"
         if "not buy" in text or "predicted hold" in text or "predicted sell" in text:
             return "model_non_buy"
-        if "low llm confidence" in text or "low model confidence" in text or "low confidence" in text:
+        if (
+            "low llm confidence" in text
+            or "low model confidence" in text
+            or "low confidence" in text
+        ):
             return "model_low_confidence"
-        if "filter" in text or "blocked by regime" in text or "weak adx" in text or "below ema200" in text:
+        if (
+            "filter" in text
+            or "blocked by regime" in text
+            or "weak adx" in text
+            or "below ema200" in text
+        ):
             return "model_filter_block"
         if "risk cap" in text:
             return "order_risk_cap"
@@ -1381,15 +1641,21 @@ class CompositeStrategyTask(BaseStrategyTask):
             dq_allowed=bool(dq.get("allowed", False)) if dq else False,
             dq_reason=str(dq.get("reason", "")) if dq else "",
             dq_tier=str(dq.get("tier", "")) if dq else "",
-            dq_price_age_seconds=float(dq.get("price_age_seconds", 0.0) or 0.0) if dq else 0.0,
-            dq_ticks_per_minute=float(dq.get("ticks_per_minute", 0.0) or 0.0) if dq else 0.0,
+            dq_price_age_seconds=(
+                float(dq.get("price_age_seconds", 0.0) or 0.0) if dq else 0.0
+            ),
+            dq_ticks_per_minute=(
+                float(dq.get("ticks_per_minute", 0.0) or 0.0) if dq else 0.0
+            ),
             gate_passed=gate_passed,
             gate_reason=gate_reason,
             leverage_allowed=leverage_allowed,
             leverage_reason=leverage_reason,
             entry_signal_generated=entry_signal_generated,
             entry_route=entry_route,
-            entry_rejection_category=self._categorize_entry_rejection_reason(entry_rejection_reason),
+            entry_rejection_category=self._categorize_entry_rejection_reason(
+                entry_rejection_reason
+            ),
             entry_rejection_reason=entry_rejection_reason,
             order_build_result=order_build_result,
             order_drop_reason=order_drop_reason,
@@ -1410,7 +1676,9 @@ class CompositeStrategyTask(BaseStrategyTask):
                 reason = None
 
         if not reason:
-            fallback_reason = getattr(self.entry_strategy, "last_rejection_reason", None)
+            fallback_reason = getattr(
+                self.entry_strategy, "last_rejection_reason", None
+            )
             if isinstance(fallback_reason, str) and fallback_reason.strip():
                 reason = fallback_reason.strip()
 
@@ -1481,7 +1749,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             symbol, market_data.close, signal.quantity, context, market_data
         )
 
-        dq_assessment = self._dq_entry_assessment.get(symbol) or self._assess_data_quality(
+        dq_assessment = self._dq_entry_assessment.get(
+            symbol
+        ) or self._assess_data_quality(
             symbol,
             market_data,
             mutate=False,
@@ -1606,7 +1876,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             equity=equity,
         )
         if not risk_check.allowed:
-            logger.info(f"{symbol}: Entry blocked by portfolio risk - {risk_check.reason}")
+            logger.info(
+                f"{symbol}: Entry blocked by portfolio risk - {risk_check.reason}"
+            )
             return 0.0
 
         if risk_check.adjusted_risk_pct and self._position_sizer:
@@ -1657,7 +1929,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         if drawdown_exit:
             return drawdown_exit
 
-        v2_filter_exit = self._check_v2_filter_protective_exit(symbol, position, market_data, context)
+        v2_filter_exit = self._check_v2_filter_protective_exit(
+            symbol, position, market_data, context
+        )
         if v2_filter_exit:
             return v2_filter_exit
 
@@ -1876,7 +2150,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             return True
         return False
 
-    def _calc_breakout_signal(self, symbol: str, df: pd.DataFrame, current_price: float) -> tuple[int, float]:
+    def _calc_breakout_signal(
+        self, symbol: str, df: pd.DataFrame, current_price: float
+    ) -> tuple[int, float]:
         """Calculate volatility breakout signal from history data.
 
         Uses Larry Williams' volatility breakout strategy:
@@ -1896,14 +2172,14 @@ class CompositeStrategyTask(BaseStrategyTask):
                 return 0, 0.0
 
             # Add date column for grouping
-            if 'timestamp' not in df.columns:
+            if "timestamp" not in df.columns:
                 return 0, 0.0
 
             df_copy = df.copy()
-            df_copy['date'] = pd.to_datetime(df_copy['timestamp']).dt.date
+            df_copy["date"] = pd.to_datetime(df_copy["timestamp"]).dt.date
 
             # Get unique dates
-            dates = sorted(df_copy['date'].unique())
+            dates = sorted(df_copy["date"].unique())
             if len(dates) < 2:
                 return 0, 0.0
 
@@ -1916,20 +2192,20 @@ class CompositeStrategyTask(BaseStrategyTask):
                 prev_high, prev_low = cached[0], cached[1]
             else:
                 # Calculate prev day high/low
-                prev_day_df = df_copy[df_copy['date'] == yesterday]
+                prev_day_df = df_copy[df_copy["date"] == yesterday]
                 if prev_day_df.empty:
                     return 0, 0.0
 
-                prev_high = float(prev_day_df['high'].max())
-                prev_low = float(prev_day_df['low'].min())
+                prev_high = float(prev_day_df["high"].max())
+                prev_low = float(prev_day_df["low"].min())
                 self._prev_day_cache[symbol] = (prev_high, prev_low, str(yesterday))
 
             # Get today's open
-            today_df = df_copy[df_copy['date'] == today]
+            today_df = df_copy[df_copy["date"] == today]
             if today_df.empty:
                 return 0, 0.0
 
-            today_open = float(today_df.iloc[0]['open'])
+            today_open = float(today_df.iloc[0]["open"])
 
             # Calculate target price and signal
             prev_range = prev_high - prev_low
@@ -1942,7 +2218,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             logger.debug(f"Failed to calculate breakout signal for {symbol}: {e}")
             return 0, 0.0
 
-    def _build_market_data(self, symbol: str, force_recalculate: bool = False) -> MarketData | None:
+    def _build_market_data(
+        self, symbol: str, force_recalculate: bool = False
+    ) -> MarketData | None:
         """Build MarketData from current indicators.
 
         If IndicatorService is available, uses centralized cached calculation
@@ -1989,8 +2267,12 @@ class CompositeStrategyTask(BaseStrategyTask):
             if prepared is None:
                 return None
             df, last_row = prepared
-            prev_high_20, prev_low_20, avg_volume_20 = self._calculate_lookback_stats(df)
-            breakout_signal, target_price = self._calc_breakout_signal(symbol, df, current_price)
+            prev_high_20, prev_low_20, avg_volume_20 = self._calculate_lookback_stats(
+                df
+            )
+            breakout_signal, target_price = self._calc_breakout_signal(
+                symbol, df, current_price
+            )
 
             market_data = self._create_market_data_snapshot(
                 symbol=symbol,
@@ -2053,7 +2335,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         df = add_all_indicators(df)
         return df, df.iloc[-1]
 
-    def _update_indicator_frame_with_current_price(self, df: pd.DataFrame, current_price: float) -> None:
+    def _update_indicator_frame_with_current_price(
+        self, df: pd.DataFrame, current_price: float
+    ) -> None:
         idx = df.index[-1]
         if "close" in df.columns:
             df.at[idx, "close"] = current_price
@@ -2062,7 +2346,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         if "low" in df.columns:
             df.at[idx, "low"] = min(df.at[idx, "low"], current_price)
 
-    def _calculate_lookback_stats(self, df: pd.DataFrame, lookback: int = 20) -> tuple[float, float, float]:
+    def _calculate_lookback_stats(
+        self, df: pd.DataFrame, lookback: int = 20
+    ) -> tuple[float, float, float]:
         if len(df) >= lookback:
             prev_df = df.iloc[-lookback - 1 : -1]
             return (
@@ -2152,7 +2438,6 @@ class CompositeStrategyTask(BaseStrategyTask):
             return None
         return df
 
-
     def _get_latest_candle_timestamp(
         self,
         symbol: str,
@@ -2165,7 +2450,9 @@ class CompositeStrategyTask(BaseStrategyTask):
                 return int(ts)
         return int(market_data.timestamp)
 
-    def _update_latest_history_candle(self, df: pd.DataFrame, market_data: MarketData) -> None:
+    def _update_latest_history_candle(
+        self, df: pd.DataFrame, market_data: MarketData
+    ) -> None:
         try:
             idx = df.index[-1]
             if "close" in df.columns:
@@ -2246,7 +2533,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             return self._apply_v2_regime_context(context, market_data)
         return context
 
-    def _predict_runtime_regime(self, market_data: MarketData) -> RuntimeRegimePrediction | None:
+    def _predict_runtime_regime(
+        self, market_data: MarketData
+    ) -> RuntimeRegimePrediction | None:
         symbol = market_data.symbol
         overlay = self._runtime_regime_overlay
         if not overlay.is_enabled_for(symbol):
@@ -2280,7 +2569,11 @@ class CompositeStrategyTask(BaseStrategyTask):
         return prediction
 
     def _build_base_market_context(self, market_data: MarketData) -> MarketContext:
-        recent_high = market_data.high_30d if market_data.high_30d > 0 else market_data.prev_high_20
+        recent_high = (
+            market_data.high_30d
+            if market_data.high_30d > 0
+            else market_data.prev_high_20
+        )
         return build_market_context(
             mfi=market_data.mfi,
             adx=market_data.adx,
@@ -2293,7 +2586,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             **self._regime_thresholds,
         )
 
-    def _apply_v2_regime_context(self, context: MarketContext, market_data: MarketData) -> MarketContext:
+    def _apply_v2_regime_context(
+        self, context: MarketContext, market_data: MarketData
+    ) -> MarketContext:
         router = self._enhanced_routers[market_data.symbol]
         candle_ts = self._get_latest_candle_timestamp(market_data.symbol, market_data)
         router.update_from_lower_candle(
@@ -2308,7 +2603,11 @@ class CompositeStrategyTask(BaseStrategyTask):
             ),
             candle_ts=candle_ts,
         )
-        volume_ratio = market_data.volume / market_data.avg_volume_20 if market_data.avg_volume_20 > 0 else 1.0
+        volume_ratio = (
+            market_data.volume / market_data.avg_volume_20
+            if market_data.avg_volume_20 > 0
+            else 1.0
+        )
         filtered_regime = router.get_regime(
             mfi=market_data.mfi,
             adx=market_data.adx,
@@ -2318,7 +2617,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             volume_ratio=volume_ratio,
         )
         final_regime = self._resolve_regime_with_drawdown(context, filtered_regime)
-        return self._context_with_regime(context, final_regime, trend=self._trend_from_regime(final_regime))
+        return self._context_with_regime(
+            context, final_regime, trend=self._trend_from_regime(final_regime)
+        )
 
     def _resolve_regime_with_drawdown(self, context: MarketContext, regime: str) -> str:
         if not context.is_drawdown_bear or regime in ("BEAR_STRONG", "BEAR_MODERATE"):
@@ -2351,7 +2652,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             is_high_volume=context.is_high_volume,
             drawdown=context.drawdown,
             is_drawdown_bear=context.is_drawdown_bear,
-            rf_confidence=context.rf_confidence if rf_confidence is None else rf_confidence,
+            rf_confidence=(
+                context.rf_confidence if rf_confidence is None else rf_confidence
+            ),
             rf_direction=context.rf_direction if rf_direction is None else rf_direction,
             rf_signal=context.rf_signal if rf_signal is None else rf_signal,
         )
@@ -2423,7 +2726,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             "market": signal.market,
             "quantity": str(quantity),
             "reason": signal.reason,
-            "leverage": self.config.get("leverage", 1) if leverage is None else leverage,
+            "leverage": (
+                self.config.get("leverage", 1) if leverage is None else leverage
+            ),
         }
 
         if signal.trigger_price is not None:
@@ -2530,7 +2835,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         if configured_size <= 0:
             return (0.0, None)
         if configured_size <= 1.0:
-            quantity = await self._resolve_fractional_quantity(symbol, price, configured_size)
+            quantity = await self._resolve_fractional_quantity(
+                symbol, price, configured_size
+            )
             return (quantity, None)
         return (configured_size, None)
 
@@ -2597,7 +2904,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         if self.context_builder is None:
             return True, "NO_CONTEXT_BUILDER"
 
-        open_positions, open_symbols, symbol_positions = self._get_context_portfolio_state(symbol)
+        open_positions, open_symbols, symbol_positions = (
+            self._get_context_portfolio_state(symbol)
+        )
 
         allowed, reason = self._passes_context_position_count_caps(
             symbol=symbol,
@@ -2616,7 +2925,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         if not allowed:
             return False, reason
 
-        allowed, reason = await self._passes_context_correlation_caps(symbol, open_symbols)
+        allowed, reason = await self._passes_context_correlation_caps(
+            symbol, open_symbols
+        )
         if not allowed:
             return False, reason
 
@@ -2637,7 +2948,10 @@ class CompositeStrategyTask(BaseStrategyTask):
         open_symbols: list[str],
         symbol_positions: list[Position],
     ) -> tuple[bool, str]:
-        if symbol not in open_symbols and len(open_symbols) >= self._context_max_open_positions:
+        if (
+            symbol not in open_symbols
+            and len(open_symbols) >= self._context_max_open_positions
+        ):
             return (
                 False,
                 f"CTX_MAX_OPEN_POSITIONS:{len(open_symbols)}>={self._context_max_open_positions}",
@@ -2687,7 +3001,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         existing_symbols = [s for s in open_symbols if s != symbol]
         if not existing_symbols:
             return True, "OK"
-        blocked, reason = await self._correlation_filter.should_block(symbol, existing_symbols)
+        blocked, reason = await self._correlation_filter.should_block(
+            symbol, existing_symbols
+        )
         if blocked:
             return False, f"CTX_{reason}"
         return True, "OK"
@@ -2788,7 +3104,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._last_regime_snapshot_time[symbol] = now_sec
 
         regime = self._get_decision_regime(market_data, context)
-        trend = context.trend if context is not None else self._trend_from_regime(regime)
+        trend = (
+            context.trend if context is not None else self._trend_from_regime(regime)
+        )
         now_ms = int(now_sec * 1000)
         payload = {
             "symbol": symbol,
@@ -2853,7 +3171,11 @@ class CompositeStrategyTask(BaseStrategyTask):
         entry_price = float(position.get("entry_price", 0))
         quantity = float(position.get("quantity", 0))
         unrealized_pnl = (market_data.close - entry_price) * quantity
-        unrealized_pnl_pct = ((market_data.close - entry_price) / entry_price * 100) if entry_price > 0 else 0
+        unrealized_pnl_pct = (
+            ((market_data.close - entry_price) / entry_price * 100)
+            if entry_price > 0
+            else 0
+        )
         price_change = market_data.close - entry_price
 
         reason = (
@@ -2885,7 +3207,9 @@ class CompositeStrategyTask(BaseStrategyTask):
                 decision = "BUY" if bool(hint.get("should_enter", False)) else "WAIT"
                 return decision, hint_reason, {"active": False}
 
-        should_enter = hasattr(self.entry_strategy, "_should_enter") and self.entry_strategy._should_enter(regime)
+        should_enter = hasattr(
+            self.entry_strategy, "_should_enter"
+        ) and self.entry_strategy._should_enter(regime)
 
         if should_enter:
             reason = (
@@ -2901,7 +3225,11 @@ class CompositeStrategyTask(BaseStrategyTask):
             reasons.append(f"MFI={market_data.mfi:.1f} > {mfi_bear}")
         if market_data.adx < adx_trend:
             reasons.append(f"ADX={market_data.adx:.1f} < {adx_trend}")
-        reason = f"No entry: {regime} | " + ", ".join(reasons) if reasons else f"No entry: {regime}"
+        reason = (
+            f"No entry: {regime} | " + ", ".join(reasons)
+            if reasons
+            else f"No entry: {regime}"
+        )
         return "WAIT", reason, {"active": False}
 
     def _build_decision_record(
@@ -2932,8 +3260,12 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         if context:
             decision_record["trend"] = context.trend
-            decision_record["volatility_score"] = str(round(context.volatility_score, 4))
-            decision_record["is_extreme_volatility"] = str(context.is_extreme_volatility)
+            decision_record["volatility_score"] = str(
+                round(context.volatility_score, 4)
+            )
+            decision_record["is_extreme_volatility"] = str(
+                context.is_extreme_volatility
+            )
         return decision_record
 
     def _log_decision_details(
@@ -2963,10 +3295,12 @@ class CompositeStrategyTask(BaseStrategyTask):
             vol_status = "EXTREME" if context.is_extreme_volatility else "normal"
             log_lines.append(f"  Trend:    {context.trend}")
             log_lines.append(f"  Volatility: {vol_pct:.2f}% ({vol_status})")
-        log_lines.extend([
-            f"  Decision: {decision}",
-            f"  Reason:   {reason}",
-        ])
+        log_lines.extend(
+            [
+                f"  Decision: {decision}",
+                f"  Reason:   {reason}",
+            ]
+        )
         if position_data.get("active"):
             log_lines.append(
                 f"  Position: {position_data['quantity']:.6f} @ ${position_data['entry_price']:,.2f}"
@@ -3015,7 +3349,10 @@ class CompositeStrategyTask(BaseStrategyTask):
         if not self.emit_events or self.event_emitter is None:
             return
 
-        from trading.core.event_emitter import EntryEvaluationEvent, SafetyRejectionEvent
+        from trading.core.event_emitter import (
+            EntryEvaluationEvent,
+            SafetyRejectionEvent,
+        )
 
         thresholds = self._resolve_entry_thresholds()
         checks = self._build_entry_filter_checks(market_data, context, thresholds)
@@ -3048,7 +3385,9 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         if signal is not None:
             return
-        rejection = self._resolve_entry_rejection(market_data, context, thresholds, checks)
+        rejection = self._resolve_entry_rejection(
+            market_data, context, thresholds, checks
+        )
         if rejection is None:
             return
         rejection_type, reason = rejection
@@ -3087,8 +3426,10 @@ class CompositeStrategyTask(BaseStrategyTask):
         pnl = self._calculate_unrealized_pnl(position, market_data.close)
         exit_levels = self._resolve_exit_levels(position, market_data)
         triggers = self._build_exit_triggers(market_data, exit_levels)
-        reason = signal.reason if signal else (
-            f"Holding: P&L {'+' if pnl['pct'] >= 0 else ''}{pnl['pct']:.2f}%"
+        reason = (
+            signal.reason
+            if signal
+            else (f"Holding: P&L {'+' if pnl['pct'] >= 0 else ''}{pnl['pct']:.2f}%")
         )
 
         event = ExitEvaluationEvent(
@@ -3133,7 +3474,10 @@ class CompositeStrategyTask(BaseStrategyTask):
         return thresholds
 
     def _build_entry_filter_checks(
-        self, market_data: MarketData, context: MarketContext, thresholds: dict[str, float]
+        self,
+        market_data: MarketData,
+        context: MarketContext,
+        thresholds: dict[str, float],
     ) -> dict[str, bool]:
         return {
             "adx_passed": market_data.adx >= thresholds["adx"],
@@ -3151,7 +3495,10 @@ class CompositeStrategyTask(BaseStrategyTask):
         checks: dict[str, bool],
     ) -> tuple[str, str] | None:
         if not checks["adx_passed"]:
-            return "weak_trend", f"ADX={market_data.adx:.1f} < {thresholds['adx']} threshold"
+            return (
+                "weak_trend",
+                f"ADX={market_data.adx:.1f} < {thresholds['adx']} threshold",
+            )
         if not checks["regime_allowed"]:
             return "wrong_regime", f"Regime {context.regime} not allowed for entry"
         if not checks["volatility_passed"]:
@@ -3163,12 +3510,20 @@ class CompositeStrategyTask(BaseStrategyTask):
             return "weak_momentum", f"MFI={market_data.mfi:.1f} < {thresholds['mfi']}"
         return None
 
-    def _calculate_unrealized_pnl(self, position: Position, close: float) -> dict[str, float]:
+    def _calculate_unrealized_pnl(
+        self, position: Position, close: float
+    ) -> dict[str, float]:
         pnl = (close - position.entry_price) * position.quantity
-        pnl_pct = ((close - position.entry_price) / position.entry_price * 100) if position.entry_price > 0 else 0.0
+        pnl_pct = (
+            ((close - position.entry_price) / position.entry_price * 100)
+            if position.entry_price > 0
+            else 0.0
+        )
         return {"value": pnl, "pct": pnl_pct}
 
-    def _resolve_exit_levels(self, position: Position, market_data: MarketData) -> dict[str, float]:
+    def _resolve_exit_levels(
+        self, position: Position, market_data: MarketData
+    ) -> dict[str, float]:
         levels = {
             "stop_loss_price": 0.0,
             "take_profit_price": 0.0,
@@ -3182,22 +3537,42 @@ class CompositeStrategyTask(BaseStrategyTask):
             take_profit_pct = getattr(params, "take_profit_pct", 0.05)
             levels["stop_loss_price"] = position.entry_price * (1 - stop_loss_pct)
             levels["take_profit_price"] = position.entry_price * (1 + take_profit_pct)
-        if hasattr(self.exit_strategy, "state") and hasattr(self.exit_strategy.state, "get"):
+        if hasattr(self.exit_strategy, "state") and hasattr(
+            self.exit_strategy.state, "get"
+        ):
             hwm_state = self.exit_strategy.state.get(position.symbol, {})
             if isinstance(hwm_state, dict):
-                levels["high_water_mark"] = hwm_state.get("high_water_mark", market_data.close)
+                levels["high_water_mark"] = hwm_state.get(
+                    "high_water_mark", market_data.close
+                )
                 levels["trailing_stop_price"] = hwm_state.get("trailing_stop", 0.0)
                 if levels["high_water_mark"] > 0:
                     levels["drawdown_from_hwm_pct"] = (
-                        (levels["high_water_mark"] - market_data.close) / levels["high_water_mark"] * 100
+                        (levels["high_water_mark"] - market_data.close)
+                        / levels["high_water_mark"]
+                        * 100
                     )
         return levels
 
-    def _build_exit_triggers(self, market_data: MarketData, levels: dict[str, float]) -> dict[str, bool]:
+    def _build_exit_triggers(
+        self, market_data: MarketData, levels: dict[str, float]
+    ) -> dict[str, bool]:
         return {
-            "stop_loss_triggered": market_data.close <= levels["stop_loss_price"] if levels["stop_loss_price"] > 0 else False,
-            "take_profit_triggered": market_data.close >= levels["take_profit_price"] if levels["take_profit_price"] > 0 else False,
-            "trailing_stop_triggered": market_data.close <= levels["trailing_stop_price"] if levels["trailing_stop_price"] > 0 else False,
+            "stop_loss_triggered": (
+                market_data.close <= levels["stop_loss_price"]
+                if levels["stop_loss_price"] > 0
+                else False
+            ),
+            "take_profit_triggered": (
+                market_data.close >= levels["take_profit_price"]
+                if levels["take_profit_price"] > 0
+                else False
+            ),
+            "trailing_stop_triggered": (
+                market_data.close <= levels["trailing_stop_price"]
+                if levels["trailing_stop_price"] > 0
+                else False
+            ),
             "macd_exit_signal": market_data.macd < market_data.macd_signal,
         }
 
@@ -3253,7 +3628,7 @@ async def create_composite_task(
     )
 
     # Initialize persistent exit strategy state
-    if hasattr(exit_strategy, 'load_state'):
+    if hasattr(exit_strategy, "load_state"):
         await exit_strategy.load_state(symbols)
         logger.info(f"{name}: Loaded persistent state for {symbols}")
 

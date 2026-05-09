@@ -134,6 +134,7 @@ class TradingEngine:
             feeds.append(feed)
 
         if feed_warmup_enabled:
+            await self._ensure_strategy_price_consumer_groups(strategy_config)
             # Run warmup for all feeds concurrently and wait for completion.
             warmup_tasks = [feed.warmup() for feed in feeds]
             await asyncio.gather(*warmup_tasks, return_exceptions=True)
@@ -488,6 +489,57 @@ class TradingEngine:
         logger.info(
             f"Started {started} component strategy tasks (shared indicator service)"
         )
+
+    async def _ensure_strategy_price_consumer_groups(
+        self, strategy_config: dict[str, Any]
+    ) -> None:
+        """Create strategy price groups before feed warm-up is published.
+
+        Strategy tasks consume `market:prices` from `start_id="$"` to avoid stale
+        retained market data. Feed warm-up is intentionally published before the
+        tasks run, so the groups must already exist for those warm-up messages to
+        be delivered to strategy buffers.
+        """
+        if not self.redis:
+            return
+
+        created = 0
+        for name, config in strategy_config.items():
+            if not isinstance(config, dict):
+                continue
+            if config.get("enabled") is False:
+                continue
+
+            group = f"strategy-{name}"
+            consumer = f"{name}-consumer"
+            try:
+                if hasattr(self.redis.__class__, "ensure_ephemeral_consumer_group"):
+                    stats = await self.redis.ensure_ephemeral_consumer_group(
+                        stream="market:prices",
+                        group=group,
+                        consumer=consumer,
+                    )
+                    if stats["reclaimed"] > 0 or stats["pruned_consumers"] > 0:
+                        logger.info(
+                            "Pre-warmup strategy stream cleanup %s: reclaimed=%s pruned=%s",
+                            name,
+                            stats["reclaimed"],
+                            stats["pruned_consumers"],
+                        )
+                else:
+                    await self.redis.create_consumer_group(
+                        "market:prices", group, start_id="$"
+                    )
+                created += 1
+            except Exception as exc:
+                logger.warning(
+                    "Failed to prepare pre-warmup price group for %s: %s",
+                    name,
+                    exc,
+                )
+
+        if created > 0:
+            logger.info("Prepared %d strategy price groups before feed warm-up", created)
 
     def _log_llm_provider_health(self, mode: str) -> None:
         reports = collect_llm_provider_health(self.config)

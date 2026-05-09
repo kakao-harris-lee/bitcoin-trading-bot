@@ -1,4 +1,6 @@
 # tests/trading/executor/test_smart_executor.py
+import time
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from trading.executor.smart_executor import SmartExecutor
@@ -312,33 +314,8 @@ async def test_price_monitor_updates_volatility_tracker(mock_redis, mock_binance
         {"symbol": "ETH", "price": "3000", "_id": "1-2"},
     ]
 
-    # Configure mock to return messages once, then empty
-    mock_redis.consume = AsyncMock(side_effect=[price_messages, []])
-
-    executor._running = True
-
-    # Run one iteration of price monitor
-    import asyncio
-
-    async def run_once():
-        executor._running = True
-        group = "smart-executor-prices"
-        consumer = "test-consumer"
-        await executor.redis.create_consumer_group("market:prices", group)
-        messages = await executor.redis.consume(
-            "market:prices", group, consumer, count=50, block_ms=500
-        )
-        for msg in messages:
-            symbol = msg.get("symbol")
-            price = msg.get("price")
-            if symbol and price:
-                if symbol not in executor.volatility_trackers:
-                    executor.volatility_trackers[symbol] = VolatilityTracker(
-                        window=executor.volatility_window
-                    )
-                executor.volatility_trackers[symbol].add_price(float(price))
-
-    await run_once()
+    for msg in price_messages:
+        await executor._handle_price_message(msg)
 
     # Verify trackers were created and updated
     assert "BTC" in executor.volatility_trackers
@@ -359,32 +336,77 @@ async def test_price_monitor_updates_hwm_for_active_positions(mock_redis, mock_b
     # Set initial HWM (indicating active position tracking)
     executor.high_water_marks["BTC"] = 99000.0
 
-    # Simulate price message with higher price
-    price_messages = [
-        {"symbol": "BTC", "price": "100000", "_id": "1-0"},
-    ]
-    mock_redis.consume = AsyncMock(return_value=price_messages)
-
-    executor._running = True
-
-    # Manually invoke the logic from _price_monitor_loop
-    messages = await executor.redis.consume(
-        "market:prices", "group", "consumer", count=50, block_ms=500
+    await executor._handle_price_message(
+        {"symbol": "BTC", "price": "100000", "_id": "1-0"}
     )
-    for msg in messages:
-        symbol = msg.get("symbol")
-        price = msg.get("price")
-        if symbol and price:
-            if symbol not in executor.volatility_trackers:
-                executor.volatility_trackers[symbol] = VolatilityTracker(
-                    window=executor.volatility_window
-                )
-            executor.volatility_trackers[symbol].add_price(float(price))
-            if symbol in executor.high_water_marks:
-                await executor.update_high_water_mark(symbol, float(price))
 
     # Verify HWM was updated
     assert executor.high_water_marks["BTC"] == 100000.0
+
+
+@pytest.mark.asyncio
+async def test_price_monitor_group_starts_at_latest_for_plain_redis(mock_redis, mock_binance, config):
+    """Smart executor price monitor should not consume retained price backlog."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+
+    async def consume_once(*args, **kwargs):
+        executor._running = False
+        return []
+
+    mock_redis.consume = AsyncMock(side_effect=consume_once)
+    executor._running = True
+
+    await executor._price_monitor_loop()
+
+    mock_redis.create_consumer_group.assert_called_once_with(
+        "market:prices", "smart-executor-prices", start_id="$"
+    )
+
+
+@pytest.mark.asyncio
+async def test_price_monitor_skips_warmup_prices(mock_redis, mock_binance, config):
+    """Warm-up candles must not update smart-exit volatility or HWM state."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+    executor.high_water_marks["BTC"] = 99000.0
+
+    await executor._handle_price_message(
+        {"symbol": "BTC", "price": "100000", "warmup": "true", "_id": "1-0"}
+    )
+
+    assert "BTC" not in executor.volatility_trackers
+    assert executor.high_water_marks["BTC"] == 99000.0
+
+
+@pytest.mark.asyncio
+async def test_price_monitor_skips_stale_prices(mock_redis, mock_binance, config):
+    """Retained stale stream prices must not move smart-exit HWM."""
+    executor = SmartExecutor(
+        redis=mock_redis,
+        binance_client=mock_binance,
+        config=config,
+    )
+    executor.high_water_marks["BTC"] = 99000.0
+    stale_ts = int(time.time() * 1000) - executor.price_stale_after_ms - 1
+
+    await executor._handle_price_message(
+        {
+            "symbol": "BTC",
+            "price": "100000",
+            "timestamp": str(stale_ts),
+            "_id": "1-0",
+        }
+    )
+
+    assert "BTC" not in executor.volatility_trackers
+    assert executor.high_water_marks["BTC"] == 99000.0
 
 
 @pytest.mark.asyncio

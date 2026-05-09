@@ -189,6 +189,32 @@ def test_resolve_feed_warmup_enabled_default_false(mock_config):
     assert engine._resolve_feed_warmup_enabled() is False
 
 
+@pytest.mark.asyncio
+async def test_ensure_strategy_price_groups_before_feed_warmup(mock_config):
+    """Warm-up messages should be publishable after strategy groups exist."""
+    with patch("trading.engine.load_config", return_value=mock_config):
+        engine = TradingEngine(config_path="test.json")
+
+    mock_redis = AsyncMock()
+    mock_redis.create_consumer_group = AsyncMock()
+    engine.redis = mock_redis
+
+    await engine._ensure_strategy_price_consumer_groups(
+        {
+            "llm_direction_btc": {"enabled": True},
+            "llm_direction_eth": {"enabled": True},
+            "disabled_strategy": {"enabled": False},
+        }
+    )
+
+    calls = mock_redis.create_consumer_group.await_args_list
+    assert len(calls) == 2
+    assert calls[0].args == ("market:prices", "strategy-llm_direction_btc")
+    assert calls[0].kwargs == {"start_id": "$"}
+    assert calls[1].args == ("market:prices", "strategy-llm_direction_eth")
+    assert calls[1].kwargs == {"start_id": "$"}
+
+
 def test_resolve_feed_stream_type_defaults_to_miniticker(mock_config):
     with patch("trading.engine.load_config", return_value=mock_config):
         engine = TradingEngine(config_path="test.json")

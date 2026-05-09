@@ -71,6 +71,9 @@ class SmartExecutor:
         self.ladder_weights = split.get("ladder_weights", [0.40, 0.35, 0.25])
         self.phase1_timeout = split.get("phase1_timeout_sec", 60)
         self.max_execution_time = split.get("max_execution_sec", 90)
+        self.price_stale_after_ms = int(
+            se_config.get("price_stale_after_ms", 5 * 60 * 1000)
+        )
 
         # Volatility trackers per symbol
         self.volatility_trackers: dict[str, VolatilityTracker] = {}
@@ -250,7 +253,25 @@ class SmartExecutor:
         group = "smart-executor-prices"
         consumer = f"price-mon-{uuid.uuid4().hex[:8]}"
 
-        await self.redis.create_consumer_group("market:prices", group)
+        try:
+            if hasattr(self.redis.__class__, "ensure_ephemeral_consumer_group"):
+                stats = await self.redis.ensure_ephemeral_consumer_group(
+                    stream="market:prices",
+                    group=group,
+                    consumer=consumer,
+                )
+                if stats["reclaimed"] > 0 or stats["pruned_consumers"] > 0:
+                    logger.info(
+                        "Smart executor price stream cleanup: reclaimed=%s pruned=%s",
+                        stats["reclaimed"],
+                        stats["pruned_consumers"],
+                    )
+            else:
+                await self.redis.create_consumer_group(
+                    "market:prices", group, start_id="$"
+                )
+        except Exception as exc:
+            logger.debug("Smart executor price consumer group setup: %s", exc)
 
         while self._running:
             try:
@@ -259,25 +280,59 @@ class SmartExecutor:
                 )
 
                 for msg in messages:
-                    symbol = msg.get("symbol")
-                    price = msg.get("price")
-
-                    if symbol and price:
-                        if symbol not in self.volatility_trackers:
-                            self.volatility_trackers[symbol] = VolatilityTracker(
-                                window=self.volatility_window
-                            )
-                        self.volatility_trackers[symbol].add_price(float(price))
-
-                        # Also update high water mark for active positions
-                        if symbol in self.high_water_marks:
-                            await self.update_high_water_mark(symbol, float(price))
-
+                    await self._handle_price_message(msg)
                     await self.redis.ack("market:prices", group, msg["_id"])
 
             except Exception as e:
                 logger.error(f"Price monitor error: {e}")
                 await asyncio.sleep(1)
+
+    async def _handle_price_message(self, msg: dict) -> None:
+        """Update smart-exit trackers from a realtime price message."""
+        if self._should_skip_price_message(msg):
+            return
+
+        symbol = msg.get("symbol")
+        price = msg.get("price")
+        if not symbol or not price:
+            return
+
+        price_float = float(price)
+        if symbol not in self.volatility_trackers:
+            self.volatility_trackers[symbol] = VolatilityTracker(
+                window=self.volatility_window
+            )
+        self.volatility_trackers[symbol].add_price(price_float)
+
+        if symbol in self.high_water_marks:
+            await self.update_high_water_mark(symbol, price_float)
+
+    def _should_skip_price_message(self, msg: dict) -> bool:
+        """Skip warm-up or stale retained stream prices for smart exits."""
+        if str(msg.get("warmup", "")).lower() == "true":
+            return True
+
+        timestamp_ms = self._extract_price_timestamp_ms(msg)
+        if timestamp_ms is None or self.price_stale_after_ms <= 0:
+            return False
+
+        age_ms = int(time.time() * 1000) - timestamp_ms
+        return age_ms > self.price_stale_after_ms
+
+    @staticmethod
+    def _extract_price_timestamp_ms(msg: dict) -> int | None:
+        raw = msg.get("exchange_ts", msg.get("timestamp"))
+        if raw is None:
+            return None
+        try:
+            timestamp = int(float(raw))
+        except (TypeError, ValueError):
+            return None
+        if timestamp <= 0:
+            return None
+        if timestamp < 1_000_000_000_000:
+            timestamp *= 1000
+        return timestamp
 
     async def _exit_execution_loop(self) -> None:
         """Monitor active exits and manage ladder phases."""

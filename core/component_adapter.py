@@ -10,6 +10,8 @@ Supports regime filtering:
 
 from dataclasses import replace
 import logging
+import math
+import re
 from types import MappingProxyType
 from typing import Dict, Any, Optional
 import pandas as pd
@@ -17,6 +19,13 @@ from trading.strategies.components.models import MarketData, Position, Signal, M
 
 logger = logging.getLogger(__name__)
 from trading.strategies.components.strategy_factory import StrategyFactory
+from trading.strategies.components.llm_direction_entry import LLMTradeDecision
+from trading.strategies.components.registry import (
+    build_params_from_config,
+    get_entry_class,
+    get_entry_params_class,
+    is_entry_registered,
+)
 from trading.strategies.volatility_tracker import VolatilityTracker
 from trading.strategies.components.regime_filter import EnhancedRegimeRouter, MTFCandle
 
@@ -62,6 +71,11 @@ class ComponentStrategyAdapter:
         self.high_water_mark: Optional[float] = None
         self.symbol = "BTC" # Default, will be updated if possible
         self.vol_tracker = VolatilityTracker(window=20)
+        self._allow_scale_in_entries: bool = bool(config.get("allow_scale_in_entries", False))
+        self._backtest_force_entry_fallback: bool = bool(
+            config.get("backtest_force_entry_fallback", False)
+        )
+        self._init_entry_fallback()
         entry_params_cfg = config.get("entry", {}).get("params", {}) if isinstance(config.get("entry"), dict) else {}
         def _cfg_value(key: str, default: Any) -> Any:
             if key in config:
@@ -146,6 +160,18 @@ class ComponentStrategyAdapter:
             self._protective_force_exit_bars = 1
         self._protective_force_exit_remaining: int = 0
         self._protective_ladder_active: bool = False
+        self._protective_partial_exit_enabled: bool = bool(
+            _cfg_value("protective_partial_exit_enabled", True)
+        )
+        self._protective_partial_exit_fraction: float = float(
+            _cfg_value("protective_partial_exit_fraction", 0.5)
+        )
+        if self._protective_partial_exit_fraction <= 0 or self._protective_partial_exit_fraction >= 1:
+            self._protective_partial_exit_fraction = 0.5
+        self._protective_partial_regimes: set[str] = set(
+            _cfg_value("protective_partial_regimes", ["BEAR_MODERATE"])
+        )
+        self._protective_partial_done: bool = False
 
         # === NEW: Regime Probability Filter ===
         # Use RF confidence (if available) or MFI proxy for bullish probability
@@ -205,6 +231,76 @@ class ComponentStrategyAdapter:
 
         # Regime classification thresholds (externalised for optimisation)
         self._regime_thresholds: Dict[str, float] = dict(config.get("regime_thresholds", {}))
+        self._trend_floor_entry_enabled: bool = bool(_cfg_value("trend_floor_entry_enabled", False))
+        self._trend_floor_position_size: float = float(_cfg_value("trend_floor_position_size", 0.08))
+        if self._trend_floor_position_size <= 0:
+            self._trend_floor_position_size = 0.08
+        self._trend_floor_regimes: set[str] = set(
+            _cfg_value(
+                "trend_floor_regimes",
+                ["BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP"],
+            )
+        )
+        self._trend_floor_min_adx: float = float(_cfg_value("trend_floor_min_adx", 12.0))
+        self._trend_floor_min_mfi: float = float(_cfg_value("trend_floor_min_mfi", 45.0))
+        self._trend_floor_require_above_ema20: bool = bool(
+            _cfg_value("trend_floor_require_above_ema20", True)
+        )
+        self._trend_floor_require_ema20_above_ema120: bool = bool(
+            _cfg_value("trend_floor_require_ema20_above_ema120", False)
+        )
+        self._trend_floor_require_ema120_ready: bool = bool(
+            _cfg_value("trend_floor_require_ema120_ready", False)
+        )
+        self._trend_floor_require_ema200_ready: bool = bool(
+            _cfg_value("trend_floor_require_ema200_ready", False)
+        )
+        self._trend_hold_exit_guard_enabled: bool = bool(
+            _cfg_value("trend_hold_exit_guard_enabled", False)
+        )
+        self._trend_hold_guard_regimes: set[str] = set(
+            _cfg_value(
+                "trend_hold_guard_regimes",
+                ["BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP", "BEAR_MODERATE"],
+            )
+        )
+        self._trend_hold_guard_require_above_ema200: bool = bool(
+            _cfg_value("trend_hold_guard_require_above_ema200", True)
+        )
+
+    def _init_entry_fallback(self) -> None:
+        cfg = self.config.get("entry_fallback", {})
+        cfg = cfg if isinstance(cfg, dict) else {}
+        self._entry_fallback_enabled = bool(cfg.get("enabled", False))
+        self._entry_fallback_on_provider_error = bool(cfg.get("on_provider_error", True))
+        self._entry_fallback_on_non_buy = bool(cfg.get("on_non_buy", False))
+        self._entry_fallback_on_low_confidence = bool(cfg.get("on_low_confidence", False))
+        self._entry_fallback_max_hold_confidence = float(
+            cfg.get("max_hold_confidence", 0.55)
+        )
+        self._fallback_entry_strategy = None
+        self._fallback_last_reason: dict[str, str] = {}
+        if not self._entry_fallback_enabled:
+            return
+
+        class_name = str(cfg.get("class", "RegimeLongV2EntryStrategy"))
+        if not is_entry_registered(class_name):
+            logger.warning("Entry fallback class not registered: %s", class_name)
+            self._entry_fallback_enabled = False
+            return
+
+        params_cfg = cfg.get("params", {})
+        params_cfg = params_cfg if isinstance(params_cfg, dict) else {}
+        merged_params = {
+            "market": self.config.get("market", "spot"),
+            "position_size": self.config.get(
+                "position_size", self.config.get("position_pct", 0.1)
+            ),
+        }
+        merged_params.update(params_cfg)
+        params_class = get_entry_params_class(class_name)
+        params = build_params_from_config(params_class, merged_params) if params_class else None
+        self._fallback_entry_strategy = get_entry_class(class_name)(params=params)
 
     def update_equity(self, equity: float) -> None:
         """Update portfolio equity tracking for drawdown protection.
@@ -248,12 +344,31 @@ class ComponentStrategyAdapter:
         market_data = self._build_market_data(row, values, indicators)
 
         if self.current_position:
-            return self._evaluate_exit(
+            exit_action = self._evaluate_exit(
                 row=row,
                 market_data=market_data,
                 context=context,
                 values=values,
             )
+            if exit_action.get("action") != "hold":
+                return exit_action
+            if self._allow_scale_in_entries:
+                self._prepare_entry_strategy(
+                    df=df,
+                    i=i,
+                    market_data=market_data,
+                    context=context,
+                    with_position=True,
+                )
+                return self._evaluate_entry(
+                    row=row,
+                    market_data=market_data,
+                    context=context,
+                    values=values,
+                    with_position=True,
+                    scale_in=True,
+                )
+            return exit_action
 
         self._prepare_entry_strategy(
             df=df,
@@ -274,6 +389,7 @@ class ComponentStrategyAdapter:
         i: int,
         market_data: MarketData,
         context: MarketContext,
+        with_position: bool = False,
     ) -> None:
         prepare_sync = getattr(self.entry_strategy, "prepare_entry_decision", None)
         if not callable(prepare_sync):
@@ -283,12 +399,34 @@ class ComponentStrategyAdapter:
         ctx = self._build_trading_context(
             market_data,
             context,
-            with_position=False,
+            with_position=with_position,
         )
+        if self._cache_forced_fallback_decision(ctx):
+            return
         try:
             prepare_sync(ctx, history_df)
         except Exception as e:
             logger.warning("Entry decision preparation failed for %s: %s", self.symbol, e)
+
+    def _cache_forced_fallback_decision(self, ctx: TradingContext) -> bool:
+        if not self._backtest_force_entry_fallback:
+            return False
+        cache_decision = getattr(self.entry_strategy, "_cache_decision", None)
+        if not callable(cache_decision):
+            return False
+        cache_decision(
+            ctx.market.symbol,
+            int(getattr(ctx.market, "timestamp", 0) or 0),
+            LLMTradeDecision(
+                action="HOLD",
+                confidence=0.0,
+                reason="Backtest forced fallback",
+                prompt_version="backtest_fallback",
+                provider="offline",
+                model="offline",
+            ),
+        )
+        return True
 
     def _decrement_timers(self) -> None:
         if self._cooldown_remaining > 0:
@@ -524,6 +662,7 @@ class ComponentStrategyAdapter:
         self.current_position = None
         self.high_water_mark = None
         self._protective_ladder_active = False
+        self._protective_partial_done = False
         self._protective_force_exit_remaining = 0
         try:
             self.exit_strategy.on_position_closed(self.symbol)
@@ -545,17 +684,26 @@ class ComponentStrategyAdapter:
         if force_exit is not None:
             return force_exit
 
-        bear_exit = self._check_bear_regime_exit_action(context, close, is_long)
+        bear_exit = self._check_bear_regime_exit_action(context, market_data, is_long)
         if bear_exit is not None:
             return bear_exit
 
         protective_action = self._get_protective_exit_action(row, close, is_long)
         if protective_action is not None:
+            if self._should_guard_trend_hold_exit(
+                protective_action.get("reason", ""),
+                market_data,
+                context,
+                is_long,
+            ):
+                return {"action": "hold", "reason": f"trend_hold_guard:{protective_action.get('reason', '')}"}
             return protective_action
 
         signal = self._run_exit_signal(market_data, context)
         if not signal:
             return {"action": "hold"}
+        if self._should_guard_trend_hold_exit(signal.reason or "", market_data, context, is_long):
+            return {"action": "hold", "reason": f"trend_hold_guard:{signal.reason or ''}"}
         return self._finalize_exit_signal(signal, is_long)
 
     def _update_exit_hwm(self, market_data: MarketData, close: float, is_long: bool) -> MarketData:
@@ -593,18 +741,67 @@ class ComponentStrategyAdapter:
     def _check_bear_regime_exit_action(
         self,
         context: MarketContext,
-        close: float,
+        market_data: MarketData,
         is_long: bool,
     ) -> Dict[str, Any] | None:
         if not self._exit_on_bear_regime or not is_long:
             return None
         if context.regime not in ("BEAR_STRONG", "BEAR_MODERATE"):
             return None
+        if self._should_guard_trend_hold_exit(
+            f"bear_regime_exit:{context.regime}",
+            market_data,
+            context,
+            is_long,
+        ):
+            return None
+        close = market_data.close
+        partial = self._maybe_build_protective_partial_exit(
+            reason=f"bear_regime_exit:{context.regime}",
+            close=close,
+            is_long=True,
+            regime=context.regime,
+        )
+        if partial is not None:
+            return partial
+        if context.regime in self._protective_partial_regimes and self._protective_partial_done:
+            return None
         return self._build_protective_exit_action(
             reason=f"bear_regime_exit:{context.regime}",
             close=close,
             is_long=True,
         )
+
+    def _should_guard_trend_hold_exit(
+        self,
+        reason: str,
+        market_data: MarketData,
+        context: MarketContext,
+        is_long: bool,
+    ) -> bool:
+        if not self._trend_hold_exit_guard_enabled or not is_long:
+            return False
+        if context.regime not in self._trend_hold_guard_regimes:
+            return False
+        if context.regime == "BEAR_STRONG":
+            return False
+
+        reason_text = str(reason or "").lower()
+        hard_exit_markers = (
+            "stop loss",
+            "stoploss",
+            "drawdown_exit",
+            "ma120 panic",
+            "ema200 protective",
+        )
+        if any(marker in reason_text for marker in hard_exit_markers):
+            return False
+
+        if self._trend_hold_guard_require_above_ema200:
+            ema_200 = float(getattr(market_data, "ema_200", 0.0) or 0.0)
+            if ema_200 > 0 and float(market_data.close) < ema_200:
+                return False
+        return True
 
     def _check_ma_exit_action(
         self,
@@ -737,6 +934,7 @@ class ComponentStrategyAdapter:
         if should_ladder:
             self._protective_ladder_active = True
             self._protective_force_exit_remaining = self._protective_force_exit_bars
+            self._reduce_current_position(self._protective_de_risk_fraction)
             return {
                 "action": action,
                 "fraction": self._protective_de_risk_fraction,
@@ -761,6 +959,41 @@ class ComponentStrategyAdapter:
         loss_pct = ((close / entry_price) - 1.0) * 100.0
         return loss_pct <= -abs(self._protective_de_risk_loss_pct)
 
+    def _maybe_build_protective_partial_exit(
+        self,
+        reason: str,
+        close: float,
+        is_long: bool,
+        regime: str,
+    ) -> Dict[str, Any] | None:
+        if not self._protective_partial_exit_enabled:
+            return None
+        if self._protective_partial_done or regime not in self._protective_partial_regimes:
+            return None
+        if not is_long or self.current_position is None:
+            return None
+        self._protective_partial_done = True
+        fraction = self._protective_partial_exit_fraction
+        self._reduce_current_position(fraction)
+        return {
+            "action": "sell",
+            "fraction": fraction,
+            "reason": f"{reason} | PROTECTIVE_PARTIAL_DE_RISK",
+        }
+
+    def _reduce_current_position(self, exit_fraction: float) -> None:
+        if self.current_position is None:
+            return
+        fraction = max(min(float(exit_fraction), 1.0), 0.0)
+        if fraction <= 0:
+            return
+        current_qty = float(getattr(self.current_position, "quantity", 0.0) or 0.0)
+        remaining_qty = max(current_qty * (1.0 - fraction), 0.0)
+        if remaining_qty <= 1e-10:
+            self._close_position()
+            return
+        self.current_position = replace(self.current_position, quantity=remaining_qty)
+
     def _update_loss_tracking(self, reason: str) -> None:
         is_stop_loss = "stop loss" in reason.lower() or "stoploss" in reason.lower()
         if is_stop_loss:
@@ -778,6 +1011,8 @@ class ComponentStrategyAdapter:
         market_data: MarketData,
         context: MarketContext,
         values: Dict[str, Any],
+        with_position: bool = False,
+        scale_in: bool = False,
     ) -> Dict[str, Any]:
         hold_reason = self._entry_hold_reason(row, context, values)
         if hold_reason is not None:
@@ -788,11 +1023,140 @@ class ComponentStrategyAdapter:
             return {"action": "hold", "reason": "dynamic_lev_zero"}
         self._current_leverage = leverage
 
-        ctx = self._build_trading_context(market_data, context, with_position=False)
+        ctx = self._build_trading_context(market_data, context, with_position=with_position)
         signal = self.entry_strategy.check_entry(ctx)
         if not signal:
-            return {"action": "hold"}
+            primary_reason = self._resolve_component_rejection_reason(
+                self.entry_strategy, self.symbol
+            )
+            signal = self._maybe_apply_entry_fallback(ctx, primary_reason)
+            if not signal:
+                signal = self._maybe_build_trend_floor_signal(ctx, primary_reason)
+            if not signal:
+                reason = self._combine_primary_and_fallback_reason(
+                    self.symbol, primary_reason
+                )
+                return {"action": "hold", "reason": reason}
+        if scale_in:
+            return self._scale_position_from_signal(row, signal, values, context)
         return self._open_position_from_signal(row, signal, values, context)
+
+    def _maybe_build_trend_floor_signal(
+        self,
+        ctx: TradingContext,
+        primary_reason: str,
+    ) -> Signal | None:
+        if not self._trend_floor_entry_enabled:
+            return None
+        market = ctx.market
+        regime = ctx.regime
+        if regime.regime not in self._trend_floor_regimes:
+            return None
+        if market.adx < self._trend_floor_min_adx or market.mfi < self._trend_floor_min_mfi:
+            return None
+        if self._trend_floor_require_above_ema20:
+            if not self._is_ready_indicator(market.ema_20) or market.close < market.ema_20:
+                return None
+        if self._trend_floor_require_ema120_ready and not self._is_ready_indicator(market.ema_120):
+            return None
+        if self._trend_floor_require_ema200_ready and not self._is_ready_indicator(market.ema_200):
+            return None
+        if self._trend_floor_require_ema20_above_ema120:
+            if (
+                not self._is_ready_indicator(market.ema_20)
+                or not self._is_ready_indicator(market.ema_120)
+                or market.ema_20 < market.ema_120
+            ):
+                return None
+        reason = (
+            f"TrendFloor entry: regime={regime.regime}, "
+            f"mfi={market.mfi:.1f}, adx={market.adx:.1f}; primary={primary_reason}"
+        )
+        return Signal(
+            symbol=market.symbol,
+            side="buy",
+            market=self.market,
+            quantity=self._trend_floor_position_size,
+            reason=reason,
+        )
+
+    @staticmethod
+    def _is_ready_indicator(value: Any) -> bool:
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return False
+        return math.isfinite(numeric) and numeric > 0
+
+    def _maybe_apply_entry_fallback(
+        self, ctx: TradingContext, primary_reason: str
+    ) -> Signal | None:
+        if not self._entry_fallback_enabled or self._fallback_entry_strategy is None:
+            return None
+        if not self._should_apply_entry_fallback(primary_reason):
+            self._fallback_last_reason.pop(self.symbol, None)
+            return None
+        try:
+            signal = self._fallback_entry_strategy.check_entry(ctx)
+        except Exception as exc:
+            reason = f"Fallback entry error: {exc}"
+            self._fallback_last_reason[self.symbol] = reason
+            logger.warning("Fallback entry strategy failed for %s: %s", self.symbol, exc)
+            return None
+        if signal is None:
+            reason = self._resolve_component_rejection_reason(
+                self._fallback_entry_strategy, self.symbol
+            )
+            self._fallback_last_reason[self.symbol] = reason
+            return None
+        self._fallback_last_reason.pop(self.symbol, None)
+        return replace(
+            signal,
+            reason=f"HybridLong[regime_fallback] primary={primary_reason}; {signal.reason}",
+        )
+
+    def _should_apply_entry_fallback(self, primary_reason: str) -> bool:
+        text = str(primary_reason or "").lower()
+        if not text:
+            return False
+        if self._entry_fallback_on_provider_error and "provider error" in text:
+            return True
+        if self._entry_fallback_on_low_confidence and "low llm confidence" in text:
+            return True
+        if self._entry_fallback_on_non_buy and "llm predicted hold" in text:
+            confidence = self._extract_confidence(primary_reason)
+            return (
+                confidence is None
+                or confidence <= self._entry_fallback_max_hold_confidence
+            )
+        return False
+
+    @staticmethod
+    def _extract_confidence(reason: str) -> float | None:
+        match = re.search(r"conf=([0-9]+(?:\.[0-9]+)?)", str(reason or ""))
+        if match is None:
+            return None
+        try:
+            return float(match.group(1))
+        except (TypeError, ValueError):
+            return None
+
+    def _resolve_component_rejection_reason(self, strategy: Any, symbol: str) -> str:
+        getter = getattr(strategy, "get_last_rejection_reason", None)
+        if callable(getter):
+            reason = getter(symbol)
+            if reason:
+                return str(reason)
+        reason = getattr(strategy, "last_rejection_reason", None)
+        if isinstance(reason, str) and reason.strip():
+            return reason.strip()
+        return "entry rejected"
+
+    def _combine_primary_and_fallback_reason(self, symbol: str, primary_reason: str) -> str:
+        fallback_reason = self._fallback_last_reason.get(symbol, "")
+        if fallback_reason:
+            return f"{primary_reason} | Fallback: {fallback_reason}"
+        return primary_reason
 
     def _entry_hold_reason(self, row: pd.Series, context: MarketContext, values: Dict[str, Any]) -> str | None:
         if self._loss_pause_remaining > 0:
@@ -864,6 +1228,9 @@ class ComponentStrategyAdapter:
         ts_ms = self._extract_timestamp_ms(row)
         self.current_position = self._build_position_from_signal(signal, values["close"], is_short, ts_ms)
         self.high_water_mark = values["close"]
+        self._protective_partial_done = False
+        self._protective_ladder_active = False
+        self._protective_force_exit_remaining = 0
         self._notify_position_opened(ts_ms)
 
         fraction, position_reason = self._resolve_entry_fraction(signal, values["atr"], values["close"])
@@ -876,6 +1243,52 @@ class ComponentStrategyAdapter:
             "reason": reason,
             "leverage": self._current_leverage,
             "regime": context.regime,
+            "max_symbol_exposure_pct": self.config.get("context_max_symbol_exposure_pct"),
+        }
+
+    def _scale_position_from_signal(
+        self,
+        row: pd.Series,
+        signal: Signal,
+        values: Dict[str, Any],
+        context: MarketContext,
+    ) -> Dict[str, Any]:
+        if self.current_position is None:
+            return self._open_position_from_signal(row, signal, values, context)
+        if signal.side == "sell":
+            return {"action": "hold", "reason": "scale_in_short_signal_ignored"}
+
+        ts_ms = self._extract_timestamp_ms(row)
+        fraction, position_reason = self._resolve_entry_fraction(
+            signal, values["atr"], values["close"]
+        )
+        reason = self._compose_entry_reason(signal.reason or "", position_reason)
+
+        existing_qty = max(float(getattr(self.current_position, "quantity", 0.0) or 0.0), 0.0)
+        add_qty_raw = getattr(signal, "quantity", None)
+        add_qty = float(add_qty_raw) if add_qty_raw else max(fraction, 1e-9)
+        new_qty = existing_qty + add_qty
+        if new_qty > 0:
+            avg_entry = (
+                (float(self.current_position.entry_price) * existing_qty)
+                + (float(values["close"]) * add_qty)
+            ) / new_qty
+            self.current_position = replace(
+                self.current_position,
+                quantity=new_qty,
+                entry_price=avg_entry,
+                timestamp=ts_ms,
+            )
+
+        return {
+            "action": "buy",
+            "fraction": fraction,
+            "price": values["close"],
+            "reason": reason,
+            "leverage": self._current_leverage,
+            "regime": context.regime,
+            "scale_in": True,
+            "max_symbol_exposure_pct": self.config.get("context_max_symbol_exposure_pct"),
         }
 
     def _extract_timestamp_ms(self, row: pd.Series) -> int:
@@ -913,9 +1326,14 @@ class ComponentStrategyAdapter:
         signal_qty = getattr(signal, "quantity", None)
         position_pct = float(self.config.get("position_pct", 0.02))
         use_signal_quantity = bool(self.config.get("use_signal_quantity", False))
-        if use_signal_quantity and signal_qty is not None and signal_qty > 0:
+        is_trend_floor = str(getattr(signal, "reason", "") or "").startswith("TrendFloor")
+        if (use_signal_quantity or is_trend_floor) and signal_qty is not None and signal_qty > 0:
             fraction = signal_qty
-            position_reason = f"regime_size:{signal_qty:.2f}"
+            position_reason = (
+                f"trend_floor_size:{signal_qty:.2f}"
+                if is_trend_floor
+                else f"regime_size:{signal_qty:.2f}"
+            )
         else:
             fraction = position_pct
             position_reason = f"config_pct:{position_pct:.2f}"

@@ -1890,35 +1890,53 @@ def _build_entry_impact(
     position_active: bool,
     order_ts: datetime | None,
     fill_ts: datetime | None,
-) -> tuple[str, str, list[str], bool]:
+) -> tuple[str, str, list[str], bool, str]:
     """Map decision + execution traces to entry impact fields."""
     decision_upper = str(decision or "WAIT").upper()
     blockers = _extract_entry_blockers(reason)
+    is_scale_in = bool(position_active and (decision_upper == "BUY" or order_ts or fill_ts))
 
-    if decision_upper == "BUY":
+    if decision_upper == "BUY" or is_scale_in:
+        display_decision = "BUY"
         if fill_ts:
             return (
-                "ENTRY_FILLED",
-                f"Entry filled at {fill_ts.strftime('%H:%M:%S')}",
+                "SCALE_IN_FILLED" if is_scale_in else "ENTRY_FILLED",
+                (
+                    f"Scale-in filled at {fill_ts.strftime('%H:%M:%S')}"
+                    if is_scale_in
+                    else f"Entry filled at {fill_ts.strftime('%H:%M:%S')}"
+                ),
                 [],
                 True,
+                display_decision,
             )
         if order_ts:
             return (
-                "ENTRY_ORDERED",
-                f"Entry order published at {order_ts.strftime('%H:%M:%S')}",
+                "SCALE_IN_ORDERED" if is_scale_in else "ENTRY_ORDERED",
+                (
+                    f"Scale-in order published at {order_ts.strftime('%H:%M:%S')}"
+                    if is_scale_in
+                    else f"Entry order published at {order_ts.strftime('%H:%M:%S')}"
+                ),
                 [],
                 True,
+                display_decision,
             )
-        return ("ENTRY_SIGNAL", "Entry signal generated (no order yet)", [], False)
+        return (
+            "SCALE_IN_SIGNAL" if is_scale_in else "ENTRY_SIGNAL",
+            "Scale-in signal generated (no order yet)" if is_scale_in else "Entry signal generated (no order yet)",
+            [],
+            False,
+            display_decision,
+        )
 
     if decision_upper == "HOLD" or position_active:
-        return ("POSITION_HOLD", "Position already open; no new entry", [], False)
+        return ("POSITION_HOLD", "Position already open; no new entry", [], False, "HOLD")
 
     if blockers:
-        return ("ENTRY_BLOCKED", "Blocked by filters", blockers, False)
+        return ("ENTRY_BLOCKED", "Blocked by filters", blockers, False, decision_upper)
 
-    return ("ENTRY_WAIT", "No entry condition met", [], False)
+    return ("ENTRY_WAIT", "No entry condition met", [], False, decision_upper)
 
 
 @app.route("/api/trades")
@@ -2173,21 +2191,24 @@ def get_signals():
             lookup_key = (symbol_key, strategy_key)
             order_ts = _find_first_event_after(order_times.get(lookup_key, []), decision_ts)
             fill_ts = _find_first_event_after(fill_times.get(lookup_key, []), decision_ts)
-            impact_code, impact_detail, impact_factors, acted = _build_entry_impact(
+            impact_code, impact_detail, impact_factors, acted, display_decision = _build_entry_impact(
                 decision=decision,
                 reason=d.get('reason', ''),
                 position_active=position_active,
                 order_ts=order_ts,
                 fill_ts=fill_ts,
             )
+            display_action = display_decision.lower()
 
             signals.append({
                 'timestamp': d.get('timestamp', ''),
                 'exchange': d.get('exchange', 'binance'),
                 'strategy': d.get('strategy', ''),
                 'strategy_label': _format_strategy_label(d.get('strategy'), d.get('symbol')),
-                'action': decision.lower(),
-                'decision': decision,
+                'action': display_action,
+                'decision': display_decision,
+                'raw_action': decision.lower(),
+                'raw_decision': decision,
                 'symbol': d.get('symbol', ''),
                 'market': d.get('market', 'spot'),
                 'price': (d.get('indicators') or {}).get('price', 0),

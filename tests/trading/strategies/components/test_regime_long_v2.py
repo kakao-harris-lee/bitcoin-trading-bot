@@ -330,6 +330,27 @@ def test_exit_on_ema_streak_skips_in_blocked_bull_regime() -> None:
     assert signal is None
 
 
+def test_exit_on_ema_streak_can_be_disabled() -> None:
+    params = RegimeLongV2ExitParams(
+        exit_on_bear_regime=False,
+        peak_drawdown_exit_pct=0.9,
+        drop_1d_lookback_bars=99,
+        drop_3d_lookback_bars=199,
+        ema_slow_exit_enabled=False,
+        ema_slow_consecutive_bars=1,
+    )
+    strategy = RegimeLongV2ExitStrategy(params=params)
+    pos = _position(entry_price=100.0)
+    strategy.on_position_opened(pos)
+
+    signal = strategy.check_exit(
+        _ctx(ts=1, close=80.0, high=80.5, mfi=55.0, adx=25.0, ema_20=85.0, ema_120=90.0),
+        pos,
+    )
+
+    assert signal is None
+
+
 def test_exit_on_ema_streak_requires_fast_below_slow_when_enabled() -> None:
     params = RegimeLongV2ExitParams(
         exit_on_bear_regime=False,

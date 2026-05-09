@@ -191,7 +191,12 @@ class AsyncExecutor:
             await self._publish_rejection(order, "unsupported_market")
             return None
 
-        if not await self._pass_risk_gates("spot"):
+        side = str(order.get("side", "")).lower()
+        order["side"] = side
+        order["market"] = "spot"
+        order["symbol"] = str(order.get("symbol", "")).upper()
+
+        if not await self._pass_risk_gates("spot", side=side):
             logger.warning("Order %s blocked by risk gates", order.get("id", "unknown"))
             await self._publish_rejection(order, "risk_blocked")
             return None
@@ -212,6 +217,7 @@ class AsyncExecutor:
 
     async def _execute_spot_order(self, order: dict[str, Any]) -> dict | None:
         is_exit = await self._is_exit_order(order)
+        position = await self.redis.get_position(order["symbol"], "spot") if is_exit else None
         if is_exit:
             await self._cancel_server_stop_loss(order["symbol"], "spot")
 
@@ -227,11 +233,10 @@ class AsyncExecutor:
         entry_price = 0.0
         entry_time = 0
         if is_exit:
-            position = await self.redis.get_position(order["symbol"], "spot")
             entry_price = float(position.get("entry_price", 0)) if position else 0
             entry_time = int(position.get("entry_time", 0)) if position else 0
             profit_data = await self._record_exit_pnl(order, fill)
-            await self.redis.clear_position(order["symbol"], "spot")
+            await self._update_spot_position_after_exit(order, fill, position)
         else:
             await self._update_spot_position(order, fill)
             await self._place_server_stop_loss(order["symbol"], "spot", fill, order)
@@ -266,6 +271,8 @@ class AsyncExecutor:
         return fill
 
     def _estimate_order_value(self, order: dict[str, Any]) -> float:
+        if str(order.get("side", "")).lower() == "sell":
+            return 0.0
         quantity = float(order.get("quantity", 0))
         symbol = order.get("symbol", "BTC")
         price = APPROX_PRICES.get(symbol, 100)
@@ -318,7 +325,7 @@ class AsyncExecutor:
         )
         return {"profit": pnl, "profit_pct": pnl_pct}
 
-    async def _pass_risk_gates(self, market: str = "spot") -> bool:
+    async def _pass_risk_gates(self, market: str = "spot", side: str = "buy") -> bool:
         risk = await self.redis.get_risk()
         if risk.get("kill_switch") == "true":
             logger.warning("Kill switch is ON")
@@ -326,6 +333,9 @@ class AsyncExecutor:
         if risk.get("blocked") == "true":
             logger.warning("Trading is blocked")
             return False
+        is_reducing_spot = market == "spot" and str(side).lower() == "sell"
+        if is_reducing_spot:
+            return True
         daily_pnl = float(risk.get("daily_pnl", 0))
         if daily_pnl < -self.max_daily_loss:
             logger.warning("Daily loss limit exceeded: %s", daily_pnl)
@@ -337,19 +347,63 @@ class AsyncExecutor:
         return True
 
     async def _update_spot_position(self, order: dict[str, Any], fill: dict[str, Any]) -> None:
+        existing = await self.redis.get_position(order["symbol"], "spot")
+        fill_qty = float(fill["filled_qty"])
+        fill_price = float(fill["filled_price"])
+        existing_qty = float(existing.get("quantity", 0) if existing else 0)
+        existing_entry = float(existing.get("entry_price", 0) if existing else 0)
+
+        if existing and existing.get("side", "buy") == order["side"] and existing_qty > 0:
+            new_qty = existing_qty + fill_qty
+            avg_entry = (
+                ((existing_entry * existing_qty) + (fill_price * fill_qty)) / new_qty
+                if existing_entry > 0
+                else fill_price
+            )
+            entry_time = existing.get("entry_time", str(int(time.time() * 1000)))
+            strategy = existing.get("strategy", order["strategy"])
+        else:
+            new_qty = fill_qty
+            avg_entry = fill_price
+            entry_time = str(int(time.time() * 1000))
+            strategy = order["strategy"]
+
         await self.redis.set_position(
             order["symbol"],
             "spot",
             {
-                "quantity": str(fill["filled_qty"]),
-                "entry_price": str(fill["filled_price"]),
-                "strategy": order["strategy"],
-                "entry_time": str(int(time.time() * 1000)),
+                "quantity": str(new_qty),
+                "entry_price": str(avg_entry),
+                "strategy": strategy,
+                "entry_time": str(entry_time),
                 "side": order["side"],
                 "leverage": "1",
             },
         )
         logger.info("Spot position opened: %s %s @ %s", order["symbol"], order["side"].upper(), fill["filled_price"])
+
+    async def _update_spot_position_after_exit(
+        self,
+        order: dict[str, Any],
+        fill: dict[str, Any],
+        position: dict[str, Any] | None,
+    ) -> None:
+        """Reduce or clear the aggregate spot position after a live sell fill."""
+        position_qty = float(position.get("quantity", 0) if position else 0)
+        filled_qty = float(fill["filled_qty"])
+        remaining_qty = max(position_qty - filled_qty, 0.0)
+
+        if remaining_qty <= 1e-12:
+            await self.redis.clear_position(order["symbol"], "spot")
+            return
+
+        payload = {
+            k: v
+            for k, v in (position or {}).items()
+            if k not in {"symbol", "market", "stop_order_id", "stop_price"}
+        }
+        payload["quantity"] = str(remaining_qty)
+        await self.redis.set_position(order["symbol"], "spot", payload)
 
     async def _publish_trade(self, order: dict[str, Any], fill: dict[str, Any], profit_data: dict[str, float] | None = None) -> None:
         trade = {

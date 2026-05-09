@@ -294,12 +294,22 @@ class BaseStrategyTask(ABC):
         if symbol in self._pending_exits:
             return True
         if not self._should_evaluate_exit(symbol, msg, position):
-            return True
+            return not self._allow_entry_with_open_position(symbol, position)
 
         exit_signal = await self.evaluate_exit(symbol, position)
         if exit_signal:
             await self._handle_exit_signal(symbol, position, exit_signal)
-        return True
+            return True
+        return not self._allow_entry_with_open_position(symbol, position)
+
+    def _allow_entry_with_open_position(
+        self,
+        symbol: str,
+        position: dict[str, Any],
+    ) -> bool:
+        """Whether entry evaluation may continue while a position is already open."""
+        _ = symbol, position
+        return False
 
     async def _handle_exit_signal(
         self,

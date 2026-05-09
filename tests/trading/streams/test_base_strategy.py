@@ -20,8 +20,14 @@ class TestStrategy(BaseStrategyTask):
                 "market": "spot",
                 "quantity": "0.01",
                 "reason": "price above 40000",
-            }
+        }
         return None
+
+
+class ScaleInStrategy(TestStrategy):
+    def _allow_entry_with_open_position(self, symbol: str, position: dict[str, object]) -> bool:
+        _ = symbol, position
+        return True
 
 
 @pytest.fixture
@@ -97,6 +103,33 @@ async def test_strategy_skips_when_position_exists(mock_redis):
 
     # Should not publish order (position exists)
     mock_redis.publish.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_strategy_allows_scale_in_when_enabled(mock_redis):
+    """Same-strategy positions may still evaluate entry when scale-in is enabled."""
+    mock_redis.get_position = AsyncMock(return_value={
+        "quantity": "0.01",
+        "entry_price": "40000",
+        "strategy": "test",
+        "side": "buy",
+    })
+
+    strategy = ScaleInStrategy(
+        name="test",
+        symbols=["BTC"],
+        redis=mock_redis,
+        market="spot",
+    )
+
+    msg = {"symbol": "BTC", "price": "43000", "market": "spot", "_id": "1-0"}
+    await strategy._handle_message(msg)
+
+    mock_redis.publish.assert_called_once()
+    stream_name, order = mock_redis.publish.call_args[0]
+    assert stream_name == "orders"
+    assert order["symbol"] == "BTC"
+    assert order["side"] == "buy"
 
 
 @pytest.mark.asyncio

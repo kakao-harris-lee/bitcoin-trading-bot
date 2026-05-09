@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from trading.strategies.components.composite_task import CompositeStrategyTask
-from trading.strategies.components.models import Position, Signal
+from trading.strategies.components.models import MarketContext, MarketData, Position, Signal
 from trading.utils.precision import SymbolInfo
 
 
-def _make_task(market: str = "spot") -> CompositeStrategyTask:
+def _make_task(market: str = "spot", config: dict | None = None) -> CompositeStrategyTask:
     redis = MagicMock()
     redis.publish_event = AsyncMock(return_value="1-0")
     redis.get_position = AsyncMock(return_value={})
@@ -38,6 +38,7 @@ def _make_task(market: str = "spot") -> CompositeStrategyTask:
         entry_strategy=entry,
         exit_strategy=exit_strategy,
         market=market,
+        config=config,
     )
 
 
@@ -132,3 +133,146 @@ def test_spot_adjusted_qty_respects_min_trade_unit(monkeypatch):
 
     assert task._spot_adjusted_qty("BCH", 0.0013) == pytest.approx(0.001, rel=1e-12)
     assert task._spot_adjusted_qty("BCH", 0.0009) == 0.0
+
+
+def test_bear_moderate_exit_uses_single_partial_de_risk():
+    task = _make_task(
+        config={
+            "exit_on_bear_regime": True,
+            "protective_partial_exit_enabled": True,
+            "protective_partial_exit_fraction": 0.5,
+            "protective_partial_regimes": ["BEAR_MODERATE"],
+        }
+    )
+    position = Position(
+        symbol="BTC",
+        entry_price=100000.0,
+        quantity=0.2,
+        strategy="llm_direction_btc",
+        market="spot",
+        timestamp=1,
+    )
+    context = MarketContext(
+        trend="BEAR",
+        regime="BEAR_MODERATE",
+        volatility_score=0.01,
+        is_extreme_volatility=False,
+        adx=20.0,
+    )
+
+    first = task._check_bear_regime_exit("BTC", position, context)
+    second = task._check_bear_regime_exit("BTC", position, context)
+
+    assert first is not None
+    assert float(first["quantity"]) == pytest.approx(0.1, rel=1e-12)
+    assert "PROTECTIVE_PARTIAL_DE_RISK" in first["reason"]
+    assert second is None
+
+
+def test_bear_strong_exit_remains_full_exit_after_partial_de_risk():
+    task = _make_task(
+        config={
+            "exit_on_bear_regime": True,
+            "protective_partial_exit_enabled": True,
+            "protective_partial_exit_fraction": 0.5,
+            "protective_partial_regimes": ["BEAR_MODERATE"],
+        }
+    )
+    position = Position(
+        symbol="BTC",
+        entry_price=100000.0,
+        quantity=0.2,
+        strategy="llm_direction_btc",
+        market="spot",
+        timestamp=1,
+    )
+    context = MarketContext(
+        trend="BEAR",
+        regime="BEAR_STRONG",
+        volatility_score=0.01,
+        is_extreme_volatility=False,
+        adx=30.0,
+    )
+
+    order = task._check_bear_regime_exit("BTC", position, context)
+
+    assert order is not None
+    assert float(order["quantity"]) == pytest.approx(0.2, rel=1e-12)
+    assert order["reason"] == "bear_regime_exit:BEAR_STRONG"
+
+
+def test_trend_hold_guard_suppresses_live_bear_moderate_exit_above_ema200():
+    task = _make_task(
+        config={
+            "exit_on_bear_regime": True,
+            "trend_hold_exit_guard_enabled": True,
+            "trend_hold_guard_require_above_ema200": True,
+        }
+    )
+    position = Position(
+        symbol="BTC",
+        entry_price=100000.0,
+        quantity=0.2,
+        strategy="llm_direction_btc",
+        market="spot",
+        timestamp=1,
+    )
+    context = MarketContext(
+        trend="BEAR",
+        regime="BEAR_MODERATE",
+        volatility_score=0.01,
+        is_extreme_volatility=False,
+        adx=20.0,
+    )
+    market_data = MarketData(
+        symbol="BTC",
+        close=105000.0,
+        timestamp=1,
+        mfi=35.0,
+        adx=20.0,
+        rsi=45.0,
+        ema_200=100000.0,
+    )
+
+    order = task._check_bear_regime_exit("BTC", position, context, market_data)
+
+    assert order is None
+
+
+def test_trend_hold_guard_does_not_suppress_live_bear_strong_exit():
+    task = _make_task(
+        config={
+            "exit_on_bear_regime": True,
+            "trend_hold_exit_guard_enabled": True,
+            "trend_hold_guard_require_above_ema200": True,
+        }
+    )
+    position = Position(
+        symbol="BTC",
+        entry_price=100000.0,
+        quantity=0.2,
+        strategy="llm_direction_btc",
+        market="spot",
+        timestamp=1,
+    )
+    context = MarketContext(
+        trend="BEAR",
+        regime="BEAR_STRONG",
+        volatility_score=0.01,
+        is_extreme_volatility=False,
+        adx=30.0,
+    )
+    market_data = MarketData(
+        symbol="BTC",
+        close=105000.0,
+        timestamp=1,
+        mfi=30.0,
+        adx=30.0,
+        rsi=40.0,
+        ema_200=100000.0,
+    )
+
+    order = task._check_bear_regime_exit("BTC", position, context, market_data)
+
+    assert order is not None
+    assert float(order["quantity"]) == pytest.approx(0.2, rel=1e-12)

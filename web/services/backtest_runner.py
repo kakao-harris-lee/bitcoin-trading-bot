@@ -78,6 +78,7 @@ _ADAPTER_DEFAULTS = {
     "core_ema_timeframe": "",
     "core_ema_span": 0,
     "core_reentry_on_ema200": True,
+    "core_exit_requires_confirmed_trend": False,
     "core_drawdown_exit_pct": 0.0,
     "core_drawdown_reentry_pct": 0.0,
     "use_breakout_filter": True,
@@ -1164,6 +1165,8 @@ def _build_adapter_config(
     )
     config.setdefault("core_fee_rate", fee_rate)
     config.setdefault("core_slippage", slippage)
+    if str(strategy_id).startswith("llm_direction"):
+        config.setdefault("backtest_force_entry_fallback", True)
     for key, value in _ADAPTER_DEFAULTS.items():
         config.setdefault(key, value)
 
@@ -1191,6 +1194,9 @@ def _build_core_state(
         "ema_timeframe": str(config.get("core_ema_timeframe", "")).lower(),
         "ema_span": int(config.get("core_ema_span", 0)),
         "reentry_on_ema200": bool(config.get("core_reentry_on_ema200", True)),
+        "exit_requires_confirmed_trend": bool(
+            config.get("core_exit_requires_confirmed_trend", False)
+        ),
         "fee_rate": float(config.get("core_fee_rate", fee_rate)),
         "slippage": float(config.get("core_slippage", slippage)),
         "drawdown_exit_pct": float(config.get("core_drawdown_exit_pct", 0.0)),
@@ -1198,6 +1204,7 @@ def _build_core_state(
         "cash": initial_capital * core_hold_pct,
         "qty": 0.0,
         "active": False,
+        "trend_confirmed": False,
         "peak_price": 0.0,
     }
 
@@ -1245,6 +1252,21 @@ def _passes_core_entry_filter(row: pd.Series, core_state: dict) -> bool:
     return True
 
 
+def _has_core_trend_filter(row: pd.Series, core_state: dict) -> bool:
+    core_ema = float(row.get("core_ema", 0.0) or 0.0)
+    ema_200 = float(row.get("ema_200", 0.0) or 0.0)
+    return core_ema > 0 or (core_state["exit_on_ema200"] and ema_200 > 0)
+
+
+def _update_core_trend_confirmation(row: pd.Series, core_state: dict) -> None:
+    if core_state["trend_confirmed"]:
+        return
+    if not _has_core_trend_filter(row, core_state):
+        return
+    if _passes_core_entry_filter(row, core_state):
+        core_state["trend_confirmed"] = True
+
+
 def _enter_core_position(row: pd.Series, core_state: dict) -> None:
     if core_state["cash"] <= 0:
         return
@@ -1256,6 +1278,8 @@ def _enter_core_position(row: pd.Series, core_state: dict) -> None:
     core_state["qty"] = qty
     core_state["active"] = qty > 0
     core_state["peak_price"] = price
+    core_state["trend_confirmed"] = False
+    _update_core_trend_confirmation(row, core_state)
 
 
 def _initialize_core_position(df: pd.DataFrame, core_state: dict) -> None:
@@ -1272,6 +1296,7 @@ def _close_core_position(price: float, core_state: dict) -> None:
     core_state["cash"] += proceeds
     core_state["qty"] = 0.0
     core_state["active"] = False
+    core_state["trend_confirmed"] = False
 
 
 def _can_core_reenter(price: float, row: pd.Series, core_state: dict) -> bool:
@@ -1301,7 +1326,14 @@ def _update_core_position(row: pd.Series, core_state: dict) -> None:
             core_state["drawdown_exit_pct"] > 0
             and drawdown_pct >= core_state["drawdown_exit_pct"]
         )
+        _update_core_trend_confirmation(row, core_state)
         exit_on_filter = not _passes_core_entry_filter(row, core_state)
+        if (
+            exit_on_filter
+            and core_state["exit_requires_confirmed_trend"]
+            and not core_state["trend_confirmed"]
+        ):
+            exit_on_filter = False
         if exit_on_drawdown or exit_on_filter:
             _close_core_position(price, core_state)
         return
@@ -1342,13 +1374,25 @@ def _execute_open_trade(
     timestamp: str,
     reason: str,
 ) -> None:
-    if trade_state["position_size"] != 0:
+    is_scale_in = bool(signal.get("scale_in"))
+    if trade_state["position_size"] != 0 and not is_scale_in:
         return
     if action not in ("buy", "open_short"):
         return
 
     fraction = signal.get("fraction", 1.0 if action == "buy" else 0.3)
     effective_leverage = signal.get("leverage", leverage)
+    max_exposure = signal.get("max_symbol_exposure_pct")
+    if max_exposure is not None and action == "buy":
+        try:
+            exposure_cap = max(float(max_exposure), 0.0) * trade_state["initial_capital"]
+            remaining_exposure = exposure_cap - max(float(trade_state["position_size"]), 0.0)
+            if remaining_exposure <= 0:
+                return
+            max_fraction = remaining_exposure / max(float(trade_state["capital"]), 1e-9)
+            fraction = min(float(fraction), max_fraction)
+        except (TypeError, ValueError):
+            pass
     margin = trade_state["capital"] * fraction / (1 + effective_leverage * fee_rate)
     position_size = margin * effective_leverage
     fee = position_size * fee_rate
@@ -1357,22 +1401,32 @@ def _execute_open_trade(
         return
 
     trade_state["capital"] -= margin + fee
-    trade_state["position_size"] = position_size
+    previous_size = float(trade_state["position_size"])
+    previous_entry = float(trade_state["entry_price"])
+    new_position_size = previous_size + position_size
     trade_state["position_leverage"] = effective_leverage
-    trade_state["entry_price"] = (
+    fill_price = (
         row["close"] * (1 + slippage)
         if action == "buy"
         else row["close"] * (1 - slippage)
     )
-    trade_state["entry_timestamp"] = timestamp
+    trade_state["position_size"] = new_position_size
+    if previous_size > 0 and new_position_size > 0:
+        trade_state["entry_price"] = (
+            (previous_entry * previous_size) + (fill_price * position_size)
+        ) / new_position_size
+    else:
+        trade_state["entry_price"] = fill_price
+        trade_state["entry_timestamp"] = timestamp
     trade_state["trades"].append(
         {
             "type": action,
             "time": timestamp,
-            "price": trade_state["entry_price"],
+            "price": fill_price,
             "size": position_size,
             "reason": reason,
             "leverage": effective_leverage,
+            "scale_in": is_scale_in,
         }
     )
 
@@ -1628,11 +1682,13 @@ def _run_generic_backtest(
         market_settings["fee_rate"],
         market_settings["slippage"],
     )
+    core_allocation = initial_capital * core_state["hold_pct"]
     df = _prepare_core_ema_columns(df, core_state, start_date, end_date)
     _initialize_core_position(df, core_state)
 
     trade_state = {
-        "capital": initial_capital - core_state["cash"],
+        "initial_capital": initial_capital,
+        "capital": initial_capital - core_allocation,
         "position_size": 0.0,
         "entry_price": 0.0,
         "entry_timestamp": None,

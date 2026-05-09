@@ -51,6 +51,7 @@ class RegimeLongV2ExitParams:
     drop_3d_threshold_pct: float = -0.10
 
     ema_slow_field: str = "ema_120"
+    ema_slow_exit_enabled: bool = True
     ema_slow_consecutive_bars: int = 2
     ema_fast_field: str = "ema_20"
     ema_slow_grace_bars_after_entry: int = 0
@@ -173,14 +174,14 @@ class RegimeLongV2ExitStrategy(BaseExitStrategy):
                 ),
             )
 
-        if is_new_candle:
+        if p.ema_slow_exit_enabled and is_new_candle:
             ema_slow = float(getattr(ctx.market, p.ema_slow_field, 0.0) or 0.0)
             if ema_slow > 0 and close < ema_slow:
                 self._below_ema_streak[key] = self._below_ema_streak.get(key, 0) + 1
             else:
                 self._below_ema_streak[key] = 0
 
-        if self._below_ema_streak.get(key, 0) >= max(
+        if p.ema_slow_exit_enabled and self._below_ema_streak.get(key, 0) >= max(
             int(p.ema_slow_consecutive_bars), 1
         ):
             if int(p.ema_slow_grace_bars_after_entry) > 0 and candles_held < int(

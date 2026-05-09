@@ -8,6 +8,7 @@ Usage:
     python scripts/daily_comparison.py                     # Yesterday's report
     python scripts/daily_comparison.py --date 2025-01-08   # Specific date
     python scripts/daily_comparison.py --strategies llm_direction_btc  # Specific strategy
+    python scripts/daily_comparison.py --strategies llm_direction_btc llm_direction_eth
     python scripts/daily_comparison.py --dry-run           # Don't save or notify
     python scripts/daily_comparison.py --history 7         # Last 7 days of reports
 """
@@ -26,6 +27,7 @@ from typing import Callable, List, Optional, TypeVar
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.risk.comparison_exceptions import DataNotFoundError
 from trading.risk.comparison_report import ComparisonReportGenerator
 from trading.risk.comparison_models import DailyComparisonReport, Severity
 from trading.risk.report_notifier import ReportNotifier
@@ -36,6 +38,12 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+for noisy_logger in (
+    "trading.strategies.components.regime_long_v2_entry",
+    "trading.strategies.components.regime_long_v2_exit",
+    "trading.strategies.components.llm_direction_exit",
+):
+    logging.getLogger(noisy_logger).setLevel(logging.WARNING)
 
 T = TypeVar("T")
 
@@ -44,6 +52,7 @@ def run_with_retry(
     func: Callable[[], T],
     max_attempts: int = 3,
     delay_seconds: int = 300,
+    non_retryable: tuple[type[BaseException], ...] = (),
 ) -> T:
     """
     Execute function with retry logic.
@@ -64,6 +73,8 @@ def run_with_retry(
     for attempt in range(1, max_attempts + 1):
         try:
             return func()
+        except non_retryable:
+            raise
         except Exception as e:
             last_exception = e
             logger.warning(f"Attempt {attempt}/{max_attempts} failed: {e}")
@@ -130,6 +141,10 @@ def main(
     dry_run: bool = False,
     history_days: Optional[int] = None,
     no_notify: bool = False,
+    db_path: Optional[str] = None,
+    max_attempts: int = 3,
+    retry_delay_seconds: int = 300,
+    coverage_only: bool = False,
 ) -> int:
     """
     Generate and send daily comparison reports.
@@ -147,7 +162,7 @@ def main(
     logger.info("Starting daily comparison report generation")
 
     try:
-        generator = ComparisonReportGenerator()
+        generator = ComparisonReportGenerator(db_path=db_path)
     except Exception as e:
         logger.error(f"Failed to initialize report generator: {e}")
         return 2
@@ -172,6 +187,9 @@ def main(
     if strategies is None:
         strategies = list(generator.active_strategies)
 
+    if coverage_only:
+        return _show_coverage(generator, strategies)
+
     logger.info(f"Report date: {report_date}")
     logger.info(f"Strategies: {strategies}")
     logger.info(f"Dry run: {dry_run}")
@@ -188,8 +206,9 @@ def main(
                 lambda strategy_name=strategy_name: generator.generate_report(
                     report_date, strategy_name
                 ),
-                max_attempts=3,
-                delay_seconds=300,
+                max_attempts=max_attempts,
+                delay_seconds=retry_delay_seconds,
+                non_retryable=(DataNotFoundError,),
             )
             reports.append(report)
 
@@ -257,6 +276,29 @@ def _show_history(
     return 0
 
 
+def _show_coverage(
+    generator: ComparisonReportGenerator,
+    strategies: List[str],
+) -> int:
+    """Show market data coverage for strategy backtests."""
+    print("\nMarket data coverage")
+    print("=" * 60)
+    for strategy_name in strategies:
+        try:
+            coverage = generator.get_strategy_data_coverage(strategy_name)
+        except Exception as exc:
+            print(f"{strategy_name}: ERROR {exc}")
+            continue
+        print(
+            f"{coverage['strategy']}: {coverage['symbol']} {coverage['timeframe']} "
+            f"rows={coverage['rows']} "
+            f"{coverage['min_timestamp']} -> {coverage['max_timestamp']}"
+        )
+        print(f"  db={coverage['db_path']}")
+    print("=" * 60)
+    return 0
+
+
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
@@ -281,9 +323,16 @@ Examples:
 
     parser.add_argument(
         "--strategies",
+        nargs="+",
+        default=None,
+        help="Strategies separated by spaces or commas (default: all active)",
+    )
+
+    parser.add_argument(
+        "--db-path",
         type=str,
         default=None,
-        help="Comma-separated list of strategies (default: all active)",
+        help="Trading SQLite DB path (default: data/paper_trading_results.db)",
     )
 
     parser.add_argument(
@@ -301,9 +350,29 @@ Examples:
     )
 
     parser.add_argument(
+        "--coverage",
+        action="store_true",
+        help="Show market data coverage for selected strategies and exit",
+    )
+
+    parser.add_argument(
         "--no-notify",
         action="store_true",
         help="Skip Telegram notifications",
+    )
+
+    parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=3,
+        help="Maximum retry attempts per strategy (default: 3)",
+    )
+
+    parser.add_argument(
+        "--retry-delay-seconds",
+        type=int,
+        default=300,
+        help="Delay between retry attempts (default: 300)",
     )
 
     return parser.parse_args()
@@ -325,7 +394,12 @@ if __name__ == "__main__":
     # Parse strategies
     cli_strategies = None
     if args.strategies:
-        cli_strategies = [s.strip() for s in args.strategies.split(",")]
+        cli_strategies = [
+            strategy.strip()
+            for item in args.strategies
+            for strategy in item.split(",")
+            if strategy.strip()
+        ]
 
     # Run
     exit_code = main(
@@ -334,6 +408,10 @@ if __name__ == "__main__":
         dry_run=args.dry_run,
         history_days=args.history,
         no_notify=args.no_notify,
+        db_path=args.db_path,
+        max_attempts=args.max_attempts,
+        retry_delay_seconds=args.retry_delay_seconds,
+        coverage_only=args.coverage,
     )
 
     sys.exit(exit_code)

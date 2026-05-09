@@ -187,3 +187,92 @@ async def test_executor_cancels_stop_loss_on_exit(mock_redis, mock_client):
     assert result is not None
     mock_client.cancel_open_orders.assert_called_once_with(symbol="BTC", market="spot")
     mock_redis.clear_position.assert_called_once_with("BTC", "spot")
+
+
+@pytest.mark.asyncio
+async def test_executor_scale_in_buy_averages_existing_spot_position(mock_redis, mock_client):
+    mock_redis.get_position = AsyncMock(
+        return_value={
+            "quantity": "0.01",
+            "entry_price": "40000.0",
+            "entry_time": "1000",
+            "side": "buy",
+            "strategy": "llm_direction_btc",
+        }
+    )
+    mock_client.market_order = AsyncMock(
+        return_value={
+            "order_id": 12347,
+            "symbol": "BTC",
+            "side": "buy",
+            "market": "spot",
+            "filled_qty": 0.01,
+            "filled_price": 44000.0,
+            "status": "FILLED",
+        }
+    )
+
+    executor = AsyncExecutor(redis=mock_redis, client=mock_client, config={})
+    executor._balance_cache = {"spot": 10000.0, "last_update": 0}
+
+    order = {
+        "id": "scale-in-test-123",
+        "symbol": "BTC",
+        "side": "buy",
+        "market": "spot",
+        "quantity": "0.01",
+        "strategy": "llm_direction_btc",
+    }
+
+    result = await executor._process_order(order)
+
+    assert result is not None
+    position_data = mock_redis.set_position.call_args[0][2]
+    assert float(position_data["quantity"]) == pytest.approx(0.02)
+    assert float(position_data["entry_price"]) == pytest.approx(42000.0)
+    assert position_data["entry_time"] == "1000"
+
+
+@pytest.mark.asyncio
+async def test_executor_partial_sell_keeps_remaining_spot_position(mock_redis, mock_client):
+    mock_redis.get_position = AsyncMock(
+        return_value={
+            "quantity": "0.10",
+            "entry_price": "40000.0",
+            "entry_time": "1000",
+            "side": "buy",
+            "strategy": "llm_direction_btc",
+            "leverage": "1",
+        }
+    )
+    mock_client.market_order = AsyncMock(
+        return_value={
+            "order_id": 12348,
+            "symbol": "BTC",
+            "side": "sell",
+            "market": "spot",
+            "filled_qty": 0.04,
+            "filled_price": 45000.0,
+            "status": "FILLED",
+        }
+    )
+
+    executor = AsyncExecutor(redis=mock_redis, client=mock_client, config={})
+    executor._balance_cache = {"spot": 0.0, "last_update": 0}
+
+    order = {
+        "id": "partial-exit-test-123",
+        "symbol": "BTC",
+        "side": "sell",
+        "market": "spot",
+        "quantity": "0.04",
+        "strategy": "llm_direction_btc",
+    }
+
+    result = await executor._process_order(order)
+
+    assert result is not None
+    mock_redis.clear_position.assert_not_called()
+    position_data = mock_redis.set_position.call_args[0][2]
+    assert float(position_data["quantity"]) == pytest.approx(0.06)
+    assert position_data["strategy"] == "llm_direction_btc"

@@ -27,6 +27,7 @@ import asyncio
 from collections import deque
 import json
 import logging
+import math
 import re
 import time
 from dataclasses import replace
@@ -246,6 +247,9 @@ class CompositeStrategyTask(BaseStrategyTask):
 
     def _init_entry_and_leverage_controls(self) -> None:
         self._regime_thresholds = self._load_regime_thresholds()
+        self._allow_scale_in_entries = bool(
+            self.config.get("allow_scale_in_entries", False)
+        )
         self._cash_in_bear = self.config.get("cash_in_bear", False)
         self._cash_below_ema200 = self.config.get("cash_below_ema200", False)
         self._exit_on_bear_regime = bool(self.config.get("exit_on_bear_regime", False))
@@ -259,6 +263,67 @@ class CompositeStrategyTask(BaseStrategyTask):
         self._panic_sell_below_ma120 = self.config.get("panic_sell_below_ma120", False)
         self._drawdown_bear_threshold = float(
             self.config.get("drawdown_bear_threshold", 0.15)
+        )
+        self._protective_partial_exit_enabled = bool(
+            self._resolve_config_param("protective_partial_exit_enabled", True)
+        )
+        self._protective_partial_exit_fraction = float(
+            self._resolve_config_param("protective_partial_exit_fraction", 0.5)
+        )
+        if (
+            self._protective_partial_exit_fraction <= 0
+            or self._protective_partial_exit_fraction >= 1
+        ):
+            self._protective_partial_exit_fraction = 0.5
+        self._protective_partial_regimes = set(
+            self._resolve_config_param(
+                "protective_partial_regimes", ["BEAR_MODERATE"]
+            )
+        )
+        self._protective_partial_done: dict[str, bool] = {}
+        self._trend_floor_entry_enabled = bool(
+            self._resolve_config_param("trend_floor_entry_enabled", False)
+        )
+        self._trend_floor_position_size = float(
+            self._resolve_config_param("trend_floor_position_size", 0.08)
+        )
+        if self._trend_floor_position_size <= 0:
+            self._trend_floor_position_size = 0.08
+        self._trend_floor_regimes = set(
+            self._resolve_config_param(
+                "trend_floor_regimes",
+                ["BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP"],
+            )
+        )
+        self._trend_floor_min_adx = float(
+            self._resolve_config_param("trend_floor_min_adx", 12.0)
+        )
+        self._trend_floor_min_mfi = float(
+            self._resolve_config_param("trend_floor_min_mfi", 45.0)
+        )
+        self._trend_floor_require_above_ema20 = bool(
+            self._resolve_config_param("trend_floor_require_above_ema20", True)
+        )
+        self._trend_floor_require_ema20_above_ema120 = bool(
+            self._resolve_config_param("trend_floor_require_ema20_above_ema120", False)
+        )
+        self._trend_floor_require_ema120_ready = bool(
+            self._resolve_config_param("trend_floor_require_ema120_ready", False)
+        )
+        self._trend_floor_require_ema200_ready = bool(
+            self._resolve_config_param("trend_floor_require_ema200_ready", False)
+        )
+        self._trend_hold_exit_guard_enabled = bool(
+            self._resolve_config_param("trend_hold_exit_guard_enabled", False)
+        )
+        self._trend_hold_guard_regimes = set(
+            self._resolve_config_param(
+                "trend_hold_guard_regimes",
+                ["BULL_STRONG", "BULL_MODERATE", "SIDEWAYS_UP", "BEAR_MODERATE"],
+            )
+        )
+        self._trend_hold_guard_require_above_ema200 = bool(
+            self._resolve_config_param("trend_hold_guard_require_above_ema200", True)
         )
 
         self._dynamic_leverage_enabled = self.config.get("dynamic_leverage", False)
@@ -760,6 +825,10 @@ class CompositeStrategyTask(BaseStrategyTask):
             if fallback_signal is not None:
                 signal = fallback_signal
             else:
+                signal = self._maybe_build_trend_floor_signal(
+                    symbol, ctx, no_signal_reason
+                )
+            if signal is None:
                 no_signal_reason = self._combine_primary_and_fallback_reason(
                     symbol, no_signal_reason
                 )
@@ -896,6 +965,18 @@ class CompositeStrategyTask(BaseStrategyTask):
         await self._emit_exit_evaluation(position, market_data, signal)
 
         if not signal:
+            return None
+        if self._should_guard_trend_hold_exit(
+            signal.reason or "",
+            market_data,
+            context,
+            is_long=position.side != "short",
+        ):
+            logger.info(
+                "%s: trend hold guard suppressed exit signal: %s",
+                symbol,
+                signal.reason,
+            )
             return None
 
         exit_quantity = self._resolve_exit_order_quantity(
@@ -1500,6 +1581,56 @@ class CompositeStrategyTask(BaseStrategyTask):
         )
         return replace(signal, reason=fallback_reason)
 
+    def _maybe_build_trend_floor_signal(
+        self,
+        symbol: str,
+        ctx: TradingContext,
+        primary_reason: str,
+    ) -> Signal | None:
+        if not self._trend_floor_entry_enabled:
+            return None
+        market = ctx.market
+        regime = ctx.regime
+        if regime.regime not in self._trend_floor_regimes:
+            return None
+        if market.adx < self._trend_floor_min_adx or market.mfi < self._trend_floor_min_mfi:
+            return None
+        if self._trend_floor_require_above_ema20:
+            if not self._is_ready_indicator(market.ema_20) or market.close < market.ema_20:
+                return None
+        if self._trend_floor_require_ema120_ready and not self._is_ready_indicator(market.ema_120):
+            return None
+        if self._trend_floor_require_ema200_ready and not self._is_ready_indicator(market.ema_200):
+            return None
+        if self._trend_floor_require_ema20_above_ema120:
+            if (
+                not self._is_ready_indicator(market.ema_20)
+                or not self._is_ready_indicator(market.ema_120)
+                or market.ema_20 < market.ema_120
+            ):
+                return None
+
+        reason = (
+            f"TrendFloor entry: regime={regime.regime}, "
+            f"mfi={market.mfi:.1f}, adx={market.adx:.1f}; primary={primary_reason}"
+        )
+        logger.info("%s: trend floor accepted for %s: %s", self.name, symbol, reason)
+        return Signal(
+            symbol=symbol,
+            side="buy",
+            market=self.market,
+            quantity=self._trend_floor_position_size,
+            reason=reason,
+        )
+
+    @staticmethod
+    def _is_ready_indicator(value: Any) -> bool:
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return False
+        return math.isfinite(numeric) and numeric > 0
+
     def _should_apply_entry_fallback(self, primary_reason: str) -> bool:
         text = str(primary_reason or "").lower()
         if not text:
@@ -1746,7 +1877,12 @@ class CompositeStrategyTask(BaseStrategyTask):
         leverage: float,
     ) -> dict[str, Any] | None:
         quantity, stop_price = await self._get_quantity(
-            symbol, market_data.close, signal.quantity, context, market_data
+            symbol,
+            market_data.close,
+            signal.quantity,
+            context,
+            market_data,
+            signal.reason,
         )
 
         dq_assessment = self._dq_entry_assessment.get(
@@ -1921,7 +2057,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         market_data: MarketData,
         context: MarketContext,
     ) -> dict[str, Any] | None:
-        bear_exit = self._check_bear_regime_exit(symbol, position, context)
+        bear_exit = self._check_bear_regime_exit(symbol, position, context, market_data)
         if bear_exit:
             return bear_exit
 
@@ -1942,10 +2078,32 @@ class CompositeStrategyTask(BaseStrategyTask):
         symbol: str,
         position: Position,
         context: MarketContext,
+        market_data: MarketData | None = None,
     ) -> dict[str, Any] | None:
         if not self._exit_on_bear_regime:
             return None
         if context.regime not in BEAR_REGIMES:
+            return None
+        if market_data is not None and self._should_guard_trend_hold_exit(
+            f"bear_regime_exit:{context.regime}",
+            market_data,
+            context,
+            is_long=position.side != "short",
+        ):
+            logger.info("%s: trend hold guard suppressed bear exit: %s", symbol, context.regime)
+            return None
+        partial = self._maybe_build_protective_partial_exit(
+            symbol=symbol,
+            position=position,
+            reason=f"bear_regime_exit:{context.regime}",
+            regime=context.regime,
+        )
+        if partial is not None:
+            return partial
+        if (
+            context.regime in self._protective_partial_regimes
+            and self._protective_partial_done.get(symbol, False)
+        ):
             return None
         exit_qty = self._spot_adjusted_qty(symbol, position.quantity)
         if exit_qty <= 0:
@@ -1956,6 +2114,65 @@ class CompositeStrategyTask(BaseStrategyTask):
             "market": self.market,
             "quantity": str(exit_qty),
             "reason": f"bear_regime_exit:{context.regime}",
+        }
+
+    def _should_guard_trend_hold_exit(
+        self,
+        reason: str,
+        market_data: MarketData,
+        context: MarketContext,
+        is_long: bool,
+    ) -> bool:
+        if not self._trend_hold_exit_guard_enabled or not is_long:
+            return False
+        if context.regime not in self._trend_hold_guard_regimes:
+            return False
+        if context.regime == "BEAR_STRONG":
+            return False
+
+        reason_text = str(reason or "").lower()
+        hard_exit_markers = (
+            "stop loss",
+            "stoploss",
+            "drawdown_exit",
+            "ma120 panic",
+            "ema200 protective",
+        )
+        if any(marker in reason_text for marker in hard_exit_markers):
+            return False
+
+        if self._trend_hold_guard_require_above_ema200:
+            ema_200 = float(getattr(market_data, "ema_200", 0.0) or 0.0)
+            if ema_200 > 0 and float(market_data.close) < ema_200:
+                return False
+        return True
+
+    def _maybe_build_protective_partial_exit(
+        self,
+        symbol: str,
+        position: Position,
+        reason: str,
+        regime: str,
+    ) -> dict[str, Any] | None:
+        if not self._protective_partial_exit_enabled:
+            return None
+        if regime not in self._protective_partial_regimes:
+            return None
+        if self._protective_partial_done.get(symbol, False):
+            return None
+        self._protective_partial_done[symbol] = True
+        exit_qty = self._spot_adjusted_qty(
+            symbol,
+            position.quantity * self._protective_partial_exit_fraction,
+        )
+        if exit_qty <= 0:
+            return None
+        return {
+            "symbol": symbol,
+            "side": "sell",
+            "market": self.market,
+            "quantity": str(exit_qty),
+            "reason": f"{reason} | PROTECTIVE_PARTIAL_DE_RISK",
         }
 
     async def _check_drawdown_protection_exit(
@@ -2102,6 +2319,7 @@ class CompositeStrategyTask(BaseStrategyTask):
 
         # Reset drawdown partial-exit tracking for this symbol
         self._drawdown_partial_exit_done[symbol] = False
+        self._protective_partial_done[symbol] = False
 
         # Notify exit strategy (for state initialization)
         on_opened_method = self.exit_strategy.on_position_opened
@@ -2120,6 +2338,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         """
         # Clear drawdown partial-exit tracking for this symbol
         self._drawdown_partial_exit_done.pop(symbol, None)
+        self._protective_partial_done.pop(symbol, None)
 
         on_closed_method = self.exit_strategy.on_position_closed
         if asyncio.iscoroutinefunction(on_closed_method):
@@ -2764,6 +2983,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         default_quantity: float,
         context: MarketContext | None = None,
         market_data: MarketData | None = None,
+        signal_reason: str = "",
     ) -> tuple[float, float | None]:
         """Get position quantity using risk-based or legacy sizing.
 
@@ -2781,7 +3001,9 @@ class CompositeStrategyTask(BaseStrategyTask):
         risk_sized = await self._get_risk_sized_quantity(symbol, price, market_data)
         if risk_sized is not None:
             return risk_sized
-        return await self._get_legacy_quantity(symbol, price, default_quantity)
+        return await self._get_legacy_quantity(
+            symbol, price, default_quantity, signal_reason
+        )
 
     async def _get_risk_sized_quantity(
         self,
@@ -2824,6 +3046,7 @@ class CompositeStrategyTask(BaseStrategyTask):
         symbol: str,
         price: float,
         default_quantity: float,
+        signal_reason: str = "",
     ) -> tuple[float, float | None]:
         use_dynamic = self.config.get("dynamic_sizing", False)
         position_pct = float(self.config.get("position_pct", 0.02))
@@ -2831,7 +3054,9 @@ class CompositeStrategyTask(BaseStrategyTask):
             qty = await self.get_dynamic_position_size(symbol, price, position_pct)
             return (qty, None)
 
-        configured_size = self._resolve_configured_position_size(default_quantity)
+        configured_size = self._resolve_configured_position_size(
+            default_quantity, signal_reason
+        )
         if configured_size <= 0:
             return (0.0, None)
         if configured_size <= 1.0:
@@ -2841,7 +3066,11 @@ class CompositeStrategyTask(BaseStrategyTask):
             return (quantity, None)
         return (configured_size, None)
 
-    def _resolve_configured_position_size(self, default_quantity: float) -> float:
+    def _resolve_configured_position_size(
+        self, default_quantity: float, signal_reason: str = ""
+    ) -> float:
+        if str(signal_reason or "").startswith("TrendFloor"):
+            return float(default_quantity)
         use_signal_quantity = bool(self.config.get("use_signal_quantity", False))
         if use_signal_quantity:
             return float(default_quantity)
@@ -2956,12 +3185,27 @@ class CompositeStrategyTask(BaseStrategyTask):
                 False,
                 f"CTX_MAX_OPEN_POSITIONS:{len(open_symbols)}>={self._context_max_open_positions}",
             )
+        if self._allow_scale_in_entries and any(
+            p.strategy == self.name for p in symbol_positions
+        ):
+            return True, "OK_SCALE_IN"
         if len(symbol_positions) >= self._context_max_symbol_positions:
             return (
                 False,
                 f"CTX_MAX_SYMBOL_POSITIONS:{len(symbol_positions)}>={self._context_max_symbol_positions}",
             )
         return True, "OK"
+
+    def _allow_entry_with_open_position(
+        self,
+        symbol: str,
+        position: dict[str, Any],
+    ) -> bool:
+        if not self._allow_scale_in_entries:
+            return False
+        position_strategy = str(position.get("strategy", "") or "")
+        quantity = float(position.get("quantity", 0) or 0)
+        return position_strategy == self.name and quantity > 0
 
     async def _passes_context_exposure_caps(
         self,
@@ -3153,7 +3397,16 @@ class CompositeStrategyTask(BaseStrategyTask):
         mfi_bear: float,
         adx_trend: float,
     ) -> tuple[str, str, dict[str, Any]]:
+        hint = self._get_entry_decision_hint(market_data.symbol)
         if position and float(position.get("quantity", 0)) > 0:
+            if self._allow_scale_in_entries and hint:
+                hint_reason = str(hint.get("reason", "")).strip()
+                if hint_reason:
+                    position_data = self._build_hold_decision_snapshot(
+                        market_data, position
+                    )[2]
+                    decision = "BUY" if bool(hint.get("should_enter", False)) else "HOLD"
+                    return decision, hint_reason, position_data
             return self._build_hold_decision_snapshot(market_data, position)
         return self._build_entry_decision_snapshot(
             market_data=market_data,

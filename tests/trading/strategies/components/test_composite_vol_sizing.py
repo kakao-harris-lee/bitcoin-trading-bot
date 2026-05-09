@@ -5,7 +5,13 @@ from unittest.mock import MagicMock
 
 from core.component_adapter import ComponentStrategyAdapter
 from trading.strategies.components.strategy_factory import StrategyFactory
-from trading.strategies.components.models import build_market_context
+from trading.strategies.components.models import (
+    MarketContext,
+    MarketData,
+    Position,
+    TradingContext,
+    build_market_context,
+)
 
 
 class TestComponentAdapterVolSizing:
@@ -149,6 +155,276 @@ class TestComponentAdapterVolSizing:
         fraction, reason = adapter._resolve_entry_fraction(signal, atr=0.0, close=100.0)
         assert fraction == pytest.approx(0.25, rel=1e-9)
         assert "regime_size:0.25" in reason
+
+    def test_entry_fallback_config_reads_for_backtest_adapter(self):
+        """Backtest adapter should load the same entry fallback used by live tasks."""
+        adapter = self._make_adapter(
+            extra_config={
+                "entry_fallback": {
+                    "enabled": True,
+                    "class": "RegimeLongV2EntryStrategy",
+                    "on_non_buy": True,
+                    "max_hold_confidence": 0.6,
+                    "params": {"position_size": 0.12},
+                }
+            }
+        )
+
+        assert adapter._entry_fallback_enabled is True
+        assert adapter._entry_fallback_on_non_buy is True
+        assert adapter._entry_fallback_max_hold_confidence == pytest.approx(0.6)
+        assert adapter._fallback_entry_strategy is not None
+
+    def test_bear_moderate_exit_partially_de_risks_once(self):
+        """BEAR_MODERATE should reduce exposure once instead of full cash-out."""
+        adapter = self._make_adapter(
+            extra_config={
+                "exit_on_bear_regime": True,
+                "protective_partial_exit_enabled": True,
+                "protective_partial_exit_fraction": 0.5,
+                "protective_partial_regimes": ["BEAR_MODERATE"],
+            }
+        )
+        adapter.current_position = Position(
+            symbol="BTC",
+            entry_price=100.0,
+            quantity=1.0,
+            strategy="llm_direction",
+            market="spot",
+            timestamp=1,
+        )
+        context = MarketContext(
+            trend="BEAR",
+            regime="BEAR_MODERATE",
+            volatility_score=0.01,
+            is_extreme_volatility=False,
+            adx=20.0,
+        )
+
+        market_data = MarketData(
+            symbol="BTC", close=99.0, timestamp=1, mfi=40.0, adx=20.0, rsi=45.0, ema_200=90.0
+        )
+
+        first = adapter._check_bear_regime_exit_action(context, market_data, is_long=True)
+        second = adapter._check_bear_regime_exit_action(context, market_data, is_long=True)
+
+        assert first["action"] == "sell"
+        assert first["fraction"] == pytest.approx(0.5)
+        assert adapter.current_position.quantity == pytest.approx(0.5)
+        assert second is None
+
+    def test_bear_strong_exit_remains_full_exit(self):
+        """BEAR_STRONG should still fully close the position."""
+        adapter = self._make_adapter(
+            extra_config={
+                "exit_on_bear_regime": True,
+                "protective_partial_exit_enabled": True,
+                "protective_partial_exit_fraction": 0.5,
+                "protective_partial_regimes": ["BEAR_MODERATE"],
+            }
+        )
+        adapter.current_position = Position(
+            symbol="BTC",
+            entry_price=100.0,
+            quantity=1.0,
+            strategy="llm_direction",
+            market="spot",
+            timestamp=1,
+        )
+        context = MarketContext(
+            trend="BEAR",
+            regime="BEAR_STRONG",
+            volatility_score=0.01,
+            is_extreme_volatility=False,
+            adx=30.0,
+        )
+
+        market_data = MarketData(
+            symbol="BTC", close=99.0, timestamp=1, mfi=30.0, adx=30.0, rsi=40.0, ema_200=90.0
+        )
+
+        action = adapter._check_bear_regime_exit_action(context, market_data, is_long=True)
+
+        assert action["action"] == "sell"
+        assert action["fraction"] == pytest.approx(1.0)
+        assert adapter.current_position is None
+
+    def test_trend_hold_guard_suppresses_bear_moderate_exit_above_ema200(self):
+        """Trend hold guard should avoid weak bear cash-outs above EMA200."""
+        adapter = self._make_adapter(
+            extra_config={
+                "exit_on_bear_regime": True,
+                "trend_hold_exit_guard_enabled": True,
+                "trend_hold_guard_require_above_ema200": True,
+            }
+        )
+        adapter.current_position = Position(
+            symbol="BTC",
+            entry_price=100.0,
+            quantity=1.0,
+            strategy="llm_direction",
+            market="spot",
+            timestamp=1,
+        )
+        context = MarketContext(
+            trend="BEAR",
+            regime="BEAR_MODERATE",
+            volatility_score=0.01,
+            is_extreme_volatility=False,
+            adx=20.0,
+        )
+        market_data = MarketData(
+            symbol="BTC", close=105.0, timestamp=1, mfi=35.0, adx=20.0, rsi=45.0, ema_200=100.0
+        )
+
+        action = adapter._check_bear_regime_exit_action(context, market_data, is_long=True)
+
+        assert action is None
+        assert adapter.current_position.quantity == pytest.approx(1.0)
+
+    def test_trend_hold_guard_does_not_suppress_bear_strong_exit(self):
+        """Hard bear regime exits should remain active."""
+        adapter = self._make_adapter(
+            extra_config={
+                "exit_on_bear_regime": True,
+                "trend_hold_exit_guard_enabled": True,
+                "trend_hold_guard_require_above_ema200": True,
+            }
+        )
+        adapter.current_position = Position(
+            symbol="BTC",
+            entry_price=100.0,
+            quantity=1.0,
+            strategy="llm_direction",
+            market="spot",
+            timestamp=1,
+        )
+        context = MarketContext(
+            trend="BEAR",
+            regime="BEAR_STRONG",
+            volatility_score=0.01,
+            is_extreme_volatility=False,
+            adx=30.0,
+        )
+        market_data = MarketData(
+            symbol="BTC", close=105.0, timestamp=1, mfi=30.0, adx=30.0, rsi=40.0, ema_200=100.0
+        )
+
+        action = adapter._check_bear_regime_exit_action(context, market_data, is_long=True)
+
+        assert action is not None
+        assert action["fraction"] == pytest.approx(1.0)
+
+    def test_trend_floor_signal_uses_configured_floor_size(self):
+        """Trend floor entries should use their own smaller sizing."""
+        adapter = self._make_adapter(
+            extra_config={
+                "trend_floor_entry_enabled": True,
+                "trend_floor_position_size": 0.08,
+                "trend_floor_min_adx": 12.0,
+                "trend_floor_min_mfi": 45.0,
+            }
+        )
+        ctx = TradingContext(
+            symbol="BTC",
+            timestamp=1,
+            market=MarketData(
+                symbol="BTC",
+                close=105.0,
+                mfi=55.0,
+                adx=20.0,
+                rsi=55.0,
+                timestamp=1,
+                ema_20=100.0,
+                ema_120=95.0,
+            ),
+            regime=MarketContext(
+                trend="BULL",
+                regime="SIDEWAYS_UP",
+                volatility_score=0.01,
+                is_extreme_volatility=False,
+                adx=20.0,
+            ),
+            positions={},
+        )
+
+        signal = adapter._maybe_build_trend_floor_signal(ctx, "LLM predicted HOLD")
+        fraction, reason = adapter._resolve_entry_fraction(signal, atr=0.0, close=105.0)
+
+        assert signal is not None
+        assert signal.reason.startswith("TrendFloor entry")
+        assert fraction == pytest.approx(0.08)
+        assert "trend_floor_size:0.08" in reason
+
+    def test_trend_floor_signal_blocks_until_required_ema_is_ready(self):
+        """Trend floor readiness guard should block NaN EMA warmup periods."""
+        adapter = self._make_adapter(
+            extra_config={
+                "trend_floor_entry_enabled": True,
+                "trend_floor_position_size": 0.08,
+                "trend_floor_min_adx": 12.0,
+                "trend_floor_min_mfi": 45.0,
+                "trend_floor_require_ema120_ready": True,
+            }
+        )
+        ctx = TradingContext(
+            symbol="BTC",
+            timestamp=1,
+            market=MarketData(
+                symbol="BTC",
+                close=105.0,
+                mfi=55.0,
+                adx=20.0,
+                rsi=55.0,
+                timestamp=1,
+                ema_20=100.0,
+                ema_120=float("nan"),
+            ),
+            regime=MarketContext(
+                trend="BULL",
+                regime="SIDEWAYS_UP",
+                volatility_score=0.01,
+                is_extreme_volatility=False,
+                adx=20.0,
+            ),
+            positions={},
+        )
+
+        signal = adapter._maybe_build_trend_floor_signal(ctx, "LLM predicted HOLD")
+
+        assert signal is None
+
+    def test_entry_fallback_applies_to_low_confidence_hold(self):
+        """A low-confidence HOLD reason should be eligible for configured fallback."""
+        adapter = self._make_adapter(
+            extra_config={
+                "entry_fallback": {
+                    "enabled": True,
+                    "class": "RegimeLongV2EntryStrategy",
+                    "on_non_buy": True,
+                    "max_hold_confidence": 0.6,
+                }
+            }
+        )
+
+        assert adapter._should_apply_entry_fallback(
+            "LLM predicted HOLD (conf=0.50): mixed signals"
+        )
+
+    def test_backtest_force_fallback_caches_offline_hold_decision(self):
+        """Backtests can avoid live LLM calls and route into fallback deterministically."""
+        adapter = self._make_adapter(extra_config={"backtest_force_entry_fallback": True})
+        context = build_market_context(mfi=60.0, adx=25.0, atr=1.0, close=100.0)
+        market_data = MagicMock()
+        market_data.symbol = "BTC"
+        market_data.timestamp = 123
+        ctx = adapter._build_trading_context(market_data, context, with_position=False)
+
+        assert adapter._cache_forced_fallback_decision(ctx) is True
+        decision = adapter.entry_strategy.get_last_decision("BTC")
+        assert decision is not None
+        assert decision.provider == "offline"
+        assert decision.reason == "Backtest forced fallback"
 
 
 class TestCompositeTaskVolSizingConfig:

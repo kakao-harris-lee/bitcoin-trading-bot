@@ -153,12 +153,44 @@
       ],
       "timeframe": "minute240",
       "warmup_interval": "4h",
-      "position_pct": 0.04,
-      "position_size": 0.1,
-      "use_signal_quantity": true,
+      "position_pct": 0.05,
+      "position_size": 0.05,
+      "core_hold_pct": 0.85,
+      "core_exit_on_ema200": false,
+      "core_exit_requires_confirmed_trend": true,
+      "core_reentry_on_ema200": true,
+      "use_signal_quantity": false,
+      "allow_scale_in_entries": true,
       "regime_version": "v2",
-      "stop_loss_cooldown": 16,
+      "stop_loss_cooldown": 2,
       "exit_on_bear_regime": true,
+      "core_drawdown_exit_pct": 20.0,
+      "core_drawdown_reentry_pct": 5.0,
+      "protective_partial_exit_enabled": false,
+      "protective_partial_exit_fraction": 0.5,
+      "protective_partial_regimes": [
+        "BEAR_MODERATE"
+      ],
+      "trend_floor_entry_enabled": true,
+      "trend_floor_position_size": 0.08,
+      "trend_floor_regimes": [
+        "BULL_STRONG",
+        "BULL_MODERATE",
+        "SIDEWAYS_UP"
+      ],
+      "trend_floor_min_adx": 14.0,
+      "trend_floor_min_mfi": 56.0,
+      "trend_floor_require_above_ema20": true,
+      "trend_floor_require_ema120_ready": true,
+      "trend_floor_require_ema20_above_ema120": false,
+      "trend_hold_exit_guard_enabled": true,
+      "trend_hold_guard_regimes": [
+        "BULL_STRONG",
+        "BULL_MODERATE",
+        "SIDEWAYS_UP",
+        "BEAR_MODERATE"
+      ],
+      "trend_hold_guard_require_above_ema200": true,
       "mtf_enabled": true,
       "mtf_candles_per_period": 4,
       "bbw_block_threshold": 25,
@@ -174,14 +206,14 @@
       "drawdown_exit_pct": 22.0,
       "drawdown_leverage_reduction": 0.8,
       "drawdown_partial_exit_fraction": 0.35,
-      "context_max_symbol_exposure_pct": 0.25,
+      "context_max_symbol_exposure_pct": 0.2,
       "context_max_total_exposure_pct": 1.0,
       "period_risk_enabled": false,
       "volatility_sizing": {
         "enabled": true,
         "target_vol": 0.04,
-        "min_scale": 0.5,
-        "max_scale": 1.0
+        "min_scale": 0.75,
+        "max_scale": 1.25
       },
       "regime_thresholds": {
         "mfi_bull_strong": 56.07544851901439,
@@ -196,7 +228,7 @@
         "class": "LLMDecisionEntryStrategy",
         "params": {
           "market": "spot",
-          "position_size": 0.25,
+          "position_size": 0.05,
           "provider": "ollama",
           "model": "llama3.1:8b",
           "api_base_url": "http://127.0.0.1:11434",
@@ -222,7 +254,7 @@
         }
       },
       "entry_fallback": {
-        "enabled": true,
+        "enabled": false,
         "class": "RegimeLongV2EntryStrategy",
         "on_provider_error": true,
         "on_non_buy": true,
@@ -230,7 +262,7 @@
         "max_hold_confidence": 0.6,
         "params": {
           "market": "spot",
-          "position_size": 0.25,
+          "position_size": 0.05,
           "allowed_regimes": [
             "BULL_STRONG",
             "BULL_MODERATE",
@@ -282,9 +314,15 @@
             "SIDEWAYS_UP"
           ],
           "regime_params": {
-            "cooldown_bars": 8,
+            "cooldown_bars": 2,
+            "exit_on_bear_regime": true,
+            "bear_regimes": [
+              "BEAR_STRONG",
+              "BEAR_MODERATE"
+            ],
             "peak_drawdown_exit_pct": 0.15,
             "min_hold_bars": 2,
+            "ema_slow_exit_enabled": false,
             "ema_slow_consecutive_bars": 3,
             "ema_slow_grace_seconds_after_entry": 43200,
             "ema_slow_min_drawdown_from_hwm_pct": 0.025,
@@ -304,12 +342,44 @@
       ],
       "timeframe": "minute240",
       "warmup_interval": "4h",
-      "position_pct": 0.04,
-      "position_size": 0.1,
+      "position_pct": 0.05,
+      "position_size": 0.05,
+      "core_hold_pct": 0.85,
+      "core_exit_on_ema200": false,
+      "core_exit_requires_confirmed_trend": true,
+      "core_reentry_on_ema200": true,
       "use_signal_quantity": false,
+      "allow_scale_in_entries": true,
       "regime_version": "v2",
       "stop_loss_cooldown": 0,
       "exit_on_bear_regime": true,
+      "core_drawdown_exit_pct": 20.0,
+      "core_drawdown_reentry_pct": 5.0,
+      "protective_partial_exit_enabled": false,
+      "protective_partial_exit_fraction": 0.5,
+      "protective_partial_regimes": [
+        "BEAR_MODERATE"
+      ],
+      "trend_floor_entry_enabled": true,
+      "trend_floor_position_size": 0.08,
+      "trend_floor_regimes": [
+        "BULL_STRONG",
+        "BULL_MODERATE",
+        "SIDEWAYS_UP"
+      ],
+      "trend_floor_min_adx": 12.0,
+      "trend_floor_min_mfi": 45.0,
+      "trend_floor_require_above_ema20": true,
+      "trend_floor_require_ema120_ready": true,
+      "trend_floor_require_ema20_above_ema120": false,
+      "trend_hold_exit_guard_enabled": true,
+      "trend_hold_guard_regimes": [
+        "BULL_STRONG",
+        "BULL_MODERATE",
+        "SIDEWAYS_UP",
+        "BEAR_MODERATE"
+      ],
+      "trend_hold_guard_require_above_ema200": true,
       "mtf_enabled": true,
       "mtf_candles_per_period": 4,
       "bbw_block_threshold": 25,
@@ -325,14 +395,14 @@
       "drawdown_exit_pct": 22.0,
       "drawdown_leverage_reduction": 0.8,
       "drawdown_partial_exit_fraction": 0.35,
-      "context_max_symbol_exposure_pct": 0.25,
+      "context_max_symbol_exposure_pct": 0.2,
       "context_max_total_exposure_pct": 1.0,
       "period_risk_enabled": false,
       "volatility_sizing": {
         "enabled": true,
         "target_vol": 0.04,
-        "min_scale": 0.5,
-        "max_scale": 1.0
+        "min_scale": 0.75,
+        "max_scale": 1.25
       },
       "regime_thresholds": {},
       "entry": {
@@ -365,7 +435,7 @@
         }
       },
       "entry_fallback": {
-        "enabled": true,
+        "enabled": false,
         "class": "RegimeLongV2EntryStrategy",
         "on_provider_error": true,
         "on_non_buy": true,
@@ -413,9 +483,15 @@
           "trailing_distance": 3.0,
           "ema_deadcross_exit_enabled": false,
           "regime_params": {
-            "cooldown_bars": 8,
+            "cooldown_bars": 2,
+            "exit_on_bear_regime": true,
+            "bear_regimes": [
+              "BEAR_STRONG",
+              "BEAR_MODERATE"
+            ],
             "peak_drawdown_exit_pct": 0.15,
             "min_hold_bars": 3,
+            "ema_slow_exit_enabled": false,
             "ema_slow_consecutive_bars": 3,
             "ema_slow_grace_seconds_after_entry": 43200,
             "ema_slow_min_drawdown_from_hwm_pct": 0.025,

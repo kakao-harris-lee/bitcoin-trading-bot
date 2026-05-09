@@ -267,6 +267,58 @@ class TestSignalsEndpoint:
             assert data['signals'][0]['indicators']['mfi'] == 55.0
             assert data['signals'][0]['acted'] is False
 
+    def test_signals_endpoint_marks_scale_in_fill_as_buy(self, client):
+        """Signals should display scale-in fills as BUY instead of POSITION_HOLD."""
+        decision_ts = datetime.now() - timedelta(minutes=2)
+        order_ts = decision_ts + timedelta(seconds=30)
+        fill_ts = decision_ts + timedelta(seconds=45)
+        sample_decisions = [
+            {
+                'timestamp': decision_ts.isoformat(),
+                'exchange': 'binance',
+                'symbol': 'BTC',
+                'market': 'spot',
+                'strategy': 'llm_direction_btc',
+                'decision': 'HOLD',
+                'reason': 'Position already open',
+                'regime': 'BULL_STRONG',
+                'position': {'active': True},
+                'indicators': {'price': 95000.0, 'mfi': 55.0, 'adx': 30.0},
+            }
+        ]
+        sample_orders = [
+            {
+                'timestamp': order_ts.isoformat(),
+                'symbol': 'BTC',
+                'strategy': 'llm_direction_btc',
+                'action': 'BUY',
+                'market': 'spot',
+            }
+        ]
+        sample_trades = [
+            {
+                'timestamp': fill_ts.isoformat(),
+                'symbol': 'BTC',
+                'strategy': 'llm_direction_btc',
+                'action': 'BUY',
+            }
+        ]
+
+        with patch('web.app.metrics_service') as mock_service, \
+             patch('web.app.read_redis_orders', return_value=sample_orders), \
+             patch('web.app.read_redis_trades', return_value=sample_trades):
+            mock_service.get_recent_decisions.return_value = sample_decisions
+
+            response = client.get('/api/signals?hours=24&limit=50')
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['signals'][0]['decision'] == 'BUY'
+            assert data['signals'][0]['action'] == 'buy'
+            assert data['signals'][0]['raw_decision'] == 'HOLD'
+            assert data['signals'][0]['entry_impact'] == 'SCALE_IN_FILLED'
+            assert data['signals'][0]['acted'] is True
+
     def test_signals_endpoint_applies_action_filter(self, client):
         """Action filter should apply to decision-derived actions."""
         sample_decisions = [

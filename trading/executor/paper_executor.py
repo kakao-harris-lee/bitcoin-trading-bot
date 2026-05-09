@@ -463,6 +463,7 @@ class PaperExecutor:
             symbol=order["symbol"],
             market="spot",
             paper=True,
+            strategy_name=order.get("strategy"),
         )
 
     def _apply_slippage(self, price: float, side: str) -> float:

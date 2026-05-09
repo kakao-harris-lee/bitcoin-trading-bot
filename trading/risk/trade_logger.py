@@ -32,6 +32,7 @@ class TradeLogger:
         self.db_path = db_path
         self.strategy_id: Optional[int] = None
         self.strategy_name = strategy_name or "multi_exchange"
+        self._strategy_id_cache: dict[str, int] = {}
         # Thread-local storage for connections
         self._local = threading.local()
 
@@ -117,8 +118,15 @@ class TradeLogger:
 
             conn.commit()
 
-    def _ensure_strategy_exists(self):
+    def _ensure_strategy_exists(self, strategy_name: Optional[str] = None) -> int:
         """Ensure strategy exists in DB, create if not."""
+        resolved_name = strategy_name or self.strategy_name
+        if resolved_name in self._strategy_id_cache:
+            strategy_id = self._strategy_id_cache[resolved_name]
+            if strategy_name is None:
+                self.strategy_id = strategy_id
+            return strategy_id
+
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
@@ -126,12 +134,12 @@ class TradeLogger:
             cursor.execute("""
                 SELECT strategy_id FROM strategies
                 WHERE name = ?
-            """, (self.strategy_name,))
+            """, (resolved_name,))
 
             result = cursor.fetchone()
 
             if result:
-                self.strategy_id = result[0]
+                strategy_id = result[0]
             else:
                 # Create strategy
                 cursor.execute("""
@@ -139,17 +147,22 @@ class TradeLogger:
                     VALUES (?, ?, ?, ?)
                 """, (
                     'paper',
-                    self.strategy_name,
-                    f'Paper trading - {self.strategy_name}',
+                    resolved_name,
+                    f'Paper trading - {resolved_name}',
                     'realtime'
                 ))
-                self.strategy_id = cursor.lastrowid
+                strategy_id = cursor.lastrowid
                 conn.commit()
+            self._strategy_id_cache[resolved_name] = strategy_id
+            if strategy_name is None:
+                self.strategy_id = strategy_id
+            return strategy_id
 
     def log_trade(self, action: str, price: float, volume: float,
                   profit: Optional[float] = None, profit_pct: Optional[float] = None,
                   exchange: str = 'binance', symbol: str = 'BTC',
-                  market: str = 'spot', paper: bool = True):
+                  market: str = 'spot', paper: bool = True,
+                  strategy_name: Optional[str] = None):
         """
         거래 내역 기록
 
@@ -163,17 +176,19 @@ class TradeLogger:
             symbol: Trading symbol ('BTC', 'ETH', etc.)
             market: Market type ('spot')
             paper: Whether this is paper trading
+            strategy_name: Optional per-trade strategy override.
         """
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
+                strategy_id = self._ensure_strategy_exists(strategy_name)
 
                 cursor.execute("""
                     INSERT INTO trades
                     (strategy_id, symbol, action, price, volume, profit, profit_pct, exchange, market, paper, timestamp)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    self.strategy_id,
+                    strategy_id,
                     symbol,
                     action.upper(),
                     price,

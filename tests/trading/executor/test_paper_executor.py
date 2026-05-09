@@ -23,6 +23,28 @@ def mock_redis():
     return redis
 
 
+def test_log_trade_to_db_preserves_order_strategy(mock_redis):
+    executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
+    executor.trade_logger = MagicMock()
+
+    executor._log_trade_to_db_sync(
+        order={
+            "symbol": "BTC",
+            "side": "buy",
+            "market": "spot",
+            "strategy": "llm_direction_btc",
+        },
+        fill={"filled_price": 43000.0, "filled_qty": 0.01},
+        profit_data=None,
+    )
+
+    executor.trade_logger.log_trade.assert_called_once()
+    assert (
+        executor.trade_logger.log_trade.call_args.kwargs["strategy_name"]
+        == "llm_direction_btc"
+    )
+
+
 @pytest.mark.asyncio
 async def test_paper_executor_simulates_spot_buy(mock_redis):
     executor = PaperExecutor(redis=mock_redis, config={"initial_balance": 10000})
